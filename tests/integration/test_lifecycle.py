@@ -59,6 +59,25 @@ def test_add_task_service_creates_task(ha):
     )
 
 
+def test_add_fixed_task_with_naive_anchor_does_not_crash(ha):
+    # Mirrors what the panel's datetime-local input sends (no timezone). The
+    # backend must normalize it so recurrence math doesn't raise.
+    before = int(get_state(ha, "todo.home_keeper_tasks")["state"])
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "Test water the plants",
+            "recurrence_type": "fixed",
+            "interval": 1,
+            "freq": "DAILY",
+            "anchor": "2026-01-01T07:30",
+        },
+    )
+    poll_state(ha, "todo.home_keeper_tasks", lambda s: int(s) >= before + 1)
+
+
 def test_list_tasks_service_returns_response(ha):
     resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
     # HA wraps service responses under "service_response".

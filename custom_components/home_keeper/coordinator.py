@@ -47,6 +47,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         return self.store.get_tasks()
 
+    def device_attached_task_ids(self) -> list[str]:
+        """Task ids that are attached to a device (so get per-task entities)."""
+        return [tid for tid, task in self.data.items() if task.get("device_id")]
+
     def device_info_for_task(self, task: dict[str, Any]) -> DeviceInfo:
         """Return the DeviceInfo a per-task entity should use.
 

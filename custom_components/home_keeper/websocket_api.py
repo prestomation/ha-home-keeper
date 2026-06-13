@@ -86,6 +86,8 @@ async def ws_update_task(
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
+    existing = coord.store.get_task(msg["task_id"])
+    old_device = existing.get("device_id") if existing else None
     try:
         task = await coord.store.update_task(msg["task_id"], msg["updates"])
     except KeyError:
@@ -94,8 +96,12 @@ async def ws_update_task(
     except TaskValidationError as err:
         connection.send_error(msg["id"], "invalid_task", str(err))
         return
-    # device_id changes affect which entities exist -> reload to re-evaluate.
-    await hass.config_entries.async_reload(coord.entry.entry_id)
+    # Only a device_id change alters which per-task entities exist; reload only
+    # then, otherwise a coordinator refresh is enough.
+    if task.get("device_id") != old_device:
+        await hass.config_entries.async_reload(coord.entry.entry_id)
+    else:
+        await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
 
 

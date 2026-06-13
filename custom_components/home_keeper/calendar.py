@@ -61,15 +61,41 @@ class HomeKeeperCalendarEntity(
 
     @property
     def event(self) -> CalendarEvent | None:
-        """Return the next upcoming event across all tasks."""
+        """Return the next upcoming event across all tasks.
+
+        Computed directly (one occurrence per task) rather than by expanding a
+        large window, so a daily fixed task doesn't generate hundreds of events
+        just to find the soonest one.
+        """
         now = dt_util.now()
-        upcoming: list[CalendarEvent] = []
-        # Look ahead a generous window for the "next" event.
-        events = self._collect_events(now, now + timedelta(days=370))
-        upcoming = [e for e in events if e.end > now]
-        if not upcoming:
+        best: tuple[datetime, dict] | None = None
+        for task in self.coordinator.data.values():
+            if not task.get("enabled", True):
+                continue
+            start = self._next_start(task, now)
+            if start is None:
+                continue
+            if best is None or start < best[0]:
+                best = (start, task)
+        if best is None:
             return None
-        return min(upcoming, key=lambda e: e.start)
+        return _event_for(best[1], best[0])
+
+    def _next_start(self, task: dict, now: datetime) -> datetime | None:
+        """Soonest upcoming occurrence start for a single task, or None."""
+        if task.get("recurrence_type") == REC_FIXED:
+            anchor = dt_util.parse_datetime(task["anchor"])
+            if anchor is None:
+                return None
+            return recurrence.next_fixed_occurrence(
+                anchor, task["freq"], int(task["interval"]), after=now
+            )
+        due_iso = task.get("next_due")
+        due = dt_util.parse_datetime(due_iso) if due_iso else None
+        # Only treat a floating task as "upcoming" while its event hasn't ended.
+        if due and due + EVENT_DURATION > now:
+            return due
+        return None
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime, end_date: datetime

@@ -75,13 +75,19 @@ def normalize_fields(data: dict) -> dict:
         if freq not in FREQS:
             raise TaskValidationError(f"invalid freq: {freq!r}")
         anchor = _require(data, "anchor")
-        # Validate parseable ISO datetime; store as the original ISO string.
         try:
-            datetime.fromisoformat(anchor)
+            parsed_anchor = datetime.fromisoformat(anchor)
         except (TypeError, ValueError) as err:
             raise TaskValidationError(f"invalid anchor datetime: {anchor!r}") from err
+        # The panel's <input type="datetime-local"> yields a naive value (no
+        # offset). The recurrence engine compares the anchor against an aware
+        # ``now``, so a naive anchor would raise a TypeError. Normalize naive
+        # anchors to the local timezone here (stdlib only, keeping this module
+        # HA-free) and store the offset-qualified ISO string.
+        if parsed_anchor.tzinfo is None:
+            parsed_anchor = parsed_anchor.astimezone()
         fields["freq"] = freq
-        fields["anchor"] = anchor
+        fields["anchor"] = parsed_anchor.isoformat()
 
     return fields
 

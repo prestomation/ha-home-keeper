@@ -24,12 +24,10 @@ async def async_setup_entry(
 ) -> None:
     """Create a mark-done button for each device-attached task."""
     coordinator: HomeKeeperCoordinator = entry.runtime_data
-    entities = [
+    async_add_entities(
         HomeKeeperMarkDoneButton(coordinator, task_id)
-        for task_id, task in coordinator.data.items()
-        if task.get("device_id")
-    ]
-    async_add_entities(entities)
+        for task_id in coordinator.device_attached_task_ids()
+    )
 
 
 class HomeKeeperMarkDoneButton(

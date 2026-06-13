@@ -107,13 +107,20 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         data = dict(call.data)
         task_id = data.pop("task_id")
+        existing = coord.store.get_task(task_id)
+        old_device = existing.get("device_id") if existing else None
         try:
-            await coord.store.update_task(task_id, data)
+            updated = await coord.store.update_task(task_id, data)
         except KeyError:
             raise ServiceValidationError(f"Task not found: {task_id}") from None
         except TaskValidationError as err:
             raise ServiceValidationError(str(err)) from err
-        await hass.config_entries.async_reload(coord.entry.entry_id)
+        # Only a device_id change alters which per-task entities exist, so only
+        # then do we pay for a full entry reload; otherwise a refresh suffices.
+        if updated.get("device_id") != old_device:
+            await hass.config_entries.async_reload(coord.entry.entry_id)
+        else:
+            await coord.async_request_refresh()
 
     async def handle_delete_task(call: ServiceCall) -> None:
         coord = _coordinator()

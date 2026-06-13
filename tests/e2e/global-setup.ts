@@ -63,7 +63,9 @@ async function ensureOnboarded(): Promise<string> {
     }),
   });
 
-  if (r.status === 403) {
+  if (r.status === 403 || r.status === 404) {
+    // Onboarding already completed (403), or the endpoint is gone post-onboarding
+    // (404 on some HA versions / leftover local state) — just log in instead.
     let lf = await fetch(`${HA_URL}/auth/login_flow`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

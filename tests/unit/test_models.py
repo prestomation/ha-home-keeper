@@ -35,6 +35,24 @@ def test_build_fixed_task_requires_anchor_and_freq():
     assert task["next_due"] == datetime(2026, 6, 14, 8, tzinfo=TZ).isoformat()
 
 
+def test_build_fixed_task_normalizes_naive_anchor():
+    # The panel's datetime-local input has no timezone; build_task must make the
+    # anchor tz-aware so recurrence math doesn't compare naive vs aware datetimes.
+    task = m.build_task(
+        {
+            "name": "Medicine",
+            "recurrence_type": "fixed",
+            "interval": 1,
+            "freq": "DAILY",
+            "anchor": "2026-01-01T08:00",  # naive
+        },
+        now=NOW,
+    )
+    assert datetime.fromisoformat(task["anchor"]).tzinfo is not None
+    # next_due must be computable (no crash) and be a parseable aware datetime.
+    assert datetime.fromisoformat(task["next_due"]).tzinfo is not None
+
+
 def test_build_task_rejects_missing_name():
     with pytest.raises(m.TaskValidationError):
         m.build_task({"recurrence_type": "floating", "interval": 1, "unit": "days"}, now=NOW)
