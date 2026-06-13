@@ -1,7 +1,9 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
-import type { Freq, Hass, PanelInfo, Task, Unit } from './types';
+import type { Asset, AssetKind, Freq, Hass, PanelInfo, Task, Unit } from './types';
 import {
+  areaName,
+  assetSummary,
   deviceName,
   dueLabel,
   escapeHTML,
@@ -61,6 +63,16 @@ const STYLES = `
   .hk-row > div { flex: 1; }
   .hk-actions { display: flex; gap: 8px; margin-top: 16px; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 12px; }
+  .hk-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .hk-tab {
+    background: none; border: none; cursor: pointer; padding: 8px 4px;
+    font-size: 0.95rem; color: var(--secondary-text-color);
+    border-bottom: 2px solid transparent;
+  }
+  .hk-tab.active { color: var(--primary-text-color); border-bottom-color: var(--primary-color); font-weight: 600; }
+  .badge.kind { background: var(--primary-color); color: var(--text-primary-color, #fff); }
+  .hk-fieldset-title { font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
+    text-transform: uppercase; letter-spacing: 0.04em; margin: 18px 0 4px; }
 `;
 
 interface EditState {
@@ -68,12 +80,20 @@ interface EditState {
   task: Partial<Task> | null; // null when not editing
 }
 
+interface AssetEditState {
+  open: boolean;
+  asset: Partial<Asset> | null; // null when not editing
+}
+
 export class HomeKeeperPanel extends HTMLElement {
   private _hass?: Hass;
   public panel?: PanelInfo;
   public narrow = false;
   private _tasks: Task[] = [];
+  private _assets: Asset[] = [];
   private _edit: EditState = { open: false, task: null };
+  private _assetEdit: AssetEditState = { open: false, asset: null };
+  private _view: 'tasks' | 'appliances' = 'tasks';
   private _loaded = false;
 
   set hass(hass: Hass) {
@@ -96,12 +116,17 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _refresh(): Promise<void> {
     if (!this._hass) return;
     try {
-      this._tasks = await api.getTasks(this._hass);
+      const [tasks, assets] = await Promise.all([
+        api.getTasks(this._hass),
+        api.getAssets(this._hass),
+      ]);
+      this._tasks = tasks;
+      this._assets = assets;
       this._loaded = true;
     } catch (err) {
-      // Leave list as-is; surface nothing fatal for the prototype.
+      // Leave lists as-is; surface nothing fatal for the prototype.
       // eslint-disable-next-line no-console
-      console.error('home-keeper: failed to load tasks', err);
+      console.error('home-keeper: failed to load data', err);
     }
     this._render();
   }
@@ -169,18 +194,74 @@ export class HomeKeeperPanel extends HTMLElement {
     await this._refresh();
   }
 
+  // ── appliance (asset) helpers ───────────────────────────────────────────────
+  private _openCreateAsset(): void {
+    this._assetEdit = { open: true, asset: { kind: 'virtual' } };
+    this._render();
+  }
+  private _openEditAsset(asset: Asset): void {
+    this._assetEdit = { open: true, asset: { ...asset } };
+    this._render();
+  }
+  private _closeAssetForm(): void {
+    this._assetEdit = { open: false, asset: null };
+    this._render();
+  }
+
+  private async _submitAssetForm(): Promise<void> {
+    if (!this._hass || !this._assetEdit.asset) return;
+    const root = this.shadowRoot!;
+    const val = (id: string): string =>
+      (root.getElementById(id) as HTMLInputElement | HTMLSelectElement | null)?.value ?? '';
+    const kind = val('a-kind') as AssetKind;
+    const payload: Partial<Asset> = {
+      kind,
+      area_id: val('a-area') || null,
+      purchase_date: val('a-purchase') || null,
+      install_date: val('a-install') || null,
+      warranty_expiry: val('a-warranty') || null,
+      warranty_provider: val('a-warranty-provider'),
+      vendor: val('a-vendor'),
+      cost: val('a-cost') ? Number(val('a-cost')) : null,
+      manual_url: val('a-manual'),
+      part_numbers: val('a-parts'),
+      notes: val('a-notes'),
+    };
+    if (kind === 'virtual') {
+      payload.name = val('a-name');
+      payload.manufacturer = val('a-manufacturer');
+      payload.model = val('a-model');
+      payload.serial_number = val('a-serial');
+    } else {
+      payload.device_id = val('a-device') || null;
+    }
+    try {
+      if (this._assetEdit.asset.id) {
+        await api.updateAsset(this._hass, this._assetEdit.asset.id, payload);
+      } else {
+        await api.addAsset(this._hass, payload);
+      }
+      this._closeAssetForm();
+      await this._refresh();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('home-keeper: asset save failed', err);
+      const msg = root.getElementById('a-error');
+      if (msg) msg.textContent = String((err as { message?: string })?.message || err);
+    }
+  }
+
+  private async _deleteAsset(asset: Asset): Promise<void> {
+    if (!this._hass) return;
+    await api.deleteAsset(this._hass, asset.id);
+    await this._refresh();
+  }
+
   // ── rendering ───────────────────────────────────────────────────────────────
   private _render(): void {
     if (!this.shadowRoot) return;
-    const tasks = [...this._tasks].sort((a, b) => {
-      const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
-      const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
-      return ad - bd;
-    });
-
-    const list = tasks.length
-      ? tasks.map((t) => this._taskCard(t)).join('')
-      : `<div class="hk-empty">No tasks yet. Click <b>Add task</b> to create your first maintenance reminder.</div>`;
+    const onTasks = this._view === 'tasks';
+    const addLabel = onTasks ? '+ Add task' : '+ Add appliance';
 
     this.shadowRoot.innerHTML = `
       <style>${STYLES}</style>
@@ -190,14 +271,39 @@ export class HomeKeeperPanel extends HTMLElement {
             <div class="hk-title">Home Keeper</div>
             <div class="hk-sub">Home maintenance &amp; chores</div>
           </div>
-          <button class="hk-btn" id="add-btn">+ Add task</button>
+          <button class="hk-btn" id="add-btn">${addLabel}</button>
         </div>
-        ${this._edit.open ? this._formHTML() : ''}
-        <div id="hk-list">${list}</div>
+        <div class="hk-tabs">
+          <button class="hk-tab ${onTasks ? 'active' : ''}" id="tab-tasks">Tasks</button>
+          <button class="hk-tab ${onTasks ? '' : 'active'}" id="tab-appliances">Appliances</button>
+        </div>
+        ${onTasks ? this._tasksView() : this._appliancesView()}
         <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
       </div>
     `;
     this._wire();
+  }
+
+  private _tasksView(): string {
+    const tasks = [...this._tasks].sort((a, b) => {
+      const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
+      const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
+      return ad - bd;
+    });
+    const list = tasks.length
+      ? tasks.map((t) => this._taskCard(t)).join('')
+      : `<div class="hk-empty">No tasks yet. Click <b>Add task</b> to create your first maintenance reminder.</div>`;
+    return `${this._edit.open ? this._formHTML() : ''}<div id="hk-list">${list}</div>`;
+  }
+
+  private _appliancesView(): string {
+    const assets = [...this._assets].sort((a, b) =>
+      (a.name || '').localeCompare(b.name || ''),
+    );
+    const list = assets.length
+      ? assets.map((x) => this._assetCard(x)).join('')
+      : `<div class="hk-empty">No appliances yet. Add one to create a device page your tasks (and batteries) can share — fridge, furnace, water heater…</div>`;
+    return `${this._assetEdit.open ? this._assetFormHTML() : ''}<div id="hk-asset-list">${list}</div>`;
   }
 
   private _taskCard(t: Task): string {
@@ -294,9 +400,150 @@ export class HomeKeeperPanel extends HTMLElement {
       </div>`;
   }
 
+  private _assetCard(x: Asset): string {
+    const devLabel =
+      x.kind === 'virtual'
+        ? `<span class="badge kind">Virtual device</span>`
+        : `<span class="badge device">${escapeHTML(deviceName(this._hass?.devices, x.device_id))}</span>`;
+    const title = x.name || deviceName(this._hass?.devices, x.device_id) || 'Appliance';
+    return `
+      <div class="hk-card" data-id="${escapeHTML(x.id)}">
+        <div class="grow">
+          <div class="hk-name">${escapeHTML(title)}${devLabel}</div>
+          <div class="hk-meta">${escapeHTML(assetSummary(x, this._hass?.areas))}</div>
+        </div>
+        <button class="hk-btn secondary asset-edit-btn" data-id="${escapeHTML(x.id)}">Edit</button>
+        <button class="hk-btn danger asset-del-btn" data-id="${escapeHTML(x.id)}">Delete</button>
+      </div>`;
+  }
+
+  private _assetFormHTML(): string {
+    const x = this._assetEdit.asset || {};
+    const isExisting = x.kind === 'existing';
+    const editing = Boolean(x.id);
+    const devices = this._hass?.devices || {};
+    const deviceOptions = ['<option value="">— Select a device —</option>']
+      .concat(
+        Object.values(devices)
+          .map((d) => ({ id: d.id, name: d.name_by_user || d.name || d.id }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(
+            (d) =>
+              `<option value="${escapeHTML(d.id)}" ${x.device_id === d.id ? 'selected' : ''}>${escapeHTML(d.name)}</option>`,
+          ),
+      )
+      .join('');
+    const areas = this._hass?.areas || {};
+    const areaOptions = ['<option value="">— No area —</option>']
+      .concat(
+        Object.values(areas)
+          .map((a) => ({ id: a.area_id, name: a.name }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(
+            (a) =>
+              `<option value="${escapeHTML(a.id)}" ${x.area_id === a.id ? 'selected' : ''}>${escapeHTML(a.name)}</option>`,
+          ),
+      )
+      .join('');
+
+    const dateInput = (id: string, label: string, value?: string | null): string => `
+      <div>
+        <label for="${id}">${label}</label>
+        <input id="${id}" type="date" value="${escapeHTML((value || '').slice(0, 10))}" />
+      </div>`;
+
+    return `
+      <div class="hk-form" id="hk-asset-form">
+        <div class="hk-title" style="font-size:1.1rem">${editing ? 'Edit appliance' : 'New appliance'}</div>
+
+        <label for="a-kind">Type</label>
+        <select id="a-kind" ${editing ? 'disabled' : ''}>
+          <option value="virtual" ${!isExisting ? 'selected' : ''}>New appliance (Home Keeper creates a device)</option>
+          <option value="existing" ${isExisting ? 'selected' : ''}>Existing device (add details to it)</option>
+        </select>
+
+        <div id="a-virtual-wrap" style="${isExisting ? 'display:none' : ''}">
+          <label for="a-name">Name</label>
+          <input id="a-name" type="text" value="${escapeHTML(x.name || '')}" placeholder="Kitchen fridge" />
+          <div class="hk-row">
+            <div>
+              <label for="a-manufacturer">Manufacturer</label>
+              <input id="a-manufacturer" type="text" value="${escapeHTML(x.manufacturer || '')}" />
+            </div>
+            <div>
+              <label for="a-model">Model</label>
+              <input id="a-model" type="text" value="${escapeHTML(x.model || '')}" />
+            </div>
+            <div>
+              <label for="a-serial">Serial number</label>
+              <input id="a-serial" type="text" value="${escapeHTML(x.serial_number || '')}" />
+            </div>
+          </div>
+        </div>
+
+        <div id="a-existing-wrap" style="${isExisting ? '' : 'display:none'}">
+          <label for="a-device">Device</label>
+          <select id="a-device">${deviceOptions}</select>
+        </div>
+
+        <label for="a-area">Area</label>
+        <select id="a-area">${areaOptions}</select>
+
+        <div class="hk-fieldset-title">Ownership &amp; warranty</div>
+        <div class="hk-row">
+          ${dateInput('a-purchase', 'Purchase date', x.purchase_date)}
+          ${dateInput('a-install', 'Install date', x.install_date)}
+          ${dateInput('a-warranty', 'Warranty expiry', x.warranty_expiry)}
+        </div>
+        <div class="hk-row">
+          <div>
+            <label for="a-warranty-provider">Warranty provider</label>
+            <input id="a-warranty-provider" type="text" value="${escapeHTML(x.warranty_provider || '')}" />
+          </div>
+          <div>
+            <label for="a-cost">Cost</label>
+            <input id="a-cost" type="number" step="0.01" min="0" value="${escapeHTML(x.cost ?? '')}" />
+          </div>
+          <div>
+            <label for="a-vendor">Vendor / where to rebuy</label>
+            <input id="a-vendor" type="text" value="${escapeHTML(x.vendor || '')}" />
+          </div>
+        </div>
+
+        <div class="hk-fieldset-title">Reference</div>
+        <label for="a-manual">Manual / docs URL</label>
+        <input id="a-manual" type="url" value="${escapeHTML(x.manual_url || '')}" placeholder="https://…" />
+        <label for="a-parts">Consumable part numbers (filters, bulbs…)</label>
+        <input id="a-parts" type="text" value="${escapeHTML(x.part_numbers || '')}" />
+        <label for="a-notes">Notes</label>
+        <textarea id="a-notes" rows="2">${escapeHTML(x.notes || '')}</textarea>
+
+        <div id="a-error" style="color:var(--error-color);font-size:0.8rem;margin-top:8px"></div>
+        <div class="hk-actions">
+          <button class="hk-btn" id="a-save">${editing ? 'Save' : 'Create'}</button>
+          <button class="hk-btn secondary" id="a-cancel">Cancel</button>
+        </div>
+      </div>`;
+  }
+
   private _wire(): void {
     const root = this.shadowRoot!;
-    root.getElementById('add-btn')?.addEventListener('click', () => this._openCreate());
+    root.getElementById('tab-tasks')?.addEventListener('click', () => {
+      this._view = 'tasks';
+      this._render();
+    });
+    root.getElementById('tab-appliances')?.addEventListener('click', () => {
+      this._view = 'appliances';
+      this._render();
+    });
+    root.getElementById('add-btn')?.addEventListener('click', () =>
+      this._view === 'tasks' ? this._openCreate() : this._openCreateAsset(),
+    );
+
+    if (this._view === 'appliances') {
+      this._wireAssets(root);
+      return;
+    }
 
     if (this._edit.open) {
       root.getElementById('f-save')?.addEventListener('click', () => void this._submitForm());
@@ -327,6 +574,33 @@ export class HomeKeeperPanel extends HTMLElement {
       b.addEventListener('click', () => {
         const t = byId(b.dataset.id!);
         if (t) void this._delete(t);
+      }),
+    );
+  }
+
+  private _wireAssets(root: ShadowRoot): void {
+    if (this._assetEdit.open) {
+      root.getElementById('a-save')?.addEventListener('click', () => void this._submitAssetForm());
+      root.getElementById('a-cancel')?.addEventListener('click', () => this._closeAssetForm());
+      // Toggle virtual/existing field visibility live.
+      root.getElementById('a-kind')?.addEventListener('change', (e) => {
+        const existing = (e.target as HTMLSelectElement).value === 'existing';
+        (root.getElementById('a-virtual-wrap') as HTMLElement).style.display = existing ? 'none' : '';
+        (root.getElementById('a-existing-wrap') as HTMLElement).style.display = existing ? '' : 'none';
+      });
+    }
+
+    const byId = (id: string): Asset | undefined => this._assets.find((x) => x.id === id);
+    root.querySelectorAll<HTMLButtonElement>('.asset-edit-btn').forEach((b) =>
+      b.addEventListener('click', () => {
+        const x = byId(b.dataset.id!);
+        if (x) this._openEditAsset(x);
+      }),
+    );
+    root.querySelectorAll<HTMLButtonElement>('.asset-del-btn').forEach((b) =>
+      b.addEventListener('click', () => {
+        const x = byId(b.dataset.id!);
+        if (x) void this._deleteAsset(x);
       }),
     );
   }

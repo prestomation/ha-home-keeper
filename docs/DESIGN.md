@@ -65,22 +65,35 @@ The end goal is for other integrations (e.g. Battery Notes) to contribute tasks
 Not built in this prototype — only the hook points and this note exist. See
 [../IDEAS.md](../IDEAS.md).
 
-## Planned: appliances & asset metadata
+## Appliances & asset metadata
 
-A planned direction (not yet built) to support dumb appliances and richer asset
-records. Two intentionally **decoupled** layers:
+Support for dumb appliances and richer asset records, built as two intentionally
+**decoupled** layers. An **asset** is a JSON dict (`assets.py`, pure — no HA imports)
+managed from the panel's **Appliances** tab and the `*_asset` services/websocket
+commands; all mutations funnel through `HomeKeeperStore` alongside tasks in the same
+`.storage/home_keeper` document (the `assets` key is additive — no migration).
 
-- an **asset-metadata layer** keyed by `device_id` that can attach to / enrich
-  *any* device — one we create, a real device from another integration, or a
-  Battery Notes device — reusing HA-native primitives first (device
-  `manufacturer`/`model`/`serial_number`/area + **labels**) and owning only the
-  gap (manufacture/purchase/install dates, warranty, cost, vendor, manual link,
-  consumable part numbers, photo, notes); temporal/automatable fields (warranty
-  expiry) become `date`/`timestamp` **entities**; and
-- **virtual-device provision** (only when no device exists) via
-  `device_registry.async_get_or_create`, so multiple tasks — and Battery Notes
-  batteries — share one appliance device page.
+- **Asset-metadata layer** — keyed by an `id`, with a `device_id` anchor that can
+  point at *any* device. `kind == "existing"` attaches metadata to a device another
+  integration owns (we never mutate that device); `kind == "virtual"` is one we
+  provision. Reuses HA-native fields first (device `manufacturer`/`model`/
+  `serial_number`/area) and owns only the gap: manufacture/purchase/install dates,
+  warranty expiry + provider, cost, vendor, manual link, consumable part numbers,
+  notes. Each set **date** field becomes a `date` sensor
+  (`HomeKeeperAssetDateSensor`) merged onto the device page via
+  `coordinator.device_info_for_device_id`, so e.g. warranty expiry is automatable.
+- **Virtual-device provision** — `devices.async_reconcile_assets()` registers a real
+  registry device with `async_get_or_create(config_entry_id=..., identifiers={...})`,
+  idempotently on setup and after each asset mutation, writes the assigned
+  `device.id` back to the asset, and prunes orphan asset devices. The identifier is
+  prefixed `(home_keeper, asset_<id>)` so it never collides with the per-task
+  self-owned device `(home_keeper, <task_id>)`. Multiple tasks (and, later, Battery
+  Notes batteries) thus share one appliance device page.
 
-Metadata must not be coupled to device creation, may attach only to devices that
-currently exist, and must be cleaned up on integration removal. Full detail and
-open questions in [../IDEAS.md](../IDEAS.md).
+Lifecycle: metadata is never coupled to device creation; existing-device assets
+recover a re-created device from a stored `identifiers`/`connections` snapshot.
+Virtual devices are config-entry-owned, so HA removes them on integration removal,
+and `async_remove_entry` drops the stored document. Deleting an asset removes its
+virtual device and detaches its tasks (they become standalone). Remaining open
+questions (labels for category/type, photo storage, contribution-API interplay) in
+[../IDEAS.md](../IDEAS.md).

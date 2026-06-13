@@ -4,6 +4,20 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [Unreleased]
+
+- **Appliances & virtual devices.** A new **Appliances** tab in the panel lets you
+  register an appliance Home Keeper provisions as a real **virtual device** (so
+  multiple maintenance tasks share one device page), or attach **asset metadata** to
+  an existing device from another integration. Metadata covers manufacturer/model/
+  serial, purchase/install/**warranty-expiry** dates, cost, vendor, manual link, and
+  consumable part numbers. Date fields are exposed as `date` **sensors** on the
+  device page so they're automatable (e.g. warranty-expiry reminders).
+  - New services: `add_asset`, `update_asset`, `delete_asset`, `list_assets`, plus
+    matching websocket commands for the panel.
+  - Virtual devices are owned by the config entry, so removing Home Keeper cleans
+    them up; deleting an appliance detaches its tasks (they become standalone).
+
 ## [0.1.0b1] - 2026-06-13
 
 Initial UX prototype (beta). Published as a pre-release — offered via HACS only to

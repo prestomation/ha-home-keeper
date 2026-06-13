@@ -3,7 +3,12 @@
 A running list of things we deliberately deferred from the first UX prototype, plus
 ideas worth exploring. Nothing here is committed scope; it's a parking lot.
 
-## Appliances / assets & device metadata (planned direction)
+## Appliances / assets & device metadata (implemented — see docs/DESIGN.md)
+
+**Status: shipped.** Built as `assets.py` (pure model) + `devices.py` (registry
+provisioning), an **Appliances** panel tab, `*_asset` services/websocket commands,
+and `HomeKeeperAssetDateSensor` date entities. The notes below are the original
+design rationale, kept for context; remaining open items are flagged at the end.
 
 The motivating problem: a "dumb" appliance (e.g. a fridge) usually isn't a Home
 Assistant device, so there's nothing to attach maintenance tasks — or Battery
@@ -72,11 +77,14 @@ topics), `twrecked/hass-virtual`, `kuba2k2/hassio-virtual-devices`, and the
 "Device Tools" custom integration. Providing managed appliances ourselves keeps it
 on-mission and GUI-driven.
 
-Open questions: exactly which gap-attributes warrant entities beyond the date/
-warranty ones; how editing native device fields (manufacturer/model/serial) should
-work when we don't own the device (HA may not allow it) vs. our own metadata; how
-this interacts with the deferred cross-integration contribution API; and whether
-"category/type" should be a label or our own field.
+Still open (deferred from the initial implementation): a **photo** attribute and its
+storage; **labels** for arbitrary tagging and whether "category/type" should be a
+label vs. our own field; editing an existing device's native fields when we don't
+own it; a device-registry **update/removal listener**
+(`async_track_device_registry_updated_event`) for live orphan reconciliation of
+existing-device assets (today reconciliation runs on setup / asset mutation and
+recovers via the stored identifiers snapshot); and how appliances interact with the
+deferred cross-integration contribution API.
 
 ## Deferred from the prototype (known next steps)
 

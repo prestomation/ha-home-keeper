@@ -65,6 +65,31 @@
         "next_due": "2026-05-20T12:00:00-04:00",
         "completions": [{"ts": "2026-04-20T12:00:00-04:00"}]
       }
+    },
+    "assets": {
+      "asset_water_heater": {
+        "id": "asset_water_heater",
+        "kind": "virtual",
+        "name": "Garage water heater",
+        "device_id": null,
+        "identifiers": [["home_keeper", "asset_asset_water_heater"]],
+        "connections": [],
+        "area_id": null,
+        "manufacturer": "Rheem",
+        "model": "XE50T10HS45U0",
+        "serial_number": "RH-0001",
+        "manufacture_date": null,
+        "purchase_date": "2022-05-01",
+        "install_date": "2022-05-10",
+        "warranty_expiry": "2032-05-01",
+        "warranty_provider": "Rheem",
+        "vendor": "Home Depot",
+        "cost": 649.0,
+        "manual_url": "https://example.com/water-heater-manual",
+        "part_numbers": "anode rod AR-1",
+        "notes": "Garage corner, behind the shelving",
+        "created": "2026-05-01T09:00:00-04:00"
+      }
     }
   }
 }

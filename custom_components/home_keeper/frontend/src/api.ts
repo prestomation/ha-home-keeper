@@ -1,4 +1,4 @@
-import type { Hass, Task } from './types';
+import type { Asset, Hass, Task } from './types';
 
 /** Thin wrappers around the Home Keeper websocket commands. */
 
@@ -38,4 +38,34 @@ export async function completeTask(hass: Hass, taskId: string): Promise<Task> {
     task_id: taskId,
   });
   return res.task;
+}
+
+export async function getAssets(hass: Hass): Promise<Asset[]> {
+  const res = await hass.callWS<{ assets: Asset[] }>({ type: 'home_keeper/get_assets' });
+  return res.assets;
+}
+
+export async function addAsset(hass: Hass, asset: Partial<Asset>): Promise<Asset> {
+  const res = await hass.callWS<{ asset: Asset }>({
+    type: 'home_keeper/add_asset',
+    asset,
+  });
+  return res.asset;
+}
+
+export async function updateAsset(
+  hass: Hass,
+  assetId: string,
+  updates: Partial<Asset>,
+): Promise<Asset> {
+  const res = await hass.callWS<{ asset: Asset }>({
+    type: 'home_keeper/update_asset',
+    asset_id: assetId,
+    updates,
+  });
+  return res.asset;
+}
+
+export async function deleteAsset(hass: Hass, assetId: string): Promise<void> {
+  await hass.callWS({ type: 'home_keeper/delete_asset', asset_id: assetId });
 }

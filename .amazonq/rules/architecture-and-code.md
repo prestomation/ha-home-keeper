@@ -57,21 +57,30 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
 - Escape all user-provided content before injecting it into `innerHTML` in the
   panel frontend (`escapeHTML`).
 
-## Planned: asset metadata decoupled from device creation
-When the appliance/asset-metadata feature is built:
-- Keep two concerns separate: (1) an **asset-metadata layer** keyed by `device_id`
-  that can attach to ANY device — virtual or from another integration — and
-  (2) optional **virtual-device provision** for hardware no integration provides.
-  Do not couple metadata to device creation; it must work on existing devices too.
+## Assets: metadata decoupled from device creation (implemented)
+The appliance/asset feature lives in `assets.py` (pure model — no HA imports, like
+`models.py`) and `devices.py` (registry provisioning). Keep the two concerns separate:
+- **Asset metadata layer** — an asset is a JSON dict keyed by `id`, carrying a
+  `device_id` anchor that can point at ANY device. `kind == "virtual"` (we own the
+  device) or `kind == "existing"` (metadata on another integration's device). Don't
+  couple metadata to device creation; existing-device assets never mutate the device.
+- **Virtual-device provision** — `devices.async_reconcile_assets()` registers a
+  registry device via `async_get_or_create(config_entry_id=..., identifiers={...})`,
+  idempotently, on setup and after every asset mutation; it writes the assigned
+  `device.id` back to the asset and prunes orphan asset devices. The virtual-device
+  identifier is prefixed `(DOMAIN, f"{ASSET_IDENTIFIER_PREFIX}_{asset_id}")` so it
+  never collides with the per-task self-owned device `(DOMAIN, task_id)`.
 - Reuse HA-native primitives first — device `manufacturer`/`model`/`serial_number`/
-  `area` and **labels** (2023.7+); the custom layer owns only the gap (dates,
-  warranty, cost, vendor, manual link, consumable part numbers, photo, notes).
-- Make temporal/automatable fields real **entities** (`date`/`timestamp` sensors,
-  e.g. warranty expiry); keep purely descriptive fields as stored metadata.
-- Attach metadata only to devices that currently exist
-  (`device_registry.async_get` first, reject `None` — no shadow registry). Store
-  the device `identifiers`/`connections` alongside `device_id` for reconciliation,
-  and clean up all metadata/entities/virtual devices on integration removal.
+  `area`; the custom layer owns only the gap (dates, warranty, cost, vendor, manual
+  link, consumable part numbers, notes).
+- Temporal fields are real **entities**: `HomeKeeperAssetDateSensor` (a `date`
+  sensor per set date field) in `sensor.py`, merged onto the asset's device page via
+  `coordinator.device_info_for_device_id`. Descriptive fields stay stored metadata.
+- Attach to existing devices only when they currently exist (`device_registry`
+  lookup; reconcile recovers a re-created device from the stored
+  `identifiers`/`connections` snapshot). Virtual devices are config-entry-owned so HA
+  removes them on integration removal; `async_remove_entry` drops the stored doc.
+  Deleting an asset removes its virtual device and detaches its tasks (standalone).
   See `IDEAS.md` / `docs/DESIGN.md`.
 
 ## Deferred: cross-integration contribution API

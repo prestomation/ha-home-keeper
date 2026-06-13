@@ -16,7 +16,8 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
-from . import panel, websocket_api
+from . import devices, panel, websocket_api
+from .assets import AssetValidationError
 from .const import DOMAIN, PLATFORMS
 from .coordinator import HomeKeeperCoordinator, entity_set_key
 from .models import TaskValidationError
@@ -56,6 +57,33 @@ COMPLETE_TASK_SCHEMA = vol.Schema(
     {vol.Required("task_id"): cv.string, vol.Optional("completed_at"): cv.datetime}
 )
 
+# Asset (appliance) fields shared by add/update. Dates are plain strings so the
+# pure model can validate them; cost is coerced to a float.
+_ASSET_FIELDS = {
+    vol.Optional("name"): cv.string,
+    vol.Optional("kind"): cv.string,
+    vol.Optional("device_id"): cv.string,
+    vol.Optional("area_id"): cv.string,
+    vol.Optional("manufacturer"): cv.string,
+    vol.Optional("model"): cv.string,
+    vol.Optional("serial_number"): cv.string,
+    vol.Optional("manufacture_date"): cv.string,
+    vol.Optional("purchase_date"): cv.string,
+    vol.Optional("install_date"): cv.string,
+    vol.Optional("warranty_expiry"): cv.string,
+    vol.Optional("warranty_provider"): cv.string,
+    vol.Optional("vendor"): cv.string,
+    vol.Optional("cost"): vol.Coerce(float),
+    vol.Optional("manual_url"): cv.string,
+    vol.Optional("part_numbers"): cv.string,
+    vol.Optional("notes"): cv.string,
+}
+ADD_ASSET_SCHEMA = vol.Schema(_ASSET_FIELDS)
+UPDATE_ASSET_SCHEMA = vol.Schema(
+    {vol.Required("asset_id"): cv.string, **_ASSET_FIELDS}
+)
+ASSET_ID_SCHEMA = vol.Schema({vol.Required("asset_id"): cv.string})
+
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the integration (config-entry only)."""
@@ -70,6 +98,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = HomeKeeperCoordinator(hass, entry, store)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+
+    # Provision/reconcile virtual asset devices BEFORE forwarding platforms so the
+    # registry devices exist when per-task and per-asset entities resolve them.
+    await devices.async_reconcile_assets(hass, entry, store)
 
     await panel.async_register_panel(hass)
     websocket_api.async_register(hass)
@@ -143,6 +175,36 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         return {"tasks": coord.store.list_tasks()}
 
+    async def handle_add_asset(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.add_asset(dict(call.data))
+        except AssetValidationError as err:
+            raise ServiceValidationError(str(err)) from err
+        await devices.async_reconcile_assets(hass, coord.entry, coord.store)
+        await hass.config_entries.async_reload(coord.entry.entry_id)
+
+    async def handle_update_asset(call: ServiceCall) -> None:
+        coord = _coordinator()
+        data = dict(call.data)
+        asset_id = data.pop("asset_id")
+        try:
+            await coord.store.update_asset(asset_id, data)
+        except KeyError:
+            raise ServiceValidationError(f"Asset not found: {asset_id}") from None
+        except AssetValidationError as err:
+            raise ServiceValidationError(str(err)) from err
+        await devices.async_reconcile_assets(hass, coord.entry, coord.store)
+        await hass.config_entries.async_reload(coord.entry.entry_id)
+
+    async def handle_delete_asset(call: ServiceCall) -> None:
+        coord = _coordinator()
+        await _delete_asset(hass, coord, call.data["asset_id"])
+
+    async def handle_list_assets(call: ServiceCall) -> dict[str, Any]:
+        coord = _coordinator()
+        return {"assets": coord.store.list_assets()}
+
     hass.services.async_register(DOMAIN, "add_task", handle_add_task, ADD_TASK_SCHEMA)
     hass.services.async_register(
         DOMAIN, "update_task", handle_update_task, UPDATE_TASK_SCHEMA
@@ -160,6 +222,52 @@ def _register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema({}),
         supports_response=SupportsResponse.ONLY,
     )
+    hass.services.async_register(
+        DOMAIN, "add_asset", handle_add_asset, ADD_ASSET_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "update_asset", handle_update_asset, UPDATE_ASSET_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "delete_asset", handle_delete_asset, ASSET_ID_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "list_assets",
+        handle_list_assets,
+        schema=vol.Schema({}),
+        supports_response=SupportsResponse.ONLY,
+    )
+
+
+async def _delete_asset(
+    hass: HomeAssistant, coord: HomeKeeperCoordinator, asset_id: str
+) -> None:
+    """Delete an asset, remove its virtual device, and detach orphaned tasks.
+
+    Shared by the service and websocket handlers so both clean up identically.
+    """
+    asset = await coord.store.delete_asset(asset_id)
+    if asset is None:
+        return
+    removed_device_id = await devices.async_remove_asset_device(hass, asset)
+    if removed_device_id:
+        await coord.store.detach_tasks_from_device(removed_device_id)
+    await hass.config_entries.async_reload(coord.entry.entry_id)
+
+
+# Asset CRUD service names paired with the task services for teardown.
+_SERVICES = (
+    "add_task",
+    "update_task",
+    "delete_task",
+    "complete_task",
+    "list_tasks",
+    "add_asset",
+    "update_asset",
+    "delete_asset",
+    "list_assets",
+)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -168,6 +276,17 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Only tear down the panel/services when the last entry goes away.
     if unloaded and not hass.config_entries.async_entries(DOMAIN):
         panel.async_unregister_panel(hass)
-        for service in ("add_task", "update_task", "delete_task", "complete_task", "list_tasks"):
+        for service in _SERVICES:
             hass.services.async_remove(DOMAIN, service)
     return unloaded
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove all Home Keeper data when the integration is deleted.
+
+    Virtual asset devices (and per-task self-owned devices) are tied to this config
+    entry, so Home Assistant removes them automatically. Here we additionally drop
+    our stored tasks/assets document so no residue is left behind.
+    """
+    store = HomeKeeperStore(hass)
+    await store.async_remove()
