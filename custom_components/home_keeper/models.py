@@ -48,7 +48,10 @@ def normalize_fields(data: dict) -> dict:
     if rec_type not in RECURRENCE_TYPES:
         raise TaskValidationError(f"invalid recurrence_type: {rec_type!r}")
 
-    interval = int(data.get("interval", 1))
+    try:
+        interval = int(data.get("interval", 1))
+    except (TypeError, ValueError) as err:
+        raise TaskValidationError("interval must be a valid integer") from err
     if interval < 1:
         raise TaskValidationError("interval must be >= 1")
 

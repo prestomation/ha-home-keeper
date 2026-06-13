@@ -13,6 +13,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
 from . import panel, websocket_api
@@ -99,14 +100,19 @@ def _register_services(hass: HomeAssistant) -> None:
         try:
             await coord.store.add_task(dict(call.data))
         except TaskValidationError as err:
-            raise vol.Invalid(str(err)) from err
+            raise ServiceValidationError(str(err)) from err
         await hass.config_entries.async_reload(coord.entry.entry_id)
 
     async def handle_update_task(call: ServiceCall) -> None:
         coord = _coordinator()
         data = dict(call.data)
         task_id = data.pop("task_id")
-        await coord.store.update_task(task_id, data)
+        try:
+            await coord.store.update_task(task_id, data)
+        except KeyError:
+            raise ServiceValidationError(f"Task not found: {task_id}") from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(str(err)) from err
         await hass.config_entries.async_reload(coord.entry.entry_id)
 
     async def handle_delete_task(call: ServiceCall) -> None:
@@ -116,9 +122,14 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_complete_task(call: ServiceCall) -> None:
         coord = _coordinator()
-        await coord.store.complete_task(
-            call.data["task_id"], call.data.get("completed_at")
-        )
+        try:
+            await coord.store.complete_task(
+                call.data["task_id"], call.data.get("completed_at")
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                f"Task not found: {call.data['task_id']}"
+            ) from None
         await coord.async_request_refresh()
 
     async def handle_list_tasks(call: ServiceCall) -> dict[str, Any]:

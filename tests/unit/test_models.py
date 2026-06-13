@@ -50,6 +50,16 @@ def test_build_task_rejects_bad_interval():
         m.build_task({"name": "x", "recurrence_type": "floating", "interval": 0, "unit": "days"}, now=NOW)
 
 
+def test_build_task_rejects_non_numeric_interval():
+    # Websocket payloads aren't coerced, so a non-numeric interval must raise a
+    # validation error (not a raw ValueError that crashes the command).
+    with pytest.raises(m.TaskValidationError):
+        m.build_task(
+            {"name": "x", "recurrence_type": "floating", "interval": "soon", "unit": "days"},
+            now=NOW,
+        )
+
+
 def test_merge_update_name_only_keeps_schedule():
     task = m.build_task(
         {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},

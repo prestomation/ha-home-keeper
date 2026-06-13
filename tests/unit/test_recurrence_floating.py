@@ -25,6 +25,13 @@ def test_add_months_end_of_month_clamp():
     assert r.add_months(dt(2026, 12, 15), 1) == dt(2027, 1, 15)
 
 
+def test_add_months_handles_negative_across_year_boundary():
+    # Floor division + non-negative modulo handle negatives correctly.
+    assert r.add_months(dt(2026, 1, 15), -2) == dt(2025, 11, 15)
+    assert r.add_months(dt(2026, 1, 15), -1) == dt(2025, 12, 15)
+    assert r.add_months(dt(2026, 3, 31), -1) == dt(2026, 2, 28)
+
+
 def test_add_interval_rejects_bad_input():
     import pytest
 

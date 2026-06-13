@@ -45,7 +45,10 @@ def add_months(dt: datetime, months: int) -> datetime:
     """
     if months == 0:
         return dt
-    # Convert to a zero-based month index for clean arithmetic.
+    # Convert to a zero-based month index for clean arithmetic. Python's floor
+    # division and non-negative modulo make this correct for negative months too
+    # (e.g. Jan + (-2) months -> month_index -2 -> year-1, month 11 = November),
+    # though in practice this integration only ever advances by positive months.
     month_index = dt.month - 1 + months
     year = dt.year + month_index // 12
     month = month_index % 12 + 1
