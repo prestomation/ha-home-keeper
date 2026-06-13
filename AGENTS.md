@@ -27,6 +27,20 @@
   Then triage its findings as usual (fix the valid ones; push back, with
   reasoning, on false positives).
 
+## Conventions live in `.amazonq/rules/` — keep them current
+
+Project conventions and opinionated development decisions are recorded as Amazon Q
+project rules under [`.amazonq/rules/`](.amazonq/rules/) (Markdown files Amazon Q
+auto-loads as context). They currently cover architecture/code conventions and
+testing/workflow.
+
+**Whenever we establish or change a convention or opinionated development aspect**
+— in a conversation, a review thread, or a decision captured in a PR — **update
+`.amazonq/rules/` in the same change** (and this `AGENTS.md` if it's a
+workflow/process rule) so both Amazon Q and Claude pick it up automatically. Treat
+this as part of "done": a new convention isn't real until it's written into the
+rules. Keep the rules and `AGENTS.md` consistent with each other.
+
 ## Project structure
 
 - **Domain:** `home_keeper`. **Display name:** Home Keeper.
