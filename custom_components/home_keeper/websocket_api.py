@@ -183,8 +183,7 @@ async def ws_add_asset(
     except AssetValidationError as err:
         connection.send_error(msg["id"], "invalid_asset", str(err))
         return
-    await devices.async_reconcile_assets(hass, coord.entry, coord.store)
-    await hass.config_entries.async_reload(coord.entry.entry_id)
+    await devices.async_apply_asset_change(hass, coord.entry, coord.store)
     # Re-read so the response carries the provisioned device_id.
     connection.send_result(
         msg["id"], {"asset": coord.store.get_asset(asset["id"]) or asset}
@@ -214,8 +213,7 @@ async def ws_update_asset(
     except AssetValidationError as err:
         connection.send_error(msg["id"], "invalid_asset", str(err))
         return
-    await devices.async_reconcile_assets(hass, coord.entry, coord.store)
-    await hass.config_entries.async_reload(coord.entry.entry_id)
+    await devices.async_apply_asset_change(hass, coord.entry, coord.store)
     connection.send_result(
         msg["id"], {"asset": coord.store.get_asset(asset["id"]) or asset}
     )

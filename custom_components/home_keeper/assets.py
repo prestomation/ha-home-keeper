@@ -41,13 +41,13 @@ class AssetValidationError(ValueError):
 
 # Free-form descriptive metadata stored verbatim (purely informational — these are
 # *not* surfaced as entities, only shown in the panel / device page context).
+# ``manual_url`` is handled separately (scheme/length validated).
 _TEXT_FIELDS = (
     "manufacturer",
     "model",
     "serial_number",
     "warranty_provider",
     "vendor",
-    "manual_url",
     "part_numbers",
     "notes",
 )
@@ -97,9 +97,30 @@ def _normalize_cost(value: Any) -> float | None:
     if value in (None, ""):
         return None
     try:
-        return float(value)
+        cost = float(value)
     except (TypeError, ValueError) as err:
         raise AssetValidationError("cost must be a number") from err
+    if cost < 0:
+        raise AssetValidationError("cost must not be negative")
+    return cost
+
+
+# Upper bound on stored URLs/text-ish fields to keep the JSON document sane and to
+# blunt pathological inputs that might later be surfaced in other contexts.
+_MAX_URL_LEN = 2048
+
+
+def _normalize_url(value: Any) -> str:
+    """Validate a manual/docs URL: empty, or an http(s) URL within a size bound."""
+    if value in (None, ""):
+        return ""
+    text = str(value).strip()
+    if len(text) > _MAX_URL_LEN:
+        raise AssetValidationError("manual_url is too long")
+    scheme = text.split("://", 1)[0].lower() if "://" in text else ""
+    if scheme not in ("http", "https"):
+        raise AssetValidationError("manual_url must be an http(s) URL")
+    return text
 
 
 def normalize_fields(data: dict) -> dict:
@@ -129,6 +150,8 @@ def normalize_fields(data: dict) -> dict:
     for key in _TEXT_FIELDS:
         value = data.get(key)
         fields[key] = str(value).strip() if value not in (None, "") else ""
+
+    fields["manual_url"] = _normalize_url(data.get("manual_url"))
 
     for key in DATE_FIELDS:
         fields[key] = _normalize_date(data.get(key), key)
@@ -171,7 +194,7 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "device_id": updates.get("device_id", existing.get("device_id")),
         "cost": updates.get("cost", existing.get("cost")),
     }
-    for key in (*_TEXT_FIELDS, *DATE_FIELDS):
+    for key in (*_TEXT_FIELDS, "manual_url", *DATE_FIELDS):
         candidate[key] = updates.get(key, existing.get(key))
 
     fields = normalize_fields(candidate)

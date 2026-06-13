@@ -102,6 +102,68 @@ def test_add_asset_then_attach_task_creates_device_entities(ha):
     assert _has_mark_done(), "task attached to a virtual device got no device entities"
 
 
+def test_existing_device_asset_persists_identifier_snapshot(ha):
+    # Provision a virtual appliance (a real registry device), then attach an
+    # "existing"-kind metadata asset to that device. Reconciliation must persist the
+    # device's identifiers snapshot onto the asset (the bug fix) so cross-restart
+    # recovery can work — verify it shows up in list_assets.
+    import time
+
+    call_service(ha, "home_keeper", "add_asset", {"name": "Snapshot host device"})
+
+    def _device_id_for(name):
+        resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+        payload = resp.get("service_response", resp)
+        for a in payload["assets"]:
+            if a["name"] == name and a.get("device_id"):
+                return a["device_id"]
+        return None
+
+    device_id = None
+    for _ in range(20):
+        device_id = _device_id_for("Snapshot host device")
+        if device_id:
+            break
+        time.sleep(1)
+    assert device_id, "virtual host device was not provisioned"
+
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {"kind": "existing", "device_id": device_id, "warranty_provider": "ACME"},
+    )
+
+    def _existing_asset():
+        resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+        payload = resp.get("service_response", resp)
+        for a in payload["assets"]:
+            if a.get("kind") == "existing" and a.get("device_id") == device_id:
+                return a
+        return None
+
+    asset = None
+    for _ in range(20):
+        asset = _existing_asset()
+        if asset and asset.get("identifiers"):
+            break
+        time.sleep(1)
+    assert asset, "existing-device asset not found"
+    # The snapshot was refreshed from the live device AND persisted.
+    assert asset["identifiers"], "device identifiers snapshot was not persisted"
+
+
+def test_add_asset_rejects_bad_url(ha):
+    # Backend validation surfaces a service error for a non-http(s) manual_url.
+    from conftest import HA_URL
+
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/add_asset",
+        json={"name": "Bad url asset", "manual_url": "javascript:alert(1)"},
+    )
+    assert r.status_code >= 400, "expected validation error for malicious manual_url"
+
+
 def test_delete_asset_removes_it_from_listing(ha):
     call_service(ha, "home_keeper", "add_asset", {"name": "Temp asset to delete"})
     resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)

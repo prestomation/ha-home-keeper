@@ -49,6 +49,15 @@ class HomeKeeperStore:
     async def _save(self) -> None:
         await self._store.async_save({"tasks": self._tasks, "assets": self._assets})
 
+    async def async_persist(self) -> None:
+        """Flush the current in-memory state to disk.
+
+        For callers that mutate task/asset dicts in place (e.g. device-registry
+        reconciliation refreshing an asset's identifiers snapshot) and need the
+        change persisted without going through a typed mutation method.
+        """
+        await self._save()
+
     async def async_remove(self) -> None:
         """Delete the persisted document (used on integration removal)."""
         await self._store.async_remove()

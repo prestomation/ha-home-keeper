@@ -93,6 +93,42 @@ def test_cost_coerced_and_bad_cost_raises():
         a.build_asset({"name": "Furnace", "cost": "free"}, now=NOW)
 
 
+def test_negative_cost_raises():
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset({"name": "Furnace", "cost": "-5"}, now=NOW)
+
+
+def test_manual_url_accepts_http_and_https():
+    asset = a.build_asset(
+        {"name": "Furnace", "manual_url": "https://example.com/manual.pdf"}, now=NOW
+    )
+    assert asset["manual_url"] == "https://example.com/manual.pdf"
+    # Empty is allowed and normalizes to "".
+    assert a.build_asset({"name": "Furnace"}, now=NOW)["manual_url"] == ""
+
+
+def test_manual_url_rejects_non_http_scheme():
+    for bad in ("javascript:alert(1)", "ftp://example.com", "data:text/html,x", "/relative"):
+        with pytest.raises(a.AssetValidationError):
+            a.build_asset({"name": "Furnace", "manual_url": bad}, now=NOW)
+
+
+def test_manual_url_rejects_overlong():
+    long_url = "https://example.com/" + "a" * 3000
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset({"name": "Furnace", "manual_url": long_url}, now=NOW)
+
+
+def test_merge_update_validates_url_and_cost():
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    with pytest.raises(a.AssetValidationError):
+        a.merge_update(asset, {"manual_url": "javascript:bad"}, now=NOW)
+    with pytest.raises(a.AssetValidationError):
+        a.merge_update(asset, {"cost": -1}, now=NOW)
+    ok = a.merge_update(asset, {"manual_url": "http://ok.example"}, now=NOW)
+    assert ok["manual_url"] == "http://ok.example"
+
+
 def test_merge_update_changes_metadata_preserves_anchors():
     asset = a.build_asset({"name": "Fridge"}, now=NOW)
     asset["device_id"] = "provisioned_dev_1"  # simulate post-provisioning

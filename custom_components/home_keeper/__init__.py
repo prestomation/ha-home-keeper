@@ -181,8 +181,7 @@ def _register_services(hass: HomeAssistant) -> None:
             await coord.store.add_asset(dict(call.data))
         except AssetValidationError as err:
             raise ServiceValidationError(str(err)) from err
-        await devices.async_reconcile_assets(hass, coord.entry, coord.store)
-        await hass.config_entries.async_reload(coord.entry.entry_id)
+        await devices.async_apply_asset_change(hass, coord.entry, coord.store)
 
     async def handle_update_asset(call: ServiceCall) -> None:
         coord = _coordinator()
@@ -194,8 +193,7 @@ def _register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(f"Asset not found: {asset_id}") from None
         except AssetValidationError as err:
             raise ServiceValidationError(str(err)) from err
-        await devices.async_reconcile_assets(hass, coord.entry, coord.store)
-        await hass.config_entries.async_reload(coord.entry.entry_id)
+        await devices.async_apply_asset_change(hass, coord.entry, coord.store)
 
     async def handle_delete_asset(call: ServiceCall) -> None:
         coord = _coordinator()
