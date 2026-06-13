@@ -1,0 +1,14 @@
+# Home Assistant runtime artifacts, generated when the container runs locally
+# (e.g. via ci/e2e-up.sh). Only the seeded fixtures below are tracked.
+*.log
+*.log.*
+.HA_VERSION
+.ha_run.lock
+blueprints/
+tts/
+deps/
+
+# Ignore all generated .storage entries except the seeded fixtures.
+.storage/*
+!.storage/home_keeper
+!.storage/core.config_entries

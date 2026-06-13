@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "nohup bash ci/setup-browser-env.sh >/tmp/setup-browser-env.log 2>&1 & disown; echo 'Home Keeper: preparing Docker + Playwright Chromium in the background (see /tmp/setup-browser-env.log). Run e2e with: bash ci/e2e-up.sh'"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,73 @@
+name: E2E (browser)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend deps
+        run: npm ci --prefix custom_components/home_keeper/frontend
+
+      - name: Build panel JS
+        run: bash ci/build-panel.sh
+
+      - name: Install e2e deps
+        run: npm ci --prefix tests/e2e
+
+      - name: Install Playwright Chromium
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Home Assistant
+        working-directory: tests/integration
+        run: docker compose up -d
+
+      - name: Wait for Home Assistant
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8123/api/ 2>/dev/null || true)
+            if [ "$code" = "200" ] || [ "$code" = "401" ]; then
+              echo "Home Assistant is responding (HTTP $code, attempt $i)"
+              exit 0
+            fi
+            echo "Attempt $i/60 - HTTP $code - waiting..."
+            sleep 2
+          done
+          echo "Home Assistant failed to start within 120s"
+          (cd tests/integration && docker compose logs)
+          exit 1
+
+      - name: Run Playwright e2e
+        run: bash ci/test-e2e.sh
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            tests/e2e/playwright-report/
+            tests/e2e/test-results/
+          retention-days: 7
+
+      - name: Dump Home Assistant logs on failure
+        if: failure()
+        working-directory: tests/integration
+        run: docker compose logs homeassistant
+
+      - name: Cleanup
+        if: always()
+        working-directory: tests/integration
+        run: docker compose down -v

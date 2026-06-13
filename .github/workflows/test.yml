@@ -1,0 +1,48 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: bash ci/install-deps.sh
+
+      - name: Build panel JS
+        run: bash ci/build-panel.sh
+
+      - name: Run frontend tests
+        run: bash ci/test-frontend.sh
+
+      - name: Run Python unit tests
+        run: bash ci/test-python-unit.sh
+
+      - name: Clean node_modules before validation
+        run: rm -rf custom_components/home_keeper/frontend/node_modules
+
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+
+      - name: Run hassfest
+        uses: "home-assistant/actions/hassfest@master"

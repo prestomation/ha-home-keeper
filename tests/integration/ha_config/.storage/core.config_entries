@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "core.config_entries",
+  "data": {
+    "entries": [
+      {
+        "entry_id": "home_keeper_test_entry",
+        "version": 1,
+        "minor_version": 1,
+        "domain": "home_keeper",
+        "title": "Home Keeper",
+        "data": {},
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "unique_id": "home_keeper_local",
+        "disabled_by": null
+      }
+    ]
+  }
+}

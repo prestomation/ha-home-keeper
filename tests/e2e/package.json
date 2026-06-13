@@ -1,0 +1,12 @@
+{
+  "name": "home-keeper-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Playwright browser e2e smoke tests for the Home Keeper panel",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}

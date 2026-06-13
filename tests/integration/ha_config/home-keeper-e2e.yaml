@@ -1,0 +1,13 @@
+# Lovelace dashboard for the Playwright e2e suite — the "usage" surfaces.
+# Renders the native Home Keeper to-do list and calendar so browser tests can
+# assert on real DOM and screenshots can show how tasks appear to users.
+title: Home Keeper E2E
+views:
+  - title: Tasks
+    path: card
+    cards:
+      - type: todo-list
+        entity: todo.home_keeper_tasks
+      - type: calendar
+        entities:
+          - calendar.home_keeper_upcoming_tasks

@@ -1,0 +1,166 @@
+add_task:
+  name: Add task
+  description: Create a new maintenance task or chore.
+  fields:
+    name:
+      name: Name
+      description: Display name of the task.
+      required: true
+      example: Replace furnace filter
+      selector:
+        text:
+    notes:
+      name: Notes
+      description: Optional free-text notes.
+      selector:
+        text:
+          multiline: true
+    recurrence_type:
+      name: Recurrence type
+      description: floating (measured from completion) or fixed (anchored schedule).
+      selector:
+        select:
+          options:
+            - floating
+            - fixed
+    interval:
+      name: Interval
+      description: Repeat every N units/steps.
+      example: 1
+      selector:
+        number:
+          min: 1
+          mode: box
+    unit:
+      name: Unit
+      description: For floating tasks - days, weeks, or months.
+      selector:
+        select:
+          options:
+            - days
+            - weeks
+            - months
+    freq:
+      name: Frequency
+      description: For fixed tasks - DAILY, WEEKLY, or MONTHLY.
+      selector:
+        select:
+          options:
+            - DAILY
+            - WEEKLY
+            - MONTHLY
+    anchor:
+      name: Anchor
+      description: For fixed tasks - ISO datetime of the first occurrence (sets time-of-day).
+      example: "2026-01-01T08:00:00"
+      selector:
+        text:
+    device_id:
+      name: Device
+      description: Optional device to attach this task to.
+      selector:
+        device:
+    area_id:
+      name: Area
+      description: Optional area to associate with this task.
+      selector:
+        area:
+
+update_task:
+  name: Update task
+  description: Update fields of an existing task.
+  fields:
+    task_id:
+      name: Task ID
+      description: The id of the task to update.
+      required: true
+      selector:
+        text:
+    name:
+      name: Name
+      description: New display name.
+      selector:
+        text:
+    notes:
+      name: Notes
+      description: New notes.
+      selector:
+        text:
+          multiline: true
+    recurrence_type:
+      name: Recurrence type
+      description: floating or fixed.
+      selector:
+        select:
+          options:
+            - floating
+            - fixed
+    interval:
+      name: Interval
+      description: Repeat every N units/steps.
+      selector:
+        number:
+          min: 1
+          mode: box
+    unit:
+      name: Unit
+      description: days, weeks, or months (floating).
+      selector:
+        select:
+          options:
+            - days
+            - weeks
+            - months
+    freq:
+      name: Frequency
+      description: DAILY, WEEKLY, or MONTHLY (fixed).
+      selector:
+        select:
+          options:
+            - DAILY
+            - WEEKLY
+            - MONTHLY
+    anchor:
+      name: Anchor
+      description: ISO datetime of the first occurrence (fixed).
+      selector:
+        text:
+    device_id:
+      name: Device
+      description: Device to attach this task to.
+      selector:
+        device:
+    area_id:
+      name: Area
+      description: Area to associate with this task.
+      selector:
+        area:
+
+delete_task:
+  name: Delete task
+  description: Delete a task.
+  fields:
+    task_id:
+      name: Task ID
+      required: true
+      selector:
+        text:
+
+complete_task:
+  name: Complete task
+  description: Mark a task complete and advance its recurrence.
+  fields:
+    task_id:
+      name: Task ID
+      required: true
+      selector:
+        text:
+    completed_at:
+      name: Completed at
+      description: Optional completion timestamp (defaults to now).
+      selector:
+        datetime:
+
+list_tasks:
+  name: List tasks
+  description: Return all tasks as a response.
