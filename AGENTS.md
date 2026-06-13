@@ -15,6 +15,17 @@
   the PNG(s) under `docs/images/`, and embed them in the PR via a
   `raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/images/<file>.png`
   URL pinned to the commit that added them.
+- **Always request an Amazon Q (Cue) review after every push and when opening a
+  PR.** Immediately after pushing a commit (or opening a PR), post a PR comment
+  of the form `/q review {request}`. Cue gives better results when explicitly
+  asked for *critical, skeptical* feedback, so tailor the `{request}` to the
+  change and name the topics you want scrutinized — e.g. **correctness** (edge
+  cases, timezone/DST, off-by-one, error paths), **maintainability** (module
+  boundaries, naming, duplication, readability), **performance** (hot paths,
+  redundant work, N+1 / full reloads), **security**, and **HA best practices**.
+  Ask it to surface the most serious issues first and not to withhold minor ones.
+  Then triage its findings as usual (fix the valid ones; push back, with
+  reasoning, on false positives).
 
 ## Project structure
 
