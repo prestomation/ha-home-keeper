@@ -58,12 +58,21 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   panel frontend (`escapeHTML`).
 
 ## Planned: asset metadata decoupled from device creation
-- When the appliance/asset-metadata feature is built, keep two concerns separate:
-  (1) an **asset-metadata layer** (make/model/serial/dates/warranty/etc.) keyed by
-  `device_id` that can decorate ANY device — virtual or from another integration —
-  and (2) optional **virtual-device provision** for hardware no integration
-  provides. Do not couple metadata to device creation; metadata must work on
-  existing devices too. See `IDEAS.md` / `docs/DESIGN.md`.
+When the appliance/asset-metadata feature is built:
+- Keep two concerns separate: (1) an **asset-metadata layer** keyed by `device_id`
+  that can attach to ANY device — virtual or from another integration — and
+  (2) optional **virtual-device provision** for hardware no integration provides.
+  Do not couple metadata to device creation; it must work on existing devices too.
+- Reuse HA-native primitives first — device `manufacturer`/`model`/`serial_number`/
+  `area` and **labels** (2023.7+); the custom layer owns only the gap (dates,
+  warranty, cost, vendor, manual link, consumable part numbers, photo, notes).
+- Make temporal/automatable fields real **entities** (`date`/`timestamp` sensors,
+  e.g. warranty expiry); keep purely descriptive fields as stored metadata.
+- Attach metadata only to devices that currently exist
+  (`device_registry.async_get` first, reject `None` — no shadow registry). Store
+  the device `identifiers`/`connections` alongside `device_id` for reconciliation,
+  and clean up all metadata/entities/virtual devices on integration removal.
+  See `IDEAS.md` / `docs/DESIGN.md`.
 
 ## Deferred: cross-integration contribution API
 - The stable interface for other integrations (e.g. Battery Notes) to contribute

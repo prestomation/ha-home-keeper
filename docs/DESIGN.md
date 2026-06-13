@@ -70,13 +70,17 @@ Not built in this prototype — only the hook points and this note exist. See
 A planned direction (not yet built) to support dumb appliances and richer asset
 records. Two intentionally **decoupled** layers:
 
-- an **asset-metadata layer** (make, model, serial number, manufacture/purchase
-  date, warranty, location, cost, manual link, consumable part numbers, notes…)
-  keyed by `device_id` so it can decorate *any* device — one we create, a real
-  device from another integration, or a Battery Notes device; and
+- an **asset-metadata layer** keyed by `device_id` that can attach to / enrich
+  *any* device — one we create, a real device from another integration, or a
+  Battery Notes device — reusing HA-native primitives first (device
+  `manufacturer`/`model`/`serial_number`/area + **labels**) and owning only the
+  gap (manufacture/purchase/install dates, warranty, cost, vendor, manual link,
+  consumable part numbers, photo, notes); temporal/automatable fields (warranty
+  expiry) become `date`/`timestamp` **entities**; and
 - **virtual-device provision** (only when no device exists) via
   `device_registry.async_get_or_create`, so multiple tasks — and Battery Notes
   batteries — share one appliance device page.
 
-Metadata must not be coupled to device creation. Full detail and open questions in
-[../IDEAS.md](../IDEAS.md).
+Metadata must not be coupled to device creation, may attach only to devices that
+currently exist, and must be cleaned up on integration removal. Full detail and
+open questions in [../IDEAS.md](../IDEAS.md).

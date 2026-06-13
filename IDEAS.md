@@ -12,8 +12,8 @@ devices only come from integrations.
 
 Direction (two **decoupled** layers — this is the key design decision):
 
-1. **Asset-metadata layer — attachable to ANY device (virtual or existing).**
-   A record of descriptive/ownership attributes that can decorate *any* device in
+1. **Asset-metadata layer — attach to / enrich ANY device (virtual or existing).**
+   A record of descriptive/ownership attributes that can attach to *any* device in
    the registry: one we created for a dumb appliance, OR a real device from
    another integration (e.g. a smart fridge), OR a Battery Notes device. Metadata
    is keyed by `device_id` and must NOT be coupled to device creation.
@@ -25,9 +25,20 @@ Direction (two **decoupled** layers — this is the key design decision):
    - cost / purchase price, vendor / where-to-rebuy
    - link to manual / docs, model/part numbers for consumables (filters, bulbs)
    - free-form notes, photo
-   Surfacing options to explore: expose select attributes as diagnostic entities
-   (e.g. a `date` sensor for warranty expiry so users can automate on it), and/or
-   show them on the device page and in the Home Keeper panel.
+
+   **Reuse HA-native primitives first (don't build a parallel system).** The
+   device registry already carries `manufacturer`, `model`, `model_id`,
+   `serial_number`, `hw_version`/`sw_version`, `area_id`, and `configuration_url`;
+   **labels** (HA 2023.7+) cover arbitrary tagging/grouping/filtering. Our custom
+   layer should own *only the gap* those can't express — primarily dates
+   (manufacture/purchase/install), warranty, cost, vendor, manual link, consumable
+   part numbers, photo, and notes.
+
+   **Entities vs. stored metadata.** Make automatable/temporal fields real
+   **entities** (e.g. a `sensor` with `device_class: date`/`timestamp` for
+   warranty expiry, so "warranty expiring in 30 days → notify" works and shows in
+   the UI without our panel and in state history). Keep purely descriptive,
+   non-automatable fields (notes, manual links, part numbers) as stored metadata.
 
 2. **Virtual-device provision — only when there's no device to attach to.**
    When the user has a dumb appliance with no existing device, Home Keeper can
@@ -42,16 +53,30 @@ Why decouple: the metadata is useful on real devices too, and shouldn't require
 us to "own" the device. The virtual-device piece is just the fallback for hardware
 no integration provides.
 
+**Constraints / lifecycle (refined via review):**
+- Only attach metadata to a device that **currently exists** — validate with
+  `device_registry.async_get(device_id)` and reject if `None`. No pre-creating
+  metadata for not-yet-existing devices (avoids a shadow registry).
+- Devices owned by other integrations can be removed or recreated with a new
+  `device_id`. Store **both** `device_id` (fast lookup) **and** the device's
+  `identifiers`/`connections` (for reconciliation), and listen for device-registry
+  removal/update events (`async_track_device_registry_updated_event`) to detect
+  orphaned/re-created devices rather than silently losing metadata.
+- On config-entry removal, **aggressively clean up** all our metadata, any
+  diagnostic entities we created, and any virtual devices we own. Removing Home
+  Keeper must not leave residue on other integrations' devices.
+
 Existing ecosystem alternatives we evaluated for the virtual-device piece (and why
 we'd rather provide it ourselves): MQTT discovery (needs a broker + hand-rolled
 topics), `twrecked/hass-virtual`, `kuba2k2/hassio-virtual-devices`, and the
 "Device Tools" custom integration. Providing managed appliances ourselves keeps it
 on-mission and GUI-driven.
 
-Open questions: how/whether to render metadata on the device page vs. only in the
-panel; ownership/reconciliation when decorating another integration's device;
-which attributes become entities vs. plain stored metadata; how this interacts
-with the deferred cross-integration contribution API and with areas/categories.
+Open questions: exactly which gap-attributes warrant entities beyond the date/
+warranty ones; how editing native device fields (manufacturer/model/serial) should
+work when we don't own the device (HA may not allow it) vs. our own metadata; how
+this interacts with the deferred cross-integration contribution API; and whether
+"category/type" should be a label or our own field.
 
 ## Deferred from the prototype (known next steps)
 
