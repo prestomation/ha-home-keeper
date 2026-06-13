@@ -14,7 +14,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
 from .const import DOMAIN
-from .coordinator import HomeKeeperCoordinator
+from .coordinator import HomeKeeperCoordinator, entity_set_key
 from .models import TaskValidationError
 
 
@@ -86,8 +86,7 @@ async def ws_update_task(
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
-    existing = coord.store.get_task(msg["task_id"])
-    old_device = existing.get("device_id") if existing else None
+    before = entity_set_key(coord.store.get_task(msg["task_id"]))
     try:
         task = await coord.store.update_task(msg["task_id"], msg["updates"])
     except KeyError:
@@ -96,9 +95,9 @@ async def ws_update_task(
     except TaskValidationError as err:
         connection.send_error(msg["id"], "invalid_task", str(err))
         return
-    # Only a device_id change alters which per-task entities exist; reload only
-    # then, otherwise a coordinator refresh is enough.
-    if task.get("device_id") != old_device:
+    # Only changes that alter which per-task entities exist (device link or
+    # enabled state) need a reload; otherwise a coordinator refresh is enough.
+    if entity_set_key(task) != before:
         await hass.config_entries.async_reload(coord.entry.entry_id)
     else:
         await coord.async_request_refresh()

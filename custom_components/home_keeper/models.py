@@ -33,12 +33,16 @@ def _require(data: dict, key: str) -> Any:
     return data[key]
 
 
-def normalize_fields(data: dict) -> dict:
+def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     """Validate and normalize the user-supplied fields of a task.
 
     Returns a dict containing only the recurrence-defining fields plus name/notes/
     device/area. Does not assign an id or compute next_due (see :func:`build_task`
     and :func:`merge_update`).
+
+    ``tz`` is the timezone used to qualify a naive fixed-schedule anchor (the
+    caller passes Home Assistant's configured tz, e.g. ``dt_util.now().tzinfo``);
+    if omitted, the system local tz is used as a fallback.
     """
     name = str(_require(data, "name")).strip()
     if not name:
@@ -81,11 +85,16 @@ def normalize_fields(data: dict) -> dict:
             raise TaskValidationError(f"invalid anchor datetime: {anchor!r}") from err
         # The panel's <input type="datetime-local"> yields a naive value (no
         # offset). The recurrence engine compares the anchor against an aware
-        # ``now``, so a naive anchor would raise a TypeError. Normalize naive
-        # anchors to the local timezone here (stdlib only, keeping this module
-        # HA-free) and store the offset-qualified ISO string.
+        # ``now``, so a naive anchor would raise a TypeError. Interpret the naive
+        # wall-clock time in the caller-provided tz (Home Assistant's configured
+        # zone) — falling back to the system tz only if none was passed — and
+        # store the offset-qualified ISO string. ``replace`` keeps the wall-clock
+        # reading (correct for zoneinfo/DST) rather than shifting it.
         if parsed_anchor.tzinfo is None:
-            parsed_anchor = parsed_anchor.astimezone()
+            parsed_anchor = (
+                parsed_anchor.replace(tzinfo=tz) if tz is not None
+                else parsed_anchor.astimezone()
+            )
         fields["freq"] = freq
         fields["anchor"] = parsed_anchor.isoformat()
 
@@ -94,7 +103,7 @@ def normalize_fields(data: dict) -> dict:
 
 def build_task(data: dict, *, now: datetime) -> dict:
     """Create a brand-new task dict (with id, history, and computed next_due)."""
-    fields = normalize_fields(data)
+    fields = normalize_fields(data, tz=now.tzinfo)
     task: dict[str, Any] = {
         "id": str(uuid.uuid4()),
         "created": now.isoformat(),
@@ -129,7 +138,7 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "freq": updates.get("freq", existing.get("freq")),
         "anchor": updates.get("anchor", existing.get("anchor")),
     }
-    fields = normalize_fields(candidate)
+    fields = normalize_fields(candidate, tz=now.tzinfo)
     merged.update(fields)
 
     recurrence_keys = {"recurrence_type", "interval", "unit", "freq", "anchor"}

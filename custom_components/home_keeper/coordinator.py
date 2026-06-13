@@ -29,6 +29,19 @@ _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(minutes=5)
 
 
+def entity_set_key(task: dict[str, Any] | None) -> tuple:
+    """Identity of a task's per-task entity set.
+
+    Per-task entities (button/sensor/binary_sensor) exist only for an enabled,
+    device-attached task. When this key changes between an update's before/after,
+    the entry must be reloaded so entities are created/removed; otherwise a plain
+    coordinator refresh is enough.
+    """
+    if not task:
+        return (None, False)
+    return (task.get("device_id"), bool(task.get("enabled", True)))
+
+
 class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     """Coordinator exposing the current task map to all entities."""
 
@@ -48,8 +61,12 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         return self.store.get_tasks()
 
     def device_attached_task_ids(self) -> list[str]:
-        """Task ids that are attached to a device (so get per-task entities)."""
-        return [tid for tid, task in self.data.items() if task.get("device_id")]
+        """Enabled task ids attached to a device (so get per-task entities)."""
+        return [
+            tid
+            for tid, task in self.data.items()
+            if task.get("device_id") and task.get("enabled", True)
+        ]
 
     def device_info_for_task(self, task: dict[str, Any]) -> DeviceInfo:
         """Return the DeviceInfo a per-task entity should use.

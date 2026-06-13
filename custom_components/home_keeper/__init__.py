@@ -18,7 +18,7 @@ from homeassistant.helpers import config_validation as cv
 
 from . import panel, websocket_api
 from .const import DOMAIN, PLATFORMS
-from .coordinator import HomeKeeperCoordinator
+from .coordinator import HomeKeeperCoordinator, entity_set_key
 from .models import TaskValidationError
 from .store import HomeKeeperStore
 
@@ -108,16 +108,16 @@ def _register_services(hass: HomeAssistant) -> None:
         data = dict(call.data)
         task_id = data.pop("task_id")
         existing = coord.store.get_task(task_id)
-        old_device = existing.get("device_id") if existing else None
+        before = entity_set_key(existing)
         try:
             updated = await coord.store.update_task(task_id, data)
         except KeyError:
             raise ServiceValidationError(f"Task not found: {task_id}") from None
         except TaskValidationError as err:
             raise ServiceValidationError(str(err)) from err
-        # Only a device_id change alters which per-task entities exist, so only
-        # then do we pay for a full entry reload; otherwise a refresh suffices.
-        if updated.get("device_id") != old_device:
+        # Only changes that alter which per-task entities exist (device link or
+        # enabled state) need a full entry reload; otherwise a refresh suffices.
+        if entity_set_key(updated) != before:
             await hass.config_entries.async_reload(coord.entry.entry_id)
         else:
             await coord.async_request_refresh()

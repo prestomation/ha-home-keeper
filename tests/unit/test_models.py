@@ -48,7 +48,12 @@ def test_build_fixed_task_normalizes_naive_anchor():
         },
         now=NOW,
     )
-    assert datetime.fromisoformat(task["anchor"]).tzinfo is not None
+    anchor = datetime.fromisoformat(task["anchor"])
+    assert anchor.tzinfo is not None
+    # The naive wall-clock time is qualified with the caller-provided tz (NOW's),
+    # not shifted, so the time-of-day is preserved.
+    assert anchor.utcoffset() == NOW.utcoffset()
+    assert (anchor.hour, anchor.minute) == (8, 0)
     # next_due must be computable (no crash) and be a parseable aware datetime.
     assert datetime.fromisoformat(task["next_due"]).tzinfo is not None
 
