@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "home_keeper",
+  "data": {
+    "tasks": {
+      "task_fridge_filter": {
+        "id": "task_fridge_filter",
+        "name": "Replace fridge filter",
+        "notes": "PureSource Ultra II",
+        "recurrence_type": "floating",
+        "interval": 1,
+        "unit": "months",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2026-05-01T09:00:00-04:00",
+        "last_completed": "2026-06-01T09:00:00-04:00",
+        "next_due": "2026-07-01T09:00:00-04:00",
+        "completions": [{"ts": "2026-05-01T09:00:00-04:00"}, {"ts": "2026-06-01T09:00:00-04:00"}]
+      },
+      "task_medicine": {
+        "id": "task_medicine",
+        "name": "Take medicine",
+        "notes": "After breakfast",
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": "2026-01-01T08:00:00-04:00",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2026-01-01T08:00:00-04:00",
+        "last_completed": null,
+        "next_due": "2026-06-14T08:00:00-04:00",
+        "completions": []
+      },
+      "task_furnace_filter": {
+        "id": "task_furnace_filter",
+        "name": "Replace furnace filter",
+        "notes": "20x25x1 MERV 11",
+        "recurrence_type": "floating",
+        "interval": 3,
+        "unit": "months",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2026-04-01T10:00:00-04:00",
+        "last_completed": "2026-04-01T10:00:00-04:00",
+        "next_due": "2026-07-01T10:00:00-04:00",
+        "completions": [{"ts": "2026-04-01T10:00:00-04:00"}]
+      },
+      "task_water_filter": {
+        "id": "task_water_filter",
+        "name": "Replace water filter",
+        "notes": "Under-sink RO filter",
+        "recurrence_type": "floating",
+        "interval": 1,
+        "unit": "months",
+        "device_id": "kitchen_fridge_demo",
+        "area_id": null,
+        "enabled": true,
+        "created": "2026-03-20T12:00:00-04:00",
+        "last_completed": "2026-04-20T12:00:00-04:00",
+        "next_due": "2026-05-20T12:00:00-04:00",
+        "completions": [{"ts": "2026-04-20T12:00:00-04:00"}]
+      }
+    }
+  }
+}

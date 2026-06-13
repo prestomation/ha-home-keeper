@@ -1,0 +1,131 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Set up Home Keeper to track home maintenance and chores. Manage your tasks from the Home Keeper panel in the sidebar."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper is already set up."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Add task",
+      "description": "Create a new maintenance task or chore.",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Display name of the task."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Optional free-text notes."
+        },
+        "recurrence_type": {
+          "name": "Recurrence type",
+          "description": "floating (measured from completion) or fixed (anchored schedule)."
+        },
+        "interval": {
+          "name": "Interval",
+          "description": "Repeat every N units (floating) or steps (fixed)."
+        },
+        "unit": {
+          "name": "Unit",
+          "description": "For floating tasks: days, weeks, or months."
+        },
+        "freq": {
+          "name": "Frequency",
+          "description": "For fixed tasks: DAILY, WEEKLY, or MONTHLY."
+        },
+        "anchor": {
+          "name": "Anchor",
+          "description": "For fixed tasks: ISO datetime of the first occurrence (sets the time of day)."
+        },
+        "device_id": {
+          "name": "Device",
+          "description": "Optional device to attach this task to."
+        },
+        "area_id": {
+          "name": "Area",
+          "description": "Optional area to associate with this task."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Update task",
+      "description": "Update fields of an existing task.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task to update."
+        },
+        "name": {
+          "name": "Name",
+          "description": "New display name."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "New notes."
+        },
+        "recurrence_type": {
+          "name": "Recurrence type",
+          "description": "floating or fixed."
+        },
+        "interval": {
+          "name": "Interval",
+          "description": "Repeat every N units/steps."
+        },
+        "unit": {
+          "name": "Unit",
+          "description": "days, weeks, or months (floating)."
+        },
+        "freq": {
+          "name": "Frequency",
+          "description": "DAILY, WEEKLY, or MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Anchor",
+          "description": "ISO datetime of the first occurrence (fixed)."
+        },
+        "device_id": {
+          "name": "Device",
+          "description": "Device to attach this task to."
+        },
+        "area_id": {
+          "name": "Area",
+          "description": "Area to associate with this task."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Delete task",
+      "description": "Delete a task.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task to delete."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Complete task",
+      "description": "Mark a task complete and advance its recurrence.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task to complete."
+        },
+        "completed_at": {
+          "name": "Completed at",
+          "description": "Optional completion timestamp (defaults to now)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "List tasks",
+      "description": "Return all tasks as a response."
+    }
+  }
+}

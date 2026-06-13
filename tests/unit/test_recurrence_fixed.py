@@ -1,0 +1,69 @@
+"""Unit tests for fixed (anchored schedule) recurrence."""
+
+from datetime import datetime, timedelta, timezone
+
+import hk_recurrence as r
+
+TZ = timezone(timedelta(hours=-4))
+
+
+def dt(y, m, d, hh=0, mm=0):
+    return datetime(y, m, d, hh, mm, tzinfo=TZ)
+
+
+def test_next_daily_occurrence_preserves_time_of_day():
+    anchor = dt(2026, 1, 1, 8)
+    nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=dt(2026, 6, 13, 9))
+    assert nxt == dt(2026, 6, 14, 8)
+
+
+def test_next_occurrence_returns_anchor_when_after_is_before_anchor():
+    anchor = dt(2026, 7, 1, 8)
+    nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=dt(2026, 6, 1))
+    assert nxt == anchor
+
+
+def test_weekly_with_interval():
+    anchor = dt(2026, 1, 1, 8)  # Thursday
+    nxt = r.next_fixed_occurrence(anchor, "WEEKLY", 2, after=dt(2026, 1, 10))
+    # Every 2 weeks from Jan 1: Jan 15, Jan 29 ...
+    assert nxt == dt(2026, 1, 15, 8)
+
+
+def test_monthly_occurrence_clamps_end_of_month():
+    anchor = dt(2026, 1, 31, 9)
+    nxt = r.next_fixed_occurrence(anchor, "MONTHLY", 1, after=dt(2026, 2, 1))
+    assert nxt == dt(2026, 2, 28, 9)
+
+
+def test_apply_completion_fixed_follows_schedule_not_completion():
+    anchor = dt(2026, 1, 1, 8)
+    now = dt(2026, 6, 13, 10)  # completed late in the day
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": anchor.isoformat(),
+        "completions": [],
+    }
+    r.apply_completion(task, now, now=now)
+    # Next due is the next scheduled 08:00, NOT 24h after completion time.
+    assert task["next_due"] == dt(2026, 6, 14, 8).isoformat()
+
+
+def test_expand_fixed_occurrences_weekly():
+    anchor = dt(2026, 1, 1, 8)  # Thursday
+    occ = r.expand_fixed_occurrences(
+        anchor, "WEEKLY", 1, dt(2026, 6, 1), dt(2026, 6, 30)
+    )
+    assert [o.date().isoformat() for o in occ] == [
+        "2026-06-04",
+        "2026-06-11",
+        "2026-06-18",
+        "2026-06-25",
+    ]
+
+
+def test_expand_empty_when_range_inverted():
+    anchor = dt(2026, 1, 1, 8)
+    assert r.expand_fixed_occurrences(anchor, "DAILY", 1, dt(2026, 6, 2), dt(2026, 6, 1)) == []

@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine release version
+        id: check
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('custom_components/home_keeper/manifest.json'))['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          # Classify the version. Pre-release versions (e.g. 0.2.0b1, 0.2.0rc2)
+          # become GitHub pre-releases: HACS only offers them to users who enabled
+          # "Show beta versions". Everything else ships as a normal release.
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)[0-9]+$ ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::manifest.json version '$VERSION' is malformed — expected X.Y.Z or X.Y.Z{a|b|rc}N (e.g. 0.2.0 or 0.2.0b1)."
+            exit 1
+          fi
+
+          if git rev-parse --verify "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists — nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+            echo "::error::manifest.json is at $VERSION but CHANGELOG.md has no '## [$VERSION]' section. Add a changelog entry or revert the version bump."
+            exit 1
+          fi
+
+          PANEL_VERSION=$(grep -E '^PANEL_VERSION\s*=' custom_components/home_keeper/const.py | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ "$PANEL_VERSION" != "$VERSION" ]; then
+            echo "::error::manifest.json version ($VERSION) does not match const.py PANEL_VERSION ($PANEL_VERSION). Bump both in the same PR."
+            exit 1
+          fi
+
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "Will release v$VERSION"
+
+      - name: Extract changelog section
+        if: steps.check.outputs.release == 'true'
+        id: changelog
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; print; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release_notes.txt
+          if [ ! -s release_notes.txt ]; then
+            echo "::error::Failed to extract changelog section for $VERSION (awk pattern matched zero lines)."
+            exit 1
+          fi
+          {
+            echo 'notes<<RELEASE_NOTES_EOF'
+            cat release_notes.txt
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.release == 'true'
+        with:
+          node-version: "20"
+
+      - name: Install frontend deps
+        if: steps.check.outputs.release == 'true'
+        run: npm ci --prefix custom_components/home_keeper/frontend
+
+      - name: Build panel JS
+        if: steps.check.outputs.release == 'true'
+        run: bash ci/build-panel.sh
+
+      - name: Build release zip
+        if: steps.check.outputs.release == 'true'
+        run: bash ci/build-zip.sh
+
+      - name: Verify release zip
+        if: steps.check.outputs.release == 'true'
+        run: |
+          if [ ! -f home_keeper.zip ]; then
+            echo "::error::home_keeper.zip not found"
+            exit 1
+          fi
+          echo "home_keeper.zip exists ($(du -h home_keeper.zip | cut -f1))"
+
+      - name: Create and push tag
+        if: steps.check.outputs.release == 'true' && github.event_name != 'pull_request'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.release == 'true' && github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.check.outputs.version }}"
+          name: "v${{ steps.check.outputs.version }}"
+          body: ${{ steps.changelog.outputs.notes }}
+          draft: false
+          prerelease: ${{ steps.check.outputs.prerelease == 'true' }}
+          files: home_keeper.zip

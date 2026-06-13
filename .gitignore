@@ -1,0 +1,18 @@
+*.pyc
+__pycache__/
+.pytest_cache/
+*.egg-info/
+node_modules/
+
+# Build artifacts
+custom_components/home_keeper/frontend/home-keeper-panel.js
+home_keeper.zip
+
+# Coverage artifacts
+.coverage
+htmlcov/
+
+# Playwright
+tests/e2e/.auth/
+tests/e2e/playwright-report/
+tests/e2e/test-results/

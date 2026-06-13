@@ -1,0 +1,32 @@
+homeassistant:
+  name: Test Home
+  unit_system: imperial
+  time_zone: America/New_York
+  latitude: 40.7128
+  longitude: -74.0060
+  elevation: 10
+
+# Enable the REST API
+api:
+
+# Enable frontend (required for the custom sidebar panel + Lovelace resources)
+frontend:
+
+# Dedicated YAML dashboard used by the Playwright e2e suite. The default
+# (storage-mode) dashboard from onboarding is left untouched. The Home Keeper
+# todo/calendar entities resolve via HA's built-in cards.
+lovelace:
+  mode: storage
+  dashboards:
+    home-keeper-e2e:
+      mode: yaml
+      title: Home Keeper E2E
+      icon: mdi:home-clock
+      show_in_sidebar: true
+      filename: home-keeper-e2e.yaml
+
+# Minimal logging
+logger:
+  default: info
+  logs:
+    custom_components.home_keeper: debug

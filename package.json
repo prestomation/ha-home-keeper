@@ -1,0 +1,28 @@
+{
+  "name": "ha-home-keeper",
+  "version": "1.0.0",
+  "description": "Home maintenance & chore tracking for Home Assistant.",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prestomation/ha-home-keeper.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/prestomation/ha-home-keeper/issues"
+  },
+  "homepage": "https://github.com/prestomation/ha-home-keeper#readme",
+  "devDependencies": {
+    "@vitest/ui": "^4.1.2",
+    "vitest": "^4.1.2"
+  },
+  "dependencies": {
+    "jsdom": "^29.0.1"
+  }
+}
