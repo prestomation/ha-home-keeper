@@ -57,6 +57,14 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
 - Escape all user-provided content before injecting it into `innerHTML` in the
   panel frontend (`escapeHTML`).
 
+## Planned: asset metadata decoupled from device creation
+- When the appliance/asset-metadata feature is built, keep two concerns separate:
+  (1) an **asset-metadata layer** (make/model/serial/dates/warranty/etc.) keyed by
+  `device_id` that can decorate ANY device — virtual or from another integration —
+  and (2) optional **virtual-device provision** for hardware no integration
+  provides. Do not couple metadata to device creation; metadata must work on
+  existing devices too. See `IDEAS.md` / `docs/DESIGN.md`.
+
 ## Deferred: cross-integration contribution API
 - The stable interface for other integrations (e.g. Battery Notes) to contribute
   tasks is intentionally **not implemented yet**. Only documented hook points

@@ -3,6 +3,56 @@
 A running list of things we deliberately deferred from the first UX prototype, plus
 ideas worth exploring. Nothing here is committed scope; it's a parking lot.
 
+## Appliances / assets & device metadata (planned direction)
+
+The motivating problem: a "dumb" appliance (e.g. a fridge) usually isn't a Home
+Assistant device, so there's nothing to attach maintenance tasks — or Battery
+Notes batteries — to. Home Assistant core has no way to create a device manually;
+devices only come from integrations.
+
+Direction (two **decoupled** layers — this is the key design decision):
+
+1. **Asset-metadata layer — attachable to ANY device (virtual or existing).**
+   A record of descriptive/ownership attributes that can decorate *any* device in
+   the registry: one we created for a dumb appliance, OR a real device from
+   another integration (e.g. a smart fridge), OR a Battery Notes device. Metadata
+   is keyed by `device_id` and must NOT be coupled to device creation.
+   Attributes to support (extensible):
+   - make / manufacturer, model, serial number
+   - manufacture date, purchase date, install/commission date
+   - warranty expiry, warranty provider/terms
+   - location/room, category/type
+   - cost / purchase price, vendor / where-to-rebuy
+   - link to manual / docs, model/part numbers for consumables (filters, bulbs)
+   - free-form notes, photo
+   Surfacing options to explore: expose select attributes as diagnostic entities
+   (e.g. a `date` sensor for warranty expiry so users can automate on it), and/or
+   show them on the device page and in the Home Keeper panel.
+
+2. **Virtual-device provision — only when there's no device to attach to.**
+   When the user has a dumb appliance with no existing device, Home Keeper can
+   register one via `device_registry.async_get_or_create(config_entry_id=...,
+   identifiers={(DOMAIN, asset_id)}, name, manufacturer, model, ...)`. Multiple
+   tasks then share that one device page instead of becoming separate per-task
+   devices (today each standalone task makes its own device). Because it's a real
+   registry device, Battery Notes (and our future contribution API) can attach to
+   it too — so tasks + batteries + asset metadata converge on one page.
+
+Why decouple: the metadata is useful on real devices too, and shouldn't require
+us to "own" the device. The virtual-device piece is just the fallback for hardware
+no integration provides.
+
+Existing ecosystem alternatives we evaluated for the virtual-device piece (and why
+we'd rather provide it ourselves): MQTT discovery (needs a broker + hand-rolled
+topics), `twrecked/hass-virtual`, `kuba2k2/hassio-virtual-devices`, and the
+"Device Tools" custom integration. Providing managed appliances ourselves keeps it
+on-mission and GUI-driven.
+
+Open questions: how/whether to render metadata on the device page vs. only in the
+panel; ownership/reconciliation when decorating another integration's device;
+which attributes become entities vs. plain stored metadata; how this interacts
+with the deferred cross-integration contribution API and with areas/categories.
+
 ## Deferred from the prototype (known next steps)
 
 - **Cross-integration contribution API** (the big one). A stable, documented

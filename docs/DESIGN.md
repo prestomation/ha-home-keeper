@@ -64,3 +64,19 @@ The end goal is for other integrations (e.g. Battery Notes) to contribute tasks
 
 Not built in this prototype — only the hook points and this note exist. See
 [../IDEAS.md](../IDEAS.md).
+
+## Planned: appliances & asset metadata
+
+A planned direction (not yet built) to support dumb appliances and richer asset
+records. Two intentionally **decoupled** layers:
+
+- an **asset-metadata layer** (make, model, serial number, manufacture/purchase
+  date, warranty, location, cost, manual link, consumable part numbers, notes…)
+  keyed by `device_id` so it can decorate *any* device — one we create, a real
+  device from another integration, or a Battery Notes device; and
+- **virtual-device provision** (only when no device exists) via
+  `device_registry.async_get_or_create`, so multiple tasks — and Battery Notes
+  batteries — share one appliance device page.
+
+Metadata must not be coupled to device creation. Full detail and open questions in
+[../IDEAS.md](../IDEAS.md).
