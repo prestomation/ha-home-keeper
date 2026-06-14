@@ -6,7 +6,7 @@ can attach to that virtual device (its per-task entities merge onto the same pag
 and that the asset CRUD services round-trip.
 """
 
-from conftest import call_service, get_state, list_states, poll_state
+from conftest import call_service, list_states
 
 
 def _find_state(ha, predicate):
