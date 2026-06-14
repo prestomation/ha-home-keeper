@@ -145,6 +145,20 @@ def test_changing_device_id_updates_task():
     assert changed is True and _only(tasks)["device_id"] == "dev2"
 
 
+def test_changing_area_id_updates_task():
+    created, _ = _reconcile({"a1": _asset(area_id="area1", parts=[_wear_part()])})
+    moved = _asset(area_id="area2", parts=[_wear_part()])
+    tasks, changed = _reconcile({"a1": moved}, created)
+    assert changed is True and _only(tasks)["area_id"] == "area2"
+
+
+def test_changing_replace_unit_updates_task():
+    created, _ = _reconcile({"a1": _asset(parts=[_wear_part(unit="months")])})
+    changed_unit = _asset(parts=[_wear_part(unit="weeks")])
+    tasks, changed = _reconcile({"a1": changed_unit}, created)
+    assert changed is True and _only(tasks)["unit"] == "weeks"
+
+
 # ── timezone healing vs. real completions ─────────────────────────────────────
 def test_heals_legacy_naive_last_completed():
     # Simulate a task persisted by an older build: naive last_completed/next_due.
