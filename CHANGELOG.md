@@ -12,7 +12,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   the same name, so there was no way to tell which control belonged to which task.
   Each is now prefixed with its task name (e.g. *"Replace filter: Mark done"*).
   Self-owned task devices are unaffected (the device is already named after the
-  task), and the prefix follows task renames.
+  task). Renaming a task now refreshes its device-page entity names (and a
+  self-owned task device's own name) instead of leaving them stale.
 
 - **Sidebar panel device chips are now actionable.** The device chip on task and
   appliance rows links to that device's Home Assistant page when clicked (or via

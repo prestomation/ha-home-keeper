@@ -23,6 +23,7 @@ from homeassistant.util import dt as dt_util
 from .assets import DATE_FIELDS
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
+from .entity import HomeKeeperTaskEntity
 
 # Default icon for each asset date sensor. The display name is resolved from the
 # integration's translations via each entity's ``translation_key`` (the field
@@ -58,38 +59,19 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HomeKeeperNextDueSensor(
-    CoordinatorEntity[HomeKeeperCoordinator], SensorEntity
-):
+class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
     """Timestamp sensor reporting when a task is next due."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "next_due"
     _attr_icon = "mdi:calendar-clock"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:
-        super().__init__(coordinator)
-        self._task_id = task_id
+        super().__init__(coordinator, task_id)
         self._attr_unique_id = f"{DOMAIN}_{task_id}_next_due"
         self._attr_device_info = coordinator.device_info_for_task(
             coordinator.data[task_id]
         )
-        self._prefix_name = coordinator.task_uses_existing_device(
-            coordinator.data[task_id]
-        )
-
-    @property
-    def _task(self) -> dict:
-        return self.coordinator.data.get(self._task_id, {})
-
-    @property
-    def translation_placeholders(self) -> dict[str, str]:
-        """Disambiguate this sensor among a device's tasks by its task name."""
-        if not self._prefix_name:
-            return {"task_name": ""}
-        name = self._task.get("name", "")
-        return {"task_name": f"{name}: " if name else ""}
 
     @property
     def native_value(self) -> datetime | None:
