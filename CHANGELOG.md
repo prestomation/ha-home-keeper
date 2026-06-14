@@ -6,6 +6,14 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+- **Panel rebuilt on the Home Assistant design language.** The admin sidebar panel
+  now uses HA's own components throughout instead of hand-rolled markup: every form
+  is a native `ha-form` (with HA's text/number/select/date fields, the **searchable
+  device & area pickers**, and the **mdi icon picker**), task/appliance rows are
+  `ha-card`s, navigation uses `ha-tab-group`, status shows as `ha-assist-chip`, and
+  actions use `ha-button`/`ha-icon-button`. Looks and behaves like the rest of HA
+  (theming, dark mode, mobile) — no functional changes to tasks or appliances.
+
 ## [0.1.0b2] - 2026-06-14
 
 - **Appliances & virtual devices.** A new **Appliances** tab in the panel lets you
