@@ -9,7 +9,6 @@ change so entities stay in sync within the current HA tick.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, tzinfo
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -19,39 +18,13 @@ from homeassistant.util import dt as dt_util
 from . import assets, events, models, recurrence
 from .const import (
     EVENT_TASK_COMPLETED,
-    PART_WEAR,
     STORAGE_KEY,
     STORAGE_VERSION,
-    TASK_SOURCE_PART,
 )
+from .reconcile import part_source as _part_source
+from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _part_source(task: dict[str, Any]) -> dict[str, Any] | None:
-    """Return a task's ``{asset_id, part_id}`` part provenance, or None."""
-    source = task.get("source")
-    if isinstance(source, dict) and isinstance(source.get(TASK_SOURCE_PART), dict):
-        return source[TASK_SOURCE_PART]
-    return None
-
-
-def _qualify_iso(value: str | None, tz: tzinfo | None) -> str | None:
-    """Parse an ISO date/datetime and return an aware ISO string (or None).
-
-    A part's ``last_replaced`` is a date-only string; the recurrence engine
-    compares the derived ``next_due`` against an aware ``now``, so a naive value
-    must be qualified to Home Assistant's timezone first.
-    """
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=tz) if tz is not None else parsed.astimezone()
-    return parsed.isoformat()
 
 
 class HomeKeeperStore:
@@ -260,98 +233,14 @@ class HomeKeeperStore:
     async def reconcile_part_tasks(self) -> bool:
         """Create/update/remove the maintenance tasks derived from wear parts.
 
-        A wear part with a ``replace_interval`` yields a floating task attached to
-        the asset's device, so it reuses the existing to-do/calendar/per-task
-        entities. The task is keyed by ``source = {"part": {asset_id, part_id}}`` so
-        this reconciler exclusively owns it. Returns ``True`` if any task changed.
+        Delegates the (pure) computation to :func:`reconcile.reconcile_part_tasks`
+        and persists the result. Returns ``True`` if any task changed.
         """
-        now = dt_util.now()
-        desired: dict[tuple[str, str], dict[str, Any]] = {}
-        for asset in self._assets.values():
-            for part in asset.get("parts", []):
-                if part.get("type") == PART_WEAR and part.get("replace_interval"):
-                    desired[(asset["id"], part["id"])] = (asset, part)
-
-        existing_by_key: dict[tuple[str, str], str] = {}
-        for tid, task in self._tasks.items():
-            src = _part_source(task)
-            if src:
-                existing_by_key[(src.get("asset_id"), src.get("part_id"))] = tid
-
-        changed = False
-        # Remove orphaned part-tasks.
-        for key, tid in list(existing_by_key.items()):
-            if key not in desired:
-                del self._tasks[tid]
-                existing_by_key.pop(key, None)
-                changed = True
-
-        # Create or update the rest.
-        for key, (asset, part) in desired.items():
-            name = f"Replace {part['name']} ({asset.get('name') or 'appliance'})"
-            # A part's last_replaced is a date-only string; qualify it to HA's tz so
-            # the derived next_due is timezone-aware. A naive next_due otherwise
-            # crashes the next-due sensor, overdue binary_sensor, and the calendar
-            # (which compare it against an aware "now").
-            anchored = _qualify_iso(part.get("last_replaced"), now.tzinfo)
-            tid = existing_by_key.get(key)
-            if tid is None:
-                task = models.build_task(
-                    {
-                        "name": name,
-                        "recurrence_type": "floating",
-                        "interval": part["replace_interval"],
-                        "unit": part["replace_unit"],
-                        "device_id": asset.get("device_id"),
-                        "area_id": asset.get("area_id"),
-                        "source": {
-                            "part": {"asset_id": asset["id"], "part_id": part["id"]}
-                        },
-                    },
-                    now=now,
-                )
-                # Anchor the floating clock to the recorded replacement, or to
-                # creation ("assumed fresh") so that later interval edits re-base off
-                # a stable point instead of drifting to now+interval on each edit.
-                task["last_completed"] = anchored or task["created"]
-                task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
-                self._tasks[task["id"]] = task
-                changed = True
-            else:
-                # Only pass fields that actually changed. Passing interval/unit
-                # unconditionally would re-trigger a next_due recompute on every
-                # reconcile (setup, any asset edit) and, for a task with no
-                # last_completed, drift next_due forward to now+interval each time.
-                before = self._tasks[tid]
-                updates: dict[str, Any] = {}
-                if before.get("name") != name:
-                    updates["name"] = name
-                if before.get("interval") != part["replace_interval"]:
-                    updates["interval"] = part["replace_interval"]
-                if before.get("unit") != part["replace_unit"]:
-                    updates["unit"] = part["replace_unit"]
-                if before.get("device_id") != asset.get("device_id"):
-                    updates["device_id"] = asset.get("device_id")
-                if before.get("area_id") != asset.get("area_id"):
-                    updates["area_id"] = asset.get("area_id")
-                merged = models.merge_update(before, updates, now=now) if updates else before
-                # Heal a legacy timezone-naive last_completed (older builds stored a
-                # date-only last_replaced verbatim, yielding a naive next_due that
-                # crashed the sensors/calendar). Only re-qualify a naive value — never
-                # overwrite a real (already-aware) completion timestamp.
-                lc = merged.get("last_completed")
-                healed = _qualify_iso(lc, now.tzinfo) if lc else None
-                if healed and healed != lc:
-                    merged = dict(merged)
-                    merged["last_completed"] = healed
-                    merged["next_due"] = recurrence.compute_next_due(
-                        merged, now=now
-                    ).isoformat()
-                if merged is not before:
-                    self._tasks[tid] = merged
-                    changed = True
-
+        new_tasks, changed = _reconcile_part_tasks(
+            self._assets, self._tasks, now=dt_util.now()
+        )
         if changed:
+            self._tasks = new_tasks
             await self._save()
         return changed
 
