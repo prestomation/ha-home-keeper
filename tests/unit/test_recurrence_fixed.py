@@ -67,3 +67,27 @@ def test_expand_fixed_occurrences_weekly():
 def test_expand_empty_when_range_inverted():
     anchor = dt(2026, 1, 1, 8)
     assert r.expand_fixed_occurrences(anchor, "DAILY", 1, dt(2026, 6, 2), dt(2026, 6, 1)) == []
+
+
+def test_next_daily_occurrence_with_far_past_anchor_does_not_raise():
+    # Regression: a fixed DAILY task left running > MAX_EXPAND_ITERATIONS days used
+    # to blow the iteration cap and raise, taking the calendar/sensor down. It must
+    # now compute the correct next occurrence (next 08:00) instead.
+    anchor = dt(2020, 1, 1, 8)
+    nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=dt(2026, 6, 13, 9))
+    assert nxt == dt(2026, 6, 14, 8)
+
+
+def test_next_weekly_occurrence_with_far_past_anchor():
+    anchor = dt(2014, 1, 2, 8)  # Thursday, ~12 years before `after`
+    nxt = r.next_fixed_occurrence(anchor, "WEEKLY", 1, after=dt(2026, 6, 13))
+    # Anchored on a Thursday; the first Thursday strictly after Sat 2026-06-13.
+    assert nxt.weekday() == anchor.weekday()
+    assert nxt > dt(2026, 6, 13)
+    assert nxt - timedelta(weeks=1) <= dt(2026, 6, 13)
+
+
+def test_expand_daily_with_far_past_anchor_returns_window():
+    anchor = dt(2020, 1, 1, 8)
+    occ = r.expand_fixed_occurrences(anchor, "DAILY", 1, dt(2026, 6, 1), dt(2026, 6, 4))
+    assert [o.date().isoformat() for o in occ] == ["2026-06-01", "2026-06-02", "2026-06-03"]

@@ -20,6 +20,23 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   keyboard), and shows the device's integration brand logo (falling back to a
   generic device icon when no brand image is available).
 
+### Fixed
+
+- **Wear-part tasks no longer break the calendar and sensors.** A maintenance task
+  derived from a wear part (with a "last replaced" date) computed a
+  timezone-naive due date, which made its *next due* sensor, *overdue* binary
+  sensor, and the **whole Home Keeper calendar** go *unavailable*. The due date is
+  now timezone-aware, and existing affected tasks self-heal on the next reload.
+- **Long-running fixed-schedule tasks no longer crash.** A fixed (anchored)
+  daily/weekly task whose anchor was far in the past (a daily task left running
+  ~1.4 years, a weekly one ~9.6 years) raised an internal error when computing its
+  next occurrence — taking down the calendar and the next-due/overdue entities,
+  and 500-ing the create form for a far-past anchor. Occurrences are now computed
+  directly instead of by stepping to an iteration cap.
+- **Absurd intervals are rejected cleanly.** A recurrence interval or wear-part
+  replacement interval large enough to overflow date math now returns a clear
+  validation error instead of an internal server error.
+
 ## [0.1.0b3] - 2026-06-14
 
 - **Cross-integration task contributions.** Other integrations can now contribute

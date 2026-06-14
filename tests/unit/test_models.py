@@ -73,6 +73,16 @@ def test_build_task_rejects_bad_interval():
         m.build_task({"name": "x", "recurrence_type": "floating", "interval": 0, "unit": "days"}, now=NOW)
 
 
+def test_build_task_rejects_oversized_interval():
+    # An absurd interval must be a clean validation error, not a timedelta
+    # OverflowError that surfaces as a 500.
+    with pytest.raises(m.TaskValidationError):
+        m.build_task(
+            {"name": "x", "recurrence_type": "floating", "interval": 10**9, "unit": "days"},
+            now=NOW,
+        )
+
+
 def test_build_task_rejects_non_numeric_interval():
     # Websocket payloads aren't coerced, so a non-numeric interval must raise a
     # validation error (not a raw ValueError that crashes the command).

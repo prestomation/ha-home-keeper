@@ -23,7 +23,33 @@ def test_todo_entity_exists_with_seeded_tasks(ha):
 
 
 def test_calendar_entity_exists(ha):
-    assert get_state(ha, "calendar.home_keeper_upcoming_tasks") is not None
+    state = get_state(ha, "calendar.home_keeper_upcoming_tasks")
+    assert state is not None
+    # Regression: a wear part's date-only last_replaced used to produce a tz-naive
+    # next_due, which crashed the calendar's state computation -> "unavailable".
+    assert state["state"] != "unavailable"
+
+
+def test_wear_part_next_due_sensor_is_timezone_aware(ha):
+    # The seeded water heater's anode rod is a wear item. Its derived next-due
+    # timestamp sensor must report an aware datetime (not "unavailable" from a
+    # naive-vs-aware comparison crash).
+    sensor = next(
+        (
+            s
+            for s in list_states(ha)
+            if s["entity_id"].startswith("sensor.")
+            and "anode_rod" in s["entity_id"]
+            and s["entity_id"].endswith("_next_due")
+        ),
+        None,
+    )
+    assert sensor is not None, "expected a next-due sensor for the anode rod wear part"
+    assert sensor["state"] not in ("unavailable", "unknown"), sensor["state"]
+    # A timestamp device_class state is an aware ISO datetime; parsing must yield tz.
+    from datetime import datetime
+
+    assert datetime.fromisoformat(sensor["state"]).tzinfo is not None
 
 
 def test_device_attached_task_creates_per_task_entities(ha):

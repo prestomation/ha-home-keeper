@@ -40,6 +40,7 @@ from .const import (
     ASSET_KIND_VIRTUAL,
     ASSET_KINDS,
     DOMAIN,
+    MAX_INTERVAL,
     PART_CONSUMABLE,
     PART_TYPES,
     UNITS,
@@ -150,6 +151,8 @@ def _normalize_interval(value: Any) -> int | None:
         raise AssetValidationError("replace_interval must be an integer") from err
     if interval < 1:
         raise AssetValidationError("replace_interval must be >= 1")
+    if interval > MAX_INTERVAL:
+        raise AssetValidationError(f"replace_interval must be <= {MAX_INTERVAL}")
     return interval
 
 

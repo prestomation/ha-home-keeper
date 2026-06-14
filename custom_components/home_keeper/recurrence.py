@@ -93,6 +93,29 @@ def _step(dt: datetime, freq: str, interval: int) -> datetime:
     raise ValueError(f"unknown freq: {freq!r}")
 
 
+def _fast_forward(anchor: datetime, freq: str, interval: int, target: datetime) -> datetime:
+    """An occurrence at or just before *target*, jumped to in O(1).
+
+    A long-dormant fixed schedule can be thousands of steps past its anchor;
+    stepping one occurrence at a time would be slow (and historically raised once
+    it blew an iteration cap). We deliberately *under*-shoot (``- 1`` step) so the
+    caller's short loop finishes on the exact occurrence using wall-clock stepping
+    — correct across DST and month-length clamping. Day/week deltas are exact, so
+    the bulk jump is too; MONTHLY is left to the loop (it would need ~830 years to
+    approach the cap) to preserve its progressive day-clamping behavior.
+    """
+    elapsed = (target - anchor).total_seconds()
+    if elapsed <= 0:
+        return anchor
+    if freq == FREQ_DAILY:
+        steps = max(0, int(elapsed // (86_400 * interval)) - 1)
+        return anchor + timedelta(days=interval * steps)
+    if freq == FREQ_WEEKLY:
+        steps = max(0, int(elapsed // (604_800 * interval)) - 1)
+        return anchor + timedelta(weeks=interval * steps)
+    return anchor
+
+
 def next_fixed_occurrence(
     anchor: datetime,
     freq: str,
@@ -110,14 +133,14 @@ def next_fixed_occurrence(
         raise ValueError(f"interval must be >= 1, got {interval}")
     if anchor > after:
         return anchor
-    occ = anchor
+    occ = _fast_forward(anchor, freq, interval, after)
     iterations = 0
     while occ <= after:
         occ = _step(occ, freq, interval)
         iterations += 1
         if iterations > MAX_EXPAND_ITERATIONS:
-            # Anchor is far in the past relative to *after*; jump ahead in bulk
-            # for the common DAILY case rather than looping forever.
+            # Unreachable for realistic inputs now that we fast-forward; kept as a
+            # last-resort guard against a pathological freq/interval.
             raise RuntimeError(
                 "next_fixed_occurrence exceeded iteration cap; "
                 f"anchor={anchor.isoformat()} after={after.isoformat()}"
@@ -139,8 +162,9 @@ def expand_fixed_occurrences(
     if start >= end:
         return []
     occurrences: list[datetime] = []
-    # Find the first occurrence at or after *start*.
-    occ = anchor
+    # Find the first occurrence at or after *start* — fast-forward close first so a
+    # far-past anchor doesn't exhaust the iteration cap before reaching the window.
+    occ = _fast_forward(anchor, freq, interval, start)
     iterations = 0
     while occ < start:
         occ = _step(occ, freq, interval)
