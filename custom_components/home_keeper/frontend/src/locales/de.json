@@ -29,7 +29,7 @@
   "section.parts": "Teile & Verschleißteile",
   "section.part_n": "Teil {n}",
 
-  "part.lastReplaced": "Zuletzt ersetzt am {date} · eine Wartungsaufgabe verfolgt das nächste Mal",
+  "part.lastReplaced": "Zuletzt ersetzt am {date} · eine Wartungsaufgabe verfolgt die nächste Fälligkeit",
   "part.wearHint": "Ein Verschleißteil mit Intervall erstellt eine Wartungsaufgabe für dieses Gerät.",
 
   "error.nameRequired": "Name ist erforderlich",
@@ -85,15 +85,15 @@
 
   "appliance.fallbackName": "Gerät",
 
-  "recurrence.floating.one": "alle {unit} nach Abschluss",
+  "recurrence.floating.one": "{unit} nach Abschluss",
   "recurrence.floating.other": "alle {n} {unit} nach Abschluss",
-  "recurrence.fixed.one": "jede {unit}",
+  "recurrence.fixed.one": "{unit}",
   "recurrence.fixed.other": "alle {n} {unit}",
-  "recurrence.unit.day.one": "Tag",
+  "recurrence.unit.day.one": "jeden Tag",
   "recurrence.unit.day.other": "Tage",
-  "recurrence.unit.week.one": "Woche",
+  "recurrence.unit.week.one": "jede Woche",
   "recurrence.unit.week.other": "Wochen",
-  "recurrence.unit.month.one": "Monat",
+  "recurrence.unit.month.one": "jeden Monat",
   "recurrence.unit.month.other": "Monate",
 
   "due.none": "—",

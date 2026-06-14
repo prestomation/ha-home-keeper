@@ -86,9 +86,9 @@
   "appliance.fallbackName": "Apparaat",
 
   "recurrence.floating.one": "elke {unit} na voltooiing",
-  "recurrence.floating.other": "elke {n} {unit} na voltooiing",
+  "recurrence.floating.other": "om de {n} {unit} na voltooiing",
   "recurrence.fixed.one": "elke {unit}",
-  "recurrence.fixed.other": "elke {n} {unit}",
+  "recurrence.fixed.other": "om de {n} {unit}",
   "recurrence.unit.day.one": "dag",
   "recurrence.unit.day.other": "dagen",
   "recurrence.unit.week.one": "week",

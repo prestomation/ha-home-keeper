@@ -24,7 +24,7 @@
           "description": "Valfria fritextanteckningar."
         },
         "recurrence_type": {
-          "name": "Återkommandetyp",
+          "name": "Typ av upprepning",
           "description": "floating (mätt från slutförande) eller fixed (förankrat schema)."
         },
         "interval": {
@@ -70,7 +70,7 @@
           "description": "Nya anteckningar."
         },
         "recurrence_type": {
-          "name": "Återkommandetyp",
+          "name": "Typ av upprepning",
           "description": "floating eller fixed."
         },
         "interval": {

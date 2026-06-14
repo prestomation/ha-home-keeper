@@ -85,15 +85,15 @@
 
   "appliance.fallbackName": "Appareil",
 
-  "recurrence.floating.one": "tous les {unit} après l'achèvement",
+  "recurrence.floating.one": "{unit} après l'achèvement",
   "recurrence.floating.other": "tous les {n} {unit} après l'achèvement",
-  "recurrence.fixed.one": "tous les {unit}",
+  "recurrence.fixed.one": "{unit}",
   "recurrence.fixed.other": "tous les {n} {unit}",
-  "recurrence.unit.day.one": "jour",
+  "recurrence.unit.day.one": "chaque jour",
   "recurrence.unit.day.other": "jours",
-  "recurrence.unit.week.one": "semaine",
+  "recurrence.unit.week.one": "chaque semaine",
   "recurrence.unit.week.other": "semaines",
-  "recurrence.unit.month.one": "mois",
+  "recurrence.unit.month.one": "chaque mois",
   "recurrence.unit.month.other": "mois",
 
   "due.none": "—",

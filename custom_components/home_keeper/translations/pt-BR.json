@@ -119,7 +119,7 @@
         },
         "completed_at": {
           "name": "Concluída em",
-          "description": "Carimbo de data/hora de conclusão opcional (padrão é agora)."
+          "description": "Carimbo de data/hora de conclusão opcional (padrão: agora)."
         }
       }
     },
@@ -157,7 +157,7 @@
           "name": "Vencimento da garantia",
           "description": "Data ISO (YYYY-MM-DD). Exibida como um sensor de data no dispositivo."
         },
-        "warranty_provider": { "name": "Fornecedor da garantia", "description": "Quem honra a garantia." },
+        "warranty_provider": { "name": "Responsável pela garantia", "description": "Quem honra a garantia." },
         "vendor": { "name": "Fornecedor", "description": "Onde recomprar / prestador de serviço." },
         "cost": { "name": "Custo", "description": "Preço de compra." },
         "manual_url": { "name": "URL do manual", "description": "Link para o manual ou documentação." },
@@ -183,7 +183,7 @@
         "purchase_date": { "name": "Data da compra", "description": "Data ISO (YYYY-MM-DD)." },
         "install_date": { "name": "Data de instalação", "description": "Data ISO (YYYY-MM-DD)." },
         "warranty_expiry": { "name": "Vencimento da garantia", "description": "Data ISO (YYYY-MM-DD)." },
-        "warranty_provider": { "name": "Fornecedor da garantia", "description": "Quem honra a garantia." },
+        "warranty_provider": { "name": "Responsável pela garantia", "description": "Quem honra a garantia." },
         "vendor": { "name": "Fornecedor", "description": "Onde recomprar / prestador de serviço." },
         "cost": { "name": "Custo", "description": "Preço de compra." },
         "manual_url": { "name": "URL do manual", "description": "Link para o manual ou documentação." },

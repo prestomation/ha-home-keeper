@@ -29,7 +29,7 @@
         },
         "interval": {
           "name": "Intervall",
-          "description": "Gjenta hver N enheter (floating) eller steg (fixed)."
+          "description": "Gjenta hver N. enhet (floating) eller hvert N. steg (fixed)."
         },
         "unit": {
           "name": "Enhet",
@@ -75,7 +75,7 @@
         },
         "interval": {
           "name": "Intervall",
-          "description": "Gjenta hver N enheter/steg."
+          "description": "Gjenta hver N. enhet / hvert N. steg."
         },
         "unit": {
           "name": "Enhet",
@@ -162,9 +162,9 @@
         "cost": { "name": "Kostnad", "description": "Kjøpspris." },
         "manual_url": { "name": "URL til håndbok", "description": "Lenke til håndboken eller dokumentasjonen." },
         "icon": { "name": "Ikon", "description": "Valgfritt mdi-ikon (f.eks. mdi:piano)." },
-        "parts": { "name": "Deler", "description": "Strukturerte deler/slitedeler; slitedeler med et intervall driver en vedlikeholdsoppgave." },
+        "parts": { "name": "Deler", "description": "Strukturerte deler/slitedeler; slitedeler med et intervall oppretter en vedlikeholdsoppgave." },
         "parent_asset_id": { "name": "Overordnet apparat", "description": "Gjør dette til en underenhet av et annet apparat." },
-        "related_device_ids": { "name": "Relaterte enheter", "description": "Andre registerenheter å knytte til dette apparatet." },
+        "related_device_ids": { "name": "Relaterte enheter", "description": "Andre enheter fra enhetsregisteret å knytte til dette apparatet." },
         "notes": { "name": "Notater", "description": "Fritekstnotater." }
       }
     },
@@ -188,9 +188,9 @@
         "cost": { "name": "Kostnad", "description": "Kjøpspris." },
         "manual_url": { "name": "URL til håndbok", "description": "Lenke til håndboken eller dokumentasjonen." },
         "icon": { "name": "Ikon", "description": "Valgfritt mdi-ikon (f.eks. mdi:piano)." },
-        "parts": { "name": "Deler", "description": "Strukturerte deler/slitedeler; slitedeler med et intervall driver en vedlikeholdsoppgave." },
+        "parts": { "name": "Deler", "description": "Strukturerte deler/slitedeler; slitedeler med et intervall oppretter en vedlikeholdsoppgave." },
         "parent_asset_id": { "name": "Overordnet apparat", "description": "Gjør dette til en underenhet av et annet apparat." },
-        "related_device_ids": { "name": "Relaterte enheter", "description": "Andre registerenheter å knytte til dette apparatet." },
+        "related_device_ids": { "name": "Relaterte enheter", "description": "Andre enheter fra enhetsregisteret å knytte til dette apparatet." },
         "notes": { "name": "Notater", "description": "Fritekstnotater." }
       }
     },

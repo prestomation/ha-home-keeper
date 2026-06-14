@@ -15,7 +15,7 @@
   "btn.addPart": "+ Adicionar peça",
 
   "tasks.empty": "Nenhuma tarefa ainda. Clique em {addTask} para criar seu primeiro lembrete de manutenção.",
-  "appliances.empty": "Nenhum eletrodoméstico ainda. Adicione um para criar uma página de dispositivo que suas tarefas (e baterias) podem compartilhar — geladeira, fornalha, aquecedor de água…",
+  "appliances.empty": "Nenhum eletrodoméstico ainda. Adicione um para criar uma página de dispositivo que suas tarefas (e baterias) podem compartilhar — geladeira, ar-condicionado, aquecedor de água…",
 
   "form.task.new": "Nova tarefa",
   "form.task.edit": "Editar tarefa",
@@ -54,7 +54,7 @@
   "field.purchase_date": "Data da compra",
   "field.install_date": "Data de instalação",
   "field.warranty_expiry": "Vencimento da garantia",
-  "field.warranty_provider": "Fornecedor da garantia",
+  "field.warranty_provider": "Responsável pela garantia",
   "field.cost": "Custo",
   "field.vendor": "Fornecedor / onde recomprar",
   "field.manual_url": "URL do manual / documentação",

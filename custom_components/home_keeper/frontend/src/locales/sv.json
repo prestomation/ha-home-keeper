@@ -38,7 +38,7 @@
 
   "field.name": "Namn",
   "field.notes": "Anteckningar",
-  "field.recurrence_type": "Återkommande",
+  "field.recurrence_type": "Upprepning",
   "field.interval": "Var",
   "field.unit": "Enhet",
   "field.freq": "Frekvens",

@@ -25,11 +25,11 @@
 
   "section.ownership": "Omistus ja takuu",
   "section.related": "Liittyvät laitteet",
-  "section.reference": "Viite",
+  "section.reference": "Viitetiedot",
   "section.parts": "Osat ja kuluvat osat",
   "section.part_n": "Osa {n}",
 
-  "part.lastReplaced": "Vaihdettu viimeksi {date} · huoltotehtävä seuraa seuraavaa vaihtoa",
+  "part.lastReplaced": "Vaihdettu viimeksi {date} · huoltotehtävä pitää kirjaa seuraavasta vaihdosta",
   "part.wearHint": "Kuluva osa, jolla on aikaväli, luo huoltotehtävän tälle laitteelle.",
 
   "error.nameRequired": "Nimi vaaditaan",
@@ -50,7 +50,7 @@
   "field.model": "Malli",
   "field.serial_number": "Sarjanumero",
   "field.icon": "Kuvake",
-  "field.parent_asset_id": "Alalaite laitteesta (ylälaite)",
+  "field.parent_asset_id": "Ylälaite (tämä on sen alalaite)",
   "field.purchase_date": "Ostopäivä",
   "field.install_date": "Asennuspäivä",
   "field.warranty_expiry": "Takuun päättyminen",
@@ -86,15 +86,15 @@
   "appliance.fallbackName": "Laite",
 
   "recurrence.floating.one": "joka {unit} valmistumisen jälkeen",
-  "recurrence.floating.other": "joka {n} {unit} valmistumisen jälkeen",
+  "recurrence.floating.other": "{n} {unit} välein valmistumisen jälkeen",
   "recurrence.fixed.one": "joka {unit}",
-  "recurrence.fixed.other": "joka {n} {unit}",
+  "recurrence.fixed.other": "{n} {unit} välein",
   "recurrence.unit.day.one": "päivä",
-  "recurrence.unit.day.other": "päivää",
+  "recurrence.unit.day.other": "päivän",
   "recurrence.unit.week.one": "viikko",
-  "recurrence.unit.week.other": "viikkoa",
+  "recurrence.unit.week.other": "viikon",
   "recurrence.unit.month.one": "kuukausi",
-  "recurrence.unit.month.other": "kuukautta",
+  "recurrence.unit.month.other": "kuukauden",
 
   "due.none": "—",
   "due.today": "tänään",

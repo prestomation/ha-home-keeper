@@ -29,7 +29,7 @@
         },
         "interval": {
           "name": "Intervalle",
-          "description": "Répéter tous les N unités (floating) ou pas (fixed)."
+          "description": "Répéter toutes les N unités (floating) ou N pas (fixed)."
         },
         "unit": {
           "name": "Unité",
@@ -75,7 +75,7 @@
         },
         "interval": {
           "name": "Intervalle",
-          "description": "Répéter tous les N unités/pas."
+          "description": "Répéter toutes les N unités/pas."
         },
         "unit": {
           "name": "Unité",
@@ -174,7 +174,7 @@
       "fields": {
         "asset_id": { "name": "ID de l'actif", "description": "L'id de l'actif à mettre à jour." },
         "name": { "name": "Nom", "description": "Nouveau nom d'affichage." },
-        "device_id": { "name": "Appareil", "description": "Recibler un actif lié à un appareil existant." },
+        "device_id": { "name": "Appareil", "description": "Réaffecter un actif lié à un appareil existant." },
         "area_id": { "name": "Zone", "description": "Zone pour l'appareil." },
         "manufacturer": { "name": "Fabricant", "description": "Fabricant de l'appareil." },
         "model": { "name": "Modèle", "description": "Nom ou numéro de modèle." },

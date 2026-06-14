@@ -29,7 +29,7 @@
   "section.parts": "Deler og slitedeler",
   "section.part_n": "Del {n}",
 
-  "part.lastReplaced": "Sist byttet {date} · en vedlikeholdsoppgave følger den neste",
+  "part.lastReplaced": "Sist byttet {date} · en vedlikeholdsoppgave holder styr på den neste",
   "part.wearHint": "En slitedel med et intervall oppretter en vedlikeholdsoppgave for dette apparatet.",
 
   "error.nameRequired": "Navn er påkrevd",
@@ -56,7 +56,7 @@
   "field.warranty_expiry": "Garantiutløp",
   "field.warranty_provider": "Garantileverandør",
   "field.cost": "Kostnad",
-  "field.vendor": "Leverandør / hvor man kjøper på nytt",
+  "field.vendor": "Leverandør / hvor du kjøper på nytt",
   "field.manual_url": "URL til håndbok / dokumentasjon",
   "field.related_device_ids": "Relaterte enheter",
   "field.part_name": "Del",
@@ -86,15 +86,15 @@
   "appliance.fallbackName": "Apparat",
 
   "recurrence.floating.one": "hver {unit} etter fullføring",
-  "recurrence.floating.other": "hver {n} {unit} etter fullføring",
+  "recurrence.floating.other": "hver {n}. {unit} etter fullføring",
   "recurrence.fixed.one": "hver {unit}",
-  "recurrence.fixed.other": "hver {n} {unit}",
+  "recurrence.fixed.other": "hver {n}. {unit}",
   "recurrence.unit.day.one": "dag",
-  "recurrence.unit.day.other": "dager",
+  "recurrence.unit.day.other": "dag",
   "recurrence.unit.week.one": "uke",
-  "recurrence.unit.week.other": "uker",
+  "recurrence.unit.week.other": "uke",
   "recurrence.unit.month.one": "måned",
-  "recurrence.unit.month.other": "måneder",
+  "recurrence.unit.month.other": "måned",
 
   "due.none": "—",
   "due.today": "i dag",
