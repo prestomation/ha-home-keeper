@@ -91,6 +91,11 @@ class FakeHomeKeeper:
             raise KeyError(task_id)
         now = dt_util.now()
         when = completed_at or now
+        # The real complete_task service coerces completed_at via cv.datetime before
+        # the store sees it; mirror that so callers can pass an ISO string (as a
+        # contributing integration naturally would).
+        if isinstance(when, str):
+            when = dt_util.parse_datetime(when) or now
         updated = recurrence.apply_completion(dict(task), when, now=now)
         self.tasks[task_id] = updated
         self.hass.bus.async_fire(
