@@ -170,6 +170,43 @@ Keep the two sides from drifting:
 - **A device you attached to disappears** → Home Keeper degrades gracefully (the task
   falls back to a self-owned device); still delete the task when your thing goes away.
 
+## Testing your integration
+
+Home Keeper ships a fake so you can test the contract end-to-end **without** standing
+up its panel, storage, or entities, and **without publishing anything to PyPI**. Add
+Home Keeper as a git test dependency:
+
+```
+# requirements-test.txt (or your pyproject test extra)
+home-keeper @ git+https://github.com/prestomation/ha-home-keeper@main
+```
+
+Then, in a real Home Assistant test environment (e.g.
+`pytest-homeassistant-custom-component`):
+
+```python
+from home_keeper.testing import async_setup_fake_home_keeper
+
+async def test_my_integration_two_way_sync(hass):
+    hk = await async_setup_fake_home_keeper(hass)   # registers the real service names
+    # ... set up your integration so it calls home_keeper.add_task ...
+
+    task = hk.get_task_by_source("my_integration", thing_id="abc")
+    assert task is not None                         # you created the task
+
+    # Inbound: simulate a user checking the task off in Home Keeper (origin=None).
+    hk.fire_user_completion(task["id"])
+    await hass.async_block_till_done()
+    # ... assert your integration mirrored the completion (and didn't loop) ...
+```
+
+`async_setup_fake_home_keeper` returns a `FakeHomeKeeper` with `.tasks`,
+`.get_task_by_source(namespace, **match)`, and `.fire_user_completion(task_id)`. The
+fake is built on Home Keeper's own model/recurrence code and the same event-payload
+builder the real integration uses (`home_keeper.events.completion_event_data`), so it
+can't drift from production. For the highest fidelity you can instead set up the real
+Home Keeper config entry in your test `hass`; the fake is the lighter-weight default.
+
 ## Worked example: Pawsistant (one example client)
 
 [Pawsistant](https://github.com/prestomation/pawsistant) (a pet-care logger) is the first

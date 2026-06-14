@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import assets, models, recurrence
+from . import assets, events, models, recurrence
 from .const import (
     EVENT_TASK_COMPLETED,
     PART_WEAR,
@@ -342,13 +342,7 @@ class HomeKeeperStore:
         )
         self._hass.bus.async_fire(
             EVENT_TASK_COMPLETED,
-            {
-                "task_id": task_id,
-                "name": updated.get("name"),
-                "source": updated.get("source"),
-                "completed_at": when.isoformat() if hasattr(when, "isoformat") else when,
-                "origin": origin,
-            },
+            events.completion_event_data(updated, when, origin),
         )
         return updated
 
