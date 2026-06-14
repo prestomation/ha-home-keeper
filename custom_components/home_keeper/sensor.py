@@ -120,7 +120,9 @@ class HomeKeeperAssetDateSensor(
         self._field = field
         label, icon = ASSET_DATE_LABELS.get(field, (field.replace("_", " ").title(), None))
         self._attr_name = label
-        self._attr_icon = icon
+        # A user-chosen appliance icon overrides the per-field default.
+        asset = coordinator.store.get_asset(asset_id) or {}
+        self._attr_icon = asset.get("icon") or icon
         self._attr_unique_id = f"{DOMAIN}_asset_{asset_id}_{field}"
         self._attr_device_info = device_info
 

@@ -161,7 +161,10 @@
         "vendor": { "name": "Vendor", "description": "Where to rebuy / service provider." },
         "cost": { "name": "Cost", "description": "Purchase price." },
         "manual_url": { "name": "Manual URL", "description": "Link to the manual or docs." },
-        "part_numbers": { "name": "Consumable part numbers", "description": "Filters, bulbs, belts, etc." },
+        "icon": { "name": "Icon", "description": "Optional mdi icon (e.g. mdi:piano)." },
+        "parts": { "name": "Parts", "description": "Structured parts/wear items; wear items with an interval drive a maintenance task." },
+        "parent_asset_id": { "name": "Parent appliance", "description": "Make this a subdevice of another appliance." },
+        "related_device_ids": { "name": "Related devices", "description": "Other registry devices to associate with this appliance." },
         "notes": { "name": "Notes", "description": "Free-text notes." }
       }
     },
@@ -184,7 +187,10 @@
         "vendor": { "name": "Vendor", "description": "Where to rebuy / service provider." },
         "cost": { "name": "Cost", "description": "Purchase price." },
         "manual_url": { "name": "Manual URL", "description": "Link to the manual or docs." },
-        "part_numbers": { "name": "Consumable part numbers", "description": "Filters, bulbs, belts, etc." },
+        "icon": { "name": "Icon", "description": "Optional mdi icon (e.g. mdi:piano)." },
+        "parts": { "name": "Parts", "description": "Structured parts/wear items; wear items with an interval drive a maintenance task." },
+        "parent_asset_id": { "name": "Parent appliance", "description": "Make this a subdevice of another appliance." },
+        "related_device_ids": { "name": "Related devices", "description": "Other registry devices to associate with this appliance." },
         "notes": { "name": "Notes", "description": "Free-text notes." }
       }
     },

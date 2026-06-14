@@ -16,9 +16,17 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from . import assets, models, recurrence
-from .const import STORAGE_KEY, STORAGE_VERSION
+from .const import PART_WEAR, STORAGE_KEY, STORAGE_VERSION, TASK_SOURCE_PART
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _part_source(task: dict[str, Any]) -> dict[str, Any] | None:
+    """Return a task's ``{asset_id, part_id}`` part provenance, or None."""
+    source = task.get("source")
+    if isinstance(source, dict) and isinstance(source.get(TASK_SOURCE_PART), dict):
+        return source[TASK_SOURCE_PART]
+    return None
 
 
 class HomeKeeperStore:
@@ -45,6 +53,17 @@ class HomeKeeperStore:
             self._assets = data["assets"]
         else:
             self._assets = {}
+        # Additive migrations (no storage-version bump): fold a legacy
+        # ``part_numbers`` string into structured ``parts`` and drop links to
+        # assets that no longer exist.
+        changed = False
+        for asset in self._assets.values():
+            if assets.migrate_legacy_part_numbers(asset):
+                changed = True
+        if self._clean_relationship_links():
+            changed = True
+        if changed:
+            await self._save()
 
     async def _save(self) -> None:
         await self._store.async_save({"tasks": self._tasks, "assets": self._assets})
@@ -129,6 +148,7 @@ class HomeKeeperStore:
     # ── asset mutations ────────────────────────────────────────────────────────
     async def add_asset(self, data: dict[str, Any]) -> dict[str, Any]:
         """Create and persist a new asset; returns the created asset dict."""
+        self._validate_parent(None, data.get("parent_asset_id"))
         asset = assets.build_asset(data, now=dt_util.now())
         self._assets[asset["id"]] = asset
         await self._save()
@@ -141,10 +161,41 @@ class HomeKeeperStore:
         existing = self._assets.get(asset_id)
         if existing is None:
             raise KeyError(asset_id)
+        prospective_parent = updates.get(
+            "parent_asset_id", existing.get("parent_asset_id")
+        )
+        self._validate_parent(asset_id, prospective_parent)
         merged = assets.merge_update(existing, updates, now=dt_util.now())
         self._assets[asset_id] = merged
         await self._save()
         return merged
+
+    def _validate_parent(
+        self, asset_id: str | None, parent_asset_id: str | None
+    ) -> None:
+        """Reject a parent link to a missing asset or one that forms a cycle."""
+        if not parent_asset_id:
+            return
+        if parent_asset_id not in self._assets:
+            raise assets.AssetValidationError(
+                "parent_asset_id is not a known appliance"
+            )
+        if asset_id and assets.would_create_cycle(
+            self._assets, asset_id, parent_asset_id
+        ):
+            raise assets.AssetValidationError(
+                "parent relationship would create a cycle"
+            )
+
+    def _clean_relationship_links(self) -> bool:
+        """Null any parent_asset_id pointing at an asset that no longer exists."""
+        changed = False
+        ids = set(self._assets)
+        for asset in self._assets.values():
+            if asset.get("parent_asset_id") and asset["parent_asset_id"] not in ids:
+                asset["parent_asset_id"] = None
+                changed = True
+        return changed
 
     async def set_asset_device_id(self, asset_id: str, device_id: str) -> None:
         """Record the registry device id assigned to a provisioned virtual asset."""
@@ -154,16 +205,102 @@ class HomeKeeperStore:
             await self._save()
 
     async def delete_asset(self, asset_id: str) -> dict[str, Any] | None:
-        """Remove an asset; returns the removed asset (for device cleanup) or None."""
+        """Remove an asset; returns the removed asset (for device cleanup) or None.
+
+        Also drops tasks derived from this asset's wear parts and detaches any
+        child asset that named it as a parent (so the child becomes standalone).
+        """
         asset = self._assets.pop(asset_id, None)
-        if asset is not None:
-            await self._save()
+        if asset is None:
+            return None
+        self._tasks = {
+            tid: t
+            for tid, t in self._tasks.items()
+            if _part_source(t) is None or _part_source(t).get("asset_id") != asset_id
+        }
+        for child in self._assets.values():
+            if child.get("parent_asset_id") == asset_id:
+                child["parent_asset_id"] = None
+        await self._save()
         return asset
+
+    async def reconcile_part_tasks(self) -> bool:
+        """Create/update/remove the maintenance tasks derived from wear parts.
+
+        A wear part with a ``replace_interval`` yields a floating task attached to
+        the asset's device, so it reuses the existing to-do/calendar/per-task
+        entities. The task is keyed by ``source = {"part": {asset_id, part_id}}`` so
+        this reconciler exclusively owns it. Returns ``True`` if any task changed.
+        """
+        now = dt_util.now()
+        desired: dict[tuple[str, str], dict[str, Any]] = {}
+        for asset in self._assets.values():
+            for part in asset.get("parts", []):
+                if part.get("type") == PART_WEAR and part.get("replace_interval"):
+                    desired[(asset["id"], part["id"])] = (asset, part)
+
+        existing_by_key: dict[tuple[str, str], str] = {}
+        for tid, task in self._tasks.items():
+            src = _part_source(task)
+            if src:
+                existing_by_key[(src.get("asset_id"), src.get("part_id"))] = tid
+
+        changed = False
+        # Remove orphaned part-tasks.
+        for key, tid in list(existing_by_key.items()):
+            if key not in desired:
+                del self._tasks[tid]
+                existing_by_key.pop(key, None)
+                changed = True
+
+        # Create or update the rest.
+        for key, (asset, part) in desired.items():
+            name = f"Replace {part['name']} ({asset.get('name') or 'appliance'})"
+            fields = {
+                "name": name,
+                "recurrence_type": "floating",
+                "interval": part["replace_interval"],
+                "unit": part["replace_unit"],
+                "device_id": asset.get("device_id"),
+                "area_id": asset.get("area_id"),
+            }
+            tid = existing_by_key.get(key)
+            if tid is None:
+                task = models.build_task(
+                    {
+                        **fields,
+                        "source": {
+                            "part": {"asset_id": asset["id"], "part_id": part["id"]}
+                        },
+                    },
+                    now=now,
+                )
+                # Anchor the clock to the last replacement, if known.
+                if part.get("last_replaced"):
+                    task["last_completed"] = part["last_replaced"]
+                    task["next_due"] = recurrence.compute_next_due(
+                        task, now=now
+                    ).isoformat()
+                self._tasks[task["id"]] = task
+                changed = True
+            else:
+                before = dict(self._tasks[tid])
+                self._tasks[tid] = models.merge_update(before, fields, now=now)
+                if self._tasks[tid] != before:
+                    changed = True
+
+        if changed:
+            await self._save()
+        return changed
 
     async def complete_task(
         self, task_id: str, completed_at: Any | None = None
     ) -> dict[str, Any]:
-        """Mark a task completed and advance its recurrence."""
+        """Mark a task completed and advance its recurrence.
+
+        For a part-derived task, also stamp the part's ``last_replaced`` so the
+        appliance record reflects the maintenance.
+        """
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
@@ -171,8 +308,22 @@ class HomeKeeperStore:
         when = completed_at or now
         updated = recurrence.apply_completion(dict(existing), when, now=now)
         self._tasks[task_id] = updated
+        self._stamp_part_replacement(updated, when)
         await self._save()
         _LOGGER.debug(
             "Completed task %s; next due %s", task_id, updated.get("next_due")
         )
         return updated
+
+    def _stamp_part_replacement(self, task: dict[str, Any], when: Any) -> None:
+        src = _part_source(task)
+        if not src:
+            return
+        asset = self._assets.get(src.get("asset_id"))
+        if not asset:
+            return
+        when_date = when.date().isoformat() if hasattr(when, "date") else str(when)[:10]
+        for part in asset.get("parts", []):
+            if part.get("id") == src.get("part_id"):
+                part["last_replaced"] = when_date
+                break

@@ -77,13 +77,20 @@ topics), `twrecked/hass-virtual`, `kuba2k2/hassio-virtual-devices`, and the
 "Device Tools" custom integration. Providing managed appliances ourselves keeps it
 on-mission and GUI-driven.
 
-Still open (deferred from the initial implementation): a **photo** attribute and its
-storage; **labels** for arbitrary tagging and whether "category/type" should be a
-label vs. our own field; editing an existing device's native fields when we don't
-own it; a device-registry **update/removal listener**
-(`async_track_device_registry_updated_event`) for live orphan reconciliation of
-existing-device assets (today reconciliation runs on setup / asset mutation and
-recovers via the stored identifiers snapshot); and how appliances interact with the
+Also shipped since: **structured parts / wear items** (a wear item with a replacement
+interval auto-creates a maintenance task via the task `source` field), **subdevices**
+(`parent_asset_id` → native `via_device`) and **related devices**
+(`related_device_ids`, panel-only for foreign devices), plus HA-integration polish
+(`area_id` validation, `configuration_url`, per-appliance mdi icon, `diagnostics.py`).
+
+Still open (deferred): a **photo** attribute and its storage; **labels** for arbitrary
+tagging and whether "category/type" should be a label vs. our own field; editing an
+existing device's native fields when we don't own it; a device-registry
+**update/removal listener** (`async_track_device_registry_updated_event`) for live
+orphan reconciliation of existing-device assets (today reconciliation runs on setup /
+asset mutation and recovers via the stored identifiers snapshot); migrating the panel
+to HA **web components** (`ha-textfield`/`ha-select`/`ha-form`, enabling a real icon
+picker and searchable selectors); and generalizing the task `source` field into the
 deferred cross-integration contribution API.
 
 ## Deferred from the prototype (known next steps)

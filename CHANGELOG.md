@@ -17,6 +17,17 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
     matching websocket commands for the panel.
   - Virtual devices are owned by the config entry, so removing Home Keeper cleans
     them up; deleting an appliance detaches its tasks (they become standalone).
+- **Structured parts & wear items.** Appliances now carry a structured parts list
+  (name, part number, vendor, cost, consumable/wear type) replacing the old free-text
+  part-numbers string. A **wear item** with a replacement interval automatically
+  creates a maintenance task on the appliance's device (to-do + calendar + mark-done
+  button + next-due sensor), and completing it stamps the part's *last replaced* date.
+- **Subdevices & related devices.** An appliance can be a subdevice of another
+  (native HA `via_device` nesting), and can list arbitrary related devices — including
+  foreign ones — surfaced in the panel.
+- **Tighter HA integration.** `area_id` is validated against real HA areas; virtual
+  devices link back to the panel via `configuration_url`; appliances take an optional
+  mdi icon; and a `diagnostics.py` download is available for support.
 
 ## [0.1.0b1] - 2026-06-13
 

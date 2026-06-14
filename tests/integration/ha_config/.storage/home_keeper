@@ -17,7 +17,14 @@
         "created": "2026-05-01T09:00:00-04:00",
         "last_completed": "2026-06-01T09:00:00-04:00",
         "next_due": "2026-07-01T09:00:00-04:00",
-        "completions": [{"ts": "2026-05-01T09:00:00-04:00"}, {"ts": "2026-06-01T09:00:00-04:00"}]
+        "completions": [
+          {
+            "ts": "2026-05-01T09:00:00-04:00"
+          },
+          {
+            "ts": "2026-06-01T09:00:00-04:00"
+          }
+        ]
       },
       "task_medicine": {
         "id": "task_medicine",
@@ -48,7 +55,11 @@
         "created": "2026-04-01T10:00:00-04:00",
         "last_completed": "2026-04-01T10:00:00-04:00",
         "next_due": "2026-07-01T10:00:00-04:00",
-        "completions": [{"ts": "2026-04-01T10:00:00-04:00"}]
+        "completions": [
+          {
+            "ts": "2026-04-01T10:00:00-04:00"
+          }
+        ]
       },
       "task_water_filter": {
         "id": "task_water_filter",
@@ -63,7 +74,11 @@
         "created": "2026-03-20T12:00:00-04:00",
         "last_completed": "2026-04-20T12:00:00-04:00",
         "next_due": "2026-05-20T12:00:00-04:00",
-        "completions": [{"ts": "2026-04-20T12:00:00-04:00"}]
+        "completions": [
+          {
+            "ts": "2026-04-20T12:00:00-04:00"
+          }
+        ]
       }
     },
     "assets": {
@@ -72,7 +87,12 @@
         "kind": "virtual",
         "name": "Garage water heater",
         "device_id": null,
-        "identifiers": [["home_keeper", "asset_asset_water_heater"]],
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_asset_water_heater"
+          ]
+        ],
         "connections": [],
         "area_id": null,
         "manufacturer": "Rheem",
@@ -86,8 +106,86 @@
         "vendor": "Home Depot",
         "cost": 649.0,
         "manual_url": "https://example.com/water-heater-manual",
-        "part_numbers": "anode rod AR-1",
+        "icon": "mdi:water-boiler",
+        "parts": [
+          {
+            "id": "part_anode",
+            "name": "Anode rod",
+            "part_number": "AR-1",
+            "type": "wear",
+            "vendor": "Home Depot",
+            "cost": 35.0,
+            "notes": "",
+            "replace_interval": 12,
+            "replace_unit": "months",
+            "last_replaced": "2025-05-01"
+          }
+        ],
+        "parent_asset_id": null,
+        "related_device_ids": [],
         "notes": "Garage corner, behind the shelving",
+        "created": "2026-05-01T09:00:00-04:00"
+      },
+      "asset_shades": {
+        "id": "asset_shades",
+        "kind": "virtual",
+        "name": "Living room shades",
+        "device_id": null,
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_asset_shades"
+          ]
+        ],
+        "connections": [],
+        "area_id": null,
+        "manufacturer": "Lutron",
+        "model": "Serena",
+        "serial_number": "",
+        "manufacture_date": null,
+        "purchase_date": null,
+        "install_date": null,
+        "warranty_expiry": null,
+        "warranty_provider": "",
+        "vendor": "",
+        "cost": null,
+        "manual_url": "",
+        "icon": "mdi:blinds",
+        "parts": [],
+        "parent_asset_id": null,
+        "related_device_ids": [],
+        "notes": "",
+        "created": "2026-05-01T09:00:00-04:00"
+      },
+      "asset_radio_shade": {
+        "id": "asset_radio_shade",
+        "kind": "virtual",
+        "name": "Radio shade controller",
+        "device_id": null,
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_asset_radio_shade"
+          ]
+        ],
+        "connections": [],
+        "area_id": null,
+        "manufacturer": "Lutron",
+        "model": "RF",
+        "serial_number": "",
+        "manufacture_date": null,
+        "purchase_date": null,
+        "install_date": null,
+        "warranty_expiry": null,
+        "warranty_provider": "",
+        "vendor": "",
+        "cost": null,
+        "manual_url": "",
+        "icon": "",
+        "parts": [],
+        "parent_asset_id": "asset_shades",
+        "related_device_ids": [],
+        "notes": "",
         "created": "2026-05-01T09:00:00-04:00"
       }
     }

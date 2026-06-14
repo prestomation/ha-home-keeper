@@ -28,6 +28,15 @@ def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
     return None
 
 
+def _area_ok(hass, connection, msg, payload: dict) -> bool:
+    """Validate a payload's area_id against HA areas; send an error if unknown."""
+    area_id = payload.get("area_id")
+    if devices.area_exists(hass, area_id):
+        return True
+    connection.send_error(msg["id"], "invalid_area", f"Unknown area_id: {area_id}")
+    return False
+
+
 @callback
 def async_register(hass: HomeAssistant) -> None:
     """Register all Home Keeper websocket commands."""
@@ -68,6 +77,8 @@ async def ws_add_task(
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
+    if not _area_ok(hass, connection, msg, msg["task"]):
+        return
     try:
         task = await coord.store.add_task(msg["task"])
     except TaskValidationError as err:
@@ -91,6 +102,8 @@ async def ws_update_task(
     coord = _coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    if not _area_ok(hass, connection, msg, msg["updates"]):
         return
     before = entity_set_key(coord.store.get_task(msg["task_id"]))
     try:
@@ -178,6 +191,8 @@ async def ws_add_asset(
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
+    if not _area_ok(hass, connection, msg, msg["asset"]):
+        return
     try:
         asset = await coord.store.add_asset(msg["asset"])
     except AssetValidationError as err:
@@ -204,6 +219,8 @@ async def ws_update_asset(
     coord = _coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    if not _area_ok(hass, connection, msg, msg["updates"]):
         return
     try:
         asset = await coord.store.update_asset(msg["asset_id"], msg["updates"])

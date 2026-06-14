@@ -18,13 +18,42 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 
 from . import assets as asset_model
-from .const import ASSET_IDENTIFIER_PREFIX, ASSET_KIND_VIRTUAL, DOMAIN
+from .const import (
+    ASSET_IDENTIFIER_PREFIX,
+    ASSET_KIND_VIRTUAL,
+    DOMAIN,
+    PANEL_URL_PATH,
+)
 from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
+
+# Deep-link the device page back to the Home Keeper panel for management.
+_CONFIGURATION_URL = f"homeassistant://navigate/{PANEL_URL_PATH}"
+
+
+def area_exists(hass: HomeAssistant, area_id: str | None) -> bool:
+    """True if *area_id* is empty/None or a real HA area (boundary validation)."""
+    if not area_id:
+        return True
+    return ar.async_get(hass).async_get_area(area_id) is not None
+
+
+def _ancestor_depth(store: HomeKeeperStore, asset: dict[str, Any]) -> int:
+    """Number of parent links above *asset* (used to provision parents first)."""
+    depth = 0
+    seen: set[str] = {asset["id"]}
+    cursor = asset.get("parent_asset_id")
+    while cursor and cursor not in seen:
+        seen.add(cursor)
+        depth += 1
+        parent = store.get_asset(cursor)
+        cursor = parent.get("parent_asset_id") if parent else None
+    return depth
 
 
 def _is_asset_device(device: dr.DeviceEntry) -> bool:
@@ -58,6 +87,9 @@ async def async_apply_asset_change(
     device; snapshot writes are skipped when unchanged).
     """
     await async_reconcile_assets(hass, entry, store)
+    # Wear parts may have created/removed derived maintenance tasks; sync them
+    # before the reload rebuilds the per-task entity set.
+    await store.reconcile_part_tasks()
     await hass.config_entries.async_reload(entry.entry_id)
 
 
@@ -77,7 +109,9 @@ async def async_reconcile_assets(
     wanted_identifiers: set[tuple[str, str]] = set()
     dirty = False
 
-    for asset in store.list_assets():
+    # Provision parents before children so a subdevice's via_device parent already
+    # has a resolved device id when we link it.
+    for asset in sorted(store.list_assets(), key=lambda a: _ancestor_depth(store, a)):
         if asset.get("kind") == ASSET_KIND_VIRTUAL:
             # _reconcile_virtual persists its own device_id write-back.
             await _reconcile_virtual(hass, entry, store, registry, asset)
@@ -114,14 +148,29 @@ async def _reconcile_virtual(
     asset: dict[str, Any],
 ) -> None:
     identifier = asset_model.asset_device_identifier(asset["id"])
-    device = registry.async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={identifier},
-        name=asset["name"],
-        manufacturer=asset.get("manufacturer") or None,
-        model=asset.get("model") or None,
-        serial_number=asset.get("serial_number") or None,
+
+    # Resolve the native via_device parent (only our own virtual subdevices).
+    parent_asset_id = asset.get("parent_asset_id") or None
+    via_device = (
+        asset_model.asset_device_identifier(parent_asset_id)
+        if parent_asset_id
+        else None
     )
+    parent = store.get_asset(parent_asset_id) if parent_asset_id else None
+    parent_device_id = parent.get("device_id") if parent else None
+
+    create_kwargs: dict[str, Any] = {
+        "config_entry_id": entry.entry_id,
+        "identifiers": {identifier},
+        "name": asset["name"],
+        "manufacturer": asset.get("manufacturer") or None,
+        "model": asset.get("model") or None,
+        "serial_number": asset.get("serial_number") or None,
+        "configuration_url": _CONFIGURATION_URL,
+    }
+    if via_device is not None:
+        create_kwargs["via_device"] = via_device
+    device = registry.async_get_or_create(**create_kwargs)
 
     # Keep the registry in sync with subsequent edits.
     updates: dict[str, Any] = {}
@@ -138,6 +187,14 @@ async def _reconcile_virtual(
     area_id = asset.get("area_id") or None
     if area_id != device.area_id:
         updates["area_id"] = area_id
+    if device.configuration_url != _CONFIGURATION_URL:
+        updates["configuration_url"] = _CONFIGURATION_URL
+    # Re-parent / un-parent after creation (via_device on create only applies the
+    # first time). via_device_id is the parent's *device id*, which parents-first
+    # ordering has already resolved.
+    if _supports_kwarg(registry.async_update_device, "via_device_id"):
+        if device.via_device_id != parent_device_id:
+            updates["via_device_id"] = parent_device_id
     if updates:
         device = registry.async_update_device(device.id, **updates)
 

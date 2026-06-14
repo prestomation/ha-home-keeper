@@ -248,11 +248,30 @@ add_asset:
       name: Manual URL
       selector:
         text:
-    part_numbers:
-      name: Consumable part numbers
-      description: Filters, bulbs, belts, etc.
+    icon:
+      name: Icon
+      description: Optional mdi icon for the appliance (e.g. mdi:piano).
+      selector:
+        icon:
+    parts:
+      name: Parts
+      description: >-
+        Structured parts/wear items. Each: name, part_number, type (consumable or
+        wear), vendor, cost, and for wear items replace_interval + replace_unit
+        (days/weeks/months) which drive a maintenance task.
+      selector:
+        object:
+    parent_asset_id:
+      name: Parent appliance
+      description: Make this a subdevice of another (virtual) appliance.
       selector:
         text:
+    related_device_ids:
+      name: Related devices
+      description: Other registry devices to associate with this appliance.
+      selector:
+        device:
+          multiple: true
     notes:
       name: Notes
       selector:
@@ -329,10 +348,27 @@ update_asset:
       name: Manual URL
       selector:
         text:
-    part_numbers:
-      name: Consumable part numbers
+    icon:
+      name: Icon
+      description: Optional mdi icon for the appliance (e.g. mdi:piano).
+      selector:
+        icon:
+    parts:
+      name: Parts
+      description: Structured parts/wear items (see add_asset).
+      selector:
+        object:
+    parent_asset_id:
+      name: Parent appliance
+      description: Make this a subdevice of another (virtual) appliance.
       selector:
         text:
+    related_device_ids:
+      name: Related devices
+      description: Other registry devices to associate with this appliance.
+      selector:
+        device:
+          multiple: true
     notes:
       name: Notes
       selector:

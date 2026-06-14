@@ -81,7 +81,19 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   `identifiers`/`connections` snapshot). Virtual devices are config-entry-owned so HA
   removes them on integration removal; `async_remove_entry` drops the stored doc.
   Deleting an asset removes its virtual device and detaches its tasks (standalone).
-  See `IDEAS.md` / `docs/DESIGN.md`.
+- **Parts / wear items.** An asset's `parts` list is structured; a `wear` part with a
+  `replace_interval` is materialized into a floating task by
+  `store.reconcile_part_tasks` (run at setup + after each asset mutation), tagged
+  `source={"part":{asset_id,part_id}}` so the reconciler owns it. Reuse
+  `models.build_task`/`recurrence.py` + the existing per-task entities — do NOT build
+  a parallel "part sensor". A load-time shim migrates the legacy `part_numbers` string
+  (no storage-version bump).
+- **Relationships.** `parent_asset_id` (virtual only) → native `via_device`
+  (provision parents-first via `_ancestor_depth`; reject cycles with
+  `assets.would_create_cycle`). `related_device_ids` is panel-only (foreign devices
+  can't be reparented). Do NOT set `entry_type=service` on appliance devices (they're
+  physical); DO set `configuration_url`. Validate `area_id` at the HA boundary
+  (`devices.area_exists`), never in the pure model. See `IDEAS.md` / `docs/DESIGN.md`.
 
 ## Deferred: cross-integration contribution API
 - The stable interface for other integrations (e.g. Battery Notes) to contribute

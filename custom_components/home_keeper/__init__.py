@@ -57,6 +57,22 @@ COMPLETE_TASK_SCHEMA = vol.Schema(
     {vol.Required("task_id"): cv.string, vol.Optional("completed_at"): cv.datetime}
 )
 
+# Structured part (wear item) for the add/update asset schema.
+_PART_SCHEMA = vol.Schema(
+    {
+        vol.Optional("id"): cv.string,
+        vol.Required("name"): cv.string,
+        vol.Optional("part_number"): cv.string,
+        vol.Optional("type"): cv.string,
+        vol.Optional("vendor"): cv.string,
+        vol.Optional("cost"): vol.Coerce(float),
+        vol.Optional("notes"): cv.string,
+        vol.Optional("replace_interval"): vol.Coerce(int),
+        vol.Optional("replace_unit"): cv.string,
+        vol.Optional("last_replaced"): cv.string,
+    }
+)
+
 # Asset (appliance) fields shared by add/update. Dates are plain strings so the
 # pure model can validate them; cost is coerced to a float.
 _ASSET_FIELDS = {
@@ -64,6 +80,7 @@ _ASSET_FIELDS = {
     vol.Optional("kind"): cv.string,
     vol.Optional("device_id"): cv.string,
     vol.Optional("area_id"): cv.string,
+    vol.Optional("icon"): cv.string,
     vol.Optional("manufacturer"): cv.string,
     vol.Optional("model"): cv.string,
     vol.Optional("serial_number"): cv.string,
@@ -75,8 +92,10 @@ _ASSET_FIELDS = {
     vol.Optional("vendor"): cv.string,
     vol.Optional("cost"): vol.Coerce(float),
     vol.Optional("manual_url"): cv.string,
-    vol.Optional("part_numbers"): cv.string,
     vol.Optional("notes"): cv.string,
+    vol.Optional("parts"): [_PART_SCHEMA],
+    vol.Optional("parent_asset_id"): cv.string,
+    vol.Optional("related_device_ids"): [cv.string],
 }
 ADD_ASSET_SCHEMA = vol.Schema(_ASSET_FIELDS)
 UPDATE_ASSET_SCHEMA = vol.Schema(
@@ -99,9 +118,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
 
-    # Provision/reconcile virtual asset devices BEFORE forwarding platforms so the
-    # registry devices exist when per-task and per-asset entities resolve them.
+    # Provision/reconcile virtual asset devices and the tasks derived from wear
+    # parts BEFORE forwarding platforms so the registry devices and per-task
+    # entities exist when the platforms set up.
     await devices.async_reconcile_assets(hass, entry, store)
+    await store.reconcile_part_tasks()
+    await coordinator.async_request_refresh()
 
     await panel.async_register_panel(hass)
     websocket_api.async_register(hass)
@@ -127,8 +149,13 @@ def _register_services(hass: HomeAssistant) -> None:
                 return coord
         raise RuntimeError("No active Home Keeper coordinator found")
 
+    def _check_area(data: dict) -> None:
+        if not devices.area_exists(hass, data.get("area_id")):
+            raise ServiceValidationError(f"Unknown area_id: {data.get('area_id')}")
+
     async def handle_add_task(call: ServiceCall) -> None:
         coord = _coordinator()
+        _check_area(call.data)
         try:
             await coord.store.add_task(dict(call.data))
         except TaskValidationError as err:
@@ -137,6 +164,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_update_task(call: ServiceCall) -> None:
         coord = _coordinator()
+        _check_area(call.data)
         data = dict(call.data)
         task_id = data.pop("task_id")
         existing = coord.store.get_task(task_id)
@@ -177,6 +205,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_add_asset(call: ServiceCall) -> None:
         coord = _coordinator()
+        _check_area(call.data)
         try:
             await coord.store.add_asset(dict(call.data))
         except AssetValidationError as err:
@@ -185,6 +214,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_update_asset(call: ServiceCall) -> None:
         coord = _coordinator()
+        _check_area(call.data)
         data = dict(call.data)
         asset_id = data.pop("asset_id")
         try:

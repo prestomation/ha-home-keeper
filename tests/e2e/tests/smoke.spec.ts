@@ -58,6 +58,25 @@ test.describe('Home Keeper panel — smoke', () => {
     await expect(panel.locator('#a-device')).toBeVisible();
   });
 
+  test('appliance form has parts editor, parent and related-device selectors', async ({ page }) => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.locator('#tab-appliances').click();
+    await panel.locator('#add-btn').click();
+    await expect(panel.locator('#hk-asset-form')).toBeVisible();
+    // Icon, parent (subdevice) and related-device controls exist for a virtual asset.
+    await expect(panel.locator('#a-icon')).toBeVisible();
+    await expect(panel.locator('#a-parent')).toBeVisible();
+    await expect(panel.locator('#a-related')).toBeVisible();
+    // Add a part and switch it to a wear item to reveal the replacement interval.
+    await panel.locator('#a-add-part').click();
+    await expect(panel.locator('.hk-part')).toHaveCount(1);
+    await panel.locator('#p-name-0').fill('Shade material');
+    await panel.locator('#p-type-0').selectOption('wear');
+    await expect(panel.locator('#p-int-0')).toBeVisible();
+    await expect(panel.locator('#p-unit-0')).toBeVisible();
+  });
+
   test('native to-do + calendar cards render on the dashboard', async ({ page }) => {
     await openDashboard(page);
     await expect(page.locator('hui-todo-list-card, todo-list-card').first()).toBeVisible({

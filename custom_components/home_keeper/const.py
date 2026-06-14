@@ -30,6 +30,18 @@ ASSET_KIND_VIRTUAL = "virtual"  # Home Keeper provisions the registry device
 ASSET_KIND_EXISTING = "existing"  # metadata attached to another integration's device
 ASSET_KINDS = [ASSET_KIND_VIRTUAL, ASSET_KIND_EXISTING]
 
+# Structured parts / wear items on an asset. A "consumable" is a stocked spare; a
+# "wear" item degrades over time and, when given a replacement interval, drives a
+# maintenance task (reusing the recurrence engine + per-task entities).
+PART_CONSUMABLE = "consumable"
+PART_WEAR = "wear"
+PART_TYPES = [PART_CONSUMABLE, PART_WEAR]
+
+# Marker on a task dict identifying it as derived from an asset part, so the
+# part-task reconciler owns it: ``task["source"] = {"asset_id", "part_id"}``.
+TASK_SOURCE_PART = "part"
+
+
 # Recurrence types.
 REC_FLOATING = "floating"
 REC_FIXED = "fixed"

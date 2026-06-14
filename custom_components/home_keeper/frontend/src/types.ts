@@ -41,6 +41,21 @@ export interface Hass {
 }
 
 export type AssetKind = 'virtual' | 'existing';
+export type PartType = 'consumable' | 'wear';
+
+/** A structured part / wear item belonging to an appliance. */
+export interface Part {
+  id?: string;
+  name: string;
+  part_number?: string;
+  type: PartType;
+  vendor?: string;
+  cost?: number | null;
+  notes?: string;
+  replace_interval?: number | null;
+  replace_unit?: Unit | null;
+  last_replaced?: string | null;
+}
 
 /** An appliance/asset: a virtual device we own, or metadata on an existing one. */
 export interface Asset {
@@ -49,6 +64,7 @@ export interface Asset {
   name: string;
   device_id?: string | null;
   area_id?: string | null;
+  icon?: string;
   manufacturer?: string;
   model?: string;
   serial_number?: string;
@@ -60,8 +76,10 @@ export interface Asset {
   vendor?: string;
   cost?: number | null;
   manual_url?: string;
-  part_numbers?: string;
   notes?: string;
+  parts?: Part[];
+  parent_asset_id?: string | null;
+  related_device_ids?: string[];
 }
 
 export interface PanelInfo {

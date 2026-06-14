@@ -61,19 +61,36 @@ There are two ways to use it:
 - **Existing device** — point Home Keeper at a device another integration already
   provides (a smart fridge) and enrich it with the same metadata, without owning it.
 
-Either way you can record **asset metadata** — manufacturer/model/serial, purchase /
-install / **warranty-expiry** dates, cost, vendor, manual link, and consumable part
-numbers (filter/bulb models). Dates become real `date` **sensors** on the device
-page, so they're automatable natively — e.g. *"warranty expiring in 30 days →
-notify me"* — and show up in state history without any custom card.
+Either way you can record **asset metadata** — manufacturer/model/serial, an mdi
+icon, purchase / install / **warranty-expiry** dates, cost, vendor, and a manual
+link. Dates become real `date` **sensors** on the device page, so they're automatable
+natively — e.g. *"warranty expiring in 30 days → notify me"* — and show up in state
+history without any custom card.
 
 ![Add an appliance](docs/images/6-panel-appliance-create.png)
 
+### Parts & wear items
+
+Each appliance has a structured **parts** list — name, part number, vendor, cost, and
+a type of *consumable* (a stocked spare) or *wear item*. Give a wear item a
+**replacement interval** and Home Keeper automatically creates a maintenance **task**
+for it, attached to the appliance's device — so it shows up in your to-do list and
+calendar, gets a mark-done button and a next-due sensor on the device page, and
+stamps the part's *last replaced* date when you complete it. No separate bookkeeping.
+
+### Relationships: subdevices & related devices
+
+Real things nest. An appliance can be a **subdevice of** another appliance (e.g.
+*Radio shade controller* under *Living room shades*); Home Keeper wires this through
+Home Assistant's native `via_device` hierarchy, so the subdevice nests under its
+parent on the device page. You can also tag arbitrary **related devices** — including
+ones from other integrations that HA won't let us reparent (your existing humidity
+sensor next to your *Piano*) — which show up alongside the appliance in the panel.
+
 > **Example.** Add the *Garage water heater* as a new appliance with its warranty
-> expiry and anode-rod part number, then create a floating *"flush tank every 6
-> months"* task attached to it. The water heater now has its own device page showing
-> the next-due flush, a mark-done button, an overdue indicator, and a warranty-expiry
-> sensor you can build a reminder automation on.
+> expiry and an *Anode rod* **wear item** set to "replace every 12 months." The water
+> heater now has its own device page with a warranty-expiry sensor, plus an automatic
+> *"Replace Anode rod"* to-do that's due 12 months after each completion.
 
 ## Services
 

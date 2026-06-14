@@ -164,6 +164,62 @@ def test_add_asset_rejects_bad_url(ha):
     assert r.status_code >= 400, "expected validation error for malicious manual_url"
 
 
+def test_wear_part_creates_maintenance_task_with_device_entities(ha):
+    # The seeded water heater's anode rod is a wear item (replace every 12 months),
+    # so a derived task exists and lands a mark-done button on the appliance device.
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    tasks = resp.get("service_response", resp)["tasks"]
+    anode_tasks = [t for t in tasks if "Anode rod" in t.get("name", "")]
+    assert anode_tasks, "expected a derived task for the wear part"
+    assert anode_tasks[0].get("source", {}).get("part"), "task should carry part source"
+    # Its per-task entities appear; the button merges onto the appliance device, so
+    # its entity_id derives from the device name ("Garage water heater").
+    mark_done = [s["entity_id"] for s in list_states(ha) if "mark_done" in s["entity_id"]]
+    assert any("garage_water_heater" in eid for eid in mark_done), mark_done
+
+
+def test_subdevice_has_warranty_independent_and_parent_seeded(ha):
+    # Both the shades parent and the radio-shade subdevice are provisioned virtual
+    # devices; list_assets reflects the parent link.
+    resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+    assets = resp.get("service_response", resp)["assets"]
+    radio = next(a for a in assets if a["id"] == "asset_radio_shade")
+    shades = next(a for a in assets if a["id"] == "asset_shades")
+    assert radio["parent_asset_id"] == "asset_shades"
+    assert radio["device_id"] and shades["device_id"]
+
+
+def test_related_device_can_be_attached(ha):
+    # Create a virtual appliance, then relate it to an existing device id and confirm
+    # the relationship round-trips (panel-only association for foreign devices).
+    call_service(ha, "home_keeper", "add_asset", {"name": "Living room piano", "icon": "mdi:piano"})
+    resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+    assets = resp.get("service_response", resp)["assets"]
+    piano = next(a for a in assets if a["name"] == "Living room piano")
+    # Relate it to the seeded water heater's (virtual) device as a stand-in foreign device.
+    wh = next(a for a in assets if a["id"] == "asset_water_heater")
+    call_service(
+        ha,
+        "home_keeper",
+        "update_asset",
+        {"asset_id": piano["id"], "related_device_ids": [wh["device_id"]]},
+    )
+    resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+    assets = resp.get("service_response", resp)["assets"]
+    piano = next(a for a in assets if a["id"] == piano["id"])
+    assert piano["related_device_ids"] == [wh["device_id"]]
+
+
+def test_add_asset_rejects_unknown_area(ha):
+    from conftest import HA_URL
+
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/add_asset",
+        json={"name": "Bad area asset", "area_id": "no_such_area_xyz"},
+    )
+    assert r.status_code >= 400, "expected rejection of an unknown area_id"
+
+
 def test_delete_asset_removes_it_from_listing(ha):
     call_service(ha, "home_keeper", "add_asset", {"name": "Temp asset to delete"})
     resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)

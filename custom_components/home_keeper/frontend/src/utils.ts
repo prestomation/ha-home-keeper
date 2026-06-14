@@ -71,11 +71,13 @@ export function assetSummary(
   asset: Asset,
   areas?: Record<string, HassArea>,
 ): string {
-  const parts: string[] = [];
+  const bits: string[] = [];
   const makeModel = [asset.manufacturer, asset.model].filter(Boolean).join(' ');
-  if (makeModel) parts.push(makeModel);
+  if (makeModel) bits.push(makeModel);
   const area = areaName(areas, asset.area_id);
-  if (area) parts.push(area);
-  if (asset.warranty_expiry) parts.push(`warranty to ${asset.warranty_expiry}`);
-  return parts.length ? parts.join(' · ') : 'No details yet';
+  if (area) bits.push(area);
+  if (asset.warranty_expiry) bits.push(`warranty to ${asset.warranty_expiry}`);
+  const partCount = asset.parts?.length ?? 0;
+  if (partCount) bits.push(`${partCount} part${partCount === 1 ? '' : 's'}`);
+  return bits.length ? bits.join(' · ') : 'No details yet';
 }
