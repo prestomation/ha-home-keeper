@@ -58,6 +58,24 @@ export function deviceName(
   return dev.name_by_user || dev.name || deviceId;
 }
 
+/** Resolve a device to its integration domain via the config-entry → domain map. */
+export function deviceDomain(
+  device: { primary_config_entry?: string | null; config_entries?: string[] } | undefined,
+  entryDomains: Record<string, string> | undefined,
+): string | undefined {
+  if (!device || !entryDomains) return undefined;
+  const entryId = device.primary_config_entry || device.config_entries?.[0];
+  return entryId ? entryDomains[entryId] : undefined;
+}
+
+/**
+ * Brand logo URL for an integration domain. The `_/` fallback path serves a
+ * generic logo when the integration ships no brand image of its own.
+ */
+export function brandLogoUrl(domain: string, fallback = false): string {
+  return `https://brands.home-assistant.io/${fallback ? '_/' : ''}${domain}/icon.png`;
+}
+
 /** Resolve an area id to its name using hass.areas. */
 export function areaName(
   areas: Record<string, HassArea> | undefined,

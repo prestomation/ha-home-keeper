@@ -209,7 +209,7 @@
   "entity": {
     "sensor": {
       "next_due": {
-        "name": "Neste forfall"
+        "name": "{task_name}Neste forfall"
       },
       "manufacture_date": {
         "name": "Produksjonsdato"
@@ -226,12 +226,12 @@
     },
     "binary_sensor": {
       "overdue": {
-        "name": "Forfalt"
+        "name": "{task_name}Forfalt"
       }
     },
     "button": {
       "mark_done": {
-        "name": "Merk som fullført"
+        "name": "{task_name}Merk som fullført"
       }
     }
   }

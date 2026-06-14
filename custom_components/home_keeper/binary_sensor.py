@@ -11,12 +11,12 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from . import recurrence
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
+from .entity import HomeKeeperTaskEntity
 
 DUE_SOON_WINDOW = timedelta(days=3)
 
@@ -34,26 +34,18 @@ async def async_setup_entry(
     )
 
 
-class HomeKeeperOverdueBinarySensor(
-    CoordinatorEntity[HomeKeeperCoordinator], BinarySensorEntity
-):
+class HomeKeeperOverdueBinarySensor(HomeKeeperTaskEntity, BinarySensorEntity):
     """On when a task is overdue."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "overdue"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:
-        super().__init__(coordinator)
-        self._task_id = task_id
+        super().__init__(coordinator, task_id)
         self._attr_unique_id = f"{DOMAIN}_{task_id}_overdue"
         self._attr_device_info = coordinator.device_info_for_task(
             coordinator.data[task_id]
         )
-
-    @property
-    def _task(self) -> dict:
-        return self.coordinator.data.get(self._task_id, {})
 
     @property
     def is_on(self) -> bool:

@@ -209,7 +209,7 @@
   "entity": {
     "sensor": {
       "next_due": {
-        "name": "Prochaine échéance"
+        "name": "{task_name}Prochaine échéance"
       },
       "manufacture_date": {
         "name": "Date de fabrication"
@@ -226,12 +226,12 @@
     },
     "binary_sensor": {
       "overdue": {
-        "name": "En retard"
+        "name": "{task_name}En retard"
       }
     },
     "button": {
       "mark_done": {
-        "name": "Marquer comme terminé"
+        "name": "{task_name}Marquer comme terminé"
       }
     }
   }

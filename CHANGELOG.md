@@ -6,6 +6,47 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+- **Device-page entities name themselves by task.** When several Home Keeper tasks
+  are attached to the same existing device, their per-task entities (the *mark
+  done* button, *next due* sensor, and *overdue* binary sensor) used to all share
+  the same name, so there was no way to tell which control belonged to which task.
+  Each is now prefixed with its task name (e.g. *"Replace filter: Mark done"*).
+  Self-owned task devices are unaffected (the device is already named after the
+  task). Renaming a task now refreshes its device-page entity names (and a
+  self-owned task device's own name) instead of leaving them stale.
+
+- **Sidebar panel device chips are now actionable.** The device chip on task and
+  appliance rows links to that device's Home Assistant page when clicked (or via
+  keyboard), and shows the device's integration brand logo (falling back to a
+  generic device icon when no brand image is available).
+
+### Fixed
+
+- **Wear-part tasks no longer break the calendar and sensors.** A maintenance task
+  derived from a wear part (with a "last replaced" date) computed a
+  timezone-naive due date, which made its *next due* sensor, *overdue* binary
+  sensor, and the **whole Home Keeper calendar** go *unavailable*. The due date is
+  now timezone-aware, and existing affected tasks self-heal on the next reload.
+- **Long-running fixed-schedule tasks no longer crash.** A fixed (anchored)
+  daily/weekly task whose anchor was far in the past (a daily task left running
+  ~1.4 years, a weekly one ~9.6 years) raised an internal error when computing its
+  next occurrence — taking down the calendar and the next-due/overdue entities,
+  and 500-ing the create form for a far-past anchor. Occurrences are now computed
+  directly instead of by stepping to an iteration cap.
+- **Absurd intervals are rejected cleanly.** A recurrence interval or wear-part
+  replacement interval large enough to overflow date math now returns a clear
+  validation error instead of an internal server error.
+- **Wear-part maintenance tasks are managed only through their part.** They can no
+  longer be deleted directly (which previously did nothing useful — the next
+  reconcile recreated them); the panel hides edit/delete on these tasks and points
+  you to the appliance part instead. Completing one is preserved across reconciles.
+- **Editing a wear part's replacement interval no longer resets the clock.** The
+  due date now re-bases off the part's last-replaced date (or its creation), so
+  changing "every 3 months" to "every 4 months" extends the schedule instead of
+  restarting it from today.
+- **A future "last replaced" date is rejected**, and duplicate part identifiers are
+  regenerated, so a part's derived task can't be silently hidden or mis-stamped.
+
 ## [0.1.0b3] - 2026-06-14
 
 - **Cross-integration task contributions.** Other integrations can now contribute

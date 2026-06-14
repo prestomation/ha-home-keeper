@@ -208,17 +208,17 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "Seuraava eräpäivä" },
+      "next_due": { "name": "{task_name}Seuraava eräpäivä" },
       "manufacture_date": { "name": "Valmistuspäivä" },
       "purchase_date": { "name": "Ostopäivä" },
       "install_date": { "name": "Asennuspäivä" },
       "warranty_expiry": { "name": "Takuun päättyminen" }
     },
     "binary_sensor": {
-      "overdue": { "name": "Myöhässä" }
+      "overdue": { "name": "{task_name}Myöhässä" }
     },
     "button": {
-      "mark_done": { "name": "Merkitse valmiiksi" }
+      "mark_done": { "name": "{task_name}Merkitse valmiiksi" }
     }
   }
 }

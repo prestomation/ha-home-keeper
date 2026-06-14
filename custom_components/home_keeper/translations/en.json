@@ -208,17 +208,17 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "Next due" },
+      "next_due": { "name": "{task_name}Next due" },
       "manufacture_date": { "name": "Manufacture date" },
       "purchase_date": { "name": "Purchase date" },
       "install_date": { "name": "Install date" },
       "warranty_expiry": { "name": "Warranty expiry" }
     },
     "binary_sensor": {
-      "overdue": { "name": "Overdue" }
+      "overdue": { "name": "{task_name}Overdue" }
     },
     "button": {
-      "mark_done": { "name": "Mark done" }
+      "mark_done": { "name": "{task_name}Mark done" }
     }
   }
 }

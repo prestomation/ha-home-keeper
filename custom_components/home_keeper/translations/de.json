@@ -209,7 +209,7 @@
   "entity": {
     "sensor": {
       "next_due": {
-        "name": "Nächste Fälligkeit"
+        "name": "{task_name}Nächste Fälligkeit"
       },
       "manufacture_date": {
         "name": "Herstellungsdatum"
@@ -226,12 +226,12 @@
     },
     "binary_sensor": {
       "overdue": {
-        "name": "Überfällig"
+        "name": "{task_name}Überfällig"
       }
     },
     "button": {
       "mark_done": {
-        "name": "Als erledigt markieren"
+        "name": "{task_name}Als erledigt markieren"
       }
     }
   }

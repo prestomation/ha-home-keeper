@@ -178,6 +178,48 @@ def test_wear_part_creates_maintenance_task_with_device_entities(ha):
     assert any("garage_water_heater" in eid for eid in mark_done), mark_done
 
 
+def _all_tasks(ha):
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    return resp.get("service_response", resp)["tasks"]
+
+
+def _anode_task(ha):
+    return next(t for t in _all_tasks(ha) if "Anode rod" in t.get("name", ""))
+
+
+def test_cannot_delete_derived_part_task(ha):
+    # A wear-part task is owned by its part; deleting it directly must be rejected
+    # (otherwise the next reconcile would just recreate it as a "zombie").
+    from conftest import HA_URL
+
+    anode = _anode_task(ha)
+    r = ha.post(f"{HA_URL}/api/services/home_keeper/delete_task", json={"task_id": anode["id"]})
+    assert r.status_code >= 400, f"deleting a derived task should be rejected, got {r.status_code}"
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    assert any(
+        t["id"] == anode["id"] for t in resp.get("service_response", resp)["tasks"]
+    ), "the derived task must still exist after a rejected delete"
+
+
+def test_completing_derived_part_task_survives_reconcile(ha):
+    # Regression: a reconcile must not re-anchor a completed derived task back to the
+    # part's last_replaced (which would wipe out the completion).
+    import time
+
+    anode = _anode_task(ha)
+    asset_id = anode["source"]["part"]["asset_id"]
+    call_service(ha, "home_keeper", "complete_task", {"task_id": anode["id"]})
+    after_complete = next(t for t in _all_tasks(ha) if t["id"] == anode["id"])
+    lc, nd = after_complete["last_completed"], after_complete["next_due"]
+    assert lc, "completion should set last_completed"
+    # Editing the asset triggers a reconcile of its part tasks.
+    call_service(ha, "home_keeper", "update_asset", {"asset_id": asset_id, "notes": "poke"})
+    time.sleep(1)
+    after_reconcile = next(t for t in _all_tasks(ha) if t["id"] == anode["id"])
+    assert after_reconcile["last_completed"] == lc, "reconcile must not revert the completion"
+    assert after_reconcile["next_due"] == nd
+
+
 def _part_tasks_for(ha, asset_id):
     """Tasks derived from a specific asset's parts (robust to shared-state runs)."""
     resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)

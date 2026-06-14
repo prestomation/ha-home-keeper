@@ -11,10 +11,10 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
+from .entity import HomeKeeperTaskEntity
 
 
 async def async_setup_entry(
@@ -30,18 +30,14 @@ async def async_setup_entry(
     )
 
 
-class HomeKeeperMarkDoneButton(
-    CoordinatorEntity[HomeKeeperCoordinator], ButtonEntity
-):
+class HomeKeeperMarkDoneButton(HomeKeeperTaskEntity, ButtonEntity):
     """Marks a task complete from its device page."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "mark_done"
     _attr_icon = "mdi:check-circle"
 
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:
-        super().__init__(coordinator)
-        self._task_id = task_id
+        super().__init__(coordinator, task_id)
         self._attr_unique_id = f"{DOMAIN}_{task_id}_done"
         self._attr_device_info = coordinator.device_info_for_task(
             coordinator.data[task_id]

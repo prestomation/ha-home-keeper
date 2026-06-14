@@ -9,6 +9,7 @@ change so entities stay in sync within the current HA tick.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, tzinfo
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -33,6 +34,24 @@ def _part_source(task: dict[str, Any]) -> dict[str, Any] | None:
     if isinstance(source, dict) and isinstance(source.get(TASK_SOURCE_PART), dict):
         return source[TASK_SOURCE_PART]
     return None
+
+
+def _qualify_iso(value: str | None, tz: tzinfo | None) -> str | None:
+    """Parse an ISO date/datetime and return an aware ISO string (or None).
+
+    A part's ``last_replaced`` is a date-only string; the recurrence engine
+    compares the derived ``next_due`` against an aware ``now``, so a naive value
+    must be qualified to Home Assistant's timezone first.
+    """
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=tz) if tz is not None else parsed.astimezone()
+    return parsed.isoformat()
 
 
 class HomeKeeperStore:
@@ -119,6 +138,14 @@ class HomeKeeperStore:
         return merged
 
     async def delete_task(self, task_id: str) -> None:
+        task = self._tasks.get(task_id)
+        if task is not None and _part_source(task):
+            # Derived from a wear part; deleting it here would just be recreated by
+            # the next reconcile. Direct the user to manage the part instead.
+            raise models.TaskValidationError(
+                "This task is managed by an appliance wear part; remove or change "
+                "the part to delete it."
+            )
         if task_id in self._tasks:
             del self._tasks[task_id]
             await self._save()
@@ -262,6 +289,11 @@ class HomeKeeperStore:
         # Create or update the rest.
         for key, (asset, part) in desired.items():
             name = f"Replace {part['name']} ({asset.get('name') or 'appliance'})"
+            # A part's last_replaced is a date-only string; qualify it to HA's tz so
+            # the derived next_due is timezone-aware. A naive next_due otherwise
+            # crashes the next-due sensor, overdue binary_sensor, and the calendar
+            # (which compare it against an aware "now").
+            anchored = _qualify_iso(part.get("last_replaced"), now.tzinfo)
             tid = existing_by_key.get(key)
             if tid is None:
                 task = models.build_task(
@@ -278,12 +310,11 @@ class HomeKeeperStore:
                     },
                     now=now,
                 )
-                # Anchor the clock to the last replacement, if known.
-                if part.get("last_replaced"):
-                    task["last_completed"] = part["last_replaced"]
-                    task["next_due"] = recurrence.compute_next_due(
-                        task, now=now
-                    ).isoformat()
+                # Anchor the floating clock to the recorded replacement, or to
+                # creation ("assumed fresh") so that later interval edits re-base off
+                # a stable point instead of drifting to now+interval on each edit.
+                task["last_completed"] = anchored or task["created"]
+                task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
                 self._tasks[task["id"]] = task
                 changed = True
             else:
@@ -303,8 +334,21 @@ class HomeKeeperStore:
                     updates["device_id"] = asset.get("device_id")
                 if before.get("area_id") != asset.get("area_id"):
                     updates["area_id"] = asset.get("area_id")
-                if updates:
-                    self._tasks[tid] = models.merge_update(before, updates, now=now)
+                merged = models.merge_update(before, updates, now=now) if updates else before
+                # Heal a legacy timezone-naive last_completed (older builds stored a
+                # date-only last_replaced verbatim, yielding a naive next_due that
+                # crashed the sensors/calendar). Only re-qualify a naive value — never
+                # overwrite a real (already-aware) completion timestamp.
+                lc = merged.get("last_completed")
+                healed = _qualify_iso(lc, now.tzinfo) if lc else None
+                if healed and healed != lc:
+                    merged = dict(merged)
+                    merged["last_completed"] = healed
+                    merged["next_due"] = recurrence.compute_next_due(
+                        merged, now=now
+                    ).isoformat()
+                if merged is not before:
+                    self._tasks[tid] = merged
                     changed = True
 
         if changed:

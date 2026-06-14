@@ -33,13 +33,18 @@ def entity_set_key(task: dict[str, Any] | None) -> tuple:
     """Identity of a task's per-task entity set.
 
     Per-task entities (button/sensor/binary_sensor) exist only for an enabled,
-    device-attached task. When this key changes between an update's before/after,
-    the entry must be reloaded so entities are created/removed; otherwise a plain
-    coordinator refresh is enough.
+    device-attached task, and their display name embeds the task name (so several
+    tasks on one device page stay distinguishable). When this key changes between
+    an update's before/after, the entry must be reloaded so entities are
+    created/removed/renamed; otherwise a plain coordinator refresh is enough.
+
+    ``name`` is part of the key because HA caches an entity's computed ``name``;
+    recreating the entity on reload is how a rename takes effect on the device
+    page (and how a self-owned task device picks up its new name).
     """
     if not task:
-        return (None, False)
-    return (task.get("device_id"), bool(task.get("enabled", True)))
+        return (None, False, None)
+    return (task.get("device_id"), bool(task.get("enabled", True)), task.get("name"))
 
 
 class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
@@ -68,6 +73,26 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if task.get("device_id") and task.get("enabled", True)
         ]
 
+    def _existing_device(self, device_id: str | None):
+        """Resolve ``device_id`` to a registry device, or ``None``.
+
+        Single source of truth for "is this an existing device we can merge onto?"
+        so the DeviceInfo and name-prefix decisions can't drift apart.
+        """
+        if not device_id:
+            return None
+        return dr.async_get(self.hass).async_get(device_id)
+
+    def task_uses_existing_device(self, task: dict[str, Any]) -> bool:
+        """True when the task's per-task entities merge onto an existing device.
+
+        In that case several tasks can share one device page, so each entity's
+        name is prefixed with the task name to disambiguate. Self-owned task
+        devices (no ``device_id`` or an unknown one) need no prefix because the
+        device itself is already named after the task.
+        """
+        return self._existing_device(task.get("device_id")) is not None
+
     def device_info_for_device_id(self, device_id: str | None) -> DeviceInfo | None:
         """DeviceInfo that merges entities onto an existing registry device.
 
@@ -75,9 +100,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         to that device page rather than creating a new device. Returns ``None`` when
         the device cannot be resolved (the entity should then be skipped).
         """
-        if not device_id:
-            return None
-        device = dr.async_get(self.hass).async_get(device_id)
+        device = self._existing_device(device_id)
         if device is None:
             return None
         return DeviceInfo(
@@ -96,14 +119,13 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
           together under the Home Keeper integration.
         """
         device_id = task.get("device_id")
+        device = self._existing_device(device_id)
+        if device is not None:
+            return DeviceInfo(
+                identifiers=device.identifiers,
+                connections=device.connections,
+            )
         if device_id:
-            registry = dr.async_get(self.hass)
-            device = registry.async_get(device_id)
-            if device is not None:
-                return DeviceInfo(
-                    identifiers=device.identifiers,
-                    connections=device.connections,
-                )
             _LOGGER.warning(
                 "Home Keeper task %s references unknown device_id %s; "
                 "falling back to a self-owned device",

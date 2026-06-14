@@ -69,3 +69,16 @@ export async function updateAsset(
 export async function deleteAsset(hass: Hass, assetId: string): Promise<void> {
   await hass.callWS({ type: 'home_keeper/delete_asset', asset_id: assetId });
 }
+
+/**
+ * Map every config entry id to its integration domain. Used to resolve a
+ * device's brand logo (`brands.home-assistant.io`) for the device chip.
+ */
+export async function getEntryDomains(hass: Hass): Promise<Record<string, string>> {
+  const entries = await hass.callWS<{ entry_id: string; domain: string }[]>({
+    type: 'config_entries/get',
+  });
+  const map: Record<string, string> = {};
+  for (const e of entries) map[e.entry_id] = e.domain;
+  return map;
+}

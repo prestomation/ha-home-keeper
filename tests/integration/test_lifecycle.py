@@ -5,6 +5,8 @@ device-attached tasks get per-task device-page entities, and that completing /
 adding tasks flows through the recurrence engine and updates entities.
 """
 
+import time
+
 from conftest import call_service, get_state, list_states, poll_state
 
 
@@ -21,7 +23,33 @@ def test_todo_entity_exists_with_seeded_tasks(ha):
 
 
 def test_calendar_entity_exists(ha):
-    assert get_state(ha, "calendar.home_keeper_upcoming_tasks") is not None
+    state = get_state(ha, "calendar.home_keeper_upcoming_tasks")
+    assert state is not None
+    # Regression: a wear part's date-only last_replaced used to produce a tz-naive
+    # next_due, which crashed the calendar's state computation -> "unavailable".
+    assert state["state"] != "unavailable"
+
+
+def test_wear_part_next_due_sensor_is_timezone_aware(ha):
+    # The seeded water heater's anode rod is a wear item. Its derived next-due
+    # timestamp sensor must report an aware datetime (not "unavailable" from a
+    # naive-vs-aware comparison crash).
+    sensor = next(
+        (
+            s
+            for s in list_states(ha)
+            if s["entity_id"].startswith("sensor.")
+            and "anode_rod" in s["entity_id"]
+            and s["entity_id"].endswith("_next_due")
+        ),
+        None,
+    )
+    assert sensor is not None, "expected a next-due sensor for the anode rod wear part"
+    assert sensor["state"] not in ("unavailable", "unknown"), sensor["state"]
+    # A timestamp device_class state is an aware ISO datetime; parsing must yield tz.
+    from datetime import datetime
+
+    assert datetime.fromisoformat(sensor["state"]).tzinfo is not None
 
 
 def test_device_attached_task_creates_per_task_entities(ha):
@@ -158,3 +186,66 @@ def test_complete_task_without_origin_reports_none(ha):
     task_id = next(t["id"] for t in _list_tasks(ha) if t["name"] == "Take medicine")
     call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
     poll_state(ha, "input_text.hk_last_completed_origin", lambda s: s == "none")
+
+
+def _find_button_by_name(ha, name_substr):
+    """Return (entity_id, friendly_name) of a button whose name contains a substring."""
+    for s in list_states(ha):
+        if not s["entity_id"].startswith("button."):
+            continue
+        fn = s.get("attributes", {}).get("friendly_name", "")
+        if name_substr in fn:
+            return s["entity_id"], fn
+    return None, None
+
+
+def test_renaming_task_updates_device_entity_name(ha):
+    # Regression: HA caches an entity's computed name, and a plain coordinator
+    # refresh leaves it stale. A task rename must reload the entry so the
+    # device-page entity (and the self-owned device) pick up the new name.
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "Rename probe original",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+            # Any device_id gives the task per-task entities; an unknown one lands
+            # them on a self-owned device named after the task.
+            "device_id": "rename_probe_fake_device",
+        },
+        return_response=True,
+    )
+    task_id = resp.get("service_response", resp)["task_id"]
+    try:
+        eid = None
+        for _ in range(20):
+            eid, before = _find_button_by_name(ha, "Rename probe original")
+            if eid:
+                break
+            time.sleep(1)
+        assert eid, "expected a mark-done button for the new device-attached task"
+
+        call_service(
+            ha,
+            "home_keeper",
+            "update_task",
+            {"task_id": task_id, "name": "Rename probe renamed"},
+        )
+
+        # The entity id is stable (keyed by unique_id); only its name changes.
+        after = None
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            state = get_state(ha, eid)
+            after = (state or {}).get("attributes", {}).get("friendly_name", "")
+            if "renamed" in after:
+                break
+            time.sleep(1)
+        assert after and "Rename probe renamed" in after, (
+            f"device entity name did not update after rename: {after!r}"
+        )
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})

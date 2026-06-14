@@ -208,17 +208,17 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "下次到期" },
+      "next_due": { "name": "{task_name}下次到期" },
       "manufacture_date": { "name": "生产日期" },
       "purchase_date": { "name": "购买日期" },
       "install_date": { "name": "安装日期" },
       "warranty_expiry": { "name": "保修到期" }
     },
     "binary_sensor": {
-      "overdue": { "name": "已逾期" }
+      "overdue": { "name": "{task_name}已逾期" }
     },
     "button": {
-      "mark_done": { "name": "标记为完成" }
+      "mark_done": { "name": "{task_name}标记为完成" }
     }
   }
 }

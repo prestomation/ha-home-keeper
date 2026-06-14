@@ -70,6 +70,11 @@ FREQS = [FREQ_DAILY, FREQ_WEEKLY, FREQ_MONTHLY]
 # to guard against runaway expansion loops.
 MAX_EXPAND_ITERATIONS = 500
 
+# Upper bound on a recurrence interval / wear-part replacement interval. Generous
+# (e.g. 10000 days ≈ 27 years, 10000 months ≈ 833 years) but low enough to keep
+# date arithmetic well clear of datetime/timedelta overflow.
+MAX_INTERVAL = 10_000
+
 # DEFERRED (not implemented this prototype): a stable cross-integration contribution
 # interface so integrations like Battery Notes can push maintenance tasks without
 # this integration knowing anything about them. The intended hook is a dispatcher

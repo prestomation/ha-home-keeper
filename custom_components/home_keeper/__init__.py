@@ -196,7 +196,10 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_delete_task(call: ServiceCall) -> None:
         coord = _coordinator()
-        await coord.store.delete_task(call.data["task_id"])
+        try:
+            await coord.store.delete_task(call.data["task_id"])
+        except TaskValidationError as err:
+            raise ServiceValidationError(str(err)) from err
         await hass.config_entries.async_reload(coord.entry.entry_id)
 
     async def handle_complete_task(call: ServiceCall) -> None:

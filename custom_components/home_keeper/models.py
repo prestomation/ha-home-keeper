@@ -16,6 +16,7 @@ from typing import Any
 from . import recurrence
 from .const import (
     FREQS,
+    MAX_INTERVAL,
     REC_FIXED,
     REC_FLOATING,
     RECURRENCE_TYPES,
@@ -58,6 +59,8 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         raise TaskValidationError("interval must be a valid integer") from err
     if interval < 1:
         raise TaskValidationError("interval must be >= 1")
+    if interval > MAX_INTERVAL:
+        raise TaskValidationError(f"interval must be <= {MAX_INTERVAL}")
 
     fields: dict[str, Any] = {
         "name": name,
