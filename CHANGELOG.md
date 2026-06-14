@@ -6,6 +6,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.1.0b2] - 2026-06-14
+
 - **Appliances & virtual devices.** A new **Appliances** tab in the panel lets you
   register an appliance Home Keeper provisions as a real **virtual device** (so
   multiple maintenance tasks share one device page), or attach **asset metadata** to
