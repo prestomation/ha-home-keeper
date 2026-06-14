@@ -1,0 +1,238 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Konfigurera Home Keeper för att hålla koll på underhåll och sysslor i hemmet. Hantera dina uppgifter från Home Keeper-panelen i sidofältet."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper är redan konfigurerad."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Lägg till uppgift",
+      "description": "Skapa en ny underhållsuppgift eller syssla.",
+      "fields": {
+        "name": {
+          "name": "Namn",
+          "description": "Visningsnamn för uppgiften."
+        },
+        "notes": {
+          "name": "Anteckningar",
+          "description": "Valfria fritextanteckningar."
+        },
+        "recurrence_type": {
+          "name": "Återkommandetyp",
+          "description": "floating (mätt från slutförande) eller fixed (förankrat schema)."
+        },
+        "interval": {
+          "name": "Intervall",
+          "description": "Upprepa var N:e enhet (floating) eller steg (fixed)."
+        },
+        "unit": {
+          "name": "Enhet",
+          "description": "För floating-uppgifter: dagar, veckor eller månader."
+        },
+        "freq": {
+          "name": "Frekvens",
+          "description": "För fixed-uppgifter: DAILY, WEEKLY eller MONTHLY."
+        },
+        "anchor": {
+          "name": "Ankare",
+          "description": "För fixed-uppgifter: ISO-datum och -tid för första förekomsten (anger tid på dygnet)."
+        },
+        "device_id": {
+          "name": "Enhet",
+          "description": "Valfri enhet att koppla denna uppgift till."
+        },
+        "area_id": {
+          "name": "Område",
+          "description": "Valfritt område att associera med denna uppgift."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Uppdatera uppgift",
+      "description": "Uppdatera fält för en befintlig uppgift.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID:t för uppgiften som ska uppdateras."
+        },
+        "name": {
+          "name": "Namn",
+          "description": "Nytt visningsnamn."
+        },
+        "notes": {
+          "name": "Anteckningar",
+          "description": "Nya anteckningar."
+        },
+        "recurrence_type": {
+          "name": "Återkommandetyp",
+          "description": "floating eller fixed."
+        },
+        "interval": {
+          "name": "Intervall",
+          "description": "Upprepa var N:e enhet/steg."
+        },
+        "unit": {
+          "name": "Enhet",
+          "description": "dagar, veckor eller månader (floating)."
+        },
+        "freq": {
+          "name": "Frekvens",
+          "description": "DAILY, WEEKLY eller MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Ankare",
+          "description": "ISO-datum och -tid för första förekomsten (fixed)."
+        },
+        "device_id": {
+          "name": "Enhet",
+          "description": "Enhet att koppla denna uppgift till."
+        },
+        "area_id": {
+          "name": "Område",
+          "description": "Område att associera med denna uppgift."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Ta bort uppgift",
+      "description": "Ta bort en uppgift.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID:t för uppgiften som ska tas bort."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Slutför uppgift",
+      "description": "Markera en uppgift som slutförd och gå vidare till nästa återkommande tillfälle.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID:t för uppgiften som ska slutföras."
+        },
+        "completed_at": {
+          "name": "Slutförd",
+          "description": "Valfri tidsstämpel för slutförande (standard är nu)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "Lista uppgifter",
+      "description": "Returnera alla uppgifter som ett svar."
+    },
+    "add_asset": {
+      "name": "Lägg till apparat",
+      "description": "Registrera en apparat/tillgång. Som standard skapar Home Keeper en virtuell enhet för den; ställ in kind på existing för att koppla metadata till en enhet från en annan integration.",
+      "fields": {
+        "name": {
+          "name": "Namn",
+          "description": "Visningsnamn (krävs för en ny virtuell enhet)."
+        },
+        "kind": {
+          "name": "Typ",
+          "description": "virtual (Home Keeper skapar enheten) eller existing (koppla till en befintlig)."
+        },
+        "device_id": {
+          "name": "Enhet",
+          "description": "Befintlig enhet att koppla metadata till (krävs när kind är existing)."
+        },
+        "area_id": {
+          "name": "Område",
+          "description": "Valfritt område för apparaten."
+        },
+        "manufacturer": { "name": "Tillverkare", "description": "Apparatens tillverkare." },
+        "model": { "name": "Modell", "description": "Modellnamn eller -nummer." },
+        "serial_number": { "name": "Serienummer", "description": "Serienummer." },
+        "manufacture_date": { "name": "Tillverkningsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Inköpsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "install_date": { "name": "Installationsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Garantins slut",
+          "description": "ISO-datum (YYYY-MM-DD). Visas som en datumsensor på enheten."
+        },
+        "warranty_provider": { "name": "Garantileverantör", "description": "Vem som ansvarar för garantin." },
+        "vendor": { "name": "Leverantör", "description": "Var man köper igen / tjänsteleverantör." },
+        "cost": { "name": "Kostnad", "description": "Inköpspris." },
+        "manual_url": { "name": "URL till manual", "description": "Länk till manualen eller dokumentationen." },
+        "icon": { "name": "Ikon", "description": "Valfri mdi-ikon (t.ex. mdi:piano)." },
+        "parts": { "name": "Delar", "description": "Strukturerade delar/slitdelar; slitdelar med ett intervall driver en underhållsuppgift." },
+        "parent_asset_id": { "name": "Överordnad apparat", "description": "Gör denna till en underenhet till en annan apparat." },
+        "related_device_ids": { "name": "Relaterade enheter", "description": "Andra registerenheter att associera med denna apparat." },
+        "notes": { "name": "Anteckningar", "description": "Fritextanteckningar." }
+      }
+    },
+    "update_asset": {
+      "name": "Uppdatera apparat",
+      "description": "Uppdatera fält för en befintlig apparat/tillgång.",
+      "fields": {
+        "asset_id": { "name": "Tillgångs-ID", "description": "ID:t för tillgången som ska uppdateras." },
+        "name": { "name": "Namn", "description": "Nytt visningsnamn." },
+        "device_id": { "name": "Enhet", "description": "Rikta om en tillgång för en befintlig enhet." },
+        "area_id": { "name": "Område", "description": "Område för apparaten." },
+        "manufacturer": { "name": "Tillverkare", "description": "Apparatens tillverkare." },
+        "model": { "name": "Modell", "description": "Modellnamn eller -nummer." },
+        "serial_number": { "name": "Serienummer", "description": "Serienummer." },
+        "manufacture_date": { "name": "Tillverkningsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Inköpsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "install_date": { "name": "Installationsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Garantins slut", "description": "ISO-datum (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Garantileverantör", "description": "Vem som ansvarar för garantin." },
+        "vendor": { "name": "Leverantör", "description": "Var man köper igen / tjänsteleverantör." },
+        "cost": { "name": "Kostnad", "description": "Inköpspris." },
+        "manual_url": { "name": "URL till manual", "description": "Länk till manualen eller dokumentationen." },
+        "icon": { "name": "Ikon", "description": "Valfri mdi-ikon (t.ex. mdi:piano)." },
+        "parts": { "name": "Delar", "description": "Strukturerade delar/slitdelar; slitdelar med ett intervall driver en underhållsuppgift." },
+        "parent_asset_id": { "name": "Överordnad apparat", "description": "Gör denna till en underenhet till en annan apparat." },
+        "related_device_ids": { "name": "Relaterade enheter", "description": "Andra registerenheter att associera med denna apparat." },
+        "notes": { "name": "Anteckningar", "description": "Fritextanteckningar." }
+      }
+    },
+    "delete_asset": {
+      "name": "Ta bort apparat",
+      "description": "Ta bort en apparat/tillgång. Dess virtuella enhet (om någon) tas bort och uppgifter kopplade till den blir fristående.",
+      "fields": {
+        "asset_id": { "name": "Tillgångs-ID", "description": "ID:t för tillgången som ska tas bort." }
+      }
+    },
+    "list_assets": {
+      "name": "Lista apparater",
+      "description": "Returnera alla apparater/tillgångar som ett svar."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": {
+        "name": "Nästa förfallodatum"
+      },
+      "manufacture_date": {
+        "name": "Tillverkningsdatum"
+      },
+      "purchase_date": {
+        "name": "Inköpsdatum"
+      },
+      "install_date": {
+        "name": "Installationsdatum"
+      },
+      "warranty_expiry": {
+        "name": "Garantins slut"
+      }
+    },
+    "binary_sensor": {
+      "overdue": {
+        "name": "Försenad"
+      }
+    },
+    "button": {
+      "mark_done": {
+        "name": "Markera som klar"
+      }
+    }
+  }
+}

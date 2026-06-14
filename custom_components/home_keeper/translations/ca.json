@@ -1,0 +1,224 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Configura Home Keeper per fer el seguiment del manteniment de la llar i les tasques domèstiques. Gestiona les teves tasques des del panell Home Keeper a la barra lateral."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper ja està configurat."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Afegir tasca",
+      "description": "Crear una nova tasca de manteniment o tasca domèstica.",
+      "fields": {
+        "name": {
+          "name": "Nom",
+          "description": "Nom visible de la tasca."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Notes opcionals de text lliure."
+        },
+        "recurrence_type": {
+          "name": "Tipus de recurrència",
+          "description": "floating (mesurat des de la finalització) o fixed (horari ancorat)."
+        },
+        "interval": {
+          "name": "Interval",
+          "description": "Repeteix cada N unitats (floating) o passos (fixed)."
+        },
+        "unit": {
+          "name": "Unitat",
+          "description": "Per a tasques flotants: days, weeks o months."
+        },
+        "freq": {
+          "name": "Freqüència",
+          "description": "Per a tasques fixes: DAILY, WEEKLY o MONTHLY."
+        },
+        "anchor": {
+          "name": "Àncora",
+          "description": "Per a tasques fixes: data i hora ISO de la primera ocurrència (estableix l'hora del dia)."
+        },
+        "device_id": {
+          "name": "Dispositiu",
+          "description": "Dispositiu opcional al qual vincular aquesta tasca."
+        },
+        "area_id": {
+          "name": "Àrea",
+          "description": "Àrea opcional per associar amb aquesta tasca."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Actualitzar tasca",
+      "description": "Actualitzar els camps d'una tasca existent.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca a actualitzar."
+        },
+        "name": {
+          "name": "Nom",
+          "description": "Nou nom visible."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Notes noves."
+        },
+        "recurrence_type": {
+          "name": "Tipus de recurrència",
+          "description": "floating o fixed."
+        },
+        "interval": {
+          "name": "Interval",
+          "description": "Repeteix cada N unitats/passos."
+        },
+        "unit": {
+          "name": "Unitat",
+          "description": "days, weeks o months (floating)."
+        },
+        "freq": {
+          "name": "Freqüència",
+          "description": "DAILY, WEEKLY o MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Àncora",
+          "description": "Data i hora ISO de la primera ocurrència (fixed)."
+        },
+        "device_id": {
+          "name": "Dispositiu",
+          "description": "Dispositiu al qual vincular aquesta tasca."
+        },
+        "area_id": {
+          "name": "Àrea",
+          "description": "Àrea per associar amb aquesta tasca."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Eliminar tasca",
+      "description": "Eliminar una tasca.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca a eliminar."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Completar tasca",
+      "description": "Marcar una tasca com a completada i avançar la seva recurrència.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca a completar."
+        },
+        "completed_at": {
+          "name": "Completada el",
+          "description": "Marca de temps de finalització opcional (per defecte, ara)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "Llistar tasques",
+      "description": "Retornar totes les tasques com a resposta."
+    },
+    "add_asset": {
+      "name": "Afegir electrodomèstic",
+      "description": "Registrar un electrodomèstic/actiu. Per defecte Home Keeper crea un dispositiu virtual per a ell; estableix kind a existing per adjuntar metadades a un dispositiu d'una altra integració.",
+      "fields": {
+        "name": {
+          "name": "Nom",
+          "description": "Nom visible (obligatori per a un nou dispositiu virtual)."
+        },
+        "kind": {
+          "name": "Mena",
+          "description": "virtual (Home Keeper crea el dispositiu) o existing (adjuntar-lo a un)."
+        },
+        "device_id": {
+          "name": "Dispositiu",
+          "description": "Dispositiu existent al qual adjuntar metadades (obligatori quan kind és existing)."
+        },
+        "area_id": {
+          "name": "Àrea",
+          "description": "Àrea opcional per a l'electrodomèstic."
+        },
+        "manufacturer": { "name": "Fabricant", "description": "Fabricant de l'electrodomèstic." },
+        "model": { "name": "Model", "description": "Nom o número de model." },
+        "serial_number": { "name": "Número de sèrie", "description": "Número de sèrie." },
+        "manufacture_date": { "name": "Data de fabricació", "description": "Data ISO (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Data de compra", "description": "Data ISO (YYYY-MM-DD)." },
+        "install_date": { "name": "Data d'instal·lació", "description": "Data ISO (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Caducitat de la garantia",
+          "description": "Data ISO (YYYY-MM-DD). Es mostra com a sensor de data al dispositiu."
+        },
+        "warranty_provider": { "name": "Proveïdor de la garantia", "description": "Qui respon de la garantia." },
+        "vendor": { "name": "Venedor", "description": "On tornar a comprar / proveïdor de servei." },
+        "cost": { "name": "Cost", "description": "Preu de compra." },
+        "manual_url": { "name": "URL del manual", "description": "Enllaç al manual o a la documentació." },
+        "icon": { "name": "Icona", "description": "Icona mdi opcional (p. ex. mdi:piano)." },
+        "parts": { "name": "Peces", "description": "Peces/elements de desgast estructurats; els elements de desgast amb interval generen una tasca de manteniment." },
+        "parent_asset_id": { "name": "Electrodomèstic pare", "description": "Fer-ne un subdispositiu d'un altre electrodomèstic." },
+        "related_device_ids": { "name": "Dispositius relacionats", "description": "Altres dispositius del registre per associar amb aquest electrodomèstic." },
+        "notes": { "name": "Notes", "description": "Notes de text lliure." }
+      }
+    },
+    "update_asset": {
+      "name": "Actualitzar electrodomèstic",
+      "description": "Actualitzar els camps d'un electrodomèstic/actiu existent.",
+      "fields": {
+        "asset_id": { "name": "ID d'actiu", "description": "L'id de l'actiu a actualitzar." },
+        "name": { "name": "Nom", "description": "Nou nom visible." },
+        "device_id": { "name": "Dispositiu", "description": "Reorientar un actiu de dispositiu existent." },
+        "area_id": { "name": "Àrea", "description": "Àrea per a l'electrodomèstic." },
+        "manufacturer": { "name": "Fabricant", "description": "Fabricant de l'electrodomèstic." },
+        "model": { "name": "Model", "description": "Nom o número de model." },
+        "serial_number": { "name": "Número de sèrie", "description": "Número de sèrie." },
+        "manufacture_date": { "name": "Data de fabricació", "description": "Data ISO (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Data de compra", "description": "Data ISO (YYYY-MM-DD)." },
+        "install_date": { "name": "Data d'instal·lació", "description": "Data ISO (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Caducitat de la garantia", "description": "Data ISO (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Proveïdor de la garantia", "description": "Qui respon de la garantia." },
+        "vendor": { "name": "Venedor", "description": "On tornar a comprar / proveïdor de servei." },
+        "cost": { "name": "Cost", "description": "Preu de compra." },
+        "manual_url": { "name": "URL del manual", "description": "Enllaç al manual o a la documentació." },
+        "icon": { "name": "Icona", "description": "Icona mdi opcional (p. ex. mdi:piano)." },
+        "parts": { "name": "Peces", "description": "Peces/elements de desgast estructurats; els elements de desgast amb interval generen una tasca de manteniment." },
+        "parent_asset_id": { "name": "Electrodomèstic pare", "description": "Fer-ne un subdispositiu d'un altre electrodomèstic." },
+        "related_device_ids": { "name": "Dispositius relacionats", "description": "Altres dispositius del registre per associar amb aquest electrodomèstic." },
+        "notes": { "name": "Notes", "description": "Notes de text lliure." }
+      }
+    },
+    "delete_asset": {
+      "name": "Eliminar electrodomèstic",
+      "description": "Eliminar un electrodomèstic/actiu. El seu dispositiu virtual (si n'hi ha) s'elimina i les tasques que hi estan vinculades passen a ser independents.",
+      "fields": {
+        "asset_id": { "name": "ID d'actiu", "description": "L'id de l'actiu a eliminar." }
+      }
+    },
+    "list_assets": {
+      "name": "Llistar electrodomèstics",
+      "description": "Retornar tots els electrodomèstics/actius com a resposta."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": { "name": "Proper venciment" },
+      "manufacture_date": { "name": "Data de fabricació" },
+      "purchase_date": { "name": "Data de compra" },
+      "install_date": { "name": "Data d'instal·lació" },
+      "warranty_expiry": { "name": "Caducitat de la garantia" }
+    },
+    "binary_sensor": {
+      "overdue": { "name": "Endarrerit" }
+    },
+    "button": {
+      "mark_done": { "name": "Marca com a fet" }
+    }
+  }
+}

@@ -24,12 +24,14 @@ from .assets import DATE_FIELDS
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
 
-# Display metadata for each asset date sensor.
-ASSET_DATE_LABELS: dict[str, tuple[str, str]] = {
-    "manufacture_date": ("Manufacture date", "mdi:factory"),
-    "purchase_date": ("Purchase date", "mdi:cart"),
-    "install_date": ("Install date", "mdi:wrench-clock"),
-    "warranty_expiry": ("Warranty expiry", "mdi:shield-check"),
+# Default icon for each asset date sensor. The display name is resolved from the
+# integration's translations via each entity's ``translation_key`` (the field
+# name), so it localizes with the user's Home Assistant language.
+ASSET_DATE_ICONS: dict[str, str] = {
+    "manufacture_date": "mdi:factory",
+    "purchase_date": "mdi:cart",
+    "install_date": "mdi:wrench-clock",
+    "warranty_expiry": "mdi:shield-check",
 }
 
 
@@ -62,7 +64,7 @@ class HomeKeeperNextDueSensor(
     """Timestamp sensor reporting when a task is next due."""
 
     _attr_has_entity_name = True
-    _attr_name = "Next due"
+    _attr_translation_key = "next_due"
     _attr_icon = "mdi:calendar-clock"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
@@ -118,11 +120,11 @@ class HomeKeeperAssetDateSensor(
         super().__init__(coordinator)
         self._asset_id = asset_id
         self._field = field
-        label, icon = ASSET_DATE_LABELS.get(field, (field.replace("_", " ").title(), None))
-        self._attr_name = label
+        # Name comes from translations keyed by the field name (localized).
+        self._attr_translation_key = field
         # A user-chosen appliance icon overrides the per-field default.
         asset = coordinator.store.get_asset(asset_id) or {}
-        self._attr_icon = asset.get("icon") or icon
+        self._attr_icon = asset.get("icon") or ASSET_DATE_ICONS.get(field)
         self._attr_unique_id = f"{DOMAIN}_asset_{asset_id}_{field}"
         self._attr_device_info = device_info
 

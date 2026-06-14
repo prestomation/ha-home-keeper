@@ -1,0 +1,238 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Configura Home Keeper para hacer seguimiento del mantenimiento del hogar y las tareas domésticas. Gestiona tus tareas desde el panel de Home Keeper en la barra lateral."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper ya está configurado."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Añadir tarea",
+      "description": "Crear una nueva tarea de mantenimiento o tarea doméstica.",
+      "fields": {
+        "name": {
+          "name": "Nombre",
+          "description": "Nombre visible de la tarea."
+        },
+        "notes": {
+          "name": "Notas",
+          "description": "Notas opcionales de texto libre."
+        },
+        "recurrence_type": {
+          "name": "Tipo de recurrencia",
+          "description": "floating (medido desde la finalización) o fixed (programación anclada)."
+        },
+        "interval": {
+          "name": "Intervalo",
+          "description": "Repetir cada N unidades (floating) o pasos (fixed)."
+        },
+        "unit": {
+          "name": "Unidad",
+          "description": "Para tareas floating: days, weeks o months."
+        },
+        "freq": {
+          "name": "Frecuencia",
+          "description": "Para tareas fixed: DAILY, WEEKLY o MONTHLY."
+        },
+        "anchor": {
+          "name": "Ancla",
+          "description": "Para tareas fixed: fecha y hora ISO de la primera aparición (establece la hora del día)."
+        },
+        "device_id": {
+          "name": "Dispositivo",
+          "description": "Dispositivo opcional al que adjuntar esta tarea."
+        },
+        "area_id": {
+          "name": "Área",
+          "description": "Área opcional para asociar con esta tarea."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Actualizar tarea",
+      "description": "Actualizar los campos de una tarea existente.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea a actualizar."
+        },
+        "name": {
+          "name": "Nombre",
+          "description": "Nuevo nombre visible."
+        },
+        "notes": {
+          "name": "Notas",
+          "description": "Nuevas notas."
+        },
+        "recurrence_type": {
+          "name": "Tipo de recurrencia",
+          "description": "floating o fixed."
+        },
+        "interval": {
+          "name": "Intervalo",
+          "description": "Repetir cada N unidades/pasos."
+        },
+        "unit": {
+          "name": "Unidad",
+          "description": "days, weeks o months (floating)."
+        },
+        "freq": {
+          "name": "Frecuencia",
+          "description": "DAILY, WEEKLY o MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Ancla",
+          "description": "Fecha y hora ISO de la primera aparición (fixed)."
+        },
+        "device_id": {
+          "name": "Dispositivo",
+          "description": "Dispositivo al que adjuntar esta tarea."
+        },
+        "area_id": {
+          "name": "Área",
+          "description": "Área para asociar con esta tarea."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Eliminar tarea",
+      "description": "Eliminar una tarea.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea a eliminar."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Completar tarea",
+      "description": "Marcar una tarea como completada y avanzar su recurrencia.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea a completar."
+        },
+        "completed_at": {
+          "name": "Completada el",
+          "description": "Marca de tiempo de finalización opcional (por defecto ahora)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "Listar tareas",
+      "description": "Devolver todas las tareas como respuesta."
+    },
+    "add_asset": {
+      "name": "Añadir electrodoméstico",
+      "description": "Registrar un electrodoméstico/activo. Por defecto, Home Keeper crea un dispositivo virtual para él; establece kind en existing para adjuntar metadatos a un dispositivo de otra integración.",
+      "fields": {
+        "name": {
+          "name": "Nombre",
+          "description": "Nombre visible (obligatorio para un nuevo dispositivo virtual)."
+        },
+        "kind": {
+          "name": "Clase",
+          "description": "virtual (Home Keeper crea el dispositivo) o existing (adjuntar a uno existente)."
+        },
+        "device_id": {
+          "name": "Dispositivo",
+          "description": "Dispositivo existente al que adjuntar metadatos (obligatorio cuando kind es existing)."
+        },
+        "area_id": {
+          "name": "Área",
+          "description": "Área opcional para el electrodoméstico."
+        },
+        "manufacturer": { "name": "Fabricante", "description": "Fabricante del electrodoméstico." },
+        "model": { "name": "Modelo", "description": "Nombre o número de modelo." },
+        "serial_number": { "name": "Número de serie", "description": "Número de serie." },
+        "manufacture_date": { "name": "Fecha de fabricación", "description": "Fecha ISO (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Fecha de compra", "description": "Fecha ISO (YYYY-MM-DD)." },
+        "install_date": { "name": "Fecha de instalación", "description": "Fecha ISO (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Vencimiento de la garantía",
+          "description": "Fecha ISO (YYYY-MM-DD). Se muestra como sensor de fecha en el dispositivo."
+        },
+        "warranty_provider": { "name": "Proveedor de garantía", "description": "Quién cumple la garantía." },
+        "vendor": { "name": "Proveedor", "description": "Dónde recomprar / proveedor de servicio." },
+        "cost": { "name": "Coste", "description": "Precio de compra." },
+        "manual_url": { "name": "URL del manual", "description": "Enlace al manual o la documentación." },
+        "icon": { "name": "Icono", "description": "Icono mdi opcional (p. ej. mdi:piano)." },
+        "parts": { "name": "Piezas", "description": "Piezas/piezas de desgaste estructuradas; las piezas de desgaste con un intervalo impulsan una tarea de mantenimiento." },
+        "parent_asset_id": { "name": "Electrodoméstico principal", "description": "Convertir esto en un subdispositivo de otro electrodoméstico." },
+        "related_device_ids": { "name": "Dispositivos relacionados", "description": "Otros dispositivos del registro a asociar con este electrodoméstico." },
+        "notes": { "name": "Notas", "description": "Notas de texto libre." }
+      }
+    },
+    "update_asset": {
+      "name": "Actualizar electrodoméstico",
+      "description": "Actualizar los campos de un electrodoméstico/activo existente.",
+      "fields": {
+        "asset_id": { "name": "ID del activo", "description": "El id del activo a actualizar." },
+        "name": { "name": "Nombre", "description": "Nuevo nombre visible." },
+        "device_id": { "name": "Dispositivo", "description": "Reasignar un activo de dispositivo existente." },
+        "area_id": { "name": "Área", "description": "Área para el electrodoméstico." },
+        "manufacturer": { "name": "Fabricante", "description": "Fabricante del electrodoméstico." },
+        "model": { "name": "Modelo", "description": "Nombre o número de modelo." },
+        "serial_number": { "name": "Número de serie", "description": "Número de serie." },
+        "manufacture_date": { "name": "Fecha de fabricación", "description": "Fecha ISO (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Fecha de compra", "description": "Fecha ISO (YYYY-MM-DD)." },
+        "install_date": { "name": "Fecha de instalación", "description": "Fecha ISO (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Vencimiento de la garantía", "description": "Fecha ISO (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Proveedor de garantía", "description": "Quién cumple la garantía." },
+        "vendor": { "name": "Proveedor", "description": "Dónde recomprar / proveedor de servicio." },
+        "cost": { "name": "Coste", "description": "Precio de compra." },
+        "manual_url": { "name": "URL del manual", "description": "Enlace al manual o la documentación." },
+        "icon": { "name": "Icono", "description": "Icono mdi opcional (p. ej. mdi:piano)." },
+        "parts": { "name": "Piezas", "description": "Piezas/piezas de desgaste estructuradas; las piezas de desgaste con un intervalo impulsan una tarea de mantenimiento." },
+        "parent_asset_id": { "name": "Electrodoméstico principal", "description": "Convertir esto en un subdispositivo de otro electrodoméstico." },
+        "related_device_ids": { "name": "Dispositivos relacionados", "description": "Otros dispositivos del registro a asociar con este electrodoméstico." },
+        "notes": { "name": "Notas", "description": "Notas de texto libre." }
+      }
+    },
+    "delete_asset": {
+      "name": "Eliminar electrodoméstico",
+      "description": "Eliminar un electrodoméstico/activo. Su dispositivo virtual (si lo hay) se elimina y las tareas adjuntas a él pasan a ser independientes.",
+      "fields": {
+        "asset_id": { "name": "ID del activo", "description": "El id del activo a eliminar." }
+      }
+    },
+    "list_assets": {
+      "name": "Listar electrodomésticos",
+      "description": "Devolver todos los electrodomésticos/activos como respuesta."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": {
+        "name": "Próximo vencimiento"
+      },
+      "manufacture_date": {
+        "name": "Fecha de fabricación"
+      },
+      "purchase_date": {
+        "name": "Fecha de compra"
+      },
+      "install_date": {
+        "name": "Fecha de instalación"
+      },
+      "warranty_expiry": {
+        "name": "Vencimiento de la garantía"
+      }
+    },
+    "binary_sensor": {
+      "overdue": {
+        "name": "Vencida"
+      }
+    },
+    "button": {
+      "mark_done": {
+        "name": "Marcar como hecho"
+      }
+    }
+  }
+}

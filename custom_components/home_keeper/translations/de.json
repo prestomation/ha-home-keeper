@@ -1,0 +1,238 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Richte Home Keeper ein, um Hauswartung und Hausarbeiten zu verfolgen. Verwalte deine Aufgaben über das Home-Keeper-Panel in der Seitenleiste."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper ist bereits eingerichtet."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Aufgabe hinzufügen",
+      "description": "Erstelle eine neue Wartungsaufgabe oder Hausarbeit.",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Anzeigename der Aufgabe."
+        },
+        "notes": {
+          "name": "Notizen",
+          "description": "Optionale Freitextnotizen."
+        },
+        "recurrence_type": {
+          "name": "Wiederholungstyp",
+          "description": "floating (ab Abschluss gemessen) oder fixed (verankerter Zeitplan)."
+        },
+        "interval": {
+          "name": "Intervall",
+          "description": "Wiederholung alle N Einheiten (floating) oder Schritte (fixed)."
+        },
+        "unit": {
+          "name": "Einheit",
+          "description": "Für floating-Aufgaben: days, weeks oder months."
+        },
+        "freq": {
+          "name": "Häufigkeit",
+          "description": "Für fixed-Aufgaben: DAILY, WEEKLY oder MONTHLY."
+        },
+        "anchor": {
+          "name": "Anker",
+          "description": "Für fixed-Aufgaben: ISO-Datum/Uhrzeit des ersten Auftretens (legt die Tageszeit fest)."
+        },
+        "device_id": {
+          "name": "Gerät",
+          "description": "Optionales Gerät, an das diese Aufgabe angehängt wird."
+        },
+        "area_id": {
+          "name": "Bereich",
+          "description": "Optionaler Bereich, der mit dieser Aufgabe verknüpft wird."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Aufgabe aktualisieren",
+      "description": "Felder einer bestehenden Aufgabe aktualisieren.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der zu aktualisierenden Aufgabe."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Neuer Anzeigename."
+        },
+        "notes": {
+          "name": "Notizen",
+          "description": "Neue Notizen."
+        },
+        "recurrence_type": {
+          "name": "Wiederholungstyp",
+          "description": "floating oder fixed."
+        },
+        "interval": {
+          "name": "Intervall",
+          "description": "Wiederholung alle N Einheiten/Schritte."
+        },
+        "unit": {
+          "name": "Einheit",
+          "description": "days, weeks oder months (floating)."
+        },
+        "freq": {
+          "name": "Häufigkeit",
+          "description": "DAILY, WEEKLY oder MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Anker",
+          "description": "ISO-Datum/Uhrzeit des ersten Auftretens (fixed)."
+        },
+        "device_id": {
+          "name": "Gerät",
+          "description": "Gerät, an das diese Aufgabe angehängt wird."
+        },
+        "area_id": {
+          "name": "Bereich",
+          "description": "Bereich, der mit dieser Aufgabe verknüpft wird."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Aufgabe löschen",
+      "description": "Eine Aufgabe löschen.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der zu löschenden Aufgabe."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Aufgabe abschließen",
+      "description": "Eine Aufgabe als abgeschlossen markieren und ihre Wiederholung weiterschalten.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der abzuschließenden Aufgabe."
+        },
+        "completed_at": {
+          "name": "Abgeschlossen am",
+          "description": "Optionaler Abschlusszeitstempel (Standard ist jetzt)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "Aufgaben auflisten",
+      "description": "Gibt alle Aufgaben als Antwort zurück."
+    },
+    "add_asset": {
+      "name": "Gerät hinzufügen",
+      "description": "Ein Gerät/Asset registrieren. Standardmäßig erstellt Home Keeper ein virtuelles Gerät dafür; setze kind auf existing, um Metadaten an ein Gerät einer anderen Integration anzuhängen.",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Anzeigename (erforderlich für ein neues virtuelles Gerät)."
+        },
+        "kind": {
+          "name": "Art",
+          "description": "virtual (Home Keeper erstellt das Gerät) oder existing (an ein vorhandenes anhängen)."
+        },
+        "device_id": {
+          "name": "Gerät",
+          "description": "Vorhandenes Gerät, an das Metadaten angehängt werden (erforderlich, wenn kind existing ist)."
+        },
+        "area_id": {
+          "name": "Bereich",
+          "description": "Optionaler Bereich für das Gerät."
+        },
+        "manufacturer": { "name": "Hersteller", "description": "Hersteller des Geräts." },
+        "model": { "name": "Modell", "description": "Modellname oder -nummer." },
+        "serial_number": { "name": "Seriennummer", "description": "Seriennummer." },
+        "manufacture_date": { "name": "Herstellungsdatum", "description": "ISO-Datum (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Kaufdatum", "description": "ISO-Datum (YYYY-MM-DD)." },
+        "install_date": { "name": "Installationsdatum", "description": "ISO-Datum (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Garantieablauf",
+          "description": "ISO-Datum (YYYY-MM-DD). Wird als Datumssensor am Gerät angezeigt."
+        },
+        "warranty_provider": { "name": "Garantiegeber", "description": "Wer die Garantie übernimmt." },
+        "vendor": { "name": "Anbieter", "description": "Wo nachkaufen / Dienstleister." },
+        "cost": { "name": "Kosten", "description": "Kaufpreis." },
+        "manual_url": { "name": "Handbuch-URL", "description": "Link zum Handbuch oder zur Dokumentation." },
+        "icon": { "name": "Symbol", "description": "Optionales mdi-Symbol (z. B. mdi:piano)." },
+        "parts": { "name": "Teile", "description": "Strukturierte Teile/Verschleißteile; Verschleißteile mit einem Intervall steuern eine Wartungsaufgabe." },
+        "parent_asset_id": { "name": "Übergeordnetes Gerät", "description": "Dies zu einem Teilgerät eines anderen Geräts machen." },
+        "related_device_ids": { "name": "Verknüpfte Geräte", "description": "Weitere Registry-Geräte, die mit diesem Gerät verknüpft werden." },
+        "notes": { "name": "Notizen", "description": "Freitextnotizen." }
+      }
+    },
+    "update_asset": {
+      "name": "Gerät aktualisieren",
+      "description": "Felder eines bestehenden Geräts/Assets aktualisieren.",
+      "fields": {
+        "asset_id": { "name": "Asset-ID", "description": "Die ID des zu aktualisierenden Assets." },
+        "name": { "name": "Name", "description": "Neuer Anzeigename." },
+        "device_id": { "name": "Gerät", "description": "Ein Asset mit vorhandenem Gerät neu zuweisen." },
+        "area_id": { "name": "Bereich", "description": "Bereich für das Gerät." },
+        "manufacturer": { "name": "Hersteller", "description": "Hersteller des Geräts." },
+        "model": { "name": "Modell", "description": "Modellname oder -nummer." },
+        "serial_number": { "name": "Seriennummer", "description": "Seriennummer." },
+        "manufacture_date": { "name": "Herstellungsdatum", "description": "ISO-Datum (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Kaufdatum", "description": "ISO-Datum (YYYY-MM-DD)." },
+        "install_date": { "name": "Installationsdatum", "description": "ISO-Datum (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Garantieablauf", "description": "ISO-Datum (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Garantiegeber", "description": "Wer die Garantie übernimmt." },
+        "vendor": { "name": "Anbieter", "description": "Wo nachkaufen / Dienstleister." },
+        "cost": { "name": "Kosten", "description": "Kaufpreis." },
+        "manual_url": { "name": "Handbuch-URL", "description": "Link zum Handbuch oder zur Dokumentation." },
+        "icon": { "name": "Symbol", "description": "Optionales mdi-Symbol (z. B. mdi:piano)." },
+        "parts": { "name": "Teile", "description": "Strukturierte Teile/Verschleißteile; Verschleißteile mit einem Intervall steuern eine Wartungsaufgabe." },
+        "parent_asset_id": { "name": "Übergeordnetes Gerät", "description": "Dies zu einem Teilgerät eines anderen Geräts machen." },
+        "related_device_ids": { "name": "Verknüpfte Geräte", "description": "Weitere Registry-Geräte, die mit diesem Gerät verknüpft werden." },
+        "notes": { "name": "Notizen", "description": "Freitextnotizen." }
+      }
+    },
+    "delete_asset": {
+      "name": "Gerät löschen",
+      "description": "Ein Gerät/Asset löschen. Sein virtuelles Gerät (falls vorhanden) wird entfernt und daran angehängte Aufgaben werden eigenständig.",
+      "fields": {
+        "asset_id": { "name": "Asset-ID", "description": "Die ID des zu löschenden Assets." }
+      }
+    },
+    "list_assets": {
+      "name": "Geräte auflisten",
+      "description": "Gibt alle Geräte/Assets als Antwort zurück."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": {
+        "name": "Nächste Fälligkeit"
+      },
+      "manufacture_date": {
+        "name": "Herstellungsdatum"
+      },
+      "purchase_date": {
+        "name": "Kaufdatum"
+      },
+      "install_date": {
+        "name": "Installationsdatum"
+      },
+      "warranty_expiry": {
+        "name": "Garantieablauf"
+      }
+    },
+    "binary_sensor": {
+      "overdue": {
+        "name": "Überfällig"
+      }
+    },
+    "button": {
+      "mark_done": {
+        "name": "Als erledigt markieren"
+      }
+    }
+  }
+}

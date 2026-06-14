@@ -1,0 +1,224 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Määritä Home Keeper kodin huollon ja askareiden seurantaan. Hallinnoi tehtäviäsi sivupalkin Home Keeper -paneelista."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper on jo määritetty."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Lisää tehtävä",
+      "description": "Luo uusi huoltotehtävä tai askare.",
+      "fields": {
+        "name": {
+          "name": "Nimi",
+          "description": "Tehtävän näyttönimi."
+        },
+        "notes": {
+          "name": "Muistiinpanot",
+          "description": "Valinnaiset vapaamuotoiset muistiinpanot."
+        },
+        "recurrence_type": {
+          "name": "Toistuvuuden tyyppi",
+          "description": "floating (mitataan valmistumisesta) tai fixed (ankkuroitu aikataulu)."
+        },
+        "interval": {
+          "name": "Aikaväli",
+          "description": "Toista joka N yksikkö (floating) tai askel (fixed)."
+        },
+        "unit": {
+          "name": "Yksikkö",
+          "description": "Liukuville tehtäville: days, weeks tai months."
+        },
+        "freq": {
+          "name": "Tiheys",
+          "description": "Kiinteille tehtäville: DAILY, WEEKLY tai MONTHLY."
+        },
+        "anchor": {
+          "name": "Ankkuri",
+          "description": "Kiinteille tehtäville: ensimmäisen esiintymän ISO-aikaleima (asettaa kellonajan)."
+        },
+        "device_id": {
+          "name": "Laite",
+          "description": "Valinnainen laite, johon tämä tehtävä liitetään."
+        },
+        "area_id": {
+          "name": "Alue",
+          "description": "Valinnainen alue, joka liitetään tähän tehtävään."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Päivitä tehtävä",
+      "description": "Päivitä olemassa olevan tehtävän kenttiä.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Päivitettävän tehtävän tunnus."
+        },
+        "name": {
+          "name": "Nimi",
+          "description": "Uusi näyttönimi."
+        },
+        "notes": {
+          "name": "Muistiinpanot",
+          "description": "Uudet muistiinpanot."
+        },
+        "recurrence_type": {
+          "name": "Toistuvuuden tyyppi",
+          "description": "floating tai fixed."
+        },
+        "interval": {
+          "name": "Aikaväli",
+          "description": "Toista joka N yksikkö/askel."
+        },
+        "unit": {
+          "name": "Yksikkö",
+          "description": "days, weeks tai months (floating)."
+        },
+        "freq": {
+          "name": "Tiheys",
+          "description": "DAILY, WEEKLY tai MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Ankkuri",
+          "description": "Ensimmäisen esiintymän ISO-aikaleima (fixed)."
+        },
+        "device_id": {
+          "name": "Laite",
+          "description": "Laite, johon tämä tehtävä liitetään."
+        },
+        "area_id": {
+          "name": "Alue",
+          "description": "Alue, joka liitetään tähän tehtävään."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Poista tehtävä",
+      "description": "Poista tehtävä.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Poistettavan tehtävän tunnus."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Merkitse tehtävä valmiiksi",
+      "description": "Merkitse tehtävä valmiiksi ja siirrä sen toistuvuutta eteenpäin.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Valmistuvan tehtävän tunnus."
+        },
+        "completed_at": {
+          "name": "Valmistumisaika",
+          "description": "Valinnainen valmistumisaika (oletuksena nykyhetki)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "Luettele tehtävät",
+      "description": "Palauta kaikki tehtävät vastauksena."
+    },
+    "add_asset": {
+      "name": "Lisää laite",
+      "description": "Rekisteröi laite/kohde. Oletuksena Home Keeper luo sille virtuaalilaitteen; aseta kind arvoksi existing liittääksesi metatiedot toisen integraation laitteeseen.",
+      "fields": {
+        "name": {
+          "name": "Nimi",
+          "description": "Näyttönimi (vaaditaan uudelle virtuaalilaitteelle)."
+        },
+        "kind": {
+          "name": "Laji",
+          "description": "virtual (Home Keeper luo laitteen) tai existing (liitä olemassa olevaan)."
+        },
+        "device_id": {
+          "name": "Laite",
+          "description": "Olemassa oleva laite, johon metatiedot liitetään (vaaditaan, kun kind on existing)."
+        },
+        "area_id": {
+          "name": "Alue",
+          "description": "Valinnainen alue laitteelle."
+        },
+        "manufacturer": { "name": "Valmistaja", "description": "Laitteen valmistaja." },
+        "model": { "name": "Malli", "description": "Mallin nimi tai numero." },
+        "serial_number": { "name": "Sarjanumero", "description": "Sarjanumero." },
+        "manufacture_date": { "name": "Valmistuspäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Ostopäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
+        "install_date": { "name": "Asennuspäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Takuun päättyminen",
+          "description": "ISO-päivä (YYYY-MM-DD). Näytetään laitteen päivämääräanturina."
+        },
+        "warranty_provider": { "name": "Takuun myöntäjä", "description": "Kuka vastaa takuusta." },
+        "vendor": { "name": "Myyjä", "description": "Mistä ostaa uudelleen / huoltopalvelu." },
+        "cost": { "name": "Hinta", "description": "Ostohinta." },
+        "manual_url": { "name": "Käyttöohjeen URL", "description": "Linkki käyttöohjeeseen tai dokumentteihin." },
+        "icon": { "name": "Kuvake", "description": "Valinnainen mdi-kuvake (esim. mdi:piano)." },
+        "parts": { "name": "Osat", "description": "Jäsennellyt osat/kuluvat osat; aikavälillä varustetut kuluvat osat ohjaavat huoltotehtävää." },
+        "parent_asset_id": { "name": "Ylälaite", "description": "Tee tästä toisen laitteen alalaite." },
+        "related_device_ids": { "name": "Liittyvät laitteet", "description": "Muut rekisterin laitteet, jotka liitetään tähän laitteeseen." },
+        "notes": { "name": "Muistiinpanot", "description": "Vapaamuotoiset muistiinpanot." }
+      }
+    },
+    "update_asset": {
+      "name": "Päivitä laite",
+      "description": "Päivitä olemassa olevan laitteen/kohteen kenttiä.",
+      "fields": {
+        "asset_id": { "name": "Kohteen tunnus", "description": "Päivitettävän kohteen tunnus." },
+        "name": { "name": "Nimi", "description": "Uusi näyttönimi." },
+        "device_id": { "name": "Laite", "description": "Kohdista olemassa olevan laitteen kohde uudelleen." },
+        "area_id": { "name": "Alue", "description": "Alue laitteelle." },
+        "manufacturer": { "name": "Valmistaja", "description": "Laitteen valmistaja." },
+        "model": { "name": "Malli", "description": "Mallin nimi tai numero." },
+        "serial_number": { "name": "Sarjanumero", "description": "Sarjanumero." },
+        "manufacture_date": { "name": "Valmistuspäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Ostopäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
+        "install_date": { "name": "Asennuspäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Takuun päättyminen", "description": "ISO-päivä (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Takuun myöntäjä", "description": "Kuka vastaa takuusta." },
+        "vendor": { "name": "Myyjä", "description": "Mistä ostaa uudelleen / huoltopalvelu." },
+        "cost": { "name": "Hinta", "description": "Ostohinta." },
+        "manual_url": { "name": "Käyttöohjeen URL", "description": "Linkki käyttöohjeeseen tai dokumentteihin." },
+        "icon": { "name": "Kuvake", "description": "Valinnainen mdi-kuvake (esim. mdi:piano)." },
+        "parts": { "name": "Osat", "description": "Jäsennellyt osat/kuluvat osat; aikavälillä varustetut kuluvat osat ohjaavat huoltotehtävää." },
+        "parent_asset_id": { "name": "Ylälaite", "description": "Tee tästä toisen laitteen alalaite." },
+        "related_device_ids": { "name": "Liittyvät laitteet", "description": "Muut rekisterin laitteet, jotka liitetään tähän laitteeseen." },
+        "notes": { "name": "Muistiinpanot", "description": "Vapaamuotoiset muistiinpanot." }
+      }
+    },
+    "delete_asset": {
+      "name": "Poista laite",
+      "description": "Poista laite/kohde. Sen virtuaalilaite (jos sellainen on) poistetaan ja siihen liitetyt tehtävät muuttuvat itsenäisiksi.",
+      "fields": {
+        "asset_id": { "name": "Kohteen tunnus", "description": "Poistettavan kohteen tunnus." }
+      }
+    },
+    "list_assets": {
+      "name": "Luettele laitteet",
+      "description": "Palauta kaikki laitteet/kohteet vastauksena."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": { "name": "Seuraava eräpäivä" },
+      "manufacture_date": { "name": "Valmistuspäivä" },
+      "purchase_date": { "name": "Ostopäivä" },
+      "install_date": { "name": "Asennuspäivä" },
+      "warranty_expiry": { "name": "Takuun päättyminen" }
+    },
+    "binary_sensor": {
+      "overdue": { "name": "Myöhässä" }
+    },
+    "button": {
+      "mark_done": { "name": "Merkitse valmiiksi" }
+    }
+  }
+}

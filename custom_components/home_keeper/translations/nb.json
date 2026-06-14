@@ -1,0 +1,238 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Sett opp Home Keeper for å holde styr på vedlikehold og gjøremål i hjemmet. Administrer oppgavene dine fra Home Keeper-panelet i sidefeltet."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper er allerede satt opp."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Legg til oppgave",
+      "description": "Opprett en ny vedlikeholdsoppgave eller et gjøremål.",
+      "fields": {
+        "name": {
+          "name": "Navn",
+          "description": "Visningsnavn for oppgaven."
+        },
+        "notes": {
+          "name": "Notater",
+          "description": "Valgfrie fritekstnotater."
+        },
+        "recurrence_type": {
+          "name": "Gjentakelsestype",
+          "description": "floating (målt fra fullføring) eller fixed (forankret tidsplan)."
+        },
+        "interval": {
+          "name": "Intervall",
+          "description": "Gjenta hver N enheter (floating) eller steg (fixed)."
+        },
+        "unit": {
+          "name": "Enhet",
+          "description": "For floating-oppgaver: dager, uker eller måneder."
+        },
+        "freq": {
+          "name": "Frekvens",
+          "description": "For fixed-oppgaver: DAILY, WEEKLY eller MONTHLY."
+        },
+        "anchor": {
+          "name": "Anker",
+          "description": "For fixed-oppgaver: ISO-dato og -tid for første forekomst (angir tid på dagen)."
+        },
+        "device_id": {
+          "name": "Enhet",
+          "description": "Valgfri enhet å knytte denne oppgaven til."
+        },
+        "area_id": {
+          "name": "Område",
+          "description": "Valgfritt område å knytte til denne oppgaven."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Oppdater oppgave",
+      "description": "Oppdater felter for en eksisterende oppgave.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til oppgaven som skal oppdateres."
+        },
+        "name": {
+          "name": "Navn",
+          "description": "Nytt visningsnavn."
+        },
+        "notes": {
+          "name": "Notater",
+          "description": "Nye notater."
+        },
+        "recurrence_type": {
+          "name": "Gjentakelsestype",
+          "description": "floating eller fixed."
+        },
+        "interval": {
+          "name": "Intervall",
+          "description": "Gjenta hver N enheter/steg."
+        },
+        "unit": {
+          "name": "Enhet",
+          "description": "dager, uker eller måneder (floating)."
+        },
+        "freq": {
+          "name": "Frekvens",
+          "description": "DAILY, WEEKLY eller MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Anker",
+          "description": "ISO-dato og -tid for første forekomst (fixed)."
+        },
+        "device_id": {
+          "name": "Enhet",
+          "description": "Enhet å knytte denne oppgaven til."
+        },
+        "area_id": {
+          "name": "Område",
+          "description": "Område å knytte til denne oppgaven."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Slett oppgave",
+      "description": "Slett en oppgave.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til oppgaven som skal slettes."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Fullfør oppgave",
+      "description": "Merk en oppgave som fullført og gå videre til neste gjentakelse.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til oppgaven som skal fullføres."
+        },
+        "completed_at": {
+          "name": "Fullført",
+          "description": "Valgfritt tidsstempel for fullføring (standard er nå)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "Vis oppgaver",
+      "description": "Returner alle oppgaver som et svar."
+    },
+    "add_asset": {
+      "name": "Legg til apparat",
+      "description": "Registrer et apparat/en eiendel. Som standard oppretter Home Keeper en virtuell enhet for det; sett kind til existing for å knytte metadata til en enhet fra en annen integrasjon.",
+      "fields": {
+        "name": {
+          "name": "Navn",
+          "description": "Visningsnavn (påkrevd for en ny virtuell enhet)."
+        },
+        "kind": {
+          "name": "Type",
+          "description": "virtual (Home Keeper oppretter enheten) eller existing (knytt til en eksisterende)."
+        },
+        "device_id": {
+          "name": "Enhet",
+          "description": "Eksisterende enhet å knytte metadata til (påkrevd når kind er existing)."
+        },
+        "area_id": {
+          "name": "Område",
+          "description": "Valgfritt område for apparatet."
+        },
+        "manufacturer": { "name": "Produsent", "description": "Produsent av apparatet." },
+        "model": { "name": "Modell", "description": "Modellnavn eller -nummer." },
+        "serial_number": { "name": "Serienummer", "description": "Serienummer." },
+        "manufacture_date": { "name": "Produksjonsdato", "description": "ISO-dato (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Kjøpsdato", "description": "ISO-dato (YYYY-MM-DD)." },
+        "install_date": { "name": "Installasjonsdato", "description": "ISO-dato (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Garantiutløp",
+          "description": "ISO-dato (YYYY-MM-DD). Vises som en datosensor på enheten."
+        },
+        "warranty_provider": { "name": "Garantileverandør", "description": "Hvem som dekker garantien." },
+        "vendor": { "name": "Leverandør", "description": "Hvor man kjøper på nytt / tjenesteleverandør." },
+        "cost": { "name": "Kostnad", "description": "Kjøpspris." },
+        "manual_url": { "name": "URL til håndbok", "description": "Lenke til håndboken eller dokumentasjonen." },
+        "icon": { "name": "Ikon", "description": "Valgfritt mdi-ikon (f.eks. mdi:piano)." },
+        "parts": { "name": "Deler", "description": "Strukturerte deler/slitedeler; slitedeler med et intervall driver en vedlikeholdsoppgave." },
+        "parent_asset_id": { "name": "Overordnet apparat", "description": "Gjør dette til en underenhet av et annet apparat." },
+        "related_device_ids": { "name": "Relaterte enheter", "description": "Andre registerenheter å knytte til dette apparatet." },
+        "notes": { "name": "Notater", "description": "Fritekstnotater." }
+      }
+    },
+    "update_asset": {
+      "name": "Oppdater apparat",
+      "description": "Oppdater felter for et eksisterende apparat/en eksisterende eiendel.",
+      "fields": {
+        "asset_id": { "name": "Eiendels-ID", "description": "ID-en til eiendelen som skal oppdateres." },
+        "name": { "name": "Navn", "description": "Nytt visningsnavn." },
+        "device_id": { "name": "Enhet", "description": "Knytt en eiendel for en eksisterende enhet til en annen enhet." },
+        "area_id": { "name": "Område", "description": "Område for apparatet." },
+        "manufacturer": { "name": "Produsent", "description": "Produsent av apparatet." },
+        "model": { "name": "Modell", "description": "Modellnavn eller -nummer." },
+        "serial_number": { "name": "Serienummer", "description": "Serienummer." },
+        "manufacture_date": { "name": "Produksjonsdato", "description": "ISO-dato (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Kjøpsdato", "description": "ISO-dato (YYYY-MM-DD)." },
+        "install_date": { "name": "Installasjonsdato", "description": "ISO-dato (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Garantiutløp", "description": "ISO-dato (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Garantileverandør", "description": "Hvem som dekker garantien." },
+        "vendor": { "name": "Leverandør", "description": "Hvor man kjøper på nytt / tjenesteleverandør." },
+        "cost": { "name": "Kostnad", "description": "Kjøpspris." },
+        "manual_url": { "name": "URL til håndbok", "description": "Lenke til håndboken eller dokumentasjonen." },
+        "icon": { "name": "Ikon", "description": "Valgfritt mdi-ikon (f.eks. mdi:piano)." },
+        "parts": { "name": "Deler", "description": "Strukturerte deler/slitedeler; slitedeler med et intervall driver en vedlikeholdsoppgave." },
+        "parent_asset_id": { "name": "Overordnet apparat", "description": "Gjør dette til en underenhet av et annet apparat." },
+        "related_device_ids": { "name": "Relaterte enheter", "description": "Andre registerenheter å knytte til dette apparatet." },
+        "notes": { "name": "Notater", "description": "Fritekstnotater." }
+      }
+    },
+    "delete_asset": {
+      "name": "Slett apparat",
+      "description": "Slett et apparat/en eiendel. Den virtuelle enheten (hvis noen) fjernes, og oppgaver knyttet til den blir frittstående.",
+      "fields": {
+        "asset_id": { "name": "Eiendels-ID", "description": "ID-en til eiendelen som skal slettes." }
+      }
+    },
+    "list_assets": {
+      "name": "Vis apparater",
+      "description": "Returner alle apparater/eiendeler som et svar."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": {
+        "name": "Neste forfall"
+      },
+      "manufacture_date": {
+        "name": "Produksjonsdato"
+      },
+      "purchase_date": {
+        "name": "Kjøpsdato"
+      },
+      "install_date": {
+        "name": "Installasjonsdato"
+      },
+      "warranty_expiry": {
+        "name": "Garantiutløp"
+      }
+    },
+    "binary_sensor": {
+      "overdue": {
+        "name": "Forfalt"
+      }
+    },
+    "button": {
+      "mark_done": {
+        "name": "Merk som fullført"
+      }
+    }
+  }
+}

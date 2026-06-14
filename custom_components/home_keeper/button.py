@@ -36,7 +36,7 @@ class HomeKeeperMarkDoneButton(
     """Marks a task complete from its device page."""
 
     _attr_has_entity_name = True
-    _attr_name = "Mark done"
+    _attr_translation_key = "mark_done"
     _attr_icon = "mdi:check-circle"
 
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:

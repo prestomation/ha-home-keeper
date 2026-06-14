@@ -6,6 +6,17 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+- **Internationalization (16 languages).** Home Keeper is now localized into a
+  common set of locales — English, German, French, Spanish, Italian, Dutch,
+  Polish, Brazilian Portuguese, Norwegian Bokmål, Swedish, Danish, Finnish,
+  Czech, Russian, Simplified Chinese, and Catalan. The config flow, service
+  definitions, and device-page entity names use Home Assistant's native
+  translation system (`strings.json` ↔ `translations/<lang>.json`), and the
+  sidebar panel ships a small dependency-free i18n module that follows your HA
+  language (with English fallback for anything untranslated). Plural forms use
+  the browser's `Intl.PluralRules`, and parity tests keep every locale in sync
+  with the English source on both the backend and the frontend.
+
 - **Panel rebuilt on the Home Assistant design language.** The admin sidebar panel
   now uses HA's own components throughout instead of hand-rolled markup: every form
   is a native `ha-form` (with HA's text/number/select/date fields, the **searchable
