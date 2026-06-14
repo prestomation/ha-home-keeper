@@ -208,17 +208,17 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "Proper venciment" },
+      "next_due": { "name": "{task_name}Proper venciment" },
       "manufacture_date": { "name": "Data de fabricació" },
       "purchase_date": { "name": "Data de compra" },
       "install_date": { "name": "Data d'instal·lació" },
       "warranty_expiry": { "name": "Caducitat de la garantia" }
     },
     "binary_sensor": {
-      "overdue": { "name": "Endarrerit" }
+      "overdue": { "name": "{task_name}Endarrerit" }
     },
     "button": {
-      "mark_done": { "name": "Marca com a fet" }
+      "mark_done": { "name": "{task_name}Marca com a fet" }
     }
   }
 }

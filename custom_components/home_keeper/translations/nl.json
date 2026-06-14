@@ -209,7 +209,7 @@
   "entity": {
     "sensor": {
       "next_due": {
-        "name": "Volgende vervaldatum"
+        "name": "{task_name}Volgende vervaldatum"
       },
       "manufacture_date": {
         "name": "Productiedatum"
@@ -226,12 +226,12 @@
     },
     "binary_sensor": {
       "overdue": {
-        "name": "Te laat"
+        "name": "{task_name}Te laat"
       }
     },
     "button": {
       "mark_done": {
-        "name": "Als klaar markeren"
+        "name": "{task_name}Als klaar markeren"
       }
     }
   }

@@ -208,17 +208,17 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "Příští termín" },
+      "next_due": { "name": "{task_name}Příští termín" },
       "manufacture_date": { "name": "Datum výroby" },
       "purchase_date": { "name": "Datum nákupu" },
       "install_date": { "name": "Datum instalace" },
       "warranty_expiry": { "name": "Konec záruky" }
     },
     "binary_sensor": {
-      "overdue": { "name": "Po termínu" }
+      "overdue": { "name": "{task_name}Po termínu" }
     },
     "button": {
-      "mark_done": { "name": "Označit jako hotové" }
+      "mark_done": { "name": "{task_name}Označit jako hotové" }
     }
   }
 }

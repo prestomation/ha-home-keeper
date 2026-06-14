@@ -5,6 +5,8 @@ import {
   isOverdue,
   dueLabel,
   deviceName,
+  deviceDomain,
+  brandLogoUrl,
   areaName,
   assetSummary,
 } from '../src/utils.ts';
@@ -77,6 +79,30 @@ describe('deviceName', () => {
   it('returns id for unknown device, empty for none', () => {
     expect(deviceName(devices, 'zzz')).toBe('zzz');
     expect(deviceName(devices, null)).toBe('');
+  });
+});
+
+describe('deviceDomain', () => {
+  const entryDomains = { e1: 'hue', e2: 'mqtt' };
+  it('resolves via primary_config_entry', () => {
+    expect(deviceDomain({ primary_config_entry: 'e1' }, entryDomains)).toBe('hue');
+  });
+  it('falls back to the first config entry', () => {
+    expect(deviceDomain({ config_entries: ['e2'] }, entryDomains)).toBe('mqtt');
+  });
+  it('returns undefined when unresolvable', () => {
+    expect(deviceDomain({ primary_config_entry: 'zzz' }, entryDomains)).toBeUndefined();
+    expect(deviceDomain(undefined, entryDomains)).toBeUndefined();
+    expect(deviceDomain({ primary_config_entry: 'e1' }, undefined)).toBeUndefined();
+  });
+});
+
+describe('brandLogoUrl', () => {
+  it('builds the brand icon URL for a domain', () => {
+    expect(brandLogoUrl('hue')).toBe('https://brands.home-assistant.io/hue/icon.png');
+  });
+  it('uses the generic fallback path', () => {
+    expect(brandLogoUrl('hue', true)).toBe('https://brands.home-assistant.io/_/hue/icon.png');
   });
 });
 

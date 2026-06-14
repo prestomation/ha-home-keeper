@@ -68,6 +68,19 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if task.get("device_id") and task.get("enabled", True)
         ]
 
+    def task_uses_existing_device(self, task: dict[str, Any]) -> bool:
+        """True when the task's per-task entities merge onto an existing device.
+
+        In that case several tasks can share one device page, so each entity's
+        name is prefixed with the task name to disambiguate. Self-owned task
+        devices (no ``device_id`` or an unknown one) need no prefix because the
+        device itself is already named after the task.
+        """
+        device_id = task.get("device_id")
+        if not device_id:
+            return False
+        return dr.async_get(self.hass).async_get(device_id) is not None
+
     def device_info_for_device_id(self, device_id: str | None) -> DeviceInfo | None:
         """DeviceInfo that merges entities onto an existing registry device.
 

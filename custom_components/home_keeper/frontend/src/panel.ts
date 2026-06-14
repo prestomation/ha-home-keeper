@@ -4,12 +4,22 @@ import { setLanguage, t, tn } from './i18n';
 import type { Asset, AssetKind, Hass, PanelInfo, Part, Task } from './types';
 import {
   assetSummary,
+  brandLogoUrl,
+  deviceDomain,
   deviceName,
   dueLabel,
   escapeHTML,
   isOverdue,
   recurrenceSummary,
 } from './utils';
+
+// mdi:devices — fallback icon when a device has no resolvable brand logo.
+const MDI_DEVICES =
+  'M3,6H21V4H3A2,2 0 0,0 1,6V18A2,2 0 0,0 3,20H7V18H3V6M13,12H9V13.78C8.39,' +
+  '14.33 8,15.11 8,16C8,16.89 8.39,17.67 9,18.22V20H13V18.22C13.61,17.67 14,' +
+  '16.88 14,16C14,15.11 13.61,14.33 13,13.78V12M11,17.5A1.5,1.5 0 0,1 9.5,16A1.5,' +
+  '1.5 0 0,1 11,14.5A1.5,1.5 0 0,1 12.5,16A1.5,1.5 0 0,1 11,17.5M22,8H16A1,1 0 0,' +
+  '0 15,9V19A1,1 0 0,0 16,20H22A1,1 0 0,0 23,19V9A1,1 0 0,0 22,8M21,18H17V10H21V18Z';
 
 /**
  * The Home Keeper panel is built entirely from Home Assistant's own web
@@ -39,6 +49,7 @@ const REQUIRED_COMPONENTS = [
   'ha-alert',
   'ha-assist-chip',
   'ha-menu-button',
+  'ha-svg-icon',
 ];
 
 const STYLES = `
@@ -73,6 +84,11 @@ const STYLES = `
     --md-assist-chip-outline-color: transparent;
   }
   .hk-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  ha-assist-chip.hk-device-chip { cursor: pointer; }
+  .hk-dev-img {
+    width: 18px; height: 18px; object-fit: contain; border-radius: 3px;
+    --mdc-icon-size: 18px;
+  }
   .hk-form-card { margin-bottom: 16px; }
   .hk-form-inner { padding: 16px; }
   .hk-form-title { font-size: 1.1rem; font-weight: 500; margin-bottom: 8px; }
@@ -155,6 +171,8 @@ export class HomeKeeperPanel extends HTMLElement {
   public narrow = false;
   private _tasks: Task[] = [];
   private _assets: Asset[] = [];
+  // config entry id -> integration domain, for resolving device brand logos.
+  private _entryDomains: Record<string, string> = {};
   private _edit: EditState = { open: false, task: null };
   private _assetEdit: AssetEditState = { open: false, asset: null };
   private _view: 'tasks' | 'appliances' = 'tasks';
@@ -197,12 +215,14 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _refresh(): Promise<void> {
     if (!this._hass) return;
     try {
-      const [tasks, assets] = await Promise.all([
+      const [tasks, assets, entryDomains] = await Promise.all([
         api.getTasks(this._hass),
         api.getAssets(this._hass),
+        api.getEntryDomains(this._hass).catch(() => ({})),
       ]);
       this._tasks = tasks;
       this._assets = assets;
+      this._entryDomains = entryDomains;
       this._loaded = true;
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -377,9 +397,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const statusChip = overdue
       ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
       : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
-    const dev = task.device_id
-      ? `<ha-assist-chip label="${escapeHTML(deviceName(this._hass?.devices, task.device_id))}"></ha-assist-chip>`
-      : '';
+    const dev = task.device_id ? this._deviceChip(task.device_id) : '';
     const dueText = task.next_due
       ? ` · ${escapeHTML(t('form.task.due', { date: new Date(task.next_due).toLocaleDateString() }))}`
       : '';
@@ -404,7 +422,9 @@ export class HomeKeeperPanel extends HTMLElement {
     const kindChip =
       x.kind === 'virtual'
         ? `<ha-assist-chip label="${escapeHTML(t('chip.virtualDevice'))}"></ha-assist-chip>`
-        : `<ha-assist-chip label="${escapeHTML(deviceName(this._hass?.devices, x.device_id))}"></ha-assist-chip>`;
+        : x.device_id
+          ? this._deviceChip(x.device_id)
+          : `<ha-assist-chip label="${escapeHTML(deviceName(this._hass?.devices, x.device_id))}"></ha-assist-chip>`;
     const title =
       x.name || deviceName(this._hass?.devices, x.device_id) || t('appliance.fallbackName');
     const subCount = this._assets.filter((a) => a.parent_asset_id === x.id).length;
@@ -440,6 +460,76 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _assetName(assetId: string): string {
     return this._assets.find((a) => a.id === assetId)?.name || assetId;
+  }
+
+  /**
+   * A device chip that links to the device's HA config page and shows the
+   * integration's brand logo (falling back to a generic device icon).
+   */
+  private _deviceChip(deviceId: string): string {
+    const name = deviceName(this._hass?.devices, deviceId);
+    const domain = deviceDomain(this._hass?.devices?.[deviceId], this._entryDomains);
+    const icon = domain
+      ? `<img slot="icon" class="hk-dev-img" alt="" src="${escapeHTML(
+          brandLogoUrl(domain),
+        )}" data-domain="${escapeHTML(domain)}" />`
+      : `<ha-svg-icon slot="icon" class="hk-dev-img"></ha-svg-icon>`;
+    return `<ha-assist-chip class="hk-device-chip" role="link" tabindex="0" data-device-id="${escapeHTML(
+      deviceId,
+    )}" label="${escapeHTML(name)}">${icon}</ha-assist-chip>`;
+  }
+
+  private _navigateToDevice(deviceId: string): void {
+    history.pushState(null, '', `/config/devices/device/${deviceId}`);
+    window.dispatchEvent(
+      new CustomEvent('location-changed', {
+        detail: { replace: false },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  /** Wire navigation + brand-logo fallback for every device chip in the tree. */
+  private _wireDeviceChips(root: ShadowRoot): void {
+    root.querySelectorAll<HTMLElement>('.hk-device-chip').forEach((chip) => {
+      const id = chip.dataset.deviceId;
+      const go = (): void => {
+        if (id) this._navigateToDevice(id);
+      };
+      chip.addEventListener('click', go);
+      chip.addEventListener('keydown', (e) => {
+        const key = (e as KeyboardEvent).key;
+        if (key === 'Enter' || key === ' ') {
+          e.preventDefault();
+          go();
+        }
+      });
+      const fallbackIcon = (): void => {
+        const el = chip.querySelector('.hk-dev-img');
+        if (!el) return;
+        const svg = document.createElement('ha-svg-icon');
+        (svg as HTMLElement & { path?: string }).path = MDI_DEVICES;
+        svg.setAttribute('slot', 'icon');
+        svg.className = 'hk-dev-img';
+        el.replaceWith(svg);
+      };
+      const img = chip.querySelector<HTMLImageElement>('img.hk-dev-img');
+      if (img) {
+        img.addEventListener('error', () => {
+          // First failure: retry the generic `_/` brand path; then give up.
+          const domain = img.dataset.domain;
+          if (domain && !img.dataset.retried) {
+            img.dataset.retried = '1';
+            img.src = brandLogoUrl(domain, true);
+          } else {
+            fallbackIcon();
+          }
+        });
+      } else {
+        fallbackIcon();
+      }
+    });
   }
 
   // ── ha-form schemas ─────────────────────────────────────────────────────────
@@ -689,6 +779,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // Card actions.
     if (this._view === 'tasks') this._wireTaskCards(root);
     else this._wireAssetCards(root);
+    this._wireDeviceChips(root);
   }
 
   private _switchView(view: 'tasks' | 'appliances'): void {

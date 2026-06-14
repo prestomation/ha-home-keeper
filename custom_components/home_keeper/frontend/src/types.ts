@@ -26,6 +26,8 @@ export interface HassDevice {
   manufacturer?: string | null;
   model?: string | null;
   area_id?: string | null;
+  primary_config_entry?: string | null;
+  config_entries?: string[];
 }
 
 export interface HassArea {

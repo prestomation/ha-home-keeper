@@ -46,6 +46,17 @@ class HomeKeeperMarkDoneButton(
         self._attr_device_info = coordinator.device_info_for_task(
             coordinator.data[task_id]
         )
+        self._prefix_name = coordinator.task_uses_existing_device(
+            coordinator.data[task_id]
+        )
+
+    @property
+    def translation_placeholders(self) -> dict[str, str]:
+        """Disambiguate this button among a device's tasks by its task name."""
+        if not self._prefix_name:
+            return {"task_name": ""}
+        name = self.coordinator.data.get(self._task_id, {}).get("name", "")
+        return {"task_name": f"{name}: " if name else ""}
 
     async def async_press(self) -> None:
         await self.coordinator.store.complete_task(self._task_id)

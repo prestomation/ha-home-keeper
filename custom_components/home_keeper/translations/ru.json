@@ -208,17 +208,17 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "Следующий срок" },
+      "next_due": { "name": "{task_name}Следующий срок" },
       "manufacture_date": { "name": "Дата изготовления" },
       "purchase_date": { "name": "Дата покупки" },
       "install_date": { "name": "Дата установки" },
       "warranty_expiry": { "name": "Окончание гарантии" }
     },
     "binary_sensor": {
-      "overdue": { "name": "Просрочено" }
+      "overdue": { "name": "{task_name}Просрочено" }
     },
     "button": {
-      "mark_done": { "name": "Отметить выполненным" }
+      "mark_done": { "name": "{task_name}Отметить выполненным" }
     }
   }
 }
