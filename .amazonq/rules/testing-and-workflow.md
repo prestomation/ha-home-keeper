@@ -7,6 +7,11 @@
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).
+- **Document new major features in `README.md` in the same change** — add a brief
+  section covering the **use cases** (what problem it solves) and a little about
+  **how it's used**, with **screenshot(s)** (capture via the Playwright harness,
+  commit under `docs/images/`, embed in the README with a relative `docs/images/…`
+  path). A new headline feature isn't "done" until the README shows it.
 
 ## Tests (run locally before pushing — never use CI as the test runner)
 - The recurrence engine and model are the correctness core: keep them HA-free and

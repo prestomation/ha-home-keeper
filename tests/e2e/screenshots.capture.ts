@@ -27,6 +27,26 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#anchor-wrap')).toBeVisible();
   await page.screenshot({ path: `${OUT}/3-panel-create-fixed.png`, fullPage: true });
 
+  // 5. Appliances tab — the asset list with the seeded virtual device.
+  await panel.locator('#tab-appliances').click();
+  await expect(panel.locator('.hk-name').first()).toBeVisible();
+  await page.screenshot({ path: `${OUT}/5-panel-appliances-list.png`, fullPage: true });
+
+  // 6. Appliance create form — virtual device, metadata, parts and relationships.
+  await panel.locator('#add-btn').click();
+  await expect(panel.locator('#hk-asset-form')).toBeVisible();
+  await panel.locator('#a-name').fill('Garage water heater');
+  await panel.locator('#a-manufacturer').fill('Rheem');
+  await panel.locator('#a-icon').fill('mdi:water-boiler');
+  await panel.locator('#a-warranty').fill('2032-05-01');
+  // Add a wear part to show the parts editor + replacement interval.
+  await panel.locator('#a-add-part').click();
+  await panel.locator('#p-name-0').fill('Anode rod');
+  await panel.locator('#p-number-0').fill('AR-1');
+  await panel.locator('#p-type-0').selectOption('wear');
+  await panel.locator('#p-int-0').fill('12');
+  await page.screenshot({ path: `${OUT}/6-panel-appliance-create.png`, fullPage: true });
+
   // 4. The usage surfaces — native to-do list + calendar on a dashboard.
   await openDashboard(page);
   await page.waitForTimeout(1500); // let cards settle

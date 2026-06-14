@@ -109,6 +109,9 @@ def build_task(data: dict, *, now: datetime) -> dict:
         "created": now.isoformat(),
         "last_completed": None,
         "completions": [],
+        # Optional provenance, e.g. {"part": {"asset_id", "part_id"}} for a task
+        # derived from an asset wear part. Owned by its reconciler when present.
+        "source": data.get("source"),
         **fields,
     }
     task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()

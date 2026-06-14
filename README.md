@@ -11,6 +11,8 @@ changes, water filters, taking medicine, and anything else that recurs.
 > data model, entities, and panel are functional but expect rough edges and change.
 > See [IDEAS.md](IDEAS.md) for what's planned next.
 
+![Home Keeper task list](docs/images/1-panel-task-list.png)
+
 ## Concepts
 
 A **task** has a name, notes, an optional device it's attached to, and a recurrence:
@@ -20,6 +22,9 @@ A **task** has a name, notes, an optional device it's attached to, and a recurre
   stays overdue rather than silently rolling forward.
 - **Fixed** — an anchored calendar schedule: *"take medicine every day at 8am"*,
   independent of when you actually complete it.
+
+An **appliance** (asset) is the physical thing a task is about — a fridge, furnace,
+water heater. See [Appliances & virtual devices](#appliances--virtual-devices) below.
 
 ## How you interact with it
 
@@ -37,10 +42,63 @@ Administration and usage are intentionally **separated**:
     (next due) and `binary_sensor` (overdue) entities appear **on that device's
     page** — so e.g. your fridge shows its filter task right alongside it.
 
+## Appliances & virtual devices
+
+Most appliances you actually maintain — a "dumb" fridge, furnace, or water heater —
+aren't Home Assistant devices, so there's nowhere to hang their maintenance tasks or
+record their warranty. Home Assistant core can't create devices by hand; they only
+come from integrations. Home Keeper fills that gap with **appliances**, managed from
+the **Appliances** tab in the panel.
+
+![Appliances list](docs/images/5-panel-appliances-list.png)
+
+There are two ways to use it:
+
+- **New appliance** — Home Keeper registers a real **virtual device** for it. Now
+  multiple tasks (replace filter, flush tank, change anode rod) share *one* device
+  page instead of each becoming its own throwaway device. Because it's a genuine
+  registry device, other integrations (e.g. Battery Notes) can attach to it too.
+- **Existing device** — point Home Keeper at a device another integration already
+  provides (a smart fridge) and enrich it with the same metadata, without owning it.
+
+Either way you can record **asset metadata** — manufacturer/model/serial, an mdi
+icon, purchase / install / **warranty-expiry** dates, cost, vendor, and a manual
+link. Dates become real `date` **sensors** on the device page, so they're automatable
+natively — e.g. *"warranty expiring in 30 days → notify me"* — and show up in state
+history without any custom card.
+
+![Add an appliance](docs/images/6-panel-appliance-create.png)
+
+### Parts & wear items
+
+Each appliance has a structured **parts** list — name, part number, vendor, cost, and
+a type of *consumable* (a stocked spare) or *wear item*. Give a wear item a
+**replacement interval** and Home Keeper automatically creates a maintenance **task**
+for it, attached to the appliance's device — so it shows up in your to-do list and
+calendar, gets a mark-done button and a next-due sensor on the device page, and
+stamps the part's *last replaced* date when you complete it. No separate bookkeeping.
+
+### Relationships: subdevices & related devices
+
+Real things nest. An appliance can be a **subdevice of** another appliance (e.g.
+*Radio shade controller* under *Living room shades*); Home Keeper wires this through
+Home Assistant's native `via_device` hierarchy, so the subdevice nests under its
+parent on the device page. You can also tag arbitrary **related devices** — including
+ones from other integrations that HA won't let us reparent (your existing humidity
+sensor next to your *Piano*) — which show up alongside the appliance in the panel.
+
+> **Example.** Add the *Garage water heater* as a new appliance with its warranty
+> expiry and an *Anode rod* **wear item** set to "replace every 12 months." The water
+> heater now has its own device page with a warranty-expiry sensor, plus an automatic
+> *"Replace Anode rod"* to-do that's due 12 months after each completion.
+
 ## Services
 
-`home_keeper.add_task`, `update_task`, `delete_task`, `complete_task`, and
-`list_tasks` (returns a response) are available for automations.
+Task services: `home_keeper.add_task`, `update_task`, `delete_task`, `complete_task`,
+and `list_tasks` (returns a response).
+
+Appliance services: `home_keeper.add_asset`, `update_asset`, `delete_asset`, and
+`list_assets` (returns a response). All are available for automations.
 
 ## Development
 

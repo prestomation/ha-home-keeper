@@ -126,6 +126,84 @@
     "list_tasks": {
       "name": "List tasks",
       "description": "Return all tasks as a response."
+    },
+    "add_asset": {
+      "name": "Add appliance",
+      "description": "Register an appliance/asset. By default Home Keeper creates a virtual device for it; set kind to existing to attach metadata to a device from another integration.",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Display name (required for a new virtual device)."
+        },
+        "kind": {
+          "name": "Kind",
+          "description": "virtual (Home Keeper creates the device) or existing (attach to one)."
+        },
+        "device_id": {
+          "name": "Device",
+          "description": "Existing device to attach metadata to (required when kind is existing)."
+        },
+        "area_id": {
+          "name": "Area",
+          "description": "Optional area for the appliance."
+        },
+        "manufacturer": { "name": "Manufacturer", "description": "Maker of the appliance." },
+        "model": { "name": "Model", "description": "Model name or number." },
+        "serial_number": { "name": "Serial number", "description": "Serial number." },
+        "manufacture_date": { "name": "Manufacture date", "description": "ISO date (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Purchase date", "description": "ISO date (YYYY-MM-DD)." },
+        "install_date": { "name": "Install date", "description": "ISO date (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Warranty expiry",
+          "description": "ISO date (YYYY-MM-DD). Surfaced as a date sensor on the device."
+        },
+        "warranty_provider": { "name": "Warranty provider", "description": "Who honors the warranty." },
+        "vendor": { "name": "Vendor", "description": "Where to rebuy / service provider." },
+        "cost": { "name": "Cost", "description": "Purchase price." },
+        "manual_url": { "name": "Manual URL", "description": "Link to the manual or docs." },
+        "icon": { "name": "Icon", "description": "Optional mdi icon (e.g. mdi:piano)." },
+        "parts": { "name": "Parts", "description": "Structured parts/wear items; wear items with an interval drive a maintenance task." },
+        "parent_asset_id": { "name": "Parent appliance", "description": "Make this a subdevice of another appliance." },
+        "related_device_ids": { "name": "Related devices", "description": "Other registry devices to associate with this appliance." },
+        "notes": { "name": "Notes", "description": "Free-text notes." }
+      }
+    },
+    "update_asset": {
+      "name": "Update appliance",
+      "description": "Update fields of an existing appliance/asset.",
+      "fields": {
+        "asset_id": { "name": "Asset ID", "description": "The id of the asset to update." },
+        "name": { "name": "Name", "description": "New display name." },
+        "device_id": { "name": "Device", "description": "Re-target an existing-device asset." },
+        "area_id": { "name": "Area", "description": "Area for the appliance." },
+        "manufacturer": { "name": "Manufacturer", "description": "Maker of the appliance." },
+        "model": { "name": "Model", "description": "Model name or number." },
+        "serial_number": { "name": "Serial number", "description": "Serial number." },
+        "manufacture_date": { "name": "Manufacture date", "description": "ISO date (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Purchase date", "description": "ISO date (YYYY-MM-DD)." },
+        "install_date": { "name": "Install date", "description": "ISO date (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Warranty expiry", "description": "ISO date (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Warranty provider", "description": "Who honors the warranty." },
+        "vendor": { "name": "Vendor", "description": "Where to rebuy / service provider." },
+        "cost": { "name": "Cost", "description": "Purchase price." },
+        "manual_url": { "name": "Manual URL", "description": "Link to the manual or docs." },
+        "icon": { "name": "Icon", "description": "Optional mdi icon (e.g. mdi:piano)." },
+        "parts": { "name": "Parts", "description": "Structured parts/wear items; wear items with an interval drive a maintenance task." },
+        "parent_asset_id": { "name": "Parent appliance", "description": "Make this a subdevice of another appliance." },
+        "related_device_ids": { "name": "Related devices", "description": "Other registry devices to associate with this appliance." },
+        "notes": { "name": "Notes", "description": "Free-text notes." }
+      }
+    },
+    "delete_asset": {
+      "name": "Delete appliance",
+      "description": "Delete an appliance/asset. Its virtual device (if any) is removed and tasks attached to it become standalone.",
+      "fields": {
+        "asset_id": { "name": "Asset ID", "description": "The id of the asset to delete." }
+      }
+    },
+    "list_assets": {
+      "name": "List appliances",
+      "description": "Return all appliances/assets as a response."
     }
   }
 }

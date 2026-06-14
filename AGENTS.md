@@ -15,6 +15,11 @@
   the PNG(s) under `docs/images/`, and embed them in the PR via a
   `raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/images/<file>.png`
   URL pinned to the commit that added them.
+- **Always document new major features in `README.md` in the same change.** Add a
+  brief section with the **use cases** (what problem it solves) and a little about
+  **how it's used**, and include **screenshot(s)** (same Playwright capture, committed
+  under `docs/images/`, embedded with a relative `docs/images/…` path). A headline
+  feature isn't done until the README shows it.
 - **Always request an Amazon Q (Cue) review after every push and when opening a
   PR.** Immediately after pushing a commit (or opening a PR), post a PR comment
   of the form `/q review {request}`. Cue gives better results when explicitly

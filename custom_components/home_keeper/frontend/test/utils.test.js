@@ -5,6 +5,8 @@ import {
   isOverdue,
   dueLabel,
   deviceName,
+  areaName,
+  assetSummary,
 } from '../src/utils.ts';
 
 describe('escapeHTML', () => {
@@ -75,5 +77,39 @@ describe('deviceName', () => {
   it('returns id for unknown device, empty for none', () => {
     expect(deviceName(devices, 'zzz')).toBe('zzz');
     expect(deviceName(devices, null)).toBe('');
+  });
+});
+
+describe('areaName', () => {
+  const areas = { kitchen: { area_id: 'kitchen', name: 'Kitchen' } };
+  it('resolves an area name', () => {
+    expect(areaName(areas, 'kitchen')).toBe('Kitchen');
+  });
+  it('returns the id for an unknown area and empty for none', () => {
+    expect(areaName(areas, 'garage')).toBe('garage');
+    expect(areaName(areas, null)).toBe('');
+  });
+});
+
+describe('assetSummary', () => {
+  const areas = { kitchen: { area_id: 'kitchen', name: 'Kitchen' } };
+  it('joins make/model, area and warranty', () => {
+    expect(
+      assetSummary(
+        {
+          id: 'a',
+          kind: 'virtual',
+          name: 'Fridge',
+          manufacturer: 'LG',
+          model: 'X1',
+          area_id: 'kitchen',
+          warranty_expiry: '2030-01-01',
+        },
+        areas,
+      ),
+    ).toBe('LG X1 · Kitchen · warranty to 2030-01-01');
+  });
+  it('falls back when there are no details', () => {
+    expect(assetSummary({ id: 'a', kind: 'virtual', name: 'Fridge' })).toBe('No details yet');
   });
 });

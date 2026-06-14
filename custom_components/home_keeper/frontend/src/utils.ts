@@ -1,4 +1,4 @@
-import type { Task } from './types';
+import type { Asset, HassArea, Task } from './types';
 
 /** Escape user-provided text before injecting into innerHTML. */
 export function escapeHTML(value: unknown): string {
@@ -55,4 +55,29 @@ export function deviceName(
   const dev = devices?.[deviceId];
   if (!dev) return deviceId;
   return dev.name_by_user || dev.name || deviceId;
+}
+
+/** Resolve an area id to its name using hass.areas. */
+export function areaName(
+  areas: Record<string, HassArea> | undefined,
+  areaId: string | null | undefined,
+): string {
+  if (!areaId) return '';
+  return areas?.[areaId]?.name || areaId;
+}
+
+/** Compact one-line summary of an asset's notable metadata for the card. */
+export function assetSummary(
+  asset: Asset,
+  areas?: Record<string, HassArea>,
+): string {
+  const bits: string[] = [];
+  const makeModel = [asset.manufacturer, asset.model].filter(Boolean).join(' ');
+  if (makeModel) bits.push(makeModel);
+  const area = areaName(areas, asset.area_id);
+  if (area) bits.push(area);
+  if (asset.warranty_expiry) bits.push(`warranty to ${asset.warranty_expiry}`);
+  const partCount = asset.parts?.length ?? 0;
+  if (partCount) bits.push(`${partCount} part${partCount === 1 ? '' : 's'}`);
+  return bits.length ? bits.join(' · ') : 'No details yet';
 }

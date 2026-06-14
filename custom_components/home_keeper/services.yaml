@@ -164,3 +164,229 @@ complete_task:
 list_tasks:
   name: List tasks
   description: Return all tasks as a response.
+
+add_asset:
+  name: Add appliance
+  description: >-
+    Register an appliance/asset. By default Home Keeper creates a virtual device
+    for it so tasks can share one device page; set kind to "existing" to attach
+    metadata to a device from another integration instead.
+  fields:
+    name:
+      name: Name
+      description: Display name (required for a new virtual device).
+      example: Kitchen fridge
+      selector:
+        text:
+    kind:
+      name: Kind
+      description: virtual (Home Keeper creates the device) or existing (attach to one).
+      selector:
+        select:
+          options:
+            - virtual
+            - existing
+    device_id:
+      name: Device
+      description: Existing device to attach metadata to (required when kind is existing).
+      selector:
+        device:
+    area_id:
+      name: Area
+      description: Optional area for the appliance.
+      selector:
+        area:
+    manufacturer:
+      name: Manufacturer
+      selector:
+        text:
+    model:
+      name: Model
+      selector:
+        text:
+    serial_number:
+      name: Serial number
+      selector:
+        text:
+    manufacture_date:
+      name: Manufacture date
+      description: ISO date (YYYY-MM-DD).
+      selector:
+        date:
+    purchase_date:
+      name: Purchase date
+      description: ISO date (YYYY-MM-DD).
+      selector:
+        date:
+    install_date:
+      name: Install date
+      description: ISO date (YYYY-MM-DD).
+      selector:
+        date:
+    warranty_expiry:
+      name: Warranty expiry
+      description: ISO date (YYYY-MM-DD). Surfaced as a date sensor on the device.
+      selector:
+        date:
+    warranty_provider:
+      name: Warranty provider
+      selector:
+        text:
+    vendor:
+      name: Vendor
+      description: Where to rebuy / service provider.
+      selector:
+        text:
+    cost:
+      name: Cost
+      selector:
+        number:
+          min: 0
+          mode: box
+          step: 0.01
+    manual_url:
+      name: Manual URL
+      selector:
+        text:
+    icon:
+      name: Icon
+      description: Optional mdi icon for the appliance (e.g. mdi:piano).
+      selector:
+        icon:
+    parts:
+      name: Parts
+      description: >-
+        Structured parts/wear items. Each: name, part_number, type (consumable or
+        wear), vendor, cost, and for wear items replace_interval + replace_unit
+        (days/weeks/months) which drive a maintenance task.
+      selector:
+        object:
+    parent_asset_id:
+      name: Parent appliance
+      description: Make this a subdevice of another (virtual) appliance.
+      selector:
+        text:
+    related_device_ids:
+      name: Related devices
+      description: Other registry devices to associate with this appliance.
+      selector:
+        device:
+          multiple: true
+    notes:
+      name: Notes
+      selector:
+        text:
+          multiline: true
+
+update_asset:
+  name: Update appliance
+  description: Update fields of an existing appliance/asset.
+  fields:
+    asset_id:
+      name: Asset ID
+      description: The id of the asset to update.
+      required: true
+      selector:
+        text:
+    name:
+      name: Name
+      selector:
+        text:
+    device_id:
+      name: Device
+      description: Re-target an existing-device asset.
+      selector:
+        device:
+    area_id:
+      name: Area
+      selector:
+        area:
+    manufacturer:
+      name: Manufacturer
+      selector:
+        text:
+    model:
+      name: Model
+      selector:
+        text:
+    serial_number:
+      name: Serial number
+      selector:
+        text:
+    manufacture_date:
+      name: Manufacture date
+      selector:
+        date:
+    purchase_date:
+      name: Purchase date
+      selector:
+        date:
+    install_date:
+      name: Install date
+      selector:
+        date:
+    warranty_expiry:
+      name: Warranty expiry
+      selector:
+        date:
+    warranty_provider:
+      name: Warranty provider
+      selector:
+        text:
+    vendor:
+      name: Vendor
+      selector:
+        text:
+    cost:
+      name: Cost
+      selector:
+        number:
+          min: 0
+          mode: box
+          step: 0.01
+    manual_url:
+      name: Manual URL
+      selector:
+        text:
+    icon:
+      name: Icon
+      description: Optional mdi icon for the appliance (e.g. mdi:piano).
+      selector:
+        icon:
+    parts:
+      name: Parts
+      description: Structured parts/wear items (see add_asset).
+      selector:
+        object:
+    parent_asset_id:
+      name: Parent appliance
+      description: Make this a subdevice of another (virtual) appliance.
+      selector:
+        text:
+    related_device_ids:
+      name: Related devices
+      description: Other registry devices to associate with this appliance.
+      selector:
+        device:
+          multiple: true
+    notes:
+      name: Notes
+      selector:
+        text:
+          multiline: true
+
+delete_asset:
+  name: Delete appliance
+  description: >-
+    Delete an appliance/asset. Its virtual device (if any) is removed and tasks
+    attached to it become standalone.
+  fields:
+    asset_id:
+      name: Asset ID
+      required: true
+      selector:
+        text:
+
+list_assets:
+  name: List appliances
+  description: Return all appliances/assets as a response.

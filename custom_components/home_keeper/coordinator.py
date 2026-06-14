@@ -68,6 +68,23 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if task.get("device_id") and task.get("enabled", True)
         ]
 
+    def device_info_for_device_id(self, device_id: str | None) -> DeviceInfo | None:
+        """DeviceInfo that merges entities onto an existing registry device.
+
+        Reuses the device's own identifiers/connections so HA attaches our entities
+        to that device page rather than creating a new device. Returns ``None`` when
+        the device cannot be resolved (the entity should then be skipped).
+        """
+        if not device_id:
+            return None
+        device = dr.async_get(self.hass).async_get(device_id)
+        if device is None:
+            return None
+        return DeviceInfo(
+            identifiers=device.identifiers,
+            connections=device.connections,
+        )
+
     def device_info_for_task(self, task: dict[str, Any]) -> DeviceInfo:
         """Return the DeviceInfo a per-task entity should use.
 
