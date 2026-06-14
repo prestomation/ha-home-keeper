@@ -30,6 +30,9 @@ markers = [
 branch = true
 source = ["custom_components/home_keeper"]
 relative_files = true
+# testing.py is a test-support helper for *other* integrations (exercised by their
+# suites, not Home Keeper's own), so it shouldn't count toward product coverage.
+omit = ["custom_components/home_keeper/testing.py"]
 
 [tool.coverage.report]
 show_missing = true
