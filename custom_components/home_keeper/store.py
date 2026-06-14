@@ -256,19 +256,16 @@ class HomeKeeperStore:
         # Create or update the rest.
         for key, (asset, part) in desired.items():
             name = f"Replace {part['name']} ({asset.get('name') or 'appliance'})"
-            fields = {
-                "name": name,
-                "recurrence_type": "floating",
-                "interval": part["replace_interval"],
-                "unit": part["replace_unit"],
-                "device_id": asset.get("device_id"),
-                "area_id": asset.get("area_id"),
-            }
             tid = existing_by_key.get(key)
             if tid is None:
                 task = models.build_task(
                     {
-                        **fields,
+                        "name": name,
+                        "recurrence_type": "floating",
+                        "interval": part["replace_interval"],
+                        "unit": part["replace_unit"],
+                        "device_id": asset.get("device_id"),
+                        "area_id": asset.get("area_id"),
                         "source": {
                             "part": {"asset_id": asset["id"], "part_id": part["id"]}
                         },
@@ -284,9 +281,24 @@ class HomeKeeperStore:
                 self._tasks[task["id"]] = task
                 changed = True
             else:
-                before = dict(self._tasks[tid])
-                self._tasks[tid] = models.merge_update(before, fields, now=now)
-                if self._tasks[tid] != before:
+                # Only pass fields that actually changed. Passing interval/unit
+                # unconditionally would re-trigger a next_due recompute on every
+                # reconcile (setup, any asset edit) and, for a task with no
+                # last_completed, drift next_due forward to now+interval each time.
+                before = self._tasks[tid]
+                updates: dict[str, Any] = {}
+                if before.get("name") != name:
+                    updates["name"] = name
+                if before.get("interval") != part["replace_interval"]:
+                    updates["interval"] = part["replace_interval"]
+                if before.get("unit") != part["replace_unit"]:
+                    updates["unit"] = part["replace_unit"]
+                if before.get("device_id") != asset.get("device_id"):
+                    updates["device_id"] = asset.get("device_id")
+                if before.get("area_id") != asset.get("area_id"):
+                    updates["area_id"] = asset.get("area_id")
+                if updates:
+                    self._tasks[tid] = models.merge_update(before, updates, now=now)
                     changed = True
 
         if changed:

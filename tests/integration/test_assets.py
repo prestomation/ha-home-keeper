@@ -178,43 +178,90 @@ def test_wear_part_creates_maintenance_task_with_device_entities(ha):
     assert any("garage_water_heater" in eid for eid in mark_done), mark_done
 
 
+def _part_tasks_for(ha, asset_id):
+    """Tasks derived from a specific asset's parts (robust to shared-state runs)."""
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    return [
+        t
+        for t in resp.get("service_response", resp)["tasks"]
+        if (t.get("source") or {}).get("part", {}).get("asset_id") == asset_id
+    ]
+
+
+def _newest_asset_named(ha, name):
+    resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+    matches = [a for a in resp.get("service_response", resp)["assets"] if a["name"] == name]
+    return matches[-1] if matches else None
+
+
 def test_removing_wear_part_deletes_its_derived_task(ha):
     # Add an appliance with a wear part (creates a derived task), then update the
     # appliance with an empty parts list — the derived task must be removed (no
     # orphaning). update flows through async_apply_asset_change -> reconcile_part_tasks.
     import time
+    import uuid
 
+    name = f"Test HVAC {uuid.uuid4().hex[:8]}"
     call_service(
         ha,
         "home_keeper",
         "add_asset",
         {
-            "name": "Test HVAC",
+            "name": name,
             "parts": [
                 {"name": "Belt", "type": "wear", "replace_interval": 6, "replace_unit": "months"}
             ],
         },
     )
-
-    def _belt_tasks():
-        resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
-        return [t for t in resp.get("service_response", resp)["tasks"] if "Belt" in t.get("name", "")]
-
+    asset = None
     for _ in range(20):
-        if _belt_tasks():
+        asset = _newest_asset_named(ha, name)
+        if asset and _part_tasks_for(ha, asset["id"]):
             break
         time.sleep(1)
-    assert _belt_tasks(), "wear part should have created a derived task"
+    assert asset and _part_tasks_for(ha, asset["id"]), "wear part should have created a task"
 
-    resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
-    hvac = next(a for a in resp.get("service_response", resp)["assets"] if a["name"] == "Test HVAC")
-    call_service(ha, "home_keeper", "update_asset", {"asset_id": hvac["id"], "parts": []})
+    call_service(ha, "home_keeper", "update_asset", {"asset_id": asset["id"], "parts": []})
 
     for _ in range(20):
-        if not _belt_tasks():
+        if not _part_tasks_for(ha, asset["id"]):
             break
         time.sleep(1)
-    assert not _belt_tasks(), "derived task should be removed when its wear part is gone"
+    assert not _part_tasks_for(ha, asset["id"]), "derived task should be removed with its part"
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_wear_part_next_due_does_not_drift_on_asset_edit(ha):
+    # Regression: a wear part with no last_replaced must keep a stable next_due when
+    # the asset is edited. Reconciliation must not re-pass interval/unit and re-anchor
+    # the floating clock to "now" on every edit.
+    import time
+    import uuid
+
+    name = f"Drift probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": name,
+            "parts": [{"name": "Filter", "type": "wear", "replace_interval": 3, "replace_unit": "months"}],
+        },
+    )
+    asset = None
+    for _ in range(20):
+        asset = _newest_asset_named(ha, name)
+        if asset and _part_tasks_for(ha, asset["id"]):
+            break
+        time.sleep(1)
+    assert asset and _part_tasks_for(ha, asset["id"]), "wear part should have created a task"
+    due_before = _part_tasks_for(ha, asset["id"])[0]["next_due"]
+
+    call_service(ha, "home_keeper", "update_asset", {"asset_id": asset["id"], "name": name + " v2"})
+
+    due_after = _part_tasks_for(ha, asset["id"])[0]["next_due"]
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+    assert due_after == due_before, f"next_due drifted: {due_before} -> {due_after}"
 
 
 def test_subdevice_has_warranty_independent_and_parent_seeded(ha):
