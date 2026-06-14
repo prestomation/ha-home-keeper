@@ -25,6 +25,35 @@ lovelace:
       show_in_sidebar: true
       filename: home-keeper-e2e.yaml
 
+# Helpers + automation used by test_lifecycle to observe the
+# home_keeper_task_completed event (the public cross-integration hook). The
+# automation records the event's opaque source/origin so a REST test can assert the
+# event fired with the right payload.
+input_text:
+  hk_last_completed_source:
+    name: HK last completed source
+    max: 255
+  hk_last_completed_origin:
+    name: HK last completed origin
+    max: 255
+
+automation:
+  - alias: Capture Home Keeper task completed
+    trigger:
+      - platform: event
+        event_type: home_keeper_task_completed
+    action:
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hk_last_completed_source
+        data:
+          value: "{{ trigger.event.data.source | tojson }}"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hk_last_completed_origin
+        data:
+          value: "{{ trigger.event.data.origin if trigger.event.data.origin is not none else 'none' }}"
+
 # Minimal logging
 logger:
   default: info

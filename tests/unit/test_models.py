@@ -102,3 +102,45 @@ def test_merge_update_interval_recomputes_due():
     updated = m.merge_update(task, {"interval": 2}, now=NOW)
     assert updated["interval"] == 2
     assert updated["next_due"] == datetime(2026, 8, 13, 10, tzinfo=TZ).isoformat()
+
+
+def test_build_task_carries_opaque_source():
+    # ``source`` is opaque provenance owned by a contributing integration; build_task
+    # must store it verbatim so the task can be matched/echoed later.
+    source = {"pawsistant": {"dog_id": "d1", "event_type": "medicine", "schedule_id": "s1"}}
+    task = m.build_task(
+        {
+            "name": "Medicine",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "source": source,
+        },
+        now=NOW,
+    )
+    assert task["source"] == source
+
+
+def test_build_task_source_defaults_to_none():
+    task = m.build_task(
+        {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},
+        now=NOW,
+    )
+    assert task["source"] is None
+
+
+def test_merge_update_preserves_source():
+    # Editing other fields must not drop the provenance a contributor relies on.
+    source = {"pawsistant": {"schedule_id": "s1"}}
+    task = m.build_task(
+        {
+            "name": "Medicine",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "source": source,
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"name": "Renamed", "interval": 3}, now=NOW)
+    assert updated["source"] == source

@@ -6,6 +6,19 @@ requires-python = ">=3.12"
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov>=4.0", "requests>=2.31"]
 
+# Make the integration pip-installable straight from git (no PyPI publish needed),
+# so other integrations can depend on it in their test suite and import
+# ``home_keeper.testing``. Home Assistant itself loads the integration from
+# ``custom_components/`` and ignores this packaging metadata.
+#   pip install "home-keeper @ git+https://github.com/prestomation/ha-home-keeper@main"
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["custom_components"]
+include = ["home_keeper*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
@@ -17,6 +30,9 @@ markers = [
 branch = true
 source = ["custom_components/home_keeper"]
 relative_files = true
+# testing.py is a test-support helper for *other* integrations (exercised by their
+# suites, not Home Keeper's own), so it shouldn't count toward product coverage.
+omit = ["custom_components/home_keeper/testing.py"]
 
 [tool.coverage.report]
 show_missing = true

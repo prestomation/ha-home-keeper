@@ -1,6 +1,8 @@
 add_task:
   name: Add task
-  description: Create a new maintenance task or chore.
+  description: >-
+    Create a new maintenance task or chore. Returns the created task's id as
+    {"task_id": ...} when called with return_response.
   fields:
     name:
       name: Name
@@ -65,6 +67,14 @@ add_task:
       description: Optional area to associate with this task.
       selector:
         area:
+    source:
+      name: Source
+      description: >-
+        Opaque provenance owned by the integration that created the task, namespaced
+        under that integration's domain. Home Keeper stores and echoes it verbatim and
+        never inspects it. See docs/INTEGRATING.md.
+      selector:
+        object:
 
 update_task:
   name: Update task
@@ -135,6 +145,13 @@ update_task:
       description: Area to associate with this task.
       selector:
         area:
+    source:
+      name: Source
+      description: >-
+        Opaque provenance owned by the integration that created the task. See
+        docs/INTEGRATING.md.
+      selector:
+        object:
 
 delete_task:
   name: Delete task
@@ -160,6 +177,14 @@ complete_task:
       description: Optional completion timestamp (defaults to now).
       selector:
         datetime:
+    origin:
+      name: Origin
+      description: >-
+        Optional free-form marker echoed back in the home_keeper_task_completed event,
+        so a contributing integration can recognise and ignore the completion it
+        triggered (loop prevention). Home Keeper does not interpret it.
+      selector:
+        text:
 
 list_tasks:
   name: List tasks

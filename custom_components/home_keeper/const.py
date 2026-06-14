@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.1.0b2"
+PANEL_VERSION = "0.1.0b3"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -20,6 +20,13 @@ WEBCOMPONENT_NAME = "home-keeper-panel"
 STORAGE_KEY = "home_keeper"
 STORAGE_VERSION = 1
 MAX_COMPLETION_HISTORY = 50
+
+# Event fired on the HA event bus whenever a task is completed (from any surface:
+# the to-do list, a device mark-done button, or the complete_task service). This is
+# the public, client-agnostic hook other integrations subscribe to in order to mirror
+# completions. The payload carries the task's opaque ``source`` and ``origin`` verbatim;
+# Home Keeper never inspects either. See docs/INTEGRATING.md.
+EVENT_TASK_COMPLETED = f"{DOMAIN}_task_completed"
 
 # Assets / appliances (virtual devices + asset metadata).
 # A virtual asset device is registered with identifier

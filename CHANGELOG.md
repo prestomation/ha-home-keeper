@@ -6,6 +6,20 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.1.0b3] - 2026-06-14
+
+- **Cross-integration task contributions.** Other integrations can now contribute
+  recurring tasks to Home Keeper and stay in two-way sync — with no code dependency in
+  either direction. A task carries an opaque, caller-namespaced `source`;
+  `home_keeper.add_task` returns the new `task_id` in its service response; and Home
+  Keeper fires a `home_keeper_task_completed` event (carrying `source` and an `origin`
+  marker) on every completion — whether checked off in the to-do list, pressed on the
+  device button, or completed via the service — so a contributor can mirror completions
+  both ways and break loops. A new `home_keeper.testing` helper (an in-memory fake of
+  the services + completion event, built on Home Keeper's own model code) plus a public
+  `docs/INTEGRATING.md` make it easy for other integrations to build and test against
+  the contract.
+
 - **Internationalization (16 languages).** Home Keeper is now localized into a
   common set of locales — English, German, French, Spanish, Italian, Dutch,
   Polish, Brazilian Portuguese, Norwegian Bokmål, Swedish, Danish, Finnish,

@@ -25,6 +25,9 @@ from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
 
+# ``source`` is opaque provenance owned by the integration that created the task
+# (e.g. ``{"my_integration": {...}}``). Home Keeper stores and echoes it verbatim and
+# never inspects it. See docs/INTEGRATING.md.
 ADD_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("name"): cv.string,
@@ -36,6 +39,7 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("anchor"): cv.string,
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
+        vol.Optional("source"): dict,
     }
 )
 UPDATE_TASK_SCHEMA = vol.Schema(
@@ -50,11 +54,18 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("anchor"): cv.string,
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
+        vol.Optional("source"): dict,
     }
 )
 TASK_ID_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
+# ``origin`` is a free-form marker the caller passes so it can recognise (and ignore)
+# the completion event it triggered. Home Keeper only echoes it back in the event.
 COMPLETE_TASK_SCHEMA = vol.Schema(
-    {vol.Required("task_id"): cv.string, vol.Optional("completed_at"): cv.datetime}
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Optional("completed_at"): cv.datetime,
+        vol.Optional("origin"): cv.string,
+    }
 )
 
 # Structured part (wear item) for the add/update asset schema.
@@ -153,14 +164,15 @@ def _register_services(hass: HomeAssistant) -> None:
         if not devices.area_exists(hass, data.get("area_id")):
             raise ServiceValidationError(f"Unknown area_id: {data.get('area_id')}")
 
-    async def handle_add_task(call: ServiceCall) -> None:
+    async def handle_add_task(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
         _check_area(call.data)
         try:
-            await coord.store.add_task(dict(call.data))
+            task = await coord.store.add_task(dict(call.data))
         except TaskValidationError as err:
             raise ServiceValidationError(str(err)) from err
         await hass.config_entries.async_reload(coord.entry.entry_id)
+        return {"task_id": task["id"]}
 
     async def handle_update_task(call: ServiceCall) -> None:
         coord = _coordinator()
@@ -191,7 +203,9 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         try:
             await coord.store.complete_task(
-                call.data["task_id"], call.data.get("completed_at")
+                call.data["task_id"],
+                call.data.get("completed_at"),
+                origin=call.data.get("origin"),
             )
         except KeyError:
             raise ServiceValidationError(
@@ -233,7 +247,13 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         return {"assets": coord.store.list_assets()}
 
-    hass.services.async_register(DOMAIN, "add_task", handle_add_task, ADD_TASK_SCHEMA)
+    hass.services.async_register(
+        DOMAIN,
+        "add_task",
+        handle_add_task,
+        ADD_TASK_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
     hass.services.async_register(
         DOMAIN, "update_task", handle_update_task, UPDATE_TASK_SCHEMA
     )
