@@ -21,6 +21,13 @@ STORAGE_KEY = "home_keeper"
 STORAGE_VERSION = 1
 MAX_COMPLETION_HISTORY = 50
 
+# Event fired on the HA event bus whenever a task is completed (from any surface:
+# the to-do list, a device mark-done button, or the complete_task service). This is
+# the public, client-agnostic hook other integrations subscribe to in order to mirror
+# completions. The payload carries the task's opaque ``source`` and ``origin`` verbatim;
+# Home Keeper never inspects either. See docs/INTEGRATING.md.
+EVENT_TASK_COMPLETED = f"{DOMAIN}_task_completed"
+
 # Assets / appliances (virtual devices + asset metadata).
 # A virtual asset device is registered with identifier
 # (DOMAIN, f"{ASSET_IDENTIFIER_PREFIX}_{asset_id}"); the prefix keeps it from

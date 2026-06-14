@@ -16,7 +16,13 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from . import assets, models, recurrence
-from .const import PART_WEAR, STORAGE_KEY, STORAGE_VERSION, TASK_SOURCE_PART
+from .const import (
+    EVENT_TASK_COMPLETED,
+    PART_WEAR,
+    STORAGE_KEY,
+    STORAGE_VERSION,
+    TASK_SOURCE_PART,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -306,12 +312,21 @@ class HomeKeeperStore:
         return changed
 
     async def complete_task(
-        self, task_id: str, completed_at: Any | None = None
+        self, task_id: str, completed_at: Any | None = None, *, origin: str | None = None
     ) -> dict[str, Any]:
         """Mark a task completed and advance its recurrence.
 
         For a part-derived task, also stamp the part's ``last_replaced`` so the
         appliance record reflects the maintenance.
+
+        Fires the ``home_keeper_task_completed`` event so external integrations can
+        mirror the completion. This is the single chokepoint every completion surface
+        funnels through (the to-do list, the device mark-done button, and the
+        ``complete_task`` service), so firing here — rather than in the service handler
+        — is what makes completion observable from anywhere. ``origin`` is an opaque,
+        caller-supplied marker echoed back in the event purely so a contributing
+        integration can ignore the echo of a completion it initiated; Home Keeper does
+        not interpret it.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
@@ -324,6 +339,16 @@ class HomeKeeperStore:
         await self._save()
         _LOGGER.debug(
             "Completed task %s; next due %s", task_id, updated.get("next_due")
+        )
+        self._hass.bus.async_fire(
+            EVENT_TASK_COMPLETED,
+            {
+                "task_id": task_id,
+                "name": updated.get("name"),
+                "source": updated.get("source"),
+                "completed_at": when.isoformat() if hasattr(when, "isoformat") else when,
+                "origin": origin,
+            },
         )
         return updated
 

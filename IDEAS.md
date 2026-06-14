@@ -103,18 +103,21 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
 - **Cross-integration contribution API** (the big one). A stable, documented
   interface so other integrations (e.g. Battery Notes) can push maintenance tasks
   into Home Keeper *without Home Keeper knowing anything about them*.
-  - Proposed mechanism: a dispatcher signal `home_keeper_task_contribution` plus a
-    `home_keeper.contribute_task` service. Contributors fire it with
-    `{source, device_id, name, recurrence...}`; a listener in `__init__.py` creates
-    (or updates) a task tagged with its `source` so it can be reconciled/removed
-    when the contributor goes away.
-  - Battery Notes example: when a battery goes low, it contributes a "replace
-    battery" task attached to the same device. Home Keeper stores it like any other
-    task; completing it could fire a signal back so the contributor can reset.
-  - Open questions: lifecycle/ownership of contributed tasks, dedupe, whether
-    contributed tasks are user-editable, and a versioned schema for the payload.
-  - Hook points already left in code: `const.SIGNAL_TASK_CONTRIBUTION`, and a
-    `# DEFERRED` marker at the service-registration block in `__init__.py`.
+  - **Shipped (v1 contract, see [docs/INTEGRATING.md](docs/INTEGRATING.md)):**
+    contributors call the existing `home_keeper.add_task` with an opaque, domain-
+    namespaced `source` dict (stored verbatim) and subscribe to the new
+    `home_keeper_task_completed` event to mirror completions. Two-way completion sync
+    uses an opaque `origin` marker on `complete_task` for loop prevention. Pawsistant
+    is the first example client (pet-care schedules). Home Keeper still inspects
+    neither `source` nor `origin`.
+  - **Still deferred:** a dedicated `home_keeper.contribute_task` upsert/reconcile
+    service (and the `home_keeper_task_contribution` dispatcher signal) that would own
+    contributed-task lifecycle for Home Keeper rather than leaving CRUD to the client.
+    The v1 contract is enough when the contributor tracks the `task_id` it created.
+  - Open questions for that fuller API: lifecycle/ownership of contributed tasks,
+    dedupe, whether contributed tasks are user-editable, and a versioned payload schema.
+  - Hook points left in code: `const.SIGNAL_TASK_CONTRIBUTION` (reserved for the
+    deferred service).
 
 - **Advanced fixed-schedule rules.** Today fixed schedules are `FREQ` (DAILY/
   WEEKLY/MONTHLY) + `interval` + `anchor`. Add `BYDAY` (e.g. "first Monday"),

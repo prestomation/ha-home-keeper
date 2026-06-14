@@ -100,6 +100,13 @@ and `list_tasks` (returns a response).
 Appliance services: `home_keeper.add_asset`, `update_asset`, `delete_asset`, and
 `list_assets` (returns a response). All are available for automations.
 
+## Integrating with Home Keeper
+
+Other integrations can contribute their own recurring tasks to Home Keeper and stay in
+sync with completions — without Home Keeper knowing anything about them. See
+[docs/INTEGRATING.md](docs/INTEGRATING.md) for the contract (the `source` field, the
+`home_keeper_task_completed` event, and two-way completion sync).
+
 ## Development
 
 - Backend: `custom_components/home_keeper/` (recurrence engine in `recurrence.py`).

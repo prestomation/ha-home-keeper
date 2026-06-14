@@ -25,6 +25,9 @@ from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
 
+# ``source`` is opaque provenance owned by the integration that created the task
+# (e.g. ``{"my_integration": {...}}``). Home Keeper stores and echoes it verbatim and
+# never inspects it. See docs/INTEGRATING.md.
 ADD_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("name"): cv.string,
@@ -36,6 +39,7 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("anchor"): cv.string,
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
+        vol.Optional("source"): dict,
     }
 )
 UPDATE_TASK_SCHEMA = vol.Schema(
@@ -50,11 +54,18 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("anchor"): cv.string,
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
+        vol.Optional("source"): dict,
     }
 )
 TASK_ID_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
+# ``origin`` is a free-form marker the caller passes so it can recognise (and ignore)
+# the completion event it triggered. Home Keeper only echoes it back in the event.
 COMPLETE_TASK_SCHEMA = vol.Schema(
-    {vol.Required("task_id"): cv.string, vol.Optional("completed_at"): cv.datetime}
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Optional("completed_at"): cv.datetime,
+        vol.Optional("origin"): cv.string,
+    }
 )
 
 # Structured part (wear item) for the add/update asset schema.
@@ -191,7 +202,9 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         try:
             await coord.store.complete_task(
-                call.data["task_id"], call.data.get("completed_at")
+                call.data["task_id"],
+                call.data.get("completed_at"),
+                origin=call.data.get("origin"),
             )
         except KeyError:
             raise ServiceValidationError(
