@@ -53,6 +53,8 @@ def _ancestor_depth(store: HomeKeeperStore, asset: dict[str, Any]) -> int:
         depth += 1
         parent = store.get_asset(cursor)
         cursor = parent.get("parent_asset_id") if parent else None
+    if cursor:  # would_create_cycle should prevent this; surface corrupt storage.
+        _LOGGER.error("Cyclic parent chain detected at asset %s", asset["id"])
     return depth
 
 
@@ -184,7 +186,11 @@ async def _reconcile_virtual(
             updates[field] = desired
     # Note the absence of a truthy guard on area_id: passing None propagates an
     # area *clear* to the device (a truthy-only check would strand the old area).
+    # Guard against a dangling area_id (the area was deleted in HA after it was
+    # assigned): async_update_device rejects an unknown area, so self-heal to None.
     area_id = asset.get("area_id") or None
+    if area_id and not area_exists(hass, area_id):
+        area_id = None
     if area_id != device.area_id:
         updates["area_id"] = area_id
     if device.configuration_url != _CONFIGURATION_URL:
@@ -195,6 +201,12 @@ async def _reconcile_virtual(
     if _supports_kwarg(registry.async_update_device, "via_device_id"):
         if device.via_device_id != parent_device_id:
             updates["via_device_id"] = parent_device_id
+    elif parent_asset_id and device.via_device_id is None:
+        _LOGGER.warning(
+            "This Home Assistant version can't update a device's parent after "
+            "creation; subdevice %s may not nest under its parent",
+            asset["id"],
+        )
     if updates:
         device = registry.async_update_device(device.id, **updates)
 

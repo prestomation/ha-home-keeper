@@ -271,7 +271,12 @@ export class HomeKeeperPanel extends HTMLElement {
     return payload;
   }
 
-  /** Sync the live form into the working edit state (before an add/remove re-render). */
+  /**
+   * Sync the live form into the working edit state.
+   * MUST be called before any mutation of `_assetEdit.asset.parts` that triggers a
+   * re-render (add/remove part, change part type) — otherwise the user's typed-but-
+   * unsubmitted input in the other fields is lost on the rebuild.
+   */
   private _syncAssetFormToState(): void {
     if (this._assetEdit.asset) {
       this._assetEdit.asset = { ...this._assetEdit.asset, ...this._collectAssetForm() };
