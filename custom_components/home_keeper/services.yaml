@@ -1,6 +1,8 @@
 add_task:
   name: Add task
-  description: Create a new maintenance task or chore.
+  description: >-
+    Create a new maintenance task or chore. Returns the created task's id as
+    {"task_id": ...} when called with return_response.
   fields:
     name:
       name: Name

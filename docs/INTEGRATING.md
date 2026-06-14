@@ -19,7 +19,7 @@ Keeper isn't installed, your calls are simply skipped.
 | You want to… | Do this |
 |---|---|
 | Create a recurring task | Call `home_keeper.add_task` with a `source` namespaced under your domain |
-| Learn the new task's id | Call `home_keeper.list_tasks` and match on your `source` |
+| Learn the new task's id | Read `task_id` from `add_task`'s response (`return_response=True`) |
 | React when a task is completed | Subscribe to the `home_keeper_task_completed` event |
 | Complete a task from your side | Call `home_keeper.complete_task` with a unique `origin` |
 | Avoid infinite loops | Filter the event by `origin`, and apply your side-effect without re-calling `complete_task` |
@@ -76,8 +76,19 @@ my_device_id = dev.id if dev else None  # omit device_id if None
 
 ## 2. Getting the task id back
 
-`add_task` does not return the created task. Fetch it afterwards with `list_tasks`
-(which returns a response) and match on your `source` namespace:
+`add_task` returns the new task's id in its service response. Call it with
+`return_response=True` and read `task_id`:
+
+```python
+resp = await hass.services.async_call(
+    DOMAIN_HK, "add_task", data, blocking=True, return_response=True
+)
+task_id = resp["task_id"]
+# Persist task_id on your side so you can complete/delete it later.
+```
+
+If you need to resolve an id you didn't capture (e.g. reconciling after a restart),
+`list_tasks` returns every task and you can match on your `source` namespace:
 
 ```python
 resp = await hass.services.async_call(
@@ -91,7 +102,6 @@ task_id = next(
     ),
     None,
 )
-# Persist task_id on your side so you can complete/delete it later.
 ```
 
 > Embed a unique id of your own (e.g. a `schedule_id` you generate) inside `source` so
@@ -217,7 +227,7 @@ weeks"):
 1. Pawsistant calls `add_task` with `recurrence_type="floating"`, `interval=2`,
    `unit="weeks"`, the pet's `device_id`, and
    `source={"pawsistant": {"dog_id": …, "event_type": "medicine", "schedule_id": …}}`,
-   then reads back the `task_id` via `list_tasks`.
+   and reads the `task_id` from the `add_task` response.
 2. **Complete in Home Keeper** (checkbox / device button) → `home_keeper_task_completed`
    fires with `origin=None`; Pawsistant logs a "medicine" event for that pet (writing
    straight to its store, so it doesn't re-complete the task).

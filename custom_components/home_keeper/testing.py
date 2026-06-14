@@ -57,9 +57,10 @@ class FakeHomeKeeper:
 
     # -- service handlers (names + shapes match the real integration) ---------
 
-    async def _add_task(self, call: ServiceCall) -> None:
+    async def _add_task(self, call: ServiceCall) -> dict[str, Any]:
         task = models.build_task(dict(call.data), now=dt_util.now())
         self.tasks[task["id"]] = task
+        return {"task_id": task["id"]}
 
     async def _update_task(self, call: ServiceCall) -> None:
         data = dict(call.data)
@@ -121,7 +122,13 @@ class FakeHomeKeeper:
 
     def register(self) -> None:
         reg = self.hass.services.async_register
-        reg(DOMAIN, "add_task", self._add_task, _ANY)
+        reg(
+            DOMAIN,
+            "add_task",
+            self._add_task,
+            _ANY,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
         reg(DOMAIN, "update_task", self._update_task, _ANY)
         reg(DOMAIN, "delete_task", self._delete_task, _ANY)
         reg(DOMAIN, "complete_task", self._complete_task, _ANY)

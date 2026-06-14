@@ -164,14 +164,15 @@ def _register_services(hass: HomeAssistant) -> None:
         if not devices.area_exists(hass, data.get("area_id")):
             raise ServiceValidationError(f"Unknown area_id: {data.get('area_id')}")
 
-    async def handle_add_task(call: ServiceCall) -> None:
+    async def handle_add_task(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
         _check_area(call.data)
         try:
-            await coord.store.add_task(dict(call.data))
+            task = await coord.store.add_task(dict(call.data))
         except TaskValidationError as err:
             raise ServiceValidationError(str(err)) from err
         await hass.config_entries.async_reload(coord.entry.entry_id)
+        return {"task_id": task["id"]}
 
     async def handle_update_task(call: ServiceCall) -> None:
         coord = _coordinator()
@@ -246,7 +247,13 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         return {"assets": coord.store.list_assets()}
 
-    hass.services.async_register(DOMAIN, "add_task", handle_add_task, ADD_TASK_SCHEMA)
+    hass.services.async_register(
+        DOMAIN,
+        "add_task",
+        handle_add_task,
+        ADD_TASK_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
     hass.services.async_register(
         DOMAIN, "update_task", handle_update_task, UPDATE_TASK_SCHEMA
     )
