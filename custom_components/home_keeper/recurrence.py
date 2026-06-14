@@ -237,7 +237,15 @@ def apply_completion(task: dict, completed_at: datetime, *, now: datetime) -> di
 
 
 def is_overdue(task: dict, *, now: datetime) -> bool:
-    """True when the task's next due date is at or before *now*."""
+    """True when the task's next due date is at or before *now*.
+
+    Convention: the due instant itself counts as overdue (``>=``). This pairs with
+    :func:`is_due_soon`'s strict ``now < next_due`` lower bound so the two states
+    partition cleanly at the boundary (no gap, no overlap). This is intentionally
+    *not* the strict ``>`` used by :func:`next_fixed_occurrence`, which serves a
+    different purpose (advancing to the next occurrence); a completion always sets
+    ``next_due`` strictly in the future, so a just-completed task is never overdue.
+    """
     next_due = _parse(task.get("next_due"))
     if next_due is None:
         return False

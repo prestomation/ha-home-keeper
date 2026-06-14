@@ -190,6 +190,10 @@ def _normalize_part(raw: Any) -> dict:
         if unit not in UNITS:
             raise AssetValidationError(f"invalid replace_unit: {unit!r}")
         part["replace_unit"] = unit
+    # A future "last replaced" would push the derived maintenance task far out and
+    # silently hide it; it can only be a past (or today's) date.
+    if part["last_replaced"] and date.fromisoformat(part["last_replaced"]) > date.today():
+        raise AssetValidationError("last_replaced must not be in the future")
     return part
 
 
@@ -198,7 +202,15 @@ def _normalize_parts(value: Any) -> list[dict]:
         return []
     if not isinstance(value, list):
         raise AssetValidationError("parts must be a list")
-    return [_normalize_part(p) for p in value]
+    parts = [_normalize_part(p) for p in value]
+    # Part ids must be unique: duplicates (from a misbehaving caller) would collapse
+    # derived tasks onto one key and mis-stamp replacements. Regenerate collisions.
+    seen: set[str] = set()
+    for part in parts:
+        if part["id"] in seen:
+            part["id"] = str(uuid.uuid4())
+        seen.add(part["id"])
+    return parts
 
 
 def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:

@@ -401,6 +401,13 @@ export class HomeKeeperPanel extends HTMLElement {
     const dueText = task.next_due
       ? ` · ${escapeHTML(t('form.task.due', { date: new Date(task.next_due).toLocaleDateString() }))}`
       : '';
+    // Tasks owned by an appliance wear part are managed by that part; editing or
+    // deleting them here is reverted on the next reconcile, so only offer "done".
+    const derived = Boolean(task.source?.part);
+    const manageBtns = derived
+      ? ''
+      : `<ha-icon-button class="edit-btn" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>
+            <ha-icon-button class="del-btn" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`;
     return `
       <ha-card class="hk-card" data-id="${escapeHTML(task.id)}">
         <div class="hk-card-row">
@@ -411,8 +418,7 @@ export class HomeKeeperPanel extends HTMLElement {
           </div>
           <div class="hk-card-actions">
             <ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>
-            <ha-icon-button class="edit-btn" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>
-            <ha-icon-button class="del-btn" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>
+            ${manageBtns}
           </div>
         </div>
       </ha-card>`;

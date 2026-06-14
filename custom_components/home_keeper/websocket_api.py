@@ -137,7 +137,11 @@ async def ws_delete_task(
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
-    await coord.store.delete_task(msg["task_id"])
+    try:
+        await coord.store.delete_task(msg["task_id"])
+    except TaskValidationError as err:
+        connection.send_error(msg["id"], "invalid_task", str(err))
+        return
     await hass.config_entries.async_reload(coord.entry.entry_id)
     connection.send_result(msg["id"], {"ok": True})
 

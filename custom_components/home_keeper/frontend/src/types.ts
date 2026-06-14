@@ -17,6 +17,9 @@ export interface Task {
   last_completed?: string | null;
   next_due?: string;
   completions?: { ts: string }[];
+  // Provenance for tasks derived/owned by another source (e.g. an appliance wear
+  // part). Such tasks are managed by their source, so the panel hides edit/delete.
+  source?: { part?: { asset_id: string; part_id: string } } | null;
 }
 
 export interface HassDevice {

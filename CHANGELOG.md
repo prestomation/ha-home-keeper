@@ -36,6 +36,16 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 - **Absurd intervals are rejected cleanly.** A recurrence interval or wear-part
   replacement interval large enough to overflow date math now returns a clear
   validation error instead of an internal server error.
+- **Wear-part maintenance tasks are managed only through their part.** They can no
+  longer be deleted directly (which previously did nothing useful — the next
+  reconcile recreated them); the panel hides edit/delete on these tasks and points
+  you to the appliance part instead. Completing one is preserved across reconciles.
+- **Editing a wear part's replacement interval no longer resets the clock.** The
+  due date now re-bases off the part's last-replaced date (or its creation), so
+  changing "every 3 months" to "every 4 months" extends the schedule instead of
+  restarting it from today.
+- **A future "last replaced" date is rejected**, and duplicate part identifiers are
+  regenerated, so a part's derived task can't be silently hidden or mis-stamped.
 
 ## [0.1.0b3] - 2026-06-14
 

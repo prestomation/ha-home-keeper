@@ -244,6 +244,50 @@ def test_parent_asset_id_only_for_virtual():
     assert existing["parent_asset_id"] is None
 
 
+def test_part_rejects_future_last_replaced():
+    from datetime import date, timedelta as _td
+
+    future = (date.today() + _td(days=30)).isoformat()
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset(
+            {"name": "Boiler", "parts": [{"name": "Anode", "last_replaced": future}]},
+            now=NOW,
+        )
+
+
+def test_part_allows_today_last_replaced():
+    from datetime import date
+
+    asset = a.build_asset(
+        {"name": "Boiler", "parts": [{"name": "Anode", "last_replaced": date.today().isoformat()}]},
+        now=NOW,
+    )
+    assert asset["parts"][0]["last_replaced"] == date.today().isoformat()
+
+
+def test_duplicate_part_ids_are_regenerated():
+    asset = a.build_asset(
+        {
+            "name": "Box",
+            "parts": [
+                {"id": "dup", "name": "A"},
+                {"id": "dup", "name": "B"},
+            ],
+        },
+        now=NOW,
+    )
+    ids = [p["id"] for p in asset["parts"]]
+    assert len(set(ids)) == 2, ids
+
+
+def test_oversized_replace_interval_rejected():
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset(
+            {"name": "Box", "parts": [{"name": "A", "type": "wear", "replace_interval": 10**9}]},
+            now=NOW,
+        )
+
+
 def test_related_device_ids_listified():
     asset = a.build_asset(
         {"name": "Piano", "related_device_ids": ["dev_a", "dev_b", ""]}, now=NOW
