@@ -1,3 +1,4 @@
+import { t, tn } from './i18n';
 import type { Asset, HassArea, Task } from './types';
 
 /** Escape user-provided text before injecting into innerHTML. */
@@ -14,18 +15,18 @@ export function escapeHTML(value: unknown): string {
 export function recurrenceSummary(task: Task): string {
   const n = task.interval || 1;
   if (task.recurrence_type === 'floating') {
-    const unit = task.unit || 'days';
-    const singular = unit.replace(/s$/, '');
-    const label = n === 1 ? `every ${singular}` : `every ${n} ${unit}`;
-    return `${label} after completion`;
+    const base = (task.unit || 'days').replace(/s$/, ''); // day / week / month
+    const unit = tn(`recurrence.unit.${base}`, n);
+    return tn('recurrence.floating', n, { unit });
   }
-  const freqWord: Record<string, string> = {
+  const freqBase: Record<string, string> = {
     DAILY: 'day',
     WEEKLY: 'week',
     MONTHLY: 'month',
   };
-  const word = freqWord[task.freq || 'DAILY'] || 'day';
-  return n === 1 ? `every ${word}` : `every ${n} ${word}s`;
+  const base = freqBase[task.freq || 'DAILY'] || 'day';
+  const unit = tn(`recurrence.unit.${base}`, n);
+  return tn('recurrence.fixed', n, { unit });
 }
 
 /** True when the task's next due date is at or before now. */
@@ -36,14 +37,14 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
 
 /** Compact relative description of a due date, e.g. "in 3 days" / "2 days ago". */
 export function dueLabel(task: Task, now: Date = new Date()): string {
-  if (!task.next_due) return '—';
+  if (!task.next_due) return t('due.none');
   const due = new Date(task.next_due);
   const diffMs = due.getTime() - now.getTime();
   const days = Math.round(diffMs / 86_400_000);
-  if (days === 0) return 'today';
-  if (days > 0) return days === 1 ? 'tomorrow' : `in ${days} days`;
+  if (days === 0) return t('due.today');
+  if (days > 0) return days === 1 ? t('due.tomorrow') : tn('due.in_days', days);
   const ago = Math.abs(days);
-  return ago === 1 ? 'yesterday' : `${ago} days ago`;
+  return ago === 1 ? t('due.yesterday') : tn('due.days_ago', ago);
 }
 
 /** Resolve a device id to its display name using hass.devices. */
@@ -76,8 +77,10 @@ export function assetSummary(
   if (makeModel) bits.push(makeModel);
   const area = areaName(areas, asset.area_id);
   if (area) bits.push(area);
-  if (asset.warranty_expiry) bits.push(`warranty to ${asset.warranty_expiry}`);
+  if (asset.warranty_expiry) {
+    bits.push(t('asset.warrantyTo', { date: asset.warranty_expiry }));
+  }
   const partCount = asset.parts?.length ?? 0;
-  if (partCount) bits.push(`${partCount} part${partCount === 1 ? '' : 's'}`);
-  return bits.length ? bits.join(' · ') : 'No details yet';
+  if (partCount) bits.push(tn('asset.parts', partCount));
+  return bits.length ? bits.join(' · ') : t('asset.noDetails');
 }

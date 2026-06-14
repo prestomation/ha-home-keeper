@@ -1,5 +1,6 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
+import { setLanguage, t, tn } from './i18n';
 import type { Asset, AssetKind, Hass, PanelInfo, Part, Task } from './types';
 import {
   assetSummary,
@@ -90,39 +91,6 @@ const STYLES = `
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
 `;
 
-// Human-readable labels for ha-form fields, keyed by schema `name`.
-const FIELD_LABELS: Record<string, string> = {
-  name: 'Name',
-  notes: 'Notes',
-  recurrence_type: 'Recurrence',
-  interval: 'Every',
-  unit: 'Unit',
-  freq: 'Frequency',
-  anchor: 'First occurrence (sets time of day)',
-  device_id: 'Attach to device',
-  area_id: 'Area',
-  kind: 'Type',
-  manufacturer: 'Manufacturer',
-  model: 'Model',
-  serial_number: 'Serial number',
-  icon: 'Icon',
-  parent_asset_id: 'Subdevice of (parent appliance)',
-  purchase_date: 'Purchase date',
-  install_date: 'Install date',
-  warranty_expiry: 'Warranty expiry',
-  warranty_provider: 'Warranty provider',
-  cost: 'Cost',
-  vendor: 'Vendor / where to rebuy',
-  manual_url: 'Manual / docs URL',
-  related_device_ids: 'Related devices',
-  part_name: 'Part',
-  part_number: 'Part #',
-  type: 'Type',
-  replace_interval: 'Replace every',
-  replace_unit: 'Unit',
-  last_replaced: 'Last replaced',
-};
-
 // Minimal shape of an `ha-form` element (only what we set/read).
 interface HaFormElement extends HTMLElement {
   hass?: Hass;
@@ -196,6 +164,8 @@ export class HomeKeeperPanel extends HTMLElement {
 
   set hass(hass: Hass) {
     const first = !this._hass;
+    // Keep the i18n module pointed at the user's HA language before any render.
+    setLanguage(hass.language);
     this._hass = hass;
     // Keep selectors/pickers current without a disruptive full re-render.
     for (const el of this._liveHassEls) el.hass = hass;
@@ -260,27 +230,27 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private async _submitForm(): Promise<void> {
     if (!this._hass || !this._edit.task) return;
-    const t = this._edit.task;
-    if (!t.name || !String(t.name).trim()) {
-      this._edit.error = 'Name is required';
+    const task = this._edit.task;
+    if (!task.name || !String(task.name).trim()) {
+      this._edit.error = t('error.nameRequired');
       this._render();
       return;
     }
     const payload: Partial<Task> = {
-      name: t.name,
-      notes: t.notes || '',
-      recurrence_type: t.recurrence_type,
-      interval: Math.max(1, Number(t.interval) || 1),
-      device_id: t.device_id || null,
+      name: task.name,
+      notes: task.notes || '',
+      recurrence_type: task.recurrence_type,
+      interval: Math.max(1, Number(task.interval) || 1),
+      device_id: task.device_id || null,
     };
-    if (t.recurrence_type === 'floating') {
-      payload.unit = t.unit || 'months';
+    if (task.recurrence_type === 'floating') {
+      payload.unit = task.unit || 'months';
     } else {
-      payload.freq = t.freq || 'DAILY';
-      payload.anchor = haDateTimeToIso(t.anchor) ?? t.anchor;
+      payload.freq = task.freq || 'DAILY';
+      payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
     }
     try {
-      if (t.id) await api.updateTask(this._hass, t.id, payload);
+      if (task.id) await api.updateTask(this._hass, task.id, payload);
       else await api.addTask(this._hass, payload);
       this._closeForm();
       await this._refresh();
@@ -319,12 +289,12 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!this._hass || !this._assetEdit.asset) return;
     const a = this._assetEdit.asset;
     if (a.kind === 'virtual' && !String(a.name || '').trim()) {
-      this._assetEdit.error = 'Name is required for a new appliance';
+      this._assetEdit.error = t('error.nameRequiredAppliance');
       this._render();
       return;
     }
     if (a.kind === 'existing' && !a.device_id) {
-      this._assetEdit.error = 'Pick a device';
+      this._assetEdit.error = t('error.pickDevice');
       this._render();
       return;
     }
@@ -352,7 +322,7 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!this.shadowRoot) return;
     this._liveHassEls = [];
     const onTasks = this._view === 'tasks';
-    const addLabel = onTasks ? 'Add task' : 'Add appliance';
+    const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
 
     const body = !this._loaded
       ? `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`
@@ -367,12 +337,12 @@ export class HomeKeeperPanel extends HTMLElement {
       <style>${STYLES}</style>
       <div class="hk-toolbar">
         <span id="menu-host"></span>
-        <div class="hk-toolbar-title">Home Keeper</div>
+        <div class="hk-toolbar-title">${escapeHTML(t('app.title'))}</div>
       </div>
       <div class="hk-wrap">
         <ha-tab-group>
-          <ha-tab-group-tab id="tab-tasks" panel="tasks" ${onTasks ? 'active' : ''}>Tasks</ha-tab-group-tab>
-          <ha-tab-group-tab id="tab-appliances" panel="appliances" ${onTasks ? '' : 'active'}>Appliances</ha-tab-group-tab>
+          <ha-tab-group-tab id="tab-tasks" panel="tasks" ${onTasks ? 'active' : ''}>${escapeHTML(t('tab.tasks'))}</ha-tab-group-tab>
+          <ha-tab-group-tab id="tab-appliances" panel="appliances" ${onTasks ? '' : 'active'}>${escapeHTML(t('tab.appliances'))}</ha-tab-group-tab>
         </ha-tab-group>
         ${body}
         <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
@@ -388,7 +358,8 @@ export class HomeKeeperPanel extends HTMLElement {
       return ad - bd;
     });
     if (!tasks.length) {
-      return `<ha-alert alert-type="info">No tasks yet. Click <b>Add task</b> to create your first maintenance reminder.</ha-alert>`;
+      const addTask = `<b>${escapeHTML(t('btn.addTask'))}</b>`;
+      return `<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;
     }
     return tasks.map((t) => this._taskCard(t)).join('');
   }
@@ -396,33 +367,34 @@ export class HomeKeeperPanel extends HTMLElement {
   private _assetsList(): string {
     const assets = [...this._assets].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     if (!assets.length) {
-      return `<ha-alert alert-type="info">No appliances yet. Add one to create a device page your tasks (and batteries) can share — fridge, furnace, water heater…</ha-alert>`;
+      return `<ha-alert alert-type="info">${escapeHTML(t('appliances.empty'))}</ha-alert>`;
     }
     return assets.map((x) => this._assetCard(x)).join('');
   }
 
-  private _taskCard(t: Task): string {
-    const overdue = isOverdue(t);
+  private _taskCard(task: Task): string {
+    const overdue = isOverdue(task);
     const statusChip = overdue
-      ? `<ha-assist-chip class="hk-overdue" label="Overdue"></ha-assist-chip>`
-      : `<ha-assist-chip label="${escapeHTML(dueLabel(t))}"></ha-assist-chip>`;
-    const dev = t.device_id
-      ? `<ha-assist-chip label="${escapeHTML(deviceName(this._hass?.devices, t.device_id))}"></ha-assist-chip>`
+      ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
+      : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
+    const dev = task.device_id
+      ? `<ha-assist-chip label="${escapeHTML(deviceName(this._hass?.devices, task.device_id))}"></ha-assist-chip>`
+      : '';
+    const dueText = task.next_due
+      ? ` · ${escapeHTML(t('form.task.due', { date: new Date(task.next_due).toLocaleDateString() }))}`
       : '';
     return `
-      <ha-card class="hk-card" data-id="${escapeHTML(t.id)}">
+      <ha-card class="hk-card" data-id="${escapeHTML(task.id)}">
         <div class="hk-card-row">
           <div class="grow">
-            <div class="hk-name">${escapeHTML(t.name)}</div>
-            <div class="hk-meta">${escapeHTML(recurrenceSummary(t))}${
-              t.next_due ? ` · due ${escapeHTML(new Date(t.next_due).toLocaleDateString())}` : ''
-            }</div>
+            <div class="hk-name">${escapeHTML(task.name)}</div>
+            <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}</div>
             <div class="hk-chips">${statusChip}${dev}</div>
           </div>
           <div class="hk-card-actions">
-            <ha-button class="done-btn" data-id="${escapeHTML(t.id)}">Done</ha-button>
-            <ha-icon-button class="edit-btn" data-id="${escapeHTML(t.id)}" label="Edit"></ha-icon-button>
-            <ha-icon-button class="del-btn" data-id="${escapeHTML(t.id)}" label="Delete"></ha-icon-button>
+            <ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>
+            <ha-icon-button class="edit-btn" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>
+            <ha-icon-button class="del-btn" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>
           </div>
         </div>
       </ha-card>`;
@@ -431,16 +403,23 @@ export class HomeKeeperPanel extends HTMLElement {
   private _assetCard(x: Asset): string {
     const kindChip =
       x.kind === 'virtual'
-        ? `<ha-assist-chip label="Virtual device"></ha-assist-chip>`
+        ? `<ha-assist-chip label="${escapeHTML(t('chip.virtualDevice'))}"></ha-assist-chip>`
         : `<ha-assist-chip label="${escapeHTML(deviceName(this._hass?.devices, x.device_id))}"></ha-assist-chip>`;
-    const title = x.name || deviceName(this._hass?.devices, x.device_id) || 'Appliance';
+    const title =
+      x.name || deviceName(this._hass?.devices, x.device_id) || t('appliance.fallbackName');
     const subCount = this._assets.filter((a) => a.parent_asset_id === x.id).length;
     const relCount = x.related_device_ids?.length ?? 0;
     const extra = [
-      subCount ? `<ha-assist-chip label="${subCount} subdevice${subCount === 1 ? '' : 's'}"></ha-assist-chip>` : '',
-      relCount ? `<ha-assist-chip label="${relCount} related"></ha-assist-chip>` : '',
+      subCount
+        ? `<ha-assist-chip label="${escapeHTML(tn('asset.subdevices', subCount))}"></ha-assist-chip>`
+        : '',
+      relCount
+        ? `<ha-assist-chip label="${escapeHTML(tn('asset.related', relCount))}"></ha-assist-chip>`
+        : '',
       x.parent_asset_id
-        ? `<ha-assist-chip label="subdevice of ${escapeHTML(this._assetName(x.parent_asset_id))}"></ha-assist-chip>`
+        ? `<ha-assist-chip label="${escapeHTML(
+            t('chip.subdeviceOf', { name: this._assetName(x.parent_asset_id) }),
+          )}"></ha-assist-chip>`
         : '',
     ].join('');
     return `
@@ -452,8 +431,8 @@ export class HomeKeeperPanel extends HTMLElement {
             <div class="hk-chips">${kindChip}${extra}</div>
           </div>
           <div class="hk-card-actions">
-            <ha-icon-button class="asset-edit-btn" data-id="${escapeHTML(x.id)}" label="Edit"></ha-icon-button>
-            <ha-icon-button class="asset-del-btn" data-id="${escapeHTML(x.id)}" label="Delete"></ha-icon-button>
+            <ha-icon-button class="asset-edit-btn" data-id="${escapeHTML(x.id)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>
+            <ha-icon-button class="asset-del-btn" data-id="${escapeHTML(x.id)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>
           </div>
         </div>
       </ha-card>`;
@@ -464,8 +443,8 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   // ── ha-form schemas ─────────────────────────────────────────────────────────
-  private _taskSchema(t: Partial<Task>): FormField[] {
-    const isFixed = t.recurrence_type === 'fixed';
+  private _taskSchema(task: Partial<Task>): FormField[] {
+    const isFixed = task.recurrence_type === 'fixed';
     const cadence: FormField = isFixed
       ? {
           name: '',
@@ -475,9 +454,9 @@ export class HomeKeeperPanel extends HTMLElement {
             {
               name: 'freq',
               selector: selSelect([
-                { value: 'DAILY', label: 'daily' },
-                { value: 'WEEKLY', label: 'weekly' },
-                { value: 'MONTHLY', label: 'monthly' },
+                { value: 'DAILY', label: t('opt.freq.daily') },
+                { value: 'WEEKLY', label: t('opt.freq.weekly') },
+                { value: 'MONTHLY', label: t('opt.freq.monthly') },
               ]),
             },
           ],
@@ -490,9 +469,9 @@ export class HomeKeeperPanel extends HTMLElement {
             {
               name: 'unit',
               selector: selSelect([
-                { value: 'days', label: 'days' },
-                { value: 'weeks', label: 'weeks' },
-                { value: 'months', label: 'months' },
+                { value: 'days', label: t('opt.unit.days') },
+                { value: 'weeks', label: t('opt.unit.weeks') },
+                { value: 'months', label: t('opt.unit.months') },
               ]),
             },
           ],
@@ -503,8 +482,8 @@ export class HomeKeeperPanel extends HTMLElement {
       {
         name: 'recurrence_type',
         selector: selSelect([
-          { value: 'floating', label: 'Floating (from completion)' },
-          { value: 'fixed', label: 'Fixed (anchored schedule)' },
+          { value: 'floating', label: t('opt.recurrence.floating') },
+          { value: 'fixed', label: t('opt.recurrence.fixed') },
         ]),
       },
       cadence,
@@ -557,8 +536,8 @@ export class HomeKeeperPanel extends HTMLElement {
       fields.push({
         name: 'kind',
         selector: selSelect([
-          { value: 'virtual', label: 'New appliance (Home Keeper creates a device)' },
-          { value: 'existing', label: 'Existing device (add details to it)' },
+          { value: 'virtual', label: t('opt.kind.virtual') },
+          { value: 'existing', label: t('opt.kind.existing') },
         ]),
       });
     }
@@ -630,8 +609,8 @@ export class HomeKeeperPanel extends HTMLElement {
           {
             name: 'type',
             selector: selSelect([
-              { value: 'consumable', label: 'consumable' },
-              { value: 'wear', label: 'wear item' },
+              { value: 'consumable', label: t('opt.part.consumable') },
+              { value: 'wear', label: t('opt.part.wear') },
             ]),
           },
         ],
@@ -654,9 +633,9 @@ export class HomeKeeperPanel extends HTMLElement {
           {
             name: 'replace_unit',
             selector: selSelect([
-              { value: 'days', label: 'days' },
-              { value: 'weeks', label: 'weeks' },
-              { value: 'months', label: 'months' },
+              { value: 'days', label: t('opt.unit.days') },
+              { value: 'weeks', label: t('opt.unit.weeks') },
+              { value: 'months', label: t('opt.unit.months') },
             ]),
           },
         ],
@@ -727,7 +706,7 @@ export class HomeKeeperPanel extends HTMLElement {
     form.hass = this._hass;
     form.schema = schema;
     form.data = data;
-    form.computeLabel = (s: { name: string }): string => FIELD_LABELS[s.name] ?? s.name;
+    form.computeLabel = (s: { name: string }): string => (s.name ? t('field.' + s.name) : '');
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
       onChange(value);
@@ -737,15 +716,17 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _renderTaskForm(host: HTMLElement): void {
-    const t = this._edit.task || {};
+    const task = this._edit.task || {};
     const card = document.createElement('ha-card');
     card.className = 'hk-form-card';
     card.id = 'hk-form';
     const inner = document.createElement('div');
     inner.className = 'hk-form-inner';
-    inner.innerHTML = `<div class="hk-form-title">${t.id ? 'Edit task' : 'New task'}</div>`;
+    inner.innerHTML = `<div class="hk-form-title">${escapeHTML(
+      task.id ? t('form.task.edit') : t('form.task.new'),
+    )}</div>`;
 
-    const form = this._makeForm(this._taskSchema(t), this._taskFormData(t), (value) => {
+    const form = this._makeForm(this._taskSchema(task), this._taskFormData(task), (value) => {
       const prevType = this._edit.task?.recurrence_type;
       this._edit.task = {
         ...this._edit.task,
@@ -771,11 +752,11 @@ export class HomeKeeperPanel extends HTMLElement {
     const save = document.createElement('ha-button');
     save.setAttribute('raised', '');
     save.id = 'f-save';
-    save.textContent = t.id ? 'Save' : 'Create';
+    save.textContent = task.id ? t('btn.save') : t('btn.create');
     save.addEventListener('click', () => void this._submitForm());
     const cancel = document.createElement('ha-button');
     cancel.id = 'f-cancel';
-    cancel.textContent = 'Cancel';
+    cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeForm());
     actions.append(save, cancel);
     inner.appendChild(actions);
@@ -792,7 +773,9 @@ export class HomeKeeperPanel extends HTMLElement {
     card.id = 'hk-asset-form';
     const inner = document.createElement('div');
     inner.className = 'hk-form-inner';
-    inner.innerHTML = `<div class="hk-form-title">${editing ? 'Edit appliance' : 'New appliance'}</div>`;
+    inner.innerHTML = `<div class="hk-form-title">${escapeHTML(
+      editing ? t('form.appliance.edit') : t('form.appliance.new'),
+    )}</div>`;
 
     const mergeAsset = (value: Record<string, unknown>): void => {
       this._assetEdit.asset = { ...this._assetEdit.asset, ...value } as Partial<Asset>;
@@ -821,7 +804,7 @@ export class HomeKeeperPanel extends HTMLElement {
     );
     inner.appendChild(identity);
 
-    inner.appendChild(this._section('Ownership & warranty'));
+    inner.appendChild(this._section(t('section.ownership')));
     inner.appendChild(
       this._makeForm(
         this._ownershipSchema(),
@@ -839,7 +822,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
     this._renderPartsEditor(inner);
 
-    inner.appendChild(this._section('Related devices'));
+    inner.appendChild(this._section(t('section.related')));
     inner.appendChild(
       this._makeForm(
         [{ name: 'related_device_ids', selector: selDevice(true) }],
@@ -848,7 +831,7 @@ export class HomeKeeperPanel extends HTMLElement {
       ),
     );
 
-    inner.appendChild(this._section('Reference'));
+    inner.appendChild(this._section(t('section.reference')));
     inner.appendChild(
       this._makeForm(
         this._referenceSchema(),
@@ -869,11 +852,11 @@ export class HomeKeeperPanel extends HTMLElement {
     const save = document.createElement('ha-button');
     save.setAttribute('raised', '');
     save.id = 'a-save';
-    save.textContent = editing ? 'Save' : 'Create';
+    save.textContent = editing ? t('btn.save') : t('btn.create');
     save.addEventListener('click', () => void this._submitAssetForm());
     const cancel = document.createElement('ha-button');
     cancel.id = 'a-cancel';
-    cancel.textContent = 'Cancel';
+    cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeAssetForm());
     actions.append(save, cancel);
     inner.appendChild(actions);
@@ -883,7 +866,7 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _renderPartsEditor(inner: HTMLElement): void {
-    inner.appendChild(this._section('Parts & wear items'));
+    inner.appendChild(this._section(t('section.parts')));
     const parts = this._assetEdit.asset?.parts || [];
     parts.forEach((p, i) => {
       const box = document.createElement('div');
@@ -891,10 +874,10 @@ export class HomeKeeperPanel extends HTMLElement {
       box.dataset.idx = String(i);
       const head = document.createElement('div');
       head.className = 'hk-part-head';
-      head.innerHTML = `<span class="label">Part ${i + 1}</span>`;
+      head.innerHTML = `<span class="label">${escapeHTML(t('section.part_n', { n: i + 1 }))}</span>`;
       const del = document.createElement('ha-icon-button');
       del.className = 'part-del';
-      del.setAttribute('label', 'Remove part');
+      del.setAttribute('label', t('btn.removePart'));
       del.addEventListener('click', () => {
         const list = this._assetEdit.asset?.parts || [];
         this._assetEdit.asset!.parts = list.filter((_, j) => j !== i);
@@ -944,12 +927,12 @@ export class HomeKeeperPanel extends HTMLElement {
       if (p.last_replaced) {
         const note = document.createElement('div');
         note.className = 'hk-meta';
-        note.textContent = `Last replaced ${p.last_replaced} · a maintenance task tracks the next one`;
+        note.textContent = t('part.lastReplaced', { date: p.last_replaced });
         box.appendChild(note);
       } else if (p.type === 'wear') {
         const note = document.createElement('div');
         note.className = 'hk-meta';
-        note.textContent = 'A wear item with an interval creates a maintenance task on this appliance.';
+        note.textContent = t('part.wearHint');
         box.appendChild(note);
       }
       inner.appendChild(box);
@@ -957,7 +940,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
     const add = document.createElement('ha-button');
     add.id = 'a-add-part';
-    add.textContent = '+ Add part';
+    add.textContent = t('btn.addPart');
     add.addEventListener('click', () => {
       const list = [...(this._assetEdit.asset?.parts || [])];
       list.push({ name: '', type: 'consumable' });

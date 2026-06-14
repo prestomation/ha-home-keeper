@@ -1,0 +1,238 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Stel Home Keeper in om huisonderhoud en klusjes bij te houden. Beheer je taken vanuit het Home Keeper-paneel in de zijbalk."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper is al ingesteld."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Taak toevoegen",
+      "description": "Maak een nieuwe onderhoudstaak of klus aan.",
+      "fields": {
+        "name": {
+          "name": "Naam",
+          "description": "Weergavenaam van de taak."
+        },
+        "notes": {
+          "name": "Notities",
+          "description": "Optionele vrije tekstnotities."
+        },
+        "recurrence_type": {
+          "name": "Herhalingstype",
+          "description": "floating (gemeten vanaf voltooiing) of fixed (verankerd schema)."
+        },
+        "interval": {
+          "name": "Interval",
+          "description": "Herhaal elke N eenheden (floating) of stappen (fixed)."
+        },
+        "unit": {
+          "name": "Eenheid",
+          "description": "Voor floating-taken: days, weeks of months."
+        },
+        "freq": {
+          "name": "Frequentie",
+          "description": "Voor fixed-taken: DAILY, WEEKLY of MONTHLY."
+        },
+        "anchor": {
+          "name": "Anker",
+          "description": "Voor fixed-taken: ISO-datum/tijd van de eerste keer (stelt het tijdstip van de dag in)."
+        },
+        "device_id": {
+          "name": "Apparaat",
+          "description": "Optioneel apparaat om deze taak aan te koppelen."
+        },
+        "area_id": {
+          "name": "Gebied",
+          "description": "Optioneel gebied om aan deze taak te koppelen."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Taak bijwerken",
+      "description": "Werk velden van een bestaande taak bij.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "De id van de bij te werken taak."
+        },
+        "name": {
+          "name": "Naam",
+          "description": "Nieuwe weergavenaam."
+        },
+        "notes": {
+          "name": "Notities",
+          "description": "Nieuwe notities."
+        },
+        "recurrence_type": {
+          "name": "Herhalingstype",
+          "description": "floating of fixed."
+        },
+        "interval": {
+          "name": "Interval",
+          "description": "Herhaal elke N eenheden/stappen."
+        },
+        "unit": {
+          "name": "Eenheid",
+          "description": "days, weeks of months (floating)."
+        },
+        "freq": {
+          "name": "Frequentie",
+          "description": "DAILY, WEEKLY of MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Anker",
+          "description": "ISO-datum/tijd van de eerste keer (fixed)."
+        },
+        "device_id": {
+          "name": "Apparaat",
+          "description": "Apparaat om deze taak aan te koppelen."
+        },
+        "area_id": {
+          "name": "Gebied",
+          "description": "Gebied om aan deze taak te koppelen."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Taak verwijderen",
+      "description": "Een taak verwijderen.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "De id van de te verwijderen taak."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Taak voltooien",
+      "description": "Markeer een taak als voltooid en zet de herhaling vooruit.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "De id van de te voltooien taak."
+        },
+        "completed_at": {
+          "name": "Voltooid op",
+          "description": "Optionele voltooiingstijdstempel (standaard nu)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "Taken weergeven",
+      "description": "Geeft alle taken als antwoord terug."
+    },
+    "add_asset": {
+      "name": "Apparaat toevoegen",
+      "description": "Registreer een apparaat/asset. Standaard maakt Home Keeper hiervoor een virtueel apparaat aan; stel kind in op existing om metadata aan een apparaat van een andere integratie te koppelen.",
+      "fields": {
+        "name": {
+          "name": "Naam",
+          "description": "Weergavenaam (vereist voor een nieuw virtueel apparaat)."
+        },
+        "kind": {
+          "name": "Soort",
+          "description": "virtual (Home Keeper maakt het apparaat aan) of existing (koppelen aan een bestaand apparaat)."
+        },
+        "device_id": {
+          "name": "Apparaat",
+          "description": "Bestaand apparaat om metadata aan te koppelen (vereist wanneer kind existing is)."
+        },
+        "area_id": {
+          "name": "Gebied",
+          "description": "Optioneel gebied voor het apparaat."
+        },
+        "manufacturer": { "name": "Fabrikant", "description": "Fabrikant van het apparaat." },
+        "model": { "name": "Model", "description": "Modelnaam of -nummer." },
+        "serial_number": { "name": "Serienummer", "description": "Serienummer." },
+        "manufacture_date": { "name": "Productiedatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Aankoopdatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "install_date": { "name": "Installatiedatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Vervaldatum garantie",
+          "description": "ISO-datum (YYYY-MM-DD). Weergegeven als datumsensor op het apparaat."
+        },
+        "warranty_provider": { "name": "Garantieverstrekker", "description": "Wie de garantie nakomt." },
+        "vendor": { "name": "Leverancier", "description": "Waar opnieuw te kopen / serviceprovider." },
+        "cost": { "name": "Kosten", "description": "Aankoopprijs." },
+        "manual_url": { "name": "Handleiding-URL", "description": "Link naar de handleiding of documentatie." },
+        "icon": { "name": "Pictogram", "description": "Optioneel mdi-pictogram (bijv. mdi:piano)." },
+        "parts": { "name": "Onderdelen", "description": "Gestructureerde onderdelen/slijtdelen; slijtdelen met een interval sturen een onderhoudstaak aan." },
+        "parent_asset_id": { "name": "Bovenliggend apparaat", "description": "Maak hiervan een subapparaat van een ander apparaat." },
+        "related_device_ids": { "name": "Gerelateerde apparaten", "description": "Andere registerapparaten om aan dit apparaat te koppelen." },
+        "notes": { "name": "Notities", "description": "Vrije tekstnotities." }
+      }
+    },
+    "update_asset": {
+      "name": "Apparaat bijwerken",
+      "description": "Werk velden van een bestaand apparaat/asset bij.",
+      "fields": {
+        "asset_id": { "name": "Asset-ID", "description": "De id van het bij te werken asset." },
+        "name": { "name": "Naam", "description": "Nieuwe weergavenaam." },
+        "device_id": { "name": "Apparaat", "description": "Een asset met bestaand apparaat opnieuw toewijzen." },
+        "area_id": { "name": "Gebied", "description": "Gebied voor het apparaat." },
+        "manufacturer": { "name": "Fabrikant", "description": "Fabrikant van het apparaat." },
+        "model": { "name": "Model", "description": "Modelnaam of -nummer." },
+        "serial_number": { "name": "Serienummer", "description": "Serienummer." },
+        "manufacture_date": { "name": "Productiedatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Aankoopdatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "install_date": { "name": "Installatiedatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Vervaldatum garantie", "description": "ISO-datum (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Garantieverstrekker", "description": "Wie de garantie nakomt." },
+        "vendor": { "name": "Leverancier", "description": "Waar opnieuw te kopen / serviceprovider." },
+        "cost": { "name": "Kosten", "description": "Aankoopprijs." },
+        "manual_url": { "name": "Handleiding-URL", "description": "Link naar de handleiding of documentatie." },
+        "icon": { "name": "Pictogram", "description": "Optioneel mdi-pictogram (bijv. mdi:piano)." },
+        "parts": { "name": "Onderdelen", "description": "Gestructureerde onderdelen/slijtdelen; slijtdelen met een interval sturen een onderhoudstaak aan." },
+        "parent_asset_id": { "name": "Bovenliggend apparaat", "description": "Maak hiervan een subapparaat van een ander apparaat." },
+        "related_device_ids": { "name": "Gerelateerde apparaten", "description": "Andere registerapparaten om aan dit apparaat te koppelen." },
+        "notes": { "name": "Notities", "description": "Vrije tekstnotities." }
+      }
+    },
+    "delete_asset": {
+      "name": "Apparaat verwijderen",
+      "description": "Een apparaat/asset verwijderen. Het virtuele apparaat (indien aanwezig) wordt verwijderd en taken die eraan gekoppeld zijn worden zelfstandig.",
+      "fields": {
+        "asset_id": { "name": "Asset-ID", "description": "De id van het te verwijderen asset." }
+      }
+    },
+    "list_assets": {
+      "name": "Apparaten weergeven",
+      "description": "Geeft alle apparaten/assets als antwoord terug."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": {
+        "name": "Volgende vervaldatum"
+      },
+      "manufacture_date": {
+        "name": "Productiedatum"
+      },
+      "purchase_date": {
+        "name": "Aankoopdatum"
+      },
+      "install_date": {
+        "name": "Installatiedatum"
+      },
+      "warranty_expiry": {
+        "name": "Vervaldatum garantie"
+      }
+    },
+    "binary_sensor": {
+      "overdue": {
+        "name": "Te laat"
+      }
+    },
+    "button": {
+      "mark_done": {
+        "name": "Als klaar markeren"
+      }
+    }
+  }
+}

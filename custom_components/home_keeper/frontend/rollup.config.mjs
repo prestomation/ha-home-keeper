@@ -1,3 +1,4 @@
+import json from '@rollup/plugin-json';
 import typescript from '@rollup/plugin-typescript';
 import virtual from '@rollup/plugin-virtual';
 import { readFileSync } from 'fs';
@@ -30,6 +31,8 @@ export default {
     banner: `/**\n * Home Keeper panel — home maintenance & chores for Home Assistant.\n * Bundled with the Home Keeper integration — no manual setup required.\n * Version: ${PANEL_VERSION}\n * Built: ${new Date().toISOString().split('T')[0]}\n */`,
   },
   plugins: [
+    // Inline locale JSON into the single IIFE bundle (no runtime fetch).
+    json({ compact: true }),
     typescript({ tsconfig: './tsconfig.json' }),
     virtual({
       'panel-version': `export const PANEL_VERSION = '${PANEL_VERSION}';`,

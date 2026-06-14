@@ -1,0 +1,224 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Nastavte Home Keeper pro sledování údržby domácnosti a domácích prací. Spravujte své úkoly z panelu Home Keeper v postranním panelu."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper je již nastaven."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Přidat úkol",
+      "description": "Vytvořit nový úkol údržby nebo domácí práci.",
+      "fields": {
+        "name": {
+          "name": "Název",
+          "description": "Zobrazovaný název úkolu."
+        },
+        "notes": {
+          "name": "Poznámky",
+          "description": "Volitelné poznámky ve volném textu."
+        },
+        "recurrence_type": {
+          "name": "Typ opakování",
+          "description": "floating (měřeno od dokončení) nebo fixed (ukotvený rozvrh)."
+        },
+        "interval": {
+          "name": "Interval",
+          "description": "Opakovat každých N jednotek (floating) nebo kroků (fixed)."
+        },
+        "unit": {
+          "name": "Jednotka",
+          "description": "Pro plovoucí úkoly: days, weeks nebo months."
+        },
+        "freq": {
+          "name": "Frekvence",
+          "description": "Pro pevné úkoly: DAILY, WEEKLY nebo MONTHLY."
+        },
+        "anchor": {
+          "name": "Kotva",
+          "description": "Pro pevné úkoly: ISO datum a čas prvního výskytu (nastaví denní čas)."
+        },
+        "device_id": {
+          "name": "Zařízení",
+          "description": "Volitelné zařízení, ke kterému se tento úkol připojí."
+        },
+        "area_id": {
+          "name": "Oblast",
+          "description": "Volitelná oblast, kterou lze přiřadit k tomuto úkolu."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Aktualizovat úkol",
+      "description": "Aktualizovat pole existujícího úkolu.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu, který se má aktualizovat."
+        },
+        "name": {
+          "name": "Název",
+          "description": "Nový zobrazovaný název."
+        },
+        "notes": {
+          "name": "Poznámky",
+          "description": "Nové poznámky."
+        },
+        "recurrence_type": {
+          "name": "Typ opakování",
+          "description": "floating nebo fixed."
+        },
+        "interval": {
+          "name": "Interval",
+          "description": "Opakovat každých N jednotek/kroků."
+        },
+        "unit": {
+          "name": "Jednotka",
+          "description": "days, weeks nebo months (floating)."
+        },
+        "freq": {
+          "name": "Frekvence",
+          "description": "DAILY, WEEKLY nebo MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Kotva",
+          "description": "ISO datum a čas prvního výskytu (fixed)."
+        },
+        "device_id": {
+          "name": "Zařízení",
+          "description": "Zařízení, ke kterému se tento úkol připojí."
+        },
+        "area_id": {
+          "name": "Oblast",
+          "description": "Oblast, kterou lze přiřadit k tomuto úkolu."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Smazat úkol",
+      "description": "Smazat úkol.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu, který se má smazat."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Dokončit úkol",
+      "description": "Označit úkol jako dokončený a posunout jeho opakování.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu, který se má dokončit."
+        },
+        "completed_at": {
+          "name": "Dokončeno v",
+          "description": "Volitelný časový údaj dokončení (výchozí je nyní)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "Vypsat úkoly",
+      "description": "Vrátit všechny úkoly jako odpověď."
+    },
+    "add_asset": {
+      "name": "Přidat spotřebič",
+      "description": "Zaregistrovat spotřebič/majetek. Ve výchozím nastavení Home Keeper vytvoří virtuální zařízení; nastavte kind na existing pro připojení metadat k zařízení z jiné integrace.",
+      "fields": {
+        "name": {
+          "name": "Název",
+          "description": "Zobrazovaný název (povinný pro nové virtuální zařízení)."
+        },
+        "kind": {
+          "name": "Druh",
+          "description": "virtual (Home Keeper vytvoří zařízení) nebo existing (připojit k existujícímu)."
+        },
+        "device_id": {
+          "name": "Zařízení",
+          "description": "Existující zařízení, ke kterému se připojí metadata (povinné, když je kind existing)."
+        },
+        "area_id": {
+          "name": "Oblast",
+          "description": "Volitelná oblast pro spotřebič."
+        },
+        "manufacturer": { "name": "Výrobce", "description": "Výrobce spotřebiče." },
+        "model": { "name": "Model", "description": "Název nebo číslo modelu." },
+        "serial_number": { "name": "Sériové číslo", "description": "Sériové číslo." },
+        "manufacture_date": { "name": "Datum výroby", "description": "ISO datum (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Datum nákupu", "description": "ISO datum (YYYY-MM-DD)." },
+        "install_date": { "name": "Datum instalace", "description": "ISO datum (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Konec záruky",
+          "description": "ISO datum (YYYY-MM-DD). Zobrazí se jako datumový senzor na zařízení."
+        },
+        "warranty_provider": { "name": "Poskytovatel záruky", "description": "Kdo poskytuje záruku." },
+        "vendor": { "name": "Prodejce", "description": "Kde znovu koupit / poskytovatel servisu." },
+        "cost": { "name": "Cena", "description": "Pořizovací cena." },
+        "manual_url": { "name": "URL manuálu", "description": "Odkaz na manuál nebo dokumentaci." },
+        "icon": { "name": "Ikona", "description": "Volitelná mdi ikona (např. mdi:piano)." },
+        "parts": { "name": "Díly", "description": "Strukturované díly/opotřebitelné položky; opotřebitelné položky s intervalem řídí úkol údržby." },
+        "parent_asset_id": { "name": "Nadřazený spotřebič", "description": "Udělat z tohoto podzařízení jiného spotřebiče." },
+        "related_device_ids": { "name": "Související zařízení", "description": "Další zařízení z registru, která se přiřadí k tomuto spotřebiči." },
+        "notes": { "name": "Poznámky", "description": "Poznámky ve volném textu." }
+      }
+    },
+    "update_asset": {
+      "name": "Aktualizovat spotřebič",
+      "description": "Aktualizovat pole existujícího spotřebiče/majetku.",
+      "fields": {
+        "asset_id": { "name": "ID majetku", "description": "ID majetku, který se má aktualizovat." },
+        "name": { "name": "Název", "description": "Nový zobrazovaný název." },
+        "device_id": { "name": "Zařízení", "description": "Přesměrovat majetek existujícího zařízení." },
+        "area_id": { "name": "Oblast", "description": "Oblast pro spotřebič." },
+        "manufacturer": { "name": "Výrobce", "description": "Výrobce spotřebiče." },
+        "model": { "name": "Model", "description": "Název nebo číslo modelu." },
+        "serial_number": { "name": "Sériové číslo", "description": "Sériové číslo." },
+        "manufacture_date": { "name": "Datum výroby", "description": "ISO datum (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Datum nákupu", "description": "ISO datum (YYYY-MM-DD)." },
+        "install_date": { "name": "Datum instalace", "description": "ISO datum (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Konec záruky", "description": "ISO datum (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Poskytovatel záruky", "description": "Kdo poskytuje záruku." },
+        "vendor": { "name": "Prodejce", "description": "Kde znovu koupit / poskytovatel servisu." },
+        "cost": { "name": "Cena", "description": "Pořizovací cena." },
+        "manual_url": { "name": "URL manuálu", "description": "Odkaz na manuál nebo dokumentaci." },
+        "icon": { "name": "Ikona", "description": "Volitelná mdi ikona (např. mdi:piano)." },
+        "parts": { "name": "Díly", "description": "Strukturované díly/opotřebitelné položky; opotřebitelné položky s intervalem řídí úkol údržby." },
+        "parent_asset_id": { "name": "Nadřazený spotřebič", "description": "Udělat z tohoto podzařízení jiného spotřebiče." },
+        "related_device_ids": { "name": "Související zařízení", "description": "Další zařízení z registru, která se přiřadí k tomuto spotřebiči." },
+        "notes": { "name": "Poznámky", "description": "Poznámky ve volném textu." }
+      }
+    },
+    "delete_asset": {
+      "name": "Smazat spotřebič",
+      "description": "Smazat spotřebič/majetek. Jeho virtuální zařízení (pokud existuje) je odstraněno a úkoly k němu připojené se osamostatní.",
+      "fields": {
+        "asset_id": { "name": "ID majetku", "description": "ID majetku, který se má smazat." }
+      }
+    },
+    "list_assets": {
+      "name": "Vypsat spotřebiče",
+      "description": "Vrátit všechny spotřebiče/majetek jako odpověď."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": { "name": "Příští termín" },
+      "manufacture_date": { "name": "Datum výroby" },
+      "purchase_date": { "name": "Datum nákupu" },
+      "install_date": { "name": "Datum instalace" },
+      "warranty_expiry": { "name": "Konec záruky" }
+    },
+    "binary_sensor": {
+      "overdue": { "name": "Po termínu" }
+    },
+    "button": {
+      "mark_done": { "name": "Označit jako hotové" }
+    }
+  }
+}

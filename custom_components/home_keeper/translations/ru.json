@@ -1,0 +1,224 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Настройте Home Keeper для отслеживания обслуживания дома и домашних дел. Управляйте задачами на панели Home Keeper в боковом меню."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper уже настроен."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Добавить задачу",
+      "description": "Создать новую задачу обслуживания или домашнее дело.",
+      "fields": {
+        "name": {
+          "name": "Название",
+          "description": "Отображаемое название задачи."
+        },
+        "notes": {
+          "name": "Заметки",
+          "description": "Необязательные произвольные заметки."
+        },
+        "recurrence_type": {
+          "name": "Тип повторения",
+          "description": "floating (отсчитывается от завершения) или fixed (привязанное расписание)."
+        },
+        "interval": {
+          "name": "Интервал",
+          "description": "Повторять каждые N единиц (floating) или шагов (fixed)."
+        },
+        "unit": {
+          "name": "Единица",
+          "description": "Для плавающих задач: days, weeks или months."
+        },
+        "freq": {
+          "name": "Частота",
+          "description": "Для фиксированных задач: DAILY, WEEKLY или MONTHLY."
+        },
+        "anchor": {
+          "name": "Привязка",
+          "description": "Для фиксированных задач: дата и время первого выполнения в формате ISO (задаёт время суток)."
+        },
+        "device_id": {
+          "name": "Устройство",
+          "description": "Необязательное устройство, к которому привязывается эта задача."
+        },
+        "area_id": {
+          "name": "Зона",
+          "description": "Необязательная зона, связываемая с этой задачей."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Обновить задачу",
+      "description": "Обновить поля существующей задачи.",
+      "fields": {
+        "task_id": {
+          "name": "ID задачи",
+          "description": "Идентификатор обновляемой задачи."
+        },
+        "name": {
+          "name": "Название",
+          "description": "Новое отображаемое название."
+        },
+        "notes": {
+          "name": "Заметки",
+          "description": "Новые заметки."
+        },
+        "recurrence_type": {
+          "name": "Тип повторения",
+          "description": "floating или fixed."
+        },
+        "interval": {
+          "name": "Интервал",
+          "description": "Повторять каждые N единиц/шагов."
+        },
+        "unit": {
+          "name": "Единица",
+          "description": "days, weeks или months (floating)."
+        },
+        "freq": {
+          "name": "Частота",
+          "description": "DAILY, WEEKLY или MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Привязка",
+          "description": "Дата и время первого выполнения в формате ISO (fixed)."
+        },
+        "device_id": {
+          "name": "Устройство",
+          "description": "Устройство, к которому привязывается эта задача."
+        },
+        "area_id": {
+          "name": "Зона",
+          "description": "Зона, связываемая с этой задачей."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Удалить задачу",
+      "description": "Удалить задачу.",
+      "fields": {
+        "task_id": {
+          "name": "ID задачи",
+          "description": "Идентификатор удаляемой задачи."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Завершить задачу",
+      "description": "Отметить задачу выполненной и сдвинуть её повторение вперёд.",
+      "fields": {
+        "task_id": {
+          "name": "ID задачи",
+          "description": "Идентификатор завершаемой задачи."
+        },
+        "completed_at": {
+          "name": "Время завершения",
+          "description": "Необязательная метка времени завершения (по умолчанию сейчас)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "Список задач",
+      "description": "Вернуть все задачи в ответе."
+    },
+    "add_asset": {
+      "name": "Добавить устройство",
+      "description": "Зарегистрировать устройство/объект. По умолчанию Home Keeper создаёт для него виртуальное устройство; задайте kind равным existing, чтобы привязать метаданные к устройству из другой интеграции.",
+      "fields": {
+        "name": {
+          "name": "Название",
+          "description": "Отображаемое название (обязательно для нового виртуального устройства)."
+        },
+        "kind": {
+          "name": "Вид",
+          "description": "virtual (Home Keeper создаёт устройство) или existing (привязать к существующему)."
+        },
+        "device_id": {
+          "name": "Устройство",
+          "description": "Существующее устройство для привязки метаданных (обязательно, когда kind равно existing)."
+        },
+        "area_id": {
+          "name": "Зона",
+          "description": "Необязательная зона для устройства."
+        },
+        "manufacturer": { "name": "Производитель", "description": "Изготовитель устройства." },
+        "model": { "name": "Модель", "description": "Название или номер модели." },
+        "serial_number": { "name": "Серийный номер", "description": "Серийный номер." },
+        "manufacture_date": { "name": "Дата изготовления", "description": "Дата в формате ISO (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Дата покупки", "description": "Дата в формате ISO (YYYY-MM-DD)." },
+        "install_date": { "name": "Дата установки", "description": "Дата в формате ISO (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Окончание гарантии",
+          "description": "Дата в формате ISO (YYYY-MM-DD). Отображается как датчик даты на устройстве."
+        },
+        "warranty_provider": { "name": "Поставщик гарантии", "description": "Кто обеспечивает гарантию." },
+        "vendor": { "name": "Продавец", "description": "Где купить снова / сервисная служба." },
+        "cost": { "name": "Стоимость", "description": "Цена покупки." },
+        "manual_url": { "name": "URL руководства", "description": "Ссылка на руководство или документацию." },
+        "icon": { "name": "Значок", "description": "Необязательный значок mdi (напр. mdi:piano)." },
+        "parts": { "name": "Детали", "description": "Структурированные детали/изнашиваемые элементы; изнашиваемые элементы с интервалом создают задачу обслуживания." },
+        "parent_asset_id": { "name": "Родительское устройство", "description": "Сделать это подустройством другого устройства." },
+        "related_device_ids": { "name": "Связанные устройства", "description": "Другие устройства реестра, связываемые с этим устройством." },
+        "notes": { "name": "Заметки", "description": "Произвольные заметки." }
+      }
+    },
+    "update_asset": {
+      "name": "Обновить устройство",
+      "description": "Обновить поля существующего устройства/объекта.",
+      "fields": {
+        "asset_id": { "name": "ID объекта", "description": "Идентификатор обновляемого объекта." },
+        "name": { "name": "Название", "description": "Новое отображаемое название." },
+        "device_id": { "name": "Устройство", "description": "Перенаправить объект существующего устройства." },
+        "area_id": { "name": "Зона", "description": "Зона для устройства." },
+        "manufacturer": { "name": "Производитель", "description": "Изготовитель устройства." },
+        "model": { "name": "Модель", "description": "Название или номер модели." },
+        "serial_number": { "name": "Серийный номер", "description": "Серийный номер." },
+        "manufacture_date": { "name": "Дата изготовления", "description": "Дата в формате ISO (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Дата покупки", "description": "Дата в формате ISO (YYYY-MM-DD)." },
+        "install_date": { "name": "Дата установки", "description": "Дата в формате ISO (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Окончание гарантии", "description": "Дата в формате ISO (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Поставщик гарантии", "description": "Кто обеспечивает гарантию." },
+        "vendor": { "name": "Продавец", "description": "Где купить снова / сервисная служба." },
+        "cost": { "name": "Стоимость", "description": "Цена покупки." },
+        "manual_url": { "name": "URL руководства", "description": "Ссылка на руководство или документацию." },
+        "icon": { "name": "Значок", "description": "Необязательный значок mdi (напр. mdi:piano)." },
+        "parts": { "name": "Детали", "description": "Структурированные детали/изнашиваемые элементы; изнашиваемые элементы с интервалом создают задачу обслуживания." },
+        "parent_asset_id": { "name": "Родительское устройство", "description": "Сделать это подустройством другого устройства." },
+        "related_device_ids": { "name": "Связанные устройства", "description": "Другие устройства реестра, связываемые с этим устройством." },
+        "notes": { "name": "Заметки", "description": "Произвольные заметки." }
+      }
+    },
+    "delete_asset": {
+      "name": "Удалить устройство",
+      "description": "Удалить устройство/объект. Его виртуальное устройство (если есть) удаляется, а привязанные к нему задачи становятся самостоятельными.",
+      "fields": {
+        "asset_id": { "name": "ID объекта", "description": "Идентификатор удаляемого объекта." }
+      }
+    },
+    "list_assets": {
+      "name": "Список устройств",
+      "description": "Вернуть все устройства/объекты в ответе."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": { "name": "Следующий срок" },
+      "manufacture_date": { "name": "Дата изготовления" },
+      "purchase_date": { "name": "Дата покупки" },
+      "install_date": { "name": "Дата установки" },
+      "warranty_expiry": { "name": "Окончание гарантии" }
+    },
+    "binary_sensor": {
+      "overdue": { "name": "Просрочено" }
+    },
+    "button": {
+      "mark_done": { "name": "Отметить выполненным" }
+    }
+  }
+}

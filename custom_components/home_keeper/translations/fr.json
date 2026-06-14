@@ -1,0 +1,238 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper",
+        "description": "Configurez Home Keeper pour suivre l'entretien de la maison et les tâches ménagères. Gérez vos tâches depuis le panneau Home Keeper dans la barre latérale."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Keeper est déjà configuré."
+    }
+  },
+  "services": {
+    "add_task": {
+      "name": "Ajouter une tâche",
+      "description": "Créer une nouvelle tâche d'entretien ou tâche ménagère.",
+      "fields": {
+        "name": {
+          "name": "Nom",
+          "description": "Nom d'affichage de la tâche."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Notes facultatives en texte libre."
+        },
+        "recurrence_type": {
+          "name": "Type de récurrence",
+          "description": "floating (mesuré à partir de l'achèvement) ou fixed (calendrier ancré)."
+        },
+        "interval": {
+          "name": "Intervalle",
+          "description": "Répéter toutes les N unités (floating) ou N pas (fixed)."
+        },
+        "unit": {
+          "name": "Unité",
+          "description": "Pour les tâches floating : days, weeks ou months."
+        },
+        "freq": {
+          "name": "Fréquence",
+          "description": "Pour les tâches fixed : DAILY, WEEKLY ou MONTHLY."
+        },
+        "anchor": {
+          "name": "Ancre",
+          "description": "Pour les tâches fixed : date/heure ISO de la première occurrence (définit l'heure de la journée)."
+        },
+        "device_id": {
+          "name": "Appareil",
+          "description": "Appareil facultatif auquel rattacher cette tâche."
+        },
+        "area_id": {
+          "name": "Zone",
+          "description": "Zone facultative à associer à cette tâche."
+        }
+      }
+    },
+    "update_task": {
+      "name": "Mettre à jour la tâche",
+      "description": "Mettre à jour les champs d'une tâche existante.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'id de la tâche à mettre à jour."
+        },
+        "name": {
+          "name": "Nom",
+          "description": "Nouveau nom d'affichage."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Nouvelles notes."
+        },
+        "recurrence_type": {
+          "name": "Type de récurrence",
+          "description": "floating ou fixed."
+        },
+        "interval": {
+          "name": "Intervalle",
+          "description": "Répéter toutes les N unités/pas."
+        },
+        "unit": {
+          "name": "Unité",
+          "description": "days, weeks ou months (floating)."
+        },
+        "freq": {
+          "name": "Fréquence",
+          "description": "DAILY, WEEKLY ou MONTHLY (fixed)."
+        },
+        "anchor": {
+          "name": "Ancre",
+          "description": "Date/heure ISO de la première occurrence (fixed)."
+        },
+        "device_id": {
+          "name": "Appareil",
+          "description": "Appareil auquel rattacher cette tâche."
+        },
+        "area_id": {
+          "name": "Zone",
+          "description": "Zone à associer à cette tâche."
+        }
+      }
+    },
+    "delete_task": {
+      "name": "Supprimer la tâche",
+      "description": "Supprimer une tâche.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'id de la tâche à supprimer."
+        }
+      }
+    },
+    "complete_task": {
+      "name": "Terminer la tâche",
+      "description": "Marquer une tâche comme terminée et faire avancer sa récurrence.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'id de la tâche à terminer."
+        },
+        "completed_at": {
+          "name": "Terminée le",
+          "description": "Horodatage d'achèvement facultatif (par défaut maintenant)."
+        }
+      }
+    },
+    "list_tasks": {
+      "name": "Lister les tâches",
+      "description": "Renvoyer toutes les tâches en réponse."
+    },
+    "add_asset": {
+      "name": "Ajouter un appareil",
+      "description": "Enregistrer un appareil/actif. Par défaut, Home Keeper crée un appareil virtuel pour celui-ci ; définissez kind sur existing pour rattacher des métadonnées à un appareil d'une autre intégration.",
+      "fields": {
+        "name": {
+          "name": "Nom",
+          "description": "Nom d'affichage (obligatoire pour un nouvel appareil virtuel)."
+        },
+        "kind": {
+          "name": "Type",
+          "description": "virtual (Home Keeper crée l'appareil) ou existing (rattacher à un appareil existant)."
+        },
+        "device_id": {
+          "name": "Appareil",
+          "description": "Appareil existant auquel rattacher des métadonnées (obligatoire quand kind est existing)."
+        },
+        "area_id": {
+          "name": "Zone",
+          "description": "Zone facultative pour l'appareil."
+        },
+        "manufacturer": { "name": "Fabricant", "description": "Fabricant de l'appareil." },
+        "model": { "name": "Modèle", "description": "Nom ou numéro de modèle." },
+        "serial_number": { "name": "Numéro de série", "description": "Numéro de série." },
+        "manufacture_date": { "name": "Date de fabrication", "description": "Date ISO (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Date d'achat", "description": "Date ISO (YYYY-MM-DD)." },
+        "install_date": { "name": "Date d'installation", "description": "Date ISO (YYYY-MM-DD)." },
+        "warranty_expiry": {
+          "name": "Expiration de la garantie",
+          "description": "Date ISO (YYYY-MM-DD). Affichée comme capteur de date sur l'appareil."
+        },
+        "warranty_provider": { "name": "Fournisseur de garantie", "description": "Qui honore la garantie." },
+        "vendor": { "name": "Vendeur", "description": "Où racheter / prestataire de service." },
+        "cost": { "name": "Coût", "description": "Prix d'achat." },
+        "manual_url": { "name": "URL du manuel", "description": "Lien vers le manuel ou la documentation." },
+        "icon": { "name": "Icône", "description": "Icône mdi facultative (p. ex. mdi:piano)." },
+        "parts": { "name": "Pièces", "description": "Pièces/pièces d'usure structurées ; les pièces d'usure avec un intervalle pilotent une tâche d'entretien." },
+        "parent_asset_id": { "name": "Appareil parent", "description": "Faire de ceci un sous-appareil d'un autre appareil." },
+        "related_device_ids": { "name": "Appareils associés", "description": "Autres appareils du registre à associer à cet appareil." },
+        "notes": { "name": "Notes", "description": "Notes en texte libre." }
+      }
+    },
+    "update_asset": {
+      "name": "Mettre à jour l'appareil",
+      "description": "Mettre à jour les champs d'un appareil/actif existant.",
+      "fields": {
+        "asset_id": { "name": "ID de l'actif", "description": "L'id de l'actif à mettre à jour." },
+        "name": { "name": "Nom", "description": "Nouveau nom d'affichage." },
+        "device_id": { "name": "Appareil", "description": "Réaffecter un actif lié à un appareil existant." },
+        "area_id": { "name": "Zone", "description": "Zone pour l'appareil." },
+        "manufacturer": { "name": "Fabricant", "description": "Fabricant de l'appareil." },
+        "model": { "name": "Modèle", "description": "Nom ou numéro de modèle." },
+        "serial_number": { "name": "Numéro de série", "description": "Numéro de série." },
+        "manufacture_date": { "name": "Date de fabrication", "description": "Date ISO (YYYY-MM-DD)." },
+        "purchase_date": { "name": "Date d'achat", "description": "Date ISO (YYYY-MM-DD)." },
+        "install_date": { "name": "Date d'installation", "description": "Date ISO (YYYY-MM-DD)." },
+        "warranty_expiry": { "name": "Expiration de la garantie", "description": "Date ISO (YYYY-MM-DD)." },
+        "warranty_provider": { "name": "Fournisseur de garantie", "description": "Qui honore la garantie." },
+        "vendor": { "name": "Vendeur", "description": "Où racheter / prestataire de service." },
+        "cost": { "name": "Coût", "description": "Prix d'achat." },
+        "manual_url": { "name": "URL du manuel", "description": "Lien vers le manuel ou la documentation." },
+        "icon": { "name": "Icône", "description": "Icône mdi facultative (p. ex. mdi:piano)." },
+        "parts": { "name": "Pièces", "description": "Pièces/pièces d'usure structurées ; les pièces d'usure avec un intervalle pilotent une tâche d'entretien." },
+        "parent_asset_id": { "name": "Appareil parent", "description": "Faire de ceci un sous-appareil d'un autre appareil." },
+        "related_device_ids": { "name": "Appareils associés", "description": "Autres appareils du registre à associer à cet appareil." },
+        "notes": { "name": "Notes", "description": "Notes en texte libre." }
+      }
+    },
+    "delete_asset": {
+      "name": "Supprimer l'appareil",
+      "description": "Supprimer un appareil/actif. Son appareil virtuel (le cas échéant) est supprimé et les tâches qui y sont rattachées deviennent autonomes.",
+      "fields": {
+        "asset_id": { "name": "ID de l'actif", "description": "L'id de l'actif à supprimer." }
+      }
+    },
+    "list_assets": {
+      "name": "Lister les appareils",
+      "description": "Renvoyer tous les appareils/actifs en réponse."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_due": {
+        "name": "Prochaine échéance"
+      },
+      "manufacture_date": {
+        "name": "Date de fabrication"
+      },
+      "purchase_date": {
+        "name": "Date d'achat"
+      },
+      "install_date": {
+        "name": "Date d'installation"
+      },
+      "warranty_expiry": {
+        "name": "Expiration de la garantie"
+      }
+    },
+    "binary_sensor": {
+      "overdue": {
+        "name": "En retard"
+      }
+    },
+    "button": {
+      "mark_done": {
+        "name": "Marquer comme terminé"
+      }
+    }
+  }
+}
