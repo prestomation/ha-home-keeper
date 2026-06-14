@@ -88,10 +88,15 @@ tagging and whether "category/type" should be a label vs. our own field; editing
 existing device's native fields when we don't own it; a device-registry
 **update/removal listener** (`async_track_device_registry_updated_event`) for live
 orphan reconciliation of existing-device assets (today reconciliation runs on setup /
-asset mutation and recovers via the stored identifiers snapshot); migrating the panel
-to HA **web components** (`ha-textfield`/`ha-select`/`ha-form`, enabling a real icon
-picker and searchable selectors); and generalizing the task `source` field into the
-deferred cross-integration contribution API.
+asset mutation and recovers via the stored identifiers snapshot); and generalizing the
+task `source` field into the deferred cross-integration contribution API.
+
+**Done since:** the panel now follows the HA **design language** end to end — every
+form is built with `ha-form` schemas (which lazy-load HA's own selector widgets:
+`ha-textfield`/`ha-textarea`/`ha-select`, the searchable device/area pickers, and the
+`mdi` icon picker), list rows are `ha-card`s, navigation is `ha-tab-group`, status is
+shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
+`ha-button`/`ha-icon-button`. See `frontend/src/panel.ts`.
 
 ## Deferred from the prototype (known next steps)
 
