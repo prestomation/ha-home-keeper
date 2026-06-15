@@ -141,5 +141,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "Назад",
+  "group.by": "Группировать по",
+  "group.none": "Нет",
+  "group.status": "Статус",
+  "group.area": "Зона",
+  "group.device": "Устройство",
+  "filter.all": "Все",
+  "filter.overdue": "Просрочено",
+  "filter.soon": "Скоро",
+  "section.later": "Позже",
+  "section.noSchedule": "Без расписания",
+  "section.unassigned": "Не назначено",
+  "section.noDevice": "Без устройства",
+  "tasks.noMatch": "Нет задач, соответствующих этому фильтру.",
+  "detail.gone": "Этого элемента больше нет.",
+  "detail.about": "Подробности",
+  "detail.schedule": "Расписание",
+  "detail.nextDue": "Следующий срок",
+  "detail.relatedTasks": "Связанные задачи",
+  "detail.noNotes": "Пока нет заметок"
 }

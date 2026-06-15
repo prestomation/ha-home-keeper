@@ -121,5 +121,26 @@
   "history.count.one": "{n} Erledigung",
   "history.count.other": "{n} Erledigungen",
   "history.cadence": "≈ alle {days} Tage",
-  "history.archived": "entfernte Aufgabe"
+  "history.archived": "entfernte Aufgabe",
+
+  "btn.back": "Zurück",
+  "group.by": "Gruppieren nach",
+  "group.none": "Keine",
+  "group.status": "Status",
+  "group.area": "Bereich",
+  "group.device": "Gerät",
+  "filter.all": "Alle",
+  "filter.overdue": "Überfällig",
+  "filter.soon": "Bald fällig",
+  "section.later": "Später",
+  "section.noSchedule": "Kein Zeitplan",
+  "section.unassigned": "Nicht zugewiesen",
+  "section.noDevice": "Kein Gerät",
+  "tasks.noMatch": "Keine Aufgaben entsprechen diesem Filter.",
+  "detail.gone": "Dieses Element existiert nicht mehr.",
+  "detail.about": "Details",
+  "detail.schedule": "Zeitplan",
+  "detail.nextDue": "Nächste Fälligkeit",
+  "detail.relatedTasks": "Zugehörige Aufgaben",
+  "detail.noNotes": "Noch keine Notizen"
 }

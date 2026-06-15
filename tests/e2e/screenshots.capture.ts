@@ -32,15 +32,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(1200); // let the HA sidebar/layout settle (avoid ghosting)
   await page.screenshot({ path: `${OUT}/1-panel-task-list.png`, fullPage: true });
 
-  // 1b. Task completion history — click a task to see every time it was done.
-  // (ha-dialog's host element is zero-size — the surface renders internally — so we
-  // wait on the slotted content's visibility, not the host.)
-  await panel.locator('.hist-open[data-id="task_fridge_filter"]').click();
-  await expect(panel.locator('#hk-history .hk-hist-list li').first()).toBeVisible();
+  // 1b. Task detail page — click a task to see its full schedule, notes and the
+  // completion history of every time it was done.
+  await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+  await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/7-panel-task-history.png`, fullPage: true });
-  await page.keyboard.press('Escape');
-  await expect(panel.locator('#hk-history')).toHaveCount(0);
+  await page.screenshot({ path: `${OUT}/7-panel-task-detail.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 2. Create form — floating recurrence + device picker.
   await panel.locator('#add-btn').click();
@@ -58,14 +57,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-name').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/5-panel-appliances-list.png`, fullPage: true });
 
-  // 5b. Appliance maintenance history — every task done on this appliance, including
-  // the archived history of a task that was deleted while still assigned to it.
-  await panel.locator('.asset-hist-open[data-id="asset_water_heater"]').click();
-  await expect(panel.locator('#hk-history .hk-hist-group').first()).toBeVisible();
+  // 5b. Appliance detail page — its metadata, parts, related tasks and the
+  // maintenance history (including the archived history of a task that was
+  // deleted while still assigned to it).
+  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/8-panel-appliance-history.png`, fullPage: true });
-  await page.keyboard.press('Escape');
-  await expect(panel.locator('#hk-history')).toHaveCount(0);
+  await page.screenshot({ path: `${OUT}/8-panel-appliance-detail.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 6. Appliance create form — virtual device, metadata, parts and relationships.
   await panel.locator('#add-btn').click();

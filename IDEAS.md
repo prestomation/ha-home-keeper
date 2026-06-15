@@ -147,8 +147,15 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
 - Compare the three usage surfaces in real use: native **To-do** list, native
   **Calendar**, and **device-page** entities. Decide which to lead with, and
   whether a bespoke Lovelace "upcoming tasks" card is still worth building on top.
-- Panel polish: grouping by area/room, filtering (overdue / due-soon / by device),
-  bulk actions, drag-to-reorder, an "activity log" view of completion history.
+- Panel polish: ~~grouping by area/room, filtering (overdue / due-soon / by
+  device)~~ **shipped** — the list view now has a persisted group-by control
+  (Status / Area / Device for tasks; Area for appliances) rendering collapsible
+  sections, plus an All / Overdue / Due soon quick filter for tasks. Tapping a
+  row opens a full **detail page** for the task or appliance (schedule, notes,
+  metadata, parts, related tasks, subdevices and completion history inline),
+  replacing the old history-only dialog; overdue task cards carry a red accent.
+  Still open: bulk actions, drag-to-reorder, and an "activity log" view of
+  completion history.
 - Quick-complete affordances: a dashboard card with one-tap "done" buttons; a
   notification action ("Mark done") from the mobile app.
 - Snooze / skip an occurrence (especially for fixed schedules) vs. hard complete.

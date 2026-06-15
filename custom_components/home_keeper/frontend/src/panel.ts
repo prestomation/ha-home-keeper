@@ -3,6 +3,7 @@ import * as api from './api';
 import { setLanguage, t, tn } from './i18n';
 import type { Asset, AssetKind, Hass, PanelInfo, Part, Task } from './types';
 import {
+  areaName,
   assetSummary,
   brandLogoUrl,
   completionStats,
@@ -52,18 +53,12 @@ const REQUIRED_COMPONENTS = [
   'ha-assist-chip',
   'ha-menu-button',
   'ha-svg-icon',
-  'ha-dialog',
 ];
 
 // mdi:delete — remove a single completion entry from the history dialog.
 const MDI_DELETE =
   'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z';
 
-// mdi:history — opens a task's / appliance's completion history.
-const MDI_HISTORY =
-  'M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.96,' +
-  '16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 ' +
-  '8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3';
 
 const STYLES = `
   :host { display: block; }
@@ -119,9 +114,86 @@ const STYLES = `
   .hk-loading { display: flex; justify-content: center; padding: 48px 0; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
   .hk-card-row .grow.clickable { cursor: pointer; }
-  ha-dialog { --mdc-dialog-min-width: min(560px, 92vw); --mdc-dialog-max-width: 560px; }
-  .hk-hist-header { margin-bottom: 16px; }
-  .hk-hist-title { font-size: 1.2rem; font-weight: 500; }
+  ha-card.hk-card.overdue { border-left: 3px solid var(--error-color); }
+
+  /* Filter / group-by controls */
+  .hk-controls {
+    display: flex; align-items: center; gap: 16px 24px; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .hk-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .hk-seg-label {
+    font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .hk-seg {
+    display: inline-flex; border: 1px solid var(--divider-color);
+    border-radius: 999px; overflow: hidden; background: var(--card-background-color);
+  }
+  .hk-seg-btn {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    font: inherit; font-size: 0.85rem; padding: 6px 14px;
+    color: var(--primary-text-color); white-space: nowrap;
+    border-left: 1px solid var(--divider-color);
+  }
+  .hk-seg-btn:first-child { border-left: 0; }
+  .hk-seg-btn:hover { background: var(--secondary-background-color); }
+  .hk-seg-btn.active {
+    background: var(--primary-color);
+    color: var(--text-primary-color, #fff); font-weight: 500;
+  }
+
+  /* Collapsible group sections */
+  details.hk-group { margin-bottom: 12px; }
+  details.hk-group > summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center;
+    gap: 8px; padding: 6px 4px; user-select: none;
+  }
+  details.hk-group > summary::-webkit-details-marker { display: none; }
+  details.hk-group > summary::before {
+    content: ''; width: 0; height: 0; flex: none;
+    border-left: 5px solid var(--secondary-text-color);
+    border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+    transition: transform 0.15s ease; transform: rotate(0deg);
+  }
+  details.hk-group[open] > summary::before { transform: rotate(90deg); }
+  .hk-group-title { font-weight: 600; font-size: 0.95rem; }
+  .hk-group-count {
+    font-size: 0.8rem; color: var(--secondary-text-color);
+    background: var(--secondary-background-color);
+    border-radius: 999px; padding: 1px 8px;
+  }
+
+  /* Detail page */
+  .hk-detailbar { display: flex; align-items: center; margin-bottom: 12px; }
+  .hk-detail-card { margin-bottom: 12px; }
+  .hk-detail-inner { padding: 16px; }
+  .hk-detail-title {
+    font-size: 1.3rem; font-weight: 500; display: flex; align-items: center;
+    gap: 8px; flex-wrap: wrap;
+  }
+  .hk-detail-card .hk-chips { margin-top: 10px; }
+  .hk-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .hk-detail-row {
+    display: flex; gap: 12px; padding: 6px 0; align-items: baseline;
+    border-bottom: 1px solid var(--divider-color);
+  }
+  .hk-detail-row:last-child { border-bottom: none; }
+  .hk-detail-row .k {
+    flex: 0 0 40%; max-width: 220px; color: var(--secondary-text-color);
+    font-size: 0.85rem;
+  }
+  .hk-detail-row .v { flex: 1; min-width: 0; word-break: break-word; }
+  .hk-detail-row .v a { color: var(--primary-color); }
+  .hk-muted { color: var(--secondary-text-color); }
+  .hk-rel {
+    display: flex; align-items: center; gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid var(--divider-color); cursor: pointer;
+  }
+  .hk-rel:last-child { border-bottom: none; }
+  .hk-rel .grow { flex: 1; min-width: 0; }
+  .hk-rel .hk-name { font-weight: 500; }
+
   .hk-hist-group { margin-bottom: 18px; }
   .hk-hist-group:last-child { margin-bottom: 0; }
   .hk-hist-head {
@@ -213,16 +285,22 @@ interface HistoryGroup {
   assetId?: string;
   archivedTaskId?: string;
 }
-/**
- * The history dialog renders a single source — a `task` or an `asset` — looked up
- * from current data by `id` on every render, so deleting a completion just reloads
- * data and rebuilds the dialog in place (no stale snapshot).
- */
-interface HistoryState {
-  open: boolean;
-  kind: 'task' | 'asset';
-  id: string;
+/** How the list view buckets rows; `status`/`device` apply to tasks only. */
+type GroupBy = 'none' | 'status' | 'area' | 'device';
+/** Task-list quick filter. */
+type TaskFilter = 'all' | 'overdue' | 'soon';
+/** One bucket of rows rendered under a collapsible section header. */
+interface Group<T> {
+  /** Stable key for remembering collapse state, e.g. "status:overdue". */
+  key: string;
+  /** Section header text; empty string renders the rows ungrouped. */
+  label: string;
+  items: T[];
 }
+/** Tasks due within this many days (and not overdue) count as "due soon". */
+const SOON_DAYS = 7;
+const LS_GROUP = 'home-keeper.groupBy';
+const LS_FILTER = 'home-keeper.filter';
 
 export class HomeKeeperPanel extends HTMLElement {
   private _hass?: Hass;
@@ -234,8 +312,14 @@ export class HomeKeeperPanel extends HTMLElement {
   private _entryDomains: Record<string, string> = {};
   private _edit: EditState = { open: false, task: null };
   private _assetEdit: AssetEditState = { open: false, asset: null };
-  private _history: HistoryState | null = null;
   private _view: 'tasks' | 'appliances' = 'tasks';
+  // List controls (persisted in localStorage).
+  private _groupBy: GroupBy = 'status';
+  private _filter: TaskFilter = 'all';
+  // Group sections collapsed by the user, keyed by "<group>:<bucket>".
+  private _collapsed = new Set<string>();
+  // The object whose full detail page is open, or null for the list view.
+  private _detail: { kind: 'task' | 'asset'; id: string } | null = null;
   private _loaded = false;
   // Live HA components that need `.hass` refreshed when hass updates.
   private _liveHassEls: Array<{ hass?: Hass }> = [];
@@ -255,7 +339,52 @@ export class HomeKeeperPanel extends HTMLElement {
 
   connectedCallback(): void {
     if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
+    this._loadPrefs();
     void this._init();
+  }
+
+  /** Restore the persisted group-by / filter choices (best-effort). */
+  private _loadPrefs(): void {
+    try {
+      const g = localStorage.getItem(LS_GROUP);
+      if (g === 'none' || g === 'status' || g === 'area' || g === 'device') this._groupBy = g;
+      const f = localStorage.getItem(LS_FILTER);
+      if (f === 'all' || f === 'overdue' || f === 'soon') this._filter = f;
+    } catch {
+      // localStorage unavailable (e.g. private mode) — fall back to defaults.
+    }
+  }
+
+  private _setGroupBy(value: GroupBy): void {
+    if (this._groupBy === value) return;
+    this._groupBy = value;
+    try {
+      localStorage.setItem(LS_GROUP, value);
+    } catch {
+      /* ignore */
+    }
+    this._render();
+  }
+
+  private _setFilter(value: TaskFilter): void {
+    if (this._filter === value) return;
+    this._filter = value;
+    try {
+      localStorage.setItem(LS_FILTER, value);
+    } catch {
+      /* ignore */
+    }
+    this._render();
+  }
+
+  // ── detail page lifecycle ───────────────────────────────────────────────────
+  private _openDetail(kind: 'task' | 'asset', id: string): void {
+    this._detail = { kind, id };
+    this._render();
+  }
+  private _closeDetail(): void {
+    this._detail = null;
+    this._render();
   }
 
   private async _init(): Promise<void> {
@@ -305,6 +434,9 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
   private _openEdit(task: Task): void {
+    // Editing happens in the list view's form host; leave any open detail page.
+    this._detail = null;
+    this._view = 'tasks';
     this._edit = { open: true, task: { ...task } };
     this._render();
   }
@@ -362,6 +494,8 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
   private _openEditAsset(asset: Asset): void {
+    this._detail = null;
+    this._view = 'appliances';
     this._assetEdit = { open: true, asset: { ...asset, parts: [...(asset.parts || [])] } };
     this._render();
   }
@@ -403,41 +537,20 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   // ── completion history ──────────────────────────────────────────────────────
-  private _openTaskHistory(task: Task): void {
-    this._history = { open: true, kind: 'task', id: task.id };
-    this._render();
-  }
-
-  private _openAssetHistory(asset: Asset): void {
-    this._history = { open: true, kind: 'asset', id: asset.id };
-    this._render();
-  }
-
-  private _closeHistory(): void {
-    this._history = null;
-    this._render();
-  }
-
   /**
-   * Compute the dialog's title + groups from *current* data for whatever the
-   * history dialog is showing. For a task: its own completions. For an appliance:
-   * every completion tied to it — live related tasks (part-derived or
-   * device-attached) plus the history archived from tasks deleted while still
-   * assigned to it — newest activity first. Returns null if the source is gone.
+   * Completion groups for the detail page's history section. For a task: its own
+   * completions. For an appliance: every completion tied to it — live related
+   * tasks (part-derived or device-attached) plus the history archived from tasks
+   * deleted while still assigned to it — newest activity first.
    */
-  private _historyContent(): { title: string; groups: HistoryGroup[] } | null {
-    const h = this._history;
-    if (!h) return null;
-    if (h.kind === 'task') {
-      const task = this._tasks.find((t) => t.id === h.id);
-      if (!task) return null;
-      return {
-        title: t('history.task.title', { name: task.name }),
-        groups: [{ name: task.name, completions: task.completions || [], taskId: task.id }],
-      };
+  private _completionGroupsFor(kind: 'task' | 'asset', id: string): HistoryGroup[] {
+    if (kind === 'task') {
+      const task = this._tasks.find((t) => t.id === id);
+      if (!task) return [];
+      return [{ name: task.name, completions: task.completions || [], taskId: task.id }];
     }
-    const asset = this._assets.find((a) => a.id === h.id);
-    if (!asset) return null;
+    const asset = this._assets.find((a) => a.id === id);
+    if (!asset) return [];
     const groups: HistoryGroup[] = tasksForAsset(asset, this._tasks).map((task) => ({
       name: task.name,
       completions: task.completions || [],
@@ -455,16 +568,13 @@ export class HomeKeeperPanel extends HTMLElement {
     const lastTs = (g: HistoryGroup): number =>
       g.completions.reduce((m, c) => Math.max(m, new Date(c.ts).getTime() || 0), 0);
     groups.sort((a, b) => lastTs(b) - lastTs(a));
-    const title =
-      asset.name || deviceName(this._hass?.devices, asset.device_id) || t('appliance.fallbackName');
-    return { title: t('history.appliance.title', { name: title }), groups };
+    return groups;
   }
 
   private async _deleteCompletion(taskId: string, ts: string): Promise<void> {
     if (!this._hass) return;
     await api.deleteCompletion(this._hass, taskId, ts);
-    await this._reload();
-    this._updateHistoryDialog();
+    await this._refresh();
   }
 
   private async _deleteArchivedCompletion(
@@ -474,21 +584,7 @@ export class HomeKeeperPanel extends HTMLElement {
   ): Promise<void> {
     if (!this._hass) return;
     await api.deleteArchivedCompletion(this._hass, assetId, archivedTaskId, ts);
-    await this._reload();
-    this._updateHistoryDialog();
-  }
-
-  /** Rebuild the open dialog's body in place after a deletion (keeps it open). */
-  private _updateHistoryDialog(): void {
-    const dialog = this.shadowRoot?.getElementById('hk-history');
-    const body = dialog?.querySelector<HTMLElement>('.hk-hist-body');
-    const content = this._historyContent();
-    if (!dialog || !body || !content) {
-      this._closeHistory();
-      return;
-    }
-    body.innerHTML = `${this._historyHeader(content.title)}${this._historyBody(content.groups)}`;
-    this._wireHistoryDeletes(dialog);
+    await this._refresh();
   }
 
   // ── rendering ───────────────────────────────────────────────────────────────
@@ -496,16 +592,30 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!this.shadowRoot) return;
     this._liveHassEls = [];
     const onTasks = this._view === 'tasks';
-    const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
 
-    const body = !this._loaded
-      ? `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`
-      : `
+    let inner: string;
+    if (!this._loaded) {
+      inner = `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
+    } else if (this._detail) {
+      inner = `
+        <div class="hk-detailbar">
+          <ha-button id="back-btn">‹ ${escapeHTML(t('btn.back'))}</ha-button>
+        </div>
+        ${this._detailView()}`;
+    } else {
+      const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
+      inner = `
+        <ha-tab-group>
+          <ha-tab-group-tab id="tab-tasks" panel="tasks" ${onTasks ? 'active' : ''}>${escapeHTML(t('tab.tasks'))}</ha-tab-group-tab>
+          <ha-tab-group-tab id="tab-appliances" panel="appliances" ${onTasks ? '' : 'active'}>${escapeHTML(t('tab.appliances'))}</ha-tab-group-tab>
+        </ha-tab-group>
         <div class="hk-actionbar">
           <ha-button raised id="add-btn">${escapeHTML(addLabel)}</ha-button>
         </div>
         <div id="hk-form-host"></div>
+        ${this._controls()}
         <div id="hk-list">${onTasks ? this._tasksList() : this._assetsList()}</div>`;
+    }
 
     this.shadowRoot.innerHTML = `
       <style>${STYLES}</style>
@@ -514,36 +624,215 @@ export class HomeKeeperPanel extends HTMLElement {
         <div class="hk-toolbar-title">${escapeHTML(t('app.title'))}</div>
       </div>
       <div class="hk-wrap">
-        <ha-tab-group>
-          <ha-tab-group-tab id="tab-tasks" panel="tasks" ${onTasks ? 'active' : ''}>${escapeHTML(t('tab.tasks'))}</ha-tab-group-tab>
-          <ha-tab-group-tab id="tab-appliances" panel="appliances" ${onTasks ? '' : 'active'}>${escapeHTML(t('tab.appliances'))}</ha-tab-group-tab>
-        </ha-tab-group>
-        ${body}
+        ${inner}
         <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
       </div>
     `;
     this._hydrate();
   }
 
+  // ── list controls (filter + group-by) ───────────────────────────────────────
+  /** Group-by resolved for the active view (appliances only support area/none). */
+  private _effectiveGroup(): GroupBy {
+    if (this._view === 'appliances' && this._groupBy !== 'area' && this._groupBy !== 'none') {
+      return 'none';
+    }
+    return this._groupBy;
+  }
+
+  private _controls(): string {
+    const onTasks = this._view === 'tasks';
+    const groupOpts: { value: GroupBy; label: string }[] = onTasks
+      ? [
+          { value: 'status', label: t('group.status') },
+          { value: 'area', label: t('group.area') },
+          { value: 'device', label: t('group.device') },
+          { value: 'none', label: t('group.none') },
+        ]
+      : [
+          { value: 'area', label: t('group.area') },
+          { value: 'none', label: t('group.none') },
+        ];
+    const groupControl = `
+      <div class="hk-control">
+        <span class="hk-seg-label">${escapeHTML(t('group.by'))}</span>
+        ${this._seg('group', this._effectiveGroup(), groupOpts)}
+      </div>`;
+    const filterControl = onTasks
+      ? `<div class="hk-control">${this._seg('filter', this._filter, [
+          { value: 'all', label: t('filter.all') },
+          { value: 'overdue', label: t('filter.overdue') },
+          { value: 'soon', label: t('filter.soon') },
+        ])}</div>`
+      : '';
+    return `<div class="hk-controls">${filterControl}${groupControl}</div>`;
+  }
+
+  /** A pill-style segmented toggle; the active option carries the `active` class. */
+  private _seg(name: string, current: string, options: { value: string; label: string }[]): string {
+    const btns = options
+      .map(
+        (o) =>
+          `<button class="hk-seg-btn${o.value === current ? ' active' : ''}" data-seg-val="${escapeHTML(
+            o.value,
+          )}">${escapeHTML(o.label)}</button>`,
+      )
+      .join('');
+    return `<div class="hk-seg" data-seg="${escapeHTML(name)}">${btns}</div>`;
+  }
+
+  // ── list bucketing ──────────────────────────────────────────────────────────
+  /** Which status section a task belongs to. */
+  private _statusBucket(task: Task, now = Date.now()): 'overdue' | 'soon' | 'later' | 'none' {
+    if (!task.next_due) return 'none';
+    const due = new Date(task.next_due).getTime();
+    if (due <= now) return 'overdue';
+    if (due - now <= SOON_DAYS * 86_400_000) return 'soon';
+    return 'later';
+  }
+
+  /** A task's area: its own, else its attached device's. */
+  private _taskAreaId(task: Task): string | undefined {
+    if (task.area_id) return task.area_id;
+    const dev = task.device_id ? this._hass?.devices?.[task.device_id] : undefined;
+    return dev?.area_id ?? undefined;
+  }
+
+  private _groupTasks(tasks: Task[], now = Date.now()): Group<Task>[] {
+    const group = this._effectiveGroup();
+    if (group === 'status') {
+      const order: { bucket: 'overdue' | 'soon' | 'later' | 'none'; label: string }[] = [
+        { bucket: 'overdue', label: t('chip.overdue') },
+        { bucket: 'soon', label: t('filter.soon') },
+        { bucket: 'later', label: t('section.later') },
+        { bucket: 'none', label: t('section.noSchedule') },
+      ];
+      return order
+        .map(({ bucket, label }) => ({
+          key: `status:${bucket}`,
+          label,
+          items: tasks.filter((task) => this._statusBucket(task, now) === bucket),
+        }))
+        .filter((g) => g.items.length);
+    }
+    if (group === 'area') {
+      return this._groupByKey(
+        tasks,
+        (task) => this._taskAreaId(task),
+        (id) => areaName(this._hass?.areas, id),
+        t('section.unassigned'),
+        'area',
+      );
+    }
+    if (group === 'device') {
+      return this._groupByKey(
+        tasks,
+        (task) => task.device_id ?? undefined,
+        (id) => deviceName(this._hass?.devices, id),
+        t('section.noDevice'),
+        'device',
+      );
+    }
+    return [{ key: '', label: '', items: tasks }];
+  }
+
+  private _groupAssets(assets: Asset[]): Group<Asset>[] {
+    if (this._effectiveGroup() === 'area') {
+      return this._groupByKey(
+        assets,
+        (a) => a.area_id ?? undefined,
+        (id) => areaName(this._hass?.areas, id),
+        t('section.unassigned'),
+        'area',
+      );
+    }
+    return [{ key: '', label: '', items: assets }];
+  }
+
+  /**
+   * Bucket items by a key, label each section, sort sections alphabetically and
+   * sink the "no key" fallback bucket to the bottom. Keys are namespaced so
+   * collapse state never collides between grouping modes.
+   */
+  private _groupByKey<T>(
+    items: T[],
+    keyOf: (item: T) => string | undefined,
+    labelOf: (key: string) => string,
+    fallbackLabel: string,
+    prefix: string,
+  ): Group<T>[] {
+    const buckets = new Map<string, T[]>();
+    for (const item of items) {
+      const k = keyOf(item) || '';
+      const arr = buckets.get(k);
+      if (arr) arr.push(item);
+      else buckets.set(k, [item]);
+    }
+    const fallbackKey = `${prefix}:none`;
+    const groups: Group<T>[] = [];
+    for (const [k, arr] of buckets) {
+      groups.push({
+        key: k ? `${prefix}:${k}` : fallbackKey,
+        label: k ? labelOf(k) : fallbackLabel,
+        items: arr,
+      });
+    }
+    groups.sort((a, b) => {
+      const af = a.key === fallbackKey;
+      const bf = b.key === fallbackKey;
+      if (af !== bf) return af ? 1 : -1;
+      return a.label.localeCompare(b.label);
+    });
+    return groups;
+  }
+
+  /** Render groups as collapsible sections, or bare items when ungrouped. */
+  private _renderGroups<T>(groups: Group<T>[], renderItem: (item: T) => string): string {
+    if (groups.length === 1 && !groups[0].label) {
+      return groups[0].items.map(renderItem).join('');
+    }
+    return groups
+      .map((g) => {
+        const open = this._collapsed.has(g.key) ? '' : 'open';
+        return `
+        <details class="hk-group" data-group-key="${escapeHTML(g.key)}" ${open}>
+          <summary class="hk-group-head">
+            <span class="hk-group-title">${escapeHTML(g.label)}</span>
+            <span class="hk-group-count">${g.items.length}</span>
+          </summary>
+          <div class="hk-group-body">${g.items.map(renderItem).join('')}</div>
+        </details>`;
+      })
+      .join('');
+  }
+
   private _tasksList(): string {
-    const tasks = [...this._tasks].sort((a, b) => {
+    if (!this._tasks.length) {
+      const addTask = `<b>${escapeHTML(t('btn.addTask'))}</b>`;
+      return `<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;
+    }
+    const now = Date.now();
+    let tasks = [...this._tasks];
+    if (this._filter === 'overdue') tasks = tasks.filter((task) => isOverdue(task));
+    else if (this._filter === 'soon')
+      tasks = tasks.filter((task) => this._statusBucket(task, now) === 'soon');
+    tasks.sort((a, b) => {
       const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
       const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
       return ad - bd;
     });
     if (!tasks.length) {
-      const addTask = `<b>${escapeHTML(t('btn.addTask'))}</b>`;
-      return `<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;
+      return `<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}</ha-alert>`;
     }
-    return tasks.map((t) => this._taskCard(t)).join('');
+    return this._renderGroups(this._groupTasks(tasks, now), (task) => this._taskCard(task));
   }
 
   private _assetsList(): string {
-    const assets = [...this._assets].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    if (!assets.length) {
+    if (!this._assets.length) {
       return `<ha-alert alert-type="info">${escapeHTML(t('appliances.empty'))}</ha-alert>`;
     }
-    return assets.map((x) => this._assetCard(x)).join('');
+    const assets = [...this._assets].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return this._renderGroups(this._groupAssets(assets), (asset) => this._assetCard(asset));
   }
 
   private _taskCard(task: Task): string {
@@ -555,27 +844,18 @@ export class HomeKeeperPanel extends HTMLElement {
     const dueText = task.next_due
       ? ` · ${escapeHTML(t('form.task.due', { date: new Date(task.next_due).toLocaleDateString() }))}`
       : '';
-    // Tasks owned by an appliance wear part are managed by that part; editing or
-    // deleting them here is reverted on the next reconcile, so only offer "done".
-    const derived = Boolean(task.source?.part);
-    const manageBtns = derived
-      ? ''
-      : `<ha-icon-button class="edit-btn" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>
-            <ha-icon-button class="del-btn" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`;
     const n = task.completions?.length ?? 0;
-    const histLabel = escapeHTML(t('btn.history'));
+    // The row opens the task's detail page; "Done" stays as a quick action.
     return `
-      <ha-card class="hk-card" data-id="${escapeHTML(task.id)}">
+      <ha-card class="hk-card${overdue ? ' overdue' : ''}" data-id="${escapeHTML(task.id)}">
         <div class="hk-card-row">
-          <div class="grow clickable hist-open" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${histLabel}">
+          <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(task.name)}</div>
             <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
             <div class="hk-chips">${statusChip}${dev}</div>
           </div>
           <div class="hk-card-actions">
-            <ha-icon-button class="hist-btn" data-id="${escapeHTML(task.id)}" label="${histLabel}"></ha-icon-button>
             <ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>
-            ${manageBtns}
           </div>
         </div>
       </ha-card>`;
@@ -605,19 +885,13 @@ export class HomeKeeperPanel extends HTMLElement {
           )}"></ha-assist-chip>`
         : '',
     ].join('');
-    const histLabel = escapeHTML(t('btn.history'));
     return `
       <ha-card class="hk-card" data-id="${escapeHTML(x.id)}">
         <div class="hk-card-row">
-          <div class="grow clickable asset-hist-open" data-id="${escapeHTML(x.id)}" role="button" tabindex="0" title="${histLabel}">
+          <div class="grow clickable detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(x.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(title)}</div>
             <div class="hk-meta">${escapeHTML(assetSummary(x, this._hass?.areas))}</div>
             <div class="hk-chips">${kindChip}${extra}</div>
-          </div>
-          <div class="hk-card-actions">
-            <ha-icon-button class="asset-hist-btn" data-id="${escapeHTML(x.id)}" label="${histLabel}"></ha-icon-button>
-            <ha-icon-button class="asset-edit-btn" data-id="${escapeHTML(x.id)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>
-            <ha-icon-button class="asset-del-btn" data-id="${escapeHTML(x.id)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>
           </div>
         </div>
       </ha-card>`;
@@ -625,6 +899,193 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _assetName(assetId: string): string {
     return this._assets.find((a) => a.id === assetId)?.name || assetId;
+  }
+
+  // ── detail page ─────────────────────────────────────────────────────────────
+  private _detailView(): string {
+    const d = this._detail;
+    if (!d) return '';
+    if (d.kind === 'task') {
+      const task = this._tasks.find((x) => x.id === d.id);
+      if (!task) return `<ha-alert alert-type="warning">${escapeHTML(t('detail.gone'))}</ha-alert>`;
+      return this._taskDetail(task);
+    }
+    const asset = this._assets.find((x) => x.id === d.id);
+    if (!asset) return `<ha-alert alert-type="warning">${escapeHTML(t('detail.gone'))}</ha-alert>`;
+    return this._assetDetail(asset);
+  }
+
+  /** One label/value row, omitted entirely when the value is empty. */
+  private _row(label: string, value?: string | null, isHtml = false): string {
+    if (value == null || value === '') return '';
+    return `<div class="hk-detail-row"><span class="k">${escapeHTML(label)}</span><span class="v">${
+      isHtml ? value : escapeHTML(value)
+    }</span></div>`;
+  }
+
+  private _historySection(kind: 'task' | 'asset', id: string): string {
+    const groups = this._completionGroupsFor(kind, id);
+    return `
+      <div class="hk-section">${escapeHTML(t('btn.history'))}</div>
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner hk-hist-body">${this._historyBody(
+        groups,
+      )}</div></ha-card>`;
+  }
+
+  private _taskDetail(task: Task): string {
+    const overdue = isOverdue(task);
+    const statusChip = overdue
+      ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
+      : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
+    const dev = task.device_id ? this._deviceChip(task.device_id) : '';
+    // Wear-part tasks are owned by their appliance; only "Done" is offered.
+    const derived = Boolean(task.source?.part);
+    const manage = derived
+      ? ''
+      : `<ha-button class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>
+         <ha-button class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
+    const due = task.next_due ? new Date(task.next_due).toLocaleString() : t('due.none');
+    const notes = task.notes
+      ? escapeHTML(task.notes)
+      : `<span class="hk-muted">${escapeHTML(t('detail.noNotes'))}</span>`;
+    return `
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">
+        <div class="hk-detail-title">${escapeHTML(task.name)}</div>
+        <div class="hk-chips">${statusChip}${dev}</div>
+        <div class="hk-detail-actions">
+          <ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>
+          ${manage}
+        </div>
+      </div></ha-card>
+      <div class="hk-section">${escapeHTML(t('detail.schedule'))}</div>
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">
+        ${this._row(t('field.recurrence_type'), recurrenceSummary(task))}
+        ${this._row(t('detail.nextDue'), due)}
+      </div></ha-card>
+      <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>
+      ${this._historySection('task', task.id)}`;
+  }
+
+  private _assetDetail(asset: Asset): string {
+    const kindChip =
+      asset.kind === 'virtual'
+        ? `<ha-assist-chip label="${escapeHTML(t('chip.virtualDevice'))}"></ha-assist-chip>`
+        : asset.device_id
+          ? this._deviceChip(asset.device_id)
+          : '';
+    const parentChip = asset.parent_asset_id
+      ? `<ha-assist-chip label="${escapeHTML(
+          t('chip.subdeviceOf', { name: this._assetName(asset.parent_asset_id) }),
+        )}"></ha-assist-chip>`
+      : '';
+    const title =
+      asset.name || deviceName(this._hass?.devices, asset.device_id) || t('appliance.fallbackName');
+    const warranty = asset.warranty_expiry
+      ? asset.warranty_provider
+        ? `${asset.warranty_expiry} (${asset.warranty_provider})`
+        : asset.warranty_expiry
+      : '';
+    const manual = asset.manual_url
+      ? `<a href="${escapeHTML(asset.manual_url)}" target="_blank" rel="noopener">${escapeHTML(
+          asset.manual_url,
+        )}</a>`
+      : '';
+    const cost = asset.cost != null ? String(asset.cost) : '';
+    const details = [
+      this._row(t('field.manufacturer'), asset.manufacturer),
+      this._row(t('field.model'), asset.model),
+      this._row(t('field.serial_number'), asset.serial_number),
+      this._row(t('field.area_id'), areaName(this._hass?.areas, asset.area_id)),
+      this._row(t('field.purchase_date'), asset.purchase_date),
+      this._row(t('field.install_date'), asset.install_date),
+      this._row(t('field.warranty_expiry'), warranty),
+      this._row(t('field.cost'), cost),
+      this._row(t('field.vendor'), asset.vendor),
+      this._row(t('field.manual_url'), manual, true),
+      this._row(t('field.notes'), asset.notes),
+    ].join('');
+    const detailsCard = details
+      ? `<div class="hk-section">${escapeHTML(t('detail.about'))}</div>
+         <ha-card class="hk-detail-card"><div class="hk-detail-inner">${details}</div></ha-card>`
+      : '';
+    return `
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">
+        <div class="hk-detail-title">${escapeHTML(title)}</div>
+        <div class="hk-chips">${kindChip}${parentChip}</div>
+        <div class="hk-detail-actions">
+          <ha-button raised class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>
+          <ha-button class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>
+        </div>
+      </div></ha-card>
+      ${detailsCard}
+      ${this._partsSection(asset)}
+      ${this._relatedTasksSection(asset)}
+      ${this._subdevicesSection(asset)}
+      ${this._historySection('asset', asset.id)}`;
+  }
+
+  private _partsSection(asset: Asset): string {
+    const parts = asset.parts || [];
+    if (!parts.length) return '';
+    const rows = parts
+      .map((p) => {
+        const bits = [t(`opt.part.${p.type}`)];
+        if (p.part_number) bits.push(p.part_number);
+        if (p.replace_interval && p.replace_unit) {
+          bits.push(t('field.replace_interval') + ' ' + p.replace_interval + ' ' + t(`opt.unit.${p.replace_unit}`));
+        }
+        return this._row(p.name, bits.join(' · '));
+      })
+      .join('');
+    return `
+      <div class="hk-section">${escapeHTML(t('section.parts'))}</div>
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
+  }
+
+  private _relatedTasksSection(asset: Asset): string {
+    const tasks = tasksForAsset(asset, this._tasks);
+    if (!tasks.length) return '';
+    const rows = tasks
+      .map((task) => {
+        const overdue = isOverdue(task);
+        const chip = overdue
+          ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
+          : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
+        return `
+          <div class="hk-rel detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(
+            task.id,
+          )}" role="button" tabindex="0">
+            <div class="grow"><div class="hk-name">${escapeHTML(task.name)}</div>
+              <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}</div></div>
+            <div class="hk-chips">${chip}</div>
+          </div>`;
+      })
+      .join('');
+    return `
+      <div class="hk-section">${escapeHTML(t('detail.relatedTasks'))}</div>
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
+  }
+
+  private _subdevicesSection(asset: Asset): string {
+    const subs = this._assets.filter((a) => a.parent_asset_id === asset.id);
+    if (!subs.length) return '';
+    const rows = subs
+      .map((sub) => {
+        const title =
+          sub.name || deviceName(this._hass?.devices, sub.device_id) || t('appliance.fallbackName');
+        return `
+          <div class="hk-rel detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(
+            sub.id,
+          )}" role="button" tabindex="0">
+            <div class="grow"><div class="hk-name">${escapeHTML(title)}</div>
+              <div class="hk-meta">${escapeHTML(assetSummary(sub, this._hass?.areas))}</div></div>
+          </div>`;
+      })
+      .join('');
+    return `
+      <div class="hk-section">${escapeHTML(tn('asset.subdevices', subs.length))}</div>
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
   }
 
   /**
@@ -917,6 +1378,17 @@ export class HomeKeeperPanel extends HTMLElement {
       menuHost.appendChild(mb);
     }
 
+    // Detail page: just the back button, the detail's own action buttons, and
+    // any device chips / completion-delete buttons it renders.
+    if (this._detail) {
+      root.getElementById('back-btn')?.addEventListener('click', () => this._closeDetail());
+      this._wireDetailActions(root);
+      this._wireDetailOpeners(root);
+      this._wireDeviceChips(root);
+      this._wireHistoryDeletes(root);
+      return;
+    }
+
     // Tab navigation. Listen on each tab (click) and on the group's shoelace
     // `sl-tab-show` event (whichever fires) — both funnel through _switchView,
     // which is a no-op when the view is unchanged.
@@ -934,6 +1406,25 @@ export class HomeKeeperPanel extends HTMLElement {
       else this._openCreateAsset();
     });
 
+    // Filter / group-by segmented controls.
+    root.querySelectorAll<HTMLElement>('.hk-seg-btn').forEach((b) =>
+      b.addEventListener('click', () => {
+        const seg = (b.closest('.hk-seg') as HTMLElement | null)?.dataset.seg;
+        const val = b.dataset.segVal;
+        if (!val) return;
+        if (seg === 'group') this._setGroupBy(val as GroupBy);
+        else if (seg === 'filter') this._setFilter(val as TaskFilter);
+      }),
+    );
+    // Remember which group sections the user collapsed (no re-render needed).
+    root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
+      d.addEventListener('toggle', () => {
+        const key = d.dataset.groupKey || '';
+        if (d.open) this._collapsed.delete(key);
+        else this._collapsed.add(key);
+      }),
+    );
+
     // Forms.
     const host = root.getElementById('hk-form-host');
     if (host) {
@@ -941,11 +1432,60 @@ export class HomeKeeperPanel extends HTMLElement {
       else if (this._view === 'appliances' && this._assetEdit.open) this._renderAssetForm(host);
     }
 
-    // Card actions.
-    if (this._view === 'tasks') this._wireTaskCards(root);
-    else this._wireAssetCards(root);
+    // Card actions: the row opens the detail page; tasks keep a quick "Done".
+    this._wireDetailOpeners(root);
+    if (this._view === 'tasks') {
+      root.querySelectorAll<HTMLElement>('.done-btn').forEach((b) =>
+        b.addEventListener('click', () => {
+          const task = this._tasks.find((x) => x.id === b.dataset.id);
+          if (task) void this._complete(task);
+        }),
+      );
+    }
     this._wireDeviceChips(root);
-    this._renderHistoryDialog(root);
+  }
+
+  /** Wire every `.detail-open` row to open its object's detail page. */
+  private _wireDetailOpeners(root: ShadowRoot): void {
+    root.querySelectorAll<HTMLElement>('.detail-open').forEach((el) => {
+      const go = (): void => {
+        const kind = el.dataset.detailKind;
+        const id = el.dataset.detailId;
+        if ((kind === 'task' || kind === 'asset') && id) this._openDetail(kind, id);
+      };
+      el.addEventListener('click', go);
+      el.addEventListener('keydown', (e) => {
+        const key = (e as KeyboardEvent).key;
+        if (key === 'Enter' || key === ' ') {
+          e.preventDefault();
+          go();
+        }
+      });
+    });
+  }
+
+  /** Wire the detail page's Done / Edit / Delete buttons to the open object. */
+  private _wireDetailActions(root: ShadowRoot): void {
+    const d = this._detail;
+    if (!d) return;
+    if (d.kind === 'task') {
+      const task = this._tasks.find((x) => x.id === d.id);
+      if (!task) return;
+      root.querySelector('.d-done')?.addEventListener('click', () => void this._complete(task));
+      root.querySelector('.d-edit')?.addEventListener('click', () => this._openEdit(task));
+      root.querySelector('.d-del')?.addEventListener('click', () => {
+        this._detail = null;
+        void this._delete(task);
+      });
+      return;
+    }
+    const asset = this._assets.find((x) => x.id === d.id);
+    if (!asset) return;
+    root.querySelector('.d-edit')?.addEventListener('click', () => this._openEditAsset(asset));
+    root.querySelector('.d-del')?.addEventListener('click', () => {
+      this._detail = null;
+      void this._deleteAsset(asset);
+    });
   }
 
   private _switchView(view: 'tasks' | 'appliances'): void {
@@ -1214,119 +1754,12 @@ export class HomeKeeperPanel extends HTMLElement {
     return el;
   }
 
-  private _wireTaskCards(root: ShadowRoot): void {
-    const byId = (id?: string): Task | undefined => this._tasks.find((t) => t.id === id);
-    this._wireOpeners(root, '.hist-open', (id) => {
-      const t = byId(id);
-      if (t) this._openTaskHistory(t);
-    });
-    root.querySelectorAll<HTMLElement>('.hist-btn').forEach((b) => {
-      this._setIcon(b, MDI_HISTORY);
-      b.addEventListener('click', () => {
-        const t = byId(b.dataset.id);
-        if (t) this._openTaskHistory(t);
-      });
-    });
-    root.querySelectorAll<HTMLElement>('.done-btn').forEach((b) =>
-      b.addEventListener('click', () => {
-        const t = byId(b.dataset.id);
-        if (t) void this._complete(t);
-      }),
-    );
-    root.querySelectorAll<HTMLElement>('.edit-btn').forEach((b) => {
-      this._setIcon(b, 'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z');
-      b.addEventListener('click', () => {
-        const t = byId(b.dataset.id);
-        if (t) this._openEdit(t);
-      });
-    });
-    root.querySelectorAll<HTMLElement>('.del-btn').forEach((b) => {
-      this._setIcon(b, 'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z');
-      b.addEventListener('click', () => {
-        const t = byId(b.dataset.id);
-        if (t) void this._delete(t);
-      });
-    });
-  }
-
-  private _wireAssetCards(root: ShadowRoot): void {
-    const byId = (id?: string): Asset | undefined => this._assets.find((x) => x.id === id);
-    this._wireOpeners(root, '.asset-hist-open', (id) => {
-      const x = byId(id);
-      if (x) this._openAssetHistory(x);
-    });
-    root.querySelectorAll<HTMLElement>('.asset-hist-btn').forEach((b) => {
-      this._setIcon(b, MDI_HISTORY);
-      b.addEventListener('click', () => {
-        const x = byId(b.dataset.id);
-        if (x) this._openAssetHistory(x);
-      });
-    });
-    root.querySelectorAll<HTMLElement>('.asset-edit-btn').forEach((b) => {
-      this._setIcon(b, 'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z');
-      b.addEventListener('click', () => {
-        const x = byId(b.dataset.id);
-        if (x) this._openEditAsset(x);
-      });
-    });
-    root.querySelectorAll<HTMLElement>('.asset-del-btn').forEach((b) => {
-      this._setIcon(b, 'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z');
-      b.addEventListener('click', () => {
-        const x = byId(b.dataset.id);
-        if (x) void this._deleteAsset(x);
-      });
-    });
-  }
-
   /** Give an ha-icon-button its mdi icon via the native `path` property. */
   private _setIcon(button: HTMLElement, path: string): void {
     (button as HTMLElement & { path?: string }).path = path;
   }
 
-  /** Wire a click/Enter/Space "opener" on every element matching `selector`. */
-  private _wireOpeners(root: ShadowRoot, selector: string, open: (id?: string) => void): void {
-    root.querySelectorAll<HTMLElement>(selector).forEach((el) => {
-      const go = (): void => open(el.dataset.id);
-      el.addEventListener('click', go);
-      el.addEventListener('keydown', (e) => {
-        const key = (e as KeyboardEvent).key;
-        if (key === 'Enter' || key === ' ') {
-          e.preventDefault();
-          go();
-        }
-      });
-    });
-  }
-
-  // ── completion-history dialog ───────────────────────────────────────────────
-  private _renderHistoryDialog(root: ShadowRoot): void {
-    if (!this._history?.open) return;
-    const content = this._historyContent();
-    if (!content) {
-      this._history = null;
-      return;
-    }
-    const dialog = document.createElement('ha-dialog') as HTMLElement & { open?: boolean };
-    dialog.id = 'hk-history';
-    dialog.setAttribute('open', '');
-    dialog.setAttribute('hideactions', '');
-    // We render the title inside the body rather than via ha-dialog's `heading`,
-    // whose title text doesn't render consistently across HA versions. ha-dialog
-    // still provides its own ✕ and closes on Escape / scrim click (`closed` event).
-    dialog.innerHTML = `
-      <div class="hk-hist-body">
-        ${this._historyHeader(content.title)}
-        ${this._historyBody(content.groups)}
-      </div>`;
-    dialog.addEventListener('closed', () => this._closeHistory());
-    root.appendChild(dialog);
-    this._wireHistoryDeletes(dialog);
-  }
-
-  private _historyHeader(title: string): string {
-    return `<div class="hk-hist-header"><span class="hk-hist-title">${escapeHTML(title)}</span></div>`;
-  }
-
+  // ── completion-history rendering (inline in the detail page) ─────────────────
   private _historyBody(groups: HistoryGroup[]): string {
     const withAny = groups.filter((g) => (g.completions?.length ?? 0) > 0);
     if (!withAny.length) {
@@ -1377,9 +1810,9 @@ export class HomeKeeperPanel extends HTMLElement {
     return `<div class="hk-hist-group">${head}<ul class="hk-hist-list">${items}</ul></div>`;
   }
 
-  /** Set the trash icon and wire each per-completion delete button in the dialog. */
-  private _wireHistoryDeletes(dialog: HTMLElement): void {
-    dialog.querySelectorAll<HTMLElement>('.hk-hist-del').forEach((b) => {
+  /** Set the trash icon and wire each per-completion delete button. */
+  private _wireHistoryDeletes(root: ParentNode): void {
+    root.querySelectorAll<HTMLElement>('.hk-hist-del').forEach((b) => {
       this._setIcon(b, MDI_DELETE);
       b.addEventListener('click', () => {
         const ts = b.dataset.ts;

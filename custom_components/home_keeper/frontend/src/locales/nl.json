@@ -121,5 +121,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "Terug",
+  "group.by": "Groeperen op",
+  "group.none": "Geen",
+  "group.status": "Status",
+  "group.area": "Gebied",
+  "group.device": "Apparaat",
+  "filter.all": "Alle",
+  "filter.overdue": "Te laat",
+  "filter.soon": "Binnenkort",
+  "section.later": "Later",
+  "section.noSchedule": "Geen planning",
+  "section.unassigned": "Niet toegewezen",
+  "section.noDevice": "Geen apparaat",
+  "tasks.noMatch": "Geen taken komen overeen met dit filter.",
+  "detail.gone": "Dit item bestaat niet meer.",
+  "detail.about": "Details",
+  "detail.schedule": "Planning",
+  "detail.nextDue": "Volgende keer",
+  "detail.relatedTasks": "Gerelateerde taken",
+  "detail.noNotes": "Nog geen notities"
 }

@@ -100,35 +100,53 @@ test.describe('Home Keeper panel — smoke', () => {
     await expect(panel.locator('.hk-part').first().locator('ha-select')).toHaveCount(2);
   });
 
-  test('task history dialog lists completions and a trash button removes one', async ({
+  test('task detail page lists completions and a trash button removes one', async ({
     page,
   }) => {
     const errors = trackPanelErrors(page);
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    // Clicking a task's body opens its completion-history dialog (ha-dialog).
-    await panel.locator('.hist-open[data-id="task_fridge_filter"]').click();
-    const rows = panel.locator('#hk-history .hk-hist-list li');
+    // Clicking a task's row opens its detail page, which shows the history inline.
+    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    const rows = panel.locator('.hk-hist-list li');
     await expect(rows.first()).toBeVisible();
     const before = await rows.count();
     expect(before).toBeGreaterThan(1);
     // Each row carries a trash (ha-icon-button) — delete the first completion.
-    await panel.locator('#hk-history .hk-hist-del').first().click();
+    await panel.locator('.hk-hist-del').first().click();
     await expect(rows).toHaveCount(before - 1);
+    // Still on the detail page after the in-place refresh.
+    await expect(panel.locator('#back-btn')).toBeVisible();
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
-  test('appliance history shows retained history of a removed task', async ({ page }) => {
+  test('appliance detail shows retained history of a removed task', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await panel.locator('#tab-appliances').click();
-    await panel.locator('.asset-hist-open[data-id="asset_water_heater"]').click();
+    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
     // The water heater's history includes a task that was deleted while still
     // assigned to it — surfaced as an archived "removed task" group.
-    const dialog = panel.locator('#hk-history');
-    await expect(dialog.locator('.hk-hist-group').first()).toBeVisible();
-    await expect(dialog).toContainText('Flush water heater tank');
-    await expect(dialog.locator('.hk-hist-archived').first()).toBeVisible();
+    await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
+    await expect(panel).toContainText('Flush water heater tank');
+    await expect(panel.locator('.hk-hist-archived').first()).toBeVisible();
+  });
+
+  test('filter + group-by controls re-bucket the task list', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    // Default grouping is by status — collapsible group sections are present.
+    await expect(panel.locator('details.hk-group').first()).toBeVisible();
+    // The "Overdue" quick filter narrows the list to the overdue chip(s).
+    await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'Overdue' }).click();
+    await expect(panel.locator('ha-assist-chip.hk-overdue').first()).toBeVisible();
+    // Switching group-by to "None" renders a flat list (no group sections).
+    await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
+    await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'None' }).click();
+    await expect(panel.locator('details.hk-group')).toHaveCount(0);
+    await expect(panel.locator('ha-card.hk-card').first()).toBeVisible();
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
   test('native to-do + calendar cards render on the dashboard', async ({ page }) => {

@@ -121,5 +121,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "Takaisin",
+  "group.by": "Ryhmittele",
+  "group.none": "Ei mitään",
+  "group.status": "Tila",
+  "group.area": "Alue",
+  "group.device": "Laite",
+  "filter.all": "Kaikki",
+  "filter.overdue": "Myöhässä",
+  "filter.soon": "Pian",
+  "section.later": "Myöhemmin",
+  "section.noSchedule": "Ei aikataulua",
+  "section.unassigned": "Ei määritetty",
+  "section.noDevice": "Ei laitetta",
+  "tasks.noMatch": "Mikään tehtävä ei vastaa tätä suodatinta.",
+  "detail.gone": "Tätä kohdetta ei enää ole.",
+  "detail.about": "Tiedot",
+  "detail.schedule": "Aikataulu",
+  "detail.nextDue": "Seuraava eräpäivä",
+  "detail.relatedTasks": "Liittyvät tehtävät",
+  "detail.noNotes": "Ei vielä muistiinpanoja"
 }

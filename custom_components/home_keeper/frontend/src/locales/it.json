@@ -121,5 +121,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "Indietro",
+  "group.by": "Raggruppa per",
+  "group.none": "Nessuno",
+  "group.status": "Stato",
+  "group.area": "Area",
+  "group.device": "Dispositivo",
+  "filter.all": "Tutti",
+  "filter.overdue": "In ritardo",
+  "filter.soon": "In scadenza",
+  "section.later": "Più tardi",
+  "section.noSchedule": "Senza pianificazione",
+  "section.unassigned": "Non assegnato",
+  "section.noDevice": "Nessun dispositivo",
+  "tasks.noMatch": "Nessuna attività corrisponde a questo filtro.",
+  "detail.gone": "Questo elemento non esiste più.",
+  "detail.about": "Dettagli",
+  "detail.schedule": "Pianificazione",
+  "detail.nextDue": "Prossima scadenza",
+  "detail.relatedTasks": "Attività correlate",
+  "detail.noNotes": "Ancora nessuna nota"
 }

@@ -121,5 +121,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "返回",
+  "group.by": "分组方式",
+  "group.none": "无",
+  "group.status": "状态",
+  "group.area": "区域",
+  "group.device": "设备",
+  "filter.all": "全部",
+  "filter.overdue": "逾期",
+  "filter.soon": "即将到期",
+  "section.later": "以后",
+  "section.noSchedule": "无计划",
+  "section.unassigned": "未分配",
+  "section.noDevice": "无设备",
+  "tasks.noMatch": "没有任务符合此筛选条件。",
+  "detail.gone": "此项目已不存在。",
+  "detail.about": "详情",
+  "detail.schedule": "计划",
+  "detail.nextDue": "下次到期",
+  "detail.relatedTasks": "相关任务",
+  "detail.noNotes": "暂无备注"
 }
