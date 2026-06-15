@@ -40,6 +40,24 @@ def test_build_floating_task_with_last_completed_seed():
     assert task["next_due"] == datetime(2026, 6, 15, 9, tzinfo=TZ).isoformat()
 
 
+def test_build_floating_task_seed_accepts_datetime():
+    # The add_task service (cv.datetime) hands build_task an already-parsed datetime,
+    # not a string — exercise that path directly.
+    seed = datetime(2026, 6, 1, 9, tzinfo=TZ)
+    task = m.build_task(
+        {
+            "name": "Nail trim",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "last_completed": seed,
+        },
+        now=NOW,
+    )
+    assert task["last_completed"] == seed.isoformat()
+    assert task["next_due"] == datetime(2026, 6, 15, 9, tzinfo=TZ).isoformat()
+
+
 def test_build_floating_task_seed_naive_is_qualified():
     # A naive seed (e.g. from a datetime-local picker) is qualified with the caller tz.
     task = m.build_task(
