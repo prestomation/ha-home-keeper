@@ -317,6 +317,20 @@ def test_build_task_allows_deletion_protected_with_config_entry_id():
     assert task["managed_by"]["config_entry_id"] == "abc123"
 
 
+def test_build_task_rejects_non_mapping_managed_by():
+    with pytest.raises(m.TaskValidationError):
+        m.build_task(
+            {
+                "name": "X",
+                "recurrence_type": "floating",
+                "interval": 1,
+                "unit": "days",
+                "managed_by": "not-a-dict",
+            },
+            now=NOW,
+        )
+
+
 def test_build_task_allows_managed_without_protection_and_no_config_entry_id():
     # A managed task that doesn't request deletion protection needs no config_entry_id.
     task = m.build_task(
