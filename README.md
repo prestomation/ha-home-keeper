@@ -42,6 +42,12 @@ Administration and usage are intentionally **separated**:
     (next due) and `binary_sensor` (overdue) entities appear **on that device's
     page** — so e.g. your fridge shows its filter task right alongside it.
 
+The panel's list view can **group** tasks by status, area, or device and **filter**
+to just what's overdue or due soon. Tapping any row opens a **detail page** with the
+task's full schedule, notes, and completion history.
+
+![Task detail page](docs/images/7-panel-task-detail.png)
+
 ## Appliances & virtual devices
 
 Most appliances you actually maintain — a "dumb" fridge, furnace, or water heater —
@@ -66,6 +72,12 @@ icon, purchase / install / **warranty-expiry** dates, cost, vendor, and a manual
 link. Dates become real `date` **sensors** on the device page, so they're automatable
 natively — e.g. *"warranty expiring in 30 days → notify me"* — and show up in state
 history without any custom card.
+
+Tapping an appliance opens a **detail page** that gathers its metadata, parts, related
+tasks, subdevices, and full maintenance history (including the retained history of
+tasks deleted while still assigned to it) in one place.
+
+![Appliance detail page](docs/images/8-panel-appliance-detail.png)
 
 ![Add an appliance](docs/images/6-panel-appliance-create.png)
 
