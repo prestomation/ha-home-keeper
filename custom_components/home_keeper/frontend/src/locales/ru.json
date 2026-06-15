@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "btn.exportInventory": "Экспортировать опись",
+  "error.exportFailed": "Не удалось экспортировать опись",
   "field.stock": "Запас",
   "field.reorder_at": "Заказ при",
   "part.inStock": "В наличии: {n}",

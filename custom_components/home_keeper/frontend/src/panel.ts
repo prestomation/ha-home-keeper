@@ -600,7 +600,19 @@ export class HomeKeeperPanel extends HTMLElement {
       this._downloadFile(`home-keeper-inventory-${stamp}.csv`, csv, 'text/csv');
     } catch (err) {
       console.error('home-keeper: inventory export failed', err);
+      this._toast(t('error.exportFailed'));
     }
+  }
+
+  /** Surface a transient message via HA's toast notification. */
+  private _toast(message: string): void {
+    this.dispatchEvent(
+      new CustomEvent('hass-notification', {
+        detail: { message },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 
   /** Trigger a client-side file download (no server round-trip for the blob). */
@@ -610,8 +622,13 @@ export class HomeKeeperPanel extends HTMLElement {
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    // Defer revoke a tick so the download isn't cancelled in browsers that read the
+    // blob URL asynchronously after click().
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   // ── completion history ──────────────────────────────────────────────────────

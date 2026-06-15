@@ -477,3 +477,67 @@ def test_adjust_part_stock_rejects_unknown_part(ha):
         json={"asset_id": wh["id"], "part_id": "no_such_part", "delta": 1},
     )
     assert r.status_code >= 400, "expected rejection for an unknown part_id"
+
+
+def test_add_asset_service_accepts_part_stock(ha):
+    # Regression: the add/update_asset service schema must accept stock/reorder_at on
+    # parts (the websocket path always did) — otherwise the documented service errors.
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": "Stocked widget",
+            "parts": [
+                {"name": "Spare", "type": "consumable", "stock": 4, "reorder_at": 1}
+            ],
+        },
+    )
+    asset = next(a for a in _assets(ha) if a["name"] == "Stocked widget")
+    part = asset["parts"][0]
+    assert part["stock"] == 4 and part["reorder_at"] == 1
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_low_stock_event_fires_on_crossing_not_on_restock(ha):
+    # A `home_keeper_part_low_stock` event must fire once when stock crosses from
+    # not-low into low, and NOT on a restock. A configuration.yaml automation mirrors
+    # the event into input_text.hk_last_low_stock_part as "<part_id>@<stock>".
+    import time
+
+    from conftest import get_state
+
+    wh = _water_heater(ha)
+    pid = next(p for p in wh["parts"] if p["name"] == "Anode rod")["id"]
+    sentinel = "input_text.hk_last_low_stock_part"
+
+    def _reset():
+        call_service(ha, "input_text", "set_value",
+                     {"entity_id": sentinel, "value": "none"})
+
+    def _captured():
+        st = get_state(ha, sentinel)
+        return st["state"] if st else None
+
+    # Restock well above the threshold (reorder_at=2) so the next drop is a crossing.
+    call_service(ha, "home_keeper", "adjust_part_stock",
+                 {"asset_id": wh["id"], "part_id": pid, "delta": 10})
+    _reset()
+    # Drop across the threshold to zero -> exactly one low-stock event for this part.
+    call_service(ha, "home_keeper", "adjust_part_stock",
+                 {"asset_id": wh["id"], "part_id": pid, "delta": -100})
+    deadline = time.monotonic() + 10
+    captured = None
+    while time.monotonic() < deadline:
+        captured = _captured()
+        if captured and captured != "none":
+            break
+        time.sleep(0.5)
+    assert captured == f"{pid}@0", f"expected a low-stock event for {pid}, got {captured!r}"
+
+    # A restock that leaves the part not-low must NOT re-fire the event.
+    _reset()
+    call_service(ha, "home_keeper", "adjust_part_stock",
+                 {"asset_id": wh["id"], "part_id": pid, "delta": 10})
+    time.sleep(2)
+    assert _captured() == "none", "a restock must not fire a low-stock event"

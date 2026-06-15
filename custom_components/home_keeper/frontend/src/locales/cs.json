@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "btn.exportInventory": "Exportovat inventář",
+  "error.exportFailed": "Export inventáře selhal",
   "field.stock": "Zásoba",
   "field.reorder_at": "Objednat při",
   "part.inStock": "Skladem: {n}",

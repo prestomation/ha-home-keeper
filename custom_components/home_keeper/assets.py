@@ -234,28 +234,22 @@ def _normalize_parts(value: Any) -> list[dict]:
     return parts
 
 
-# Part fields the backend owns and keeps across an edit when the caller omits them:
-# ``last_replaced`` is stamped on completion, and ``stock``/``reorder_at`` are
-# maintained by stock adjustments, so a partial update (e.g. a service call that
-# resubmits a part without them) must not silently wipe them.
-_PRESERVED_PART_FIELDS = ("last_replaced", "stock", "reorder_at")
-
-
 def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
-    """Carry backend-managed part fields across an edit.
+    """Carry the backend-managed ``last_replaced`` across an edit.
 
-    The panel submits the full parts list; for parts that already exist (matched by
-    ``id``) we keep the stored backend-managed values (see ``_PRESERVED_PART_FIELDS``)
-    unless the caller explicitly set them.
+    The panel submits the full parts list but never exposes ``last_replaced`` (it is
+    stamped on completion), so for parts that already exist (matched by ``id``) we
+    keep the stored value unless the caller explicitly set it. ``stock``/``reorder_at``
+    are ordinary user-editable fields — incoming wins, including a ``None`` that clears
+    them — so they are intentionally *not* preserved here (otherwise stock tracking
+    could never be switched back off).
     """
     by_id = {p["id"]: p for p in existing}
     merged: list[dict] = []
     for part in incoming:
         prior = by_id.get(part["id"])
-        if prior:
-            for key in _PRESERVED_PART_FIELDS:
-                if part.get(key) is None and prior.get(key) is not None:
-                    part = {**part, key: prior.get(key)}
+        if prior and part.get("last_replaced") is None:
+            part = {**part, "last_replaced": prior.get("last_replaced")}
         merged.append(part)
     return merged
 
@@ -270,25 +264,30 @@ def part_is_low(part: dict) -> bool:
 def consume_part_stock(part: dict) -> bool:
     """Decrement a part's on-hand ``stock`` by one (never below zero).
 
-    A no-op for parts that don't track stock. Returns ``True`` when the part is now
-    at or below its reorder threshold, so the caller can emit a low-stock signal.
+    A no-op for parts that don't track stock. Returns ``True`` only when this
+    consumption *crosses* the part from not-low into low (edge-triggered), so the
+    caller emits one low-stock signal per crossing rather than on every step while
+    already low.
     """
     stock = part.get("stock")
     if stock is None:
         return False
+    was_low = part_is_low(part)
     part["stock"] = max(0, int(stock) - 1)
-    return part_is_low(part)
+    return part_is_low(part) and not was_low
 
 
 def adjust_part_stock(part: dict, delta: int) -> bool:
     """Adjust a part's on-hand ``stock`` by ``delta`` (clamped at zero).
 
-    Begins tracking from zero for a previously untracked part. Returns ``True`` when
-    the part is now at or below its reorder threshold.
+    Begins tracking from zero for a previously untracked part. Returns ``True`` only
+    when the adjustment *crosses* the part from not-low into low (edge-triggered); a
+    restock, or a decrease while already low, returns ``False``.
     """
+    was_low = part_is_low(part)
     current = part.get("stock") or 0
     part["stock"] = max(0, int(current) + int(delta))
-    return part_is_low(part)
+    return part_is_low(part) and not was_low
 
 
 def normalize_fields(data: dict) -> dict:

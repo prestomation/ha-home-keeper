@@ -62,7 +62,10 @@ def build_inventory(
     total_spares = 0.0
     for asset in assets:
         parts = asset.get("parts") or []
-        spares_value = round(sum(_spares_value(p) for p in parts), 2)
+        # Accumulate the raw spares sum into the total (round once at the end), so the
+        # grand total can't drift a cent from re-rounding already-rounded rows.
+        raw_spares = sum(_spares_value(p) for p in parts)
+        spares_value = round(raw_spares, 2)
         cost = asset.get("cost")
         area_id = asset.get("area_id")
         rows.append(
@@ -86,7 +89,7 @@ def build_inventory(
             }
         )
         total_cost += _num(cost)
-        total_spares += spares_value
+        total_spares += raw_spares
     rows.sort(key=lambda r: (r["name"] or "").lower())
     totals = {
         "asset_count": len(rows),
@@ -114,7 +117,19 @@ _CSV_COLUMNS = (
 
 
 def _cell(value: Any) -> str:
-    return "" if value is None else str(value)
+    """Stringify a CSV cell, neutralizing spreadsheet formula injection.
+
+    A cell that a spreadsheet would treat as a formula (leading ``= + - @`` or a
+    leading tab/CR) is prefixed with an apostrophe so Excel/Sheets/LibreOffice show
+    it as literal text rather than evaluating it. Our numeric columns are
+    non-negative, so this never mangles a real number.
+    """
+    if value is None:
+        return ""
+    text = str(value)
+    if text and text[0] in "=+-@\t\r":
+        return "'" + text
+    return text
 
 
 def inventory_to_csv(inventory: dict[str, Any]) -> str:

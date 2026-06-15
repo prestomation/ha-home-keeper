@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "btn.exportInventory": "Exporter l'inventaire",
+  "error.exportFailed": "Échec de l'export de l'inventaire",
   "field.stock": "Stock",
   "field.reorder_at": "Réapprovisionner à",
   "part.inStock": "En stock : {n}",

@@ -82,6 +82,8 @@ _PART_SCHEMA = vol.Schema(
         vol.Optional("replace_interval"): vol.Coerce(int),
         vol.Optional("replace_unit"): cv.string,
         vol.Optional("last_replaced"): cv.string,
+        vol.Optional("stock"): vol.Coerce(int),
+        vol.Optional("reorder_at"): vol.Coerce(int),
     }
 )
 

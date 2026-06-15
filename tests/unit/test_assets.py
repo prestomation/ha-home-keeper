@@ -351,19 +351,23 @@ def test_part_is_low():
     assert a.part_is_low({"stock": 0, "reorder_at": None}) is False
 
 
-def test_consume_part_stock_decrements_and_flags_low():
+def test_consume_part_stock_flags_low_only_on_crossing():
     part = {"stock": 3, "reorder_at": 1}
     # 3 -> 2, still above the threshold of 1.
     assert a.consume_part_stock(part) is False
     assert part["stock"] == 2
-    # 2 -> 1 lands on the threshold, which counts as low.
+    # 2 -> 1 crosses from not-low into low.
     assert a.consume_part_stock(part) is True
     assert part["stock"] == 1
+    # 1 -> 0, already low: edge-triggered, so no repeat signal.
+    assert a.consume_part_stock(part) is False
+    assert part["stock"] == 0
 
 
-def test_consume_part_stock_floors_at_zero():
+def test_consume_part_stock_floors_at_zero_without_refiring():
+    # Already low (and at zero): consuming again clamps at zero and does not re-fire.
     part = {"stock": 0, "reorder_at": 0}
-    assert a.consume_part_stock(part) is True
+    assert a.consume_part_stock(part) is False
     assert part["stock"] == 0
 
 
@@ -389,16 +393,47 @@ def test_adjust_part_stock_begins_tracking_from_zero():
     assert part["stock"] == 2
 
 
-def test_merge_update_preserves_part_stock():
+def test_adjust_part_stock_no_refire_while_already_low():
+    # Decreasing while already low must not re-signal (edge-triggered).
+    part = {"stock": 1, "reorder_at": 2}
+    assert a.adjust_part_stock(part, -1) is False
+    assert part["stock"] == 0
+    # Restocking back up to/below the threshold also doesn't signal.
+    assert a.adjust_part_stock(part, 2) is False
+    assert part["stock"] == 2
+
+
+def test_merge_update_clears_part_stock_when_omitted():
+    # stock/reorder_at are ordinary editable fields: a resubmit that omits them
+    # clears the tracking (so the user can switch it back off), while the
+    # backend-managed last_replaced is still preserved.
+    asset = a.build_asset(
+        {
+            "name": "Furnace",
+            "parts": [{"name": "Filter", "stock": 3, "reorder_at": 1}],
+        },
+        now=NOW,
+    )
+    pid = asset["parts"][0]["id"]
+    asset["parts"][0]["last_replaced"] = "2025-01-01"  # backend completion stamp
+    updated = a.merge_update(
+        asset, {"parts": [{"id": pid, "name": "Filter"}]}, now=NOW
+    )
+    assert updated["parts"][0]["stock"] is None
+    assert updated["parts"][0]["reorder_at"] is None
+    assert updated["parts"][0]["last_replaced"] == "2025-01-01"
+
+
+def test_merge_update_sets_part_stock_from_incoming():
     asset = a.build_asset(
         {"name": "Furnace", "parts": [{"name": "Filter", "stock": 3, "reorder_at": 1}]},
         now=NOW,
     )
     pid = asset["parts"][0]["id"]
-    asset["parts"][0]["stock"] = 1  # simulate a completion having consumed spares
-    # The panel re-submits the part without stock/reorder_at; merge must keep them.
     updated = a.merge_update(
-        asset, {"parts": [{"id": pid, "name": "Filter"}]}, now=NOW
+        asset,
+        {"parts": [{"id": pid, "name": "Filter", "stock": 5, "reorder_at": 2}]},
+        now=NOW,
     )
-    assert updated["parts"][0]["stock"] == 1
-    assert updated["parts"][0]["reorder_at"] == 1
+    assert updated["parts"][0]["stock"] == 5
+    assert updated["parts"][0]["reorder_at"] == 2

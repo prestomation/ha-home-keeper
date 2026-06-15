@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "btn.exportInventory": "Inventaris exporteren",
+  "error.exportFailed": "Inventaris exporteren mislukt",
   "field.stock": "Voorraad",
   "field.reorder_at": "Bijbestellen bij",
   "part.inStock": "Op voorraad: {n}",
