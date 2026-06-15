@@ -10,11 +10,15 @@
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only `pip install pytest`: `pytest tests/unit -v`.
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
-- **Always post screenshots to the PR when a change adds, changes, or fixes UI.**
-  Capture with the Playwright harness (`tests/e2e/screenshots.capture.ts`), commit
-  the PNG(s) under `docs/images/`, and embed them in the PR via a
+- **Every PR that touches the panel UI MUST include screenshots — no exceptions.**
+  This is a hard gate: a UI change is not reviewable (or mergeable) until the PR
+  body embeds current screenshots of the changed surface. Capture them with the
+  Playwright harness (`tests/e2e/screenshots.capture.ts`; bring HA up with
+  `KEEP_UP=1 bash ci/e2e-up.sh`, then run the capture config), commit the PNG(s)
+  under `docs/images/`, and embed them in the PR via a
   `raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/images/<file>.png`
-  URL pinned to the commit that added them.
+  URL pinned to the commit that added them. When a change adds a new UI surface,
+  add a capture step for it to the capture script in the same PR.
 - **Always document new major features in `README.md` in the same change.** Add a
   brief section with the **use cases** (what problem it solves) and a little about
   **how it's used**, and include **screenshot(s)** (same Playwright capture, committed
@@ -62,6 +66,14 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
 
 ## Conventions
 
+- **Expose every data action as a `home_keeper.*` service.** Any operation that
+  mutates or exports Home Keeper data — task/asset CRUD, exports (inventory),
+  stock adjustments, and anything new — must ship as a Home Assistant **service**
+  for general interoperability (automations, scripts, voice, other integrations).
+  A panel **websocket command** is only a UI optimization and is never a substitute
+  for the service: add the service first (with a `services.yaml` entry and
+  `strings.json` localization parity), and have any websocket command delegate to
+  the same store method. See `.amazonq/rules/architecture-and-code.md`.
 - Tasks are plain dicts: `id, name, notes, recurrence_type, interval, unit|freq,
   anchor, device_id, area_id, enabled, last_completed, next_due, completions[]`.
 - All datetimes are timezone-aware (`homeassistant.util.dt`); `recurrence.py` takes

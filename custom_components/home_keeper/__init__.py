@@ -15,8 +15,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.util import dt as dt_util
 
-from . import devices, panel, websocket_api
+from . import devices, inventory, panel, websocket_api
 from .assets import AssetValidationError
 from .const import DOMAIN, PLATFORMS
 from .coordinator import HomeKeeperCoordinator, entity_set_key
@@ -113,6 +114,16 @@ UPDATE_ASSET_SCHEMA = vol.Schema(
     {vol.Required("asset_id"): cv.string, **_ASSET_FIELDS}
 )
 ASSET_ID_SCHEMA = vol.Schema({vol.Required("asset_id"): cv.string})
+
+# Adjust a part's on-hand spare count by a (signed) delta; clamped at zero.
+ADJUST_PART_STOCK_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("part_id"): cv.string,
+        vol.Required("delta"): vol.Coerce(int),
+    }
+)
+EXPORT_INVENTORY_SCHEMA = vol.Schema({})
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -250,6 +261,28 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         return {"assets": coord.store.list_assets()}
 
+    async def handle_adjust_part_stock(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.adjust_part_stock(
+                call.data["asset_id"], call.data["part_id"], call.data["delta"]
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                f"Unknown asset_id or part_id: {call.data['asset_id']} / "
+                f"{call.data['part_id']}"
+            ) from None
+        await coord.async_request_refresh()
+
+    async def handle_export_inventory(call: ServiceCall) -> dict[str, Any]:
+        coord = _coordinator()
+        report = inventory.build_inventory(
+            coord.store.list_assets(),
+            area_names=devices.area_names(hass),
+            today=dt_util.now().date(),
+        )
+        return {"inventory": report, "csv": inventory.inventory_to_csv(report)}
+
     hass.services.async_register(
         DOMAIN,
         "add_task",
@@ -289,6 +322,16 @@ def _register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema({}),
         supports_response=SupportsResponse.ONLY,
     )
+    hass.services.async_register(
+        DOMAIN, "adjust_part_stock", handle_adjust_part_stock, ADJUST_PART_STOCK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "export_inventory",
+        handle_export_inventory,
+        EXPORT_INVENTORY_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
 
 
 async def _delete_asset(
@@ -318,6 +361,8 @@ _SERVICES = (
     "update_asset",
     "delete_asset",
     "list_assets",
+    "adjust_part_stock",
+    "export_inventory",
 )
 
 

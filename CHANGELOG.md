@@ -6,6 +6,19 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+- **Home inventory export (for insurance).** A new **Export inventory** button on
+  the Appliances tab downloads a CSV — make/model/serial, purchase and warranty
+  dates, replacement cost, and the value of spares on hand, with a grand total —
+  built from metadata you've already entered. Also available to automations as the
+  `home_keeper.export_inventory` service (returns the report plus CSV).
+
+- **Spare-inventory tracking for parts.** Any part can now track a *stock* count and
+  a *reorder-at* threshold. Completing a wear-item replacement consumes one spare,
+  and when stock drops to/below the threshold a `home_keeper_part_low_stock` event
+  fires so you can automate a shopping-list add or reorder. The panel shows the
+  on-hand count and a **Low stock** chip; the `home_keeper.adjust_part_stock` service
+  restocks or consumes spares from automations.
+
 - **Deep links & a working Back button in the panel.** The panel's view now lives
   in the URL — tabs (`/home-keeper/appliances`) and detail pages
   (`/home-keeper/tasks/<id>`) are linkable and bookmarkable, and refreshing keeps

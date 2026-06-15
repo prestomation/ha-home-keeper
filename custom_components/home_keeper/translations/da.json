@@ -204,6 +204,19 @@
     "list_assets": {
       "name": "Vis apparater",
       "description": "Returner alle apparater/aktiver som et svar."
+    },
+    "adjust_part_stock": {
+      "name": "Adjust part stock",
+      "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
+      "fields": {
+        "asset_id": { "name": "Asset ID", "description": "The id of the appliance the part belongs to." },
+        "part_id": { "name": "Part ID", "description": "The id of the part whose stock to adjust." },
+        "delta": { "name": "Delta", "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)." }
+      }
+    },
+    "export_inventory": {
+      "name": "Export inventory",
+      "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
     }
   },
   "entity": {
