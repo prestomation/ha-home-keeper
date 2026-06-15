@@ -5,7 +5,7 @@
 | Name                                              |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |-------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
 | custom\_components/home\_keeper/\_\_init\_\_.py   |      146 |      146 |       16 |        0 |      0% |     8-343 |
-| custom\_components/home\_keeper/assets.py         |      173 |        9 |       76 |        7 |     94% |99, 150-151, 153, 167, 204, 226-\>228, 249, 347-348 |
+| custom\_components/home\_keeper/assets.py         |      231 |        9 |      110 |        8 |     95% |99, 150-151, 153, 167, 204, 226-\>228, 249, 347-348, 384-\>386 |
 | custom\_components/home\_keeper/binary\_sensor.py |       29 |       29 |        0 |        0 |      0% |      3-57 |
 | custom\_components/home\_keeper/button.py         |       21 |       21 |        0 |        0 |      0% |      8-48 |
 | custom\_components/home\_keeper/calendar.py       |       68 |       68 |       28 |        0 |      0% |     9-125 |
@@ -19,12 +19,12 @@
 | custom\_components/home\_keeper/models.py         |       59 |        5 |       20 |        3 |     90% |49, 53, 82, 86-87 |
 | custom\_components/home\_keeper/panel.py          |       22 |       22 |        4 |        0 |      0% |     10-70 |
 | custom\_components/home\_keeper/reconcile.py      |       71 |        0 |       38 |        0 |    100% |           |
-| custom\_components/home\_keeper/recurrence.py     |      113 |       11 |       54 |       11 |     87% |47, 93, 109, 133, 144, 173, 204, 219, 235, 251, 259 |
+| custom\_components/home\_keeper/recurrence.py     |      126 |       11 |       60 |       11 |     88% |47, 93, 109, 133, 144, 173, 204, 219, 235, 275, 283 |
 | custom\_components/home\_keeper/sensor.py         |       62 |       62 |       10 |        0 |      0% |    12-133 |
-| custom\_components/home\_keeper/store.py          |      161 |      161 |       56 |        0 |      0% |     9-293 |
+| custom\_components/home\_keeper/store.py          |      186 |      186 |       68 |        0 |      0% |     9-345 |
 | custom\_components/home\_keeper/todo.py           |       34 |       34 |        6 |        0 |      0% |     10-76 |
-| custom\_components/home\_keeper/websocket\_api.py |      164 |      164 |       38 |        0 |      0% |     8-263 |
-| **TOTAL**                                         | **1375** |  **945** |  **418** |   **21** | **33%** |           |
+| custom\_components/home\_keeper/websocket\_api.py |      194 |      194 |       42 |        0 |      0% |     8-316 |
+| **TOTAL**                                         | **1501** | **1000** |  **474** |   **22** | **36%** |           |
 
 
 ## Setup coverage badge
