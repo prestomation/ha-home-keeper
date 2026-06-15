@@ -13,7 +13,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   you'd never done showed up as "due in 30 days"). It now reads as **due immediately** —
   a task you haven't done yet is due now. Completing it (or seeding a "last done" date,
   below) starts the clock from there. Fixed (calendar-anchored) tasks and appliance
-  wear-part tasks are unaffected.
+  wear-part tasks are unaffected. This applies to newly-created tasks; an existing
+  never-completed floating task keeps its current due date until next edited or completed.
 
 - **`add_task` accepts an optional `last_completed` "last done" seed.** Integrations
   that already know when an activity last happened can pass `last_completed` to seed an
