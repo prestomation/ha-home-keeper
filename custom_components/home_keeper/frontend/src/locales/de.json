@@ -112,5 +112,14 @@
   "asset.subdevices.other": "{n} Teilgeräte",
   "asset.related.one": "{n} verknüpft",
   "asset.related.other": "{n} verknüpft",
-  "asset.noDetails": "Noch keine Details"
+  "asset.noDetails": "Noch keine Details",
+  "btn.history": "Verlauf",
+  "btn.close": "Schließen",
+  "history.task.title": "{name} — Verlauf",
+  "history.appliance.title": "{name} — Wartungsverlauf",
+  "history.empty": "Noch keine Erledigungen erfasst.",
+  "history.count.one": "{n} Erledigung",
+  "history.count.other": "{n} Erledigungen",
+  "history.cadence": "≈ alle {days} Tage",
+  "history.archived": "entfernte Aufgabe"
 }

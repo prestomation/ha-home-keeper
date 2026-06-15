@@ -62,6 +62,19 @@ export interface Part {
   last_replaced?: string | null;
 }
 
+/**
+ * A deleted task's completion history, preserved on the appliance it belonged to.
+ * Written by the backend when a task assigned to an appliance is removed, so the
+ * appliance's maintenance history survives the task (reference-counting retention).
+ */
+export interface TaskHistoryEntry {
+  task_id: string;
+  task_name: string;
+  part_id?: string | null;
+  completions: { ts: string }[];
+  archived_at?: string;
+}
+
 /** An appliance/asset: a virtual device we own, or metadata on an existing one. */
 export interface Asset {
   id: string;
@@ -85,6 +98,7 @@ export interface Asset {
   parts?: Part[];
   parent_asset_id?: string | null;
   related_device_ids?: string[];
+  task_history?: TaskHistoryEntry[];
 }
 
 export interface PanelInfo {

@@ -19,7 +19,11 @@ WEBCOMPONENT_NAME = "home-keeper-panel"
 # Storage.
 STORAGE_KEY = "home_keeper"
 STORAGE_VERSION = 1
-MAX_COMPLETION_HISTORY = 50
+# How many completion timestamps to retain per task. Generous so the panel's task
+# history shows years of cadence (e.g. 500 monthly completions ≈ 40 years) while
+# still bounding the stored list. When a task that belongs to an appliance is
+# deleted, this history is archived onto the appliance (see ``assets.append_task_history``).
+MAX_COMPLETION_HISTORY = 500
 
 # Event fired on the HA event bus whenever a task is completed (from any surface:
 # the to-do list, a device mark-done button, or the complete_task service). This is

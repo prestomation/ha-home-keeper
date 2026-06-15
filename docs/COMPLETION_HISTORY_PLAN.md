@@ -1,13 +1,32 @@
-# Plan — Task Completion History & Appliance History
+# Task Completion History & Appliance History
 
-**Status: proposed (planning only — no code in this doc).**
-
-The goal: let a user click a **task** and see every time it was completed, and click an
-**appliance** and see the history of *all* maintenance done on it (across every related
+**Status: implemented.** Click a **task** to see every time it was completed; click an
+**appliance** to see the history of *all* maintenance done on it (across every related
 task). This is the "when did I last do X / when was this serviced" view.
 
-This document is a concrete implementation plan. It is staged so the most valuable,
-lowest-risk slice (showing history that the backend *already records*) ships first.
+## Implemented behaviour (this PR)
+
+- **Task history dialog** — every task card has a history (clock) button and a clickable
+  body; opening it lists all completion dates newest-first with a count and average
+  cadence (`≈ every N days`). The card meta also shows the completion count.
+- **Appliance history dialog** — every appliance card opens an aggregated, grouped
+  timeline of all related tasks' completions (part-derived, device-attached, or
+  related-device), newest activity first.
+- **Reference-counting retention** — when a task that belongs to an appliance is deleted,
+  its completion history is *archived onto that appliance* (shown with a **REMOVED TASK**
+  badge) so the appliance's maintenance record survives the task. A standalone task's
+  history is dropped with it, and deleting an appliance drops its archive too (the
+  archive is a field on the asset record). This is exactly the reference-counting model:
+  history lives on while *something* still references it.
+- **Larger cap** — `MAX_COMPLETION_HISTORY` raised from 50 → 500 so long-lived tasks keep
+  years of cadence.
+
+The rest of this document is the original design rationale, kept for context.
+
+---
+
+The feature is staged so the most valuable, lowest-risk slice (showing history that the
+backend *already records*) ships first.
 
 ---
 
@@ -124,6 +143,13 @@ capped at 50, lost on deletion — addressed next.
    client-side derivation to these (single source of truth, ready for Phase 3).
 
 ### Phase 3 — Durable, deletion-proof history log (optional, longevity)
+
+> Note: the shipped implementation took the lighter-weight path below instead of a
+> separate top-level log: a deleted task's history is archived onto the appliance it
+> belonged to (a `task_history` field on the asset). This is additive (no
+> `STORAGE_VERSION` bump) and gives reference-counting retention — appliance deletion
+> drops the archive with it. The separate-log design here remains an option if
+> cross-appliance or fully task-independent history is ever needed.
 
 Decouple recorded history from the live task object.
 

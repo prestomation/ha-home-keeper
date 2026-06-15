@@ -5,12 +5,15 @@ import type { Asset, AssetKind, Hass, PanelInfo, Part, Task } from './types';
 import {
   assetSummary,
   brandLogoUrl,
+  completionStats,
   deviceDomain,
   deviceName,
   dueLabel,
   escapeHTML,
   isOverdue,
   recurrenceSummary,
+  sortedCompletions,
+  tasksForAsset,
 } from './utils';
 
 // mdi:devices — fallback icon when a device has no resolvable brand logo.
@@ -50,7 +53,14 @@ const REQUIRED_COMPONENTS = [
   'ha-assist-chip',
   'ha-menu-button',
   'ha-svg-icon',
+  'ha-dialog',
 ];
+
+// mdi:history — opens a task's / appliance's completion history.
+const MDI_HISTORY =
+  'M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.96,' +
+  '16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 ' +
+  '8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3';
 
 const STYLES = `
   :host { display: block; }
@@ -105,6 +115,29 @@ const STYLES = `
   .hk-form-actions { display: flex; gap: 8px; margin-top: 20px; }
   .hk-loading { display: flex; justify-content: center; padding: 48px 0; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
+  .hk-card-row .grow.clickable { cursor: pointer; }
+  ha-dialog { --mdc-dialog-min-width: min(560px, 92vw); --mdc-dialog-max-width: 560px; }
+  .hk-hist-header { margin-bottom: 16px; }
+  .hk-hist-title { font-size: 1.2rem; font-weight: 500; }
+  .hk-hist-group { margin-bottom: 18px; }
+  .hk-hist-group:last-child { margin-bottom: 0; }
+  .hk-hist-head {
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+    font-weight: 500; margin-bottom: 6px;
+  }
+  .hk-hist-sub { color: var(--secondary-text-color); font-size: 0.85rem; font-weight: 400; }
+  .hk-hist-archived {
+    font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--secondary-text-color); border: 1px solid var(--divider-color);
+    border-radius: 10px; padding: 1px 8px;
+  }
+  ul.hk-hist-list { list-style: none; margin: 0; padding: 0; }
+  ul.hk-hist-list li {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 7px 0; border-bottom: 1px solid var(--divider-color);
+  }
+  ul.hk-hist-list li:last-child { border-bottom: none; }
+  ul.hk-hist-list .when { color: var(--secondary-text-color); font-size: 0.85rem; white-space: nowrap; }
 `;
 
 // Minimal shape of an `ha-form` element (only what we set/read).
@@ -164,6 +197,17 @@ interface AssetEditState {
   asset: Partial<Asset> | null;
   error?: string;
 }
+/** One task's completion list within a history dialog (live or archived). */
+interface HistoryGroup {
+  name: string;
+  completions: { ts: string }[];
+  archived?: boolean;
+}
+interface HistoryState {
+  open: boolean;
+  title: string;
+  groups: HistoryGroup[];
+}
 
 export class HomeKeeperPanel extends HTMLElement {
   private _hass?: Hass;
@@ -175,6 +219,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private _entryDomains: Record<string, string> = {};
   private _edit: EditState = { open: false, task: null };
   private _assetEdit: AssetEditState = { open: false, asset: null };
+  private _history: HistoryState | null = null;
   private _view: 'tasks' | 'appliances' = 'tasks';
   private _loaded = false;
   // Live HA components that need `.hass` refreshed when hass updates.
@@ -337,6 +382,43 @@ export class HomeKeeperPanel extends HTMLElement {
     await this._refresh();
   }
 
+  // ── completion history ──────────────────────────────────────────────────────
+  private _openTaskHistory(task: Task): void {
+    this._history = {
+      open: true,
+      title: t('history.task.title', { name: task.name }),
+      groups: [{ name: task.name, completions: task.completions || [] }],
+    };
+    this._render();
+  }
+
+  /**
+   * Aggregate every completion tied to an appliance: its live related tasks
+   * (part-derived or device-attached) plus the history archived from tasks that
+   * were deleted while still assigned to it. Newest activity first.
+   */
+  private _openAssetHistory(asset: Asset): void {
+    const groups: HistoryGroup[] = tasksForAsset(asset, this._tasks).map((task) => ({
+      name: task.name,
+      completions: task.completions || [],
+    }));
+    for (const h of asset.task_history || []) {
+      groups.push({ name: h.task_name, completions: h.completions || [], archived: true });
+    }
+    const lastTs = (g: HistoryGroup): number =>
+      g.completions.reduce((m, c) => Math.max(m, new Date(c.ts).getTime() || 0), 0);
+    groups.sort((a, b) => lastTs(b) - lastTs(a));
+    const title =
+      asset.name || deviceName(this._hass?.devices, asset.device_id) || t('appliance.fallbackName');
+    this._history = { open: true, title: t('history.appliance.title', { name: title }), groups };
+    this._render();
+  }
+
+  private _closeHistory(): void {
+    this._history = null;
+    this._render();
+  }
+
   // ── rendering ───────────────────────────────────────────────────────────────
   private _render(): void {
     if (!this.shadowRoot) return;
@@ -408,15 +490,18 @@ export class HomeKeeperPanel extends HTMLElement {
       ? ''
       : `<ha-icon-button class="edit-btn" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>
             <ha-icon-button class="del-btn" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`;
+    const n = task.completions?.length ?? 0;
+    const histLabel = escapeHTML(t('btn.history'));
     return `
       <ha-card class="hk-card" data-id="${escapeHTML(task.id)}">
         <div class="hk-card-row">
-          <div class="grow">
+          <div class="grow clickable hist-open" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${histLabel}">
             <div class="hk-name">${escapeHTML(task.name)}</div>
-            <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}</div>
+            <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
             <div class="hk-chips">${statusChip}${dev}</div>
           </div>
           <div class="hk-card-actions">
+            <ha-icon-button class="hist-btn" data-id="${escapeHTML(task.id)}" label="${histLabel}"></ha-icon-button>
             <ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>
             ${manageBtns}
           </div>
@@ -448,15 +533,17 @@ export class HomeKeeperPanel extends HTMLElement {
           )}"></ha-assist-chip>`
         : '',
     ].join('');
+    const histLabel = escapeHTML(t('btn.history'));
     return `
       <ha-card class="hk-card" data-id="${escapeHTML(x.id)}">
         <div class="hk-card-row">
-          <div class="grow">
+          <div class="grow clickable asset-hist-open" data-id="${escapeHTML(x.id)}" role="button" tabindex="0" title="${histLabel}">
             <div class="hk-name">${escapeHTML(title)}</div>
             <div class="hk-meta">${escapeHTML(assetSummary(x, this._hass?.areas))}</div>
             <div class="hk-chips">${kindChip}${extra}</div>
           </div>
           <div class="hk-card-actions">
+            <ha-icon-button class="asset-hist-btn" data-id="${escapeHTML(x.id)}" label="${histLabel}"></ha-icon-button>
             <ha-icon-button class="asset-edit-btn" data-id="${escapeHTML(x.id)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>
             <ha-icon-button class="asset-del-btn" data-id="${escapeHTML(x.id)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>
           </div>
@@ -786,6 +873,7 @@ export class HomeKeeperPanel extends HTMLElement {
     if (this._view === 'tasks') this._wireTaskCards(root);
     else this._wireAssetCards(root);
     this._wireDeviceChips(root);
+    this._renderHistoryDialog(root);
   }
 
   private _switchView(view: 'tasks' | 'appliances'): void {
@@ -1056,6 +1144,17 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _wireTaskCards(root: ShadowRoot): void {
     const byId = (id?: string): Task | undefined => this._tasks.find((t) => t.id === id);
+    this._wireOpeners(root, '.hist-open', (id) => {
+      const t = byId(id);
+      if (t) this._openTaskHistory(t);
+    });
+    root.querySelectorAll<HTMLElement>('.hist-btn').forEach((b) => {
+      this._setIcon(b, MDI_HISTORY);
+      b.addEventListener('click', () => {
+        const t = byId(b.dataset.id);
+        if (t) this._openTaskHistory(t);
+      });
+    });
     root.querySelectorAll<HTMLElement>('.done-btn').forEach((b) =>
       b.addEventListener('click', () => {
         const t = byId(b.dataset.id);
@@ -1080,6 +1179,17 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _wireAssetCards(root: ShadowRoot): void {
     const byId = (id?: string): Asset | undefined => this._assets.find((x) => x.id === id);
+    this._wireOpeners(root, '.asset-hist-open', (id) => {
+      const x = byId(id);
+      if (x) this._openAssetHistory(x);
+    });
+    root.querySelectorAll<HTMLElement>('.asset-hist-btn').forEach((b) => {
+      this._setIcon(b, MDI_HISTORY);
+      b.addEventListener('click', () => {
+        const x = byId(b.dataset.id);
+        if (x) this._openAssetHistory(x);
+      });
+    });
     root.querySelectorAll<HTMLElement>('.asset-edit-btn').forEach((b) => {
       this._setIcon(b, 'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z');
       b.addEventListener('click', () => {
@@ -1099,5 +1209,82 @@ export class HomeKeeperPanel extends HTMLElement {
   /** Give an ha-icon-button its mdi icon via the native `path` property. */
   private _setIcon(button: HTMLElement, path: string): void {
     (button as HTMLElement & { path?: string }).path = path;
+  }
+
+  /** Wire a click/Enter/Space "opener" on every element matching `selector`. */
+  private _wireOpeners(root: ShadowRoot, selector: string, open: (id?: string) => void): void {
+    root.querySelectorAll<HTMLElement>(selector).forEach((el) => {
+      const go = (): void => open(el.dataset.id);
+      el.addEventListener('click', go);
+      el.addEventListener('keydown', (e) => {
+        const key = (e as KeyboardEvent).key;
+        if (key === 'Enter' || key === ' ') {
+          e.preventDefault();
+          go();
+        }
+      });
+    });
+  }
+
+  // ── completion-history dialog ───────────────────────────────────────────────
+  private _renderHistoryDialog(root: ShadowRoot): void {
+    const state = this._history;
+    if (!state?.open) return;
+    const dialog = document.createElement('ha-dialog') as HTMLElement & { open?: boolean };
+    dialog.id = 'hk-history';
+    dialog.setAttribute('open', '');
+    dialog.setAttribute('hideactions', '');
+    // We render the title inside the body rather than via ha-dialog's `heading`,
+    // whose title text doesn't render consistently across HA versions. ha-dialog
+    // still provides its own ✕ and closes on Escape / scrim click (`closed` event).
+    dialog.innerHTML = `
+      <div class="hk-hist-body">
+        <div class="hk-hist-header"><span class="hk-hist-title">${escapeHTML(state.title)}</span></div>
+        ${this._historyBody(state.groups)}
+      </div>`;
+    dialog.addEventListener('closed', () => this._closeHistory());
+    root.appendChild(dialog);
+  }
+
+  private _historyBody(groups: HistoryGroup[]): string {
+    const withAny = groups.filter((g) => (g.completions?.length ?? 0) > 0);
+    if (!withAny.length) {
+      return `<ha-alert alert-type="info">${escapeHTML(t('history.empty'))}</ha-alert>`;
+    }
+    const multi = withAny.length > 1;
+    return withAny.map((g) => this._historyGroup(g, multi)).join('');
+  }
+
+  private _historyGroup(group: HistoryGroup, showHead: boolean): string {
+    const dates = sortedCompletions(group.completions);
+    const stats = completionStats(group.completions);
+    const sub: string[] = [tn('history.count', stats.count)];
+    if (stats.avgIntervalDays) sub.push(t('history.cadence', { days: stats.avgIntervalDays }));
+    const archived = group.archived
+      ? `<span class="hk-hist-archived">${escapeHTML(t('history.archived'))}</span>`
+      : '';
+    const head = showHead
+      ? `<div class="hk-hist-head">${escapeHTML(group.name)}${archived}
+           <span class="hk-hist-sub">${escapeHTML(sub.join(' · '))}</span></div>`
+      : `<div class="hk-hist-head"><span class="hk-hist-sub">${escapeHTML(sub.join(' · '))}</span>${archived}</div>`;
+    const items = dates
+      .map(
+        (d) =>
+          `<li><span>${escapeHTML(d.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          }))}</span><span class="when">${escapeHTML(this._relativeDay(d))}</span></li>`,
+      )
+      .join('');
+    return `<div class="hk-hist-group">${head}<ul class="hk-hist-list">${items}</ul></div>`;
+  }
+
+  /** "today" / "yesterday" / "N days ago" for a past completion date. */
+  private _relativeDay(d: Date, now: Date = new Date()): string {
+    const days = Math.round((now.getTime() - d.getTime()) / 86_400_000);
+    if (days <= 0) return t('due.today');
+    if (days === 1) return t('due.yesterday');
+    return tn('due.days_ago', days);
   }
 }

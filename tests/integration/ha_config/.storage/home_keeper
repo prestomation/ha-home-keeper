@@ -19,12 +19,49 @@
         "next_due": "2026-07-01T09:00:00-04:00",
         "completions": [
           {
+            "ts": "2026-03-01T09:00:00-04:00"
+          },
+          {
+            "ts": "2026-04-02T09:00:00-04:00"
+          },
+          {
             "ts": "2026-05-01T09:00:00-04:00"
           },
           {
             "ts": "2026-06-01T09:00:00-04:00"
           }
         ]
+      },
+      "task_anode": {
+        "id": "task_anode",
+        "name": "Replace Anode rod (Garage water heater)",
+        "notes": "",
+        "recurrence_type": "floating",
+        "interval": 12,
+        "unit": "months",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2022-05-10T10:00:00-04:00",
+        "last_completed": "2025-05-01T10:00:00-04:00",
+        "next_due": "2026-05-01T10:00:00-04:00",
+        "completions": [
+          {
+            "ts": "2023-05-01T10:00:00-04:00"
+          },
+          {
+            "ts": "2024-05-04T10:00:00-04:00"
+          },
+          {
+            "ts": "2025-05-01T10:00:00-04:00"
+          }
+        ],
+        "source": {
+          "part": {
+            "asset_id": "asset_water_heater",
+            "part_id": "part_anode"
+          }
+        }
       },
       "task_medicine": {
         "id": "task_medicine",
@@ -124,7 +161,23 @@
         "parent_asset_id": null,
         "related_device_ids": [],
         "notes": "Garage corner, behind the shelving",
-        "created": "2026-05-01T09:00:00-04:00"
+        "created": "2026-05-01T09:00:00-04:00",
+        "task_history": [
+          {
+            "task_id": "old_tank_flush",
+            "task_name": "Flush water heater tank",
+            "part_id": null,
+            "completions": [
+              {
+                "ts": "2023-06-01T10:00:00-04:00"
+              },
+              {
+                "ts": "2024-06-01T10:00:00-04:00"
+              }
+            ],
+            "archived_at": "2025-06-15T10:00:00-04:00"
+          }
+        ]
       },
       "asset_shades": {
         "id": "asset_shades",

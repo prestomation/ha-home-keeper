@@ -120,8 +120,25 @@ class HomeKeeperStore:
                 "the part to delete it."
             )
         if task_id in self._tasks:
+            self._archive_task_history(self._tasks[task_id])
             del self._tasks[task_id]
             await self._save()
+
+    def _archive_task_history(self, task: dict[str, Any]) -> None:
+        """Preserve a deleted task's completion history on its appliance, if any.
+
+        Reference-counting retention: a task's history outlives the task only while
+        an appliance still references it. A standalone task's history is dropped
+        with it (``find_archiving_asset`` returns None). Mutates the asset in place;
+        the caller persists via ``_save``.
+        """
+        asset = assets.find_archiving_asset(self._assets, task)
+        if asset is None:
+            return
+        entry = assets.build_archived_history(
+            task, archived_at=dt_util.now().isoformat()
+        )
+        assets.append_task_history(asset, entry)
 
     async def detach_tasks_from_device(self, device_id: str) -> list[str]:
         """Clear ``device_id`` on every task pointing at *device_id*.
@@ -240,6 +257,13 @@ class HomeKeeperStore:
             self._assets, self._tasks, now=dt_util.now()
         )
         if changed:
+            # A part-derived task dropped here means its wear part was removed while
+            # the appliance remains; preserve its history on the appliance. (Deleting
+            # the whole appliance drops its derived tasks via delete_asset, before any
+            # reconcile, so this only archives part removals — not appliance deletes.)
+            for tid, task in self._tasks.items():
+                if tid not in new_tasks and _part_source(task):
+                    self._archive_task_history(task)
             self._tasks = new_tasks
             await self._save()
         return changed

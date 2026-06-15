@@ -9,6 +9,10 @@ import {
   brandLogoUrl,
   areaName,
   assetSummary,
+  sortedCompletions,
+  completionStats,
+  taskRelatesToAsset,
+  tasksForAsset,
 } from '../src/utils.ts';
 
 describe('escapeHTML', () => {
@@ -137,5 +141,78 @@ describe('assetSummary', () => {
   });
   it('falls back when there are no details', () => {
     expect(assetSummary({ id: 'a', kind: 'virtual', name: 'Fridge' })).toBe('No details yet');
+  });
+});
+
+describe('sortedCompletions', () => {
+  it('parses and sorts timestamps newest-first, dropping invalid ones', () => {
+    const out = sortedCompletions([
+      { ts: '2026-01-01T00:00:00Z' },
+      { ts: 'not-a-date' },
+      { ts: '2026-03-01T00:00:00Z' },
+      { ts: '2026-02-01T00:00:00Z' },
+    ]);
+    expect(out.map((d) => d.toISOString().slice(0, 10))).toEqual([
+      '2026-03-01',
+      '2026-02-01',
+      '2026-01-01',
+    ]);
+  });
+  it('handles empty/undefined', () => {
+    expect(sortedCompletions()).toEqual([]);
+    expect(sortedCompletions([])).toEqual([]);
+  });
+});
+
+describe('completionStats', () => {
+  it('reports count, last, and average cadence in days', () => {
+    const s = completionStats([
+      { ts: '2026-01-01T00:00:00Z' },
+      { ts: '2026-01-31T00:00:00Z' },
+      { ts: '2026-03-02T00:00:00Z' },
+    ]);
+    expect(s.count).toBe(3);
+    expect(s.last.toISOString().slice(0, 10)).toBe('2026-03-02');
+    expect(s.avgIntervalDays).toBe(30); // (30 + 30) / 2
+  });
+  it('omits cadence for a single completion', () => {
+    const s = completionStats([{ ts: '2026-01-01T00:00:00Z' }]);
+    expect(s.count).toBe(1);
+    expect(s.avgIntervalDays).toBeUndefined();
+  });
+  it('reports zero for no completions', () => {
+    expect(completionStats([]).count).toBe(0);
+  });
+});
+
+describe('taskRelatesToAsset / tasksForAsset', () => {
+  const asset = {
+    id: 'asset1',
+    kind: 'virtual',
+    name: 'Heater',
+    device_id: 'dev1',
+    related_device_ids: ['dev2'],
+  };
+  it('matches a part-derived task by asset id', () => {
+    const task = { id: 't', name: 'x', source: { part: { asset_id: 'asset1', part_id: 'p' } } };
+    expect(taskRelatesToAsset(task, asset)).toBe(true);
+  });
+  it("matches a task attached to the appliance's device", () => {
+    expect(taskRelatesToAsset({ id: 't', name: 'x', device_id: 'dev1' }, asset)).toBe(true);
+  });
+  it('matches a task on a related device', () => {
+    expect(taskRelatesToAsset({ id: 't', name: 'x', device_id: 'dev2' }, asset)).toBe(true);
+  });
+  it('does not match an unrelated standalone task', () => {
+    expect(taskRelatesToAsset({ id: 't', name: 'x', device_id: 'other' }, asset)).toBe(false);
+    expect(taskRelatesToAsset({ id: 't', name: 'x' }, asset)).toBe(false);
+  });
+  it('tasksForAsset filters the list', () => {
+    const tasks = [
+      { id: 'a', name: 'a', device_id: 'dev1' },
+      { id: 'b', name: 'b', device_id: 'nope' },
+      { id: 'c', name: 'c', source: { part: { asset_id: 'asset1', part_id: 'p' } } },
+    ];
+    expect(tasksForAsset(asset, tasks).map((t) => t.id)).toEqual(['a', 'c']);
   });
 });
