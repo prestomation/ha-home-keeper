@@ -119,6 +119,13 @@ def test_warranty_active_none_without_today():
     assert report["assets"][0]["warranty_active"] is None
 
 
+def test_warranty_active_none_for_malformed_date():
+    report = inv.build_inventory(
+        [_asset(warranty_expiry="not-a-date")], today=date(2026, 6, 15)
+    )
+    assert report["assets"][0]["warranty_active"] is None
+
+
 def test_csv_has_header_rows_and_total():
     report = inv.build_inventory(
         [

@@ -330,6 +330,18 @@ def test_negative_stock_rejected():
         a.build_asset({"name": "X", "parts": [{"name": "F", "stock": -1}]}, now=NOW)
 
 
+def test_non_integer_stock_rejected():
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset({"name": "X", "parts": [{"name": "F", "stock": "lots"}]}, now=NOW)
+
+
+def test_oversized_stock_rejected():
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset(
+            {"name": "X", "parts": [{"name": "F", "reorder_at": 10**9}]}, now=NOW
+        )
+
+
 def test_part_is_low():
     assert a.part_is_low({"stock": 1, "reorder_at": 1}) is True
     assert a.part_is_low({"stock": 0, "reorder_at": 1}) is True
