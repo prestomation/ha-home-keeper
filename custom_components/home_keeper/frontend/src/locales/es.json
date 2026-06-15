@@ -8,7 +8,6 @@
   "chip.lowStock": "Pocas existencias",
   "tab.tasks": "Tareas",
   "tab.appliances": "Electrodomésticos",
-
   "btn.addTask": "Añadir tarea",
   "btn.addAppliance": "Añadir electrodoméstico",
   "btn.done": "Hecho",
@@ -19,29 +18,23 @@
   "btn.cancel": "Cancelar",
   "btn.removePart": "Quitar pieza",
   "btn.addPart": "+ Añadir pieza",
-
   "tasks.empty": "Aún no hay tareas. Haz clic en {addTask} para crear tu primer recordatorio de mantenimiento.",
   "appliances.empty": "Aún no hay electrodomésticos. Añade uno para crear una página de dispositivo que tus tareas (y baterías) puedan compartir: nevera, caldera, calentador de agua…",
-
   "form.task.new": "Nueva tarea",
   "form.task.edit": "Editar tarea",
   "form.appliance.new": "Nuevo electrodoméstico",
   "form.appliance.edit": "Editar electrodoméstico",
   "form.task.due": "vence el {date}",
-
   "section.ownership": "Propiedad y garantía",
   "section.related": "Dispositivos relacionados",
   "section.reference": "Referencia",
   "section.parts": "Piezas y piezas de desgaste",
   "section.part_n": "Pieza {n}",
-
   "part.lastReplaced": "Reemplazada por última vez el {date} · una tarea de mantenimiento controla la próxima",
   "part.wearHint": "Una pieza de desgaste con un intervalo crea una tarea de mantenimiento en este electrodoméstico.",
-
   "error.nameRequired": "El nombre es obligatorio",
   "error.nameRequiredAppliance": "El nombre es obligatorio para un nuevo electrodoméstico",
   "error.pickDevice": "Elige un dispositivo",
-
   "field.name": "Nombre",
   "field.notes": "Notas",
   "field.recurrence_type": "Recurrencia",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Reemplazar cada",
   "field.replace_unit": "Unidad",
   "field.last_replaced": "Reemplazada por última vez",
-
   "opt.recurrence.floating": "Flotante (desde la finalización)",
   "opt.recurrence.fixed": "Fija (programación anclada)",
   "opt.freq.daily": "diario",
@@ -84,13 +76,10 @@
   "opt.kind.existing": "Dispositivo existente (añadir detalles)",
   "opt.part.consumable": "consumible",
   "opt.part.wear": "pieza de desgaste",
-
   "chip.overdue": "Vencida",
   "chip.virtualDevice": "Dispositivo virtual",
   "chip.subdeviceOf": "subdispositivo de {name}",
-
   "appliance.fallbackName": "Electrodoméstico",
-
   "recurrence.floating.one": "cada {unit} tras la finalización",
   "recurrence.floating.other": "cada {n} {unit} tras la finalización",
   "recurrence.fixed.one": "cada {unit}",
@@ -101,7 +90,6 @@
   "recurrence.unit.week.other": "semanas",
   "recurrence.unit.month.one": "mes",
   "recurrence.unit.month.other": "meses",
-
   "due.none": "—",
   "due.today": "hoy",
   "due.tomorrow": "mañana",
@@ -110,7 +98,6 @@
   "due.yesterday": "ayer",
   "due.days_ago.one": "hace {n} día",
   "due.days_ago.other": "hace {n} días",
-
   "asset.warrantyTo": "garantía hasta {date}",
   "asset.parts.one": "{n} pieza",
   "asset.parts.other": "{n} piezas",
@@ -128,7 +115,6 @@
   "history.count.other": "{n} finalizaciones",
   "history.cadence": "≈ cada {days} días",
   "history.archived": "tarea eliminada",
-
   "btn.back": "Atrás",
   "group.by": "Agrupar por",
   "group.none": "Ninguno",
@@ -148,5 +134,14 @@
   "detail.schedule": "Programación",
   "detail.nextDue": "Próximo vencimiento",
   "detail.relatedTasks": "Tareas relacionadas",
-  "detail.noNotes": "Aún no hay notas"
+  "detail.noNotes": "Aún no hay notas",
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}"
 }

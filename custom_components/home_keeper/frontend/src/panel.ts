@@ -1,7 +1,7 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
 import { setLanguage, t, tn } from './i18n';
-import type { Asset, AssetKind, Hass, PanelInfo, Part, Task } from './types';
+import type { Asset, AssetKind, Hass, ManagedBy, PanelInfo, Part, Task } from './types';
 import {
   areaName,
   assetSummary,
@@ -94,8 +94,29 @@ const STYLES = `
     --ha-assist-chip-label-text-color: var(--text-primary-color, #fff);
     --md-assist-chip-outline-color: transparent;
   }
+  ha-assist-chip.hk-managed {
+    --ha-assist-chip-container-color: var(--info-color, #039BE5);
+    --md-assist-chip-label-text-color: #fff;
+    --ha-assist-chip-label-text-color: #fff;
+    --md-assist-chip-outline-color: transparent;
+  }
+  ha-assist-chip.hk-orphaned {
+    --ha-assist-chip-container-color: var(--warning-color, #FF9800);
+    --md-assist-chip-label-text-color: #fff;
+    --ha-assist-chip-label-text-color: #fff;
+    --md-assist-chip-outline-color: transparent;
+  }
   .hk-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   ha-assist-chip.hk-device-chip { cursor: pointer; }
+  .hk-managed-prompt {
+    font-size: 0.85rem; color: var(--secondary-text-color);
+    background: var(--secondary-background-color);
+    border-radius: 6px; padding: 8px 12px; margin-top: 8px;
+  }
+  .hk-managed-info {
+    font-size: 0.8rem; color: var(--secondary-text-color);
+    margin-top: 4px; font-style: italic; align-self: center;
+  }
   .hk-dev-img {
     width: 18px; height: 18px; object-fit: contain; border-radius: 3px;
     --mdc-icon-size: 18px;
@@ -288,8 +309,8 @@ interface HistoryGroup {
   assetId?: string;
   archivedTaskId?: string;
 }
-/** How the list view buckets rows; `status`/`device` apply to tasks only. */
-type GroupBy = 'none' | 'status' | 'area' | 'device';
+/** How the list view buckets rows; `status`/`device`/`integration` apply to tasks only. */
+type GroupBy = 'none' | 'status' | 'area' | 'device' | 'integration';
 /** Task-list quick filter. */
 type TaskFilter = 'all' | 'overdue' | 'soon';
 /** One bucket of rows rendered under a collapsible section header. */
@@ -397,7 +418,8 @@ export class HomeKeeperPanel extends HTMLElement {
   private _loadPrefs(): void {
     try {
       const g = localStorage.getItem(LS_GROUP);
-      if (g === 'none' || g === 'status' || g === 'area' || g === 'device') this._groupBy = g;
+      if (g === 'none' || g === 'status' || g === 'area' || g === 'device' || g === 'integration')
+        this._groupBy = g;
       const f = localStorage.getItem(LS_FILTER);
       if (f === 'all' || f === 'overdue' || f === 'soon') this._filter = f;
     } catch {
@@ -535,8 +557,14 @@ export class HomeKeeperPanel extends HTMLElement {
   }
   private async _delete(task: Task): Promise<void> {
     if (!this._hass) return;
-    await api.deleteTask(this._hass, task.id);
-    await this._refresh();
+    try {
+      await api.deleteTask(this._hass, task.id);
+      await this._refresh();
+    } catch (err) {
+      const msg = String((err as { message?: string })?.message || err);
+      this._toast(msg);
+      await this._refresh();
+    }
   }
 
   // ── asset form lifecycle ────────────────────────────────────────────────────
@@ -730,7 +758,8 @@ export class HomeKeeperPanel extends HTMLElement {
   // ── list controls (filter + group-by) ───────────────────────────────────────
   /** Group-by resolved for the active view (appliances only support area/none). */
   private _effectiveGroup(): GroupBy {
-    if (this._view === 'appliances' && this._groupBy !== 'area' && this._groupBy !== 'none') {
+    const taskOnlyGroups: GroupBy[] = ['status', 'device', 'integration'];
+    if (this._view === 'appliances' && taskOnlyGroups.includes(this._groupBy)) {
       return 'none';
     }
     return this._groupBy;
@@ -743,6 +772,7 @@ export class HomeKeeperPanel extends HTMLElement {
           { value: 'status', label: t('group.status') },
           { value: 'area', label: t('group.area') },
           { value: 'device', label: t('group.device') },
+          { value: 'integration', label: t('group.integration') },
           { value: 'none', label: t('group.none') },
         ]
       : [
@@ -827,6 +857,15 @@ export class HomeKeeperPanel extends HTMLElement {
         (id) => deviceName(this._hass?.devices, id),
         t('section.noDevice'),
         'device',
+      );
+    }
+    if (group === 'integration') {
+      return this._groupByKey(
+        tasks,
+        (task) => task.managed_by?.display_name ?? undefined,
+        (name) => name,
+        t('section.standalone'),
+        'integration',
       );
     }
     return [{ key: '', label: '', items: tasks }];
@@ -937,6 +976,7 @@ export class HomeKeeperPanel extends HTMLElement {
       ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
       : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
     const dev = task.device_id ? this._deviceChip(task.device_id) : '';
+    const managedChip = this._managedChip(task);
     const dueText = task.next_due
       ? ` · ${escapeHTML(t('form.task.due', { date: new Date(task.next_due).toLocaleDateString() }))}`
       : '';
@@ -948,7 +988,7 @@ export class HomeKeeperPanel extends HTMLElement {
           <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(task.name)}</div>
             <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
-            <div class="hk-chips">${statusChip}${dev}</div>
+            <div class="hk-chips">${statusChip}${dev}${managedChip}</div>
           </div>
           <div class="hk-card-actions">
             <ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>
@@ -1034,12 +1074,31 @@ export class HomeKeeperPanel extends HTMLElement {
       ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
       : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
     const dev = task.device_id ? this._deviceChip(task.device_id) : '';
+    const managedChip = this._managedChip(task);
+    const mb = task.managed_by;
+
     // Wear-part tasks are owned by their appliance; only "Done" is offered.
     const derived = Boolean(task.source?.part);
-    const manage = derived
-      ? ''
-      : `<ha-button class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>
-         <ha-button class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
+    let manage = '';
+    if (!derived) {
+      const editBtn = `<ha-button class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
+      // Deletion-protected managed tasks show guidance instead of a delete button.
+      const deleteBtn = mb?.deletion_protected
+        ? `<span class="hk-managed-info">${escapeHTML(t('managed.deleteBlocked', { name: mb.display_name }))}</span>`
+        : `<ha-button class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
+      // "Edit in X" deep link when config_entry_id resolves to a loaded domain.
+      const domain = mb?.config_entry_id ? this._entryDomains[mb.config_entry_id] : null;
+      const openInBtn = domain
+        ? `<ha-button class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
+        : '';
+      manage = `${editBtn}${deleteBtn}${openInBtn}`;
+    }
+
+    // Optional completion hint from the managing integration.
+    const completionHint = mb?.completion_prompt
+      ? `<div class="hk-managed-prompt">${escapeHTML(mb.completion_prompt)}</div>`
+      : '';
+
     const due = task.next_due ? new Date(task.next_due).toLocaleString() : t('due.none');
     const notes = task.notes
       ? escapeHTML(task.notes)
@@ -1047,11 +1106,12 @@ export class HomeKeeperPanel extends HTMLElement {
     return `
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
-        <div class="hk-chips">${statusChip}${dev}</div>
+        <div class="hk-chips">${statusChip}${dev}${managedChip}</div>
         <div class="hk-detail-actions">
           <ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>
           ${manage}
         </div>
+        ${completionHint}
       </div></ha-card>
       <div class="hk-section">${escapeHTML(t('detail.schedule'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
@@ -1192,6 +1252,17 @@ export class HomeKeeperPanel extends HTMLElement {
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
   }
 
+  /** Renders a "Managed by X" chip (or "Integration offline" if orphaned). */
+  private _managedChip(task: Task): string {
+    const mb = task.managed_by;
+    if (!mb) return '';
+    // Orphan: config_entry_id declared but not among loaded config entries.
+    if (mb.config_entry_id && !this._entryDomains[mb.config_entry_id]) {
+      return `<ha-assist-chip class="hk-orphaned" label="${escapeHTML(t('chip.orphaned'))}"></ha-assist-chip>`;
+    }
+    return `<ha-assist-chip class="hk-managed" label="${escapeHTML(t('chip.managed', { name: mb.display_name }))}"></ha-assist-chip>`;
+  }
+
   /**
    * A device chip that links to the device's HA config page and shows the
    * integration's brand logo (falling back to a generic device icon).
@@ -1264,52 +1335,64 @@ export class HomeKeeperPanel extends HTMLElement {
 
   // ── ha-form schemas ─────────────────────────────────────────────────────────
   private _taskSchema(task: Partial<Task>): FormField[] {
+    // Fields declared as locked by the managing integration are omitted from the
+    // form so users can't accidentally overwrite integration-owned values.
+    const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
     const isFixed = task.recurrence_type === 'fixed';
-    const cadence: FormField = isFixed
-      ? {
-          name: '',
-          type: 'grid',
-          schema: [
-            { name: 'interval', selector: selNumber(1) },
+
+    const cadenceSubFields: FormField[] = isFixed
+      ? [
+          ...(!locked.has('interval') ? [{ name: 'interval', selector: selNumber(1) }] : []),
+          ...(!locked.has('freq')
+            ? [
+                {
+                  name: 'freq',
+                  selector: selSelect([
+                    { value: 'DAILY', label: t('opt.freq.daily') },
+                    { value: 'WEEKLY', label: t('opt.freq.weekly') },
+                    { value: 'MONTHLY', label: t('opt.freq.monthly') },
+                  ]),
+                },
+              ]
+            : []),
+        ]
+      : [
+          ...(!locked.has('interval') ? [{ name: 'interval', selector: selNumber(1) }] : []),
+          ...(!locked.has('unit')
+            ? [
+                {
+                  name: 'unit',
+                  selector: selSelect([
+                    { value: 'days', label: t('opt.unit.days') },
+                    { value: 'weeks', label: t('opt.unit.weeks') },
+                    { value: 'months', label: t('opt.unit.months') },
+                  ]),
+                },
+              ]
+            : []),
+        ];
+    const cadence: FormField | null =
+      cadenceSubFields.length > 0 ? { name: '', type: 'grid', schema: cadenceSubFields } : null;
+
+    const fields: FormField[] = [
+      ...(!locked.has('name') ? [{ name: 'name', required: true, selector: selText() } as FormField] : []),
+      ...(!locked.has('notes') ? [{ name: 'notes', selector: selText(true) } as FormField] : []),
+      ...(!locked.has('recurrence_type')
+        ? [
             {
-              name: 'freq',
+              name: 'recurrence_type',
               selector: selSelect([
-                { value: 'DAILY', label: t('opt.freq.daily') },
-                { value: 'WEEKLY', label: t('opt.freq.weekly') },
-                { value: 'MONTHLY', label: t('opt.freq.monthly') },
+                { value: 'floating', label: t('opt.recurrence.floating') },
+                { value: 'fixed', label: t('opt.recurrence.fixed') },
               ]),
-            },
-          ],
-        }
-      : {
-          name: '',
-          type: 'grid',
-          schema: [
-            { name: 'interval', selector: selNumber(1) },
-            {
-              name: 'unit',
-              selector: selSelect([
-                { value: 'days', label: t('opt.unit.days') },
-                { value: 'weeks', label: t('opt.unit.weeks') },
-                { value: 'months', label: t('opt.unit.months') },
-              ]),
-            },
-          ],
-        };
-    return [
-      { name: 'name', required: true, selector: selText() },
-      { name: 'notes', selector: selText(true) },
-      {
-        name: 'recurrence_type',
-        selector: selSelect([
-          { value: 'floating', label: t('opt.recurrence.floating') },
-          { value: 'fixed', label: t('opt.recurrence.fixed') },
-        ]),
-      },
-      cadence,
-      ...(isFixed ? [{ name: 'anchor', selector: selDateTime() } as FormField] : []),
-      { name: 'device_id', selector: selDevice() },
+            } as FormField,
+          ]
+        : []),
+      ...(cadence ? [cadence] : []),
+      ...(isFixed && !locked.has('anchor') ? [{ name: 'anchor', selector: selDateTime() } as FormField] : []),
+      ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
     ];
+    return fields;
   }
 
   private _taskFormData(t: Partial<Task>): Record<string, unknown> {
@@ -1578,7 +1661,7 @@ export class HomeKeeperPanel extends HTMLElement {
     });
   }
 
-  /** Wire the detail page's Done / Edit / Delete buttons to the open object. */
+  /** Wire the detail page's Done / Edit / Delete / Open-in buttons. */
   private _wireDetailActions(root: ShadowRoot): void {
     const d = this._detail;
     if (!d) return;
@@ -1592,6 +1675,18 @@ export class HomeKeeperPanel extends HTMLElement {
         // can't return to a deleted task.
         this._navigate({ view: 'tasks', detail: null }, true);
         void this._delete(task);
+      });
+      // "Edit in X" deep link: navigate to the managing integration's config page.
+      root.querySelectorAll<HTMLElement>('.d-open-in').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const domain = btn.dataset.domain;
+          if (domain) {
+            history.pushState(null, '', `/config/integrations/integration/${domain}`);
+            window.dispatchEvent(
+              new CustomEvent('location-changed', { detail: { replace: false }, bubbles: true, composed: true }),
+            );
+          }
+        });
       });
       return;
     }

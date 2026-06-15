@@ -114,6 +114,10 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # Optional provenance, e.g. {"part": {"asset_id", "part_id"}} for a task
         # derived from an asset wear part. Owned by its reconciler when present.
         "source": data.get("source"),
+        # Optional well-known ownership block that Home Keeper inspects (unlike the
+        # opaque ``source``). Declares which fields are locked, deletion protection,
+        # and display metadata. See docs/INTEGRATING.md §6.
+        "managed_by": data.get("managed_by"),
         **fields,
     }
     task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
@@ -125,7 +129,18 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
 
     Only the recurrence-relevant fields trigger a next_due recompute; editing the
     name or notes leaves the schedule untouched.
+
+    When the task has a ``managed_by`` block with ``locked_fields``, those fields
+    are stripped from *updates* before merging so the managing integration's values
+    are never overwritten by user edits or automation.
     """
+    # Enforce locked fields declared by the managing integration.
+    managed_by = existing.get("managed_by")
+    if managed_by and isinstance(managed_by, dict):
+        locked = set(managed_by.get("locked_fields") or [])
+        if locked:
+            updates = {k: v for k, v in updates.items() if k not in locked}
+
     merged = dict(existing)
     # Build a candidate field set from existing + updates, then normalize so the
     # same validation applies to edits as to creation.

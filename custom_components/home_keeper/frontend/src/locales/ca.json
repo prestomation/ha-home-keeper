@@ -8,7 +8,6 @@
   "chip.lowStock": "Estoc baix",
   "tab.tasks": "Tasques",
   "tab.appliances": "Electrodomèstics",
-
   "btn.addTask": "Afegeix tasca",
   "btn.addAppliance": "Afegeix electrodomèstic",
   "btn.done": "Fet",
@@ -19,29 +18,23 @@
   "btn.cancel": "Cancel·la",
   "btn.removePart": "Elimina peça",
   "btn.addPart": "+ Afegeix peça",
-
   "tasks.empty": "Encara no hi ha tasques. Fes clic a {addTask} per crear el teu primer recordatori de manteniment.",
   "appliances.empty": "Encara no hi ha electrodomèstics. Afegeix-ne un per crear una pàgina de dispositiu que les teves tasques (i bateries) puguin compartir — nevera, caldera, escalfador d'aigua…",
-
   "form.task.new": "Tasca nova",
   "form.task.edit": "Edita la tasca",
   "form.appliance.new": "Electrodomèstic nou",
   "form.appliance.edit": "Edita l'electrodomèstic",
   "form.task.due": "venciment {date}",
-
   "section.ownership": "Propietat i garantia",
   "section.related": "Dispositius relacionats",
   "section.reference": "Referència",
   "section.parts": "Peces i elements de desgast",
   "section.part_n": "Peça {n}",
-
   "part.lastReplaced": "Substituïda per últim cop el {date} · una tasca de manteniment fa el seguiment de la propera",
   "part.wearHint": "Un element de desgast amb un interval crea una tasca de manteniment en aquest electrodomèstic.",
-
   "error.nameRequired": "El nom és obligatori",
   "error.nameRequiredAppliance": "El nom és obligatori per a un electrodomèstic nou",
   "error.pickDevice": "Tria un dispositiu",
-
   "field.name": "Nom",
   "field.notes": "Notes",
   "field.recurrence_type": "Recurrència",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Substitueix cada",
   "field.replace_unit": "Unitat",
   "field.last_replaced": "Última substitució",
-
   "opt.recurrence.floating": "Flotant (des de la finalització)",
   "opt.recurrence.fixed": "Fix (horari ancorat)",
   "opt.freq.daily": "diari",
@@ -84,13 +76,10 @@
   "opt.kind.existing": "Dispositiu existent (afegeix-hi detalls)",
   "opt.part.consumable": "consumible",
   "opt.part.wear": "element de desgast",
-
   "chip.overdue": "Endarrerit",
   "chip.virtualDevice": "Dispositiu virtual",
   "chip.subdeviceOf": "subdispositiu de {name}",
-
   "appliance.fallbackName": "Electrodomèstic",
-
   "recurrence.floating.one": "cada {unit} després de la finalització",
   "recurrence.floating.other": "cada {n} {unit} després de la finalització",
   "recurrence.fixed.one": "cada {unit}",
@@ -101,7 +90,6 @@
   "recurrence.unit.week.other": "setmanes",
   "recurrence.unit.month.one": "mes",
   "recurrence.unit.month.other": "mesos",
-
   "due.none": "—",
   "due.today": "avui",
   "due.tomorrow": "demà",
@@ -110,7 +98,6 @@
   "due.yesterday": "ahir",
   "due.days_ago.one": "fa {n} dia",
   "due.days_ago.other": "fa {n} dies",
-
   "asset.warrantyTo": "garantia fins al {date}",
   "asset.parts.one": "{n} peça",
   "asset.parts.other": "{n} peces",
@@ -128,7 +115,6 @@
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
   "history.archived": "removed task",
-
   "btn.back": "Enrere",
   "group.by": "Agrupa per",
   "group.none": "Cap",
@@ -148,5 +134,14 @@
   "detail.schedule": "Planificació",
   "detail.nextDue": "Pròxim venciment",
   "detail.relatedTasks": "Tasques relacionades",
-  "detail.noNotes": "Encara no hi ha notes"
+  "detail.noNotes": "Encara no hi ha notes",
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}"
 }

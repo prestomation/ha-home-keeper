@@ -8,7 +8,6 @@
   "chip.lowStock": "Nízká zásoba",
   "tab.tasks": "Úkoly",
   "tab.appliances": "Spotřebiče",
-
   "btn.addTask": "Přidat úkol",
   "btn.addAppliance": "Přidat spotřebič",
   "btn.done": "Hotovo",
@@ -19,29 +18,23 @@
   "btn.cancel": "Zrušit",
   "btn.removePart": "Odebrat díl",
   "btn.addPart": "+ Přidat díl",
-
   "tasks.empty": "Zatím žádné úkoly. Klikněte na {addTask} a vytvořte svou první připomínku údržby.",
   "appliances.empty": "Zatím žádné spotřebiče. Přidejte jeden a vytvořte stránku zařízení, kterou mohou sdílet vaše úkoly (a baterie) — lednice, kotel, ohřívač vody…",
-
   "form.task.new": "Nový úkol",
   "form.task.edit": "Upravit úkol",
   "form.appliance.new": "Nový spotřebič",
   "form.appliance.edit": "Upravit spotřebič",
   "form.task.due": "termín {date}",
-
   "section.ownership": "Vlastnictví a záruka",
   "section.related": "Související zařízení",
   "section.reference": "Reference",
   "section.parts": "Díly a opotřebitelné položky",
   "section.part_n": "Díl {n}",
-
   "part.lastReplaced": "Naposledy vyměněno {date} · úkol údržby sleduje další výměnu",
   "part.wearHint": "Opotřebitelná položka s intervalem vytvoří na tomto spotřebiči úkol údržby.",
-
   "error.nameRequired": "Název je povinný",
   "error.nameRequiredAppliance": "Název je povinný pro nový spotřebič",
   "error.pickDevice": "Vyberte zařízení",
-
   "field.name": "Název",
   "field.notes": "Poznámky",
   "field.recurrence_type": "Opakování",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Vyměnit každých",
   "field.replace_unit": "Jednotka",
   "field.last_replaced": "Naposledy vyměněno",
-
   "opt.recurrence.floating": "Plovoucí (od dokončení)",
   "opt.recurrence.fixed": "Pevný (ukotvený rozvrh)",
   "opt.freq.daily": "denně",
@@ -84,13 +76,10 @@
   "opt.kind.existing": "Existující zařízení (přidat k němu údaje)",
   "opt.part.consumable": "spotřební materiál",
   "opt.part.wear": "opotřebitelná položka",
-
   "chip.overdue": "Po termínu",
   "chip.virtualDevice": "Virtuální zařízení",
   "chip.subdeviceOf": "podzařízení {name}",
-
   "appliance.fallbackName": "Spotřebič",
-
   "recurrence.floating.one": "každý {unit} po dokončení",
   "recurrence.floating.few": "každé {n} {unit} po dokončení",
   "recurrence.floating.many": "každých {n} {unit} po dokončení",
@@ -111,7 +100,6 @@
   "recurrence.unit.month.few": "měsíce",
   "recurrence.unit.month.many": "měsíce",
   "recurrence.unit.month.other": "měsíců",
-
   "due.none": "—",
   "due.today": "dnes",
   "due.tomorrow": "zítra",
@@ -124,7 +112,6 @@
   "due.days_ago.other": "před {n} dny",
   "due.days_ago.few": "před {n} dny",
   "due.days_ago.many": "před {n} dne",
-
   "asset.warrantyTo": "záruka do {date}",
   "asset.parts.one": "{n} díl",
   "asset.parts.other": "{n} dílů",
@@ -148,7 +135,6 @@
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
   "history.archived": "removed task",
-
   "btn.back": "Zpět",
   "group.by": "Seskupit podle",
   "group.none": "Žádné",
@@ -168,5 +154,14 @@
   "detail.schedule": "Plán",
   "detail.nextDue": "Příští termín",
   "detail.relatedTasks": "Související úkoly",
-  "detail.noNotes": "Zatím žádné poznámky"
+  "detail.noNotes": "Zatím žádné poznámky",
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}"
 }

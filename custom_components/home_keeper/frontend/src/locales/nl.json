@@ -8,7 +8,6 @@
   "chip.lowStock": "Lage voorraad",
   "tab.tasks": "Taken",
   "tab.appliances": "Apparaten",
-
   "btn.addTask": "Taak toevoegen",
   "btn.addAppliance": "Apparaat toevoegen",
   "btn.done": "Klaar",
@@ -19,29 +18,23 @@
   "btn.cancel": "Annuleren",
   "btn.removePart": "Onderdeel verwijderen",
   "btn.addPart": "+ Onderdeel toevoegen",
-
   "tasks.empty": "Nog geen taken. Klik op {addTask} om je eerste onderhoudsherinnering aan te maken.",
   "appliances.empty": "Nog geen apparaten. Voeg er een toe om een apparaatpagina te maken die je taken (en batterijen) kunnen delen — koelkast, cv-ketel, boiler…",
-
   "form.task.new": "Nieuwe taak",
   "form.task.edit": "Taak bewerken",
   "form.appliance.new": "Nieuw apparaat",
   "form.appliance.edit": "Apparaat bewerken",
   "form.task.due": "uiterlijk {date}",
-
   "section.ownership": "Eigendom & garantie",
   "section.related": "Gerelateerde apparaten",
   "section.reference": "Referentie",
   "section.parts": "Onderdelen & slijtdelen",
   "section.part_n": "Onderdeel {n}",
-
   "part.lastReplaced": "Laatst vervangen op {date} · een onderhoudstaak houdt de volgende bij",
   "part.wearHint": "Een slijtdeel met een interval maakt een onderhoudstaak voor dit apparaat aan.",
-
   "error.nameRequired": "Naam is vereist",
   "error.nameRequiredAppliance": "Naam is vereist voor een nieuw apparaat",
   "error.pickDevice": "Kies een apparaat",
-
   "field.name": "Naam",
   "field.notes": "Notities",
   "field.recurrence_type": "Herhaling",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Vervangen elke",
   "field.replace_unit": "Eenheid",
   "field.last_replaced": "Laatst vervangen",
-
   "opt.recurrence.floating": "Zwevend (vanaf voltooiing)",
   "opt.recurrence.fixed": "Vast (verankerd schema)",
   "opt.freq.daily": "dagelijks",
@@ -84,13 +76,10 @@
   "opt.kind.existing": "Bestaand apparaat (details toevoegen)",
   "opt.part.consumable": "verbruiksartikel",
   "opt.part.wear": "slijtdeel",
-
   "chip.overdue": "Te laat",
   "chip.virtualDevice": "Virtueel apparaat",
   "chip.subdeviceOf": "subapparaat van {name}",
-
   "appliance.fallbackName": "Apparaat",
-
   "recurrence.floating.one": "elke {unit} na voltooiing",
   "recurrence.floating.other": "om de {n} {unit} na voltooiing",
   "recurrence.fixed.one": "elke {unit}",
@@ -101,7 +90,6 @@
   "recurrence.unit.week.other": "weken",
   "recurrence.unit.month.one": "maand",
   "recurrence.unit.month.other": "maanden",
-
   "due.none": "—",
   "due.today": "vandaag",
   "due.tomorrow": "morgen",
@@ -110,7 +98,6 @@
   "due.yesterday": "gisteren",
   "due.days_ago.one": "{n} dag geleden",
   "due.days_ago.other": "{n} dagen geleden",
-
   "asset.warrantyTo": "garantie tot {date}",
   "asset.parts.one": "{n} onderdeel",
   "asset.parts.other": "{n} onderdelen",
@@ -128,7 +115,6 @@
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
   "history.archived": "removed task",
-
   "btn.back": "Terug",
   "group.by": "Groeperen op",
   "group.none": "Geen",
@@ -148,5 +134,14 @@
   "detail.schedule": "Planning",
   "detail.nextDue": "Volgende keer",
   "detail.relatedTasks": "Gerelateerde taken",
-  "detail.noNotes": "Nog geen notities"
+  "detail.noNotes": "Nog geen notities",
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}"
 }

@@ -148,5 +148,15 @@
   "detail.schedule": "Schedule",
   "detail.nextDue": "Next due",
   "detail.relatedTasks": "Related tasks",
-  "detail.noNotes": "No notes yet"
+  "detail.noNotes": "No notes yet",
+
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}"
 }

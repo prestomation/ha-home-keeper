@@ -29,6 +29,9 @@ _LOGGER = logging.getLogger(__name__)
 # ``source`` is opaque provenance owned by the integration that created the task
 # (e.g. ``{"my_integration": {...}}``). Home Keeper stores and echoes it verbatim and
 # never inspects it. See docs/INTEGRATING.md.
+# ``managed_by`` is a well-known ownership block that Home Keeper DOES inspect: it
+# controls which fields are locked in the UI, deletion protection, and display metadata.
+# Set at creation time; ignored by update_task. See docs/INTEGRATING.md §6.
 ADD_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("name"): cv.string,
@@ -41,6 +44,7 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
         vol.Optional("source"): dict,
+        vol.Optional("managed_by"): dict,
     }
 )
 UPDATE_TASK_SCHEMA = vol.Schema(

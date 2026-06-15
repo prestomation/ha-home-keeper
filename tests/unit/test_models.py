@@ -154,3 +154,87 @@ def test_merge_update_preserves_source():
     )
     updated = m.merge_update(task, {"name": "Renamed", "interval": 3}, now=NOW)
     assert updated["source"] == source
+
+
+def test_build_task_carries_managed_by():
+    managed_by = {
+        "integration": "pawsistant",
+        "display_name": "Pawsistant",
+        "icon": "mdi:paw",
+        "locked_fields": ["device_id", "name"],
+        "deletion_protected": True,
+    }
+    task = m.build_task(
+        {
+            "name": "Medicine",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "managed_by": managed_by,
+        },
+        now=NOW,
+    )
+    assert task["managed_by"] == managed_by
+
+
+def test_build_task_managed_by_defaults_to_none():
+    task = m.build_task(
+        {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},
+        now=NOW,
+    )
+    assert task["managed_by"] is None
+
+
+def test_merge_update_respects_locked_fields():
+    managed_by = {
+        "integration": "pawsistant",
+        "display_name": "Pawsistant",
+        "locked_fields": ["device_id", "name"],
+    }
+    task = m.build_task(
+        {
+            "name": "Buddy: Medicine",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "device_id": "dev-buddy-123",
+            "managed_by": managed_by,
+        },
+        now=NOW,
+    )
+    # Locked fields silently ignored; unlocked fields applied normally.
+    updated = m.merge_update(
+        task,
+        {"name": "Hacked name", "device_id": "evil-device", "interval": 4},
+        now=NOW,
+    )
+    assert updated["name"] == "Buddy: Medicine"     # locked — unchanged
+    assert updated["device_id"] == "dev-buddy-123"  # locked — unchanged
+    assert updated["interval"] == 4                 # not locked — changed
+
+
+def test_merge_update_without_managed_by_allows_all_fields():
+    task = m.build_task(
+        {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"name": "New name", "device_id": "some-device"}, now=NOW)
+    assert updated["name"] == "New name"
+    assert updated["device_id"] == "some-device"
+
+
+def test_merge_update_preserves_managed_by():
+    # managed_by must survive a merge just like source does.
+    managed_by = {"integration": "pawsistant", "display_name": "Pawsistant"}
+    task = m.build_task(
+        {
+            "name": "Medicine",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "managed_by": managed_by,
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"notes": "new note"}, now=NOW)
+    assert updated["managed_by"] == managed_by

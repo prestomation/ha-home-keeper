@@ -120,6 +120,14 @@ class HomeKeeperStore:
                 "This task is managed by an appliance wear part; remove or change "
                 "the part to delete it."
             )
+        if task is not None:
+            managed_by = task.get("managed_by")
+            if managed_by and isinstance(managed_by, dict) and managed_by.get("deletion_protected"):
+                display_name = managed_by.get("display_name") or "an integration"
+                raise models.TaskValidationError(
+                    f"This task is managed by {display_name}. "
+                    f"Delete it from {display_name} instead."
+                )
         if task_id in self._tasks:
             self._archive_task_history(self._tasks[task_id])
             del self._tasks[task_id]

@@ -8,7 +8,6 @@
   "chip.lowStock": "Lavt lager",
   "tab.tasks": "Oppgaver",
   "tab.appliances": "Apparater",
-
   "btn.addTask": "Legg til oppgave",
   "btn.addAppliance": "Legg til apparat",
   "btn.done": "Ferdig",
@@ -19,29 +18,23 @@
   "btn.cancel": "Avbryt",
   "btn.removePart": "Fjern del",
   "btn.addPart": "+ Legg til del",
-
   "tasks.empty": "Ingen oppgaver ennå. Klikk {addTask} for å opprette din første vedlikeholdspåminnelse.",
   "appliances.empty": "Ingen apparater ennå. Legg til ett for å opprette en enhetsside som oppgavene dine (og batterier) kan dele — kjøleskap, fyr, varmtvannsbereder…",
-
   "form.task.new": "Ny oppgave",
   "form.task.edit": "Rediger oppgave",
   "form.appliance.new": "Nytt apparat",
   "form.appliance.edit": "Rediger apparat",
   "form.task.due": "forfaller {date}",
-
   "section.ownership": "Eierskap og garanti",
   "section.related": "Relaterte enheter",
   "section.reference": "Referanse",
   "section.parts": "Deler og slitedeler",
   "section.part_n": "Del {n}",
-
   "part.lastReplaced": "Sist byttet {date} · en vedlikeholdsoppgave holder styr på den neste",
   "part.wearHint": "En slitedel med et intervall oppretter en vedlikeholdsoppgave for dette apparatet.",
-
   "error.nameRequired": "Navn er påkrevd",
   "error.nameRequiredAppliance": "Navn er påkrevd for et nytt apparat",
   "error.pickDevice": "Velg en enhet",
-
   "field.name": "Navn",
   "field.notes": "Notater",
   "field.recurrence_type": "Gjentakelse",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Bytt hver",
   "field.replace_unit": "Enhet",
   "field.last_replaced": "Sist byttet",
-
   "opt.recurrence.floating": "Flytende (fra fullføring)",
   "opt.recurrence.fixed": "Fast (forankret tidsplan)",
   "opt.freq.daily": "daglig",
@@ -84,13 +76,10 @@
   "opt.kind.existing": "Eksisterende enhet (legg til detaljer på den)",
   "opt.part.consumable": "forbruksvare",
   "opt.part.wear": "slitedel",
-
   "chip.overdue": "Forfalt",
   "chip.virtualDevice": "Virtuell enhet",
   "chip.subdeviceOf": "underenhet av {name}",
-
   "appliance.fallbackName": "Apparat",
-
   "recurrence.floating.one": "hver {unit} etter fullføring",
   "recurrence.floating.other": "hver {n}. {unit} etter fullføring",
   "recurrence.fixed.one": "hver {unit}",
@@ -101,7 +90,6 @@
   "recurrence.unit.week.other": "uke",
   "recurrence.unit.month.one": "måned",
   "recurrence.unit.month.other": "måned",
-
   "due.none": "—",
   "due.today": "i dag",
   "due.tomorrow": "i morgen",
@@ -110,7 +98,6 @@
   "due.yesterday": "i går",
   "due.days_ago.one": "for {n} dag siden",
   "due.days_ago.other": "for {n} dager siden",
-
   "asset.warrantyTo": "garanti til {date}",
   "asset.parts.one": "{n} del",
   "asset.parts.other": "{n} deler",
@@ -128,7 +115,6 @@
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
   "history.archived": "removed task",
-
   "btn.back": "Tilbake",
   "group.by": "Grupper etter",
   "group.none": "Ingen",
@@ -148,5 +134,14 @@
   "detail.schedule": "Tidsplan",
   "detail.nextDue": "Neste forfall",
   "detail.relatedTasks": "Relaterte oppgaver",
-  "detail.noNotes": "Ingen notater ennå"
+  "detail.noNotes": "Ingen notater ennå",
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}"
 }

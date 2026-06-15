@@ -23,6 +23,7 @@ def completion_event_data(
         "task_id": task.get("id"),
         "name": task.get("name"),
         "source": task.get("source"),
+        "managed_by": task.get("managed_by"),
         "completed_at": when.isoformat() if hasattr(when, "isoformat") else when,
         "origin": origin,
     }

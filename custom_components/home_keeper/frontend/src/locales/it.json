@@ -8,7 +8,6 @@
   "chip.lowStock": "Scorte basse",
   "tab.tasks": "Attività",
   "tab.appliances": "Elettrodomestici",
-
   "btn.addTask": "Aggiungi attività",
   "btn.addAppliance": "Aggiungi elettrodomestico",
   "btn.done": "Fatto",
@@ -19,29 +18,23 @@
   "btn.cancel": "Annulla",
   "btn.removePart": "Rimuovi componente",
   "btn.addPart": "+ Aggiungi componente",
-
   "tasks.empty": "Ancora nessuna attività. Fai clic su {addTask} per creare il tuo primo promemoria di manutenzione.",
   "appliances.empty": "Ancora nessun elettrodomestico. Aggiungine uno per creare una pagina dispositivo che le tue attività (e batterie) possono condividere — frigorifero, caldaia, scaldabagno…",
-
   "form.task.new": "Nuova attività",
   "form.task.edit": "Modifica attività",
   "form.appliance.new": "Nuovo elettrodomestico",
   "form.appliance.edit": "Modifica elettrodomestico",
   "form.task.due": "scadenza {date}",
-
   "section.ownership": "Proprietà e garanzia",
   "section.related": "Dispositivi correlati",
   "section.reference": "Riferimento",
   "section.parts": "Componenti e parti soggette a usura",
   "section.part_n": "Componente {n}",
-
   "part.lastReplaced": "Sostituito l'ultima volta il {date} · un'attività di manutenzione tiene traccia della prossima",
   "part.wearHint": "Una parte soggetta a usura con un intervallo crea un'attività di manutenzione su questo elettrodomestico.",
-
   "error.nameRequired": "Il nome è obbligatorio",
   "error.nameRequiredAppliance": "Il nome è obbligatorio per un nuovo elettrodomestico",
   "error.pickDevice": "Scegli un dispositivo",
-
   "field.name": "Nome",
   "field.notes": "Note",
   "field.recurrence_type": "Ricorrenza",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Sostituisci ogni",
   "field.replace_unit": "Unità",
   "field.last_replaced": "Sostituito l'ultima volta",
-
   "opt.recurrence.floating": "Flessibile (dal completamento)",
   "opt.recurrence.fixed": "Fissa (pianificazione ancorata)",
   "opt.freq.daily": "giornaliero",
@@ -84,13 +76,10 @@
   "opt.kind.existing": "Dispositivo esistente (aggiungi dettagli)",
   "opt.part.consumable": "materiale di consumo",
   "opt.part.wear": "parte soggetta a usura",
-
   "chip.overdue": "Scaduta",
   "chip.virtualDevice": "Dispositivo virtuale",
   "chip.subdeviceOf": "sotto-dispositivo di {name}",
-
   "appliance.fallbackName": "Elettrodomestico",
-
   "recurrence.floating.one": "ogni {unit} dopo il completamento",
   "recurrence.floating.other": "ogni {n} {unit} dopo il completamento",
   "recurrence.fixed.one": "ogni {unit}",
@@ -101,7 +90,6 @@
   "recurrence.unit.week.other": "settimane",
   "recurrence.unit.month.one": "mese",
   "recurrence.unit.month.other": "mesi",
-
   "due.none": "—",
   "due.today": "oggi",
   "due.tomorrow": "domani",
@@ -110,7 +98,6 @@
   "due.yesterday": "ieri",
   "due.days_ago.one": "{n} giorno fa",
   "due.days_ago.other": "{n} giorni fa",
-
   "asset.warrantyTo": "garanzia fino al {date}",
   "asset.parts.one": "{n} componente",
   "asset.parts.other": "{n} componenti",
@@ -128,7 +115,6 @@
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
   "history.archived": "removed task",
-
   "btn.back": "Indietro",
   "group.by": "Raggruppa per",
   "group.none": "Nessuno",
@@ -148,5 +134,14 @@
   "detail.schedule": "Pianificazione",
   "detail.nextDue": "Prossima scadenza",
   "detail.relatedTasks": "Attività correlate",
-  "detail.noNotes": "Ancora nessuna nota"
+  "detail.noNotes": "Ancora nessuna nota",
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}"
 }
