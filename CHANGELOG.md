@@ -6,6 +6,13 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+- **Deep links & a working Back button in the panel.** The panel's view now lives
+  in the URL — tabs (`/home-keeper/appliances`) and detail pages
+  (`/home-keeper/tasks/<id>`) are linkable and bookmarkable, and refreshing keeps
+  your place. The browser **Back** button now steps back to the previous page
+  inside the panel (e.g. detail → list) instead of navigating away from Home
+  Keeper entirely.
+
 ## [0.1.0b5] - 2026-06-15
 
 - **Group and filter the task list.** The panel's list view gains a persisted

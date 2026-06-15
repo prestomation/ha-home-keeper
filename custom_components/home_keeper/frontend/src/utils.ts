@@ -85,6 +85,52 @@ export function areaName(
   return areas?.[areaId]?.name || areaId;
 }
 
+// ── panel routing ────────────────────────────────────────────────────────────
+
+/** The navigable list view; mirrors the panel's two tabs. */
+export type PanelView = 'tasks' | 'appliances';
+
+/**
+ * A fully-resolved panel location: which tab is shown and, optionally, the
+ * detail page open on top of it. This is the panel's entire navigation state —
+ * it round-trips losslessly with the URL via {@link parseRoute} / {@link buildPath}
+ * so the URL can be the single source of truth (high-fidelity deep linking).
+ */
+export interface PanelLocation {
+  view: PanelView;
+  detail: { kind: 'task' | 'asset'; id: string } | null;
+}
+
+/**
+ * Parse the panel's route path (the part after the `/home-keeper` prefix that HA
+ * hands the panel) into a {@link PanelLocation}. Unknown/empty paths fall back to
+ * the tasks list. The asset detail lives under the `appliances` segment but keeps
+ * the internal `asset` kind.
+ */
+export function parseRoute(path: string | undefined | null): PanelLocation {
+  const parts = String(path ?? '')
+    .split('/')
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const view: PanelView = parts[0] === 'appliances' ? 'appliances' : 'tasks';
+  if (parts[1]) {
+    const kind = view === 'appliances' ? 'asset' : 'task';
+    return { view, detail: { kind, id: decodeURIComponent(parts[1]) } };
+  }
+  return { view, detail: null };
+}
+
+/**
+ * Build the route path (under the panel prefix) for a {@link PanelLocation} —
+ * the inverse of {@link parseRoute}. The detail page's URL segment derives from
+ * the view, so a task detail is `/tasks/<id>` and an asset detail is
+ * `/appliances/<id>`.
+ */
+export function buildPath(loc: PanelLocation): string {
+  if (loc.detail) return `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
+  return `/${loc.view}`;
+}
+
 // ── completion history ───────────────────────────────────────────────────────
 
 /** Parsed, valid completion timestamps sorted newest-first. */

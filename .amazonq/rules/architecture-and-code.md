@@ -14,6 +14,29 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   built-in cards over bespoke Lovelace usage cards. Do not put management UI into
   a Lovelace card.
 
+## Panel navigation & high-fidelity deep linking
+- The panel's navigation state is **high-fidelity deep-linked**: every navigable
+  destination maps to a URL under the panel prefix (`/home-keeper`). Current
+  scheme: `/tasks` (default), `/appliances`, `/tasks/<id>`, `/appliances/<id>`
+  (asset detail lives under the `appliances` segment). Forms are ephemeral
+  overlays and are intentionally **not** deep-linked.
+- **The URL is the single source of truth.** HA hands the panel a
+  `route = { prefix, path }` for every in-panel URL change, including browser
+  Back/Forward. The `set route` setter parses `path` and is the *only* place that
+  flips `_view`/`_detail`. Never mutate `_view`/`_detail` directly to navigate —
+  that desyncs the URL and breaks Back.
+- **Navigate by changing the URL**, via the `_navigate(location, replace?)`
+  helper (`history.pushState`/`replaceState` + a bubbling `composed`
+  `location-changed` event). HA re-sets `route` in response, which flows back
+  through `set route`. Drill-in steps (open a detail) **push**; lateral moves
+  (switch tab) and detail-closing/deletes **replace**, so Back never retraces a
+  tab toggle or returns to a deleted object — and Back moves within the panel
+  instead of ejecting from it.
+- Keep route parse/build as **pure functions in `utils.ts`** (`parseRoute`,
+  `buildPath`) so they unit-test in isolation and round-trip losslessly. Unknown
+  or empty paths fall back to the tasks list; a detail URL whose id no longer
+  exists renders the "gone" notice rather than erroring.
+
 ## Pure, HA-free core
 - `recurrence.py` and `models.py` MUST NOT import anything from `homeassistant`.
   They are pure Python so they can be unit-tested without the HA test harness.

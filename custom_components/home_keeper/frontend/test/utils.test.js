@@ -13,6 +13,8 @@ import {
   completionStats,
   taskRelatesToAsset,
   tasksForAsset,
+  parseRoute,
+  buildPath,
 } from '../src/utils.ts';
 
 describe('escapeHTML', () => {
@@ -214,5 +216,58 @@ describe('taskRelatesToAsset / tasksForAsset', () => {
       { id: 'c', name: 'c', source: { part: { asset_id: 'asset1', part_id: 'p' } } },
     ];
     expect(tasksForAsset(asset, tasks).map((t) => t.id)).toEqual(['a', 'c']);
+  });
+});
+
+describe('parseRoute', () => {
+  it('defaults empty/unknown paths to the tasks list', () => {
+    for (const p of ['', '/', undefined, null, '/bogus']) {
+      expect(parseRoute(p)).toEqual({ view: 'tasks', detail: null });
+    }
+  });
+  it('parses the appliances list', () => {
+    expect(parseRoute('/appliances')).toEqual({ view: 'appliances', detail: null });
+  });
+  it('parses a task detail', () => {
+    expect(parseRoute('/tasks/abc')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: 'abc' },
+    });
+  });
+  it('parses an asset detail under the appliances segment', () => {
+    expect(parseRoute('/appliances/xyz')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'xyz' },
+    });
+  });
+  it('decodes percent-encoded ids and tolerates trailing slashes', () => {
+    expect(parseRoute('/tasks/a%2Fb/')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: 'a/b' },
+    });
+  });
+});
+
+describe('buildPath', () => {
+  it('builds list paths', () => {
+    expect(buildPath({ view: 'tasks', detail: null })).toBe('/tasks');
+    expect(buildPath({ view: 'appliances', detail: null })).toBe('/appliances');
+  });
+  it('builds detail paths and encodes the id', () => {
+    expect(buildPath({ view: 'tasks', detail: { kind: 'task', id: 'a/b' } })).toBe('/tasks/a%2Fb');
+    expect(buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'x' } })).toBe(
+      '/appliances/x',
+    );
+  });
+  it('round-trips with parseRoute', () => {
+    const locs = [
+      { view: 'tasks', detail: null },
+      { view: 'appliances', detail: null },
+      { view: 'tasks', detail: { kind: 'task', id: 'task-1' } },
+      { view: 'appliances', detail: { kind: 'asset', id: 'asset-9' } },
+    ];
+    for (const loc of locs) {
+      expect(parseRoute(buildPath(loc))).toEqual(loc);
+    }
   });
 });
