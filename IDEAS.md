@@ -190,7 +190,10 @@ ship rather than adding a parallel system.
 - **Home inventory for insurance.** The appliance registry *is* a home inventory.
   Add a "total replacement value" rollup and a one-click export (CSV/JSON/PDF with
   photos, serials, purchase dates, costs, warranty) — exactly what people scramble to
-  assemble after a fire/flood/theft. Reuses fields we already store. **(Implementing.)**
+  assemble after a fire/flood/theft. Reuses fields we already store. **Shipped** (CSV):
+  pure `inventory.py` (`build_inventory` + `inventory_to_csv`), a
+  `home_keeper/export_inventory` websocket command, and an **Export inventory** button
+  on the Appliances tab. Still open: JSON/PDF formats, photos, and depreciation.
 - **Repair / service log (distinct from routine maintenance).** A place to record
   one-off events ("HVAC capacitor replaced, $180, ABC Heating, 2026-03") separate from
   recurring tasks, feeding **repair-vs-replace analytics** (lifetime cost per appliance).
@@ -234,7 +237,12 @@ ship rather than adding a parallel system.
 - **Consumables inventory with stock counts.** Parts already carry part numbers. Track
   *how many* spares are on hand, decrement on completion, alert at low stock, and push
   the part onto HA's `todo` shopping list (or fire a reorder automation) when a task
-  comes due — closing the loop from "due" → "bought" → "done." **(Implementing.)**
+  comes due — closing the loop from "due" → "bought" → "done." **Shipped (v1):** parts
+  gain optional `stock`/`reorder_at`; completing a wear-part replacement consumes a
+  spare; at/below the threshold a `home_keeper_part_low_stock` event fires (so users
+  automate the shopping-list add / reorder themselves). Manual `adjust_part_stock`
+  websocket command for restock. Still open: a built-in shopping-list blueprint and a
+  one-tap restock control in the panel.
 
 ### Households & motivation
 

@@ -1,5 +1,10 @@
 {
   "app.title": "Home Keeper",
+  "btn.exportInventory": "Экспортировать опись",
+  "field.stock": "Запас",
+  "field.reorder_at": "Заказ при",
+  "part.inStock": "В наличии: {n}",
+  "chip.lowStock": "Мало на складе",
   "tab.tasks": "Задачи",
   "tab.appliances": "Устройства",
 

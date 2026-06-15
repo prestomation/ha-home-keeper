@@ -1,5 +1,10 @@
 {
   "app.title": "Home Keeper",
+  "btn.exportInventory": "Vie luettelo",
+  "field.stock": "Varasto",
+  "field.reorder_at": "Tilausraja",
+  "part.inStock": "Varastossa: {n}",
+  "chip.lowStock": "Vähissä",
   "tab.tasks": "Tehtävät",
   "tab.appliances": "Laitteet",
 

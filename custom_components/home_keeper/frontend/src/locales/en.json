@@ -1,5 +1,10 @@
 {
   "app.title": "Home Keeper",
+  "btn.exportInventory": "Export inventory",
+  "field.stock": "Stock",
+  "field.reorder_at": "Reorder at",
+  "part.inStock": "In stock: {n}",
+  "chip.lowStock": "Low stock",
   "tab.tasks": "Tasks",
   "tab.appliances": "Appliances",
 

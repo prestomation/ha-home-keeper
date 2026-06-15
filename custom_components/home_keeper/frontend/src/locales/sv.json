@@ -1,5 +1,10 @@
 {
   "app.title": "Home Keeper",
+  "btn.exportInventory": "Exportera inventering",
+  "field.stock": "Lager",
+  "field.reorder_at": "Beställ vid",
+  "part.inStock": "I lager: {n}",
+  "chip.lowStock": "Lågt lager",
   "tab.tasks": "Uppgifter",
   "tab.appliances": "Apparater",
 

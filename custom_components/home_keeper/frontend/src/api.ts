@@ -1,4 +1,4 @@
-import type { Asset, Hass, Task } from './types';
+import type { Asset, Hass, Inventory, Task } from './types';
 
 /** Thin wrappers around the Home Keeper websocket commands. */
 
@@ -98,6 +98,31 @@ export async function updateAsset(
 
 export async function deleteAsset(hass: Hass, assetId: string): Promise<void> {
   await hass.callWS({ type: 'home_keeper/delete_asset', asset_id: assetId });
+}
+
+/** Adjust a part's on-hand spare count by `delta` (clamped at zero server-side). */
+export async function adjustPartStock(
+  hass: Hass,
+  assetId: string,
+  partId: string,
+  delta: number,
+): Promise<Asset> {
+  const res = await hass.callWS<{ asset: Asset }>({
+    type: 'home_keeper/adjust_part_stock',
+    asset_id: assetId,
+    part_id: partId,
+    delta,
+  });
+  return res.asset;
+}
+
+/** Fetch the home-inventory report (for insurance) plus a ready-to-save CSV. */
+export async function exportInventory(
+  hass: Hass,
+): Promise<{ inventory: Inventory; csv: string }> {
+  return hass.callWS<{ inventory: Inventory; csv: string }>({
+    type: 'home_keeper/export_inventory',
+  });
 }
 
 /**

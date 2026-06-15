@@ -1,5 +1,10 @@
 {
   "app.title": "Home Keeper",
+  "btn.exportInventory": "Exportovat inventář",
+  "field.stock": "Zásoba",
+  "field.reorder_at": "Objednat při",
+  "part.inStock": "Skladem: {n}",
+  "chip.lowStock": "Nízká zásoba",
   "tab.tasks": "Úkoly",
   "tab.appliances": "Spotřebiče",
 

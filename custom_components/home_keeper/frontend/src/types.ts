@@ -60,6 +60,41 @@ export interface Part {
   replace_interval?: number | null;
   replace_unit?: Unit | null;
   last_replaced?: string | null;
+  // Spare-inventory tracking. `stock` is how many spares are on hand (decremented
+  // when a wear-part replacement is completed); `reorder_at` is the low-stock
+  // threshold at/below which a low-stock event fires. Both optional / untracked.
+  stock?: number | null;
+  reorder_at?: number | null;
+}
+
+/** One appliance row in the insurance/home-inventory export. */
+export interface InventoryRow {
+  id: string;
+  name: string;
+  kind: AssetKind;
+  area?: string | null;
+  manufacturer: string;
+  model: string;
+  serial_number: string;
+  purchase_date?: string | null;
+  install_date?: string | null;
+  warranty_expiry?: string | null;
+  warranty_active?: boolean | null;
+  warranty_provider: string;
+  vendor: string;
+  cost?: number | null;
+  spares_value: number;
+  part_count: number;
+}
+
+export interface Inventory {
+  assets: InventoryRow[];
+  totals: {
+    asset_count: number;
+    total_cost: number;
+    spares_value: number;
+    grand_total: number;
+  };
 }
 
 /**

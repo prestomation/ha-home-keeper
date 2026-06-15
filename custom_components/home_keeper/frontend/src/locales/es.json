@@ -1,5 +1,10 @@
 {
   "app.title": "Home Keeper",
+  "btn.exportInventory": "Exportar inventario",
+  "field.stock": "Existencias",
+  "field.reorder_at": "Reordenar en",
+  "part.inStock": "En existencias: {n}",
+  "chip.lowStock": "Pocas existencias",
   "tab.tasks": "Tareas",
   "tab.appliances": "Electrodomésticos",
 
