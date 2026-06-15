@@ -32,6 +32,13 @@ MAX_COMPLETION_HISTORY = 500
 # Home Keeper never inspects either. See docs/INTEGRATING.md.
 EVENT_TASK_COMPLETED = f"{DOMAIN}_task_completed"
 
+# Event fired when a stock-tracked spare part drops to (or below) its reorder
+# threshold — either because a wear-part replacement was completed (consuming a
+# spare) or because stock was manually adjusted down. Lets users automate a
+# shopping-list add / reorder / notification without Home Keeper owning any
+# shopping integration. Payload is built in events.low_stock_event_data.
+EVENT_PART_LOW_STOCK = f"{DOMAIN}_part_low_stock"
+
 # Assets / appliances (virtual devices + asset metadata).
 # A virtual asset device is registered with identifier
 # (DOMAIN, f"{ASSET_IDENTIFIER_PREFIX}_{asset_id}"); the prefix keeps it from

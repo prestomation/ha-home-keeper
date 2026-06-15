@@ -306,3 +306,87 @@ def test_would_create_cycle():
     assert a.would_create_cycle(assets_by_id, "a", "b") is True
     # 'b' under 'a' is fine (already the case); a fresh child is fine.
     assert a.would_create_cycle(assets_by_id, "c", "a") is False
+
+
+# ── spare-inventory tracking (stock / reorder_at) ──────────────────────────────
+def test_part_stock_fields_normalized():
+    asset = a.build_asset(
+        {"name": "Furnace", "parts": [{"name": "Filter", "stock": "4", "reorder_at": "1"}]},
+        now=NOW,
+    )
+    part = asset["parts"][0]
+    assert part["stock"] == 4
+    assert part["reorder_at"] == 1
+
+
+def test_part_stock_defaults_none_and_untracked():
+    asset = a.build_asset({"name": "X", "parts": [{"name": "Filter"}]}, now=NOW)
+    part = asset["parts"][0]
+    assert part["stock"] is None and part["reorder_at"] is None
+
+
+def test_negative_stock_rejected():
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset({"name": "X", "parts": [{"name": "F", "stock": -1}]}, now=NOW)
+
+
+def test_part_is_low():
+    assert a.part_is_low({"stock": 1, "reorder_at": 1}) is True
+    assert a.part_is_low({"stock": 0, "reorder_at": 1}) is True
+    assert a.part_is_low({"stock": 2, "reorder_at": 1}) is False
+    # Untracked stock or no threshold is never "low".
+    assert a.part_is_low({"stock": None, "reorder_at": 1}) is False
+    assert a.part_is_low({"stock": 0, "reorder_at": None}) is False
+
+
+def test_consume_part_stock_decrements_and_flags_low():
+    part = {"stock": 3, "reorder_at": 1}
+    # 3 -> 2, still above the threshold of 1.
+    assert a.consume_part_stock(part) is False
+    assert part["stock"] == 2
+    # 2 -> 1 lands on the threshold, which counts as low.
+    assert a.consume_part_stock(part) is True
+    assert part["stock"] == 1
+
+
+def test_consume_part_stock_floors_at_zero():
+    part = {"stock": 0, "reorder_at": 0}
+    assert a.consume_part_stock(part) is True
+    assert part["stock"] == 0
+
+
+def test_consume_part_stock_noop_when_untracked():
+    part = {"stock": None, "reorder_at": 2}
+    assert a.consume_part_stock(part) is False
+    assert part["stock"] is None
+
+
+def test_adjust_part_stock_restock_and_clamp():
+    part = {"stock": 1, "reorder_at": 1}
+    # Restock by 3 -> 4, no longer low.
+    assert a.adjust_part_stock(part, 3) is False
+    assert part["stock"] == 4
+    # Consume 5 -> clamps at 0, now low.
+    assert a.adjust_part_stock(part, -5) is True
+    assert part["stock"] == 0
+
+
+def test_adjust_part_stock_begins_tracking_from_zero():
+    part = {"stock": None, "reorder_at": None}
+    a.adjust_part_stock(part, 2)
+    assert part["stock"] == 2
+
+
+def test_merge_update_preserves_part_stock():
+    asset = a.build_asset(
+        {"name": "Furnace", "parts": [{"name": "Filter", "stock": 3, "reorder_at": 1}]},
+        now=NOW,
+    )
+    pid = asset["parts"][0]["id"]
+    asset["parts"][0]["stock"] = 1  # simulate a completion having consumed spares
+    # The panel re-submits the part without stock/reorder_at; merge must keep them.
+    updated = a.merge_update(
+        asset, {"parts": [{"id": pid, "name": "Filter"}]}, now=NOW
+    )
+    assert updated["parts"][0]["stock"] == 1
+    assert updated["parts"][0]["reorder_at"] == 1

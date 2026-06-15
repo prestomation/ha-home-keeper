@@ -28,7 +28,15 @@ def _load_pure_modules() -> None:
     pkg = types.ModuleType("hk")
     pkg.__path__ = [str(_COMPONENT_DIR)]  # type: ignore[attr-defined]
     sys.modules["hk"] = pkg
-    for name in ("const", "recurrence", "models", "assets", "events", "reconcile"):
+    for name in (
+        "const",
+        "recurrence",
+        "models",
+        "assets",
+        "events",
+        "reconcile",
+        "inventory",
+    ):
         spec = importlib.util.spec_from_file_location(
             f"hk.{name}", str(_COMPONENT_DIR / f"{name}.py")
         )
@@ -43,6 +51,7 @@ def _load_pure_modules() -> None:
     sys.modules["hk_assets"] = sys.modules["hk.assets"]
     sys.modules["hk_events"] = sys.modules["hk.events"]
     sys.modules["hk_reconcile"] = sys.modules["hk.reconcile"]
+    sys.modules["hk_inventory"] = sys.modules["hk.inventory"]
 
 
 _load_pure_modules()

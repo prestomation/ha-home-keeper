@@ -43,6 +43,11 @@ def area_exists(hass: HomeAssistant, area_id: str | None) -> bool:
     return ar.async_get(hass).async_get_area(area_id) is not None
 
 
+def area_names(hass: HomeAssistant) -> dict[str, str]:
+    """Map ``area_id`` -> human-readable name (for the inventory export)."""
+    return {area.id: area.name for area in ar.async_get(hass).async_list_areas()}
+
+
 def _ancestor_depth(store: HomeKeeperStore, asset: dict[str, Any]) -> int:
     """Number of parent links above *asset* (used to provision parents first)."""
     depth = 0
