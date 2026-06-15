@@ -116,6 +116,79 @@
             "ts": "2026-04-20T12:00:00-04:00"
           }
         ]
+      },
+      "task_buddy_medicine": {
+        "id": "task_buddy_medicine",
+        "name": "Buddy: Medicine",
+        "notes": "",
+        "recurrence_type": "floating",
+        "interval": 2,
+        "unit": "weeks",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2026-05-15T08:00:00-04:00",
+        "last_completed": "2026-06-08T08:00:00-04:00",
+        "next_due": "2026-06-22T08:00:00-04:00",
+        "completions": [
+          {
+            "ts": "2026-05-25T08:00:00-04:00"
+          },
+          {
+            "ts": "2026-06-08T08:00:00-04:00"
+          }
+        ],
+        "source": {
+          "pawsistant": {
+            "dog_id": "dog_buddy",
+            "event_type": "medicine",
+            "schedule_id": "sched_buddy_medicine"
+          }
+        },
+        "managed_by": {
+          "integration": "pawsistant",
+          "display_name": "Pawsistant",
+          "icon": "mdi:paw",
+          "locked_fields": ["device_id", "name"],
+          "completion_prompt": "Log as Buddy's medicine dose?",
+          "deletion_protected": true,
+          "config_entry_id": "home_keeper_test_entry"
+        }
+      },
+      "task_rex_vet": {
+        "id": "task_rex_vet",
+        "name": "Rex: Vet checkup",
+        "notes": "",
+        "recurrence_type": "floating",
+        "interval": 6,
+        "unit": "months",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2025-12-01T09:00:00-04:00",
+        "last_completed": "2026-01-10T09:00:00-04:00",
+        "next_due": "2026-07-10T09:00:00-04:00",
+        "completions": [
+          {
+            "ts": "2026-01-10T09:00:00-04:00"
+          }
+        ],
+        "source": {
+          "pawsistant": {
+            "dog_id": "dog_rex",
+            "event_type": "vet",
+            "schedule_id": "sched_rex_vet"
+          }
+        },
+        "managed_by": {
+          "integration": "pawsistant",
+          "display_name": "Pawsistant",
+          "icon": "mdi:paw",
+          "locked_fields": ["device_id", "name"],
+          "completion_prompt": "Log as Rex's vet checkup?",
+          "deletion_protected": true,
+          "config_entry_id": "uninstalled_entry_demo"
+        }
       }
     },
     "assets": {

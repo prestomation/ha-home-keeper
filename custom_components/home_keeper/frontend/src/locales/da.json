@@ -8,7 +8,6 @@
   "chip.lowStock": "Lav lager",
   "tab.tasks": "Opgaver",
   "tab.appliances": "Apparater",
-
   "btn.addTask": "Tilføj opgave",
   "btn.addAppliance": "Tilføj apparat",
   "btn.done": "Færdig",
@@ -19,29 +18,23 @@
   "btn.cancel": "Annuller",
   "btn.removePart": "Fjern del",
   "btn.addPart": "+ Tilføj del",
-
   "tasks.empty": "Ingen opgaver endnu. Klik på {addTask} for at oprette din første vedligeholdelsespåmindelse.",
   "appliances.empty": "Ingen apparater endnu. Tilføj et for at oprette en enhedsside, som dine opgaver (og batterier) kan dele — køleskab, fyr, vandvarmer…",
-
   "form.task.new": "Ny opgave",
   "form.task.edit": "Rediger opgave",
   "form.appliance.new": "Nyt apparat",
   "form.appliance.edit": "Rediger apparat",
   "form.task.due": "forfalder {date}",
-
   "section.ownership": "Ejerskab og garanti",
   "section.related": "Relaterede enheder",
   "section.reference": "Reference",
   "section.parts": "Dele og sliddele",
   "section.part_n": "Del {n}",
-
   "part.lastReplaced": "Senest udskiftet {date} · en vedligeholdelsesopgave følger den næste",
   "part.wearHint": "En sliddel med et interval opretter en vedligeholdelsesopgave på dette apparat.",
-
   "error.nameRequired": "Navn er påkrævet",
   "error.nameRequiredAppliance": "Navn er påkrævet for et nyt apparat",
   "error.pickDevice": "Vælg en enhed",
-
   "field.name": "Navn",
   "field.notes": "Noter",
   "field.recurrence_type": "Gentagelse",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Udskift hver",
   "field.replace_unit": "Enhed",
   "field.last_replaced": "Senest udskiftet",
-
   "opt.recurrence.floating": "Flydende (fra fuldførelse)",
   "opt.recurrence.fixed": "Fast (forankret tidsplan)",
   "opt.freq.daily": "dagligt",
@@ -84,13 +76,10 @@
   "opt.kind.existing": "Eksisterende enhed (tilføj detaljer til den)",
   "opt.part.consumable": "forbrugsvare",
   "opt.part.wear": "sliddel",
-
   "chip.overdue": "Forfalden",
   "chip.virtualDevice": "Virtuel enhed",
   "chip.subdeviceOf": "underenhed af {name}",
-
   "appliance.fallbackName": "Apparat",
-
   "recurrence.floating.one": "hver {unit} efter fuldførelse",
   "recurrence.floating.other": "hver {n}. {unit} efter fuldførelse",
   "recurrence.fixed.one": "hver {unit}",
@@ -101,7 +90,6 @@
   "recurrence.unit.week.other": "uge",
   "recurrence.unit.month.one": "måned",
   "recurrence.unit.month.other": "måned",
-
   "due.none": "—",
   "due.today": "i dag",
   "due.tomorrow": "i morgen",
@@ -110,7 +98,6 @@
   "due.yesterday": "i går",
   "due.days_ago.one": "for {n} dag siden",
   "due.days_ago.other": "for {n} dage siden",
-
   "asset.warrantyTo": "garanti til {date}",
   "asset.parts.one": "{n} del",
   "asset.parts.other": "{n} dele",
@@ -128,7 +115,6 @@
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
   "history.archived": "removed task",
-
   "btn.back": "Tilbage",
   "group.by": "Gruppér efter",
   "group.none": "Ingen",
@@ -148,5 +134,18 @@
   "detail.schedule": "Tidsplan",
   "detail.nextDue": "Næste forfald",
   "detail.relatedTasks": "Relaterede opgaver",
-  "detail.noNotes": "Ingen noter endnu"
+  "detail.noNotes": "Ingen noter endnu",
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}",
+  "btn.removeOrphaned": "Remove orphaned tasks",
+  "managed.orphanCleanup": "{name} is no longer installed — you can safely delete this task here.",
+  "managed.orphanBanner.one": "{n} task is managed by an integration that's no longer installed.",
+  "managed.orphanBanner.other": "{n} tasks are managed by integrations that are no longer installed."
 }

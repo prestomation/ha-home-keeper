@@ -106,6 +106,10 @@
         "task_id": {
           "name": "ID úkolu",
           "description": "ID úkolu, který se má smazat."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
     },
@@ -147,58 +151,166 @@
           "name": "Oblast",
           "description": "Volitelná oblast pro spotřebič."
         },
-        "manufacturer": { "name": "Výrobce", "description": "Výrobce spotřebiče." },
-        "model": { "name": "Model", "description": "Název nebo číslo modelu." },
-        "serial_number": { "name": "Sériové číslo", "description": "Sériové číslo." },
-        "manufacture_date": { "name": "Datum výroby", "description": "ISO datum (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Datum nákupu", "description": "ISO datum (YYYY-MM-DD)." },
-        "install_date": { "name": "Datum instalace", "description": "ISO datum (YYYY-MM-DD)." },
+        "manufacturer": {
+          "name": "Výrobce",
+          "description": "Výrobce spotřebiče."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Název nebo číslo modelu."
+        },
+        "serial_number": {
+          "name": "Sériové číslo",
+          "description": "Sériové číslo."
+        },
+        "manufacture_date": {
+          "name": "Datum výroby",
+          "description": "ISO datum (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Datum nákupu",
+          "description": "ISO datum (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Datum instalace",
+          "description": "ISO datum (YYYY-MM-DD)."
+        },
         "warranty_expiry": {
           "name": "Konec záruky",
           "description": "ISO datum (YYYY-MM-DD). Zobrazí se jako datumový senzor na zařízení."
         },
-        "warranty_provider": { "name": "Poskytovatel záruky", "description": "Kdo poskytuje záruku." },
-        "vendor": { "name": "Prodejce", "description": "Kde znovu koupit / poskytovatel servisu." },
-        "cost": { "name": "Cena", "description": "Pořizovací cena." },
-        "manual_url": { "name": "URL manuálu", "description": "Odkaz na manuál nebo dokumentaci." },
-        "icon": { "name": "Ikona", "description": "Volitelná mdi ikona (např. mdi:piano)." },
-        "parts": { "name": "Díly", "description": "Strukturované díly/opotřebitelné položky; opotřebitelné položky s intervalem řídí úkol údržby." },
-        "parent_asset_id": { "name": "Nadřazený spotřebič", "description": "Udělat z tohoto podzařízení jiného spotřebiče." },
-        "related_device_ids": { "name": "Související zařízení", "description": "Další zařízení z registru, která se přiřadí k tomuto spotřebiči." },
-        "notes": { "name": "Poznámky", "description": "Poznámky ve volném textu." }
+        "warranty_provider": {
+          "name": "Poskytovatel záruky",
+          "description": "Kdo poskytuje záruku."
+        },
+        "vendor": {
+          "name": "Prodejce",
+          "description": "Kde znovu koupit / poskytovatel servisu."
+        },
+        "cost": {
+          "name": "Cena",
+          "description": "Pořizovací cena."
+        },
+        "manual_url": {
+          "name": "URL manuálu",
+          "description": "Odkaz na manuál nebo dokumentaci."
+        },
+        "icon": {
+          "name": "Ikona",
+          "description": "Volitelná mdi ikona (např. mdi:piano)."
+        },
+        "parts": {
+          "name": "Díly",
+          "description": "Strukturované díly/opotřebitelné položky; opotřebitelné položky s intervalem řídí úkol údržby."
+        },
+        "parent_asset_id": {
+          "name": "Nadřazený spotřebič",
+          "description": "Udělat z tohoto podzařízení jiného spotřebiče."
+        },
+        "related_device_ids": {
+          "name": "Související zařízení",
+          "description": "Další zařízení z registru, která se přiřadí k tomuto spotřebiči."
+        },
+        "notes": {
+          "name": "Poznámky",
+          "description": "Poznámky ve volném textu."
+        }
       }
     },
     "update_asset": {
       "name": "Aktualizovat spotřebič",
       "description": "Aktualizovat pole existujícího spotřebiče/majetku.",
       "fields": {
-        "asset_id": { "name": "ID majetku", "description": "ID majetku, který se má aktualizovat." },
-        "name": { "name": "Název", "description": "Nový zobrazovaný název." },
-        "device_id": { "name": "Zařízení", "description": "Přesměrovat majetek existujícího zařízení." },
-        "area_id": { "name": "Oblast", "description": "Oblast pro spotřebič." },
-        "manufacturer": { "name": "Výrobce", "description": "Výrobce spotřebiče." },
-        "model": { "name": "Model", "description": "Název nebo číslo modelu." },
-        "serial_number": { "name": "Sériové číslo", "description": "Sériové číslo." },
-        "manufacture_date": { "name": "Datum výroby", "description": "ISO datum (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Datum nákupu", "description": "ISO datum (YYYY-MM-DD)." },
-        "install_date": { "name": "Datum instalace", "description": "ISO datum (YYYY-MM-DD)." },
-        "warranty_expiry": { "name": "Konec záruky", "description": "ISO datum (YYYY-MM-DD)." },
-        "warranty_provider": { "name": "Poskytovatel záruky", "description": "Kdo poskytuje záruku." },
-        "vendor": { "name": "Prodejce", "description": "Kde znovu koupit / poskytovatel servisu." },
-        "cost": { "name": "Cena", "description": "Pořizovací cena." },
-        "manual_url": { "name": "URL manuálu", "description": "Odkaz na manuál nebo dokumentaci." },
-        "icon": { "name": "Ikona", "description": "Volitelná mdi ikona (např. mdi:piano)." },
-        "parts": { "name": "Díly", "description": "Strukturované díly/opotřebitelné položky; opotřebitelné položky s intervalem řídí úkol údržby." },
-        "parent_asset_id": { "name": "Nadřazený spotřebič", "description": "Udělat z tohoto podzařízení jiného spotřebiče." },
-        "related_device_ids": { "name": "Související zařízení", "description": "Další zařízení z registru, která se přiřadí k tomuto spotřebiči." },
-        "notes": { "name": "Poznámky", "description": "Poznámky ve volném textu." }
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "ID majetku, který se má aktualizovat."
+        },
+        "name": {
+          "name": "Název",
+          "description": "Nový zobrazovaný název."
+        },
+        "device_id": {
+          "name": "Zařízení",
+          "description": "Přesměrovat majetek existujícího zařízení."
+        },
+        "area_id": {
+          "name": "Oblast",
+          "description": "Oblast pro spotřebič."
+        },
+        "manufacturer": {
+          "name": "Výrobce",
+          "description": "Výrobce spotřebiče."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Název nebo číslo modelu."
+        },
+        "serial_number": {
+          "name": "Sériové číslo",
+          "description": "Sériové číslo."
+        },
+        "manufacture_date": {
+          "name": "Datum výroby",
+          "description": "ISO datum (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Datum nákupu",
+          "description": "ISO datum (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Datum instalace",
+          "description": "ISO datum (YYYY-MM-DD)."
+        },
+        "warranty_expiry": {
+          "name": "Konec záruky",
+          "description": "ISO datum (YYYY-MM-DD)."
+        },
+        "warranty_provider": {
+          "name": "Poskytovatel záruky",
+          "description": "Kdo poskytuje záruku."
+        },
+        "vendor": {
+          "name": "Prodejce",
+          "description": "Kde znovu koupit / poskytovatel servisu."
+        },
+        "cost": {
+          "name": "Cena",
+          "description": "Pořizovací cena."
+        },
+        "manual_url": {
+          "name": "URL manuálu",
+          "description": "Odkaz na manuál nebo dokumentaci."
+        },
+        "icon": {
+          "name": "Ikona",
+          "description": "Volitelná mdi ikona (např. mdi:piano)."
+        },
+        "parts": {
+          "name": "Díly",
+          "description": "Strukturované díly/opotřebitelné položky; opotřebitelné položky s intervalem řídí úkol údržby."
+        },
+        "parent_asset_id": {
+          "name": "Nadřazený spotřebič",
+          "description": "Udělat z tohoto podzařízení jiného spotřebiče."
+        },
+        "related_device_ids": {
+          "name": "Související zařízení",
+          "description": "Další zařízení z registru, která se přiřadí k tomuto spotřebiči."
+        },
+        "notes": {
+          "name": "Poznámky",
+          "description": "Poznámky ve volném textu."
+        }
       }
     },
     "delete_asset": {
       "name": "Smazat spotřebič",
       "description": "Smazat spotřebič/majetek. Jeho virtuální zařízení (pokud existuje) je odstraněno a úkoly k němu připojené se osamostatní.",
       "fields": {
-        "asset_id": { "name": "ID majetku", "description": "ID majetku, který se má smazat." }
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "ID majetku, který se má smazat."
+        }
       }
     },
     "list_assets": {
@@ -209,9 +321,18 @@
       "name": "Adjust part stock",
       "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the appliance the part belongs to." },
-        "part_id": { "name": "Part ID", "description": "The id of the part whose stock to adjust." },
-        "delta": { "name": "Delta", "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the part belongs to."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the part whose stock to adjust."
+        },
+        "delta": {
+          "name": "Delta",
+          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+        }
       }
     },
     "export_inventory": {
@@ -221,17 +342,31 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "{task_name}Příští termín" },
-      "manufacture_date": { "name": "Datum výroby" },
-      "purchase_date": { "name": "Datum nákupu" },
-      "install_date": { "name": "Datum instalace" },
-      "warranty_expiry": { "name": "Konec záruky" }
+      "next_due": {
+        "name": "{task_name}Příští termín"
+      },
+      "manufacture_date": {
+        "name": "Datum výroby"
+      },
+      "purchase_date": {
+        "name": "Datum nákupu"
+      },
+      "install_date": {
+        "name": "Datum instalace"
+      },
+      "warranty_expiry": {
+        "name": "Konec záruky"
+      }
     },
     "binary_sensor": {
-      "overdue": { "name": "{task_name}Po termínu" }
+      "overdue": {
+        "name": "{task_name}Po termínu"
+      }
     },
     "button": {
-      "mark_done": { "name": "{task_name}Označit jako hotové" }
+      "mark_done": {
+        "name": "{task_name}Označit jako hotové"
+      }
     }
   }
 }

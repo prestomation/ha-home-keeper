@@ -180,6 +180,94 @@ Keep the two sides from drifting:
 - **A device you attached to disappears** → Home Keeper degrades gracefully (the task
   falls back to a self-owned device); still delete the task when your thing goes away.
 
+## 6. Declaring managed ownership (optional)
+
+Pass `managed_by` alongside `source` in your `add_task` call to tell Home Keeper that
+your integration is the authoritative owner of this task. Unlike `source` (which Home
+Keeper never inspects), `managed_by` is a **well-known block that Home Keeper acts on**:
+
+```python
+await hass.services.async_call(
+    DOMAIN_HK,
+    "add_task",
+    {
+        "name": "Buddy: Medicine",
+        "device_id": pet_device_id,
+        "source": {"my_integration": {"schedule_id": schedule_id}},
+        "managed_by": {
+            # Required.
+            "integration": "my_integration",   # your DOMAIN
+            "display_name": "My Integration",  # shown in the UI chip
+            # Optional.
+            "icon": "mdi:pill",                # mdi icon (future use)
+            "locked_fields": ["device_id", "name"],  # user cannot change these
+            "config_entry_id": entry.entry_id, # enables orphan detection + deep link
+            "completion_prompt": "Log as Buddy's medicine dose?",  # shown near Done
+            "deletion_protected": True,        # blocks deletion from HK panel
+        },
+        **recurrence_payload,
+    },
+    blocking=True,
+    return_response=True,
+)
+```
+
+### What Home Keeper does with `managed_by`
+
+| Field | Effect |
+|---|---|
+| `display_name` | Shows a **"Managed by {name}"** chip on every task card and detail page. |
+| `locked_fields` | Those fields are **removed from the edit form** — user edits are silently ignored by `update_task`. |
+| `config_entry_id` | If the entry is unloaded, the chip becomes **"Integration offline"** (orphan detection). Also enables an **"Edit in {name}"** deep link on the detail page. |
+| `completion_prompt` | A short hint shown near the **Done** button so users know a completion triggers an action in your integration. |
+| `deletion_protected` | Replaces the **Delete** button with "Delete from {name} instead." The `delete_task` service also rejects the call with a descriptive error — **but only while your integration is still loaded** (see cleanup below). **Requires `config_entry_id`**; `add_task` rejects a protected task without one. |
+
+### Cleanup when your integration is gone or broken
+
+Deletion protection is intentionally **not a one-way trap**. It only holds while the
+owner is present, so a user is never stuck with tasks they can't remove:
+
+- **Orphan detection.** When the `config_entry_id` you recorded is no longer loaded
+  (uninstalled, disabled, or failing to set up), Home Keeper treats the task as
+  *orphaned*: the chip flips to **"Integration offline"**, the **Delete** button comes
+  back, and the task list shows a **"Remove orphaned tasks"** banner for one-click bulk
+  cleanup. This is why supplying `config_entry_id` matters — it's how Home Keeper knows
+  your integration went away.
+- **Force escape hatch.** `home_keeper.delete_task` accepts `force: true`, which bypasses
+  protection entirely. It's the last-resort path (e.g. Developer Tools → Actions) for a
+  task that has no `config_entry_id` recorded, or any other edge case:
+
+  ```yaml
+  action: home_keeper.delete_task
+  data:
+    task_id: "abc-123"
+    force: true
+  ```
+
+> **`config_entry_id` is required when `deletion_protected` is set.** `add_task` rejects
+> a protected task without it (`TaskValidationError` / `invalid_task`), because without it
+> Home Keeper couldn't auto-detect that you've been removed and the protection would
+> become a permanent trap. The `force` delete remains as a last resort for any task that
+> predates this rule.
+
+Your integration should still proactively `delete_task` for the ids it owns when its
+config entry is removed (see §5) — orphan cleanup is the safety net for when it can't.
+
+### What to be aware of
+
+- `managed_by` is a **UI contract**, not an access-control fence. Other integrations or
+  automations can still call `complete_task` or `update_task` on non-locked fields.
+- Set `managed_by` once at creation via `add_task`. The `update_task` service ignores it.
+- Because locked fields are stripped from the `update_task` payload, your reconciler can
+  safely call `update_task` to change a locked field (e.g. rename when the pet's name
+  changes) without risk of the user having overwritten it first.
+
+### `managed_by` in the completion event
+
+The `home_keeper_task_completed` event now includes a `managed_by` field (same shape as
+above, or `None` for unmanaged tasks). Integrations that own tasks don't need to inspect
+it — your `origin` guard and `source` namespace already identify your completions.
+
 ## Testing your integration
 
 Home Keeper ships a fake so you can test the contract end-to-end **without** standing

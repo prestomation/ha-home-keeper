@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
@@ -111,7 +112,7 @@ class HomeKeeperStore:
         await self._save()
         return merged
 
-    async def delete_task(self, task_id: str) -> None:
+    async def delete_task(self, task_id: str, *, force: bool = False) -> None:
         task = self._tasks.get(task_id)
         if task is not None and _part_source(task):
             # Derived from a wear part; deleting it here would just be recreated by
@@ -120,10 +121,37 @@ class HomeKeeperStore:
                 "This task is managed by an appliance wear part; remove or change "
                 "the part to delete it."
             )
+        if task is not None:
+            managed_by = task.get("managed_by")
+            orphaned = self.managed_task_orphaned(task)
+            if models.deletion_blocked(task, orphaned=orphaned, force=force):
+                display_name = (managed_by or {}).get("display_name") or "an integration"
+                raise models.TaskValidationError(
+                    f"This task is managed by {display_name}. "
+                    f"Delete it from {display_name} instead."
+                )
         if task_id in self._tasks:
             self._archive_task_history(self._tasks[task_id])
             del self._tasks[task_id]
             await self._save()
+
+    def managed_task_orphaned(self, task: dict[str, Any]) -> bool:
+        """Whether a managed task's owning integration is no longer present.
+
+        A task is orphaned when its ``managed_by.config_entry_id`` names a config
+        entry that is not currently loaded — i.e. the integration was uninstalled,
+        disabled, or is failing to set up. Without a recorded ``config_entry_id`` we
+        can't prove the owner is gone, so we treat it as present (not orphaned) and
+        rely on the ``force`` escape hatch for cleanup. See ``models.deletion_blocked``.
+        """
+        managed_by = task.get("managed_by")
+        if not isinstance(managed_by, dict):
+            return False
+        entry_id = managed_by.get("config_entry_id")
+        if not entry_id:
+            return False
+        entry = self._hass.config_entries.async_get_entry(entry_id)
+        return entry is None or entry.state is not ConfigEntryState.LOADED
 
     def _archive_task_history(self, task: dict[str, Any]) -> None:
         """Preserve a deleted task's completion history on its appliance, if any.

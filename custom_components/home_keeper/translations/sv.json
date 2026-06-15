@@ -106,6 +106,10 @@
         "task_id": {
           "name": "Uppgifts-ID",
           "description": "ID:t för uppgiften som ska tas bort."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
     },
@@ -147,58 +151,166 @@
           "name": "Område",
           "description": "Valfritt område för apparaten."
         },
-        "manufacturer": { "name": "Tillverkare", "description": "Apparatens tillverkare." },
-        "model": { "name": "Modell", "description": "Modellnamn eller -nummer." },
-        "serial_number": { "name": "Serienummer", "description": "Serienummer." },
-        "manufacture_date": { "name": "Tillverkningsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Inköpsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
-        "install_date": { "name": "Installationsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "manufacturer": {
+          "name": "Tillverkare",
+          "description": "Apparatens tillverkare."
+        },
+        "model": {
+          "name": "Modell",
+          "description": "Modellnamn eller -nummer."
+        },
+        "serial_number": {
+          "name": "Serienummer",
+          "description": "Serienummer."
+        },
+        "manufacture_date": {
+          "name": "Tillverkningsdatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Inköpsdatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Installationsdatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
         "warranty_expiry": {
           "name": "Garantins slut",
           "description": "ISO-datum (YYYY-MM-DD). Visas som en datumsensor på enheten."
         },
-        "warranty_provider": { "name": "Garantileverantör", "description": "Vem som ansvarar för garantin." },
-        "vendor": { "name": "Leverantör", "description": "Var man köper igen / tjänsteleverantör." },
-        "cost": { "name": "Kostnad", "description": "Inköpspris." },
-        "manual_url": { "name": "URL till manual", "description": "Länk till manualen eller dokumentationen." },
-        "icon": { "name": "Ikon", "description": "Valfri mdi-ikon (t.ex. mdi:piano)." },
-        "parts": { "name": "Delar", "description": "Strukturerade delar/slitdelar; slitdelar med ett intervall driver en underhållsuppgift." },
-        "parent_asset_id": { "name": "Överordnad apparat", "description": "Gör denna till en underenhet till en annan apparat." },
-        "related_device_ids": { "name": "Relaterade enheter", "description": "Andra registerenheter att associera med denna apparat." },
-        "notes": { "name": "Anteckningar", "description": "Fritextanteckningar." }
+        "warranty_provider": {
+          "name": "Garantileverantör",
+          "description": "Vem som ansvarar för garantin."
+        },
+        "vendor": {
+          "name": "Leverantör",
+          "description": "Var man köper igen / tjänsteleverantör."
+        },
+        "cost": {
+          "name": "Kostnad",
+          "description": "Inköpspris."
+        },
+        "manual_url": {
+          "name": "URL till manual",
+          "description": "Länk till manualen eller dokumentationen."
+        },
+        "icon": {
+          "name": "Ikon",
+          "description": "Valfri mdi-ikon (t.ex. mdi:piano)."
+        },
+        "parts": {
+          "name": "Delar",
+          "description": "Strukturerade delar/slitdelar; slitdelar med ett intervall driver en underhållsuppgift."
+        },
+        "parent_asset_id": {
+          "name": "Överordnad apparat",
+          "description": "Gör denna till en underenhet till en annan apparat."
+        },
+        "related_device_ids": {
+          "name": "Relaterade enheter",
+          "description": "Andra registerenheter att associera med denna apparat."
+        },
+        "notes": {
+          "name": "Anteckningar",
+          "description": "Fritextanteckningar."
+        }
       }
     },
     "update_asset": {
       "name": "Uppdatera apparat",
       "description": "Uppdatera fält för en befintlig apparat/tillgång.",
       "fields": {
-        "asset_id": { "name": "Tillgångs-ID", "description": "ID:t för tillgången som ska uppdateras." },
-        "name": { "name": "Namn", "description": "Nytt visningsnamn." },
-        "device_id": { "name": "Enhet", "description": "Rikta om en tillgång för en befintlig enhet." },
-        "area_id": { "name": "Område", "description": "Område för apparaten." },
-        "manufacturer": { "name": "Tillverkare", "description": "Apparatens tillverkare." },
-        "model": { "name": "Modell", "description": "Modellnamn eller -nummer." },
-        "serial_number": { "name": "Serienummer", "description": "Serienummer." },
-        "manufacture_date": { "name": "Tillverkningsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Inköpsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
-        "install_date": { "name": "Installationsdatum", "description": "ISO-datum (YYYY-MM-DD)." },
-        "warranty_expiry": { "name": "Garantins slut", "description": "ISO-datum (YYYY-MM-DD)." },
-        "warranty_provider": { "name": "Garantileverantör", "description": "Vem som ansvarar för garantin." },
-        "vendor": { "name": "Leverantör", "description": "Var man köper igen / tjänsteleverantör." },
-        "cost": { "name": "Kostnad", "description": "Inköpspris." },
-        "manual_url": { "name": "URL till manual", "description": "Länk till manualen eller dokumentationen." },
-        "icon": { "name": "Ikon", "description": "Valfri mdi-ikon (t.ex. mdi:piano)." },
-        "parts": { "name": "Delar", "description": "Strukturerade delar/slitdelar; slitdelar med ett intervall driver en underhållsuppgift." },
-        "parent_asset_id": { "name": "Överordnad apparat", "description": "Gör denna till en underenhet till en annan apparat." },
-        "related_device_ids": { "name": "Relaterade enheter", "description": "Andra registerenheter att associera med denna apparat." },
-        "notes": { "name": "Anteckningar", "description": "Fritextanteckningar." }
+        "asset_id": {
+          "name": "Tillgångs-ID",
+          "description": "ID:t för tillgången som ska uppdateras."
+        },
+        "name": {
+          "name": "Namn",
+          "description": "Nytt visningsnamn."
+        },
+        "device_id": {
+          "name": "Enhet",
+          "description": "Rikta om en tillgång för en befintlig enhet."
+        },
+        "area_id": {
+          "name": "Område",
+          "description": "Område för apparaten."
+        },
+        "manufacturer": {
+          "name": "Tillverkare",
+          "description": "Apparatens tillverkare."
+        },
+        "model": {
+          "name": "Modell",
+          "description": "Modellnamn eller -nummer."
+        },
+        "serial_number": {
+          "name": "Serienummer",
+          "description": "Serienummer."
+        },
+        "manufacture_date": {
+          "name": "Tillverkningsdatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Inköpsdatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Installationsdatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "warranty_expiry": {
+          "name": "Garantins slut",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "warranty_provider": {
+          "name": "Garantileverantör",
+          "description": "Vem som ansvarar för garantin."
+        },
+        "vendor": {
+          "name": "Leverantör",
+          "description": "Var man köper igen / tjänsteleverantör."
+        },
+        "cost": {
+          "name": "Kostnad",
+          "description": "Inköpspris."
+        },
+        "manual_url": {
+          "name": "URL till manual",
+          "description": "Länk till manualen eller dokumentationen."
+        },
+        "icon": {
+          "name": "Ikon",
+          "description": "Valfri mdi-ikon (t.ex. mdi:piano)."
+        },
+        "parts": {
+          "name": "Delar",
+          "description": "Strukturerade delar/slitdelar; slitdelar med ett intervall driver en underhållsuppgift."
+        },
+        "parent_asset_id": {
+          "name": "Överordnad apparat",
+          "description": "Gör denna till en underenhet till en annan apparat."
+        },
+        "related_device_ids": {
+          "name": "Relaterade enheter",
+          "description": "Andra registerenheter att associera med denna apparat."
+        },
+        "notes": {
+          "name": "Anteckningar",
+          "description": "Fritextanteckningar."
+        }
       }
     },
     "delete_asset": {
       "name": "Ta bort apparat",
       "description": "Ta bort en apparat/tillgång. Dess virtuella enhet (om någon) tas bort och uppgifter kopplade till den blir fristående.",
       "fields": {
-        "asset_id": { "name": "Tillgångs-ID", "description": "ID:t för tillgången som ska tas bort." }
+        "asset_id": {
+          "name": "Tillgångs-ID",
+          "description": "ID:t för tillgången som ska tas bort."
+        }
       }
     },
     "list_assets": {
@@ -209,9 +321,18 @@
       "name": "Adjust part stock",
       "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the appliance the part belongs to." },
-        "part_id": { "name": "Part ID", "description": "The id of the part whose stock to adjust." },
-        "delta": { "name": "Delta", "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the part belongs to."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the part whose stock to adjust."
+        },
+        "delta": {
+          "name": "Delta",
+          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+        }
       }
     },
     "export_inventory": {

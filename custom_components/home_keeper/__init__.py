@@ -29,6 +29,9 @@ _LOGGER = logging.getLogger(__name__)
 # ``source`` is opaque provenance owned by the integration that created the task
 # (e.g. ``{"my_integration": {...}}``). Home Keeper stores and echoes it verbatim and
 # never inspects it. See docs/INTEGRATING.md.
+# ``managed_by`` is a well-known ownership block that Home Keeper DOES inspect: it
+# controls which fields are locked in the UI, deletion protection, and display metadata.
+# Set at creation time; ignored by update_task. See docs/INTEGRATING.md §6.
 ADD_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("name"): cv.string,
@@ -41,6 +44,7 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
         vol.Optional("source"): dict,
+        vol.Optional("managed_by"): dict,
     }
 )
 UPDATE_TASK_SCHEMA = vol.Schema(
@@ -59,6 +63,14 @@ UPDATE_TASK_SCHEMA = vol.Schema(
     }
 )
 TASK_ID_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
+# ``force`` bypasses managed-task deletion protection — the escape hatch for cleaning
+# up a task whose managing integration is gone or misbehaving. See docs/INTEGRATING.md.
+DELETE_TASK_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Optional("force", default=False): cv.boolean,
+    }
+)
 # ``origin`` is a free-form marker the caller passes so it can recognise (and ignore)
 # the completion event it triggered. Home Keeper only echoes it back in the event.
 COMPLETE_TASK_SCHEMA = vol.Schema(
@@ -210,7 +222,9 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_delete_task(call: ServiceCall) -> None:
         coord = _coordinator()
         try:
-            await coord.store.delete_task(call.data["task_id"])
+            await coord.store.delete_task(
+                call.data["task_id"], force=call.data.get("force", False)
+            )
         except TaskValidationError as err:
             raise ServiceValidationError(str(err)) from err
         await hass.config_entries.async_reload(coord.entry.entry_id)
@@ -296,7 +310,7 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN, "update_task", handle_update_task, UPDATE_TASK_SCHEMA
     )
     hass.services.async_register(
-        DOMAIN, "delete_task", handle_delete_task, TASK_ID_SCHEMA
+        DOMAIN, "delete_task", handle_delete_task, DELETE_TASK_SCHEMA
     )
     hass.services.async_register(
         DOMAIN, "complete_task", handle_complete_task, COMPLETE_TASK_SCHEMA

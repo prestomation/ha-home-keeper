@@ -2,6 +2,18 @@ export type RecurrenceType = 'floating' | 'fixed';
 export type Unit = 'days' | 'weeks' | 'months';
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
+/** Ownership block set by an integration at task-creation time. Home Keeper
+ *  inspects this (unlike the opaque `source`) to enforce UI behavior. */
+export interface ManagedBy {
+  integration: string;
+  display_name: string;
+  icon?: string;
+  locked_fields?: string[];
+  config_entry_id?: string;
+  completion_prompt?: string;
+  deletion_protected?: boolean;
+}
+
 export interface Task {
   id: string;
   name: string;
@@ -20,6 +32,8 @@ export interface Task {
   // Provenance for tasks derived/owned by another source (e.g. an appliance wear
   // part). Such tasks are managed by their source, so the panel hides edit/delete.
   source?: { part?: { asset_id: string; part_id: string } } | null;
+  // Well-known ownership block that Home Keeper inspects. See docs/INTEGRATING.md §6.
+  managed_by?: ManagedBy | null;
 }
 
 export interface HassDevice {

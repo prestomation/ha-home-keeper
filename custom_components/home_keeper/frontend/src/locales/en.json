@@ -148,5 +148,19 @@
   "detail.schedule": "Schedule",
   "detail.nextDue": "Next due",
   "detail.relatedTasks": "Related tasks",
-  "detail.noNotes": "No notes yet"
+  "detail.noNotes": "No notes yet",
+
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "btn.removeOrphaned": "Remove orphaned tasks",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "managed.orphanCleanup": "{name} is no longer installed — you can safely delete this task here.",
+  "managed.orphanBanner.one": "{n} task is managed by an integration that's no longer installed.",
+  "managed.orphanBanner.other": "{n} tasks are managed by integrations that are no longer installed.",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}"
 }

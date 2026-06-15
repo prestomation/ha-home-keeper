@@ -132,6 +132,7 @@ async def ws_update_task(
     {
         vol.Required("type"): "home_keeper/delete_task",
         vol.Required("task_id"): str,
+        vol.Optional("force", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -143,7 +144,7 @@ async def ws_delete_task(
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
     try:
-        await coord.store.delete_task(msg["task_id"])
+        await coord.store.delete_task(msg["task_id"], force=msg.get("force", False))
     except TaskValidationError as err:
         connection.send_error(msg["id"], "invalid_task", str(err))
         return

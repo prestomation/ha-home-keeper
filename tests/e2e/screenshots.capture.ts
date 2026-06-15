@@ -41,6 +41,53 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
+  // 1c. Managed-task detail page — a task owned by another integration
+  // (Pawsistant). Shows the "Managed by Pawsistant" chip, the completion prompt,
+  // and deletion guidance in place of a Delete button.
+  await panel.locator('.detail-open[data-detail-id="task_buddy_medicine"]').click();
+  await expect(panel.locator('ha-assist-chip.hk-managed').first()).toBeVisible();
+  await expect(panel.locator('.hk-managed-prompt')).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/9-panel-managed-detail.png`, fullPage: true });
+
+  // 1d. Edit form of a managed task — the integration-locked fields (name and
+  // attach-to-device) are omitted; only the unlocked fields are editable.
+  await panel.locator('.d-edit').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/10-panel-managed-edit-locked.png`, fullPage: true });
+  await panel.locator('#f-cancel').click();
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
+  // 1e. Tasks grouped by managing integration — managed tasks bucket under their
+  // integration; everything else falls under "Your tasks".
+  await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'Integration' }).click();
+  await expect(panel.locator('details.hk-group').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/11-panel-grouped-by-integration.png`, fullPage: true });
+  // Reset grouping so later list shots are unaffected.
+  await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'Status' }).click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
+  // 1f. Orphan cleanup — when a managing integration is uninstalled, its tasks are
+  // no longer protected: a warning banner offers a one-click "Remove orphaned tasks",
+  // and each orphaned task shows the "Integration offline" chip.
+  await expect(panel.locator('.hk-orphan-banner')).toBeVisible();
+  await expect(panel.locator('ha-assist-chip.hk-orphaned').first()).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/12-panel-orphan-cleanup.png`, fullPage: true });
+
+  // 1g. Orphaned task detail — the Delete button returns (protection lifts) with an
+  // explanation that the owning integration is gone.
+  await panel.locator('.detail-open[data-detail-id="task_rex_vet"]').click();
+  await expect(panel.locator('ha-assist-chip.hk-orphaned').first()).toBeVisible();
+  await expect(panel.locator('.d-del')).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/13-panel-orphan-detail.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
   // 2. Create form — floating recurrence + device picker.
   await panel.locator('#add-btn').click();
   await expect(panel.locator('#hk-form')).toBeVisible();

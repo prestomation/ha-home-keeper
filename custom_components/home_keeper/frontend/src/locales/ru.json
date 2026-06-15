@@ -8,7 +8,6 @@
   "chip.lowStock": "Мало на складе",
   "tab.tasks": "Задачи",
   "tab.appliances": "Устройства",
-
   "btn.addTask": "Добавить задачу",
   "btn.addAppliance": "Добавить устройство",
   "btn.done": "Готово",
@@ -19,29 +18,23 @@
   "btn.cancel": "Отмена",
   "btn.removePart": "Удалить деталь",
   "btn.addPart": "+ Добавить деталь",
-
   "tasks.empty": "Пока нет задач. Нажмите {addTask}, чтобы создать первое напоминание об обслуживании.",
   "appliances.empty": "Пока нет устройств. Добавьте устройство, чтобы создать страницу, которую смогут использовать ваши задачи (и батарейки) — холодильник, котёл, водонагреватель…",
-
   "form.task.new": "Новая задача",
   "form.task.edit": "Редактировать задачу",
   "form.appliance.new": "Новое устройство",
   "form.appliance.edit": "Редактировать устройство",
   "form.task.due": "срок {date}",
-
   "section.ownership": "Владение и гарантия",
   "section.related": "Связанные устройства",
   "section.reference": "Справка",
   "section.parts": "Детали и изнашиваемые элементы",
   "section.part_n": "Деталь {n}",
-
   "part.lastReplaced": "Последняя замена {date} · задача обслуживания отслеживает следующую",
   "part.wearHint": "Изнашиваемый элемент с интервалом создаёт задачу обслуживания для этого устройства.",
-
   "error.nameRequired": "Требуется название",
   "error.nameRequiredAppliance": "Для нового устройства требуется название",
   "error.pickDevice": "Выберите устройство",
-
   "field.name": "Название",
   "field.notes": "Заметки",
   "field.recurrence_type": "Повторение",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Заменять каждые",
   "field.replace_unit": "Единица",
   "field.last_replaced": "Последняя замена",
-
   "opt.recurrence.floating": "Плавающее (от завершения)",
   "opt.recurrence.fixed": "Фиксированное (привязанное расписание)",
   "opt.freq.daily": "ежедневно",
@@ -84,13 +76,10 @@
   "opt.kind.existing": "Существующее устройство (добавить к нему сведения)",
   "opt.part.consumable": "расходный материал",
   "opt.part.wear": "изнашиваемый элемент",
-
   "chip.overdue": "Просрочено",
   "chip.virtualDevice": "Виртуальное устройство",
   "chip.subdeviceOf": "подустройство {name}",
-
   "appliance.fallbackName": "Устройство",
-
   "recurrence.floating.one": "{unit} после завершения",
   "recurrence.floating.other": "каждые {n} {unit} после завершения",
   "recurrence.floating.few": "каждые {n} {unit} после завершения",
@@ -111,7 +100,6 @@
   "recurrence.unit.month.other": "месяцев",
   "recurrence.unit.month.few": "месяца",
   "recurrence.unit.month.many": "месяцев",
-
   "due.none": "—",
   "due.today": "сегодня",
   "due.tomorrow": "завтра",
@@ -124,7 +112,6 @@
   "due.days_ago.other": "{n} дней назад",
   "due.days_ago.few": "{n} дня назад",
   "due.days_ago.many": "{n} дней назад",
-
   "asset.warrantyTo": "гарантия до {date}",
   "asset.parts.one": "{n} деталь",
   "asset.parts.other": "{n} деталей",
@@ -148,7 +135,6 @@
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
   "history.archived": "removed task",
-
   "btn.back": "Назад",
   "group.by": "Группировать по",
   "group.none": "Нет",
@@ -168,5 +154,18 @@
   "detail.schedule": "Расписание",
   "detail.nextDue": "Следующий срок",
   "detail.relatedTasks": "Связанные задачи",
-  "detail.noNotes": "Пока нет заметок"
+  "detail.noNotes": "Пока нет заметок",
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}",
+  "btn.removeOrphaned": "Remove orphaned tasks",
+  "managed.orphanCleanup": "{name} is no longer installed — you can safely delete this task here.",
+  "managed.orphanBanner.one": "{n} task is managed by an integration that's no longer installed.",
+  "managed.orphanBanner.other": "{n} tasks are managed by integrations that are no longer installed."
 }

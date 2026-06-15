@@ -91,3 +91,8 @@ MAX_INTERVAL = 10_000
 # this integration knowing anything about them. The intended hook is a dispatcher
 # signal plus a `home_keeper.contribute_task` service. See docs/DESIGN.md.
 SIGNAL_TASK_CONTRIBUTION = f"{DOMAIN}_task_contribution"  # noqa: F841  (reserved)
+
+# Well-known field on a task dict that Home Keeper inspects (unlike the opaque
+# ``source`` field). Declares the integration that owns the task: which fields
+# are locked, whether deletion is protected, and display metadata for the UI.
+TASK_MANAGED_BY = "managed_by"

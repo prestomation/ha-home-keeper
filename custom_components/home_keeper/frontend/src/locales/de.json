@@ -8,7 +8,6 @@
   "chip.lowStock": "Niedriger Bestand",
   "tab.tasks": "Aufgaben",
   "tab.appliances": "Geräte",
-
   "btn.addTask": "Aufgabe hinzufügen",
   "btn.addAppliance": "Gerät hinzufügen",
   "btn.done": "Erledigt",
@@ -19,29 +18,23 @@
   "btn.cancel": "Abbrechen",
   "btn.removePart": "Teil entfernen",
   "btn.addPart": "+ Teil hinzufügen",
-
   "tasks.empty": "Noch keine Aufgaben. Klicke auf {addTask}, um deine erste Wartungserinnerung zu erstellen.",
   "appliances.empty": "Noch keine Geräte. Füge eines hinzu, um eine Geräteseite zu erstellen, die deine Aufgaben (und Batterien) teilen können – Kühlschrank, Heizung, Warmwasserbereiter…",
-
   "form.task.new": "Neue Aufgabe",
   "form.task.edit": "Aufgabe bearbeiten",
   "form.appliance.new": "Neues Gerät",
   "form.appliance.edit": "Gerät bearbeiten",
   "form.task.due": "fällig {date}",
-
   "section.ownership": "Besitz & Garantie",
   "section.related": "Verknüpfte Geräte",
   "section.reference": "Referenz",
   "section.parts": "Teile & Verschleißteile",
   "section.part_n": "Teil {n}",
-
   "part.lastReplaced": "Zuletzt ersetzt am {date} · eine Wartungsaufgabe verfolgt die nächste Fälligkeit",
   "part.wearHint": "Ein Verschleißteil mit Intervall erstellt eine Wartungsaufgabe für dieses Gerät.",
-
   "error.nameRequired": "Name ist erforderlich",
   "error.nameRequiredAppliance": "Name ist für ein neues Gerät erforderlich",
   "error.pickDevice": "Wähle ein Gerät aus",
-
   "field.name": "Name",
   "field.notes": "Notizen",
   "field.recurrence_type": "Wiederholung",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Ersetzen alle",
   "field.replace_unit": "Einheit",
   "field.last_replaced": "Zuletzt ersetzt",
-
   "opt.recurrence.floating": "Gleitend (ab Abschluss)",
   "opt.recurrence.fixed": "Fest (verankerter Zeitplan)",
   "opt.freq.daily": "täglich",
@@ -84,13 +76,10 @@
   "opt.kind.existing": "Vorhandenes Gerät (Details hinzufügen)",
   "opt.part.consumable": "Verbrauchsmaterial",
   "opt.part.wear": "Verschleißteil",
-
   "chip.overdue": "Überfällig",
   "chip.virtualDevice": "Virtuelles Gerät",
   "chip.subdeviceOf": "Teilgerät von {name}",
-
   "appliance.fallbackName": "Gerät",
-
   "recurrence.floating.one": "{unit} nach Abschluss",
   "recurrence.floating.other": "alle {n} {unit} nach Abschluss",
   "recurrence.fixed.one": "{unit}",
@@ -101,7 +90,6 @@
   "recurrence.unit.week.other": "Wochen",
   "recurrence.unit.month.one": "jeden Monat",
   "recurrence.unit.month.other": "Monate",
-
   "due.none": "—",
   "due.today": "heute",
   "due.tomorrow": "morgen",
@@ -110,7 +98,6 @@
   "due.yesterday": "gestern",
   "due.days_ago.one": "vor {n} Tag",
   "due.days_ago.other": "vor {n} Tagen",
-
   "asset.warrantyTo": "Garantie bis {date}",
   "asset.parts.one": "{n} Teil",
   "asset.parts.other": "{n} Teile",
@@ -128,7 +115,6 @@
   "history.count.other": "{n} Erledigungen",
   "history.cadence": "≈ alle {days} Tage",
   "history.archived": "entfernte Aufgabe",
-
   "btn.back": "Zurück",
   "group.by": "Gruppieren nach",
   "group.none": "Keine",
@@ -148,5 +134,18 @@
   "detail.schedule": "Zeitplan",
   "detail.nextDue": "Nächste Fälligkeit",
   "detail.relatedTasks": "Zugehörige Aufgaben",
-  "detail.noNotes": "Noch keine Notizen"
+  "detail.noNotes": "Noch keine Notizen",
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}",
+  "btn.removeOrphaned": "Remove orphaned tasks",
+  "managed.orphanCleanup": "{name} is no longer installed — you can safely delete this task here.",
+  "managed.orphanBanner.one": "{n} task is managed by an integration that's no longer installed.",
+  "managed.orphanBanner.other": "{n} tasks are managed by integrations that are no longer installed."
 }

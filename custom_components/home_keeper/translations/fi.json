@@ -106,6 +106,10 @@
         "task_id": {
           "name": "Tehtävän tunnus",
           "description": "Poistettavan tehtävän tunnus."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
     },
@@ -147,58 +151,166 @@
           "name": "Alue",
           "description": "Valinnainen alue laitteelle."
         },
-        "manufacturer": { "name": "Valmistaja", "description": "Laitteen valmistaja." },
-        "model": { "name": "Malli", "description": "Mallin nimi tai numero." },
-        "serial_number": { "name": "Sarjanumero", "description": "Sarjanumero." },
-        "manufacture_date": { "name": "Valmistuspäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Ostopäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
-        "install_date": { "name": "Asennuspäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
+        "manufacturer": {
+          "name": "Valmistaja",
+          "description": "Laitteen valmistaja."
+        },
+        "model": {
+          "name": "Malli",
+          "description": "Mallin nimi tai numero."
+        },
+        "serial_number": {
+          "name": "Sarjanumero",
+          "description": "Sarjanumero."
+        },
+        "manufacture_date": {
+          "name": "Valmistuspäivä",
+          "description": "ISO-päivä (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Ostopäivä",
+          "description": "ISO-päivä (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Asennuspäivä",
+          "description": "ISO-päivä (YYYY-MM-DD)."
+        },
         "warranty_expiry": {
           "name": "Takuun päättyminen",
           "description": "ISO-päivä (YYYY-MM-DD). Näytetään laitteen päivämääräanturina."
         },
-        "warranty_provider": { "name": "Takuun myöntäjä", "description": "Kuka vastaa takuusta." },
-        "vendor": { "name": "Myyjä", "description": "Mistä ostaa uudelleen / huoltopalvelu." },
-        "cost": { "name": "Hinta", "description": "Ostohinta." },
-        "manual_url": { "name": "Käyttöohjeen URL", "description": "Linkki käyttöohjeeseen tai dokumentteihin." },
-        "icon": { "name": "Kuvake", "description": "Valinnainen mdi-kuvake (esim. mdi:piano)." },
-        "parts": { "name": "Osat", "description": "Jäsennellyt osat/kuluvat osat; aikavälillä varustetut kuluvat osat ohjaavat huoltotehtävää." },
-        "parent_asset_id": { "name": "Ylälaite", "description": "Tee tästä toisen laitteen alalaite." },
-        "related_device_ids": { "name": "Liittyvät laitteet", "description": "Muut rekisterin laitteet, jotka liitetään tähän laitteeseen." },
-        "notes": { "name": "Muistiinpanot", "description": "Vapaamuotoiset muistiinpanot." }
+        "warranty_provider": {
+          "name": "Takuun myöntäjä",
+          "description": "Kuka vastaa takuusta."
+        },
+        "vendor": {
+          "name": "Myyjä",
+          "description": "Mistä ostaa uudelleen / huoltopalvelu."
+        },
+        "cost": {
+          "name": "Hinta",
+          "description": "Ostohinta."
+        },
+        "manual_url": {
+          "name": "Käyttöohjeen URL",
+          "description": "Linkki käyttöohjeeseen tai dokumentteihin."
+        },
+        "icon": {
+          "name": "Kuvake",
+          "description": "Valinnainen mdi-kuvake (esim. mdi:piano)."
+        },
+        "parts": {
+          "name": "Osat",
+          "description": "Jäsennellyt osat/kuluvat osat; aikavälillä varustetut kuluvat osat ohjaavat huoltotehtävää."
+        },
+        "parent_asset_id": {
+          "name": "Ylälaite",
+          "description": "Tee tästä toisen laitteen alalaite."
+        },
+        "related_device_ids": {
+          "name": "Liittyvät laitteet",
+          "description": "Muut rekisterin laitteet, jotka liitetään tähän laitteeseen."
+        },
+        "notes": {
+          "name": "Muistiinpanot",
+          "description": "Vapaamuotoiset muistiinpanot."
+        }
       }
     },
     "update_asset": {
       "name": "Päivitä laite",
       "description": "Päivitä olemassa olevan laitteen/kohteen kenttiä.",
       "fields": {
-        "asset_id": { "name": "Kohteen tunnus", "description": "Päivitettävän kohteen tunnus." },
-        "name": { "name": "Nimi", "description": "Uusi näyttönimi." },
-        "device_id": { "name": "Laite", "description": "Kohdista olemassa olevan laitteen kohde uudelleen." },
-        "area_id": { "name": "Alue", "description": "Alue laitteelle." },
-        "manufacturer": { "name": "Valmistaja", "description": "Laitteen valmistaja." },
-        "model": { "name": "Malli", "description": "Mallin nimi tai numero." },
-        "serial_number": { "name": "Sarjanumero", "description": "Sarjanumero." },
-        "manufacture_date": { "name": "Valmistuspäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Ostopäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
-        "install_date": { "name": "Asennuspäivä", "description": "ISO-päivä (YYYY-MM-DD)." },
-        "warranty_expiry": { "name": "Takuun päättyminen", "description": "ISO-päivä (YYYY-MM-DD)." },
-        "warranty_provider": { "name": "Takuun myöntäjä", "description": "Kuka vastaa takuusta." },
-        "vendor": { "name": "Myyjä", "description": "Mistä ostaa uudelleen / huoltopalvelu." },
-        "cost": { "name": "Hinta", "description": "Ostohinta." },
-        "manual_url": { "name": "Käyttöohjeen URL", "description": "Linkki käyttöohjeeseen tai dokumentteihin." },
-        "icon": { "name": "Kuvake", "description": "Valinnainen mdi-kuvake (esim. mdi:piano)." },
-        "parts": { "name": "Osat", "description": "Jäsennellyt osat/kuluvat osat; aikavälillä varustetut kuluvat osat ohjaavat huoltotehtävää." },
-        "parent_asset_id": { "name": "Ylälaite", "description": "Tee tästä toisen laitteen alalaite." },
-        "related_device_ids": { "name": "Liittyvät laitteet", "description": "Muut rekisterin laitteet, jotka liitetään tähän laitteeseen." },
-        "notes": { "name": "Muistiinpanot", "description": "Vapaamuotoiset muistiinpanot." }
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Päivitettävän kohteen tunnus."
+        },
+        "name": {
+          "name": "Nimi",
+          "description": "Uusi näyttönimi."
+        },
+        "device_id": {
+          "name": "Laite",
+          "description": "Kohdista olemassa olevan laitteen kohde uudelleen."
+        },
+        "area_id": {
+          "name": "Alue",
+          "description": "Alue laitteelle."
+        },
+        "manufacturer": {
+          "name": "Valmistaja",
+          "description": "Laitteen valmistaja."
+        },
+        "model": {
+          "name": "Malli",
+          "description": "Mallin nimi tai numero."
+        },
+        "serial_number": {
+          "name": "Sarjanumero",
+          "description": "Sarjanumero."
+        },
+        "manufacture_date": {
+          "name": "Valmistuspäivä",
+          "description": "ISO-päivä (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Ostopäivä",
+          "description": "ISO-päivä (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Asennuspäivä",
+          "description": "ISO-päivä (YYYY-MM-DD)."
+        },
+        "warranty_expiry": {
+          "name": "Takuun päättyminen",
+          "description": "ISO-päivä (YYYY-MM-DD)."
+        },
+        "warranty_provider": {
+          "name": "Takuun myöntäjä",
+          "description": "Kuka vastaa takuusta."
+        },
+        "vendor": {
+          "name": "Myyjä",
+          "description": "Mistä ostaa uudelleen / huoltopalvelu."
+        },
+        "cost": {
+          "name": "Hinta",
+          "description": "Ostohinta."
+        },
+        "manual_url": {
+          "name": "Käyttöohjeen URL",
+          "description": "Linkki käyttöohjeeseen tai dokumentteihin."
+        },
+        "icon": {
+          "name": "Kuvake",
+          "description": "Valinnainen mdi-kuvake (esim. mdi:piano)."
+        },
+        "parts": {
+          "name": "Osat",
+          "description": "Jäsennellyt osat/kuluvat osat; aikavälillä varustetut kuluvat osat ohjaavat huoltotehtävää."
+        },
+        "parent_asset_id": {
+          "name": "Ylälaite",
+          "description": "Tee tästä toisen laitteen alalaite."
+        },
+        "related_device_ids": {
+          "name": "Liittyvät laitteet",
+          "description": "Muut rekisterin laitteet, jotka liitetään tähän laitteeseen."
+        },
+        "notes": {
+          "name": "Muistiinpanot",
+          "description": "Vapaamuotoiset muistiinpanot."
+        }
       }
     },
     "delete_asset": {
       "name": "Poista laite",
       "description": "Poista laite/kohde. Sen virtuaalilaite (jos sellainen on) poistetaan ja siihen liitetyt tehtävät muuttuvat itsenäisiksi.",
       "fields": {
-        "asset_id": { "name": "Kohteen tunnus", "description": "Poistettavan kohteen tunnus." }
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Poistettavan kohteen tunnus."
+        }
       }
     },
     "list_assets": {
@@ -209,9 +321,18 @@
       "name": "Adjust part stock",
       "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the appliance the part belongs to." },
-        "part_id": { "name": "Part ID", "description": "The id of the part whose stock to adjust." },
-        "delta": { "name": "Delta", "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the part belongs to."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the part whose stock to adjust."
+        },
+        "delta": {
+          "name": "Delta",
+          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+        }
       }
     },
     "export_inventory": {
@@ -221,17 +342,31 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "{task_name}Seuraava eräpäivä" },
-      "manufacture_date": { "name": "Valmistuspäivä" },
-      "purchase_date": { "name": "Ostopäivä" },
-      "install_date": { "name": "Asennuspäivä" },
-      "warranty_expiry": { "name": "Takuun päättyminen" }
+      "next_due": {
+        "name": "{task_name}Seuraava eräpäivä"
+      },
+      "manufacture_date": {
+        "name": "Valmistuspäivä"
+      },
+      "purchase_date": {
+        "name": "Ostopäivä"
+      },
+      "install_date": {
+        "name": "Asennuspäivä"
+      },
+      "warranty_expiry": {
+        "name": "Takuun päättyminen"
+      }
     },
     "binary_sensor": {
-      "overdue": { "name": "{task_name}Myöhässä" }
+      "overdue": {
+        "name": "{task_name}Myöhässä"
+      }
     },
     "button": {
-      "mark_done": { "name": "{task_name}Merkitse valmiiksi" }
+      "mark_done": {
+        "name": "{task_name}Merkitse valmiiksi"
+      }
     }
   }
 }

@@ -8,7 +8,6 @@
   "chip.lowStock": "Lågt lager",
   "tab.tasks": "Uppgifter",
   "tab.appliances": "Apparater",
-
   "btn.addTask": "Lägg till uppgift",
   "btn.addAppliance": "Lägg till apparat",
   "btn.done": "Klar",
@@ -19,29 +18,23 @@
   "btn.cancel": "Avbryt",
   "btn.removePart": "Ta bort del",
   "btn.addPart": "+ Lägg till del",
-
   "tasks.empty": "Inga uppgifter ännu. Klicka på {addTask} för att skapa din första underhållspåminnelse.",
   "appliances.empty": "Inga apparater ännu. Lägg till en för att skapa en enhetssida som dina uppgifter (och batterier) kan dela — kylskåp, panna, varmvattenberedare…",
-
   "form.task.new": "Ny uppgift",
   "form.task.edit": "Redigera uppgift",
   "form.appliance.new": "Ny apparat",
   "form.appliance.edit": "Redigera apparat",
   "form.task.due": "förfaller {date}",
-
   "section.ownership": "Ägande och garanti",
   "section.related": "Relaterade enheter",
   "section.reference": "Referens",
   "section.parts": "Delar och slitdelar",
   "section.part_n": "Del {n}",
-
   "part.lastReplaced": "Senast bytt {date} · en underhållsuppgift bevakar nästa",
   "part.wearHint": "En slitdel med ett intervall skapar en underhållsuppgift på den här apparaten.",
-
   "error.nameRequired": "Namn krävs",
   "error.nameRequiredAppliance": "Namn krävs för en ny apparat",
   "error.pickDevice": "Välj en enhet",
-
   "field.name": "Namn",
   "field.notes": "Anteckningar",
   "field.recurrence_type": "Upprepning",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Byt var",
   "field.replace_unit": "Enhet",
   "field.last_replaced": "Senast bytt",
-
   "opt.recurrence.floating": "Flytande (från slutförande)",
   "opt.recurrence.fixed": "Fast (förankrat schema)",
   "opt.freq.daily": "dagligen",
@@ -84,13 +76,10 @@
   "opt.kind.existing": "Befintlig enhet (lägg till information på den)",
   "opt.part.consumable": "förbrukningsvara",
   "opt.part.wear": "slitdel",
-
   "chip.overdue": "Försenad",
   "chip.virtualDevice": "Virtuell enhet",
   "chip.subdeviceOf": "underenhet till {name}",
-
   "appliance.fallbackName": "Apparat",
-
   "recurrence.floating.one": "var {unit} efter slutförande",
   "recurrence.floating.other": "var {n} {unit} efter slutförande",
   "recurrence.fixed.one": "var {unit}",
@@ -101,7 +90,6 @@
   "recurrence.unit.week.other": "veckor",
   "recurrence.unit.month.one": "månad",
   "recurrence.unit.month.other": "månader",
-
   "due.none": "—",
   "due.today": "i dag",
   "due.tomorrow": "i morgon",
@@ -110,7 +98,6 @@
   "due.yesterday": "i går",
   "due.days_ago.one": "för {n} dag sedan",
   "due.days_ago.other": "för {n} dagar sedan",
-
   "asset.warrantyTo": "garanti till {date}",
   "asset.parts.one": "{n} del",
   "asset.parts.other": "{n} delar",
@@ -128,7 +115,6 @@
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
   "history.archived": "removed task",
-
   "btn.back": "Tillbaka",
   "group.by": "Gruppera efter",
   "group.none": "Ingen",
@@ -148,5 +134,18 @@
   "detail.schedule": "Schema",
   "detail.nextDue": "Nästa förfall",
   "detail.relatedTasks": "Relaterade uppgifter",
-  "detail.noNotes": "Inga anteckningar än"
+  "detail.noNotes": "Inga anteckningar än",
+  "chip.managed": "Managed by {name}",
+  "chip.orphaned": "Integration offline",
+  "btn.openInIntegration": "Edit in {name}",
+  "managed.deleteBlocked": "Delete from {name} instead",
+  "managed.fieldLocked": "Set by {name}",
+  "group.integration": "Integration",
+  "section.standalone": "Your tasks",
+  "section.managedBy": "Managed by {name}",
+  "managed.completionHint": "{prompt}",
+  "btn.removeOrphaned": "Remove orphaned tasks",
+  "managed.orphanCleanup": "{name} is no longer installed — you can safely delete this task here.",
+  "managed.orphanBanner.one": "{n} task is managed by an integration that's no longer installed.",
+  "managed.orphanBanner.other": "{n} tasks are managed by integrations that are no longer installed."
 }

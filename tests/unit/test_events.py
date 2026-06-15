@@ -23,14 +23,28 @@ def test_payload_has_contract_fields():
         "task_id": "t1",
         "name": "Medicine",
         "source": {"pawsistant": {"schedule_id": "s1"}},
+        "managed_by": None,
         "completed_at": WHEN.isoformat(),
         "origin": "pawsistant",
     }
 
 
+def test_payload_carries_managed_by():
+    managed_by = {"integration": "pawsistant", "display_name": "Pawsistant"}
+    task = {
+        "id": "t1",
+        "name": "Medicine",
+        "source": {"pawsistant": {"schedule_id": "s1"}},
+        "managed_by": managed_by,
+    }
+    data = ev.completion_event_data(task, WHEN, origin=None)
+    assert data["managed_by"] == managed_by
+
+
 def test_source_defaults_to_none_and_origin_passthrough():
     data = ev.completion_event_data({"id": "t2", "name": "X"}, WHEN, origin=None)
     assert data["source"] is None
+    assert data["managed_by"] is None
     assert data["origin"] is None
 
 

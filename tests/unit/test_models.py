@@ -154,3 +154,193 @@ def test_merge_update_preserves_source():
     )
     updated = m.merge_update(task, {"name": "Renamed", "interval": 3}, now=NOW)
     assert updated["source"] == source
+
+
+def test_build_task_carries_managed_by():
+    managed_by = {
+        "integration": "pawsistant",
+        "display_name": "Pawsistant",
+        "icon": "mdi:paw",
+        "locked_fields": ["device_id", "name"],
+        "deletion_protected": True,
+        "config_entry_id": "abc123",
+    }
+    task = m.build_task(
+        {
+            "name": "Medicine",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "managed_by": managed_by,
+        },
+        now=NOW,
+    )
+    assert task["managed_by"] == managed_by
+
+
+def test_build_task_managed_by_defaults_to_none():
+    task = m.build_task(
+        {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},
+        now=NOW,
+    )
+    assert task["managed_by"] is None
+
+
+def test_merge_update_respects_locked_fields():
+    managed_by = {
+        "integration": "pawsistant",
+        "display_name": "Pawsistant",
+        "locked_fields": ["device_id", "name"],
+    }
+    task = m.build_task(
+        {
+            "name": "Buddy: Medicine",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "device_id": "dev-buddy-123",
+            "managed_by": managed_by,
+        },
+        now=NOW,
+    )
+    # Locked fields silently ignored; unlocked fields applied normally.
+    updated = m.merge_update(
+        task,
+        {"name": "Hacked name", "device_id": "evil-device", "interval": 4},
+        now=NOW,
+    )
+    assert updated["name"] == "Buddy: Medicine"     # locked — unchanged
+    assert updated["device_id"] == "dev-buddy-123"  # locked — unchanged
+    assert updated["interval"] == 4                 # not locked — changed
+
+
+def test_merge_update_without_managed_by_allows_all_fields():
+    task = m.build_task(
+        {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"name": "New name", "device_id": "some-device"}, now=NOW)
+    assert updated["name"] == "New name"
+    assert updated["device_id"] == "some-device"
+
+
+def test_merge_update_preserves_managed_by():
+    # managed_by must survive a merge just like source does.
+    managed_by = {"integration": "pawsistant", "display_name": "Pawsistant"}
+    task = m.build_task(
+        {
+            "name": "Medicine",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "managed_by": managed_by,
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"notes": "new note"}, now=NOW)
+    assert updated["managed_by"] == managed_by
+
+
+def _protected_task() -> dict:
+    return {
+        "id": "t1",
+        "name": "Buddy: Medicine",
+        "managed_by": {
+            "integration": "pawsistant",
+            "display_name": "Pawsistant",
+            "deletion_protected": True,
+            "config_entry_id": "abc123",
+        },
+    }
+
+
+def test_deletion_blocked_when_owner_present():
+    # Protected task whose owner is still loaded → deletion refused.
+    assert m.deletion_blocked(_protected_task(), orphaned=False) is True
+
+
+def test_deletion_allowed_when_orphaned():
+    # Owner gone (orphaned) → protection lifts so the user can clean up.
+    assert m.deletion_blocked(_protected_task(), orphaned=True) is False
+
+
+def test_deletion_force_bypasses_protection():
+    # The escape hatch: force always wins, even with the owner present.
+    assert m.deletion_blocked(_protected_task(), orphaned=False, force=True) is False
+
+
+def test_deletion_not_blocked_without_protection():
+    task = {"id": "t1", "name": "X", "managed_by": {"integration": "p", "display_name": "P"}}
+    assert m.deletion_blocked(task, orphaned=False) is False
+
+
+def test_deletion_not_blocked_for_unmanaged_task():
+    assert m.deletion_blocked({"id": "t1", "name": "X"}, orphaned=False) is False
+
+
+def test_build_task_rejects_deletion_protected_without_config_entry_id():
+    # Protection without a config_entry_id would be a permanent trap (orphan
+    # detection couldn't fire), so creation must be rejected.
+    with pytest.raises(m.TaskValidationError):
+        m.build_task(
+            {
+                "name": "Buddy: Medicine",
+                "recurrence_type": "floating",
+                "interval": 2,
+                "unit": "weeks",
+                "managed_by": {
+                    "integration": "pawsistant",
+                    "display_name": "Pawsistant",
+                    "deletion_protected": True,
+                },
+            },
+            now=NOW,
+        )
+
+
+def test_build_task_allows_deletion_protected_with_config_entry_id():
+    task = m.build_task(
+        {
+            "name": "Buddy: Medicine",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "managed_by": {
+                "integration": "pawsistant",
+                "display_name": "Pawsistant",
+                "deletion_protected": True,
+                "config_entry_id": "abc123",
+            },
+        },
+        now=NOW,
+    )
+    assert task["managed_by"]["config_entry_id"] == "abc123"
+
+
+def test_build_task_rejects_non_mapping_managed_by():
+    with pytest.raises(m.TaskValidationError):
+        m.build_task(
+            {
+                "name": "X",
+                "recurrence_type": "floating",
+                "interval": 1,
+                "unit": "days",
+                "managed_by": "not-a-dict",
+            },
+            now=NOW,
+        )
+
+
+def test_build_task_allows_managed_without_protection_and_no_config_entry_id():
+    # A managed task that doesn't request deletion protection needs no config_entry_id.
+    task = m.build_task(
+        {
+            "name": "Buddy: Walk",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "days",
+            "managed_by": {"integration": "pawsistant", "display_name": "Pawsistant"},
+        },
+        now=NOW,
+    )
+    assert task["managed_by"]["integration"] == "pawsistant"
