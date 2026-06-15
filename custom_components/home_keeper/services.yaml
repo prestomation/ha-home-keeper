@@ -162,6 +162,15 @@ delete_task:
       required: true
       selector:
         text:
+    force:
+      name: Force
+      description: >-
+        Bypass deletion protection for a task managed by another integration. Use
+        this to clean up a task whose managing integration was uninstalled or is
+        misbehaving and can't remove it itself.
+      default: false
+      selector:
+        boolean:
 
 complete_task:
   name: Complete task

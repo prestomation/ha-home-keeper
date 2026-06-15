@@ -143,5 +143,9 @@
   "group.integration": "Integration",
   "section.standalone": "Your tasks",
   "section.managedBy": "Managed by {name}",
-  "managed.completionHint": "{prompt}"
+  "managed.completionHint": "{prompt}",
+  "btn.removeOrphaned": "Remove orphaned tasks",
+  "managed.orphanCleanup": "{name} is no longer installed — you can safely delete this task here.",
+  "managed.orphanBanner.one": "{n} task is managed by an integration that's no longer installed.",
+  "managed.orphanBanner.other": "{n} tasks are managed by integrations that are no longer installed."
 }

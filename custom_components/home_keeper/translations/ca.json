@@ -106,6 +106,10 @@
         "task_id": {
           "name": "ID de tasca",
           "description": "L'id de la tasca a eliminar."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
     },
@@ -147,58 +151,166 @@
           "name": "Àrea",
           "description": "Àrea opcional per a l'electrodomèstic."
         },
-        "manufacturer": { "name": "Fabricant", "description": "Fabricant de l'electrodomèstic." },
-        "model": { "name": "Model", "description": "Nom o número de model." },
-        "serial_number": { "name": "Número de sèrie", "description": "Número de sèrie." },
-        "manufacture_date": { "name": "Data de fabricació", "description": "Data ISO (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Data de compra", "description": "Data ISO (YYYY-MM-DD)." },
-        "install_date": { "name": "Data d'instal·lació", "description": "Data ISO (YYYY-MM-DD)." },
+        "manufacturer": {
+          "name": "Fabricant",
+          "description": "Fabricant de l'electrodomèstic."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Nom o número de model."
+        },
+        "serial_number": {
+          "name": "Número de sèrie",
+          "description": "Número de sèrie."
+        },
+        "manufacture_date": {
+          "name": "Data de fabricació",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Data de compra",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Data d'instal·lació",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
         "warranty_expiry": {
           "name": "Caducitat de la garantia",
           "description": "Data ISO (YYYY-MM-DD). Es mostra com a sensor de data al dispositiu."
         },
-        "warranty_provider": { "name": "Proveïdor de la garantia", "description": "Qui respon de la garantia." },
-        "vendor": { "name": "Venedor", "description": "On tornar a comprar / proveïdor de servei." },
-        "cost": { "name": "Cost", "description": "Preu de compra." },
-        "manual_url": { "name": "URL del manual", "description": "Enllaç al manual o a la documentació." },
-        "icon": { "name": "Icona", "description": "Icona mdi opcional (p. ex. mdi:piano)." },
-        "parts": { "name": "Peces", "description": "Peces/elements de desgast estructurats; els elements de desgast amb interval generen una tasca de manteniment." },
-        "parent_asset_id": { "name": "Electrodomèstic pare", "description": "Fer-ne un subdispositiu d'un altre electrodomèstic." },
-        "related_device_ids": { "name": "Dispositius relacionats", "description": "Altres dispositius del registre per associar amb aquest electrodomèstic." },
-        "notes": { "name": "Notes", "description": "Notes de text lliure." }
+        "warranty_provider": {
+          "name": "Proveïdor de la garantia",
+          "description": "Qui respon de la garantia."
+        },
+        "vendor": {
+          "name": "Venedor",
+          "description": "On tornar a comprar / proveïdor de servei."
+        },
+        "cost": {
+          "name": "Cost",
+          "description": "Preu de compra."
+        },
+        "manual_url": {
+          "name": "URL del manual",
+          "description": "Enllaç al manual o a la documentació."
+        },
+        "icon": {
+          "name": "Icona",
+          "description": "Icona mdi opcional (p. ex. mdi:piano)."
+        },
+        "parts": {
+          "name": "Peces",
+          "description": "Peces/elements de desgast estructurats; els elements de desgast amb interval generen una tasca de manteniment."
+        },
+        "parent_asset_id": {
+          "name": "Electrodomèstic pare",
+          "description": "Fer-ne un subdispositiu d'un altre electrodomèstic."
+        },
+        "related_device_ids": {
+          "name": "Dispositius relacionats",
+          "description": "Altres dispositius del registre per associar amb aquest electrodomèstic."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Notes de text lliure."
+        }
       }
     },
     "update_asset": {
       "name": "Actualitzar electrodomèstic",
       "description": "Actualitzar els camps d'un electrodomèstic/actiu existent.",
       "fields": {
-        "asset_id": { "name": "ID d'actiu", "description": "L'id de l'actiu a actualitzar." },
-        "name": { "name": "Nom", "description": "Nou nom visible." },
-        "device_id": { "name": "Dispositiu", "description": "Reorientar un actiu de dispositiu existent." },
-        "area_id": { "name": "Àrea", "description": "Àrea per a l'electrodomèstic." },
-        "manufacturer": { "name": "Fabricant", "description": "Fabricant de l'electrodomèstic." },
-        "model": { "name": "Model", "description": "Nom o número de model." },
-        "serial_number": { "name": "Número de sèrie", "description": "Número de sèrie." },
-        "manufacture_date": { "name": "Data de fabricació", "description": "Data ISO (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Data de compra", "description": "Data ISO (YYYY-MM-DD)." },
-        "install_date": { "name": "Data d'instal·lació", "description": "Data ISO (YYYY-MM-DD)." },
-        "warranty_expiry": { "name": "Caducitat de la garantia", "description": "Data ISO (YYYY-MM-DD)." },
-        "warranty_provider": { "name": "Proveïdor de la garantia", "description": "Qui respon de la garantia." },
-        "vendor": { "name": "Venedor", "description": "On tornar a comprar / proveïdor de servei." },
-        "cost": { "name": "Cost", "description": "Preu de compra." },
-        "manual_url": { "name": "URL del manual", "description": "Enllaç al manual o a la documentació." },
-        "icon": { "name": "Icona", "description": "Icona mdi opcional (p. ex. mdi:piano)." },
-        "parts": { "name": "Peces", "description": "Peces/elements de desgast estructurats; els elements de desgast amb interval generen una tasca de manteniment." },
-        "parent_asset_id": { "name": "Electrodomèstic pare", "description": "Fer-ne un subdispositiu d'un altre electrodomèstic." },
-        "related_device_ids": { "name": "Dispositius relacionats", "description": "Altres dispositius del registre per associar amb aquest electrodomèstic." },
-        "notes": { "name": "Notes", "description": "Notes de text lliure." }
+        "asset_id": {
+          "name": "ID d'actiu",
+          "description": "L'id de l'actiu a actualitzar."
+        },
+        "name": {
+          "name": "Nom",
+          "description": "Nou nom visible."
+        },
+        "device_id": {
+          "name": "Dispositiu",
+          "description": "Reorientar un actiu de dispositiu existent."
+        },
+        "area_id": {
+          "name": "Àrea",
+          "description": "Àrea per a l'electrodomèstic."
+        },
+        "manufacturer": {
+          "name": "Fabricant",
+          "description": "Fabricant de l'electrodomèstic."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Nom o número de model."
+        },
+        "serial_number": {
+          "name": "Número de sèrie",
+          "description": "Número de sèrie."
+        },
+        "manufacture_date": {
+          "name": "Data de fabricació",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Data de compra",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Data d'instal·lació",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "warranty_expiry": {
+          "name": "Caducitat de la garantia",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "warranty_provider": {
+          "name": "Proveïdor de la garantia",
+          "description": "Qui respon de la garantia."
+        },
+        "vendor": {
+          "name": "Venedor",
+          "description": "On tornar a comprar / proveïdor de servei."
+        },
+        "cost": {
+          "name": "Cost",
+          "description": "Preu de compra."
+        },
+        "manual_url": {
+          "name": "URL del manual",
+          "description": "Enllaç al manual o a la documentació."
+        },
+        "icon": {
+          "name": "Icona",
+          "description": "Icona mdi opcional (p. ex. mdi:piano)."
+        },
+        "parts": {
+          "name": "Peces",
+          "description": "Peces/elements de desgast estructurats; els elements de desgast amb interval generen una tasca de manteniment."
+        },
+        "parent_asset_id": {
+          "name": "Electrodomèstic pare",
+          "description": "Fer-ne un subdispositiu d'un altre electrodomèstic."
+        },
+        "related_device_ids": {
+          "name": "Dispositius relacionats",
+          "description": "Altres dispositius del registre per associar amb aquest electrodomèstic."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Notes de text lliure."
+        }
       }
     },
     "delete_asset": {
       "name": "Eliminar electrodomèstic",
       "description": "Eliminar un electrodomèstic/actiu. El seu dispositiu virtual (si n'hi ha) s'elimina i les tasques que hi estan vinculades passen a ser independents.",
       "fields": {
-        "asset_id": { "name": "ID d'actiu", "description": "L'id de l'actiu a eliminar." }
+        "asset_id": {
+          "name": "ID d'actiu",
+          "description": "L'id de l'actiu a eliminar."
+        }
       }
     },
     "list_assets": {
@@ -209,9 +321,18 @@
       "name": "Adjust part stock",
       "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the appliance the part belongs to." },
-        "part_id": { "name": "Part ID", "description": "The id of the part whose stock to adjust." },
-        "delta": { "name": "Delta", "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the part belongs to."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the part whose stock to adjust."
+        },
+        "delta": {
+          "name": "Delta",
+          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+        }
       }
     },
     "export_inventory": {
@@ -221,17 +342,31 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "{task_name}Proper venciment" },
-      "manufacture_date": { "name": "Data de fabricació" },
-      "purchase_date": { "name": "Data de compra" },
-      "install_date": { "name": "Data d'instal·lació" },
-      "warranty_expiry": { "name": "Caducitat de la garantia" }
+      "next_due": {
+        "name": "{task_name}Proper venciment"
+      },
+      "manufacture_date": {
+        "name": "Data de fabricació"
+      },
+      "purchase_date": {
+        "name": "Data de compra"
+      },
+      "install_date": {
+        "name": "Data d'instal·lació"
+      },
+      "warranty_expiry": {
+        "name": "Caducitat de la garantia"
+      }
     },
     "binary_sensor": {
-      "overdue": { "name": "{task_name}Endarrerit" }
+      "overdue": {
+        "name": "{task_name}Endarrerit"
+      }
     },
     "button": {
-      "mark_done": { "name": "{task_name}Marca com a fet" }
+      "mark_done": {
+        "name": "{task_name}Marca com a fet"
+      }
     }
   }
 }

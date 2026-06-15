@@ -238,3 +238,40 @@ def test_merge_update_preserves_managed_by():
     )
     updated = m.merge_update(task, {"notes": "new note"}, now=NOW)
     assert updated["managed_by"] == managed_by
+
+
+def _protected_task() -> dict:
+    return {
+        "id": "t1",
+        "name": "Buddy: Medicine",
+        "managed_by": {
+            "integration": "pawsistant",
+            "display_name": "Pawsistant",
+            "deletion_protected": True,
+            "config_entry_id": "abc123",
+        },
+    }
+
+
+def test_deletion_blocked_when_owner_present():
+    # Protected task whose owner is still loaded → deletion refused.
+    assert m.deletion_blocked(_protected_task(), orphaned=False) is True
+
+
+def test_deletion_allowed_when_orphaned():
+    # Owner gone (orphaned) → protection lifts so the user can clean up.
+    assert m.deletion_blocked(_protected_task(), orphaned=True) is False
+
+
+def test_deletion_force_bypasses_protection():
+    # The escape hatch: force always wins, even with the owner present.
+    assert m.deletion_blocked(_protected_task(), orphaned=False, force=True) is False
+
+
+def test_deletion_not_blocked_without_protection():
+    task = {"id": "t1", "name": "X", "managed_by": {"integration": "p", "display_name": "P"}}
+    assert m.deletion_blocked(task, orphaned=False) is False
+
+
+def test_deletion_not_blocked_for_unmanaged_task():
+    assert m.deletion_blocked({"id": "t1", "name": "X"}, orphaned=False) is False

@@ -106,6 +106,10 @@
         "task_id": {
           "name": "任务 ID",
           "description": "要删除的任务的 id。"
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
     },
@@ -147,58 +151,166 @@
           "name": "区域",
           "description": "电器的可选区域。"
         },
-        "manufacturer": { "name": "制造商", "description": "电器的制造商。" },
-        "model": { "name": "型号", "description": "型号名称或编号。" },
-        "serial_number": { "name": "序列号", "description": "序列号。" },
-        "manufacture_date": { "name": "生产日期", "description": "ISO 日期（YYYY-MM-DD）。" },
-        "purchase_date": { "name": "购买日期", "description": "ISO 日期（YYYY-MM-DD）。" },
-        "install_date": { "name": "安装日期", "description": "ISO 日期（YYYY-MM-DD）。" },
+        "manufacturer": {
+          "name": "制造商",
+          "description": "电器的制造商。"
+        },
+        "model": {
+          "name": "型号",
+          "description": "型号名称或编号。"
+        },
+        "serial_number": {
+          "name": "序列号",
+          "description": "序列号。"
+        },
+        "manufacture_date": {
+          "name": "生产日期",
+          "description": "ISO 日期（YYYY-MM-DD）。"
+        },
+        "purchase_date": {
+          "name": "购买日期",
+          "description": "ISO 日期（YYYY-MM-DD）。"
+        },
+        "install_date": {
+          "name": "安装日期",
+          "description": "ISO 日期（YYYY-MM-DD）。"
+        },
         "warranty_expiry": {
           "name": "保修到期",
           "description": "ISO 日期（YYYY-MM-DD）。在设备上以日期传感器形式显示。"
         },
-        "warranty_provider": { "name": "保修提供方", "description": "由谁承担保修。" },
-        "vendor": { "name": "供应商", "description": "在哪里重新购买 / 服务提供商。" },
-        "cost": { "name": "费用", "description": "购买价格。" },
-        "manual_url": { "name": "手册 URL", "description": "指向手册或文档的链接。" },
-        "icon": { "name": "图标", "description": "可选的 mdi 图标（例如 mdi:piano）。" },
-        "parts": { "name": "部件", "description": "结构化的部件/易损件；设置了间隔的易损件会驱动一个维护任务。" },
-        "parent_asset_id": { "name": "上级电器", "description": "将此设为另一个电器的子设备。" },
-        "related_device_ids": { "name": "相关设备", "description": "要与此电器关联的其他注册表设备。" },
-        "notes": { "name": "备注", "description": "自由文本备注。" }
+        "warranty_provider": {
+          "name": "保修提供方",
+          "description": "由谁承担保修。"
+        },
+        "vendor": {
+          "name": "供应商",
+          "description": "在哪里重新购买 / 服务提供商。"
+        },
+        "cost": {
+          "name": "费用",
+          "description": "购买价格。"
+        },
+        "manual_url": {
+          "name": "手册 URL",
+          "description": "指向手册或文档的链接。"
+        },
+        "icon": {
+          "name": "图标",
+          "description": "可选的 mdi 图标（例如 mdi:piano）。"
+        },
+        "parts": {
+          "name": "部件",
+          "description": "结构化的部件/易损件；设置了间隔的易损件会驱动一个维护任务。"
+        },
+        "parent_asset_id": {
+          "name": "上级电器",
+          "description": "将此设为另一个电器的子设备。"
+        },
+        "related_device_ids": {
+          "name": "相关设备",
+          "description": "要与此电器关联的其他注册表设备。"
+        },
+        "notes": {
+          "name": "备注",
+          "description": "自由文本备注。"
+        }
       }
     },
     "update_asset": {
       "name": "更新电器",
       "description": "更新现有电器/资产的字段。",
       "fields": {
-        "asset_id": { "name": "资产 ID", "description": "要更新的资产的 id。" },
-        "name": { "name": "名称", "description": "新的显示名称。" },
-        "device_id": { "name": "设备", "description": "重新指向某个现有设备资产。" },
-        "area_id": { "name": "区域", "description": "电器的区域。" },
-        "manufacturer": { "name": "制造商", "description": "电器的制造商。" },
-        "model": { "name": "型号", "description": "型号名称或编号。" },
-        "serial_number": { "name": "序列号", "description": "序列号。" },
-        "manufacture_date": { "name": "生产日期", "description": "ISO 日期（YYYY-MM-DD）。" },
-        "purchase_date": { "name": "购买日期", "description": "ISO 日期（YYYY-MM-DD）。" },
-        "install_date": { "name": "安装日期", "description": "ISO 日期（YYYY-MM-DD）。" },
-        "warranty_expiry": { "name": "保修到期", "description": "ISO 日期（YYYY-MM-DD）。" },
-        "warranty_provider": { "name": "保修提供方", "description": "由谁承担保修。" },
-        "vendor": { "name": "供应商", "description": "在哪里重新购买 / 服务提供商。" },
-        "cost": { "name": "费用", "description": "购买价格。" },
-        "manual_url": { "name": "手册 URL", "description": "指向手册或文档的链接。" },
-        "icon": { "name": "图标", "description": "可选的 mdi 图标（例如 mdi:piano）。" },
-        "parts": { "name": "部件", "description": "结构化的部件/易损件；设置了间隔的易损件会驱动一个维护任务。" },
-        "parent_asset_id": { "name": "上级电器", "description": "将此设为另一个电器的子设备。" },
-        "related_device_ids": { "name": "相关设备", "description": "要与此电器关联的其他注册表设备。" },
-        "notes": { "name": "备注", "description": "自由文本备注。" }
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "要更新的资产的 id。"
+        },
+        "name": {
+          "name": "名称",
+          "description": "新的显示名称。"
+        },
+        "device_id": {
+          "name": "设备",
+          "description": "重新指向某个现有设备资产。"
+        },
+        "area_id": {
+          "name": "区域",
+          "description": "电器的区域。"
+        },
+        "manufacturer": {
+          "name": "制造商",
+          "description": "电器的制造商。"
+        },
+        "model": {
+          "name": "型号",
+          "description": "型号名称或编号。"
+        },
+        "serial_number": {
+          "name": "序列号",
+          "description": "序列号。"
+        },
+        "manufacture_date": {
+          "name": "生产日期",
+          "description": "ISO 日期（YYYY-MM-DD）。"
+        },
+        "purchase_date": {
+          "name": "购买日期",
+          "description": "ISO 日期（YYYY-MM-DD）。"
+        },
+        "install_date": {
+          "name": "安装日期",
+          "description": "ISO 日期（YYYY-MM-DD）。"
+        },
+        "warranty_expiry": {
+          "name": "保修到期",
+          "description": "ISO 日期（YYYY-MM-DD）。"
+        },
+        "warranty_provider": {
+          "name": "保修提供方",
+          "description": "由谁承担保修。"
+        },
+        "vendor": {
+          "name": "供应商",
+          "description": "在哪里重新购买 / 服务提供商。"
+        },
+        "cost": {
+          "name": "费用",
+          "description": "购买价格。"
+        },
+        "manual_url": {
+          "name": "手册 URL",
+          "description": "指向手册或文档的链接。"
+        },
+        "icon": {
+          "name": "图标",
+          "description": "可选的 mdi 图标（例如 mdi:piano）。"
+        },
+        "parts": {
+          "name": "部件",
+          "description": "结构化的部件/易损件；设置了间隔的易损件会驱动一个维护任务。"
+        },
+        "parent_asset_id": {
+          "name": "上级电器",
+          "description": "将此设为另一个电器的子设备。"
+        },
+        "related_device_ids": {
+          "name": "相关设备",
+          "description": "要与此电器关联的其他注册表设备。"
+        },
+        "notes": {
+          "name": "备注",
+          "description": "自由文本备注。"
+        }
       }
     },
     "delete_asset": {
       "name": "删除电器",
       "description": "删除一个电器/资产。其虚拟设备（如有）会被移除，关联到它的任务将变为独立任务。",
       "fields": {
-        "asset_id": { "name": "资产 ID", "description": "要删除的资产的 id。" }
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "要删除的资产的 id。"
+        }
       }
     },
     "list_assets": {
@@ -209,9 +321,18 @@
       "name": "Adjust part stock",
       "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the appliance the part belongs to." },
-        "part_id": { "name": "Part ID", "description": "The id of the part whose stock to adjust." },
-        "delta": { "name": "Delta", "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the part belongs to."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the part whose stock to adjust."
+        },
+        "delta": {
+          "name": "Delta",
+          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+        }
       }
     },
     "export_inventory": {
@@ -221,17 +342,31 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "{task_name}下次到期" },
-      "manufacture_date": { "name": "生产日期" },
-      "purchase_date": { "name": "购买日期" },
-      "install_date": { "name": "安装日期" },
-      "warranty_expiry": { "name": "保修到期" }
+      "next_due": {
+        "name": "{task_name}下次到期"
+      },
+      "manufacture_date": {
+        "name": "生产日期"
+      },
+      "purchase_date": {
+        "name": "购买日期"
+      },
+      "install_date": {
+        "name": "安装日期"
+      },
+      "warranty_expiry": {
+        "name": "保修到期"
+      }
     },
     "binary_sensor": {
-      "overdue": { "name": "{task_name}已逾期" }
+      "overdue": {
+        "name": "{task_name}已逾期"
+      }
     },
     "button": {
-      "mark_done": { "name": "{task_name}标记为完成" }
+      "mark_done": {
+        "name": "{task_name}标记为完成"
+      }
     }
   }
 }

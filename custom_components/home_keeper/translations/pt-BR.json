@@ -106,6 +106,10 @@
         "task_id": {
           "name": "ID da tarefa",
           "description": "O id da tarefa a excluir."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
     },
@@ -147,58 +151,166 @@
           "name": "Área",
           "description": "Área opcional para o eletrodoméstico."
         },
-        "manufacturer": { "name": "Fabricante", "description": "Fabricante do eletrodoméstico." },
-        "model": { "name": "Modelo", "description": "Nome ou número do modelo." },
-        "serial_number": { "name": "Número de série", "description": "Número de série." },
-        "manufacture_date": { "name": "Data de fabricação", "description": "Data ISO (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Data da compra", "description": "Data ISO (YYYY-MM-DD)." },
-        "install_date": { "name": "Data de instalação", "description": "Data ISO (YYYY-MM-DD)." },
+        "manufacturer": {
+          "name": "Fabricante",
+          "description": "Fabricante do eletrodoméstico."
+        },
+        "model": {
+          "name": "Modelo",
+          "description": "Nome ou número do modelo."
+        },
+        "serial_number": {
+          "name": "Número de série",
+          "description": "Número de série."
+        },
+        "manufacture_date": {
+          "name": "Data de fabricação",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Data da compra",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Data de instalação",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
         "warranty_expiry": {
           "name": "Vencimento da garantia",
           "description": "Data ISO (YYYY-MM-DD). Exibida como um sensor de data no dispositivo."
         },
-        "warranty_provider": { "name": "Responsável pela garantia", "description": "Quem honra a garantia." },
-        "vendor": { "name": "Fornecedor", "description": "Onde recomprar / prestador de serviço." },
-        "cost": { "name": "Custo", "description": "Preço de compra." },
-        "manual_url": { "name": "URL do manual", "description": "Link para o manual ou documentação." },
-        "icon": { "name": "Ícone", "description": "Ícone mdi opcional (ex.: mdi:piano)." },
-        "parts": { "name": "Peças", "description": "Peças/itens de desgaste estruturados; itens de desgaste com um intervalo geram uma tarefa de manutenção." },
-        "parent_asset_id": { "name": "Eletrodoméstico principal", "description": "Tornar este um subdispositivo de outro eletrodoméstico." },
-        "related_device_ids": { "name": "Dispositivos relacionados", "description": "Outros dispositivos do registro a associar a este eletrodoméstico." },
-        "notes": { "name": "Notas", "description": "Notas em texto livre." }
+        "warranty_provider": {
+          "name": "Responsável pela garantia",
+          "description": "Quem honra a garantia."
+        },
+        "vendor": {
+          "name": "Fornecedor",
+          "description": "Onde recomprar / prestador de serviço."
+        },
+        "cost": {
+          "name": "Custo",
+          "description": "Preço de compra."
+        },
+        "manual_url": {
+          "name": "URL do manual",
+          "description": "Link para o manual ou documentação."
+        },
+        "icon": {
+          "name": "Ícone",
+          "description": "Ícone mdi opcional (ex.: mdi:piano)."
+        },
+        "parts": {
+          "name": "Peças",
+          "description": "Peças/itens de desgaste estruturados; itens de desgaste com um intervalo geram uma tarefa de manutenção."
+        },
+        "parent_asset_id": {
+          "name": "Eletrodoméstico principal",
+          "description": "Tornar este um subdispositivo de outro eletrodoméstico."
+        },
+        "related_device_ids": {
+          "name": "Dispositivos relacionados",
+          "description": "Outros dispositivos do registro a associar a este eletrodoméstico."
+        },
+        "notes": {
+          "name": "Notas",
+          "description": "Notas em texto livre."
+        }
       }
     },
     "update_asset": {
       "name": "Atualizar eletrodoméstico",
       "description": "Atualizar campos de um eletrodoméstico/ativo existente.",
       "fields": {
-        "asset_id": { "name": "ID do ativo", "description": "O id do ativo a atualizar." },
-        "name": { "name": "Nome", "description": "Novo nome de exibição." },
-        "device_id": { "name": "Dispositivo", "description": "Redirecionar um ativo de dispositivo existente." },
-        "area_id": { "name": "Área", "description": "Área para o eletrodoméstico." },
-        "manufacturer": { "name": "Fabricante", "description": "Fabricante do eletrodoméstico." },
-        "model": { "name": "Modelo", "description": "Nome ou número do modelo." },
-        "serial_number": { "name": "Número de série", "description": "Número de série." },
-        "manufacture_date": { "name": "Data de fabricação", "description": "Data ISO (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Data da compra", "description": "Data ISO (YYYY-MM-DD)." },
-        "install_date": { "name": "Data de instalação", "description": "Data ISO (YYYY-MM-DD)." },
-        "warranty_expiry": { "name": "Vencimento da garantia", "description": "Data ISO (YYYY-MM-DD)." },
-        "warranty_provider": { "name": "Responsável pela garantia", "description": "Quem honra a garantia." },
-        "vendor": { "name": "Fornecedor", "description": "Onde recomprar / prestador de serviço." },
-        "cost": { "name": "Custo", "description": "Preço de compra." },
-        "manual_url": { "name": "URL do manual", "description": "Link para o manual ou documentação." },
-        "icon": { "name": "Ícone", "description": "Ícone mdi opcional (ex.: mdi:piano)." },
-        "parts": { "name": "Peças", "description": "Peças/itens de desgaste estruturados; itens de desgaste com um intervalo geram uma tarefa de manutenção." },
-        "parent_asset_id": { "name": "Eletrodoméstico principal", "description": "Tornar este um subdispositivo de outro eletrodoméstico." },
-        "related_device_ids": { "name": "Dispositivos relacionados", "description": "Outros dispositivos do registro a associar a este eletrodoméstico." },
-        "notes": { "name": "Notas", "description": "Notas em texto livre." }
+        "asset_id": {
+          "name": "ID do ativo",
+          "description": "O id do ativo a atualizar."
+        },
+        "name": {
+          "name": "Nome",
+          "description": "Novo nome de exibição."
+        },
+        "device_id": {
+          "name": "Dispositivo",
+          "description": "Redirecionar um ativo de dispositivo existente."
+        },
+        "area_id": {
+          "name": "Área",
+          "description": "Área para o eletrodoméstico."
+        },
+        "manufacturer": {
+          "name": "Fabricante",
+          "description": "Fabricante do eletrodoméstico."
+        },
+        "model": {
+          "name": "Modelo",
+          "description": "Nome ou número do modelo."
+        },
+        "serial_number": {
+          "name": "Número de série",
+          "description": "Número de série."
+        },
+        "manufacture_date": {
+          "name": "Data de fabricação",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Data da compra",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Data de instalação",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "warranty_expiry": {
+          "name": "Vencimento da garantia",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "warranty_provider": {
+          "name": "Responsável pela garantia",
+          "description": "Quem honra a garantia."
+        },
+        "vendor": {
+          "name": "Fornecedor",
+          "description": "Onde recomprar / prestador de serviço."
+        },
+        "cost": {
+          "name": "Custo",
+          "description": "Preço de compra."
+        },
+        "manual_url": {
+          "name": "URL do manual",
+          "description": "Link para o manual ou documentação."
+        },
+        "icon": {
+          "name": "Ícone",
+          "description": "Ícone mdi opcional (ex.: mdi:piano)."
+        },
+        "parts": {
+          "name": "Peças",
+          "description": "Peças/itens de desgaste estruturados; itens de desgaste com um intervalo geram uma tarefa de manutenção."
+        },
+        "parent_asset_id": {
+          "name": "Eletrodoméstico principal",
+          "description": "Tornar este um subdispositivo de outro eletrodoméstico."
+        },
+        "related_device_ids": {
+          "name": "Dispositivos relacionados",
+          "description": "Outros dispositivos do registro a associar a este eletrodoméstico."
+        },
+        "notes": {
+          "name": "Notas",
+          "description": "Notas em texto livre."
+        }
       }
     },
     "delete_asset": {
       "name": "Excluir eletrodoméstico",
       "description": "Excluir um eletrodoméstico/ativo. Seu dispositivo virtual (se houver) é removido e as tarefas anexadas a ele tornam-se independentes.",
       "fields": {
-        "asset_id": { "name": "ID do ativo", "description": "O id do ativo a excluir." }
+        "asset_id": {
+          "name": "ID do ativo",
+          "description": "O id do ativo a excluir."
+        }
       }
     },
     "list_assets": {
@@ -209,9 +321,18 @@
       "name": "Adjust part stock",
       "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the appliance the part belongs to." },
-        "part_id": { "name": "Part ID", "description": "The id of the part whose stock to adjust." },
-        "delta": { "name": "Delta", "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the part belongs to."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the part whose stock to adjust."
+        },
+        "delta": {
+          "name": "Delta",
+          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+        }
       }
     },
     "export_inventory": {

@@ -103,6 +103,24 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     return fields
 
 
+def deletion_blocked(task: dict, *, orphaned: bool, force: bool = False) -> bool:
+    """Whether a task's deletion should be refused.
+
+    Deletion is only blocked for a ``deletion_protected`` managed task while its
+    managing integration is still present (``orphaned`` is ``False``). The moment the
+    owner is gone — uninstalled, disabled, or failing to load — the task is orphaned
+    and must remain deletable so the user can clean it up; otherwise the protection
+    becomes a trap (the "delete it from X instead" instruction points nowhere). A
+    ``force`` delete bypasses protection entirely (the power-user escape hatch).
+    """
+    if force:
+        return False
+    managed_by = task.get("managed_by")
+    if not (isinstance(managed_by, dict) and managed_by.get("deletion_protected")):
+        return False
+    return not orphaned
+
+
 def build_task(data: dict, *, now: datetime) -> dict:
     """Create a brand-new task dict (with id, history, and computed next_due)."""
     fields = normalize_fields(data, tz=now.tzinfo)

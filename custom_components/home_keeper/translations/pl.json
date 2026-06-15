@@ -106,6 +106,10 @@
         "task_id": {
           "name": "Identyfikator zadania",
           "description": "Identyfikator zadania do usunięcia."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
     },
@@ -147,58 +151,166 @@
           "name": "Obszar",
           "description": "Opcjonalny obszar dla urządzenia."
         },
-        "manufacturer": { "name": "Producent", "description": "Producent urządzenia." },
-        "model": { "name": "Model", "description": "Nazwa lub numer modelu." },
-        "serial_number": { "name": "Numer seryjny", "description": "Numer seryjny." },
-        "manufacture_date": { "name": "Data produkcji", "description": "Data ISO (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Data zakupu", "description": "Data ISO (YYYY-MM-DD)." },
-        "install_date": { "name": "Data instalacji", "description": "Data ISO (YYYY-MM-DD)." },
+        "manufacturer": {
+          "name": "Producent",
+          "description": "Producent urządzenia."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Nazwa lub numer modelu."
+        },
+        "serial_number": {
+          "name": "Numer seryjny",
+          "description": "Numer seryjny."
+        },
+        "manufacture_date": {
+          "name": "Data produkcji",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Data zakupu",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Data instalacji",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
         "warranty_expiry": {
           "name": "Koniec gwarancji",
           "description": "Data ISO (YYYY-MM-DD). Wyświetlana jako czujnik daty na urządzeniu."
         },
-        "warranty_provider": { "name": "Gwarant", "description": "Kto honoruje gwarancję." },
-        "vendor": { "name": "Sprzedawca", "description": "Gdzie kupić ponownie / usługodawca." },
-        "cost": { "name": "Koszt", "description": "Cena zakupu." },
-        "manual_url": { "name": "URL instrukcji", "description": "Link do instrukcji lub dokumentacji." },
-        "icon": { "name": "Ikona", "description": "Opcjonalna ikona mdi (np. mdi:piano)." },
-        "parts": { "name": "Części", "description": "Strukturalne części/elementy zużywalne; elementy zużywalne z interwałem napędzają zadanie konserwacji." },
-        "parent_asset_id": { "name": "Urządzenie nadrzędne", "description": "Uczyń to podurządzeniem innego urządzenia." },
-        "related_device_ids": { "name": "Powiązane urządzenia", "description": "Inne urządzenia z rejestru do powiązania z tym urządzeniem." },
-        "notes": { "name": "Notatki", "description": "Notatki w postaci dowolnego tekstu." }
+        "warranty_provider": {
+          "name": "Gwarant",
+          "description": "Kto honoruje gwarancję."
+        },
+        "vendor": {
+          "name": "Sprzedawca",
+          "description": "Gdzie kupić ponownie / usługodawca."
+        },
+        "cost": {
+          "name": "Koszt",
+          "description": "Cena zakupu."
+        },
+        "manual_url": {
+          "name": "URL instrukcji",
+          "description": "Link do instrukcji lub dokumentacji."
+        },
+        "icon": {
+          "name": "Ikona",
+          "description": "Opcjonalna ikona mdi (np. mdi:piano)."
+        },
+        "parts": {
+          "name": "Części",
+          "description": "Strukturalne części/elementy zużywalne; elementy zużywalne z interwałem napędzają zadanie konserwacji."
+        },
+        "parent_asset_id": {
+          "name": "Urządzenie nadrzędne",
+          "description": "Uczyń to podurządzeniem innego urządzenia."
+        },
+        "related_device_ids": {
+          "name": "Powiązane urządzenia",
+          "description": "Inne urządzenia z rejestru do powiązania z tym urządzeniem."
+        },
+        "notes": {
+          "name": "Notatki",
+          "description": "Notatki w postaci dowolnego tekstu."
+        }
       }
     },
     "update_asset": {
       "name": "Zaktualizuj urządzenie",
       "description": "Zaktualizuj pola istniejącego urządzenia/zasobu.",
       "fields": {
-        "asset_id": { "name": "Identyfikator zasobu", "description": "Identyfikator zasobu do zaktualizowania." },
-        "name": { "name": "Nazwa", "description": "Nowa wyświetlana nazwa." },
-        "device_id": { "name": "Urządzenie", "description": "Przekieruj zasób istniejącego urządzenia." },
-        "area_id": { "name": "Obszar", "description": "Obszar dla urządzenia." },
-        "manufacturer": { "name": "Producent", "description": "Producent urządzenia." },
-        "model": { "name": "Model", "description": "Nazwa lub numer modelu." },
-        "serial_number": { "name": "Numer seryjny", "description": "Numer seryjny." },
-        "manufacture_date": { "name": "Data produkcji", "description": "Data ISO (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Data zakupu", "description": "Data ISO (YYYY-MM-DD)." },
-        "install_date": { "name": "Data instalacji", "description": "Data ISO (YYYY-MM-DD)." },
-        "warranty_expiry": { "name": "Koniec gwarancji", "description": "Data ISO (YYYY-MM-DD)." },
-        "warranty_provider": { "name": "Gwarant", "description": "Kto honoruje gwarancję." },
-        "vendor": { "name": "Sprzedawca", "description": "Gdzie kupić ponownie / usługodawca." },
-        "cost": { "name": "Koszt", "description": "Cena zakupu." },
-        "manual_url": { "name": "URL instrukcji", "description": "Link do instrukcji lub dokumentacji." },
-        "icon": { "name": "Ikona", "description": "Opcjonalna ikona mdi (np. mdi:piano)." },
-        "parts": { "name": "Części", "description": "Strukturalne części/elementy zużywalne; elementy zużywalne z interwałem napędzają zadanie konserwacji." },
-        "parent_asset_id": { "name": "Urządzenie nadrzędne", "description": "Uczyń to podurządzeniem innego urządzenia." },
-        "related_device_ids": { "name": "Powiązane urządzenia", "description": "Inne urządzenia z rejestru do powiązania z tym urządzeniem." },
-        "notes": { "name": "Notatki", "description": "Notatki w postaci dowolnego tekstu." }
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator zasobu do zaktualizowania."
+        },
+        "name": {
+          "name": "Nazwa",
+          "description": "Nowa wyświetlana nazwa."
+        },
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Przekieruj zasób istniejącego urządzenia."
+        },
+        "area_id": {
+          "name": "Obszar",
+          "description": "Obszar dla urządzenia."
+        },
+        "manufacturer": {
+          "name": "Producent",
+          "description": "Producent urządzenia."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Nazwa lub numer modelu."
+        },
+        "serial_number": {
+          "name": "Numer seryjny",
+          "description": "Numer seryjny."
+        },
+        "manufacture_date": {
+          "name": "Data produkcji",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Data zakupu",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Data instalacji",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "warranty_expiry": {
+          "name": "Koniec gwarancji",
+          "description": "Data ISO (YYYY-MM-DD)."
+        },
+        "warranty_provider": {
+          "name": "Gwarant",
+          "description": "Kto honoruje gwarancję."
+        },
+        "vendor": {
+          "name": "Sprzedawca",
+          "description": "Gdzie kupić ponownie / usługodawca."
+        },
+        "cost": {
+          "name": "Koszt",
+          "description": "Cena zakupu."
+        },
+        "manual_url": {
+          "name": "URL instrukcji",
+          "description": "Link do instrukcji lub dokumentacji."
+        },
+        "icon": {
+          "name": "Ikona",
+          "description": "Opcjonalna ikona mdi (np. mdi:piano)."
+        },
+        "parts": {
+          "name": "Części",
+          "description": "Strukturalne części/elementy zużywalne; elementy zużywalne z interwałem napędzają zadanie konserwacji."
+        },
+        "parent_asset_id": {
+          "name": "Urządzenie nadrzędne",
+          "description": "Uczyń to podurządzeniem innego urządzenia."
+        },
+        "related_device_ids": {
+          "name": "Powiązane urządzenia",
+          "description": "Inne urządzenia z rejestru do powiązania z tym urządzeniem."
+        },
+        "notes": {
+          "name": "Notatki",
+          "description": "Notatki w postaci dowolnego tekstu."
+        }
       }
     },
     "delete_asset": {
       "name": "Usuń urządzenie",
       "description": "Usuń urządzenie/zasób. Jego urządzenie wirtualne (jeśli istnieje) zostaje usunięte, a przypisane do niego zadania stają się samodzielne.",
       "fields": {
-        "asset_id": { "name": "Identyfikator zasobu", "description": "Identyfikator zasobu do usunięcia." }
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator zasobu do usunięcia."
+        }
       }
     },
     "list_assets": {
@@ -209,9 +321,18 @@
       "name": "Adjust part stock",
       "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the appliance the part belongs to." },
-        "part_id": { "name": "Part ID", "description": "The id of the part whose stock to adjust." },
-        "delta": { "name": "Delta", "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the part belongs to."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the part whose stock to adjust."
+        },
+        "delta": {
+          "name": "Delta",
+          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+        }
       }
     },
     "export_inventory": {

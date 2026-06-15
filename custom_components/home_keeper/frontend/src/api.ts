@@ -137,3 +137,18 @@ export async function getEntryDomains(hass: Hass): Promise<Record<string, string
   for (const e of entries) map[e.entry_id] = e.domain;
   return map;
 }
+
+/**
+ * Set of config entry ids that are currently *loaded*. Used to detect orphaned
+ * managed tasks: a managed task whose owning `config_entry_id` is not in this set
+ * (uninstalled, disabled, or failing to set up) is no longer protected and can be
+ * cleaned up by the user.
+ */
+export async function getLoadedEntryIds(hass: Hass): Promise<Set<string>> {
+  const entries = await hass.callWS<{ entry_id: string; state: string }[]>({
+    type: 'config_entries/get',
+  });
+  const ids = new Set<string>();
+  for (const e of entries) if (e.state === 'loaded') ids.add(e.entry_id);
+  return ids;
+}

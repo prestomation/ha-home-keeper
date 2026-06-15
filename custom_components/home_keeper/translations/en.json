@@ -106,6 +106,10 @@
         "task_id": {
           "name": "Task ID",
           "description": "The id of the task to delete."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
     },
@@ -147,58 +151,166 @@
           "name": "Area",
           "description": "Optional area for the appliance."
         },
-        "manufacturer": { "name": "Manufacturer", "description": "Maker of the appliance." },
-        "model": { "name": "Model", "description": "Model name or number." },
-        "serial_number": { "name": "Serial number", "description": "Serial number." },
-        "manufacture_date": { "name": "Manufacture date", "description": "ISO date (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Purchase date", "description": "ISO date (YYYY-MM-DD)." },
-        "install_date": { "name": "Install date", "description": "ISO date (YYYY-MM-DD)." },
+        "manufacturer": {
+          "name": "Manufacturer",
+          "description": "Maker of the appliance."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Model name or number."
+        },
+        "serial_number": {
+          "name": "Serial number",
+          "description": "Serial number."
+        },
+        "manufacture_date": {
+          "name": "Manufacture date",
+          "description": "ISO date (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Purchase date",
+          "description": "ISO date (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Install date",
+          "description": "ISO date (YYYY-MM-DD)."
+        },
         "warranty_expiry": {
           "name": "Warranty expiry",
           "description": "ISO date (YYYY-MM-DD). Surfaced as a date sensor on the device."
         },
-        "warranty_provider": { "name": "Warranty provider", "description": "Who honors the warranty." },
-        "vendor": { "name": "Vendor", "description": "Where to rebuy / service provider." },
-        "cost": { "name": "Cost", "description": "Purchase price." },
-        "manual_url": { "name": "Manual URL", "description": "Link to the manual or docs." },
-        "icon": { "name": "Icon", "description": "Optional mdi icon (e.g. mdi:piano)." },
-        "parts": { "name": "Parts", "description": "Structured parts/wear items; wear items with an interval drive a maintenance task." },
-        "parent_asset_id": { "name": "Parent appliance", "description": "Make this a subdevice of another appliance." },
-        "related_device_ids": { "name": "Related devices", "description": "Other registry devices to associate with this appliance." },
-        "notes": { "name": "Notes", "description": "Free-text notes." }
+        "warranty_provider": {
+          "name": "Warranty provider",
+          "description": "Who honors the warranty."
+        },
+        "vendor": {
+          "name": "Vendor",
+          "description": "Where to rebuy / service provider."
+        },
+        "cost": {
+          "name": "Cost",
+          "description": "Purchase price."
+        },
+        "manual_url": {
+          "name": "Manual URL",
+          "description": "Link to the manual or docs."
+        },
+        "icon": {
+          "name": "Icon",
+          "description": "Optional mdi icon (e.g. mdi:piano)."
+        },
+        "parts": {
+          "name": "Parts",
+          "description": "Structured parts/wear items; wear items with an interval drive a maintenance task."
+        },
+        "parent_asset_id": {
+          "name": "Parent appliance",
+          "description": "Make this a subdevice of another appliance."
+        },
+        "related_device_ids": {
+          "name": "Related devices",
+          "description": "Other registry devices to associate with this appliance."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Free-text notes."
+        }
       }
     },
     "update_asset": {
       "name": "Update appliance",
       "description": "Update fields of an existing appliance/asset.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the asset to update." },
-        "name": { "name": "Name", "description": "New display name." },
-        "device_id": { "name": "Device", "description": "Re-target an existing-device asset." },
-        "area_id": { "name": "Area", "description": "Area for the appliance." },
-        "manufacturer": { "name": "Manufacturer", "description": "Maker of the appliance." },
-        "model": { "name": "Model", "description": "Model name or number." },
-        "serial_number": { "name": "Serial number", "description": "Serial number." },
-        "manufacture_date": { "name": "Manufacture date", "description": "ISO date (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Purchase date", "description": "ISO date (YYYY-MM-DD)." },
-        "install_date": { "name": "Install date", "description": "ISO date (YYYY-MM-DD)." },
-        "warranty_expiry": { "name": "Warranty expiry", "description": "ISO date (YYYY-MM-DD)." },
-        "warranty_provider": { "name": "Warranty provider", "description": "Who honors the warranty." },
-        "vendor": { "name": "Vendor", "description": "Where to rebuy / service provider." },
-        "cost": { "name": "Cost", "description": "Purchase price." },
-        "manual_url": { "name": "Manual URL", "description": "Link to the manual or docs." },
-        "icon": { "name": "Icon", "description": "Optional mdi icon (e.g. mdi:piano)." },
-        "parts": { "name": "Parts", "description": "Structured parts/wear items; wear items with an interval drive a maintenance task." },
-        "parent_asset_id": { "name": "Parent appliance", "description": "Make this a subdevice of another appliance." },
-        "related_device_ids": { "name": "Related devices", "description": "Other registry devices to associate with this appliance." },
-        "notes": { "name": "Notes", "description": "Free-text notes." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the asset to update."
+        },
+        "name": {
+          "name": "Name",
+          "description": "New display name."
+        },
+        "device_id": {
+          "name": "Device",
+          "description": "Re-target an existing-device asset."
+        },
+        "area_id": {
+          "name": "Area",
+          "description": "Area for the appliance."
+        },
+        "manufacturer": {
+          "name": "Manufacturer",
+          "description": "Maker of the appliance."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Model name or number."
+        },
+        "serial_number": {
+          "name": "Serial number",
+          "description": "Serial number."
+        },
+        "manufacture_date": {
+          "name": "Manufacture date",
+          "description": "ISO date (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Purchase date",
+          "description": "ISO date (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Install date",
+          "description": "ISO date (YYYY-MM-DD)."
+        },
+        "warranty_expiry": {
+          "name": "Warranty expiry",
+          "description": "ISO date (YYYY-MM-DD)."
+        },
+        "warranty_provider": {
+          "name": "Warranty provider",
+          "description": "Who honors the warranty."
+        },
+        "vendor": {
+          "name": "Vendor",
+          "description": "Where to rebuy / service provider."
+        },
+        "cost": {
+          "name": "Cost",
+          "description": "Purchase price."
+        },
+        "manual_url": {
+          "name": "Manual URL",
+          "description": "Link to the manual or docs."
+        },
+        "icon": {
+          "name": "Icon",
+          "description": "Optional mdi icon (e.g. mdi:piano)."
+        },
+        "parts": {
+          "name": "Parts",
+          "description": "Structured parts/wear items; wear items with an interval drive a maintenance task."
+        },
+        "parent_asset_id": {
+          "name": "Parent appliance",
+          "description": "Make this a subdevice of another appliance."
+        },
+        "related_device_ids": {
+          "name": "Related devices",
+          "description": "Other registry devices to associate with this appliance."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Free-text notes."
+        }
       }
     },
     "delete_asset": {
       "name": "Delete appliance",
       "description": "Delete an appliance/asset. Its virtual device (if any) is removed and tasks attached to it become standalone.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the asset to delete." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the asset to delete."
+        }
       }
     },
     "list_assets": {
@@ -209,9 +321,18 @@
       "name": "Adjust part stock",
       "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the appliance the part belongs to." },
-        "part_id": { "name": "Part ID", "description": "The id of the part whose stock to adjust." },
-        "delta": { "name": "Delta", "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the part belongs to."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the part whose stock to adjust."
+        },
+        "delta": {
+          "name": "Delta",
+          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+        }
       }
     },
     "export_inventory": {
@@ -221,17 +342,31 @@
   },
   "entity": {
     "sensor": {
-      "next_due": { "name": "{task_name}Next due" },
-      "manufacture_date": { "name": "Manufacture date" },
-      "purchase_date": { "name": "Purchase date" },
-      "install_date": { "name": "Install date" },
-      "warranty_expiry": { "name": "Warranty expiry" }
+      "next_due": {
+        "name": "{task_name}Next due"
+      },
+      "manufacture_date": {
+        "name": "Manufacture date"
+      },
+      "purchase_date": {
+        "name": "Purchase date"
+      },
+      "install_date": {
+        "name": "Install date"
+      },
+      "warranty_expiry": {
+        "name": "Warranty expiry"
+      }
     },
     "binary_sensor": {
-      "overdue": { "name": "{task_name}Overdue" }
+      "overdue": {
+        "name": "{task_name}Overdue"
+      }
     },
     "button": {
-      "mark_done": { "name": "{task_name}Mark done" }
+      "mark_done": {
+        "name": "{task_name}Mark done"
+      }
     }
   }
 }

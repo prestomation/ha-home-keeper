@@ -70,6 +70,24 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'Status' }).click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
+  // 1f. Orphan cleanup — when a managing integration is uninstalled, its tasks are
+  // no longer protected: a warning banner offers a one-click "Remove orphaned tasks",
+  // and each orphaned task shows the "Integration offline" chip.
+  await expect(panel.locator('.hk-orphan-banner')).toBeVisible();
+  await expect(panel.locator('ha-assist-chip.hk-orphaned').first()).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/12-panel-orphan-cleanup.png`, fullPage: true });
+
+  // 1g. Orphaned task detail — the Delete button returns (protection lifts) with an
+  // explanation that the owning integration is gone.
+  await panel.locator('.detail-open[data-detail-id="task_rex_vet"]').click();
+  await expect(panel.locator('ha-assist-chip.hk-orphaned').first()).toBeVisible();
+  await expect(panel.locator('.d-del')).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/13-panel-orphan-detail.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
   // 2. Create form — floating recurrence + device picker.
   await panel.locator('#add-btn').click();
   await expect(panel.locator('#hk-form')).toBeVisible();

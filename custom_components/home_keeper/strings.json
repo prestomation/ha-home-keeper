@@ -106,6 +106,10 @@
         "task_id": {
           "name": "Task ID",
           "description": "The id of the task to delete."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
     },

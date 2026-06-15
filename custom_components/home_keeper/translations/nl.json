@@ -106,6 +106,10 @@
         "task_id": {
           "name": "Taak-ID",
           "description": "De id van de te verwijderen taak."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
     },
@@ -147,58 +151,166 @@
           "name": "Gebied",
           "description": "Optioneel gebied voor het apparaat."
         },
-        "manufacturer": { "name": "Fabrikant", "description": "Fabrikant van het apparaat." },
-        "model": { "name": "Model", "description": "Modelnaam of -nummer." },
-        "serial_number": { "name": "Serienummer", "description": "Serienummer." },
-        "manufacture_date": { "name": "Productiedatum", "description": "ISO-datum (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Aankoopdatum", "description": "ISO-datum (YYYY-MM-DD)." },
-        "install_date": { "name": "Installatiedatum", "description": "ISO-datum (YYYY-MM-DD)." },
+        "manufacturer": {
+          "name": "Fabrikant",
+          "description": "Fabrikant van het apparaat."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Modelnaam of -nummer."
+        },
+        "serial_number": {
+          "name": "Serienummer",
+          "description": "Serienummer."
+        },
+        "manufacture_date": {
+          "name": "Productiedatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Aankoopdatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Installatiedatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
         "warranty_expiry": {
           "name": "Vervaldatum garantie",
           "description": "ISO-datum (YYYY-MM-DD). Weergegeven als datumsensor op het apparaat."
         },
-        "warranty_provider": { "name": "Garantieverstrekker", "description": "Wie de garantie nakomt." },
-        "vendor": { "name": "Leverancier", "description": "Waar opnieuw te kopen / serviceprovider." },
-        "cost": { "name": "Kosten", "description": "Aankoopprijs." },
-        "manual_url": { "name": "Handleiding-URL", "description": "Link naar de handleiding of documentatie." },
-        "icon": { "name": "Pictogram", "description": "Optioneel mdi-pictogram (bijv. mdi:piano)." },
-        "parts": { "name": "Onderdelen", "description": "Gestructureerde onderdelen/slijtdelen; slijtdelen met een interval sturen een onderhoudstaak aan." },
-        "parent_asset_id": { "name": "Bovenliggend apparaat", "description": "Maak hiervan een subapparaat van een ander apparaat." },
-        "related_device_ids": { "name": "Gerelateerde apparaten", "description": "Andere registerapparaten om aan dit apparaat te koppelen." },
-        "notes": { "name": "Notities", "description": "Vrije tekstnotities." }
+        "warranty_provider": {
+          "name": "Garantieverstrekker",
+          "description": "Wie de garantie nakomt."
+        },
+        "vendor": {
+          "name": "Leverancier",
+          "description": "Waar opnieuw te kopen / serviceprovider."
+        },
+        "cost": {
+          "name": "Kosten",
+          "description": "Aankoopprijs."
+        },
+        "manual_url": {
+          "name": "Handleiding-URL",
+          "description": "Link naar de handleiding of documentatie."
+        },
+        "icon": {
+          "name": "Pictogram",
+          "description": "Optioneel mdi-pictogram (bijv. mdi:piano)."
+        },
+        "parts": {
+          "name": "Onderdelen",
+          "description": "Gestructureerde onderdelen/slijtdelen; slijtdelen met een interval sturen een onderhoudstaak aan."
+        },
+        "parent_asset_id": {
+          "name": "Bovenliggend apparaat",
+          "description": "Maak hiervan een subapparaat van een ander apparaat."
+        },
+        "related_device_ids": {
+          "name": "Gerelateerde apparaten",
+          "description": "Andere registerapparaten om aan dit apparaat te koppelen."
+        },
+        "notes": {
+          "name": "Notities",
+          "description": "Vrije tekstnotities."
+        }
       }
     },
     "update_asset": {
       "name": "Apparaat bijwerken",
       "description": "Werk velden van een bestaand apparaat/asset bij.",
       "fields": {
-        "asset_id": { "name": "Asset-ID", "description": "De id van het bij te werken asset." },
-        "name": { "name": "Naam", "description": "Nieuwe weergavenaam." },
-        "device_id": { "name": "Apparaat", "description": "Een asset met bestaand apparaat opnieuw toewijzen." },
-        "area_id": { "name": "Gebied", "description": "Gebied voor het apparaat." },
-        "manufacturer": { "name": "Fabrikant", "description": "Fabrikant van het apparaat." },
-        "model": { "name": "Model", "description": "Modelnaam of -nummer." },
-        "serial_number": { "name": "Serienummer", "description": "Serienummer." },
-        "manufacture_date": { "name": "Productiedatum", "description": "ISO-datum (YYYY-MM-DD)." },
-        "purchase_date": { "name": "Aankoopdatum", "description": "ISO-datum (YYYY-MM-DD)." },
-        "install_date": { "name": "Installatiedatum", "description": "ISO-datum (YYYY-MM-DD)." },
-        "warranty_expiry": { "name": "Vervaldatum garantie", "description": "ISO-datum (YYYY-MM-DD)." },
-        "warranty_provider": { "name": "Garantieverstrekker", "description": "Wie de garantie nakomt." },
-        "vendor": { "name": "Leverancier", "description": "Waar opnieuw te kopen / serviceprovider." },
-        "cost": { "name": "Kosten", "description": "Aankoopprijs." },
-        "manual_url": { "name": "Handleiding-URL", "description": "Link naar de handleiding of documentatie." },
-        "icon": { "name": "Pictogram", "description": "Optioneel mdi-pictogram (bijv. mdi:piano)." },
-        "parts": { "name": "Onderdelen", "description": "Gestructureerde onderdelen/slijtdelen; slijtdelen met een interval sturen een onderhoudstaak aan." },
-        "parent_asset_id": { "name": "Bovenliggend apparaat", "description": "Maak hiervan een subapparaat van een ander apparaat." },
-        "related_device_ids": { "name": "Gerelateerde apparaten", "description": "Andere registerapparaten om aan dit apparaat te koppelen." },
-        "notes": { "name": "Notities", "description": "Vrije tekstnotities." }
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "De id van het bij te werken asset."
+        },
+        "name": {
+          "name": "Naam",
+          "description": "Nieuwe weergavenaam."
+        },
+        "device_id": {
+          "name": "Apparaat",
+          "description": "Een asset met bestaand apparaat opnieuw toewijzen."
+        },
+        "area_id": {
+          "name": "Gebied",
+          "description": "Gebied voor het apparaat."
+        },
+        "manufacturer": {
+          "name": "Fabrikant",
+          "description": "Fabrikant van het apparaat."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Modelnaam of -nummer."
+        },
+        "serial_number": {
+          "name": "Serienummer",
+          "description": "Serienummer."
+        },
+        "manufacture_date": {
+          "name": "Productiedatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "purchase_date": {
+          "name": "Aankoopdatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "install_date": {
+          "name": "Installatiedatum",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "warranty_expiry": {
+          "name": "Vervaldatum garantie",
+          "description": "ISO-datum (YYYY-MM-DD)."
+        },
+        "warranty_provider": {
+          "name": "Garantieverstrekker",
+          "description": "Wie de garantie nakomt."
+        },
+        "vendor": {
+          "name": "Leverancier",
+          "description": "Waar opnieuw te kopen / serviceprovider."
+        },
+        "cost": {
+          "name": "Kosten",
+          "description": "Aankoopprijs."
+        },
+        "manual_url": {
+          "name": "Handleiding-URL",
+          "description": "Link naar de handleiding of documentatie."
+        },
+        "icon": {
+          "name": "Pictogram",
+          "description": "Optioneel mdi-pictogram (bijv. mdi:piano)."
+        },
+        "parts": {
+          "name": "Onderdelen",
+          "description": "Gestructureerde onderdelen/slijtdelen; slijtdelen met een interval sturen een onderhoudstaak aan."
+        },
+        "parent_asset_id": {
+          "name": "Bovenliggend apparaat",
+          "description": "Maak hiervan een subapparaat van een ander apparaat."
+        },
+        "related_device_ids": {
+          "name": "Gerelateerde apparaten",
+          "description": "Andere registerapparaten om aan dit apparaat te koppelen."
+        },
+        "notes": {
+          "name": "Notities",
+          "description": "Vrije tekstnotities."
+        }
       }
     },
     "delete_asset": {
       "name": "Apparaat verwijderen",
       "description": "Een apparaat/asset verwijderen. Het virtuele apparaat (indien aanwezig) wordt verwijderd en taken die eraan gekoppeld zijn worden zelfstandig.",
       "fields": {
-        "asset_id": { "name": "Asset-ID", "description": "De id van het te verwijderen asset." }
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "De id van het te verwijderen asset."
+        }
       }
     },
     "list_assets": {
@@ -209,9 +321,18 @@
       "name": "Adjust part stock",
       "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
-        "asset_id": { "name": "Asset ID", "description": "The id of the appliance the part belongs to." },
-        "part_id": { "name": "Part ID", "description": "The id of the part whose stock to adjust." },
-        "delta": { "name": "Delta", "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)." }
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the part belongs to."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the part whose stock to adjust."
+        },
+        "delta": {
+          "name": "Delta",
+          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+        }
       }
     },
     "export_inventory": {

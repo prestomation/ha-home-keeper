@@ -334,6 +334,8 @@ export class HomeKeeperPanel extends HTMLElement {
   private _assets: Asset[] = [];
   // config entry id -> integration domain, for resolving device brand logos.
   private _entryDomains: Record<string, string> = {};
+  // config entry ids that are currently loaded, for managed-task orphan detection.
+  private _loadedEntryIds: Set<string> = new Set();
   private _edit: EditState = { open: false, task: null };
   private _assetEdit: AssetEditState = { open: false, asset: null };
   private _view: 'tasks' | 'appliances' = 'tasks';
@@ -478,14 +480,16 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _reload(): Promise<void> {
     if (!this._hass) return;
     try {
-      const [tasks, assets, entryDomains] = await Promise.all([
+      const [tasks, assets, entryDomains, loadedEntryIds] = await Promise.all([
         api.getTasks(this._hass),
         api.getAssets(this._hass),
         api.getEntryDomains(this._hass).catch(() => ({})),
+        api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
       ]);
       this._tasks = tasks;
       this._assets = assets;
       this._entryDomains = entryDomains;
+      this._loadedEntryIds = loadedEntryIds;
       this._loaded = true;
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -959,7 +963,41 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!tasks.length) {
       return `<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}</ha-alert>`;
     }
-    return this._renderGroups(this._groupTasks(tasks, now), (task) => this._taskCard(task));
+    return `${this._orphanBanner()}${this._renderGroups(
+      this._groupTasks(tasks, now),
+      (task) => this._taskCard(task),
+    )}`;
+  }
+
+  /**
+   * A dismissable-style warning shown above the task list when one or more managed
+   * tasks have been orphaned (their integration was uninstalled/disabled). Offers a
+   * one-click "Remove orphaned tasks" cleanup so the user isn't stuck with tasks no
+   * integration owns any more.
+   */
+  private _orphanBanner(): string {
+    const n = this._tasks.filter((task) => this._isManagedOrphan(task)).length;
+    if (!n) return '';
+    return `
+      <ha-alert alert-type="warning" class="hk-orphan-banner">
+        ${escapeHTML(tn('managed.orphanBanner', n))}
+        <ha-button slot="action" id="cleanup-orphans-btn">${escapeHTML(
+          t('btn.removeOrphaned'),
+        )}</ha-button>
+      </ha-alert>`;
+  }
+
+  /** Delete every orphaned managed task (the bulk cleanup action). */
+  private async _cleanupOrphans(): Promise<void> {
+    if (!this._hass) return;
+    const orphans = this._tasks.filter((task) => this._isManagedOrphan(task));
+    if (!orphans.length) return;
+    try {
+      for (const task of orphans) await api.deleteTask(this._hass, task.id);
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
+    }
+    await this._refresh();
   }
 
   private _assetsList(): string {
@@ -1079,25 +1117,33 @@ export class HomeKeeperPanel extends HTMLElement {
 
     // Wear-part tasks are owned by their appliance; only "Done" is offered.
     const derived = Boolean(task.source?.part);
+    const orphaned = this._isManagedOrphan(task);
     let manage = '';
     if (!derived) {
       const editBtn = `<ha-button class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
-      // Deletion-protected managed tasks show guidance instead of a delete button.
-      const deleteBtn = mb?.deletion_protected
-        ? `<span class="hk-managed-info">${escapeHTML(t('managed.deleteBlocked', { name: mb.display_name }))}</span>`
-        : `<ha-button class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
+      // Deletion protection only holds while the owner is present. Once orphaned
+      // (owner uninstalled/disabled), the Delete button returns so the user can
+      // clean the task up — otherwise "delete it from X instead" points nowhere.
+      const deleteBtn =
+        mb?.deletion_protected && !orphaned
+          ? `<span class="hk-managed-info">${escapeHTML(t('managed.deleteBlocked', { name: mb.display_name }))}</span>`
+          : `<ha-button class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
       // "Edit in X" deep link when config_entry_id resolves to a loaded domain.
       const domain = mb?.config_entry_id ? this._entryDomains[mb.config_entry_id] : null;
-      const openInBtn = domain
+      const openInBtn = domain && !orphaned
         ? `<ha-button class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
         : '';
       manage = `${editBtn}${deleteBtn}${openInBtn}`;
     }
 
-    // Optional completion hint from the managing integration.
-    const completionHint = mb?.completion_prompt
-      ? `<div class="hk-managed-prompt">${escapeHTML(mb.completion_prompt)}</div>`
-      : '';
+    // When orphaned, explain why deletion is now allowed; otherwise show the
+    // managing integration's optional completion hint.
+    const completionHint =
+      orphaned && mb
+        ? `<div class="hk-managed-prompt">${escapeHTML(t('managed.orphanCleanup', { name: mb.display_name }))}</div>`
+        : mb?.completion_prompt
+          ? `<div class="hk-managed-prompt">${escapeHTML(mb.completion_prompt)}</div>`
+          : '';
 
     const due = task.next_due ? new Date(task.next_due).toLocaleString() : t('due.none');
     const notes = task.notes
@@ -1252,12 +1298,23 @@ export class HomeKeeperPanel extends HTMLElement {
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
   }
 
+  /**
+   * Whether a managed task's owning integration is no longer loaded. A task is
+   * orphaned when its `config_entry_id` is set but absent from the loaded-entry
+   * set (uninstalled, disabled, or failing to set up). Without a recorded
+   * `config_entry_id` we can't prove the owner is gone, so it isn't treated as
+   * orphaned (the `force` service is the escape hatch for that edge case).
+   */
+  private _isManagedOrphan(task: Task): boolean {
+    const id = task.managed_by?.config_entry_id;
+    return Boolean(id) && !this._loadedEntryIds.has(id as string);
+  }
+
   /** Renders a "Managed by X" chip (or "Integration offline" if orphaned). */
   private _managedChip(task: Task): string {
     const mb = task.managed_by;
     if (!mb) return '';
-    // Orphan: config_entry_id declared but not among loaded config entries.
-    if (mb.config_entry_id && !this._entryDomains[mb.config_entry_id]) {
+    if (this._isManagedOrphan(task)) {
       return `<ha-assist-chip class="hk-orphaned" label="${escapeHTML(t('chip.orphaned'))}"></ha-assist-chip>`;
     }
     return `<ha-assist-chip class="hk-managed" label="${escapeHTML(t('chip.managed', { name: mb.display_name }))}"></ha-assist-chip>`;
@@ -1602,6 +1659,10 @@ export class HomeKeeperPanel extends HTMLElement {
     });
 
     root.getElementById('export-btn')?.addEventListener('click', () => this._exportInventory());
+
+    root
+      .getElementById('cleanup-orphans-btn')
+      ?.addEventListener('click', () => void this._cleanupOrphans());
 
     // Filter / group-by segmented controls.
     root.querySelectorAll<HTMLElement>('.hk-seg-btn').forEach((b) =>
