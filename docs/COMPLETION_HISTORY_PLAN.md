@@ -20,6 +20,10 @@ task). This is the "when did I last do X / when was this serviced" view.
   history lives on while *something* still references it.
 - **Larger cap** — `MAX_COMPLETION_HISTORY` raised from 50 → 500 so long-lived tasks keep
   years of cadence.
+- **Per-completion delete** — each completion row in the history dialog has a trash button
+  to remove that single entry (undo an accidental "done"). For a live task this re-derives
+  `last_completed`/`next_due` (floating rewinds to the prior completion; fixed stays
+  schedule-driven); for an archived entry it edits the appliance's stored history.
 
 The rest of this document is the original design rationale, kept for context.
 

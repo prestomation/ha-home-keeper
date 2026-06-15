@@ -303,6 +303,34 @@ class HomeKeeperStore:
         )
         return updated
 
+    async def delete_completion(self, task_id: str, ts: str) -> dict[str, Any]:
+        """Remove one completion from a task (undo an accidental "done").
+
+        Re-derives ``last_completed``/``next_due`` from the remaining history and
+        persists. Returns the updated task.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        updated = recurrence.remove_completion(dict(existing), ts, now=dt_util.now())
+        self._tasks[task_id] = updated
+        await self._save()
+        return updated
+
+    async def delete_archived_completion(
+        self, asset_id: str, task_id: str, ts: str
+    ) -> dict[str, Any]:
+        """Remove one completion from an appliance's archived task history.
+
+        Returns the updated asset. Raises ``KeyError`` if the asset is unknown.
+        """
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise KeyError(asset_id)
+        if assets.remove_archived_completion(asset, task_id, ts):
+            await self._save()
+        return asset
+
     def _stamp_part_replacement(self, task: dict[str, Any], when: Any) -> None:
         src = _part_source(task)
         if not src:

@@ -91,3 +91,25 @@ def test_expand_daily_with_far_past_anchor_returns_window():
     anchor = dt(2020, 1, 1, 8)
     occ = r.expand_fixed_occurrences(anchor, "DAILY", 1, dt(2026, 6, 1), dt(2026, 6, 4))
     assert [o.date().isoformat() for o in occ] == ["2026-06-01", "2026-06-02", "2026-06-03"]
+
+
+def test_remove_completion_keeps_fixed_schedule():
+    import hk_recurrence as r
+    from datetime import datetime, timezone, timedelta
+
+    tz = timezone(timedelta(hours=-4))
+    now = datetime(2026, 6, 13, 10, tzinfo=tz)
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": datetime(2026, 1, 1, 8, tzinfo=tz).isoformat(),
+        "last_completed": datetime(2026, 6, 12, 8, tzinfo=tz).isoformat(),
+        "next_due": datetime(2026, 6, 14, 8, tzinfo=tz).isoformat(),
+        "completions": [{"ts": datetime(2026, 6, 12, 8, tzinfo=tz).isoformat()}],
+    }
+    r.remove_completion(task, datetime(2026, 6, 12, 8, tzinfo=tz).isoformat(), now=now)
+    assert task["completions"] == []
+    assert task["last_completed"] is None
+    # Fixed schedule is independent of completions: next occurrence after now.
+    assert task["next_due"] == datetime(2026, 6, 14, 8, tzinfo=tz).isoformat()

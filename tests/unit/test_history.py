@@ -126,3 +126,41 @@ def test_append_task_history_dedupes_by_task_id():
     assert a.append_task_history(asset, entry) is True
     assert a.append_task_history(asset, entry) is False
     assert len(asset["task_history"]) == 1
+
+
+# ── archived-completion deletion ─────────────────────────────────────────────
+def _asset_with_history():
+    asset = _asset()
+    asset["task_history"] = [
+        {
+            "task_id": "old_flush",
+            "task_name": "Flush tank",
+            "part_id": None,
+            "completions": [
+                {"ts": "2023-06-01T10:00:00-04:00"},
+                {"ts": "2024-06-01T10:00:00-04:00"},
+            ],
+            "archived_at": "2025-06-15T10:00:00-04:00",
+        }
+    ]
+    return asset
+
+
+def test_remove_archived_completion_drops_one():
+    asset = _asset_with_history()
+    assert a.remove_archived_completion(asset, "old_flush", "2024-06-01T10:00:00-04:00") is True
+    assert asset["task_history"][0]["completions"] == [{"ts": "2023-06-01T10:00:00-04:00"}]
+
+
+def test_remove_archived_completion_drops_entry_when_emptied():
+    asset = _asset_with_history()
+    asset["task_history"][0]["completions"] = [{"ts": "2023-06-01T10:00:00-04:00"}]
+    assert a.remove_archived_completion(asset, "old_flush", "2023-06-01T10:00:00-04:00") is True
+    assert asset["task_history"] == []
+
+
+def test_remove_archived_completion_missing_is_noop():
+    asset = _asset_with_history()
+    assert a.remove_archived_completion(asset, "old_flush", "2099-01-01T00:00:00-04:00") is False
+    assert a.remove_archived_completion(asset, "no_such_task", "2024-06-01T10:00:00-04:00") is False
+    assert a.remove_archived_completion(_asset(), "x", "y") is False

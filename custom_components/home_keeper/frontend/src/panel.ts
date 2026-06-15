@@ -12,7 +12,6 @@ import {
   escapeHTML,
   isOverdue,
   recurrenceSummary,
-  sortedCompletions,
   tasksForAsset,
 } from './utils';
 
@@ -55,6 +54,10 @@ const REQUIRED_COMPONENTS = [
   'ha-svg-icon',
   'ha-dialog',
 ];
+
+// mdi:delete — remove a single completion entry from the history dialog.
+const MDI_DELETE =
+  'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z';
 
 // mdi:history — opens a task's / appliance's completion history.
 const MDI_HISTORY =
@@ -133,11 +136,13 @@ const STYLES = `
   }
   ul.hk-hist-list { list-style: none; margin: 0; padding: 0; }
   ul.hk-hist-list li {
-    display: flex; justify-content: space-between; gap: 12px;
-    padding: 7px 0; border-bottom: 1px solid var(--divider-color);
+    display: flex; align-items: center; gap: 12px;
+    padding: 2px 0; border-bottom: 1px solid var(--divider-color);
   }
   ul.hk-hist-list li:last-child { border-bottom: none; }
+  ul.hk-hist-list .date { flex: 1; min-width: 0; }
   ul.hk-hist-list .when { color: var(--secondary-text-color); font-size: 0.85rem; white-space: nowrap; }
+  ha-icon-button.hk-hist-del { --mdc-icon-button-size: 36px; color: var(--secondary-text-color); }
 `;
 
 // Minimal shape of an `ha-form` element (only what we set/read).
@@ -202,11 +207,21 @@ interface HistoryGroup {
   name: string;
   completions: { ts: string }[];
   archived?: boolean;
+  // Deletion context for the per-completion trash button: a live task carries
+  // `taskId`; an archived (removed-task) group carries `assetId` + `archivedTaskId`.
+  taskId?: string;
+  assetId?: string;
+  archivedTaskId?: string;
 }
+/**
+ * The history dialog renders a single source — a `task` or an `asset` — looked up
+ * from current data by `id` on every render, so deleting a completion just reloads
+ * data and rebuilds the dialog in place (no stale snapshot).
+ */
 interface HistoryState {
   open: boolean;
-  title: string;
-  groups: HistoryGroup[];
+  kind: 'task' | 'asset';
+  id: string;
 }
 
 export class HomeKeeperPanel extends HTMLElement {
@@ -257,7 +272,8 @@ export class HomeKeeperPanel extends HTMLElement {
     if (this._hass && !this._loaded) void this._refresh();
   }
 
-  private async _refresh(): Promise<void> {
+  /** Fetch tasks/assets/domains into state (no render). */
+  private async _reload(): Promise<void> {
     if (!this._hass) return;
     try {
       const [tasks, assets, entryDomains] = await Promise.all([
@@ -273,6 +289,10 @@ export class HomeKeeperPanel extends HTMLElement {
       // eslint-disable-next-line no-console
       console.error('home-keeper: failed to load data', err);
     }
+  }
+
+  private async _refresh(): Promise<void> {
+    await this._reload();
     this._render();
   }
 
@@ -384,39 +404,91 @@ export class HomeKeeperPanel extends HTMLElement {
 
   // ── completion history ──────────────────────────────────────────────────────
   private _openTaskHistory(task: Task): void {
-    this._history = {
-      open: true,
-      title: t('history.task.title', { name: task.name }),
-      groups: [{ name: task.name, completions: task.completions || [] }],
-    };
+    this._history = { open: true, kind: 'task', id: task.id };
     this._render();
   }
 
-  /**
-   * Aggregate every completion tied to an appliance: its live related tasks
-   * (part-derived or device-attached) plus the history archived from tasks that
-   * were deleted while still assigned to it. Newest activity first.
-   */
   private _openAssetHistory(asset: Asset): void {
-    const groups: HistoryGroup[] = tasksForAsset(asset, this._tasks).map((task) => ({
-      name: task.name,
-      completions: task.completions || [],
-    }));
-    for (const h of asset.task_history || []) {
-      groups.push({ name: h.task_name, completions: h.completions || [], archived: true });
-    }
-    const lastTs = (g: HistoryGroup): number =>
-      g.completions.reduce((m, c) => Math.max(m, new Date(c.ts).getTime() || 0), 0);
-    groups.sort((a, b) => lastTs(b) - lastTs(a));
-    const title =
-      asset.name || deviceName(this._hass?.devices, asset.device_id) || t('appliance.fallbackName');
-    this._history = { open: true, title: t('history.appliance.title', { name: title }), groups };
+    this._history = { open: true, kind: 'asset', id: asset.id };
     this._render();
   }
 
   private _closeHistory(): void {
     this._history = null;
     this._render();
+  }
+
+  /**
+   * Compute the dialog's title + groups from *current* data for whatever the
+   * history dialog is showing. For a task: its own completions. For an appliance:
+   * every completion tied to it — live related tasks (part-derived or
+   * device-attached) plus the history archived from tasks deleted while still
+   * assigned to it — newest activity first. Returns null if the source is gone.
+   */
+  private _historyContent(): { title: string; groups: HistoryGroup[] } | null {
+    const h = this._history;
+    if (!h) return null;
+    if (h.kind === 'task') {
+      const task = this._tasks.find((t) => t.id === h.id);
+      if (!task) return null;
+      return {
+        title: t('history.task.title', { name: task.name }),
+        groups: [{ name: task.name, completions: task.completions || [], taskId: task.id }],
+      };
+    }
+    const asset = this._assets.find((a) => a.id === h.id);
+    if (!asset) return null;
+    const groups: HistoryGroup[] = tasksForAsset(asset, this._tasks).map((task) => ({
+      name: task.name,
+      completions: task.completions || [],
+      taskId: task.id,
+    }));
+    for (const entry of asset.task_history || []) {
+      groups.push({
+        name: entry.task_name,
+        completions: entry.completions || [],
+        archived: true,
+        assetId: asset.id,
+        archivedTaskId: entry.task_id,
+      });
+    }
+    const lastTs = (g: HistoryGroup): number =>
+      g.completions.reduce((m, c) => Math.max(m, new Date(c.ts).getTime() || 0), 0);
+    groups.sort((a, b) => lastTs(b) - lastTs(a));
+    const title =
+      asset.name || deviceName(this._hass?.devices, asset.device_id) || t('appliance.fallbackName');
+    return { title: t('history.appliance.title', { name: title }), groups };
+  }
+
+  private async _deleteCompletion(taskId: string, ts: string): Promise<void> {
+    if (!this._hass) return;
+    await api.deleteCompletion(this._hass, taskId, ts);
+    await this._reload();
+    this._updateHistoryDialog();
+  }
+
+  private async _deleteArchivedCompletion(
+    assetId: string,
+    archivedTaskId: string,
+    ts: string,
+  ): Promise<void> {
+    if (!this._hass) return;
+    await api.deleteArchivedCompletion(this._hass, assetId, archivedTaskId, ts);
+    await this._reload();
+    this._updateHistoryDialog();
+  }
+
+  /** Rebuild the open dialog's body in place after a deletion (keeps it open). */
+  private _updateHistoryDialog(): void {
+    const dialog = this.shadowRoot?.getElementById('hk-history');
+    const body = dialog?.querySelector<HTMLElement>('.hk-hist-body');
+    const content = this._historyContent();
+    if (!dialog || !body || !content) {
+      this._closeHistory();
+      return;
+    }
+    body.innerHTML = `${this._historyHeader(content.title)}${this._historyBody(content.groups)}`;
+    this._wireHistoryDeletes(dialog);
   }
 
   // ── rendering ───────────────────────────────────────────────────────────────
@@ -1228,8 +1300,12 @@ export class HomeKeeperPanel extends HTMLElement {
 
   // ── completion-history dialog ───────────────────────────────────────────────
   private _renderHistoryDialog(root: ShadowRoot): void {
-    const state = this._history;
-    if (!state?.open) return;
+    if (!this._history?.open) return;
+    const content = this._historyContent();
+    if (!content) {
+      this._history = null;
+      return;
+    }
     const dialog = document.createElement('ha-dialog') as HTMLElement & { open?: boolean };
     dialog.id = 'hk-history';
     dialog.setAttribute('open', '');
@@ -1239,11 +1315,16 @@ export class HomeKeeperPanel extends HTMLElement {
     // still provides its own ✕ and closes on Escape / scrim click (`closed` event).
     dialog.innerHTML = `
       <div class="hk-hist-body">
-        <div class="hk-hist-header"><span class="hk-hist-title">${escapeHTML(state.title)}</span></div>
-        ${this._historyBody(state.groups)}
+        ${this._historyHeader(content.title)}
+        ${this._historyBody(content.groups)}
       </div>`;
     dialog.addEventListener('closed', () => this._closeHistory());
     root.appendChild(dialog);
+    this._wireHistoryDeletes(dialog);
+  }
+
+  private _historyHeader(title: string): string {
+    return `<div class="hk-hist-header"><span class="hk-hist-title">${escapeHTML(title)}</span></div>`;
   }
 
   private _historyBody(groups: HistoryGroup[]): string {
@@ -1256,7 +1337,11 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _historyGroup(group: HistoryGroup, showHead: boolean): string {
-    const dates = sortedCompletions(group.completions);
+    // Sort the completion objects (not just Dates) so each row keeps its `ts`
+    // string for the per-row delete button.
+    const comps = [...(group.completions || [])]
+      .filter((c) => !Number.isNaN(new Date(c.ts).getTime()))
+      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
     const stats = completionStats(group.completions);
     const sub: string[] = [tn('history.count', stats.count)];
     if (stats.avgIntervalDays) sub.push(t('history.cadence', { days: stats.avgIntervalDays }));
@@ -1267,17 +1352,43 @@ export class HomeKeeperPanel extends HTMLElement {
       ? `<div class="hk-hist-head">${escapeHTML(group.name)}${archived}
            <span class="hk-hist-sub">${escapeHTML(sub.join(' · '))}</span></div>`
       : `<div class="hk-hist-head"><span class="hk-hist-sub">${escapeHTML(sub.join(' · '))}</span>${archived}</div>`;
-    const items = dates
-      .map(
-        (d) =>
-          `<li><span>${escapeHTML(d.toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-          }))}</span><span class="when">${escapeHTML(this._relativeDay(d))}</span></li>`,
-      )
+    // Encode the deletion target on each trash button: a live task carries
+    // `data-del-task`; an archived group carries `data-del-asset` + `data-del-arch`.
+    const delAttrs = group.taskId
+      ? `data-del-task="${escapeHTML(group.taskId)}"`
+      : group.assetId
+        ? `data-del-asset="${escapeHTML(group.assetId)}" data-del-arch="${escapeHTML(group.archivedTaskId || '')}"`
+        : '';
+    const items = comps
+      .map((c) => {
+        const d = new Date(c.ts);
+        const date = d.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+        return `<li>
+            <span class="date">${escapeHTML(date)}</span>
+            <span class="when">${escapeHTML(this._relativeDay(d))}</span>
+            <ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>
+          </li>`;
+      })
       .join('');
     return `<div class="hk-hist-group">${head}<ul class="hk-hist-list">${items}</ul></div>`;
+  }
+
+  /** Set the trash icon and wire each per-completion delete button in the dialog. */
+  private _wireHistoryDeletes(dialog: HTMLElement): void {
+    dialog.querySelectorAll<HTMLElement>('.hk-hist-del').forEach((b) => {
+      this._setIcon(b, MDI_DELETE);
+      b.addEventListener('click', () => {
+        const ts = b.dataset.ts;
+        if (!ts) return;
+        if (b.dataset.delTask) void this._deleteCompletion(b.dataset.delTask, ts);
+        else if (b.dataset.delAsset)
+          void this._deleteArchivedCompletion(b.dataset.delAsset, b.dataset.delArch || '', ts);
+      });
+    });
   }
 
   /** "today" / "yesterday" / "N days ago" for a past completion date. */

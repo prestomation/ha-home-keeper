@@ -45,6 +45,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_update_task)
     websocket_api.async_register_command(hass, ws_delete_task)
     websocket_api.async_register_command(hass, ws_complete_task)
+    websocket_api.async_register_command(hass, ws_delete_completion)
+    websocket_api.async_register_command(hass, ws_delete_archived_completion)
     websocket_api.async_register_command(hass, ws_get_assets)
     websocket_api.async_register_command(hass, ws_add_asset)
     websocket_api.async_register_command(hass, ws_update_asset)
@@ -167,6 +169,57 @@ async def ws_complete_task(
         return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/delete_completion",
+        vol.Required("task_id"): str,
+        vol.Required("ts"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_delete_completion(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    try:
+        task = await coord.store.delete_completion(msg["task_id"], msg["ts"])
+    except KeyError:
+        connection.send_error(msg["id"], "not_found", "Unknown task_id")
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/delete_archived_completion",
+        vol.Required("asset_id"): str,
+        vol.Required("task_id"): str,
+        vol.Required("ts"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_delete_archived_completion(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    try:
+        asset = await coord.store.delete_archived_completion(
+            msg["asset_id"], msg["task_id"], msg["ts"]
+        )
+    except KeyError:
+        connection.send_error(msg["id"], "not_found", "Unknown asset_id")
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"asset": asset})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_assets"})

@@ -464,6 +464,31 @@ def append_task_history(asset: dict, entry: dict) -> bool:
     return True
 
 
+def remove_archived_completion(asset: dict, task_id: str, ts: str) -> bool:
+    """Remove a single archived completion (ISO *ts*) from *asset*'s history.
+
+    Targets the ``task_history`` entry for *task_id* and drops the first completion
+    matching *ts*; if that empties the entry, the entry is removed entirely. Mutates
+    *asset* in place and returns ``True`` when something changed.
+    """
+    history = asset.get("task_history") or []
+    for index, entry in enumerate(history):
+        if entry.get("task_id") != task_id:
+            continue
+        completions = list(entry.get("completions", []))
+        for i, completion in enumerate(completions):
+            if completion.get("ts") == ts:
+                del completions[i]
+                if completions:
+                    history[index] = {**entry, "completions": completions}
+                else:
+                    del history[index]
+                asset["task_history"] = history
+                return True
+        return False
+    return False
+
+
 def would_create_cycle(
     assets_by_id: dict[str, dict], asset_id: str, parent_asset_id: str | None
 ) -> bool:

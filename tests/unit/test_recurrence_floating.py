@@ -75,3 +75,57 @@ def test_overdue_and_due_soon():
     assert r.is_overdue(soon, now=now) is False
     assert r.is_due_soon(soon, timedelta(days=3), now=now) is True
     assert r.is_due_soon(later, timedelta(days=3), now=now) is False
+
+
+def test_remove_completion_rewinds_to_prior():
+    now = dt(2026, 6, 13, 10)
+    task = {
+        "recurrence_type": "floating",
+        "interval": 1,
+        "unit": "months",
+        "created": dt(2026, 1, 1, 9).isoformat(),
+        "last_completed": dt(2026, 6, 1, 9).isoformat(),
+        "next_due": dt(2026, 7, 1, 9).isoformat(),
+        "completions": [
+            {"ts": dt(2026, 5, 1, 9).isoformat()},
+            {"ts": dt(2026, 6, 1, 9).isoformat()},
+        ],
+    }
+    r.remove_completion(task, dt(2026, 6, 1, 9).isoformat(), now=now)
+    # The accidental latest completion is gone; clock rewinds to the prior one.
+    assert task["completions"] == [{"ts": dt(2026, 5, 1, 9).isoformat()}]
+    assert task["last_completed"] == dt(2026, 5, 1, 9).isoformat()
+    assert task["next_due"] == dt(2026, 6, 1, 9).isoformat()
+
+
+def test_remove_only_completion_clears_last_completed():
+    now = dt(2026, 6, 13)
+    task = {
+        "recurrence_type": "floating",
+        "interval": 30,
+        "unit": "days",
+        "created": dt(2026, 1, 1).isoformat(),
+        "last_completed": dt(2026, 6, 1).isoformat(),
+        "next_due": dt(2026, 7, 1).isoformat(),
+        "completions": [{"ts": dt(2026, 6, 1).isoformat()}],
+    }
+    r.remove_completion(task, dt(2026, 6, 1).isoformat(), now=now)
+    assert task["completions"] == []
+    assert task["last_completed"] is None
+    # With no completion, next_due re-derives from now.
+    assert task["next_due"] == dt(2026, 7, 13).isoformat()
+
+
+def test_remove_completion_missing_ts_is_noop():
+    now = dt(2026, 6, 13, 10)
+    task = {
+        "recurrence_type": "floating",
+        "interval": 1,
+        "unit": "months",
+        "last_completed": dt(2026, 6, 1).isoformat(),
+        "next_due": dt(2026, 7, 1).isoformat(),
+        "completions": [{"ts": dt(2026, 6, 1).isoformat()}],
+    }
+    r.remove_completion(task, dt(2020, 1, 1).isoformat(), now=now)
+    assert task["completions"] == [{"ts": dt(2026, 6, 1).isoformat()}]
+    assert task["last_completed"] == dt(2026, 6, 1).isoformat()
