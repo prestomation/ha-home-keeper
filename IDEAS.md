@@ -179,6 +179,72 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
 - **Import/export & backup** of tasks (JSON), and migration tooling between
   versions.
 
+## New use cases (brainstorm)
+
+A round of "use cases we hadn't thought of yet," kept separate from the committed
+next-steps above. Several of these reuse asset metadata or the parts model we already
+ship rather than adding a parallel system.
+
+### Leverage asset metadata we already collect
+
+- **Home inventory for insurance.** The appliance registry *is* a home inventory.
+  Add a "total replacement value" rollup and a one-click export (CSV/JSON/PDF with
+  photos, serials, purchase dates, costs, warranty) — exactly what people scramble to
+  assemble after a fire/flood/theft. Reuses fields we already store. **(Implementing.)**
+- **Repair / service log (distinct from routine maintenance).** A place to record
+  one-off events ("HVAC capacitor replaced, $180, ABC Heating, 2026-03") separate from
+  recurring tasks, feeding **repair-vs-replace analytics** (lifetime cost per appliance).
+- **Warranty-claim assist.** A human-facing view that answers "is it under warranty?"
+  with provider, terms, manual link, and remaining days — on top of the existing
+  warranty-expiry sensor.
+- **Home-sale / handoff binder.** Export the full maintenance history + appliance docs
+  as a package for the next owner (or one's own records on a move).
+
+### Bridge to the physical world (HA-native)
+
+- **NFC tag / QR per appliance.** Stick an HA NFC tag on the furnace; tapping it opens
+  that appliance's page or marks its filter task done. Uniquely-HA affordance.
+- **Voice / Assist completion.** "I just changed the furnace filter" → marks it done;
+  "what maintenance is due this week?" → reads the list, via HA's conversation agent.
+
+### Triggers beyond the calendar
+
+- **Weather / season-triggered tasks.** Distinct from usage-based recurrence: "drain
+  the garden hoses" when the forecast first dips below freezing; "service the AC" each
+  spring. Tie a due condition to a weather entity or season, not just elapsed time.
+- **Vacation / away-aware scheduling.** Use HA presence to defer indoor chores while
+  away, or generate a pre-trip checklist (set thermostat, shut main water valve).
+
+### New asset categories the model already fits
+
+- **Vehicle maintenance.** A car is an asset; oil changes, rotation, registration, and
+  inspection are tasks. Mileage-based intervals (odometer from a car integration)
+  extend usage-based recurrence to a concrete, popular domain.
+- **Generalized expiry / renewal tracking.** The warranty-expiry sensor pattern
+  generalizes to fire-extinguisher service, chimney/septic inspection, registration,
+  smoke-detector replacement (10-yr), even subscriptions/HOA dues — "things with an
+  expiry date" is a broader job than "appliances."
+
+### Onboarding & consumables
+
+- **Starter template catalog.** A library of common appliances with sensible default
+  maintenance intervals (water-heater anode rod 12mo, HVAC filter 3mo, smoke-detector
+  battery 12mo, dryer-vent cleaning 12mo, fridge water filter 6mo) to kill the
+  blank-slate adoption barrier; "add water heater" pre-fills its wear items.
+- **Consumables inventory with stock counts.** Parts already carry part numbers. Track
+  *how many* spares are on hand, decrement on completion, alert at low stock, and push
+  the part onto HA's `todo` shopping list (or fire a reorder automation) when a task
+  comes due — closing the loop from "due" → "bought" → "done." **(Implementing.)**
+
+### Households & motivation
+
+- **Chore gamification / streaks.** Completion streaks and per-person stats — strong for
+  kids' chores and shared households; pairs with the assignees idea above.
+- **Task dependencies / multi-step procedures.** "Flush tank" only becomes due after
+  "drain tank"; sequencing for procedures bigger than a single checkbox.
+- **Vacation-rental / guest turnover checklists.** A reusable checklist that resets
+  between guests — adjacent to but distinct from the current recurrence model.
+
 ## Quality & infra
 
 - Diagnostics download (`diagnostics.py`) for support, like Pawsistant.
