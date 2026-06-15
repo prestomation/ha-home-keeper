@@ -6,6 +6,18 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.2.0b1] - 2026-06-15
+
+- **Managed tasks (stronger integration ownership).** Integrations that create tasks
+  can now declare a `managed_by` block, which Home Keeper acts on (unlike the opaque
+  `source`). Managed tasks show a **"Managed by {name}"** chip; declared fields are
+  locked out of the edit form; and an optional completion prompt and a deep link back
+  to the owning integration are surfaced. Tasks can also be grouped by integration.
+  If the owning integration is uninstalled or disabled, its tasks flip to
+  **"Integration offline"**, become deletable again, and a **"Remove orphaned tasks"**
+  banner offers one-click cleanup; `home_keeper.delete_task` also gains a `force`
+  option as a last resort. See `docs/INTEGRATING.md` §6.
+
 - **Home inventory export (for insurance).** A new **Export inventory** button on
   the Appliances tab downloads a CSV — make/model/serial, purchase and warranty
   dates, replacement cost, and the value of spares on hand, with a grand total —
