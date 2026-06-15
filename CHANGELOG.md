@@ -6,6 +6,22 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.1.0b4] - 2026-06-15
+
+- **Completion history for tasks and appliances.** Click a task to see every time it
+  was completed — the dates, how many, and the average cadence — or click an appliance
+  to see a timeline of *all* maintenance done on it across every related task. Answers
+  "when did I last do this / when was this serviced?" at a glance.
+
+- **Appliance history outlives a deleted task.** When a task that belongs to an
+  appliance is deleted, its completion history is kept on the appliance (shown as a
+  "removed task") so the appliance's maintenance record survives. A standalone task's
+  history is removed with it, and deleting an appliance clears its archive.
+
+- **Undo an accidental completion.** Each entry in the history view has a delete button;
+  removing a completion re-derives the task's next due date (a floating task rewinds to
+  the previous completion; a fixed schedule is unaffected).
+
 - **Device-page entities name themselves by task.** When several Home Keeper tasks
   are attached to the same existing device, their per-task entities (the *mark
   done* button, *next due* sensor, and *overdue* binary sensor) used to all share
