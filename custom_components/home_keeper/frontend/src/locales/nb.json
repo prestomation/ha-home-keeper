@@ -121,5 +121,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "Tilbake",
+  "group.by": "Grupper etter",
+  "group.none": "Ingen",
+  "group.status": "Status",
+  "group.area": "Område",
+  "group.device": "Enhet",
+  "filter.all": "Alle",
+  "filter.overdue": "Forfalt",
+  "filter.soon": "Snart forfalt",
+  "section.later": "Senere",
+  "section.noSchedule": "Ingen tidsplan",
+  "section.unassigned": "Ikke tilordnet",
+  "section.noDevice": "Ingen enhet",
+  "tasks.noMatch": "Ingen oppgaver samsvarer med dette filteret.",
+  "detail.gone": "Dette elementet finnes ikke lenger.",
+  "detail.about": "Detaljer",
+  "detail.schedule": "Tidsplan",
+  "detail.nextDue": "Neste forfall",
+  "detail.relatedTasks": "Relaterte oppgaver",
+  "detail.noNotes": "Ingen notater ennå"
 }

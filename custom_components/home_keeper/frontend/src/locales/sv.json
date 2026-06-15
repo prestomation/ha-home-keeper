@@ -121,5 +121,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "Tillbaka",
+  "group.by": "Gruppera efter",
+  "group.none": "Ingen",
+  "group.status": "Status",
+  "group.area": "Område",
+  "group.device": "Enhet",
+  "filter.all": "Alla",
+  "filter.overdue": "Försenad",
+  "filter.soon": "Snart",
+  "section.later": "Senare",
+  "section.noSchedule": "Inget schema",
+  "section.unassigned": "Ej tilldelad",
+  "section.noDevice": "Ingen enhet",
+  "tasks.noMatch": "Inga uppgifter matchar detta filter.",
+  "detail.gone": "Det här objektet finns inte längre.",
+  "detail.about": "Detaljer",
+  "detail.schedule": "Schema",
+  "detail.nextDue": "Nästa förfall",
+  "detail.relatedTasks": "Relaterade uppgifter",
+  "detail.noNotes": "Inga anteckningar än"
 }

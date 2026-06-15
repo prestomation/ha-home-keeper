@@ -121,5 +121,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "Tilbage",
+  "group.by": "Gruppér efter",
+  "group.none": "Ingen",
+  "group.status": "Status",
+  "group.area": "Område",
+  "group.device": "Enhed",
+  "filter.all": "Alle",
+  "filter.overdue": "Forfaldet",
+  "filter.soon": "Snart",
+  "section.later": "Senere",
+  "section.noSchedule": "Ingen tidsplan",
+  "section.unassigned": "Ikke tildelt",
+  "section.noDevice": "Ingen enhed",
+  "tasks.noMatch": "Ingen opgaver matcher dette filter.",
+  "detail.gone": "Dette element findes ikke længere.",
+  "detail.about": "Detaljer",
+  "detail.schedule": "Tidsplan",
+  "detail.nextDue": "Næste forfald",
+  "detail.relatedTasks": "Relaterede opgaver",
+  "detail.noNotes": "Ingen noter endnu"
 }

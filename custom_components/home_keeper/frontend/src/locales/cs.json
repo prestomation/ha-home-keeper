@@ -141,5 +141,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "Zpět",
+  "group.by": "Seskupit podle",
+  "group.none": "Žádné",
+  "group.status": "Stav",
+  "group.area": "Oblast",
+  "group.device": "Zařízení",
+  "filter.all": "Vše",
+  "filter.overdue": "Po termínu",
+  "filter.soon": "Brzy",
+  "section.later": "Později",
+  "section.noSchedule": "Bez plánu",
+  "section.unassigned": "Nepřiřazeno",
+  "section.noDevice": "Žádné zařízení",
+  "tasks.noMatch": "Tomuto filtru neodpovídají žádné úkoly.",
+  "detail.gone": "Tato položka již neexistuje.",
+  "detail.about": "Podrobnosti",
+  "detail.schedule": "Plán",
+  "detail.nextDue": "Příští termín",
+  "detail.relatedTasks": "Související úkoly",
+  "detail.noNotes": "Zatím žádné poznámky"
 }

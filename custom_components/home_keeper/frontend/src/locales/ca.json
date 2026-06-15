@@ -121,5 +121,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "Enrere",
+  "group.by": "Agrupa per",
+  "group.none": "Cap",
+  "group.status": "Estat",
+  "group.area": "Àrea",
+  "group.device": "Dispositiu",
+  "filter.all": "Tots",
+  "filter.overdue": "Endarrerit",
+  "filter.soon": "Aviat",
+  "section.later": "Més tard",
+  "section.noSchedule": "Sense planificació",
+  "section.unassigned": "Sense assignar",
+  "section.noDevice": "Sense dispositiu",
+  "tasks.noMatch": "Cap tasca coincideix amb aquest filtre.",
+  "detail.gone": "Aquest element ja no existeix.",
+  "detail.about": "Detalls",
+  "detail.schedule": "Planificació",
+  "detail.nextDue": "Pròxim venciment",
+  "detail.relatedTasks": "Tasques relacionades",
+  "detail.noNotes": "Encara no hi ha notes"
 }

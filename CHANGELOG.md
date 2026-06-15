@@ -6,6 +6,22 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.1.0b5] - 2026-06-15
+
+- **Group and filter the task list.** The panel's list view gains a persisted
+  *group by* control — tasks by **Status** (overdue / due soon / later / no
+  schedule), **Area**, or **Device**; appliances by **Area** — rendering
+  collapsible sections with counts. Tasks also get quick **All / Overdue / Due
+  soon** filter chips.
+
+- **Full detail pages for tasks and appliances.** Tapping a row now opens a
+  dedicated detail page instead of a history-only dialog. A task page shows its
+  status, schedule, notes, and completion history; an appliance page gathers its
+  metadata, parts & wear items, related tasks, subdevices, and full maintenance
+  history (including the retained history of removed tasks) in one place.
+  Done / Edit / Delete live on the detail page, and task rows keep a quick
+  **Done** plus a red overdue accent.
+
 ## [0.1.0b4] - 2026-06-15
 
 - **Completion history for tasks and appliances.** Click a task to see every time it

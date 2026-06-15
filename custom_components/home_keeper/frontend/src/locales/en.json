@@ -121,5 +121,26 @@
   "history.count.one": "{n} completion",
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
-  "history.archived": "removed task"
+  "history.archived": "removed task",
+
+  "btn.back": "Back",
+  "group.by": "Group by",
+  "group.none": "None",
+  "group.status": "Status",
+  "group.area": "Area",
+  "group.device": "Device",
+  "filter.all": "All",
+  "filter.overdue": "Overdue",
+  "filter.soon": "Due soon",
+  "section.later": "Later",
+  "section.noSchedule": "No schedule",
+  "section.unassigned": "Unassigned",
+  "section.noDevice": "No device",
+  "tasks.noMatch": "No tasks match this filter.",
+  "detail.gone": "This item no longer exists.",
+  "detail.about": "Details",
+  "detail.schedule": "Schedule",
+  "detail.nextDue": "Next due",
+  "detail.relatedTasks": "Related tasks",
+  "detail.noNotes": "No notes yet"
 }
