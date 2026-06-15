@@ -141,8 +141,35 @@ def deletion_blocked(task: dict, *, orphaned: bool, force: bool = False) -> bool
     return not orphaned
 
 
+def _coerce_seed(value: Any, *, tz: Any) -> datetime:
+    """Parse a ``last_completed`` seed into an aware datetime.
+
+    Accepts a datetime (passed straight through) or an ISO string. A naive value is
+    qualified with *tz* (the caller's configured zone) just like a fixed anchor, so
+    the recurrence engine can compare it against an aware ``now``.
+    """
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        try:
+            parsed = datetime.fromisoformat(value)
+        except (TypeError, ValueError) as err:
+            raise TaskValidationError(
+                f"invalid last_completed datetime: {value!r}"
+            ) from err
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=tz) if tz is not None else parsed.astimezone()
+    return parsed
+
+
 def build_task(data: dict, *, now: datetime) -> dict:
-    """Create a brand-new task dict (with id, history, and computed next_due)."""
+    """Create a brand-new task dict (with id, history, and computed next_due).
+
+    An optional ``last_completed`` seed records an initial completion so the task
+    starts measured from a known "last done" date rather than due-now. Used by
+    integrations that already know when the activity last happened (e.g. Pawsistant
+    passing a pet's most recent logged event). Without it, a floating task is due now.
+    """
     fields = normalize_fields(data, tz=now.tzinfo)
     validate_managed_by(data.get("managed_by"))
     task: dict[str, Any] = {
@@ -159,7 +186,14 @@ def build_task(data: dict, *, now: datetime) -> dict:
         "managed_by": data.get("managed_by"),
         **fields,
     }
-    task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
+    seed = data.get("last_completed")
+    if seed not in (None, ""):
+        # Recording the seed as a completion both stamps last_completed and lets the
+        # recurrence engine derive next_due (floating -> seed + interval; fixed stays
+        # anchor-driven, the seed just becomes its first history entry).
+        recurrence.apply_completion(task, _coerce_seed(seed, tz=now.tzinfo), now=now)
+    else:
+        task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
     return task
 
 

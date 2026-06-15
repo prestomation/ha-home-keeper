@@ -7,10 +7,13 @@ caller is responsible for passing an aware ``now`` from ``homeassistant.util.dt`
 
 Two recurrence models are supported:
 
-* **floating** — the next due date is measured from the last completion (or the
-  task's anchor if never completed): ``next_due = last_completed + interval·unit``.
-  Completing the task resets the clock. A missed task simply stays overdue; the
-  due date does not march forward on its own.
+* **floating** — the next due date is measured from the last completion:
+  ``next_due = last_completed + interval·unit``. A task that has *never* been
+  completed has no clock to measure from, so it is due immediately (``now``) rather
+  than a full interval into the future — a brand-new chore you haven't done yet is
+  due now, not "in N days". Completing the task (or seeding an initial completion at
+  creation) starts the clock. A missed task simply stays overdue; the due date does
+  not march forward on its own.
 
 * **fixed** — the next due date follows a calendar schedule anchored at a fixed
   datetime (``FREQ=DAILY|WEEKLY|MONTHLY`` every ``interval`` steps). Completing an
@@ -77,9 +80,16 @@ def compute_floating_next_due(
     *,
     now: datetime,
 ) -> datetime:
-    """Next due date for a floating task, measured from last completion or *now*."""
-    base = last_completed if last_completed is not None else now
-    return add_interval(base, interval, unit)
+    """Next due date for a floating task, measured from the last completion.
+
+    A task that has never been completed (``last_completed is None``) is due
+    immediately (``now``): there is no completion to measure an interval from, and a
+    chore you have not yet done should read as due now rather than a full interval
+    into the future. Seeding an initial completion opts into the measured behaviour.
+    """
+    if last_completed is None:
+        return now
+    return add_interval(last_completed, interval, unit)
 
 
 def _step(dt: datetime, freq: str, interval: int) -> datetime:

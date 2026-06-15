@@ -47,9 +47,10 @@ def test_floating_next_due_from_last_completed():
     assert nd == dt(2026, 7, 1, 9)
 
 
-def test_floating_next_due_uses_now_when_never_completed():
+def test_floating_next_due_is_now_when_never_completed():
+    # A never-completed floating task is due immediately, not a full interval out.
     nd = r.compute_floating_next_due(None, 30, "days", now=dt(2026, 6, 13))
-    assert nd == dt(2026, 7, 13)
+    assert nd == dt(2026, 6, 13)
 
 
 def test_apply_completion_resets_clock_from_completion():
@@ -112,8 +113,8 @@ def test_remove_only_completion_clears_last_completed():
     r.remove_completion(task, dt(2026, 6, 1).isoformat(), now=now)
     assert task["completions"] == []
     assert task["last_completed"] is None
-    # With no completion, next_due re-derives from now.
-    assert task["next_due"] == dt(2026, 7, 13).isoformat()
+    # With no completion left, the task falls back to due-now.
+    assert task["next_due"] == dt(2026, 6, 13).isoformat()
 
 
 def test_remove_completion_missing_ts_is_noop():

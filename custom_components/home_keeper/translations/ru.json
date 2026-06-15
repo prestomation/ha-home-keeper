@@ -43,6 +43,10 @@
           "name": "Привязка",
           "description": "Для фиксированных задач: дата и время первого выполнения в формате ISO (задаёт время суток)."
         },
+        "last_completed": {
+          "name": "Last completed",
+          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+        },
         "device_id": {
           "name": "Устройство",
           "description": "Необязательное устройство, к которому привязывается эта задача."

@@ -53,6 +53,13 @@ if hass.services.has_service(DOMAIN_HK, "add_task"):
             #   "interval": 1,
             #   "anchor": "2026-01-01T08:00:00",  # sets the time-of-day; naive is OK
             #
+            # Optional "last done" seed. A floating task with no completion history
+            # is due *immediately* (a chore you've never done is due now, not a full
+            # interval from now). If you already know when the activity last happened,
+            # pass it here to seed an initial completion so the first next-due is
+            # measured from it (next_due = last_completed + interval) instead:
+            #   "last_completed": "2026-01-01T08:00:00",  # naive is OK
+            #
             # Optional: attach the task to an existing device so Home Keeper's
             # next-due sensor, overdue binary_sensor and mark-done button appear on
             # that device's page. Pass a device *registry id* (not your own key).
@@ -315,7 +322,10 @@ weeks"):
 1. Pawsistant calls `add_task` with `recurrence_type="floating"`, `interval=2`,
    `unit="weeks"`, the pet's `device_id`, and
    `source={"pawsistant": {"dog_id": …, "event_type": "medicine", "schedule_id": …}}`,
-   and reads the `task_id` from the `add_task` response.
+   and reads the `task_id` from the `add_task` response. If the pet already has a
+   logged "medicine" event, Pawsistant passes its timestamp as `last_completed` so the
+   first due date is measured from when it was actually last done; otherwise the task
+   is due now.
 2. **Complete in Home Keeper** (checkbox / device button) → `home_keeper_task_completed`
    fires with `origin=None`; Pawsistant logs a "medicine" event for that pet (writing
    straight to its store, so it doesn't re-complete the task).
