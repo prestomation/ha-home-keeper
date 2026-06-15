@@ -103,6 +103,26 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     return fields
 
 
+def validate_managed_by(managed_by: Any) -> None:
+    """Validate a task's optional ``managed_by`` ownership block.
+
+    A ``deletion_protected`` task must record ``config_entry_id`` — that's how Home
+    Keeper detects the managing integration going away and lifts protection so the
+    task can be cleaned up. Without it, protection would be a permanent trap (only the
+    ``force`` service could remove the task). Rejecting it at creation keeps every
+    protected task cleanable. See docs/INTEGRATING.md §6.
+    """
+    if managed_by is None:
+        return
+    if not isinstance(managed_by, dict):
+        raise TaskValidationError("managed_by must be a mapping")
+    if managed_by.get("deletion_protected") and not managed_by.get("config_entry_id"):
+        raise TaskValidationError(
+            "managed_by.deletion_protected requires config_entry_id so the task can "
+            "still be cleaned up if the managing integration is removed"
+        )
+
+
 def deletion_blocked(task: dict, *, orphaned: bool, force: bool = False) -> bool:
     """Whether a task's deletion should be refused.
 
@@ -124,6 +144,7 @@ def deletion_blocked(task: dict, *, orphaned: bool, force: bool = False) -> bool
 def build_task(data: dict, *, now: datetime) -> dict:
     """Create a brand-new task dict (with id, history, and computed next_due)."""
     fields = normalize_fields(data, tz=now.tzinfo)
+    validate_managed_by(data.get("managed_by"))
     task: dict[str, Any] = {
         "id": str(uuid.uuid4()),
         "created": now.isoformat(),

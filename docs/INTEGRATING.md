@@ -220,7 +220,7 @@ await hass.services.async_call(
 | `locked_fields` | Those fields are **removed from the edit form** — user edits are silently ignored by `update_task`. |
 | `config_entry_id` | If the entry is unloaded, the chip becomes **"Integration offline"** (orphan detection). Also enables an **"Edit in {name}"** deep link on the detail page. |
 | `completion_prompt` | A short hint shown near the **Done** button so users know a completion triggers an action in your integration. |
-| `deletion_protected` | Replaces the **Delete** button with "Delete from {name} instead." The `delete_task` service also rejects the call with a descriptive error — **but only while your integration is still loaded** (see cleanup below). |
+| `deletion_protected` | Replaces the **Delete** button with "Delete from {name} instead." The `delete_task` service also rejects the call with a descriptive error — **but only while your integration is still loaded** (see cleanup below). **Requires `config_entry_id`**; `add_task` rejects a protected task without one. |
 
 ### Cleanup when your integration is gone or broken
 
@@ -244,9 +244,11 @@ owner is present, so a user is never stuck with tasks they can't remove:
     force: true
   ```
 
-> **Always record `config_entry_id`** in `managed_by` if you set `deletion_protected`.
-> Without it, Home Keeper can't auto-detect that you've been removed, and users must fall
-> back to the `force` delete.
+> **`config_entry_id` is required when `deletion_protected` is set.** `add_task` rejects
+> a protected task without it (`TaskValidationError` / `invalid_task`), because without it
+> Home Keeper couldn't auto-detect that you've been removed and the protection would
+> become a permanent trap. The `force` delete remains as a last resort for any task that
+> predates this rule.
 
 Your integration should still proactively `delete_task` for the ids it owns when its
 config entry is removed (see §5) — orphan cleanup is the safety net for when it can't.

@@ -151,7 +151,8 @@
           "icon": "mdi:paw",
           "locked_fields": ["device_id", "name"],
           "completion_prompt": "Log as Buddy's medicine dose?",
-          "deletion_protected": true
+          "deletion_protected": true,
+          "config_entry_id": "home_keeper_test_entry"
         }
       },
       "task_rex_vet": {
