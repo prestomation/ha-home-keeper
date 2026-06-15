@@ -132,5 +132,14 @@
   "asset.related.few": "{n} powiązane",
   "asset.related.many": "{n} powiązanych",
   "asset.related.other": "{n} powiązanych",
-  "asset.noDetails": "Brak szczegółów"
+  "asset.noDetails": "Brak szczegółów",
+  "btn.history": "History",
+  "btn.close": "Close",
+  "history.task.title": "{name} — completion history",
+  "history.appliance.title": "{name} — maintenance history",
+  "history.empty": "No completions recorded yet.",
+  "history.count.one": "{n} completion",
+  "history.count.other": "{n} completions",
+  "history.cadence": "≈ every {days} days",
+  "history.archived": "removed task"
 }

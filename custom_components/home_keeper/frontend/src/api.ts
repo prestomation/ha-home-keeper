@@ -40,6 +40,36 @@ export async function completeTask(hass: Hass, taskId: string): Promise<Task> {
   return res.task;
 }
 
+/** Remove a single completion from a task (undo an accidental "done"). */
+export async function deleteCompletion(
+  hass: Hass,
+  taskId: string,
+  ts: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/delete_completion',
+    task_id: taskId,
+    ts,
+  });
+  return res.task;
+}
+
+/** Remove a single completion from an appliance's archived task history. */
+export async function deleteArchivedCompletion(
+  hass: Hass,
+  assetId: string,
+  taskId: string,
+  ts: string,
+): Promise<Asset> {
+  const res = await hass.callWS<{ asset: Asset }>({
+    type: 'home_keeper/delete_archived_completion',
+    asset_id: assetId,
+    task_id: taskId,
+    ts,
+  });
+  return res.asset;
+}
+
 export async function getAssets(hass: Hass): Promise<Asset[]> {
   const res = await hass.callWS<{ assets: Asset[] }>({ type: 'home_keeper/get_assets' });
   return res.assets;

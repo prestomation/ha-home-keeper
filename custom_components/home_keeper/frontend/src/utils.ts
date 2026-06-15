@@ -85,6 +85,52 @@ export function areaName(
   return areas?.[areaId]?.name || areaId;
 }
 
+// ── completion history ───────────────────────────────────────────────────────
+
+/** Parsed, valid completion timestamps sorted newest-first. */
+export function sortedCompletions(completions?: { ts: string }[]): Date[] {
+  return (completions || [])
+    .map((c) => new Date(c.ts))
+    .filter((d) => !Number.isNaN(d.getTime()))
+    .sort((a, b) => b.getTime() - a.getTime());
+}
+
+export interface CompletionStats {
+  count: number;
+  last?: Date;
+  /** Mean days between completions (only when there are at least two). */
+  avgIntervalDays?: number;
+}
+
+/** Count, most-recent completion, and average cadence for a completion list. */
+export function completionStats(completions?: { ts: string }[]): CompletionStats {
+  const dates = sortedCompletions(completions);
+  const stats: CompletionStats = { count: dates.length };
+  if (dates.length) stats.last = dates[0];
+  if (dates.length >= 2) {
+    const spanMs = dates[0].getTime() - dates[dates.length - 1].getTime();
+    stats.avgIntervalDays = Math.round(spanMs / (dates.length - 1) / 86_400_000);
+  }
+  return stats;
+}
+
+/**
+ * True when a task is associated with an appliance — mirrors the backend's
+ * `assets.task_relates_to_asset` so the panel can group history client-side.
+ */
+export function taskRelatesToAsset(task: Task, asset: Asset): boolean {
+  if (task.source?.part?.asset_id === asset.id) return true;
+  const dev = task.device_id;
+  if (!dev) return false;
+  if (asset.device_id && dev === asset.device_id) return true;
+  return (asset.related_device_ids || []).includes(dev);
+}
+
+/** Every loaded task associated with an appliance. */
+export function tasksForAsset(asset: Asset, tasks: Task[]): Task[] {
+  return tasks.filter((task) => taskRelatesToAsset(task, asset));
+}
+
 /** Compact one-line summary of an asset's notable metadata for the card. */
 export function assetSummary(
   asset: Asset,

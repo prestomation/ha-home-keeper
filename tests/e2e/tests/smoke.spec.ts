@@ -100,6 +100,37 @@ test.describe('Home Keeper panel — smoke', () => {
     await expect(panel.locator('.hk-part').first().locator('ha-select')).toHaveCount(2);
   });
 
+  test('task history dialog lists completions and a trash button removes one', async ({
+    page,
+  }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    // Clicking a task's body opens its completion-history dialog (ha-dialog).
+    await panel.locator('.hist-open[data-id="task_fridge_filter"]').click();
+    const rows = panel.locator('#hk-history .hk-hist-list li');
+    await expect(rows.first()).toBeVisible();
+    const before = await rows.count();
+    expect(before).toBeGreaterThan(1);
+    // Each row carries a trash (ha-icon-button) — delete the first completion.
+    await panel.locator('#hk-history .hk-hist-del').first().click();
+    await expect(rows).toHaveCount(before - 1);
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('appliance history shows retained history of a removed task', async ({ page }) => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.locator('#tab-appliances').click();
+    await panel.locator('.asset-hist-open[data-id="asset_water_heater"]').click();
+    // The water heater's history includes a task that was deleted while still
+    // assigned to it — surfaced as an archived "removed task" group.
+    const dialog = panel.locator('#hk-history');
+    await expect(dialog.locator('.hk-hist-group').first()).toBeVisible();
+    await expect(dialog).toContainText('Flush water heater tank');
+    await expect(dialog.locator('.hk-hist-archived').first()).toBeVisible();
+  });
+
   test('native to-do + calendar cards render on the dashboard', async ({ page }) => {
     await openDashboard(page);
     await expect(page.locator('hui-todo-list-card, todo-list-card').first()).toBeVisible({

@@ -359,3 +359,71 @@ def test_delete_asset_removes_it_from_listing(ha):
     resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
     payload = resp.get("service_response", resp)
     assert all(a["id"] != target["id"] for a in payload["assets"])
+
+
+def _assets(ha):
+    resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+    return resp.get("service_response", resp)["assets"]
+
+
+def _tasks(ha):
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    return resp.get("service_response", resp)["tasks"]
+
+
+def test_deleting_a_task_assigned_to_an_appliance_archives_its_history(ha):
+    # Reference-counting retention: a task attached to an appliance keeps its
+    # completion history on that appliance after the task itself is deleted.
+    call_service(ha, "home_keeper", "add_asset", {"name": "Archive test heater"})
+    asset = next(a for a in _assets(ha) if a["name"] == "Archive test heater")
+    assert asset["device_id"], "virtual asset should be provisioned a device"
+
+    add = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "Archive test flush",
+            "recurrence_type": "floating",
+            "interval": 6,
+            "unit": "months",
+            "device_id": asset["device_id"],
+        },
+        return_response=True,
+    )
+    task_id = add.get("service_response", add)["task_id"]
+
+    call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+    call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+
+    # The task is gone...
+    assert all(t["id"] != task_id for t in _tasks(ha))
+    # ...but its history is preserved on the appliance.
+    asset = next(a for a in _assets(ha) if a["name"] == "Archive test heater")
+    history = asset.get("task_history", [])
+    entry = next((h for h in history if h["task_id"] == task_id), None)
+    assert entry is not None, "deleted task's history should be archived on the appliance"
+    assert entry["task_name"] == "Archive test flush"
+    assert len(entry["completions"]) == 1
+
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_deleting_a_standalone_task_does_not_archive(ha):
+    # A task with no appliance association just disappears — nothing to retain.
+    add = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {"name": "Standalone no-archive", "recurrence_type": "floating",
+         "interval": 1, "unit": "weeks"},
+        return_response=True,
+    )
+    task_id = add.get("service_response", add)["task_id"]
+    call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+    call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+
+    for asset in _assets(ha):
+        assert all(
+            h["task_id"] != task_id for h in asset.get("task_history", [])
+        ), "a standalone task's history must not be archived anywhere"

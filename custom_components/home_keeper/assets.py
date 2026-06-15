@@ -367,6 +367,128 @@ def _legacy_part(text: str) -> dict:
     }
 
 
+# ── task ↔ appliance association & completion-history retention ───────────────
+# These pure helpers answer "which tasks belong to this appliance" and preserve a
+# deleted task's completion history on its appliance. The retention rule is
+# reference-counting: a task's history outlives the task only while an appliance
+# still references it (a part-derived, device-attached, or related-device task). A
+# standalone task's history is dropped with it, and deleting an appliance drops the
+# archive with it (it is a field on the asset record).
+
+
+def _part_asset_id(task: dict) -> str | None:
+    """Return the asset id a part-derived task is sourced from, or None."""
+    source = task.get("source")
+    if isinstance(source, dict):
+        part = source.get("part")
+        if isinstance(part, dict):
+            return part.get("asset_id")
+    return None
+
+
+def task_relates_to_asset(task: dict, asset: dict) -> bool:
+    """True when *task* is associated with *asset*.
+
+    A task belongs to an appliance when it is derived from one of the appliance's
+    wear parts, attached to the appliance's device, or attached to a device the
+    appliance lists as related.
+    """
+    if _part_asset_id(task) == asset.get("id"):
+        return True
+    device_id = task.get("device_id")
+    if not device_id:
+        return False
+    if asset.get("device_id") and device_id == asset["device_id"]:
+        return True
+    return device_id in (asset.get("related_device_ids") or [])
+
+
+def tasks_for_asset(asset: dict, tasks: list[dict]) -> list[dict]:
+    """Every task associated with *asset* (see :func:`task_relates_to_asset`)."""
+    return [task for task in tasks if task_relates_to_asset(task, asset)]
+
+
+def find_archiving_asset(
+    assets_by_id: dict[str, dict], task: dict
+) -> dict | None:
+    """The asset a deleted *task*'s history should be preserved on, or None.
+
+    Precedence: the part-source appliance (the strong, explicit link) first, then
+    the first appliance that owns or relates to the task's device. Returns None for
+    a standalone task — its history is dropped on delete.
+    """
+    part_asset = assets_by_id.get(_part_asset_id(task) or "")
+    if part_asset is not None:
+        return part_asset
+    device_id = task.get("device_id")
+    if device_id:
+        for asset in assets_by_id.values():
+            if asset.get("device_id") == device_id or device_id in (
+                asset.get("related_device_ids") or []
+            ):
+                return asset
+    return None
+
+
+def build_archived_history(task: dict, *, archived_at: str) -> dict:
+    """A ``task_history`` entry snapshotting a deleted task's completions.
+
+    The task name and part id are snapshotted so the appliance view still reads
+    correctly after the task (and possibly its wear part) is gone.
+    """
+    source = task.get("source")
+    part_id = None
+    if isinstance(source, dict) and isinstance(source.get("part"), dict):
+        part_id = source["part"].get("part_id")
+    return {
+        "task_id": task.get("id"),
+        "task_name": task.get("name"),
+        "part_id": part_id,
+        "completions": list(task.get("completions", [])),
+        "archived_at": archived_at,
+    }
+
+
+def append_task_history(asset: dict, entry: dict) -> bool:
+    """Append history *entry* to *asset*'s ``task_history`` (in place).
+
+    Skips an entry with no completions (nothing worth preserving) and a duplicate
+    of an already-archived task id. Returns ``True`` when the asset was changed.
+    """
+    if not entry.get("completions"):
+        return False
+    history = asset.setdefault("task_history", [])
+    if any(e.get("task_id") == entry.get("task_id") for e in history):
+        return False
+    history.append(entry)
+    return True
+
+
+def remove_archived_completion(asset: dict, task_id: str, ts: str) -> bool:
+    """Remove a single archived completion (ISO *ts*) from *asset*'s history.
+
+    Targets the ``task_history`` entry for *task_id* and drops the first completion
+    matching *ts*; if that empties the entry, the entry is removed entirely. Mutates
+    *asset* in place and returns ``True`` when something changed.
+    """
+    history = asset.get("task_history") or []
+    for index, entry in enumerate(history):
+        if entry.get("task_id") != task_id:
+            continue
+        completions = list(entry.get("completions", []))
+        for i, completion in enumerate(completions):
+            if completion.get("ts") == ts:
+                del completions[i]
+                if completions:
+                    history[index] = {**entry, "completions": completions}
+                else:
+                    del history[index]
+                asset["task_history"] = history
+                return True
+        return False
+    return False
+
+
 def would_create_cycle(
     assets_by_id: dict[str, dict], asset_id: str, parent_asset_id: str | None
 ) -> bool:

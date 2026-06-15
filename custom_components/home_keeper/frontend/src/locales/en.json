@@ -112,5 +112,14 @@
   "asset.subdevices.other": "{n} subdevices",
   "asset.related.one": "{n} related",
   "asset.related.other": "{n} related",
-  "asset.noDetails": "No details yet"
+  "asset.noDetails": "No details yet",
+  "btn.history": "History",
+  "btn.close": "Close",
+  "history.task.title": "{name} — completion history",
+  "history.appliance.title": "{name} — maintenance history",
+  "history.empty": "No completions recorded yet.",
+  "history.count.one": "{n} completion",
+  "history.count.other": "{n} completions",
+  "history.cadence": "≈ every {days} days",
+  "history.archived": "removed task"
 }

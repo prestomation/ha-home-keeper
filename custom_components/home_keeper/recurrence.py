@@ -236,6 +236,30 @@ def apply_completion(task: dict, completed_at: datetime, *, now: datetime) -> di
     return task
 
 
+def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
+    """Return *task* with the completion at ISO timestamp *ts* removed.
+
+    Undoes an accidental completion: drops the first matching history entry,
+    re-derives ``last_completed`` from the remaining history (the latest, or None),
+    and recomputes ``next_due`` from that state. For a floating task this rewinds
+    the clock to the prior completion; for a fixed task ``next_due`` stays
+    schedule-driven. A no-op when *ts* is not present.
+    """
+    history = list(task.get("completions", []))
+    for index, entry in enumerate(history):
+        if entry.get("ts") == ts:
+            del history[index]
+            break
+    task["completions"] = history
+    if history:
+        latest = max(history, key=lambda entry: _parse(entry["ts"]))
+        task["last_completed"] = latest["ts"]
+    else:
+        task["last_completed"] = None
+    task["next_due"] = compute_next_due(task, now=now).isoformat()
+    return task
+
+
 def is_overdue(task: dict, *, now: datetime) -> bool:
     """True when the task's next due date is at or before *now*.
 

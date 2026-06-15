@@ -112,5 +112,14 @@
   "asset.subdevices.other": "{n} subdispositivos",
   "asset.related.one": "{n} relacionado",
   "asset.related.other": "{n} relacionados",
-  "asset.noDetails": "Aún no hay detalles"
+  "asset.noDetails": "Aún no hay detalles",
+  "btn.history": "Historial",
+  "btn.close": "Cerrar",
+  "history.task.title": "{name} — historial",
+  "history.appliance.title": "{name} — historial de mantenimiento",
+  "history.empty": "Aún no hay finalizaciones registradas.",
+  "history.count.one": "{n} finalización",
+  "history.count.other": "{n} finalizaciones",
+  "history.cadence": "≈ cada {days} días",
+  "history.archived": "tarea eliminada"
 }
