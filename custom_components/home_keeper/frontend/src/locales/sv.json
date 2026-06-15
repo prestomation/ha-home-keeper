@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "btn.exportInventory": "Exportera inventering",
+  "error.exportFailed": "Export av inventering misslyckades",
   "field.stock": "Lager",
   "field.reorder_at": "Beställ vid",
   "part.inStock": "I lager: {n}",

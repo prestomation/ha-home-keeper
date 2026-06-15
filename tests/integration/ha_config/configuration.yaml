@@ -36,6 +36,9 @@ input_text:
   hk_last_completed_origin:
     name: HK last completed origin
     max: 255
+  hk_last_low_stock_part:
+    name: HK last low-stock part
+    max: 255
 
 automation:
   - alias: Capture Home Keeper task completed
@@ -53,6 +56,16 @@ automation:
           entity_id: input_text.hk_last_completed_origin
         data:
           value: "{{ trigger.event.data.origin if trigger.event.data.origin is not none else 'none' }}"
+  - alias: Capture Home Keeper part low stock
+    trigger:
+      - platform: event
+        event_type: home_keeper_part_low_stock
+    action:
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hk_last_low_stock_part
+        data:
+          value: "{{ trigger.event.data.part_id }}@{{ trigger.event.data.stock }}"
 
 # Minimal logging
 logger:

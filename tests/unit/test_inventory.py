@@ -144,3 +144,26 @@ def test_csv_has_header_rows_and_total():
     assert total[0] == "TOTAL"
     assert total[-2] == "150.0"
     assert total[-1] == "10.0"
+
+
+def test_csv_neutralizes_formula_injection():
+    # A field a spreadsheet would treat as a formula is prefixed with ' so it renders
+    # as literal text (CSV/formula injection guard).
+    report = inv.build_inventory(
+        [_asset(id="1", name="=HYPERLINK(\"http://evil\")", manufacturer="@SUM(A1)")]
+    )
+    text = inv.inventory_to_csv(report)
+    row = next(r for r in csv.reader(io.StringIO(text)) if r and r[0].endswith("evil\")"))
+    assert row[0].startswith("'="), "a formula-like name must be prefixed with an apostrophe"
+    assert row[2].startswith("'@"), "a formula-like manufacturer must be neutralized"
+
+
+def test_spares_total_does_not_drift_from_per_row_rounding():
+    # Per-row spares are rounded for display, but the grand total accumulates the raw
+    # values and rounds once, so it can't drift from summing rounded rows.
+    a = _asset(id="1", name="A", cost=0.0, parts=[{"name": "p", "cost": 0.005, "stock": 1}])
+    b = _asset(id="2", name="B", cost=0.0, parts=[{"name": "q", "cost": 0.005, "stock": 1}])
+    report = inv.build_inventory([a, b])
+    # Each row rounds 0.005 -> 0.01 (banker's rounding may give 0.0), but the total is
+    # round(0.005 + 0.005) == 0.01 regardless.
+    assert report["totals"]["spares_value"] == 0.01

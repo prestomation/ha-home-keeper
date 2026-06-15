@@ -360,18 +360,19 @@ class HomeKeeperStore:
     ) -> dict[str, Any]:
         """Change a part's on-hand spare count by ``delta`` (clamped at zero).
 
-        Persists and, when a *decrease* drops the part to/below its reorder
-        threshold, fires the low-stock event (a restock never nags). Returns the
-        updated asset. Raises ``KeyError`` for an unknown asset or part.
+        Persists and, when the adjustment crosses the part from not-low into low,
+        fires the low-stock event once (a restock, or a decrease while already low,
+        never nags). Returns the updated asset. Raises ``KeyError`` for an unknown
+        asset or part.
         """
         asset = self._assets.get(asset_id)
         if asset is None:
             raise KeyError(asset_id)
         for part in asset.get("parts", []):
             if part.get("id") == part_id:
-                low = assets.adjust_part_stock(part, delta)
+                crossed_low = assets.adjust_part_stock(part, delta)
                 await self._save()
-                if low and delta < 0:
+                if crossed_low:
                     self._emit_low_stock(asset, part)
                 return asset
         raise KeyError(part_id)

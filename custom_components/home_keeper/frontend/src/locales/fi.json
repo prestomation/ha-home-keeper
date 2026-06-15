@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "btn.exportInventory": "Vie luettelo",
+  "error.exportFailed": "Luettelon vienti epäonnistui",
   "field.stock": "Varasto",
   "field.reorder_at": "Tilausraja",
   "part.inStock": "Varastossa: {n}",
