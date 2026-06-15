@@ -6,14 +6,17 @@ import {
   areaName,
   assetSummary,
   brandLogoUrl,
+  buildPath,
   completionStats,
   deviceDomain,
   deviceName,
   dueLabel,
   escapeHTML,
   isOverdue,
+  parseRoute,
   recurrenceSummary,
   tasksForAsset,
+  type PanelLocation,
 } from './utils';
 
 // mdi:devices — fallback icon when a device has no resolvable brand logo.
@@ -320,6 +323,9 @@ export class HomeKeeperPanel extends HTMLElement {
   private _collapsed = new Set<string>();
   // The object whose full detail page is open, or null for the list view.
   private _detail: { kind: 'task' | 'asset'; id: string } | null = null;
+  // The panel's URL prefix (e.g. `/home-keeper`), supplied by HA via `route`.
+  // Navigation builds absolute paths from it; falls back until the first route.
+  private _routePrefix = '/home-keeper';
   private _loaded = false;
   // Live HA components that need `.hass` refreshed when hass updates.
   private _liveHassEls: Array<{ hass?: Hass }> = [];
@@ -335,6 +341,50 @@ export class HomeKeeperPanel extends HTMLElement {
   }
   get hass(): Hass | undefined {
     return this._hass;
+  }
+
+  /**
+   * HA sets `route = { prefix, path }` on the panel element for every in-panel
+   * URL change, including browser Back/Forward. We treat it as the single source
+   * of truth: derive the view/detail from the path and render. This is what makes
+   * deep links resolve and Back move within the panel instead of ejecting from it.
+   */
+  set route(route: { prefix?: string; path?: string } | undefined) {
+    if (route?.prefix) this._routePrefix = route.prefix;
+    this._applyLocation(parseRoute(route?.path));
+  }
+
+  /** Adopt a parsed location into view/detail state, rendering only on change. */
+  private _applyLocation(loc: PanelLocation): void {
+    const changed =
+      loc.view !== this._view ||
+      loc.detail?.kind !== this._detail?.kind ||
+      loc.detail?.id !== this._detail?.id;
+    if (!changed) return;
+    this._view = loc.view;
+    this._detail = loc.detail;
+    // Leaving a list/detail closes any open form (forms are ephemeral overlays).
+    this._edit = { open: false, task: null };
+    this._assetEdit = { open: false, asset: null };
+    this._render();
+  }
+
+  /**
+   * Navigate the panel by changing the URL — never by mutating view/detail
+   * directly. HA's `location-changed` listener re-sets our `route`, which flows
+   * back through `set route` so there is exactly one path into a state change.
+   * Drill-in steps push (Back-able); lateral moves (tab switch) replace.
+   */
+  private _navigate(loc: PanelLocation, replace = false): void {
+    const url = this._routePrefix + buildPath(loc);
+    history[replace ? 'replaceState' : 'pushState'](null, '', url);
+    this.dispatchEvent(
+      new CustomEvent('location-changed', {
+        detail: { replace },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 
   connectedCallback(): void {
@@ -379,12 +429,13 @@ export class HomeKeeperPanel extends HTMLElement {
 
   // ── detail page lifecycle ───────────────────────────────────────────────────
   private _openDetail(kind: 'task' | 'asset', id: string): void {
-    this._detail = { kind, id };
-    this._render();
+    // Drilling in is a Back-able step: push.
+    this._navigate({ view: kind === 'asset' ? 'appliances' : 'tasks', detail: { kind, id } });
   }
   private _closeDetail(): void {
-    this._detail = null;
-    this._render();
+    // Return to the list this detail belongs to, collapsing the detail entry so
+    // browser Back from the list continues past it rather than re-opening it.
+    this._navigate({ view: this._view, detail: null }, true);
   }
 
   private async _init(): Promise<void> {
@@ -1474,7 +1525,9 @@ export class HomeKeeperPanel extends HTMLElement {
       root.querySelector('.d-done')?.addEventListener('click', () => void this._complete(task));
       root.querySelector('.d-edit')?.addEventListener('click', () => this._openEdit(task));
       root.querySelector('.d-del')?.addEventListener('click', () => {
-        this._detail = null;
+        // The detail is about to vanish: replace it with its list so Forward
+        // can't return to a deleted task.
+        this._navigate({ view: 'tasks', detail: null }, true);
         void this._delete(task);
       });
       return;
@@ -1483,15 +1536,18 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!asset) return;
     root.querySelector('.d-edit')?.addEventListener('click', () => this._openEditAsset(asset));
     root.querySelector('.d-del')?.addEventListener('click', () => {
-      this._detail = null;
+      // The detail is about to vanish: replace it with its list so Forward
+      // can't return to a deleted appliance.
+      this._navigate({ view: 'appliances', detail: null }, true);
       void this._deleteAsset(asset);
     });
   }
 
   private _switchView(view: 'tasks' | 'appliances'): void {
     if (this._view === view) return;
-    this._view = view;
-    this._render();
+    // Switching tabs is a lateral move, not a drill-in: replace so Back doesn't
+    // retrace every tab toggle.
+    this._navigate({ view, detail: null }, true);
   }
 
   private _makeForm(

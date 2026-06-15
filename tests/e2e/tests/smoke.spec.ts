@@ -149,7 +149,59 @@ test.describe('Home Keeper panel — smoke', () => {
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
-  test('native to-do + calendar cards render on the dashboard', async ({ page }) => {
+});
+
+test.describe('Home Keeper panel — deep linking & Back', () => {
+  test('opening a detail page reflects in the URL', async ({ page }) => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await expect(panel.locator('#back-btn')).toBeVisible();
+    await expect(page).toHaveURL(/\/home-keeper\/tasks\/task_fridge_filter$/);
+  });
+
+  test('a task detail URL deep-links straight to the detail page', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    await page.goto('/home-keeper/tasks/task_fridge_filter', { waitUntil: 'domcontentloaded' });
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.waitFor({ state: 'attached', timeout: 45_000 });
+    // Lands on the detail page (Back button present), not the list.
+    await expect(panel.locator('#back-btn')).toBeVisible();
+    await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('the appliances tab is deep-linkable', async ({ page }) => {
+    await page.goto('/home-keeper/appliances', { waitUntil: 'domcontentloaded' });
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.waitFor({ state: 'attached', timeout: 45_000 });
+    await expect(panel.locator('.hk-name')).toContainText(['Garage water heater']);
+  });
+
+  test('browser Back returns to the list, not out of the panel', async ({ page }) => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await expect(panel.locator('#back-btn')).toBeVisible();
+    // The browser Back button steps back to the list inside the panel.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/home-keeper(\/tasks)?$/);
+    await expect(panel.locator('#tab-tasks')).toBeVisible();
+    await expect(panel.locator('#back-btn')).toHaveCount(0);
+  });
+
+  test('the in-panel Back button returns to the list', async ({ page }) => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator('#back-btn').click();
+    await expect(panel.locator('#tab-tasks')).toBeVisible();
+    await expect(panel.locator('#back-btn')).toHaveCount(0);
+  });
+});
+
+test.describe('Home Keeper panel — dashboard', () => {
+  test('native to-do + calendar cards still render on the dashboard', async ({ page }) => {
     await openDashboard(page);
     await expect(page.locator('hui-todo-list-card, todo-list-card').first()).toBeVisible({
       timeout: 30_000,

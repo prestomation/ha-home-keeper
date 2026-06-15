@@ -69,6 +69,10 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
 - Entity unique IDs are anchored to the task `id` (survives renames).
 - Per-task device-page entities are created only for tasks with a `device_id`.
 - Escape all user content before innerHTML injection in the panel (`escapeHTML`).
+- Panel navigation is high-fidelity deep-linked: every destination (tab, detail
+  page) maps to a URL under `/home-keeper`, the `route` prop is the single source
+  of truth, and Back/Forward move within the panel — never mutate view/detail
+  state directly to navigate. See `.amazonq/rules/architecture-and-code.md`.
 
 ## Cross-integration contribution (DEFERRED)
 
