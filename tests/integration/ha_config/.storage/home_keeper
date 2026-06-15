@@ -155,7 +155,9 @@
             "notes": "",
             "replace_interval": 12,
             "replace_unit": "months",
-            "last_replaced": "2025-05-01"
+            "last_replaced": "2025-05-01",
+            "stock": 1,
+            "reorder_at": 2
           }
         ],
         "parent_asset_id": null,

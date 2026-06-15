@@ -73,23 +73,19 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   const assetForm = panel.locator('#hk-asset-form');
   await fillText(assetForm, 0, 'Garage water heater'); // name
   await fillText(assetForm, 1, 'Rheem'); // manufacturer
-  // Icon picker is a nested combo-box; best-effort (not essential to the shot).
-  try {
-    await assetForm
-      .locator('ha-selector-icon input')
-      .first()
-      .fill('mdi:water-boiler', { timeout: 4000 });
-  } catch {
-    /* leave icon empty */
-  }
   // Add a wear part to show the parts editor + replacement interval.
   await panel.locator('#a-add-part').click();
   const part = panel.locator('.hk-part').first();
   await fillText(part, 0, 'Anode rod'); // part name
   await fillText(part, 1, 'AR-1'); // part number
   await chooseHaSelect(part.locator('ha-select').first(), 'wear item');
-  // After switching to wear, the replace-interval number appears (cost is #0).
-  await panel.locator('.hk-part').first().locator('ha-selector-number').nth(1).locator('input').fill('12');
+  // Number selectors in part order: cost #0, stock #1, reorder-at #2, and (after
+  // switching to wear) replace-interval #3. Fill spare-inventory + interval so the
+  // shot shows stock tracking alongside the maintenance cadence.
+  const partNums = panel.locator('.hk-part').first().locator('ha-selector-number');
+  await partNums.nth(1).locator('input').fill('2'); // stock
+  await partNums.nth(2).locator('input').fill('1'); // reorder at
+  await partNums.nth(3).locator('input').fill('12'); // replace interval
   await page.screenshot({ path: `${OUT}/6-panel-appliance-create.png`, fullPage: true });
 
   // 4. The usage surfaces — native to-do list + calendar on a dashboard.

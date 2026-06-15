@@ -12,8 +12,9 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.util import dt as dt_util
 
-from . import devices
+from . import devices, inventory
 from .assets import AssetValidationError
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator, entity_set_key
@@ -51,6 +52,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_add_asset)
     websocket_api.async_register_command(hass, ws_update_asset)
     websocket_api.async_register_command(hass, ws_delete_asset)
+    websocket_api.async_register_command(hass, ws_adjust_part_stock)
+    websocket_api.async_register_command(hass, ws_export_inventory)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_tasks"})
@@ -314,3 +317,53 @@ async def ws_delete_asset(
             await coord.store.detach_tasks_from_device(removed_device_id)
         await hass.config_entries.async_reload(coord.entry.entry_id)
     connection.send_result(msg["id"], {"ok": True})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/adjust_part_stock",
+        vol.Required("asset_id"): str,
+        vol.Required("part_id"): str,
+        vol.Required("delta"): int,
+    }
+)
+@websocket_api.async_response
+async def ws_adjust_part_stock(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    try:
+        asset = await coord.store.adjust_part_stock(
+            msg["asset_id"], msg["part_id"], msg["delta"]
+        )
+    except KeyError:
+        connection.send_error(msg["id"], "not_found", "Unknown asset_id or part_id")
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"asset": asset})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "home_keeper/export_inventory"}
+)
+@websocket_api.async_response
+async def ws_export_inventory(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Return the home-inventory report (for insurance) plus a ready-to-save CSV."""
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    report = inventory.build_inventory(
+        coord.store.list_assets(),
+        area_names=devices.area_names(hass),
+        today=dt_util.now().date(),
+    )
+    connection.send_result(
+        msg["id"],
+        {"inventory": report, "csv": inventory.inventory_to_csv(report)},
+    )

@@ -17,6 +17,7 @@ from homeassistant.util import dt as dt_util
 
 from . import assets, events, models, recurrence
 from .const import (
+    EVENT_PART_LOW_STOCK,
     EVENT_TASK_COMPLETED,
     STORAGE_KEY,
     STORAGE_VERSION,
@@ -342,4 +343,35 @@ class HomeKeeperStore:
         for part in asset.get("parts", []):
             if part.get("id") == src.get("part_id"):
                 part["last_replaced"] = when_date
+                # Completing a wear-part replacement consumes one stocked spare;
+                # signal a reorder if that drops it to/below its threshold.
+                if assets.consume_part_stock(part):
+                    self._emit_low_stock(asset, part)
                 break
+
+    def _emit_low_stock(self, asset: dict[str, Any], part: dict[str, Any]) -> None:
+        """Fire the low-stock event so users can automate a reorder / shopping-list add."""
+        self._hass.bus.async_fire(
+            EVENT_PART_LOW_STOCK, events.low_stock_event_data(asset, part)
+        )
+
+    async def adjust_part_stock(
+        self, asset_id: str, part_id: str, delta: int
+    ) -> dict[str, Any]:
+        """Change a part's on-hand spare count by ``delta`` (clamped at zero).
+
+        Persists and, when a *decrease* drops the part to/below its reorder
+        threshold, fires the low-stock event (a restock never nags). Returns the
+        updated asset. Raises ``KeyError`` for an unknown asset or part.
+        """
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise KeyError(asset_id)
+        for part in asset.get("parts", []):
+            if part.get("id") == part_id:
+                low = assets.adjust_part_stock(part, delta)
+                await self._save()
+                if low and delta < 0:
+                    self._emit_low_stock(asset, part)
+                return asset
+        raise KeyError(part_id)

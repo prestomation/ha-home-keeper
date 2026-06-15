@@ -587,6 +587,33 @@ export class HomeKeeperPanel extends HTMLElement {
     await this._refresh();
   }
 
+  /**
+   * Build the home-inventory report server-side and save it as a CSV — a
+   * grab-and-go record for an insurance claim (make/model/serial, purchase +
+   * warranty dates, replacement cost, on-hand spares value).
+   */
+  private async _exportInventory(): Promise<void> {
+    if (!this._hass) return;
+    try {
+      const { csv } = await api.exportInventory(this._hass);
+      const stamp = new Date().toISOString().slice(0, 10);
+      this._downloadFile(`home-keeper-inventory-${stamp}.csv`, csv, 'text/csv');
+    } catch (err) {
+      console.error('home-keeper: inventory export failed', err);
+    }
+  }
+
+  /** Trigger a client-side file download (no server round-trip for the blob). */
+  private _downloadFile(filename: string, contents: string, mime: string): void {
+    const blob = new Blob([contents], { type: `${mime};charset=utf-8` });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // ── completion history ──────────────────────────────────────────────────────
   /**
    * Completion groups for the detail page's history section. For a task: its own
@@ -662,6 +689,7 @@ export class HomeKeeperPanel extends HTMLElement {
         </ha-tab-group>
         <div class="hk-actionbar">
           <ha-button raised id="add-btn">${escapeHTML(addLabel)}</ha-button>
+          ${onTasks ? '' : `<ha-button id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
         </div>
         <div id="hk-form-host"></div>
         ${this._controls()}
@@ -1086,7 +1114,15 @@ export class HomeKeeperPanel extends HTMLElement {
         if (p.replace_interval && p.replace_unit) {
           bits.push(t('field.replace_interval') + ' ' + p.replace_interval + ' ' + t(`opt.unit.${p.replace_unit}`));
         }
-        return this._row(p.name, bits.join(' · '));
+        if (p.stock != null) bits.push(t('part.inStock', { n: p.stock }));
+        const low = p.stock != null && p.reorder_at != null && p.stock <= p.reorder_at;
+        const chip = low
+          ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(
+              t('chip.lowStock'),
+            )}"></ha-assist-chip> `
+          : '';
+        const meta = bits.map((b) => escapeHTML(b)).join(' · ');
+        return this._row(p.name, `${chip}${meta}`, true);
       })
       .join('');
     return `
@@ -1390,6 +1426,14 @@ export class HomeKeeperPanel extends HTMLElement {
           { name: 'cost', selector: selNumber(0) },
         ],
       },
+      {
+        name: '',
+        type: 'grid',
+        schema: [
+          { name: 'stock', selector: selNumber(0) },
+          { name: 'reorder_at', selector: selNumber(0) },
+        ],
+      },
     ];
     if (isWear) {
       base.push({
@@ -1456,6 +1500,8 @@ export class HomeKeeperPanel extends HTMLElement {
       if (this._view === 'tasks') this._openCreate();
       else this._openCreateAsset();
     });
+
+    root.getElementById('export-btn')?.addEventListener('click', () => this._exportInventory());
 
     // Filter / group-by segmented controls.
     root.querySelectorAll<HTMLElement>('.hk-seg-btn').forEach((b) =>
@@ -1747,6 +1793,8 @@ export class HomeKeeperPanel extends HTMLElement {
           type: p.type ?? 'consumable',
           vendor: p.vendor ?? '',
           cost: p.cost ?? undefined,
+          stock: p.stock ?? undefined,
+          reorder_at: p.reorder_at ?? undefined,
           replace_interval: p.replace_interval ?? undefined,
           replace_unit: p.replace_unit ?? 'months',
         },
@@ -1760,6 +1808,11 @@ export class HomeKeeperPanel extends HTMLElement {
             type: (value.type as Part['type']) ?? 'consumable',
             vendor: String(value.vendor ?? ''),
             cost: value.cost != null && value.cost !== '' ? Number(value.cost) : null,
+            stock: value.stock != null && value.stock !== '' ? Number(value.stock) : null,
+            reorder_at:
+              value.reorder_at != null && value.reorder_at !== ''
+                ? Number(value.reorder_at)
+                : null,
             replace_interval:
               value.type === 'wear' && value.replace_interval
                 ? Number(value.replace_interval)

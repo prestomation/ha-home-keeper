@@ -282,8 +282,9 @@ add_asset:
       name: Parts
       description: >-
         Structured parts/wear items. Each: name, part_number, type (consumable or
-        wear), vendor, cost, and for wear items replace_interval + replace_unit
-        (days/weeks/months) which drive a maintenance task.
+        wear), vendor, cost, optional stock + reorder_at (spare-inventory tracking),
+        and for wear items replace_interval + replace_unit (days/weeks/months) which
+        drive a maintenance task.
       selector:
         object:
     parent_asset_id:
@@ -415,3 +416,39 @@ delete_asset:
 list_assets:
   name: List appliances
   description: Return all appliances/assets as a response.
+
+adjust_part_stock:
+  name: Adjust part stock
+  description: >-
+    Change a part's on-hand spare count by a signed delta (clamped at zero). Use a
+    negative delta to consume a spare, a positive delta to restock. When a decrease
+    reaches or crosses the part's reorder threshold, a home_keeper_part_low_stock
+    event fires so you can automate a shopping-list add or reorder.
+  fields:
+    asset_id:
+      name: Asset ID
+      description: The id of the appliance the part belongs to.
+      required: true
+      selector:
+        text:
+    part_id:
+      name: Part ID
+      description: The id of the part whose stock to adjust.
+      required: true
+      selector:
+        text:
+    delta:
+      name: Delta
+      description: Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock).
+      required: true
+      example: -1
+      selector:
+        number:
+          mode: box
+
+export_inventory:
+  name: Export inventory
+  description: >-
+    Return a home inventory for insurance as a response — one row per appliance
+    (make/model/serial, purchase + warranty dates, replacement cost, on-hand spares
+    value) with rolled-up totals, plus a ready-to-save CSV under the "csv" key.

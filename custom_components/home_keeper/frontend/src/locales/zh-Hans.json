@@ -1,5 +1,10 @@
 {
   "app.title": "Home Keeper",
+  "btn.exportInventory": "导出清单",
+  "field.stock": "库存",
+  "field.reorder_at": "补货阈值",
+  "part.inStock": "库存：{n}",
+  "chip.lowStock": "库存不足",
   "tab.tasks": "任务",
   "tab.appliances": "电器",
 

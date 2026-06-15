@@ -74,6 +74,24 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   otherwise call `coordinator.async_request_refresh()`. `add_task`/`delete_task`
   reload (entities appear/disappear).
 
+## Services are the interoperability surface — expose every action as one
+- **Every action that mutates or exports Home Keeper data MUST be exposed as a
+  `home_keeper.*` Home Assistant service**, not only as a panel websocket command.
+  This is not limited to task/asset CRUD — it includes exports (e.g. the inventory
+  export), stock adjustments, and any future operation. Services are what
+  automations, scripts, voice assistants, and other integrations build on, so they
+  are the contract; a panel **websocket command** is only a UI-latency optimization
+  layered on top and is **never a substitute** for the service.
+- **New action ⇒ service first.** A new operation lands as a service (handler in
+  `__init__.py`, registered in `_register_services` and listed in `_SERVICES` for
+  teardown) *and* documented: a `services.yaml` entry plus `strings.json`
+  localization with parity across all `translations/<lang>.json` files (the
+  translations-parity test enforces this; hassfest requires the `services.yaml` ↔
+  `strings.json` pairing). The websocket command, if any, is added alongside and
+  delegates to the same `HomeKeeperStore` method — never a divergent code path.
+- Read-only/report actions use `SupportsResponse.ONLY`; data mutations reload the
+  entry or refresh the coordinator exactly as the equivalent CRUD service does.
+
 ## Errors, validation & security
 - Service handlers raise `ServiceValidationError` for user-facing errors.
   Websocket commands return structured errors via `connection.send_error`.

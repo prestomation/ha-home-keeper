@@ -156,6 +156,21 @@ def _normalize_interval(value: Any) -> int | None:
     return interval
 
 
+def _normalize_stock(value: Any, field: str) -> int | None:
+    """Validate an optional non-negative spare-count (``stock`` / ``reorder_at``)."""
+    if value in (None, ""):
+        return None
+    try:
+        count = int(value)
+    except (TypeError, ValueError) as err:
+        raise AssetValidationError(f"{field} must be an integer") from err
+    if count < 0:
+        raise AssetValidationError(f"{field} must not be negative")
+    if count > MAX_INTERVAL:
+        raise AssetValidationError(f"{field} must be <= {MAX_INTERVAL}")
+    return count
+
+
 def _normalize_part(raw: Any) -> dict:
     """Validate and normalize a single part dict.
 
@@ -184,6 +199,12 @@ def _normalize_part(raw: Any) -> dict:
         "replace_interval": _normalize_interval(raw.get("replace_interval")),
         "replace_unit": None,
         "last_replaced": _normalize_date(raw.get("last_replaced"), "last_replaced"),
+        # Spare-inventory tracking. ``stock`` is how many spares are on hand
+        # (decremented when a wear-part replacement is completed); ``reorder_at``
+        # is the low-stock threshold that, when reached, fires a low-stock event.
+        # Both are optional — a part without ``stock`` simply isn't tracked.
+        "stock": _normalize_stock(raw.get("stock"), "stock"),
+        "reorder_at": _normalize_stock(raw.get("reorder_at"), "reorder_at"),
     }
     if part["replace_interval"] is not None:
         unit = raw.get("replace_unit") or "months"
@@ -213,20 +234,61 @@ def _normalize_parts(value: Any) -> list[dict]:
     return parts
 
 
+# Part fields the backend owns and keeps across an edit when the caller omits them:
+# ``last_replaced`` is stamped on completion, and ``stock``/``reorder_at`` are
+# maintained by stock adjustments, so a partial update (e.g. a service call that
+# resubmits a part without them) must not silently wipe them.
+_PRESERVED_PART_FIELDS = ("last_replaced", "stock", "reorder_at")
+
+
 def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
-    """Carry backend-managed part fields (``last_replaced``) across an edit.
+    """Carry backend-managed part fields across an edit.
 
     The panel submits the full parts list; for parts that already exist (matched by
-    ``id``) we keep the stored ``last_replaced`` unless the caller explicitly set it.
+    ``id``) we keep the stored backend-managed values (see ``_PRESERVED_PART_FIELDS``)
+    unless the caller explicitly set them.
     """
     by_id = {p["id"]: p for p in existing}
     merged: list[dict] = []
     for part in incoming:
         prior = by_id.get(part["id"])
-        if prior and part.get("last_replaced") is None:
-            part = {**part, "last_replaced": prior.get("last_replaced")}
+        if prior:
+            for key in _PRESERVED_PART_FIELDS:
+                if part.get(key) is None and prior.get(key) is not None:
+                    part = {**part, key: prior.get(key)}
         merged.append(part)
     return merged
+
+
+def part_is_low(part: dict) -> bool:
+    """True when a stock-tracked part is at or below its reorder threshold."""
+    stock = part.get("stock")
+    reorder = part.get("reorder_at")
+    return stock is not None and reorder is not None and stock <= reorder
+
+
+def consume_part_stock(part: dict) -> bool:
+    """Decrement a part's on-hand ``stock`` by one (never below zero).
+
+    A no-op for parts that don't track stock. Returns ``True`` when the part is now
+    at or below its reorder threshold, so the caller can emit a low-stock signal.
+    """
+    stock = part.get("stock")
+    if stock is None:
+        return False
+    part["stock"] = max(0, int(stock) - 1)
+    return part_is_low(part)
+
+
+def adjust_part_stock(part: dict, delta: int) -> bool:
+    """Adjust a part's on-hand ``stock`` by ``delta`` (clamped at zero).
+
+    Begins tracking from zero for a previously untracked part. Returns ``True`` when
+    the part is now at or below its reorder threshold.
+    """
+    current = part.get("stock") or 0
+    part["stock"] = max(0, int(current) + int(delta))
+    return part_is_low(part)
 
 
 def normalize_fields(data: dict) -> dict:

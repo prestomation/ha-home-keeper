@@ -77,6 +77,11 @@ Tapping an appliance opens a **detail page** that gathers its metadata, parts, r
 tasks, subdevices, and full maintenance history (including the retained history of
 tasks deleted while still assigned to it) in one place.
 
+The **Appliances** tab also has an **Export inventory** button that downloads a CSV
+**home inventory** — make/model/serial, purchase and warranty dates, replacement cost,
+and the value of spares on hand, with a grand total. It's the grab-and-go record you
+want for an insurance claim, built from metadata you've already entered.
+
 ![Appliance detail page](docs/images/8-panel-appliance-detail.png)
 
 ![Add an appliance](docs/images/6-panel-appliance-create.png)
@@ -89,6 +94,12 @@ a type of *consumable* (a stocked spare) or *wear item*. Give a wear item a
 for it, attached to the appliance's device — so it shows up in your to-do list and
 calendar, gets a mark-done button and a next-due sensor on the device page, and
 stamps the part's *last replaced* date when you complete it. No separate bookkeeping.
+
+Any part can also track **spare inventory** — a *stock* count and a *reorder-at*
+threshold. Completing a wear-item replacement consumes one spare, and when stock drops
+to (or below) the threshold Home Keeper fires a `home_keeper_part_low_stock` event you
+can automate on (add the part to a shopping list, notify, reorder). The panel flags
+low parts and the export below values your spares on hand.
 
 ### Relationships: subdevices & related devices
 

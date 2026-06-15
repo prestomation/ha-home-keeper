@@ -427,3 +427,53 @@ def test_deleting_a_standalone_task_does_not_archive(ha):
         assert all(
             h["task_id"] != task_id for h in asset.get("task_history", [])
         ), "a standalone task's history must not be archived anywhere"
+
+
+def _water_heater(ha):
+    return next(a for a in _assets(ha) if a["name"] == "Garage water heater")
+
+
+def test_export_inventory_service_returns_report_and_csv(ha):
+    # The inventory export rolls the appliance metadata up for an insurance record.
+    resp = call_service(ha, "home_keeper", "export_inventory", {}, return_response=True)
+    payload = resp.get("service_response", resp)
+    report = payload["inventory"]
+    assert "assets" in report and "totals" in report
+    wh = next(r for r in report["assets"] if r["name"] == "Garage water heater")
+    assert wh["cost"] == 649.0
+    assert wh["serial_number"] == "RH-0001"
+    assert report["totals"]["asset_count"] >= 1
+    assert report["totals"]["total_cost"] >= 649.0
+    # A ready-to-save CSV is included, with a header row naming the columns.
+    csv = payload["csv"]
+    assert csv.splitlines()[0].startswith("Name,")
+    assert "Garage water heater" in csv
+
+
+def test_adjust_part_stock_service_clamps_and_restocks(ha):
+    wh = _water_heater(ha)
+    part = next(p for p in wh["parts"] if p["name"] == "Anode rod")
+    # Force to zero (clamped at zero) regardless of prior state, then restock by 2.
+    call_service(
+        ha, "home_keeper", "adjust_part_stock",
+        {"asset_id": wh["id"], "part_id": part["id"], "delta": -100},
+    )
+    part = next(p for p in _water_heater(ha)["parts"] if p["name"] == "Anode rod")
+    assert part["stock"] == 0
+    call_service(
+        ha, "home_keeper", "adjust_part_stock",
+        {"asset_id": wh["id"], "part_id": part["id"], "delta": 2},
+    )
+    part = next(p for p in _water_heater(ha)["parts"] if p["name"] == "Anode rod")
+    assert part["stock"] == 2
+
+
+def test_adjust_part_stock_rejects_unknown_part(ha):
+    from conftest import HA_URL
+
+    wh = _water_heater(ha)
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/adjust_part_stock",
+        json={"asset_id": wh["id"], "part_id": "no_such_part", "delta": 1},
+    )
+    assert r.status_code >= 400, "expected rejection for an unknown part_id"
