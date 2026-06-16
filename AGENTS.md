@@ -7,6 +7,13 @@
 - **Always squash merge PRs.**
 - **CHANGELOG.md** — update for every user-facing change before tagging a release.
   Developer-only changes (CI config, AGENTS.md, IDEAS.md) don't need entries.
+- **A stable release's `## [X.Y.Z]` notes describe what changed since the last
+  _stable_ release — not since its betas.** When cutting `X.Y.Z` from an `X.Y.ZbN`
+  line, write the section for someone upgrading from the previous stable version and
+  roll the beta work into Added/Changed/Fixed as they'd perceive it. A feature
+  introduced over the betas is **Added** (even if a later beta changed how it worked
+  mid-stream); don't carry beta-to-beta framing — e.g. a `### Changed` for something
+  that didn't exist in the last stable — into the stable section.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only `pip install pytest`: `pytest tests/unit -v`.
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
