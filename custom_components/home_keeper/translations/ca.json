@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Activar tasca",
+      "description": "Armar una tasca controlada per condició (activada) perquè aparegui com a vençuda ara — la contrapart per a l'usuari de Completar tasca (que la retorna a l'estat inactiu). Idempotent; només vàlid per a tasques activades.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca activada a armar."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Llistar tasques",
       "description": "Retornar totes les tasques com a resposta."

@@ -79,6 +79,19 @@ class FakeHomeKeeper:
             call.data.get("origin"),
         )
 
+    async def _trigger_task(self, call: ServiceCall) -> None:
+        # Arm a triggered (condition-driven) task: next_due -> now (due). Mirrors the
+        # real store.trigger_task — including rejecting non-triggered tasks — so glue
+        # tests catch a caller that arms a floating/fixed task by mistake.
+        task = self.tasks.get(call.data["task_id"])
+        if task is None:
+            return
+        if task.get("recurrence_type") != "triggered":
+            raise models.TaskValidationError(
+                "trigger_task is only valid for triggered (condition-driven) tasks"
+            )
+        task["next_due"] = dt_util.now().isoformat()
+
     async def _list_tasks(self, call: ServiceCall) -> dict[str, Any]:
         return {"tasks": [dict(t) for t in self.tasks.values()]}
 
@@ -132,6 +145,7 @@ class FakeHomeKeeper:
         reg(DOMAIN, "update_task", self._update_task, _ANY)
         reg(DOMAIN, "delete_task", self._delete_task, _ANY)
         reg(DOMAIN, "complete_task", self._complete_task, _ANY)
+        reg(DOMAIN, "trigger_task", self._trigger_task, _ANY)
         reg(
             DOMAIN,
             "list_tasks",
@@ -146,6 +160,7 @@ class FakeHomeKeeper:
             "update_task",
             "delete_task",
             "complete_task",
+            "trigger_task",
             "list_tasks",
         ):
             self.hass.services.async_remove(DOMAIN, name)

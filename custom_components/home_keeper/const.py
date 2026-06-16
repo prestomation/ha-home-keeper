@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.2.0"
+PANEL_VERSION = "0.3.0b1"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -63,7 +63,13 @@ TASK_SOURCE_PART = "part"
 # Recurrence types.
 REC_FLOATING = "floating"
 REC_FIXED = "fixed"
-RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED]
+# A condition-driven task with no schedule. An owner integration arms it (via
+# ``trigger_task`` or by creating it) when a condition becomes true and clears it
+# (via ``complete_task``) when the condition resolves. Its ``next_due`` *is* its
+# state: ``None`` = dormant (invisible to every time surface), a timestamp =
+# active/due-now. See docs/INTEGRATING.md "Condition-driven (triggered) tasks".
+REC_TRIGGERED = "triggered"
+RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED, REC_TRIGGERED]
 
 # Floating interval units.
 UNIT_DAYS = "days"

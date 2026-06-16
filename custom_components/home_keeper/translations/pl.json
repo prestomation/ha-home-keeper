@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Wyzwól zadanie",
+      "description": "Uzbrój zadanie sterowane warunkiem (wyzwalane), aby było widoczne jako wymagane teraz — odpowiednik dla użytkownika polecenia Ukończ zadanie (które przywraca je do stanu uśpienia). Idempotentne; ważne tylko dla zadań wyzwalanych.",
+      "fields": {
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator wyzwalanego zadania do uzbrojenia."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Wyświetl zadania",
       "description": "Zwróć wszystkie zadania jako odpowiedź."

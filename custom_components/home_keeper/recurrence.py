@@ -34,6 +34,7 @@ from .const import (
     MAX_EXPAND_ITERATIONS,
     REC_FIXED,
     REC_FLOATING,
+    REC_TRIGGERED,
     UNIT_DAYS,
     UNIT_MONTHS,
     UNIT_WEEKS,
@@ -211,6 +212,12 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
         return next_fixed_occurrence(
             anchor, task["freq"], int(task["interval"]), after=now
         )
+    if rec_type == REC_TRIGGERED:
+        # A condition-driven task has no schedule: computing a due date means
+        # *arming* it (the condition is true), so it reads as due-now. Going
+        # dormant is the asymmetric job of ``apply_completion`` (next_due -> None);
+        # this function is only ever called to (re)arm.
+        return now
     raise ValueError(f"unknown recurrence_type: {rec_type!r}")
 
 
@@ -219,9 +226,13 @@ def apply_completion(task: dict, completed_at: datetime, *, now: datetime) -> di
 
     Records the completion in history (capped) and recomputes ``next_due``:
 
-    * floating -> measured from ``completed_at`` (the clock resets)
-    * fixed    -> the next scheduled occurrence after ``now`` (schedule-driven;
+    * floating  -> measured from ``completed_at`` (the clock resets)
+    * fixed     -> the next scheduled occurrence after ``now`` (schedule-driven;
       completion only marks the occurrence done)
+    * triggered -> ``next_due = None`` (dormant): completing a condition-driven
+      task *clears* the condition rather than rescheduling it, so it leaves every
+      time surface until the owner re-arms it. History is still recorded, so the
+      replacement cadence accumulates on the task.
     """
     history = list(task.get("completions", []))
     history.append({"ts": completed_at.isoformat()})
@@ -241,6 +252,8 @@ def apply_completion(task: dict, completed_at: datetime, *, now: datetime) -> di
         task["next_due"] = next_fixed_occurrence(
             anchor, task["freq"], int(task["interval"]), after=now
         ).isoformat()
+    elif rec_type == REC_TRIGGERED:
+        task["next_due"] = None
     else:
         raise ValueError(f"unknown recurrence_type: {rec_type!r}")
     return task
@@ -253,7 +266,9 @@ def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
     re-derives ``last_completed`` from the remaining history (the latest, or None),
     and recomputes ``next_due`` from that state. For a floating task this rewinds
     the clock to the prior completion; for a fixed task ``next_due`` stays
-    schedule-driven. A no-op when *ts* is not present.
+    schedule-driven; for a triggered task ``next_due`` is left untouched (its
+    armed/dormant state is condition-driven, not history-driven — editing the
+    replacement log must not arm a dormant task). A no-op when *ts* is not present.
     """
     history = list(task.get("completions", []))
     for index, entry in enumerate(history):
@@ -266,7 +281,8 @@ def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
         task["last_completed"] = latest["ts"]
     else:
         task["last_completed"] = None
-    task["next_due"] = compute_next_due(task, now=now).isoformat()
+    if task.get("recurrence_type") != REC_TRIGGERED:
+        task["next_due"] = compute_next_due(task, now=now).isoformat()
     return task
 
 

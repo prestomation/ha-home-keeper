@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Attiva attività",
+      "description": "Arma un'attività guidata da condizione (attivata) in modo che risulti dovuta ora — la controparte rivolta all'utente di Completa attività (che la riporta in stato dormiente). Idempotente; valido solo per attività attivate.",
+      "fields": {
+        "task_id": {
+          "name": "ID attività",
+          "description": "L'id dell'attività attivata da armare."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Elenca attività",
       "description": "Restituisce tutte le attività come risposta."

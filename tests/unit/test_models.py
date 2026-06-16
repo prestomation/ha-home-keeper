@@ -422,3 +422,71 @@ def test_build_task_allows_managed_without_protection_and_no_config_entry_id():
         now=NOW,
     )
     assert task["managed_by"]["integration"] == "pawsistant"
+
+
+def test_build_triggered_task_is_created_active_with_no_schedule_fields():
+    # A condition-driven task is created armed (due-now) and carries no schedule.
+    task = m.build_task(
+        {
+            "name": "Replace battery: Front door sensor",
+            "recurrence_type": "triggered",
+            "device_id": "dev_front_door",
+            "source": {"home_keeper_battery_notes": {"device_id": "dev_front_door"}},
+        },
+        now=NOW,
+    )
+    assert task["recurrence_type"] == "triggered"
+    assert task["next_due"] == NOW.isoformat()  # armed
+    # No schedule fields are stored on a triggered task.
+    for key in ("interval", "unit", "freq", "anchor"):
+        assert key not in task
+
+
+def test_triggered_task_does_not_require_unit_or_freq():
+    # normalize_fields must not fall through to the fixed branch (which demands
+    # freq/anchor) for a triggered task.
+    fields = m.normalize_fields(
+        {"name": "Mop up leak", "recurrence_type": "triggered"}
+    )
+    assert fields["recurrence_type"] == "triggered"
+    assert "unit" not in fields and "freq" not in fields and "interval" not in fields
+
+
+def test_merge_update_preserves_triggered_dormant_state():
+    # Editing the notes of a dormant triggered task must not re-arm it or add a schedule.
+    task = m.build_task(
+        {"name": "Replace battery", "recurrence_type": "triggered"}, now=NOW
+    )
+    task["next_due"] = None  # dormant
+    merged = m.merge_update(task, {"notes": "2x AA"}, now=NOW)
+    assert merged["next_due"] is None
+    assert merged["notes"] == "2x AA"
+    assert merged["recurrence_type"] == "triggered"
+
+
+def test_merge_update_dormant_triggered_survives_realistic_frontend_payload():
+    # Regression: the panel's edit form historically sent recurrence_type + interval
+    # + freq for every task. For a dormant triggered task that must NOT recompute
+    # next_due (which would re-arm a "Monitored" battery as due-now).
+    task = m.build_task(
+        {"name": "Replace battery", "recurrence_type": "triggered"}, now=NOW
+    )
+    task["next_due"] = None  # dormant
+    merged = m.merge_update(
+        task,
+        {"recurrence_type": "triggered", "interval": 1, "freq": "DAILY", "notes": "AA"},
+        now=NOW,
+    )
+    assert merged["next_due"] is None  # still dormant
+
+
+def test_merge_update_keeps_armed_triggered_armed():
+    # Symmetrically, editing an armed triggered task must not change its due time.
+    task = m.build_task(
+        {"name": "Replace battery", "recurrence_type": "triggered"}, now=NOW
+    )
+    armed = task["next_due"]  # created armed (== NOW)
+    merged = m.merge_update(
+        task, {"recurrence_type": "triggered", "interval": 1, "notes": "x"}, now=NOW
+    )
+    assert merged["next_due"] == armed

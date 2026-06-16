@@ -88,6 +88,26 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
+  // 1h. Condition-driven (triggered) battery task detail. An active one (battery
+  // low) reads as due-now with the "Managed by Battery Notes" chip and shows the
+  // full replacement cadence — every time the battery was changed.
+  await panel.locator('.detail-open[data-detail-id="task_door_battery"]').click();
+  await expect(panel.locator('ha-assist-chip.hk-managed').first()).toBeVisible();
+  await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/14-panel-battery-detail.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
+  // 1i. The "Monitored" status section holds dormant condition-driven tasks
+  // (healthy batteries) — collapsed by default to stay out of the way, one click
+  // to browse. Expand it for the shot.
+  const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');
+  await monitored.locator('summary').click();
+  await expect(monitored.locator('.hk-card').first()).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/15-panel-monitored-section.png`, fullPage: true });
+
   // 2. Create form — floating recurrence + device picker.
   await panel.locator('#add-btn').click();
   await expect(panel.locator('#hk-form')).toBeVisible();

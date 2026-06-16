@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Utløs oppgave",
+      "description": "Aktiver en betingelsesstyrt (utløst) oppgave slik at den vises som forfalt nå — brukerens motstykke til Fullfør oppgave (som setter den tilbake i hvilemodus). Idempotent; gjelder kun for utløste oppgaver.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til den utløste oppgaven som skal aktiveres."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vis oppgaver",
       "description": "Returner alle oppgaver som et svar."

@@ -66,6 +66,9 @@ UPDATE_TASK_SCHEMA = vol.Schema(
     }
 )
 TASK_ID_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
+# Arm a condition-driven (triggered) task so it reads as due-now. The owner-facing
+# counterpart to complete_task (which clears it back to dormant). See INTEGRATING.md.
+TRIGGER_TASK_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
 # ``force`` bypasses managed-task deletion protection — the escape hatch for cleaning
 # up a task whose managing integration is gone or misbehaving. See docs/INTEGRATING.md.
 DELETE_TASK_SCHEMA = vol.Schema(
@@ -246,6 +249,20 @@ def _register_services(hass: HomeAssistant) -> None:
             ) from None
         await coord.async_request_refresh()
 
+    async def handle_trigger_task(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.trigger_task(call.data["task_id"])
+        except KeyError:
+            raise ServiceValidationError(
+                f"Task not found: {call.data['task_id']}"
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(str(err)) from err
+        # Arming only flips next_due (dormant <-> active); the per-task entity set is
+        # unchanged, so a refresh is enough — no entry reload (mirrors complete_task).
+        await coord.async_request_refresh()
+
     async def handle_list_tasks(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
         return {"tasks": coord.store.list_tasks()}
@@ -319,6 +336,9 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN, "complete_task", handle_complete_task, COMPLETE_TASK_SCHEMA
     )
     hass.services.async_register(
+        DOMAIN, "trigger_task", handle_trigger_task, TRIGGER_TASK_SCHEMA
+    )
+    hass.services.async_register(
         DOMAIN,
         "list_tasks",
         handle_list_tasks,
@@ -375,6 +395,7 @@ _SERVICES = (
     "update_task",
     "delete_task",
     "complete_task",
+    "trigger_task",
     "list_tasks",
     "add_asset",
     "update_asset",

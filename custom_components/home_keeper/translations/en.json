@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Trigger task",
+      "description": "Arm a condition-driven (triggered) task so it reads as due now — the owner-facing counterpart to Complete task (which clears it back to dormant). Idempotent; only valid for triggered tasks.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the triggered task to arm."
+        }
+      }
+    },
     "list_tasks": {
       "name": "List tasks",
       "description": "Return all tasks as a response."

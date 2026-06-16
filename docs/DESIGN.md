@@ -8,16 +8,20 @@ from everyday usage.
 
 ## Recurrence model
 
-Two kinds, both implemented in the pure `recurrence.py` engine (no HA imports, takes
+Three kinds, all implemented in the pure `recurrence.py` engine (no HA imports, takes
 an explicit `now`):
 
 | Type | Semantics | `next_due` after completion |
 |------|-----------|-----------------------------|
 | **floating** | measured from last completion (`interval` × days/weeks/months) | `completed_at + interval` — the clock resets |
 | **fixed** | anchored calendar schedule (`FREQ` DAILY/WEEKLY/MONTHLY × `interval` from an `anchor` datetime) | the next scheduled occurrence after `now` — schedule-driven, not completion-driven |
+| **triggered** | condition-driven, *no schedule*. An owning integration arms it (`trigger_task`, or by creating it) when a condition becomes true and clears it (`complete_task`) when it resolves. `next_due` is its state: a timestamp = armed/due-now, `None` = dormant (invisible to to-do/calendar/overdue). | `None` (dormant) — completing *clears* the condition rather than rescheduling, while still recording the completion so cadence accumulates |
 
 Month arithmetic clamps to month length (Jan 31 + 1mo → Feb 28/29). A missed
-floating task stays overdue rather than rolling forward on its own.
+floating task stays overdue rather than rolling forward on its own. The `triggered`
+type is the first-class home for condition-driven sources (Battery Notes batteries,
+leak sensors, filter pressure) — see [INTEGRATING.md](INTEGRATING.md) §7 and
+[BATTERY_NOTES_PLAN.md](BATTERY_NOTES_PLAN.md).
 
 ## Components
 

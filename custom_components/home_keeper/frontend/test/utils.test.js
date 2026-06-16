@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   escapeHTML,
   recurrenceSummary,
+  isArmedTriggered,
   isOverdue,
   dueLabel,
   deviceName,
@@ -46,6 +47,31 @@ describe('recurrenceSummary', () => {
       'every 2 weeks',
     );
   });
+  it('describes triggered tasks as monitored (no schedule)', () => {
+    // Both armed and dormant triggered tasks summarize the same way — they have
+    // no recurrence rule, only a monitored condition.
+    expect(recurrenceSummary({ recurrence_type: 'triggered' })).toBe(
+      'Monitored (condition-driven)',
+    );
+    expect(
+      recurrenceSummary({ recurrence_type: 'triggered', next_due: '2026-06-01T00:00:00Z' }),
+    ).toBe('Monitored (condition-driven)');
+  });
+});
+
+describe('isArmedTriggered', () => {
+  it('is true only for a triggered task with a next_due (armed/due)', () => {
+    expect(isArmedTriggered({ recurrence_type: 'triggered', next_due: '2026-06-01T00:00:00Z' })).toBe(
+      true,
+    );
+  });
+  it('is false for a dormant triggered task and for non-triggered tasks', () => {
+    expect(isArmedTriggered({ recurrence_type: 'triggered' })).toBe(false);
+    expect(isArmedTriggered({ recurrence_type: 'triggered', next_due: null })).toBe(false);
+    expect(isArmedTriggered({ recurrence_type: 'floating', next_due: '2026-06-01T00:00:00Z' })).toBe(
+      false,
+    );
+  });
 });
 
 describe('isOverdue', () => {
@@ -68,6 +94,10 @@ describe('dueLabel', () => {
     expect(dueLabel({ next_due: '2026-06-14T12:00:00Z' }, now)).toBe('tomorrow');
     expect(dueLabel({ next_due: '2026-06-16T12:00:00Z' }, now)).toBe('in 3 days');
     expect(dueLabel({ next_due: '2026-06-12T12:00:00Z' }, now)).toBe('yesterday');
+  });
+  it('labels a dormant triggered task as Monitored', () => {
+    expect(dueLabel({ recurrence_type: 'triggered' }, now)).toBe('Monitored');
+    expect(dueLabel({ recurrence_type: 'triggered', next_due: null }, now)).toBe('Monitored');
   });
 });
 

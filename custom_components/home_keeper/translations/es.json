@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Activar tarea",
+      "description": "Armar una tarea controlada por condición (activada) para que aparezca como vencida ahora — la contraparte para el usuario de Completar tarea (que la devuelve a estado inactivo). Idempotente; solo válido para tareas activadas.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea activada a armar."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Listar tareas",
       "description": "Devolver todas las tareas como respuesta."

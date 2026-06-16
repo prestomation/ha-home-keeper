@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Spustit úkol",
+      "description": "Aktivovat úkol řízený podmínkou (spouštěný) tak, aby se zobrazoval jako nyní splatný — uživatelský protějšek k Dokončit úkol (které jej vrátí zpět do nečinného stavu). Idempotentní; platí pouze pro spouštěné úkoly.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID spouštěného úkolu, který se má aktivovat."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vypsat úkoly",
       "description": "Vrátit všechny úkoly jako odpověď."

@@ -20,6 +20,7 @@ from . import assets, events, models, recurrence
 from .const import (
     EVENT_PART_LOW_STOCK,
     EVENT_TASK_COMPLETED,
+    REC_TRIGGERED,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
@@ -111,6 +112,29 @@ class HomeKeeperStore:
         self._tasks[task_id] = merged
         await self._save()
         return merged
+
+    async def trigger_task(self, task_id: str) -> dict[str, Any]:
+        """Arm a condition-driven (``triggered``) task so it reads as due-now.
+
+        Sets ``next_due`` to now, moving the task from dormant to active. This is the
+        owner-facing counterpart to ``complete_task`` (which clears it back to
+        dormant): an integration calls it when the condition it monitors becomes true
+        again (e.g. a battery drops low after a prior replacement). Idempotent —
+        arming an already-active task just refreshes its trigger time. Only valid for
+        ``triggered`` tasks; rejects others so callers don't accidentally strand a
+        scheduled task on a fixed due date.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        if existing.get("recurrence_type") != REC_TRIGGERED:
+            raise models.TaskValidationError(
+                "trigger_task is only valid for triggered (condition-driven) tasks"
+            )
+        existing["next_due"] = dt_util.now().isoformat()
+        await self._save()
+        _LOGGER.debug("Triggered task %s (armed, due now)", task_id)
+        return existing
 
     async def delete_task(self, task_id: str, *, force: bool = False) -> None:
         task = self._tasks.get(task_id)

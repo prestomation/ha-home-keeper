@@ -8,7 +8,6 @@
   "chip.lowStock": "Low stock",
   "tab.tasks": "Tasks",
   "tab.appliances": "Appliances",
-
   "btn.addTask": "Add task",
   "btn.addAppliance": "Add appliance",
   "btn.done": "Done",
@@ -19,29 +18,23 @@
   "btn.cancel": "Cancel",
   "btn.removePart": "Remove part",
   "btn.addPart": "+ Add part",
-
   "tasks.empty": "No tasks yet. Click {addTask} to create your first maintenance reminder.",
   "appliances.empty": "No appliances yet. Add one to create a device page your tasks (and batteries) can share — fridge, furnace, water heater…",
-
   "form.task.new": "New task",
   "form.task.edit": "Edit task",
   "form.appliance.new": "New appliance",
   "form.appliance.edit": "Edit appliance",
   "form.task.due": "due {date}",
-
   "section.ownership": "Ownership & warranty",
   "section.related": "Related devices",
   "section.reference": "Reference",
   "section.parts": "Parts & wear items",
   "section.part_n": "Part {n}",
-
   "part.lastReplaced": "Last replaced {date} · a maintenance task tracks the next one",
   "part.wearHint": "A wear item with an interval creates a maintenance task on this appliance.",
-
   "error.nameRequired": "Name is required",
   "error.nameRequiredAppliance": "Name is required for a new appliance",
   "error.pickDevice": "Pick a device",
-
   "field.name": "Name",
   "field.notes": "Notes",
   "field.recurrence_type": "Recurrence",
@@ -71,7 +64,6 @@
   "field.replace_interval": "Replace every",
   "field.replace_unit": "Unit",
   "field.last_replaced": "Last replaced",
-
   "opt.recurrence.floating": "Floating (from completion)",
   "opt.recurrence.fixed": "Fixed (anchored schedule)",
   "opt.freq.daily": "daily",
@@ -84,25 +76,23 @@
   "opt.kind.existing": "Existing device (add details to it)",
   "opt.part.consumable": "consumable",
   "opt.part.wear": "wear item",
-
   "chip.overdue": "Overdue",
   "chip.virtualDevice": "Virtual device",
   "chip.subdeviceOf": "subdevice of {name}",
-
   "appliance.fallbackName": "Appliance",
-
   "recurrence.floating.one": "every {unit} after completion",
   "recurrence.floating.other": "every {n} {unit} after completion",
   "recurrence.fixed.one": "every {unit}",
   "recurrence.fixed.other": "every {n} {unit}",
+  "recurrence.triggered": "Monitored (condition-driven)",
   "recurrence.unit.day.one": "day",
   "recurrence.unit.day.other": "days",
   "recurrence.unit.week.one": "week",
   "recurrence.unit.week.other": "weeks",
   "recurrence.unit.month.one": "month",
   "recurrence.unit.month.other": "months",
-
   "due.none": "—",
+  "due.monitored": "Monitored",
   "due.today": "today",
   "due.tomorrow": "tomorrow",
   "due.in_days.one": "in {n} day",
@@ -110,7 +100,6 @@
   "due.yesterday": "yesterday",
   "due.days_ago.one": "{n} day ago",
   "due.days_ago.other": "{n} days ago",
-
   "asset.warrantyTo": "warranty to {date}",
   "asset.parts.one": "{n} part",
   "asset.parts.other": "{n} parts",
@@ -128,7 +117,6 @@
   "history.count.other": "{n} completions",
   "history.cadence": "≈ every {days} days",
   "history.archived": "removed task",
-
   "btn.back": "Back",
   "group.by": "Group by",
   "group.none": "None",
@@ -139,6 +127,7 @@
   "filter.overdue": "Overdue",
   "filter.soon": "Due soon",
   "section.later": "Later",
+  "section.monitored": "Monitored",
   "section.noSchedule": "No schedule",
   "section.unassigned": "Unassigned",
   "section.noDevice": "No device",
@@ -149,7 +138,6 @@
   "detail.nextDue": "Next due",
   "detail.relatedTasks": "Related tasks",
   "detail.noNotes": "No notes yet",
-
   "chip.managed": "Managed by {name}",
   "chip.orphaned": "Integration offline",
   "btn.openInIntegration": "Edit in {name}",

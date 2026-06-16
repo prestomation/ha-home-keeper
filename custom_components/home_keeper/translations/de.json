@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Aufgabe auslösen",
+      "description": "Eine bedingungsgesteuerte (ausgelöste) Aufgabe scharf schalten, sodass sie als jetzt fällig erscheint — das benutzerseitige Gegenstück zu „Aufgabe abschließen“ (das sie wieder in den Ruhezustand versetzt). Idempotent; nur für ausgelöste Aufgaben gültig.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Aufgaben auflisten",
       "description": "Gibt alle Aufgaben als Antwort zurück."

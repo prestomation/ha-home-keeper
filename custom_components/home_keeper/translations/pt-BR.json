@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Acionar tarefa",
+      "description": "Armar uma tarefa controlada por condição (acionada) para que apareça como vencida agora — a contraparte para o usuário de Concluir tarefa (que a retorna ao estado inativo). Idempotente; válido apenas para tarefas acionadas.",
+      "fields": {
+        "task_id": {
+          "name": "ID da tarefa",
+          "description": "O id da tarefa acionada a armar."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Listar tarefas",
       "description": "Retornar todas as tarefas como resposta."

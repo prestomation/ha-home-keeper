@@ -1,4 +1,7 @@
-export type RecurrenceType = 'floating' | 'fixed';
+// `triggered` is a condition-driven task with no schedule: its `next_due` is its
+// state (absent/null = dormant, a timestamp = armed/due-now). Owned by another
+// integration; rendered read-only in the panel. See docs/INTEGRATING.md.
+export type RecurrenceType = 'floating' | 'fixed' | 'triggered';
 export type Unit = 'days' | 'weeks' | 'months';
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
@@ -19,7 +22,8 @@ export interface Task {
   name: string;
   notes?: string;
   recurrence_type: RecurrenceType;
-  interval: number;
+  // Absent on triggered tasks (no schedule). Present for floating/fixed.
+  interval?: number;
   unit?: Unit;
   freq?: Freq;
   anchor?: string;
