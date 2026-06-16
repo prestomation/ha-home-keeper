@@ -17,7 +17,6 @@ from . import recurrence
 from .const import (
     FREQS,
     MAX_INTERVAL,
-    REC_FIXED,
     REC_FLOATING,
     REC_TRIGGERED,
     RECURRENCE_TYPES,
