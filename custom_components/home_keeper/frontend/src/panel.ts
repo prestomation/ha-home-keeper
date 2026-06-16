@@ -1,5 +1,19 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
+import {
+  buildTaskPayload,
+  selArea,
+  selDate,
+  selDevice,
+  selIcon,
+  selNumber,
+  selSelect,
+  selText,
+  taskFormData,
+  taskSchema,
+  type FormField,
+  type HaFormElement,
+} from './forms';
 import { setLanguage, t, tn } from './i18n';
 import type { Asset, AssetKind, Hass, ManagedBy, PanelInfo, Part, Task } from './types';
 import {
@@ -240,53 +254,6 @@ const STYLES = `
   ul.hk-hist-list .when { color: var(--secondary-text-color); font-size: 0.85rem; white-space: nowrap; }
   ha-icon-button.hk-hist-del { --mdc-icon-button-size: 36px; color: var(--secondary-text-color); }
 `;
-
-// Minimal shape of an `ha-form` element (only what we set/read).
-interface HaFormElement extends HTMLElement {
-  hass?: Hass;
-  schema?: unknown[];
-  data?: Record<string, unknown>;
-  computeLabel?: (schema: { name: string }) => string;
-}
-
-type Selector = Record<string, unknown>;
-interface FormField {
-  name: string;
-  required?: boolean;
-  selector?: Selector;
-  type?: string;
-  schema?: FormField[];
-}
-
-const selText = (multiline = false): Selector => ({ text: multiline ? { multiline: true } : {} });
-const selNumber = (min = 0): Selector => ({ number: { min, mode: 'box' } });
-const selBool = (): Selector => ({ boolean: {} });
-const selDate = (): Selector => ({ date: {} });
-const selDateTime = (): Selector => ({ datetime: {} });
-const selDevice = (multiple = false): Selector => ({ device: multiple ? { multiple: true } : {} });
-const selArea = (): Selector => ({ area: {} });
-const selIcon = (): Selector => ({ icon: {} });
-const selSelect = (options: { value: string; label: string }[]): Selector => ({
-  select: { mode: 'dropdown', options, sort: false },
-});
-
-// ── datetime <-> HA selector string helpers ────────────────────────────────
-// HA's datetime selector uses local "YYYY-MM-DD HH:mm:ss"; we persist ISO.
-function isoToHaDateTime(iso?: string | null): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
-  const p = (n: number): string => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(
-    d.getMinutes(),
-  )}:${p(d.getSeconds())}`;
-}
-function haDateTimeToIso(value?: string | null): string | undefined {
-  if (!value) return undefined;
-  const d = new Date(value.replace(' ', 'T'));
-  if (Number.isNaN(d.getTime())) return undefined;
-  return d.toISOString();
-}
 
 interface EditState {
   open: boolean;
@@ -533,35 +500,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._render();
       return;
     }
-    let payload: Partial<Task>;
-    if (task.recurrence_type === 'triggered') {
-      // A triggered task has no schedule — only descriptive fields are editable.
-      // Sending recurrence_type/interval/freq would make the backend recompute
-      // next_due and re-arm a dormant ("Monitored") task. Send the minimum.
-      payload = {
-        name: task.name,
-        notes: task.notes || '',
-        device_id: task.device_id || null,
-      };
-    } else {
-      payload = {
-        name: task.name,
-        notes: task.notes || '',
-        recurrence_type: task.recurrence_type,
-        interval: Math.max(1, Number(task.interval) || 1),
-        device_id: task.device_id || null,
-      };
-      if (task.recurrence_type === 'floating') {
-        payload.unit = task.unit || 'months';
-      } else {
-        payload.freq = task.freq || 'DAILY';
-        payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
-      }
-    }
-    if (!task.id) {
-      const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
-      if (lastCompleted) payload.last_completed = lastCompleted;
-    }
+    const payload = buildTaskPayload(task);
     try {
       if (task.id) await api.updateTask(this._hass, task.id, payload);
       else await api.addTask(this._hass, payload);
@@ -1437,99 +1376,8 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   // ── ha-form schemas ─────────────────────────────────────────────────────────
-  private _taskSchema(task: Partial<Task>): FormField[] {
-    // Fields declared as locked by the managing integration are omitted from the
-    // form so users can't accidentally overwrite integration-owned values.
-    const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
-
-    // A triggered (condition-driven) task has no schedule to edit — its state is
-    // owned by the integration that monitors the condition. Offer only the
-    // unlocked descriptive fields (notes), never a recurrence/cadence editor.
-    if (task.recurrence_type === 'triggered') {
-      return [
-        ...(!locked.has('name')
-          ? [{ name: 'name', required: true, selector: selText() } as FormField]
-          : []),
-        ...(!locked.has('notes') ? [{ name: 'notes', selector: selText(true) } as FormField] : []),
-        ...(!locked.has('device_id')
-          ? [{ name: 'device_id', selector: selDevice() } as FormField]
-          : []),
-      ];
-    }
-
-    const isFixed = task.recurrence_type === 'fixed';
-
-    const cadenceSubFields: FormField[] = isFixed
-      ? [
-          ...(!locked.has('interval') ? [{ name: 'interval', selector: selNumber(1) }] : []),
-          ...(!locked.has('freq')
-            ? [
-                {
-                  name: 'freq',
-                  selector: selSelect([
-                    { value: 'DAILY', label: t('opt.freq.daily') },
-                    { value: 'WEEKLY', label: t('opt.freq.weekly') },
-                    { value: 'MONTHLY', label: t('opt.freq.monthly') },
-                  ]),
-                },
-              ]
-            : []),
-        ]
-      : [
-          ...(!locked.has('interval') ? [{ name: 'interval', selector: selNumber(1) }] : []),
-          ...(!locked.has('unit')
-            ? [
-                {
-                  name: 'unit',
-                  selector: selSelect([
-                    { value: 'days', label: t('opt.unit.days') },
-                    { value: 'weeks', label: t('opt.unit.weeks') },
-                    { value: 'months', label: t('opt.unit.months') },
-                  ]),
-                },
-              ]
-            : []),
-        ];
-    const cadence: FormField | null =
-      cadenceSubFields.length > 0 ? { name: '', type: 'grid', schema: cadenceSubFields } : null;
-
-    const fields: FormField[] = [
-      ...(!locked.has('name') ? [{ name: 'name', required: true, selector: selText() } as FormField] : []),
-      ...(!locked.has('notes') ? [{ name: 'notes', selector: selText(true) } as FormField] : []),
-      ...(!locked.has('recurrence_type')
-        ? [
-            {
-              name: 'recurrence_type',
-              selector: selSelect([
-                { value: 'floating', label: t('opt.recurrence.floating') },
-                { value: 'fixed', label: t('opt.recurrence.fixed') },
-              ]),
-            } as FormField,
-          ]
-        : []),
-      ...(cadence ? [cadence] : []),
-      ...(isFixed && !locked.has('anchor') ? [{ name: 'anchor', selector: selDateTime() } as FormField] : []),
-      ...(!task.id && !locked.has('last_completed')
-        ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
-        : []),
-      ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
-    ];
-    return fields;
-  }
-
-  private _taskFormData(t: Partial<Task>): Record<string, unknown> {
-    return {
-      name: t.name ?? '',
-      notes: t.notes ?? '',
-      recurrence_type: t.recurrence_type ?? 'floating',
-      interval: t.interval ?? 1,
-      unit: t.unit ?? 'months',
-      freq: t.freq ?? 'DAILY',
-      anchor: isoToHaDateTime(t.anchor) ?? '',
-      last_completed: isoToHaDateTime(t.last_completed) ?? '',
-      device_id: t.device_id ?? undefined,
-    };
-  }
+  // The task form schema/data/payload helpers are shared with the dashboard card
+  // (see `forms.ts`). Asset/part schemas below stay panel-only.
 
   private _eligibleParents(x: Partial<Asset>): { value: string; label: string }[] {
     const banned = new Set<string>();
@@ -1864,7 +1712,7 @@ export class HomeKeeperPanel extends HTMLElement {
       task.id ? t('form.task.edit') : t('form.task.new'),
     )}</div>`;
 
-    const form = this._makeForm(this._taskSchema(task), this._taskFormData(task), (value) => {
+    const form = this._makeForm(taskSchema(task), taskFormData(task), (value) => {
       const prevType = this._edit.task?.recurrence_type;
       this._edit.task = {
         ...this._edit.task,

@@ -71,6 +71,18 @@ Administration and usage are intentionally **separated**:
   - For tasks **attached to a device**, per-task `button` (mark done), `sensor`
     (next due) and `binary_sensor` (overdue) entities appear **on that device's
     page** — so e.g. your fridge shows its filter task right alongside it.
+- **Drop a task card on any dashboard.** The bundled **Home Keeper Tasks** card
+  (`custom:home-keeper-card`) is a resizable list of your tasks with a one-tap **Done**
+  button on each row; tapping a row opens an inline add/edit/delete form. It is
+  auto-registered (no resource setup) and shows up in the dashboard **"Add card"**
+  picker. Its GUI editor lets you filter (by status, area, device, recurrence type, or
+  a "due within N days" horizon), sort, group, cap the number of rows, and toggle what
+  each row shows. It's built from HA's own components and theme, and reflects
+  completions made anywhere else in real time.
+
+![Home Keeper task card on a dashboard](docs/images/card-default.png)
+
+![The task card grouped into status sections, with an inline add form](docs/images/card-grouped.png)
 
 The panel's list view can **group** tasks by status, area, or device and **filter**
 to just what's overdue or due soon. Tapping any row opens a **detail page** with the

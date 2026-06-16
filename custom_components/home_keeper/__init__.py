@@ -17,7 +17,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
-from . import devices, inventory, panel, websocket_api
+from . import card, devices, inventory, panel, websocket_api
 from .assets import AssetValidationError
 from .const import DOMAIN, PLATFORMS
 from .coordinator import HomeKeeperCoordinator, entity_set_key
@@ -168,6 +168,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_request_refresh()
 
     await panel.async_register_panel(hass)
+    card.async_register_card(hass)
     websocket_api.async_register(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

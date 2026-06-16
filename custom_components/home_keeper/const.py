@@ -16,6 +16,11 @@ PANEL_TITLE = "Home Keeper"
 PANEL_ICON = "mdi:home-clock"
 WEBCOMPONENT_NAME = "home-keeper-panel"
 
+# Dashboard card. Served from the same static path as the panel and
+# auto-registered as a Lovelace resource so it appears in the "Add card" picker
+# with no manual setup (see card.py).
+CARD_JS_FILENAME = "home-keeper-card.js"
+
 # Storage.
 STORAGE_KEY = "home_keeper"
 STORAGE_VERSION = 1

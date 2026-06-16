@@ -6,6 +6,15 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+- **Dashboard task card.** A new resizable Lovelace card (`custom:home-keeper-card`)
+  shows your tasks as a list with a one-tap **Done** button on each row, and opens an
+  inline editor for adding, editing, and deleting tasks without leaving the dashboard.
+  It is auto-registered as a resource (no manual setup) and appears in the "Add card"
+  picker. A GUI config editor exposes filtering (by status, area, device, recurrence
+  type, due-within horizon), sorting, status/area/device grouping, a max-items cap, and
+  display toggles. Built entirely from Home Assistant's own components and theme
+  variables, and it stays in sync with completions made from any other surface.
+
 ## [0.3.0b2] - 2026-06-16
 
 - **Backdate last completion when creating a task.** The New Task form now includes an optional "Last completed" datetime field. Setting it seeds an initial completion entry so a floating task's next-due date is measured from when the activity actually last happened, rather than being due immediately. Useful when you first install Home Keeper and already know the last time a task was done.
