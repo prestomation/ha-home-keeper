@@ -42,6 +42,7 @@
   "field.unit": "Unit",
   "field.freq": "Frequency",
   "field.anchor": "First occurrence (sets time of day)",
+  "field.last_completed": "Last completed (optional — seeds next due date)",
   "field.device_id": "Attach to device",
   "field.area_id": "Area",
   "field.kind": "Type",

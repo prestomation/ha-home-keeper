@@ -558,6 +558,10 @@ export class HomeKeeperPanel extends HTMLElement {
         payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
       }
     }
+    if (!task.id) {
+      const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
+      if (lastCompleted) payload.last_completed = lastCompleted;
+    }
     try {
       if (task.id) await api.updateTask(this._hass, task.id, payload);
       else await api.addTask(this._hass, payload);
@@ -1505,6 +1509,9 @@ export class HomeKeeperPanel extends HTMLElement {
         : []),
       ...(cadence ? [cadence] : []),
       ...(isFixed && !locked.has('anchor') ? [{ name: 'anchor', selector: selDateTime() } as FormField] : []),
+      ...(!task.id && !locked.has('last_completed')
+        ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
+        : []),
       ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
     ];
     return fields;
@@ -1519,6 +1526,7 @@ export class HomeKeeperPanel extends HTMLElement {
       unit: t.unit ?? 'months',
       freq: t.freq ?? 'DAILY',
       anchor: isoToHaDateTime(t.anchor) ?? '',
+      last_completed: isoToHaDateTime(t.last_completed) ?? '',
       device_id: t.device_id ?? undefined,
     };
   }
