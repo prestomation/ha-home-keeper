@@ -56,11 +56,29 @@ export interface HassArea {
   name: string;
 }
 
+/** Minimal shape of a Home Assistant entity state (only what the card reads). */
+export interface HassEntity {
+  entity_id: string;
+  state: string;
+  last_updated: string;
+  attributes: Record<string, unknown>;
+}
+
 export interface Hass {
   callWS<T = unknown>(msg: Record<string, unknown>): Promise<T>;
   devices?: Record<string, HassDevice>;
   areas?: Record<string, HassArea>;
+  states?: Record<string, HassEntity>;
   language?: string;
+  // The live websocket connection; used by the card to subscribe to the
+  // `home_keeper_task_completed` event so it refreshes when a task is completed
+  // from another surface (the panel, a device button, or an automation).
+  connection?: {
+    subscribeEvents<T = unknown>(
+      callback: (event: T) => void,
+      eventType: string,
+    ): Promise<() => void>;
+  };
 }
 
 export type AssetKind = 'virtual' | 'existing';

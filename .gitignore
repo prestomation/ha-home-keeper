@@ -6,6 +6,7 @@ node_modules/
 
 # Build artifacts
 custom_components/home_keeper/frontend/home-keeper-panel.js
+custom_components/home_keeper/frontend/home-keeper-card.js
 home_keeper.zip
 
 # Coverage artifacts

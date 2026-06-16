@@ -22,20 +22,39 @@ try {
   throw new Error(`Failed to read version from const.py: ${err.message}`);
 }
 
-export default {
-  input: 'src/index.ts',
-  output: {
-    file: 'home-keeper-panel.js',
-    format: 'iife',
-    name: 'HomeKeeperPanelBundle',
-    banner: `/**\n * Home Keeper panel — home maintenance & chores for Home Assistant.\n * Bundled with the Home Keeper integration — no manual setup required.\n * Version: ${PANEL_VERSION}\n * Built: ${new Date().toISOString().split('T')[0]}\n */`,
+const BUILD_DATE = new Date().toISOString().split('T')[0];
+
+// Shared plugin set — each bundle inlines its locale JSON and the version string.
+const plugins = () => [
+  // Inline locale JSON into the single IIFE bundle (no runtime fetch).
+  json({ compact: true }),
+  typescript({ tsconfig: './tsconfig.json' }),
+  virtual({
+    'panel-version': `export const PANEL_VERSION = '${PANEL_VERSION}';`,
+  }),
+];
+
+// Two bundles ship with the integration: the full-page sidebar panel and the
+// resizable dashboard task card. Both are served from the same static path.
+export default [
+  {
+    input: 'src/index.ts',
+    output: {
+      file: 'home-keeper-panel.js',
+      format: 'iife',
+      name: 'HomeKeeperPanelBundle',
+      banner: `/**\n * Home Keeper panel — home maintenance & chores for Home Assistant.\n * Bundled with the Home Keeper integration — no manual setup required.\n * Version: ${PANEL_VERSION}\n * Built: ${BUILD_DATE}\n */`,
+    },
+    plugins: plugins(),
   },
-  plugins: [
-    // Inline locale JSON into the single IIFE bundle (no runtime fetch).
-    json({ compact: true }),
-    typescript({ tsconfig: './tsconfig.json' }),
-    virtual({
-      'panel-version': `export const PANEL_VERSION = '${PANEL_VERSION}';`,
-    }),
-  ],
-};
+  {
+    input: 'src/card-index.ts',
+    output: {
+      file: 'home-keeper-card.js',
+      format: 'iife',
+      name: 'HomeKeeperCardBundle',
+      banner: `/**\n * Home Keeper task card — a resizable dashboard list of maintenance tasks.\n * Bundled with the Home Keeper integration — no manual setup required.\n * Version: ${PANEL_VERSION}\n * Built: ${BUILD_DATE}\n */`,
+    },
+    plugins: plugins(),
+  },
+];
