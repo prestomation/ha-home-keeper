@@ -6,6 +6,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0b1] - 2026-06-16
+
 - **Condition-driven (`triggered`) tasks.** A third recurrence type for maintenance
   that responds to a *condition* rather than a schedule — a battery going low, a leak,
   a filter past its threshold. A triggered task has no schedule: an owning integration
