@@ -42,6 +42,7 @@
   "field.unit": "Jednostka",
   "field.freq": "Częstotliwość",
   "field.anchor": "Pierwsze wystąpienie (ustawia porę dnia)",
+  "field.last_completed": "Last completed (optional — seeds next due date)",
   "field.device_id": "Przypisz do urządzenia",
   "field.area_id": "Obszar",
   "field.kind": "Typ",

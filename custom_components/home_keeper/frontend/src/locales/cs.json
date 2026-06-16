@@ -42,6 +42,7 @@
   "field.unit": "Jednotka",
   "field.freq": "Frekvence",
   "field.anchor": "První výskyt (nastaví denní čas)",
+  "field.last_completed": "Last completed (optional — seeds next due date)",
   "field.device_id": "Připojit k zařízení",
   "field.area_id": "Oblast",
   "field.kind": "Typ",

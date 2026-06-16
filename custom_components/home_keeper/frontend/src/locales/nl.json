@@ -42,6 +42,7 @@
   "field.unit": "Eenheid",
   "field.freq": "Frequentie",
   "field.anchor": "Eerste keer (stelt tijdstip in)",
+  "field.last_completed": "Last completed (optional — seeds next due date)",
   "field.device_id": "Koppelen aan apparaat",
   "field.area_id": "Gebied",
   "field.kind": "Type",

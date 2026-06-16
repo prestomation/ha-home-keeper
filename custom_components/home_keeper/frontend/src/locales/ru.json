@@ -42,6 +42,7 @@
   "field.unit": "Единица",
   "field.freq": "Частота",
   "field.anchor": "Первое выполнение (задаёт время суток)",
+  "field.last_completed": "Last completed (optional — seeds next due date)",
   "field.device_id": "Привязать к устройству",
   "field.area_id": "Зона",
   "field.kind": "Тип",

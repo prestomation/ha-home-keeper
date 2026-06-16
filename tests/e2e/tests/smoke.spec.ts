@@ -60,7 +60,9 @@ test.describe('Home Keeper panel — smoke', () => {
     await expect(form).toBeVisible();
     // The recurrence select is the first ha-select in the task form.
     await chooseHaSelect(form.locator('ha-select').first(), /Fixed/);
-    await expect(panel.locator('#hk-task-form ha-selector-datetime')).toBeVisible();
+    // Fixed schedule reveals the anchor datetime field; last_completed also adds
+    // a second datetime selector, so use .first() to avoid strict-mode violation.
+    await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   });
 
   test('Appliances tab lists the seeded virtual device and opens its form', async ({ page }) => {
