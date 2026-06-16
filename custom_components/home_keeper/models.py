@@ -17,7 +17,9 @@ from . import recurrence
 from .const import (
     FREQS,
     MAX_INTERVAL,
+    REC_FIXED,
     REC_FLOATING,
+    REC_TRIGGERED,
     RECURRENCE_TYPES,
     UNITS,
 )
@@ -52,6 +54,22 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     if rec_type not in RECURRENCE_TYPES:
         raise TaskValidationError(f"invalid recurrence_type: {rec_type!r}")
 
+    fields: dict[str, Any] = {
+        "name": name,
+        "notes": str(data.get("notes", "")),
+        "recurrence_type": rec_type,
+        "device_id": data.get("device_id") or None,
+        "area_id": data.get("area_id") or None,
+        "enabled": bool(data.get("enabled", True)),
+    }
+
+    # A triggered (condition-driven) task has no schedule at all: no interval, unit,
+    # freq, or anchor. Its state is carried entirely by next_due (None = dormant, a
+    # timestamp = armed/due), managed by the owning integration via add/complete/
+    # trigger. Return early so we don't validate or store schedule fields it lacks.
+    if rec_type == REC_TRIGGERED:
+        return fields
+
     try:
         interval = int(data.get("interval", 1))
     except (TypeError, ValueError) as err:
@@ -60,16 +78,7 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         raise TaskValidationError("interval must be >= 1")
     if interval > MAX_INTERVAL:
         raise TaskValidationError(f"interval must be <= {MAX_INTERVAL}")
-
-    fields: dict[str, Any] = {
-        "name": name,
-        "notes": str(data.get("notes", "")),
-        "recurrence_type": rec_type,
-        "interval": interval,
-        "device_id": data.get("device_id") or None,
-        "area_id": data.get("area_id") or None,
-        "enabled": bool(data.get("enabled", True)),
-    }
+    fields["interval"] = interval
 
     if rec_type == REC_FLOATING:
         unit = data.get("unit")

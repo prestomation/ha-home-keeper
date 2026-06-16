@@ -19,15 +19,19 @@ add_task:
           multiline: true
     recurrence_type:
       name: Recurrence type
-      description: floating (measured from completion) or fixed (anchored schedule).
+      description: >-
+        floating (measured from completion), fixed (anchored schedule), or triggered
+        (condition-driven — no schedule; an owning integration arms it via trigger_task
+        and clears it via complete_task). interval/unit/freq/anchor are N/A for triggered.
       selector:
         select:
           options:
             - floating
             - fixed
+            - triggered
     interval:
       name: Interval
-      description: Repeat every N units/steps.
+      description: Repeat every N units/steps (floating/fixed only; N/A for triggered).
       example: 1
       selector:
         number:
@@ -108,12 +112,13 @@ update_task:
           multiline: true
     recurrence_type:
       name: Recurrence type
-      description: floating or fixed.
+      description: floating, fixed, or triggered (condition-driven, no schedule).
       selector:
         select:
           options:
             - floating
             - fixed
+            - triggered
     interval:
       name: Interval
       description: Repeat every N units/steps.
@@ -201,6 +206,21 @@ complete_task:
         Optional free-form marker echoed back in the home_keeper_task_completed event,
         so a contributing integration can recognise and ignore the completion it
         triggered (loop prevention). Home Keeper does not interpret it.
+      selector:
+        text:
+
+trigger_task:
+  name: Trigger task
+  description: >-
+    Arm a condition-driven (triggered) task so it reads as due now — the owner-facing
+    counterpart to complete_task (which clears it back to dormant). Call it when the
+    condition you monitor becomes true again (e.g. a battery drops low after a prior
+    replacement). Idempotent; only valid for triggered tasks.
+  fields:
+    task_id:
+      name: Task ID
+      description: The id of the triggered task to arm.
+      required: true
       selector:
         text:
 

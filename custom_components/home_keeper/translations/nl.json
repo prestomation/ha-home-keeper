@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Taak activeren",
+      "description": "Een voorwaardegestuurde (geactiveerde) taak scherpstellen zodat deze nu als verschuldigd wordt weergegeven — de gebruikersgerichte tegenhanger van Taak voltooien (die deze weer in rust zet). Idempotent; alleen geldig voor geactiveerde taken.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "De id van de te activeren geactiveerde taak."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Taken weergeven",
       "description": "Geeft alle taken als antwoord terug."

@@ -11,8 +11,16 @@ export function escapeHTML(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
+/** True when a triggered task is currently armed (due-now) vs dormant. */
+export function isArmedTriggered(task: Task): boolean {
+  return task.recurrence_type === 'triggered' && !!task.next_due;
+}
+
 /** Human-readable summary of a task's recurrence rule. */
 export function recurrenceSummary(task: Task): string {
+  // A triggered task has no schedule — it is "monitored" and only due when its
+  // owning integration arms it (e.g. Battery Notes when a battery goes low).
+  if (task.recurrence_type === 'triggered') return t('recurrence.triggered');
   const n = task.interval || 1;
   if (task.recurrence_type === 'floating') {
     const base = (task.unit || 'days').replace(/s$/, ''); // day / week / month
@@ -37,6 +45,10 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
 
 /** Compact relative description of a due date, e.g. "in 3 days" / "2 days ago". */
 export function dueLabel(task: Task, now: Date = new Date()): string {
+  // A dormant triggered task is armed-but-not-due: show "Monitored", not "no date".
+  if (task.recurrence_type === 'triggered' && !task.next_due) {
+    return t('due.monitored');
+  }
   if (!task.next_due) return t('due.none');
   const due = new Date(task.next_due);
   const diffMs = due.getTime() - now.getTime();

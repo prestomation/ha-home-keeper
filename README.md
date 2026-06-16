@@ -22,9 +22,39 @@ A **task** has a name, notes, an optional device it's attached to, and a recurre
   stays overdue rather than silently rolling forward.
 - **Fixed** — an anchored calendar schedule: *"take medicine every day at 8am"*,
   independent of when you actually complete it.
+- **Triggered** — *condition-driven, no schedule.* For maintenance that's a response
+  to something happening rather than a clock: *"replace this battery"* when it goes
+  low, *"mop up"* when a leak sensor trips. Another integration arms the task when the
+  condition becomes true and clears it when it resolves. See
+  [Condition-driven tasks](#condition-driven-triggered-tasks) below.
 
 An **appliance** (asset) is the physical thing a task is about — a fridge, furnace,
 water heater. See [Appliances & virtual devices](#appliances--virtual-devices) below.
+
+## Condition-driven (triggered) tasks
+
+Some upkeep isn't periodic — it's a **reaction to a condition**: a battery dropping
+low, a water sensor going wet, a filter past its pressure threshold. A **triggered**
+task models exactly that. It has no schedule; an owning integration (for batteries,
+the companion [Battery Notes glue](https://github.com/prestomation/ha-home-keeper-battery-notes))
+**arms** it when the condition becomes true and **clears** it when resolved.
+
+- While **armed**, it reads as **due now** everywhere — the to-do list, the device's
+  overdue sensor, the panel — with a *"Managed by …"* chip showing who owns it.
+- When you replace/fix the thing (from either side — the integration's own button or
+  Home Keeper's **Done**), the task records the event and goes **dormant**: it leaves
+  the to-do list and calendar entirely and tucks into a collapsed **"Monitored"**
+  section, waiting for the next time it's needed.
+- Because the task persists across cycles, its **completion history accumulates** — so
+  you get the real cadence ("you replace this smoke-detector battery every ~13 months")
+  instead of a value that's lost on every replacement.
+
+This keeps the to-do list honest: only batteries that *actually* need attention show
+as due, while the healthy ones stay out of the way but one click to browse.
+
+![Battery task detail — monitored, managed by Battery Notes, with replacement history](docs/images/14-panel-battery-detail.png)
+
+![The Monitored section holds dormant condition-driven tasks](docs/images/15-panel-monitored-section.png)
 
 ## How you interact with it
 
@@ -118,7 +148,7 @@ sensor next to your *Piano*) — which show up alongside the appliance in the pa
 ## Services
 
 Task services: `home_keeper.add_task`, `update_task`, `delete_task`, `complete_task`,
-and `list_tasks` (returns a response).
+`trigger_task` (arm a condition-driven task), and `list_tasks` (returns a response).
 
 Appliance services: `home_keeper.add_asset`, `update_asset`, `delete_asset`, and
 `list_assets` (returns a response). All are available for automations.

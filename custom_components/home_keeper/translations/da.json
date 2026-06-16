@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Udløs opgave",
+      "description": "Aktivér en betingelsesstyret (udløst) opgave, så den fremstår som forfalden nu — brugerens modstykke til Fuldfør opgave (som sætter den tilbage i hviletilstand). Idempotent; gælder kun for udløste opgaver.",
+      "fields": {
+        "task_id": {
+          "name": "Opgave-ID",
+          "description": "ID'et på den udløste opgave, der skal aktiveres."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vis opgaver",
       "description": "Returner alle opgaver som et svar."

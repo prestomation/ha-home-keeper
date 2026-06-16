@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Déclencher la tâche",
+      "description": "Armer une tâche pilotée par condition (déclenchée) afin qu'elle apparaisse comme due maintenant — l'équivalent côté utilisateur de « Terminer la tâche » (qui la remet en sommeil). Idempotent ; valable uniquement pour les tâches déclenchées.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'id de la tâche déclenchée à armer."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Lister les tâches",
       "description": "Renvoyer toutes les tâches en réponse."

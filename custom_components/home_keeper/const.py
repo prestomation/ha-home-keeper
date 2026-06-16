@@ -63,7 +63,13 @@ TASK_SOURCE_PART = "part"
 # Recurrence types.
 REC_FLOATING = "floating"
 REC_FIXED = "fixed"
-RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED]
+# A condition-driven task with no schedule. An owner integration arms it (via
+# ``trigger_task`` or by creating it) when a condition becomes true and clears it
+# (via ``complete_task``) when the condition resolves. Its ``next_due`` *is* its
+# state: ``None`` = dormant (invisible to every time surface), a timestamp =
+# active/due-now. See docs/INTEGRATING.md "Condition-driven (triggered) tasks".
+REC_TRIGGERED = "triggered"
+RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED, REC_TRIGGERED]
 
 # Floating interval units.
 UNIT_DAYS = "days"

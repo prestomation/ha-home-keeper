@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Utlös uppgift",
+      "description": "Aktivera en villkorsstyrd (utlöst) uppgift så att den visas som förfallen nu — användarens motsvarighet till Slutför uppgift (som återställer den till vilande). Idempotent; gäller endast utlösta uppgifter.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID:t för den utlösta uppgiften som ska aktiveras."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Lista uppgifter",
       "description": "Returnera alla uppgifter som ett svar."

@@ -6,6 +6,17 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+- **Condition-driven (`triggered`) tasks.** A third recurrence type for maintenance
+  that responds to a *condition* rather than a schedule — a battery going low, a leak,
+  a filter past its threshold. A triggered task has no schedule: an owning integration
+  arms it (the new `home_keeper.trigger_task` service, or by creating it) when the
+  condition becomes true and clears it (`complete_task`) when it resolves, which records
+  the event in history and returns the task to a dormant state. Dormant triggered tasks
+  are invisible to the to-do list, calendar, and overdue sensors, and the panel tucks
+  them into a collapsed **"Monitored"** section; armed ones read as due-now everywhere.
+  This is the engine behind the Battery Notes glue integration. See
+  `docs/INTEGRATING.md` §7 and `docs/BATTERY_NOTES_PLAN.md`.
+
 ## [0.2.0] - 2026-06-16
 
 - **Managed tasks (stronger integration ownership).** Integrations that create tasks

@@ -189,6 +189,108 @@
           "deletion_protected": true,
           "config_entry_id": "uninstalled_entry_demo"
         }
+      },
+      "task_door_battery": {
+        "id": "task_door_battery",
+        "name": "Replace battery: Front door sensor",
+        "notes": "2× AAA",
+        "recurrence_type": "triggered",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2024-01-05T09:00:00-04:00",
+        "last_completed": "2025-04-02T09:00:00-04:00",
+        "next_due": "2026-06-11T07:30:00-04:00",
+        "completions": [
+          {
+            "ts": "2024-05-01T09:00:00-04:00"
+          },
+          {
+            "ts": "2025-04-02T09:00:00-04:00"
+          }
+        ],
+        "source": {
+          "home_keeper_battery_notes": {
+            "device_id": "front_door_sensor_demo"
+          }
+        },
+        "managed_by": {
+          "integration": "home_keeper_battery_notes",
+          "display_name": "Battery Notes",
+          "icon": "mdi:battery-alert",
+          "locked_fields": ["name", "device_id"],
+          "completion_prompt": "Mark battery as replaced?",
+          "deletion_protected": true,
+          "config_entry_id": "home_keeper_test_entry"
+        }
+      },
+      "task_smoke_battery": {
+        "id": "task_smoke_battery",
+        "name": "Replace battery: Hallway smoke alarm",
+        "notes": "1× 9V",
+        "recurrence_type": "triggered",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2023-02-01T09:00:00-04:00",
+        "last_completed": "2026-01-15T10:00:00-04:00",
+        "next_due": null,
+        "completions": [
+          {
+            "ts": "2024-01-20T10:00:00-04:00"
+          },
+          {
+            "ts": "2025-01-10T10:00:00-04:00"
+          },
+          {
+            "ts": "2026-01-15T10:00:00-04:00"
+          }
+        ],
+        "source": {
+          "home_keeper_battery_notes": {
+            "device_id": "smoke_alarm_demo"
+          }
+        },
+        "managed_by": {
+          "integration": "home_keeper_battery_notes",
+          "display_name": "Battery Notes",
+          "icon": "mdi:battery-alert",
+          "locked_fields": ["name", "device_id"],
+          "completion_prompt": "Mark battery as replaced?",
+          "deletion_protected": true,
+          "config_entry_id": "home_keeper_test_entry"
+        }
+      },
+      "task_thermostat_battery": {
+        "id": "task_thermostat_battery",
+        "name": "Replace battery: Thermostat",
+        "notes": "2× AA",
+        "recurrence_type": "triggered",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2025-03-01T09:00:00-04:00",
+        "last_completed": "2025-12-01T10:00:00-04:00",
+        "next_due": null,
+        "completions": [
+          {
+            "ts": "2025-12-01T10:00:00-04:00"
+          }
+        ],
+        "source": {
+          "home_keeper_battery_notes": {
+            "device_id": "thermostat_demo"
+          }
+        },
+        "managed_by": {
+          "integration": "home_keeper_battery_notes",
+          "display_name": "Battery Notes",
+          "icon": "mdi:battery-alert",
+          "locked_fields": ["name", "device_id"],
+          "completion_prompt": "Mark battery as replaced?",
+          "deletion_protected": true,
+          "config_entry_id": "home_keeper_test_entry"
+        }
       }
     },
     "assets": {

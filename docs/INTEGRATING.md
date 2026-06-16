@@ -19,9 +19,11 @@ Keeper isn't installed, your calls are simply skipped.
 | You want to… | Do this |
 |---|---|
 | Create a recurring task | Call `home_keeper.add_task` with a `source` namespaced under your domain |
+| Create a *condition-driven* task | Call `home_keeper.add_task` with `recurrence_type: "triggered"` (no schedule) |
 | Learn the new task's id | Read `task_id` from `add_task`'s response (`return_response=True`) |
 | React when a task is completed | Subscribe to the `home_keeper_task_completed` event |
 | Complete a task from your side | Call `home_keeper.complete_task` with a unique `origin` |
+| Re-arm a triggered task | Call `home_keeper.trigger_task` when the condition becomes true again |
 | Avoid infinite loops | Filter the event by `origin`, and apply your side-effect without re-calling `complete_task` |
 | Remove a task | Call `home_keeper.delete_task` |
 
@@ -274,6 +276,79 @@ config entry is removed (see §5) — orphan cleanup is the safety net for when 
 The `home_keeper_task_completed` event now includes a `managed_by` field (same shape as
 above, or `None` for unmanaged tasks). Integrations that own tasks don't need to inspect
 it — your `origin` guard and `source` namespace already identify your completions.
+
+## 7. Condition-driven (triggered) tasks
+
+Some maintenance isn't periodic — it's a response to a **condition** your integration
+detects: a battery dropped low, a water sensor went wet, a filter's pressure-drop
+crossed a threshold. For these, pass `recurrence_type: "triggered"` instead of a
+floating/fixed schedule. A triggered task has **no schedule at all** (no
+`interval`/`unit`/`freq`/`anchor`); your integration owns its lifecycle entirely.
+
+A triggered task has two states, carried by its `next_due`:
+
+- **armed / due-now** — `next_due` is a timestamp. It reads as overdue on every surface
+  (to-do list, device overdue binary_sensor, panel) the whole time it's armed.
+- **dormant** — `next_due` is `null`. It is invisible to the to-do list, the calendar,
+  and the overdue/due-soon sensors — present but quietly waiting. The panel buckets it
+  into a collapsed **"Monitored"** section so it's browsable without cluttering the list.
+
+The lifecycle, mapped to the three services:
+
+| When your condition… | Call | Effect |
+|---|---|---|
+| first becomes true | `add_task` with `recurrence_type: "triggered"` | creates the task **armed** (due-now) |
+| becomes true again later | `home_keeper.trigger_task` (`task_id`) | re-arms a dormant task (→ due-now) |
+| resolves | `home_keeper.complete_task` (`task_id`, `origin`) | records a completion **and** returns the task to dormant |
+
+Completing a triggered task is what *clears* it — it records the event in the task's
+completion history (so the full cadence accumulates, e.g. "battery replaced every
+~13 months") and then goes dormant rather than rescheduling. `trigger_task` is the
+inverse: it arms the task without recording anything. Both are idempotent.
+
+```python
+# Condition first detected → create the task, armed/due-now:
+resp = await hass.services.async_call(
+    DOMAIN_HK, "add_task",
+    {
+        "name": f"Replace battery: {device_name}",
+        "recurrence_type": "triggered",     # no interval/unit/freq/anchor
+        "device_id": device_id,
+        "source": {"my_integration": {"device_id": device_id}},
+        "managed_by": {                      # see §6 — recommended for owned tasks
+            "integration": "my_integration",
+            "display_name": "My Integration",
+            "config_entry_id": entry.entry_id,
+            "deletion_protected": True,
+            "locked_fields": ["name", "device_id"],
+        },
+    },
+    blocking=True, return_response=True,
+)
+task_id = resp["task_id"]
+
+# Condition resolved (records history, goes dormant):
+await hass.services.async_call(
+    DOMAIN_HK, "complete_task",
+    {"task_id": task_id, "origin": "my_integration"}, blocking=True,
+)
+
+# Condition true again later (re-arm the same task — history is preserved):
+await hass.services.async_call(
+    DOMAIN_HK, "trigger_task", {"task_id": task_id}, blocking=True,
+)
+```
+
+> **Don't delete-and-recreate on every cycle.** Keep one persistent triggered task per
+> monitored thing and toggle it with `complete_task` / `trigger_task`. That keeps the
+> task id stable and preserves the replacement history on the task. Reconcile after a
+> restart with `list_tasks` (match your `source`), arming/clearing to match the current
+> condition; only `delete_task` when the monitored thing goes away for good.
+
+Two-way sync works exactly as in §3–§4: a user checking the task off in Home Keeper
+fires `home_keeper_task_completed` (origin `None`) and Home Keeper has already set the
+task dormant for you — your listener just applies its own side-effect (without
+re-calling `complete_task`). Triggered tasks never appear on the calendar.
 
 ## Testing your integration
 

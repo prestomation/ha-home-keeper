@@ -343,7 +343,10 @@ export class HomeKeeperPanel extends HTMLElement {
   private _groupBy: GroupBy = 'status';
   private _filter: TaskFilter = 'all';
   // Group sections collapsed by the user, keyed by "<group>:<bucket>".
-  private _collapsed = new Set<string>();
+  // Group sections the user collapsed this session (open is the default). The
+  // "monitored" status bucket — dormant condition-driven tasks like healthy
+  // batteries — starts collapsed so it stays out of the way but one click to browse.
+  private _collapsed = new Set<string>(['status:monitored']);
   // The object whose full detail page is open, or null for the list view.
   private _detail: { kind: 'task' | 'asset'; id: string } | null = null;
   // The panel's URL prefix (e.g. `/home-keeper`), supplied by HA via `route`.
@@ -813,7 +816,14 @@ export class HomeKeeperPanel extends HTMLElement {
 
   // ── list bucketing ──────────────────────────────────────────────────────────
   /** Which status section a task belongs to. */
-  private _statusBucket(task: Task, now = Date.now()): 'overdue' | 'soon' | 'later' | 'none' {
+  private _statusBucket(
+    task: Task,
+    now = Date.now(),
+  ): 'overdue' | 'soon' | 'later' | 'monitored' | 'none' {
+    // A dormant triggered task is "monitored" — armed-but-not-due — and lands in its
+    // own (default-collapsed) section rather than the generic no-schedule bucket. An
+    // armed one (next_due set) flows through the normal overdue/soon/later logic.
+    if (task.recurrence_type === 'triggered' && !task.next_due) return 'monitored';
     if (!task.next_due) return 'none';
     const due = new Date(task.next_due).getTime();
     if (due <= now) return 'overdue';
@@ -831,10 +841,14 @@ export class HomeKeeperPanel extends HTMLElement {
   private _groupTasks(tasks: Task[], now = Date.now()): Group<Task>[] {
     const group = this._effectiveGroup();
     if (group === 'status') {
-      const order: { bucket: 'overdue' | 'soon' | 'later' | 'none'; label: string }[] = [
+      const order: {
+        bucket: 'overdue' | 'soon' | 'later' | 'monitored' | 'none';
+        label: string;
+      }[] = [
         { bucket: 'overdue', label: t('chip.overdue') },
         { bucket: 'soon', label: t('filter.soon') },
         { bucket: 'later', label: t('section.later') },
+        { bucket: 'monitored', label: t('section.monitored') },
         { bucket: 'none', label: t('section.noSchedule') },
       ];
       return order
@@ -1019,6 +1033,12 @@ export class HomeKeeperPanel extends HTMLElement {
       ? ` · ${escapeHTML(t('form.task.due', { date: new Date(task.next_due).toLocaleDateString() }))}`
       : '';
     const n = task.completions?.length ?? 0;
+    // A dormant triggered task (monitored, not due) has nothing to mark done — its
+    // owning integration arms it when the condition fires. Hide the quick action.
+    const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
+    const doneAction = dormantTriggered
+      ? ''
+      : `<ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
     // The row opens the task's detail page; "Done" stays as a quick action.
     return `
       <ha-card class="hk-card${overdue ? ' overdue' : ''}" data-id="${escapeHTML(task.id)}">
@@ -1029,7 +1049,7 @@ export class HomeKeeperPanel extends HTMLElement {
             <div class="hk-chips">${statusChip}${dev}${managedChip}</div>
           </div>
           <div class="hk-card-actions">
-            <ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>
+            ${doneAction}
           </div>
         </div>
       </ha-card>`;
@@ -1145,7 +1165,17 @@ export class HomeKeeperPanel extends HTMLElement {
           ? `<div class="hk-managed-prompt">${escapeHTML(mb.completion_prompt)}</div>`
           : '';
 
-    const due = task.next_due ? new Date(task.next_due).toLocaleString() : t('due.none');
+    const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
+    const due = dormantTriggered
+      ? t('due.monitored')
+      : task.next_due
+        ? new Date(task.next_due).toLocaleString()
+        : t('due.none');
+    // Nothing to mark done while dormant — the integration arms it when the
+    // monitored condition fires (e.g. a battery goes low).
+    const doneBtn = dormantTriggered
+      ? ''
+      : `<ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
     const notes = task.notes
       ? escapeHTML(task.notes)
       : `<span class="hk-muted">${escapeHTML(t('detail.noNotes'))}</span>`;
@@ -1154,7 +1184,7 @@ export class HomeKeeperPanel extends HTMLElement {
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
         <div class="hk-chips">${statusChip}${dev}${managedChip}</div>
         <div class="hk-detail-actions">
-          <ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>
+          ${doneBtn}
           ${manage}
         </div>
         ${completionHint}
@@ -1395,6 +1425,22 @@ export class HomeKeeperPanel extends HTMLElement {
     // Fields declared as locked by the managing integration are omitted from the
     // form so users can't accidentally overwrite integration-owned values.
     const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
+
+    // A triggered (condition-driven) task has no schedule to edit — its state is
+    // owned by the integration that monitors the condition. Offer only the
+    // unlocked descriptive fields (notes), never a recurrence/cadence editor.
+    if (task.recurrence_type === 'triggered') {
+      return [
+        ...(!locked.has('name')
+          ? [{ name: 'name', required: true, selector: selText() } as FormField]
+          : []),
+        ...(!locked.has('notes') ? [{ name: 'notes', selector: selText(true) } as FormField] : []),
+        ...(!locked.has('device_id')
+          ? [{ name: 'device_id', selector: selDevice() } as FormField]
+          : []),
+      ];
+    }
+
     const isFixed = task.recurrence_type === 'fixed';
 
     const cadenceSubFields: FormField[] = isFixed

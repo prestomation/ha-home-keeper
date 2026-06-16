@@ -21,7 +21,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import DOMAIN, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
 
 
@@ -57,6 +57,11 @@ class HomeKeeperTodoListEntity(CoordinatorEntity[HomeKeeperCoordinator], TodoLis
             if not task.get("enabled", True):
                 continue
             due_iso = task.get("next_due")
+            # A dormant triggered task (next_due == None) is "armed but not due" —
+            # keep it off the to-do list entirely rather than showing it as an
+            # undated item. It reappears the moment its owner arms it (next_due set).
+            if task.get("recurrence_type") == REC_TRIGGERED and not due_iso:
+                continue
             due = dt_util.parse_datetime(due_iso) if due_iso else None
             items.append(
                 TodoItem(

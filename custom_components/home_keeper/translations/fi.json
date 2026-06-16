@@ -131,6 +131,16 @@
         }
       }
     },
+    "trigger_task": {
+      "name": "Laukaise tehtävä",
+      "description": "Viritä ehtopohjainen (laukaistava) tehtävä niin, että se näkyy nyt erääntyneenä — käyttäjälle suunnattu vastine toiminnolle Merkitse tehtävä valmiiksi (joka palauttaa sen lepotilaan). Idempotentti; pätee vain laukaistaviin tehtäviin.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Viritettävän laukaistavan tehtävän tunnus."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Luettele tehtävät",
       "description": "Palauta kaikki tehtävät vastauksena."
