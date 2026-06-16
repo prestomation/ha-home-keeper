@@ -42,6 +42,7 @@
   "field.unit": "Enhet",
   "field.freq": "Frekvens",
   "field.anchor": "Første forekomst (angir tid på dagen)",
+  "field.last_completed": "Last completed (optional — seeds next due date)",
   "field.device_id": "Knytt til enhet",
   "field.area_id": "Område",
   "field.kind": "Type",

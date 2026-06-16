@@ -42,6 +42,7 @@
   "field.unit": "Yksikkö",
   "field.freq": "Tiheys",
   "field.anchor": "Ensimmäinen esiintyminen (asettaa kellonajan)",
+  "field.last_completed": "Last completed (optional — seeds next due date)",
   "field.device_id": "Liitä laitteeseen",
   "field.area_id": "Alue",
   "field.kind": "Tyyppi",

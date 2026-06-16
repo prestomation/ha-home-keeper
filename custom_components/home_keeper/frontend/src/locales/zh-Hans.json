@@ -42,6 +42,7 @@
   "field.unit": "单位",
   "field.freq": "频率",
   "field.anchor": "首次发生（设置每日时间）",
+  "field.last_completed": "Last completed (optional — seeds next due date)",
   "field.device_id": "关联到设备",
   "field.area_id": "区域",
   "field.kind": "类型",

@@ -42,6 +42,7 @@
   "field.unit": "Unidad",
   "field.freq": "Frecuencia",
   "field.anchor": "Primera aparición (establece la hora del día)",
+  "field.last_completed": "Last completed (optional — seeds next due date)",
   "field.device_id": "Adjuntar al dispositivo",
   "field.area_id": "Área",
   "field.kind": "Tipo",

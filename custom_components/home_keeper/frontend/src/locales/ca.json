@@ -42,6 +42,7 @@
   "field.unit": "Unitat",
   "field.freq": "Freqüència",
   "field.anchor": "Primera ocurrència (estableix l'hora del dia)",
+  "field.last_completed": "Last completed (optional — seeds next due date)",
   "field.device_id": "Vincula a un dispositiu",
   "field.area_id": "Àrea",
   "field.kind": "Tipus",
