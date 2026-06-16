@@ -6,6 +6,47 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-16
+
+- **Managed tasks (stronger integration ownership).** Integrations that create tasks
+  can declare a `managed_by` block that Home Keeper acts on (unlike the opaque
+  `source`): managed tasks show a **"Managed by {name}"** chip, lock declared fields
+  out of the edit form, surface an optional completion prompt and a deep link back to
+  the owning integration, and can be grouped by integration. If the owner is
+  uninstalled or disabled, its tasks flip to **"Integration offline"**, become
+  deletable again, and a **"Remove orphaned tasks"** banner offers one-click cleanup;
+  `home_keeper.delete_task` gains a `force` option as a last resort. See
+  `docs/INTEGRATING.md` §6.
+
+- **Home inventory export (for insurance).** An **Export inventory** button on the
+  Appliances tab downloads a CSV — make/model/serial, purchase and warranty dates,
+  replacement cost, and the value of spares on hand, with a grand total. Also exposed
+  to automations as the `home_keeper.export_inventory` service.
+
+- **Spare-inventory tracking for parts.** Any part can track a *stock* count and a
+  *reorder-at* threshold. Completing a wear-item replacement consumes a spare, and
+  when stock hits the threshold a `home_keeper_part_low_stock` event fires. The panel
+  shows on-hand count and a **Low stock** chip; `home_keeper.adjust_part_stock`
+  restocks or consumes spares from automations.
+
+- **Deep links & a working Back button in the panel.** Tabs
+  (`/home-keeper/appliances`) and detail pages (`/home-keeper/tasks/<id>`) are now in
+  the URL — linkable, bookmarkable, and refresh-safe — and the browser **Back** button
+  steps back inside the panel instead of leaving it.
+
+- **A brand-new floating task is due now, not a full interval away.** A floating task
+  with no completion history used to be dated one interval into the future (a chore
+  you'd never done showed up as "due in 30 days"); it now reads as **due immediately**.
+  Completing it — or seeding a "last done" date (below) — starts the clock from there.
+  Fixed and appliance wear-part tasks are unaffected. Applies to newly-created tasks;
+  an existing never-completed floating task keeps its current due date until next
+  edited or completed.
+
+- **`add_task` accepts an optional `last_completed` "last done" seed.** Integrations
+  that already know when an activity last happened can pass `last_completed` so the
+  first next-due is measured from that date (`next_due = last_completed + interval`)
+  instead of due-now. See `docs/INTEGRATING.md`.
+
 ## [0.2.0b2] - 2026-06-15
 
 - **A brand-new floating task is due now, not a full interval away.** A floating task
