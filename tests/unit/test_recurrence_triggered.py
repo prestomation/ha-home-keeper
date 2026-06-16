@@ -69,3 +69,30 @@ def test_arm_complete_arm_cycle_preserves_history():
     r.apply_completion(task, dt(2027, 6, 1), now=later)
     assert task["next_due"] is None
     assert len(task["completions"]) == 2  # both replacements retained
+
+
+def test_remove_completion_leaves_dormant_triggered_dormant():
+    # Regression: editing the replacement history of a dormant triggered task must
+    # not re-arm it (next_due stays None).
+    now = dt(2026, 6, 16, 10)
+    task = _triggered(
+        next_due=None,
+        last_completed=dt(2026, 1, 1).isoformat(),
+        completions=[{"ts": dt(2026, 1, 1).isoformat()}],
+    )
+    out = r.remove_completion(task, dt(2026, 1, 1).isoformat(), now=now)
+    assert out["next_due"] is None
+    assert out["completions"] == []
+
+
+def test_remove_completion_keeps_armed_triggered_armed():
+    # And removing a past completion from an armed triggered task keeps it armed.
+    now = dt(2026, 6, 16, 10)
+    armed_at = dt(2026, 6, 16).isoformat()
+    task = _triggered(
+        next_due=armed_at,
+        last_completed=dt(2025, 1, 1).isoformat(),
+        completions=[{"ts": dt(2025, 1, 1).isoformat()}],
+    )
+    out = r.remove_completion(task, dt(2025, 1, 1).isoformat(), now=now)
+    assert out["next_due"] == armed_at  # still armed

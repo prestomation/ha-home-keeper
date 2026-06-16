@@ -81,10 +81,16 @@ class FakeHomeKeeper:
 
     async def _trigger_task(self, call: ServiceCall) -> None:
         # Arm a triggered (condition-driven) task: next_due -> now (due). Mirrors the
-        # real store.trigger_task so glue tests can re-arm a dormant battery task.
+        # real store.trigger_task — including rejecting non-triggered tasks — so glue
+        # tests catch a caller that arms a floating/fixed task by mistake.
         task = self.tasks.get(call.data["task_id"])
-        if task is not None:
-            task["next_due"] = dt_util.now().isoformat()
+        if task is None:
+            return
+        if task.get("recurrence_type") != "triggered":
+            raise models.TaskValidationError(
+                "trigger_task is only valid for triggered (condition-driven) tasks"
+            )
+        task["next_due"] = dt_util.now().isoformat()
 
     async def _list_tasks(self, call: ServiceCall) -> dict[str, Any]:
         return {"tasks": [dict(t) for t in self.tasks.values()]}

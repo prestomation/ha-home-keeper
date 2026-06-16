@@ -533,18 +533,30 @@ export class HomeKeeperPanel extends HTMLElement {
       this._render();
       return;
     }
-    const payload: Partial<Task> = {
-      name: task.name,
-      notes: task.notes || '',
-      recurrence_type: task.recurrence_type,
-      interval: Math.max(1, Number(task.interval) || 1),
-      device_id: task.device_id || null,
-    };
-    if (task.recurrence_type === 'floating') {
-      payload.unit = task.unit || 'months';
+    let payload: Partial<Task>;
+    if (task.recurrence_type === 'triggered') {
+      // A triggered task has no schedule — only descriptive fields are editable.
+      // Sending recurrence_type/interval/freq would make the backend recompute
+      // next_due and re-arm a dormant ("Monitored") task. Send the minimum.
+      payload = {
+        name: task.name,
+        notes: task.notes || '',
+        device_id: task.device_id || null,
+      };
     } else {
-      payload.freq = task.freq || 'DAILY';
-      payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
+      payload = {
+        name: task.name,
+        notes: task.notes || '',
+        recurrence_type: task.recurrence_type,
+        interval: Math.max(1, Number(task.interval) || 1),
+        device_id: task.device_id || null,
+      };
+      if (task.recurrence_type === 'floating') {
+        payload.unit = task.unit || 'months';
+      } else {
+        payload.freq = task.freq || 'DAILY';
+        payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
+      }
     }
     try {
       if (task.id) await api.updateTask(this._hass, task.id, payload);

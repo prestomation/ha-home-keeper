@@ -243,7 +243,10 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     fields = normalize_fields(candidate, tz=now.tzinfo)
     merged.update(fields)
 
+    # A triggered task has no schedule: its next_due is owned by trigger_task /
+    # complete_task (armed timestamp vs dormant None), so editing name/notes/device
+    # must never recompute it (that would re-arm a dormant "monitored" task).
     recurrence_keys = {"recurrence_type", "interval", "unit", "freq", "anchor"}
-    if recurrence_keys & set(updates):
+    if merged.get("recurrence_type") != REC_TRIGGERED and (recurrence_keys & set(updates)):
         merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
     return merged
