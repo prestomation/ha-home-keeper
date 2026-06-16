@@ -43,6 +43,10 @@
           "name": "Anker",
           "description": "Voor fixed-taken: ISO-datum/tijd van de eerste keer (stelt het tijdstip van de dag in)."
         },
+        "last_completed": {
+          "name": "Last completed",
+          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+        },
         "device_id": {
           "name": "Apparaat",
           "description": "Optioneel apparaat om deze taak aan te koppelen."

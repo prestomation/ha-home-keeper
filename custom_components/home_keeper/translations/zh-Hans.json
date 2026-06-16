@@ -43,6 +43,10 @@
           "name": "锚点",
           "description": "对于固定任务：首次发生的 ISO 日期时间（设置每日时间）。"
         },
+        "last_completed": {
+          "name": "Last completed",
+          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+        },
         "device_id": {
           "name": "设备",
           "description": "要将此任务关联到的可选设备。"

@@ -6,6 +6,21 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.2.0b2] - 2026-06-15
+
+- **A brand-new floating task is due now, not a full interval away.** A floating task
+  with no completion history used to be dated one interval into the future (a chore
+  you'd never done showed up as "due in 30 days"). It now reads as **due immediately** —
+  a task you haven't done yet is due now. Completing it (or seeding a "last done" date,
+  below) starts the clock from there. Fixed (calendar-anchored) tasks and appliance
+  wear-part tasks are unaffected. This applies to newly-created tasks; an existing
+  never-completed floating task keeps its current due date until next edited or completed.
+
+- **`add_task` accepts an optional `last_completed` "last done" seed.** Integrations
+  that already know when an activity last happened can pass `last_completed` to seed an
+  initial completion, so the first next-due is measured from that date
+  (`next_due = last_completed + interval`) instead of due-now. See `docs/INTEGRATING.md`.
+
 ## [0.2.0b1] - 2026-06-15
 
 - **Managed tasks (stronger integration ownership).** Integrations that create tasks

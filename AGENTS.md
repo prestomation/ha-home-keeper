@@ -19,6 +19,15 @@
   `raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/images/<file>.png`
   URL pinned to the commit that added them. When a change adds a new UI surface,
   add a capture step for it to the capture script in the same PR.
+  - **Embed PR-body screenshots with an HTML `<img src="…" alt="…" width="820">`
+    tag, not markdown `![](…)`.** The `update_pull_request` path can silently wrap a
+    markdown image URL in double backticks (a code span), breaking the image — and it
+    may hit only some of several identical-looking lines. HTML `<img>` avoids markdown
+    link parsing. Keep the SHA-pinned `src` (branch names have slashes and are
+    ambiguous for `raw.githubusercontent.com`). After editing the body, re-read it to
+    confirm the URLs weren't mangled and verify each returns HTTP 200. (In-repo
+    README/docs markdown with relative `docs/images/…` paths is fine — this only bites
+    PR/issue bodies set through the API.)
 - **Always document new major features in `README.md` in the same change.** Add a
   brief section with the **use cases** (what problem it solves) and a little about
   **how it's used**, and include **screenshot(s)** (same Playwright capture, committed

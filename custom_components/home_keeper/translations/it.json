@@ -43,6 +43,10 @@
           "name": "Ancora",
           "description": "Per le attività fixed: data/ora ISO della prima occorrenza (imposta l'ora del giorno)."
         },
+        "last_completed": {
+          "name": "Last completed",
+          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+        },
         "device_id": {
           "name": "Dispositivo",
           "description": "Dispositivo facoltativo a cui collegare questa attività."

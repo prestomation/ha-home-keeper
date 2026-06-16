@@ -57,6 +57,15 @@ add_task:
       example: "2026-01-01T08:00:00"
       selector:
         text:
+    last_completed:
+      name: Last completed
+      description: >-
+        Optional "last done" date. Seeds an initial completion so a floating task
+        starts measured from this date (next due = last done + interval) instead of
+        being due immediately. Omit for a task that has never been done.
+      example: "2026-01-01T08:00:00"
+      selector:
+        datetime:
     device_id:
       name: Device
       description: Optional device to attach this task to.

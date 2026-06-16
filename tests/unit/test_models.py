@@ -9,7 +9,7 @@ TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 13, 10, tzinfo=TZ)
 
 
-def test_build_floating_task_sets_id_and_next_due():
+def test_build_floating_task_sets_id_and_is_due_now():
     task = m.build_task(
         {"name": "Furnace filter", "recurrence_type": "floating", "interval": 3, "unit": "months"},
         now=NOW,
@@ -17,8 +17,77 @@ def test_build_floating_task_sets_id_and_next_due():
     assert task["id"]
     assert task["name"] == "Furnace filter"
     assert task["last_completed"] is None
-    # 3 months from now.
-    assert task["next_due"] == datetime(2026, 9, 13, 10, tzinfo=TZ).isoformat()
+    # Never completed -> due immediately, not 3 months out.
+    assert task["next_due"] == NOW.isoformat()
+
+
+def test_build_floating_task_with_last_completed_seed():
+    # A "last done" seed records an initial completion and measures next_due from it.
+    seed = datetime(2026, 6, 1, 9, tzinfo=TZ)
+    task = m.build_task(
+        {
+            "name": "Nail trim",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "last_completed": seed.isoformat(),
+        },
+        now=NOW,
+    )
+    assert task["last_completed"] == seed.isoformat()
+    assert task["completions"] == [{"ts": seed.isoformat()}]
+    # 2 weeks after the seed, not due-now and not measured from NOW.
+    assert task["next_due"] == datetime(2026, 6, 15, 9, tzinfo=TZ).isoformat()
+
+
+def test_build_floating_task_seed_accepts_datetime():
+    # The add_task service (cv.datetime) hands build_task an already-parsed datetime,
+    # not a string — exercise that path directly.
+    seed = datetime(2026, 6, 1, 9, tzinfo=TZ)
+    task = m.build_task(
+        {
+            "name": "Nail trim",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "last_completed": seed,
+        },
+        now=NOW,
+    )
+    assert task["last_completed"] == seed.isoformat()
+    assert task["next_due"] == datetime(2026, 6, 15, 9, tzinfo=TZ).isoformat()
+
+
+def test_build_floating_task_seed_naive_is_qualified():
+    # A naive seed (e.g. from a datetime-local picker) is qualified with the caller tz.
+    task = m.build_task(
+        {
+            "name": "Nail trim",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "weeks",
+            "last_completed": "2026-06-01T09:00",  # naive
+        },
+        now=NOW,
+    )
+    seeded = datetime.fromisoformat(task["last_completed"])
+    assert seeded.tzinfo is not None
+    assert seeded.utcoffset() == NOW.utcoffset()
+    assert datetime.fromisoformat(task["next_due"]).tzinfo is not None
+
+
+def test_build_task_rejects_bad_last_completed():
+    with pytest.raises(m.TaskValidationError):
+        m.build_task(
+            {
+                "name": "x",
+                "recurrence_type": "floating",
+                "interval": 1,
+                "unit": "days",
+                "last_completed": "not-a-date",
+            },
+            now=NOW,
+        )
 
 
 def test_build_fixed_task_requires_anchor_and_freq():
@@ -105,10 +174,19 @@ def test_merge_update_name_only_keeps_schedule():
 
 
 def test_merge_update_interval_recomputes_due():
+    # Seed a completion so the recompute measures from a fixed point (a never-completed
+    # task would just stay due-now, hiding the interval change).
     task = m.build_task(
-        {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},
+        {
+            "name": "Filter",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "months",
+            "last_completed": NOW.isoformat(),
+        },
         now=NOW,
     )
+    assert task["next_due"] == datetime(2026, 7, 13, 10, tzinfo=TZ).isoformat()
     updated = m.merge_update(task, {"interval": 2}, now=NOW)
     assert updated["interval"] == 2
     assert updated["next_due"] == datetime(2026, 8, 13, 10, tzinfo=TZ).isoformat()

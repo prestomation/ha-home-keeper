@@ -41,6 +41,9 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("unit"): cv.string,
         vol.Optional("freq"): cv.string,
         vol.Optional("anchor"): cv.string,
+        # Optional "last done" seed: records an initial completion so a floating task
+        # starts measured from this date instead of due-now. See docs/INTEGRATING.md.
+        vol.Optional("last_completed"): cv.datetime,
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
         vol.Optional("source"): dict,
