@@ -52,6 +52,7 @@ const REQUIRED_COMPONENTS = [
   'ha-assist-chip',
   'ha-alert',
   'ha-spinner',
+  'ha-icon',
 ];
 
 /**
@@ -143,9 +144,16 @@ const STYLES = `
   }
   ha-assist-chip.hk-managed {
     --ha-assist-chip-container-color: var(--info-color, #039BE5);
-    --md-assist-chip-label-text-color: #fff;
-    --ha-assist-chip-label-text-color: #fff;
     --md-assist-chip-outline-color: transparent;
+    /* Icon-only: tighten the leading/trailing space and color the glyph. */
+    --md-assist-chip-leading-space: 8px;
+    --md-assist-chip-trailing-space: 8px;
+    --md-assist-chip-icon-size: 18px;
+    color: #fff;
+  }
+  ha-assist-chip.hk-managed ha-icon {
+    color: #fff;
+    --mdc-icon-size: 18px;
   }
   ha-icon-button.hk-done { color: var(--primary-color); flex: none; }
   .hk-loading { display: flex; justify-content: center; padding: 32px 0; }
@@ -501,9 +509,16 @@ export class HomeKeeperCard extends HTMLElement {
     const statusChip = overdue
       ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
       : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
-    const managedChip = task.managed_by
-      ? `<ha-assist-chip class="hk-managed" label="${escapeHTML(t('chip.managed', { name: task.managed_by.display_name }))}"></ha-assist-chip>`
-      : '';
+    // Managed-by reads as a compact icon-only chip (the integration's own icon,
+    // else a generic one) with the full "Managed by X" as a hover/long-press
+    // tooltip — keeps the row tight instead of a full-width pill.
+    const mb = task.managed_by;
+    let managedChip = '';
+    if (mb) {
+      const tip = escapeHTML(t('chip.managed', { name: mb.display_name }));
+      const icon = escapeHTML(mb.icon || 'mdi:puzzle');
+      managedChip = `<ha-assist-chip class="hk-managed" title="${tip}" aria-label="${tip}" label=""><ha-icon slot="icon" icon="${icon}"></ha-icon></ha-assist-chip>`;
+    }
     let areaChip = '';
     if (this._config.show_area !== false) {
       const area = areaName(this._hass?.areas, task.area_id);
