@@ -4,28 +4,28 @@
 
 | Name                                              |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |-------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
-| custom\_components/home\_keeper/\_\_init\_\_.py   |      163 |      163 |       16 |        0 |      0% |     8-407 |
+| custom\_components/home\_keeper/\_\_init\_\_.py   |      174 |      174 |       16 |        0 |      0% |     8-428 |
 | custom\_components/home\_keeper/assets.py         |      259 |        9 |      118 |        8 |     95% |99, 150-151, 153, 182, 225, 251-\>253, 310, 408-409, 445-\>447 |
 | custom\_components/home\_keeper/binary\_sensor.py |       29 |       29 |        0 |        0 |      0% |      3-57 |
 | custom\_components/home\_keeper/button.py         |       21 |       21 |        0 |        0 |      0% |      8-48 |
-| custom\_components/home\_keeper/calendar.py       |       68 |       68 |       28 |        0 |      0% |     9-125 |
+| custom\_components/home\_keeper/calendar.py       |       72 |       72 |       32 |        0 |      0% |     9-132 |
 | custom\_components/home\_keeper/config\_flow.py   |       13 |       13 |        2 |        0 |      0% |      7-32 |
-| custom\_components/home\_keeper/const.py          |       37 |        0 |        0 |        0 |    100% |           |
+| custom\_components/home\_keeper/const.py          |       38 |        0 |        0 |        0 |    100% |           |
 | custom\_components/home\_keeper/coordinator.py    |       46 |       46 |       10 |        0 |      0% |     8-135 |
 | custom\_components/home\_keeper/devices.py        |      128 |      128 |       58 |        0 |      0% |    13-286 |
 | custom\_components/home\_keeper/diagnostics.py    |       10 |       10 |        0 |        0 |      0% |      9-26 |
 | custom\_components/home\_keeper/entity.py         |       18 |       18 |        2 |        0 |      0% |     16-43 |
 | custom\_components/home\_keeper/events.py         |        6 |        0 |        0 |        0 |    100% |           |
 | custom\_components/home\_keeper/inventory.py      |       59 |        0 |       12 |        0 |    100% |           |
-| custom\_components/home\_keeper/models.py         |       92 |        5 |       40 |        3 |     94% |49, 53, 82, 86-87 |
+| custom\_components/home\_keeper/models.py         |       95 |        5 |       42 |        3 |     94% |50, 54, 90, 94-95 |
 | custom\_components/home\_keeper/panel.py          |       22 |       22 |        4 |        0 |      0% |     10-70 |
 | custom\_components/home\_keeper/reconcile.py      |       71 |        0 |       38 |        0 |    100% |           |
-| custom\_components/home\_keeper/recurrence.py     |      127 |       11 |       62 |       11 |     88% |50, 103, 119, 143, 154, 183, 214, 229, 245, 285, 293 |
+| custom\_components/home\_keeper/recurrence.py     |      132 |        9 |       68 |        9 |     91% |51, 104, 120, 144, 155, 184, 221, 240, 258 |
 | custom\_components/home\_keeper/sensor.py         |       62 |       62 |       10 |        0 |      0% |    12-133 |
-| custom\_components/home\_keeper/store.py          |      218 |      218 |       86 |        0 |      0% |     9-406 |
-| custom\_components/home\_keeper/todo.py           |       34 |       34 |        6 |        0 |      0% |     10-76 |
+| custom\_components/home\_keeper/store.py          |      228 |      228 |       90 |        0 |      0% |     9-430 |
+| custom\_components/home\_keeper/todo.py           |       36 |       36 |        8 |        0 |      0% |     10-81 |
 | custom\_components/home\_keeper/websocket\_api.py |      220 |      220 |       46 |        0 |      0% |     8-367 |
-| **TOTAL**                                         | **1703** | **1077** |  **538** |   **22** | **39%** |           |
+| **TOTAL**                                         | **1739** | **1102** |  **556** |   **20** | **39%** |           |
 
 
 ## Setup coverage badge
