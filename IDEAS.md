@@ -372,3 +372,81 @@ preserved.
   weather entities. The missing piece is a task that *arms itself* when a weather
   condition is met and *clears* when resolved — exactly the triggered-task model Home
   Keeper already has for batteries, applied to weather sensors instead.
+
+### Usage-based / sensor-triggered maintenance (beyond batteries)
+
+- **"Replace filter after N run-hours" or "clean after N cycles."**
+  People track washing-machine cycles with smart-plug power monitoring and want a task
+  that fires after a cycle-count threshold, not a calendar interval.
+  - ["Using power consumption to show information (status, elapsed time, count) of cycles
+    on a dishwasher" — Configuration](https://community.home-assistant.io/t/using-power-consumption-to-show-information-status-elapsed-time-count-of-cycles-on-a-dish-washer/382248):
+    users manually watch the counter and wish the reminder were automatic.
+  - [Maintenance Supporter — Custom Integrations](https://community.home-assistant.io/t/custom-integration-maintenance-supporter-sensor-triggered-adaptive-maintenance-for-your-home/995556):
+    the most feature-complete attempt at this pattern, with five trigger types (threshold,
+    counter, state-change, runtime, compound). Its key insight: *"Fixed-interval reminders
+    either fire too early (wasting parts and effort) or too late (risking equipment
+    damage)."* Also does adaptive scheduling via Weibull reliability modelling and QR-code
+    scan-to-complete. Feature requests still open: multi-stage filters (multiple
+    components with different intervals on one unit) and numeric countdown entities for
+    dashboard progress bars.
+
+- **Long-term test-date tracking where `last_changed` is unreliable.**
+  ["Smoke detector test reminder (how to perform long-term state monitoring)?" — Configuration](https://community.home-assistant.io/t/smoke-detector-test-reminder-how-to-perform-long-term-state-monitoring/440461):
+  users want a 6-monthly smoke-detector test reminder, but `state.last_changed` resets
+  whenever the Zigbee network restarts — not just on an actual test. The thread lands on a
+  datetime helper as the only reliable anchor. The same fragility affects any "when did I
+  last do X" use case not backed by a persistent store like Home Keeper's completion log.
+
+### Lovelace card for upcoming/overdue tasks
+
+- **A visual maintenance dashboard card with color-coded urgency.**
+  ["Home Maintenance Cards Dashboard" — Dashboards & Frontend](https://community.home-assistant.io/t/home-maintenance-cards-dashboard/994581):
+  someone built a custom Lovelace card (color-coded green/yellow/red rings with a pulsing
+  glow for overdue items, one-tap completion, auto-discovery of maintenance entities). The
+  proliferation of such cards — this one, `ha-chore-card`, the Chore Helper card — shows
+  people want a glanceable summary that the native To-do and Calendar surfaces don't provide.
+  ["Lovelace card to display pending tasks" — Configuration](https://community.home-assistant.io/t/lovelace-card-to-display-pending-tasks/155336):
+  *"I'd like to add a card to it highlighting any issues which we might need to take care of.
+  For example, remote batteries getting low."* — the auto-entities workaround requires
+  manually maintaining entity lists.
+
+### Kids' chores & gamification
+
+- **Gamified chore tracking with per-person points, streaks, rewards, and parental approval.**
+  [KidsChores custom integration](https://community.home-assistant.io/t/kidschores-family-chore-management-integration/827719)
+  and its successor ChoreOps are entire integrations dedicated to this pattern. Feature set:
+  claim-and-approve workflow, coins/stars/XP, badges, streaks, challenges, penalties, and a
+  dedicated kid-facing dashboard. The existence of two mature forks targeting this use case
+  confirms strong demand. Relevant to Home Keeper's "assignees / household members" idea —
+  the family-chore audience wants reward mechanics that pure maintenance tracking doesn't need.
+
+### Actionable (snoozable) notifications
+
+- **"Mark done" or "snooze 1 day" directly from the mobile push notification.**
+  ["Actionable Task Reminder" — Blueprints Exchange](https://community.home-assistant.io/t/actionable-task-reminder-a-powerful-task-reminder-automation/636946):
+  a popular blueprint for snoozable reminders. Its key limitation: acknowledging or
+  snoozing does not recalculate the next due date for a recurring maintenance task —
+  the blueprint knows nothing about intervals. People bolt it onto Grocy or datetime
+  helpers to get the recalculation side, but there is no clean integration.
+
+### Grocy as a stopgap — and its limits
+
+- **Grocy fills the maintenance/chore gap but requires a separate app.**
+  The [Grocy community thread](https://community.home-assistant.io/t/grocy-custom-component-and-card-s/218978)
+  repeatedly surfaces: *"this works just fine in Grocy but I'd love to pull this data into
+  Home Assistant."* Grocy's chore and task model is richer than anything native HA offered,
+  but switching contexts out of HA is friction. The custom card for Grocy tasks/chores
+  (`grocy-tasks-chores`) exists precisely because people want the Grocy data on their HA
+  dashboard and as automation triggers. Home Keeper aims to close that gap without a
+  separate server.
+
+### Generalized expiry / annual service tracking
+
+- **Track chimney sweeps, septic inspections, fire-extinguisher service, smoke-detector
+  10-year replacement — anything with an annual or multi-year expiry.**
+  ["Basic countdown/reminder for maintenance items" — Configuration](https://community.home-assistant.io/t/basic-countdown-reminder-for-maintenance-items/980690):
+  *"All I need is a reminder of some sort to nag at me when it's time to deal with these
+  tasks"* — for an HVAC filter on a 90-day cycle. The community reaches for the Home
+  Maintenance integration as the answer; but the broader pattern (arbitrary expiry date +
+  notification) is exactly what Home Keeper's warranty-expiry sensor and fixed-schedule
+  tasks already model.
