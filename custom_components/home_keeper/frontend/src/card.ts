@@ -135,24 +135,19 @@ const STYLES = `
     overflow: hidden; text-overflow: ellipsis;
   }
   .hk-notes { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
-  .hk-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .hk-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
   ha-assist-chip.hk-overdue {
     --ha-assist-chip-container-color: var(--error-color);
     --md-assist-chip-label-text-color: var(--text-primary-color, #fff);
     --ha-assist-chip-label-text-color: var(--text-primary-color, #fff);
     --md-assist-chip-outline-color: transparent;
   }
-  ha-assist-chip.hk-managed {
-    --ha-assist-chip-container-color: var(--info-color, #039BE5);
-    --md-assist-chip-outline-color: transparent;
-    /* Icon-only: tighten the leading/trailing space and color the glyph. */
-    --md-assist-chip-leading-space: 8px;
-    --md-assist-chip-trailing-space: 8px;
-    --md-assist-chip-icon-size: 18px;
-    color: #fff;
-  }
-  ha-assist-chip.hk-managed ha-icon {
-    color: #fff;
+  /* Managed-by: a compact circular icon badge (the integration's own icon),
+     centered, with the full "Managed by X" as a tooltip. */
+  .hk-managed {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%; flex: none;
+    background: var(--info-color, #039BE5); color: #fff;
     --mdc-icon-size: 18px;
   }
   ha-icon-button.hk-done { color: var(--primary-color); flex: none; }
@@ -517,7 +512,7 @@ export class HomeKeeperCard extends HTMLElement {
     if (mb) {
       const tip = escapeHTML(t('chip.managed', { name: mb.display_name }));
       const icon = escapeHTML(mb.icon || 'mdi:puzzle');
-      managedChip = `<ha-assist-chip class="hk-managed" title="${tip}" aria-label="${tip}" label=""><ha-icon slot="icon" icon="${icon}"></ha-icon></ha-assist-chip>`;
+      managedChip = `<span class="hk-managed" title="${tip}" role="img" aria-label="${tip}"><ha-icon icon="${icon}"></ha-icon></span>`;
     }
     let areaChip = '';
     if (this._config.show_area !== false) {
