@@ -88,6 +88,13 @@ describe('filterTasks', () => {
     expect(ids).toEqual(['o', 's', 't']);
   });
 
+  it('ignores horizon_days for the no_due filter (keeps undated tasks)', () => {
+    const ids = filterTasks(all, { type: '', filter: 'no_due', horizon_days: 7 }, {}, NOW)
+      .map((t) => t.id)
+      .sort();
+    expect(ids).toEqual(['m', 'n']);
+  });
+
   it('filters by area, resolving a task to its device area', () => {
     const devices = { dev1: { id: 'dev1', area_id: 'kitchen' } };
     const inKitchenDirect = task({ id: 'k1', area_id: 'kitchen', next_due: new Date(NOW + DAY).toISOString() });

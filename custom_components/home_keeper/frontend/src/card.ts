@@ -41,6 +41,19 @@ const MDI_CHECK =
 // mdi:plus — the header "add task" action.
 const MDI_PLUS = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
 
+// HA registers many of its components lazily. On a cold dashboard load they may
+// not be defined yet, so we wait (best-effort) before the first paint — exactly
+// as the panel does — to avoid flashing un-upgraded custom elements.
+const REQUIRED_COMPONENTS = [
+  'ha-card',
+  'ha-form',
+  'ha-button',
+  'ha-icon-button',
+  'ha-assist-chip',
+  'ha-alert',
+  'ha-spinner',
+];
+
 /**
  * English-only strings for the card's *editor* and the "add card" picker. The
  * card's runtime list reuses the panel's translated keys via `t()`; the config
@@ -73,7 +86,7 @@ const S: Record<string, string> = {
 const FILTER_OPTS: { value: CardFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'overdue', label: 'Overdue' },
-  { value: 'today', label: 'Due today' },
+  { value: 'today', label: 'Due by today (incl. overdue)' },
   { value: 'soon', label: 'Due soon' },
   { value: 'no_due', label: 'No due date' },
 ];
@@ -183,6 +196,11 @@ export class HomeKeeperCard extends HTMLElement {
   private _liveHassEls: Array<{ hass?: Hass }> = [];
   private _unsub?: () => void;
   private _subscribing = false;
+  private _refreshing = false;
+  private _booted = false;
+  // The websocket connection our event subscription is bound to, so we can
+  // re-subscribe if HA hands us a fresh connection after a reconnect.
+  private _subConn?: Hass['connection'];
 
   // ── Lovelace lifecycle ──────────────────────────────────────────────────────
   static getConfigElement(): HTMLElement {
@@ -217,9 +235,11 @@ export class HomeKeeperCard extends HTMLElement {
     setLanguage(hass.language);
     this._hass = hass;
     for (const el of this._liveHassEls) el.hass = hass;
+    // (Re)subscribe — picks up a fresh connection after a websocket reconnect.
+    void this._subscribe();
     if (first) {
-      void this._subscribe();
-      void this._refresh();
+      if (this._booted) void this._refresh();
+      else void this._boot();
       return;
     }
     // Refresh when any Home Keeper entity changes (completion, add/edit/delete
@@ -237,18 +257,40 @@ export class HomeKeeperCard extends HTMLElement {
   connectedCallback(): void {
     if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
     void this._subscribe();
-    this._render();
-    if (this._hass && !this._loaded) void this._refresh();
+    void this._boot();
   }
 
   disconnectedCallback(): void {
     if (this._unsub) {
       this._unsub();
       this._unsub = undefined;
+      this._subConn = undefined;
     }
   }
 
-  /** Cheap fingerprint of all Home Keeper entity states (count + newest stamp). */
+  /** One-time first paint: wait for lazy HA components, then render + load. */
+  private async _boot(): Promise<void> {
+    if (this._booted) return;
+    this._booted = true;
+    if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
+    await Promise.all(
+      REQUIRED_COMPONENTS.map((n) =>
+        Promise.race([customElements.whenDefined(n), new Promise((r) => setTimeout(r, 2000))]),
+      ),
+    );
+    this._render();
+    if (this._hass && !this._loaded) await this._refresh();
+  }
+
+  /**
+   * Cheap fingerprint that drives live updates. The integration's two singleton
+   * `CoordinatorEntity`s — `todo.home_keeper_tasks` and
+   * `calendar.home_keeper_upcoming_tasks` — re-write their state (bumping
+   * `last_updated`) on every coordinator refresh, which fires on any task
+   * mutation (complete/add/edit/delete/trigger). Watching every Home
+   * Keeper-named entity's count + newest stamp therefore changes whenever the
+   * task set does; completions also arrive instantly via the event subscription.
+   */
   private _stateSignal(hass: Hass): string {
     const states = hass.states;
     if (!states) return '';
@@ -265,12 +307,18 @@ export class HomeKeeperCard extends HTMLElement {
 
   /** Subscribe to the task-completed event for instant cross-surface updates. */
   private async _subscribe(): Promise<void> {
-    if (this._unsub || this._subscribing) return;
     const conn = this._hass?.connection;
     if (!conn) return;
+    // Drop a stale subscription if HA reconnected with a new connection object.
+    if (this._unsub && this._subConn && this._subConn !== conn) {
+      this._unsub();
+      this._unsub = undefined;
+    }
+    if (this._unsub || this._subscribing) return;
     this._subscribing = true;
     try {
       this._unsub = await conn.subscribeEvents(() => void this._refresh(), 'home_keeper_task_completed');
+      this._subConn = conn;
     } catch {
       // Subscription unavailable — the state-signal path still keeps us current.
     } finally {
@@ -279,14 +327,17 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   private async _refresh(): Promise<void> {
-    if (!this._hass) return;
+    if (!this._hass || this._refreshing) return;
+    this._refreshing = true;
     try {
       this._tasks = await api.getTasks(this._hass);
       this._loaded = true;
-      if (this._hass) this._signal = this._stateSignal(this._hass);
+      this._signal = this._stateSignal(this._hass);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('home-keeper-card: failed to load tasks', err);
+    } finally {
+      this._refreshing = false;
     }
     this._render();
   }

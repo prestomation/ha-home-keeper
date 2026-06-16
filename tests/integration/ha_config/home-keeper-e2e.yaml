@@ -1,11 +1,21 @@
 # Lovelace dashboard for the Playwright e2e suite — the "usage" surfaces.
-# Renders the native Home Keeper to-do list and calendar so browser tests can
-# assert on real DOM and screenshots can show how tasks appear to users.
+# Renders the Home Keeper task card alongside the native to-do list and calendar
+# so browser tests can assert on real DOM and screenshots can show how tasks
+# appear to users.
 title: Home Keeper E2E
 views:
   - title: Tasks
     path: card
     cards:
+      # Default card: every enabled task, soonest-due first.
+      - type: custom:home-keeper-card
+        title: Home maintenance
+      # A configured card: grouped into status sections with notes shown —
+      # exercises the grouping/display options and adds screenshot variety.
+      - type: custom:home-keeper-card
+        title: By status
+        group_by: status
+        show_notes: true
       - type: todo-list
         entity: todo.home_keeper_tasks
       - type: calendar

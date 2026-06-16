@@ -59,7 +59,11 @@ function endOfToday(now: number): number {
   return d.getTime();
 }
 
-/** Which status section a task belongs to (mirrors the panel's bucketing). */
+/**
+ * Which status section a task belongs to. Extends the panel's bucketing
+ * (overdue/soon/later/monitored/none) with an extra `today` section between
+ * overdue and soon, and adds a NaN guard for malformed due dates.
+ */
 export function statusBucket(task: Task, now = Date.now()): StatusBucket {
   // A dormant triggered task is "monitored" — armed-but-not-due.
   if (task.recurrence_type === 'triggered' && !task.next_due) return 'monitored';
@@ -113,7 +117,10 @@ export function filterTasks(
   const recTypes = config.recurrence_types?.length ? new Set(config.recurrence_types) : null;
   const filter = config.filter ?? 'all';
   const horizon = Math.max(0, Number(config.horizon_days) || 0);
-  const horizonCutoff = horizon > 0 ? now + horizon * DAY_MS : 0;
+  // The horizon is an "upcoming dated window"; it's meaningless for the
+  // explicitly-undated `no_due` filter, so skip it there (else the list is
+  // always empty — undated tasks have no date to fall within the window).
+  const horizonCutoff = horizon > 0 && filter !== 'no_due' ? now + horizon * DAY_MS : 0;
 
   return tasks.filter((task) => {
     if (!config.show_disabled && task.enabled === false) return false;

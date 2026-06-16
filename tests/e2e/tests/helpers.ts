@@ -21,6 +21,32 @@ export async function openDashboard(page: Page): Promise<void> {
   await page.locator('hui-view, home-assistant').first().waitFor({ state: 'attached', timeout: 45_000 });
 }
 
+/**
+ * Open the e2e dashboard and wait for the (first) custom Home Keeper card to
+ * upgrade and render its first row. Returns the card locator. The card lives in
+ * the dashboard's nested shadow DOM, which Playwright locators pierce.
+ */
+export async function openCardDashboard(page: Page) {
+  // The card JS is an auto-registered extra module. On the very first dashboard
+  // load of a run HA may not have finished loading it, so the custom element
+  // doesn't upgrade in time; a reload (the module is warm by then) fixes it.
+  // Retry a couple of times so the first test isn't flaky on a cold frontend.
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt === 0) await openDashboard(page);
+    else await page.reload({ waitUntil: 'domcontentloaded' });
+    const card = page.locator('home-keeper-card').first();
+    try {
+      await card.waitFor({ state: 'attached', timeout: 20_000 });
+      await expect(card.locator('.hk-row, .hk-empty').first()).toBeVisible({ timeout: 20_000 });
+      return card;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
 /** Collect panel-relevant console/page errors. Attach BEFORE navigating. */
 export function trackPanelErrors(page: Page): string[] {
   const errors: string[] = [];

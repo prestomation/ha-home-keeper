@@ -80,6 +80,10 @@ Administration and usage are intentionally **separated**:
   each row shows. It's built from HA's own components and theme, and reflects
   completions made anywhere else in real time.
 
+![Home Keeper task card on a dashboard](docs/images/card-default.png)
+
+![The task card grouped into status sections, with an inline add form](docs/images/card-grouped.png)
+
 The panel's list view can **group** tasks by status, area, or device and **filter**
 to just what's overdue or due soon. Tapping any row opens a **detail page** with the
 task's full schedule, notes, and completion history.
