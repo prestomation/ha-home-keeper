@@ -258,3 +258,117 @@ ship rather than adding a parallel system.
 - Diagnostics download (`diagnostics.py`) for support, like Pawsistant.
 - Broaden e2e screenshots into a documented before/after gallery in the README.
 - Coverage gate on the recurrence engine specifically (it's the correctness core).
+
+---
+
+## Community feature requests
+
+Things people in the Home Assistant community have asked for publicly — collected from
+Reddit and the HA community forums. Linked to the original source so the context is
+preserved.
+
+### Recurring / interval-based tasks (core model)
+
+- **Interval-based recurrence that resets from actual completion date, not the calendar.**
+  The most common complaint in every discussion: standard calendar tools drift when you
+  complete a task late, but people want "remind me again *now*+interval." Raised across
+  many threads independently.
+  - ["Best way to manage many repeating interval tasks" — Configuration](https://community.home-assistant.io/t/best-way-to-manage-many-repeating-interval-tasks/486500):
+    *"I can't easily say 'I did it now, remind me again now()+interval'"* — users
+    resorted to five helper entities per task (DateTime, Text, Number, Boolean, button)
+    just to replicate this.
+  - ["Home Maintenance Tracker" — Configuration](https://community.home-assistant.io/t/home-maintenance-tracker/551879):
+    *"Creating each of these helpers for a single task is a bit tedious but I can't seem
+    to find a better way to scale this"* — tracking AC filters, oil burner, generator,
+    sprinkler with the same multi-helper workaround.
+
+- **Recurring to-do tasks — native HA To-do list support.**
+  Multiple feature requests ask for the To-do list to natively support recurring tasks
+  that reappear after being checked off:
+  - ["To-do list — recurring task" — Feature Requests](https://community.home-assistant.io/t/to-do-list-recurring-task/684471):
+    *"Quite often I need to have recurring tasks → once per month, quarter or a year."*
+    Replies called out CalDAV recurrence support as a minimum bar.
+  - ["To-Do list 'recurring' feature request (GUI)" — Feature Requests](https://community.home-assistant.io/t/to-do-list-recurring-feature-request-gui/857452):
+    *"I want it for a few things that I do weekly, daily and monthly, but I could see
+    others using it for chores for their kids on a Kitchen Dashboard."* Requested a
+    recurring checkbox with day-of-week / day-of-month pickers directly in the add-item
+    UI.
+  - ["WTH | Recurring interval attribute for local todo tasks + task status by sensor
+    statuses" — WTH 2024](https://community.home-assistant.io/t/wth-recurring-interval-attribute-for-local-todo-tasks-task-status-by-sensor-statuses/812082):
+    *"Recurring tasks like - cleaning filter, maintenance for device, buying… will
+    automatically change their status to 'need_action' after given time cycle."* Also
+    requests sensor-driven status (battery %, soil moisture → task armed).
+
+### Device details, warranty & appliance metadata
+
+- **Store warranty, invoice, manual and service info per device.**
+  ["Device details (description, warranty, invoice, user manual, service)" — WTH 2022](https://community.home-assistant.io/t/device-details-description-warranty-invoice-user-manual-service/469871):
+  *"I have HomeAssistant and I need to store device details on my computer. The following
+  options are missing from the device settings"* — requests warranty date ranges with
+  file upload, invoice attachment, user-manual link, service-date tracking, all directly
+  on the HA device page.
+
+- **Device inventory with richer metadata** (static IP, install date, manual URL,
+  room-level location, behavioral notes).
+  ["Device Inventory Solutions" — Frontend](https://community.home-assistant.io/t/device-inventory-solutions/595431):
+  *"I want more data-basey functionality, like additional metadata for each device."*
+  The community's only suggestion was the external NetBox tool — no HA-native path.
+
+### Battery replacement tracking (condition-driven tasks)
+
+- **Battery replacement logging with replacement-date history and interval reminders.**
+  ["WTH Battery Device Alerts and Replacement Tracking" — WTH 2024](https://community.home-assistant.io/t/wth-battery-device-alerts-and-replacement-tracking/808695):
+  requests automatic low-battery notifications, manual replacement logging, replacement-
+  date tracking with interval reminders, and a dashboard overview of all device battery
+  health. Respondents noted the Battery Notes integration exists but the missing piece is
+  keeping the replacement *history* across cycles.
+
+### Vehicle maintenance
+
+- **Vehicle maintenance (mileage- and time-based) inside Home Assistant.**
+  ["Home and Vehicle Maintenance Integration" — Configuration](https://community.home-assistant.io/t/home-and-vehicle-maintenance-integration/739318):
+  *"I am thinking of writing a custom integration to consolidate all home and vehicle
+  maintenance items"* — HVAC filter, oil changes, tire rotation, registration, all in
+  one place. Led to the Vehicle Service Manager custom integration, but it remains
+  separate from home-maintenance tracking.
+  - ["Track Miles Driven — Time for oil change" — Configuration](https://community.home-assistant.io/t/track-miles-driven-time-for-oil-change/76762):
+    earliest thread (2018) describing the mileage-based maintenance reminder pattern via
+    OBD / telematics sensors.
+
+### NFC tags on appliances
+
+- **NFC tag stuck on the appliance → tap to mark maintenance done / open its page.**
+  - ["Custom Home Inventory / Maintenance w/ NFC Tags" — Share your Projects](https://community.home-assistant.io/t/custom-home-inventory-maintenance-w-nfc-tags/985862):
+    someone built this themselves with Node-Red: NFC tag on each appliance creates a
+    "digital passport" (warranty, repair history, manuals, maintenance schedule) and a
+    one-click "I just did it" button. The complexity of the DIY setup illustrates the
+    demand for a first-class solution.
+  - ["Home Assistant: Maintenance reminders using NFC tags"](https://www.creatingsmarthome.com/index.php/2023/12/28/home-assistant-maintenance-reminders-using-nfc-tags/):
+    blog post showing the heat-pump filter-vacuuming use case: scan the tag after
+    completing maintenance → resets the timer, calculates the next due date.
+
+### Chore assignment to household members
+
+- **Assign tasks to specific people; shared-household visibility.**
+  ["Chore Helper — Track recurring or manual chores with flexible scheduling" — Custom Integrations](https://community.home-assistant.io/t/chore-helper-track-recurring-or-manual-chores-with-flexible-scheduling/557470):
+  chore assignment to household members was listed as a top open feature request alongside
+  the front-end editor card and workday/holiday integration. Mirrors the "Assignees /
+  household members" idea already in this file.
+
+### Companion app / voice completion
+
+- **"I just changed the furnace filter" → voice-complete a task via Assist.**
+  ["Reminders — Create and List Tasks with Conversational Commands" — Blueprints Exchange](https://community.home-assistant.io/t/reminders-create-and-list-tasks-with-conversational-commands/820470):
+  community workaround using Assist + a blueprint to create and surface To-do items via
+  voice. The gap: no way to say "I just did X" and have it log against a maintenance task
+  and recalculate the due date — that part still requires the custom panel or services.
+
+### Seasonal / weather-triggered tasks
+
+- **"Drain garden hoses" when forecast first dips below freezing; spring/fall task lists.**
+  ["Seasonal automation management" — Share your Projects](https://community.home-assistant.io/t/seasonal-automation-management/742995) and
+  ["Winter / Summer Automations" — GitHub Discussions](https://github.com/orgs/home-assistant/discussions/2602):
+  people build elaborate YAML to trigger seasonal tasks off the HA Season sensor and
+  weather entities. The missing piece is a task that *arms itself* when a weather
+  condition is met and *clears* when resolved — exactly the triggered-task model Home
+  Keeper already has for batteries, applied to weather sensors instead.
