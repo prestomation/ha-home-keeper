@@ -6,6 +6,14 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+- **Backdate a wear item's last replacement when adding it.** The parts editor now
+  has an optional "Last replaced" date field for wear items, so the maintenance task
+  it creates starts its clock from the real replacement date instead of from today —
+  useful for parts you'd already replaced before tracking them in Home Keeper.
+- **Redesigned the appliance parts list.** On an appliance's detail page, each part
+  now reads as a card with a type icon and badge, its replacement cadence, last-replaced
+  date, and spare-stock chips at a glance, replacing the cramped one-line summary.
+
 ## [0.3.0b3] - 2026-06-17
 
 - **Dashboard task card.** A new resizable Lovelace card (`custom:home-keeper-card`)

@@ -116,7 +116,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 3. Create form switched to a fixed (anchored) schedule.
   await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Fixed/);
-  await expect(panel.locator('#hk-task-form ha-selector-datetime')).toBeVisible();
+  await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/3-panel-create-fixed.png`, fullPage: true });
 
   // 5. Appliances tab — the asset list with the seeded virtual device.
@@ -153,6 +153,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await partNums.nth(1).locator('input').fill('2'); // stock
   await partNums.nth(2).locator('input').fill('1'); // reorder at
   await partNums.nth(3).locator('input').fill('12'); // replace interval
+  // The wear part now exposes a "Last replaced" date field so the maintenance
+  // schedule can start from the real date rather than "now".
+  await expect(panel.locator('.hk-part').first().locator('ha-selector-date')).toBeVisible();
   await page.screenshot({ path: `${OUT}/6-panel-appliance-create.png`, fullPage: true });
 
   // 4. The usage surfaces — native to-do list + calendar on a dashboard.
