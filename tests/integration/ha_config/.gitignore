@@ -2,6 +2,8 @@
 # (e.g. via ci/e2e-up.sh). Only the seeded fixtures below are tracked.
 *.log
 *.log.*
+*.db
+*.db-*
 .HA_VERSION
 .ha_run.lock
 blueprints/

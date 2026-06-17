@@ -12,6 +12,13 @@ api:
 # Enable frontend (required for the custom sidebar panel + Lovelace resources)
 frontend:
 
+# Enable the recorder. A real HA install always has it (via default_config); this
+# minimal test config omits default_config, so without this the HA frontend's
+# `recorder/info` probe at load is rejected as an unknown command and surfaces as an
+# unhandled websocket rejection in the browser console. Enabling it keeps the e2e
+# environment representative and the console clean.
+recorder:
+
 # Dedicated YAML dashboard used by the Playwright e2e suite. The default
 # (storage-mode) dashboard from onboarding is left untouched. The Home Keeper
 # todo/calendar entities resolve via HA's built-in cards.
