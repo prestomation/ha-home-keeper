@@ -14,8 +14,8 @@ def _find_state(ha, predicate):
 
 
 def test_seeded_virtual_asset_has_warranty_date_sensor(ha):
-    # The seeded "Garage water heater" asset has a warranty_expiry, which is
-    # surfaced as a date sensor on its (virtual) device page.
+    # The seeded "Garage water heater" has a tracked "Warranty expiry" date metadata
+    # entry, which is surfaced as a date sensor on its (virtual) device page.
     warranty = _find_state(
         ha,
         lambda s: s["entity_id"].startswith("sensor.")
@@ -26,10 +26,12 @@ def test_seeded_virtual_asset_has_warranty_date_sensor(ha):
 
 
 def test_seeded_virtual_asset_has_purchase_and_install_sensors(ha):
+    # The seed tracks "Purchase date" and "Install date" metadata entries (so each is
+    # a date sensor); the entity_id derives from the device name + the entry label.
     ids = [s["entity_id"] for s in list_states(ha)]
     assert any("purchase_date" in eid for eid in ids)
     assert any("install_date" in eid for eid in ids)
-    # manufacture_date was null in the seed, so no sensor for it.
+    # No manufacture-date entry was seeded, so there's no sensor for it.
     assert not any("manufacture_date" in eid for eid in ids)
 
 
@@ -131,7 +133,11 @@ def test_existing_device_asset_persists_identifier_snapshot(ha):
         ha,
         "home_keeper",
         "add_asset",
-        {"kind": "existing", "device_id": device_id, "warranty_provider": "ACME"},
+        {
+            "kind": "existing",
+            "device_id": device_id,
+            "metadata": [{"type": "text", "label": "Warranty provider", "value": "ACME"}],
+        },
     )
 
     def _existing_asset():
@@ -213,7 +219,7 @@ def test_completing_derived_part_task_survives_reconcile(ha):
     lc, nd = after_complete["last_completed"], after_complete["next_due"]
     assert lc, "completion should set last_completed"
     # Editing the asset triggers a reconcile of its part tasks.
-    call_service(ha, "home_keeper", "update_asset", {"asset_id": asset_id, "notes": "poke"})
+    call_service(ha, "home_keeper", "update_asset", {"asset_id": asset_id, "manufacturer": "poke"})
     time.sleep(1)
     after_reconcile = next(t for t in _all_tasks(ha) if t["id"] == anode["id"])
     assert after_reconcile["last_completed"] == lc, "reconcile must not revert the completion"
@@ -441,7 +447,8 @@ def test_export_inventory_service_returns_report_and_csv(ha):
     assert "assets" in report and "totals" in report
     wh = next(r for r in report["assets"] if r["name"] == "Garage water heater")
     assert wh["cost"] == 649.0
-    assert wh["serial_number"] == "RH-0001"
+    # Descriptive metadata (e.g. the serial) is flattened into the details summary.
+    assert "Serial: RH-0001" in wh["details"]
     assert report["totals"]["asset_count"] >= 1
     assert report["totals"]["total_cost"] >= 649.0
     # A ready-to-save CSV is included, with a header row naming the columns.

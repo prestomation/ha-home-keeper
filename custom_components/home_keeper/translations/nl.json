@@ -173,34 +173,6 @@
           "name": "Model",
           "description": "Modelnaam of -nummer."
         },
-        "serial_number": {
-          "name": "Serienummer",
-          "description": "Serienummer."
-        },
-        "manufacture_date": {
-          "name": "Productiedatum",
-          "description": "ISO-datum (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Aankoopdatum",
-          "description": "ISO-datum (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Installatiedatum",
-          "description": "ISO-datum (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Vervaldatum garantie",
-          "description": "ISO-datum (YYYY-MM-DD). Weergegeven als datumsensor op het apparaat."
-        },
-        "warranty_provider": {
-          "name": "Garantieverstrekker",
-          "description": "Wie de garantie nakomt."
-        },
-        "vendor": {
-          "name": "Leverancier",
-          "description": "Waar opnieuw te kopen / serviceprovider."
-        },
         "cost": {
           "name": "Kosten",
           "description": "Aankoopprijs."
@@ -213,6 +185,10 @@
           "name": "Pictogram",
           "description": "Optioneel mdi-pictogram (bijv. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+        },
         "parts": {
           "name": "Onderdelen",
           "description": "Gestructureerde onderdelen/slijtdelen; slijtdelen met een interval sturen een onderhoudstaak aan."
@@ -224,10 +200,6 @@
         "related_device_ids": {
           "name": "Gerelateerde apparaten",
           "description": "Andere registerapparaten om aan dit apparaat te koppelen."
-        },
-        "notes": {
-          "name": "Notities",
-          "description": "Vrije tekstnotities."
         }
       }
     },
@@ -259,34 +231,6 @@
           "name": "Model",
           "description": "Modelnaam of -nummer."
         },
-        "serial_number": {
-          "name": "Serienummer",
-          "description": "Serienummer."
-        },
-        "manufacture_date": {
-          "name": "Productiedatum",
-          "description": "ISO-datum (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Aankoopdatum",
-          "description": "ISO-datum (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Installatiedatum",
-          "description": "ISO-datum (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Vervaldatum garantie",
-          "description": "ISO-datum (YYYY-MM-DD)."
-        },
-        "warranty_provider": {
-          "name": "Garantieverstrekker",
-          "description": "Wie de garantie nakomt."
-        },
-        "vendor": {
-          "name": "Leverancier",
-          "description": "Waar opnieuw te kopen / serviceprovider."
-        },
         "cost": {
           "name": "Kosten",
           "description": "Aankoopprijs."
@@ -299,6 +243,10 @@
           "name": "Pictogram",
           "description": "Optioneel mdi-pictogram (bijv. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (see add_asset)."
+        },
         "parts": {
           "name": "Onderdelen",
           "description": "Gestructureerde onderdelen/slijtdelen; slijtdelen met een interval sturen een onderhoudstaak aan."
@@ -310,10 +258,6 @@
         "related_device_ids": {
           "name": "Gerelateerde apparaten",
           "description": "Andere registerapparaten om aan dit apparaat te koppelen."
-        },
-        "notes": {
-          "name": "Notities",
-          "description": "Vrije tekstnotities."
         }
       }
     },
@@ -358,18 +302,6 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Volgende vervaldatum"
-      },
-      "manufacture_date": {
-        "name": "Productiedatum"
-      },
-      "purchase_date": {
-        "name": "Aankoopdatum"
-      },
-      "install_date": {
-        "name": "Installatiedatum"
-      },
-      "warranty_expiry": {
-        "name": "Vervaldatum garantie"
       }
     },
     "binary_sensor": {

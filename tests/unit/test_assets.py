@@ -47,14 +47,18 @@ def test_build_existing_asset_requires_device_id():
 
 def test_build_existing_asset_keeps_device_id_no_identifier():
     asset = a.build_asset(
-        {"kind": "existing", "device_id": "dev_xyz", "warranty_expiry": "2030-01-01"},
+        {
+            "kind": "existing",
+            "device_id": "dev_xyz",
+            "metadata": [{"type": "date", "label": "Warranty expiry", "value": "2030-01-01"}],
+        },
         now=NOW,
     )
     assert asset["kind"] == "existing"
     assert asset["device_id"] == "dev_xyz"
     # We don't own the device, so no virtual identifier is minted.
     assert asset["identifiers"] == []
-    assert asset["warranty_expiry"] == "2030-01-01"
+    assert asset["metadata"][0]["value"] == "2030-01-01"
 
 
 def test_build_asset_rejects_bad_kind():
@@ -62,28 +66,70 @@ def test_build_asset_rejects_bad_kind():
         a.build_asset({"name": "x", "kind": "imaginary"}, now=NOW)
 
 
-def test_date_fields_normalized_to_iso_date():
+def test_metadata_entries_normalized():
     asset = a.build_asset(
         {
             "name": "Furnace",
-            "purchase_date": "2024-03-15",
-            # A full datetime should be truncated to its date.
-            "warranty_expiry": "2029-03-15T00:00:00",
+            "metadata": [
+                {"type": "date", "label": "Purchase date", "value": "2024-03-15"},
+                # A full datetime should be truncated to its date.
+                {"type": "date", "label": "Warranty expiry", "value": "2029-03-15T00:00:00", "track": True},
+                {"type": "link", "label": "Spec sheet", "value": "https://example.com/spec.pdf"},
+                {"type": "text", "label": "Serial", "value": "  SN-7  "},
+            ],
         },
         now=NOW,
     )
-    assert asset["purchase_date"] == "2024-03-15"
-    assert asset["warranty_expiry"] == "2029-03-15"
+    meta = asset["metadata"]
+    assert meta[0]["value"] == "2024-03-15"
+    # Non-tracked date defaults track to False; tracked one keeps it True.
+    assert meta[0]["track"] is False
+    assert meta[1]["value"] == "2029-03-15"
+    assert meta[1]["track"] is True
+    assert meta[2]["value"] == "https://example.com/spec.pdf"
+    assert meta[3]["value"] == "SN-7"  # trimmed
+    # Every entry gets a stable id.
+    assert all(entry["id"] for entry in meta)
 
 
-def test_empty_date_is_none():
-    asset = a.build_asset({"name": "Furnace", "purchase_date": ""}, now=NOW)
-    assert asset["purchase_date"] is None
-
-
-def test_bad_date_raises():
+def test_metadata_requires_label():
     with pytest.raises(a.AssetValidationError):
-        a.build_asset({"name": "Furnace", "warranty_expiry": "not-a-date"}, now=NOW)
+        a.build_asset(
+            {"name": "Furnace", "metadata": [{"type": "text", "value": "orphan"}]},
+            now=NOW,
+        )
+
+
+def test_metadata_rejects_bad_type():
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset(
+            {"name": "Furnace", "metadata": [{"type": "number", "label": "x", "value": "1"}]},
+            now=NOW,
+        )
+
+
+def test_metadata_empty_date_is_blank():
+    asset = a.build_asset(
+        {"name": "Furnace", "metadata": [{"type": "date", "label": "Purchase date", "value": ""}]},
+        now=NOW,
+    )
+    assert asset["metadata"][0]["value"] == ""
+
+
+def test_metadata_bad_date_raises():
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset(
+            {"name": "Furnace", "metadata": [{"type": "date", "label": "Warranty", "value": "not-a-date"}]},
+            now=NOW,
+        )
+
+
+def test_metadata_link_rejects_non_http():
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset(
+            {"name": "Furnace", "metadata": [{"type": "link", "label": "Bad", "value": "javascript:alert(1)"}]},
+            now=NOW,
+        )
 
 
 def test_cost_coerced_and_bad_cost_raises():
@@ -133,10 +179,15 @@ def test_merge_update_changes_metadata_preserves_anchors():
     asset = a.build_asset({"name": "Fridge"}, now=NOW)
     asset["device_id"] = "provisioned_dev_1"  # simulate post-provisioning
     updated = a.merge_update(
-        asset, {"manufacturer": "LG", "warranty_expiry": "2031-06-01"}, now=NOW
+        asset,
+        {
+            "manufacturer": "LG",
+            "metadata": [{"type": "date", "label": "Warranty expiry", "value": "2031-06-01"}],
+        },
+        now=NOW,
     )
     assert updated["manufacturer"] == "LG"
-    assert updated["warranty_expiry"] == "2031-06-01"
+    assert updated["metadata"][0]["value"] == "2031-06-01"
     # Immutable anchors survive an edit.
     assert updated["kind"] == "virtual"
     assert updated["identifiers"] == asset["identifiers"]

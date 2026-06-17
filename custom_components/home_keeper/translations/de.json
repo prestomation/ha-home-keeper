@@ -173,34 +173,6 @@
           "name": "Modell",
           "description": "Modellname oder -nummer."
         },
-        "serial_number": {
-          "name": "Seriennummer",
-          "description": "Seriennummer."
-        },
-        "manufacture_date": {
-          "name": "Herstellungsdatum",
-          "description": "ISO-Datum (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Kaufdatum",
-          "description": "ISO-Datum (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Installationsdatum",
-          "description": "ISO-Datum (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Garantieablauf",
-          "description": "ISO-Datum (YYYY-MM-DD). Wird als Datumssensor am Gerät angezeigt."
-        },
-        "warranty_provider": {
-          "name": "Garantiegeber",
-          "description": "Wer die Garantie übernimmt."
-        },
-        "vendor": {
-          "name": "Anbieter",
-          "description": "Wo nachkaufen / Dienstleister."
-        },
         "cost": {
           "name": "Kosten",
           "description": "Kaufpreis."
@@ -213,6 +185,10 @@
           "name": "Symbol",
           "description": "Optionales mdi-Symbol (z. B. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+        },
         "parts": {
           "name": "Teile",
           "description": "Strukturierte Teile/Verschleißteile; Verschleißteile mit einem Intervall steuern eine Wartungsaufgabe."
@@ -224,10 +200,6 @@
         "related_device_ids": {
           "name": "Verknüpfte Geräte",
           "description": "Weitere Registry-Geräte, die mit diesem Gerät verknüpft werden."
-        },
-        "notes": {
-          "name": "Notizen",
-          "description": "Freitextnotizen."
         }
       }
     },
@@ -259,34 +231,6 @@
           "name": "Modell",
           "description": "Modellname oder -nummer."
         },
-        "serial_number": {
-          "name": "Seriennummer",
-          "description": "Seriennummer."
-        },
-        "manufacture_date": {
-          "name": "Herstellungsdatum",
-          "description": "ISO-Datum (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Kaufdatum",
-          "description": "ISO-Datum (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Installationsdatum",
-          "description": "ISO-Datum (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Garantieablauf",
-          "description": "ISO-Datum (YYYY-MM-DD)."
-        },
-        "warranty_provider": {
-          "name": "Garantiegeber",
-          "description": "Wer die Garantie übernimmt."
-        },
-        "vendor": {
-          "name": "Anbieter",
-          "description": "Wo nachkaufen / Dienstleister."
-        },
         "cost": {
           "name": "Kosten",
           "description": "Kaufpreis."
@@ -299,6 +243,10 @@
           "name": "Symbol",
           "description": "Optionales mdi-Symbol (z. B. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (see add_asset)."
+        },
         "parts": {
           "name": "Teile",
           "description": "Strukturierte Teile/Verschleißteile; Verschleißteile mit einem Intervall steuern eine Wartungsaufgabe."
@@ -310,10 +258,6 @@
         "related_device_ids": {
           "name": "Verknüpfte Geräte",
           "description": "Weitere Registry-Geräte, die mit diesem Gerät verknüpft werden."
-        },
-        "notes": {
-          "name": "Notizen",
-          "description": "Freitextnotizen."
         }
       }
     },
@@ -358,18 +302,6 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Nächste Fälligkeit"
-      },
-      "manufacture_date": {
-        "name": "Herstellungsdatum"
-      },
-      "purchase_date": {
-        "name": "Kaufdatum"
-      },
-      "install_date": {
-        "name": "Installationsdatum"
-      },
-      "warranty_expiry": {
-        "name": "Garantieablauf"
       }
     },
     "binary_sensor": {

@@ -173,34 +173,6 @@
           "name": "型号",
           "description": "型号名称或编号。"
         },
-        "serial_number": {
-          "name": "序列号",
-          "description": "序列号。"
-        },
-        "manufacture_date": {
-          "name": "生产日期",
-          "description": "ISO 日期（YYYY-MM-DD）。"
-        },
-        "purchase_date": {
-          "name": "购买日期",
-          "description": "ISO 日期（YYYY-MM-DD）。"
-        },
-        "install_date": {
-          "name": "安装日期",
-          "description": "ISO 日期（YYYY-MM-DD）。"
-        },
-        "warranty_expiry": {
-          "name": "保修到期",
-          "description": "ISO 日期（YYYY-MM-DD）。在设备上以日期传感器形式显示。"
-        },
-        "warranty_provider": {
-          "name": "保修提供方",
-          "description": "由谁承担保修。"
-        },
-        "vendor": {
-          "name": "供应商",
-          "description": "在哪里重新购买 / 服务提供商。"
-        },
         "cost": {
           "name": "费用",
           "description": "购买价格。"
@@ -213,6 +185,10 @@
           "name": "图标",
           "description": "可选的 mdi 图标（例如 mdi:piano）。"
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+        },
         "parts": {
           "name": "部件",
           "description": "结构化的部件/易损件；设置了间隔的易损件会驱动一个维护任务。"
@@ -224,10 +200,6 @@
         "related_device_ids": {
           "name": "相关设备",
           "description": "要与此电器关联的其他注册表设备。"
-        },
-        "notes": {
-          "name": "备注",
-          "description": "自由文本备注。"
         }
       }
     },
@@ -259,34 +231,6 @@
           "name": "型号",
           "description": "型号名称或编号。"
         },
-        "serial_number": {
-          "name": "序列号",
-          "description": "序列号。"
-        },
-        "manufacture_date": {
-          "name": "生产日期",
-          "description": "ISO 日期（YYYY-MM-DD）。"
-        },
-        "purchase_date": {
-          "name": "购买日期",
-          "description": "ISO 日期（YYYY-MM-DD）。"
-        },
-        "install_date": {
-          "name": "安装日期",
-          "description": "ISO 日期（YYYY-MM-DD）。"
-        },
-        "warranty_expiry": {
-          "name": "保修到期",
-          "description": "ISO 日期（YYYY-MM-DD）。"
-        },
-        "warranty_provider": {
-          "name": "保修提供方",
-          "description": "由谁承担保修。"
-        },
-        "vendor": {
-          "name": "供应商",
-          "description": "在哪里重新购买 / 服务提供商。"
-        },
         "cost": {
           "name": "费用",
           "description": "购买价格。"
@@ -299,6 +243,10 @@
           "name": "图标",
           "description": "可选的 mdi 图标（例如 mdi:piano）。"
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (see add_asset)."
+        },
         "parts": {
           "name": "部件",
           "description": "结构化的部件/易损件；设置了间隔的易损件会驱动一个维护任务。"
@@ -310,10 +258,6 @@
         "related_device_ids": {
           "name": "相关设备",
           "description": "要与此电器关联的其他注册表设备。"
-        },
-        "notes": {
-          "name": "备注",
-          "description": "自由文本备注。"
         }
       }
     },
@@ -358,18 +302,6 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}下次到期"
-      },
-      "manufacture_date": {
-        "name": "生产日期"
-      },
-      "purchase_date": {
-        "name": "购买日期"
-      },
-      "install_date": {
-        "name": "安装日期"
-      },
-      "warranty_expiry": {
-        "name": "保修到期"
       }
     },
     "binary_sensor": {

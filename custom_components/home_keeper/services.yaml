@@ -267,41 +267,9 @@ add_asset:
       name: Model
       selector:
         text:
-    serial_number:
-      name: Serial number
-      selector:
-        text:
-    manufacture_date:
-      name: Manufacture date
-      description: ISO date (YYYY-MM-DD).
-      selector:
-        date:
-    purchase_date:
-      name: Purchase date
-      description: ISO date (YYYY-MM-DD).
-      selector:
-        date:
-    install_date:
-      name: Install date
-      description: ISO date (YYYY-MM-DD).
-      selector:
-        date:
-    warranty_expiry:
-      name: Warranty expiry
-      description: ISO date (YYYY-MM-DD). Surfaced as a date sensor on the device.
-      selector:
-        date:
-    warranty_provider:
-      name: Warranty provider
-      selector:
-        text:
-    vendor:
-      name: Vendor
-      description: Where to rebuy / service provider.
-      selector:
-        text:
     cost:
       name: Cost
+      description: Replacement cost (feeds the insurance inventory value rollup).
       selector:
         number:
           min: 0
@@ -316,6 +284,15 @@ add_asset:
       description: Optional mdi icon for the appliance (e.g. mdi:piano).
       selector:
         icon:
+    metadata:
+      name: Metadata
+      description: >-
+        Free-form metadata: a list of entries, each with a label, a type
+        (text/link/date) and a value — e.g. serial number, warranty expiry,
+        purchase date, provider, links. A date entry with track: true also becomes
+        a date sensor on the device (for automations like "warranty expiring soon").
+      selector:
+        object:
     parts:
       name: Parts
       description: >-
@@ -336,11 +313,6 @@ add_asset:
       selector:
         device:
           multiple: true
-    notes:
-      name: Notes
-      selector:
-        text:
-          multiline: true
 
 update_asset:
   name: Update appliance
@@ -373,34 +345,6 @@ update_asset:
       name: Model
       selector:
         text:
-    serial_number:
-      name: Serial number
-      selector:
-        text:
-    manufacture_date:
-      name: Manufacture date
-      selector:
-        date:
-    purchase_date:
-      name: Purchase date
-      selector:
-        date:
-    install_date:
-      name: Install date
-      selector:
-        date:
-    warranty_expiry:
-      name: Warranty expiry
-      selector:
-        date:
-    warranty_provider:
-      name: Warranty provider
-      selector:
-        text:
-    vendor:
-      name: Vendor
-      selector:
-        text:
     cost:
       name: Cost
       selector:
@@ -417,6 +361,11 @@ update_asset:
       description: Optional mdi icon for the appliance (e.g. mdi:piano).
       selector:
         icon:
+    metadata:
+      name: Metadata
+      description: Free-form metadata entries (see add_asset).
+      selector:
+        object:
     parts:
       name: Parts
       description: Structured parts/wear items (see add_asset).
@@ -433,11 +382,6 @@ update_asset:
       selector:
         device:
           multiple: true
-    notes:
-      name: Notes
-      selector:
-        text:
-          multiline: true
 
 delete_asset:
   name: Delete appliance

@@ -83,6 +83,18 @@ export interface Hass {
 
 export type AssetKind = 'virtual' | 'existing';
 export type PartType = 'consumable' | 'wear';
+export type MetadataType = 'text' | 'link' | 'date';
+
+/** A free-form metadata entry on an appliance: a typed label/value pair. A `date`
+ *  entry with `track` set also becomes a date sensor on the device (opt-in). */
+export interface MetadataEntry {
+  id?: string;
+  type: MetadataType;
+  label: string;
+  value: string;
+  // Only meaningful for `date`: surface this date as a tracked sensor for automations.
+  track?: boolean;
+}
 
 /** A structured part / wear item belonging to an appliance. */
 export interface Part {
@@ -111,16 +123,11 @@ export interface InventoryRow {
   area?: string | null;
   manufacturer: string;
   model: string;
-  serial_number: string;
-  purchase_date?: string | null;
-  install_date?: string | null;
-  warranty_expiry?: string | null;
-  warranty_active?: boolean | null;
-  warranty_provider: string;
-  vendor: string;
   cost?: number | null;
   spares_value: number;
   part_count: number;
+  // Free-form metadata flattened to "label: value; …" for the export.
+  details: string;
 }
 
 export interface Inventory {
@@ -146,7 +153,10 @@ export interface TaskHistoryEntry {
   archived_at?: string;
 }
 
-/** An appliance/asset: a virtual device we own, or metadata on an existing one. */
+/** An appliance/asset: a virtual device we own, or metadata on an existing one.
+ *  Only the fields that wire into Home Assistant stay structured (manufacturer /
+ *  model -> device card, manual_url -> configuration_url, cost -> inventory value);
+ *  all other descriptive/temporal facts live in the free-form `metadata` list. */
 export interface Asset {
   id: string;
   kind: AssetKind;
@@ -156,16 +166,9 @@ export interface Asset {
   icon?: string;
   manufacturer?: string;
   model?: string;
-  serial_number?: string;
-  manufacture_date?: string | null;
-  purchase_date?: string | null;
-  install_date?: string | null;
-  warranty_expiry?: string | null;
-  warranty_provider?: string;
-  vendor?: string;
   cost?: number | null;
   manual_url?: string;
-  notes?: string;
+  metadata?: MetadataEntry[];
   parts?: Part[];
   parent_asset_id?: string | null;
   related_device_ids?: string[];

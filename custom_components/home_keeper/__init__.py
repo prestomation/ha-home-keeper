@@ -105,8 +105,22 @@ _PART_SCHEMA = vol.Schema(
     }
 )
 
-# Asset (appliance) fields shared by add/update. Dates are plain strings so the
-# pure model can validate them; cost is coerced to a float.
+# Free-form metadata entry for the add/update asset schema. ``value`` is a plain
+# string (the pure model validates it per type — date / link / text).
+_METADATA_SCHEMA = vol.Schema(
+    {
+        vol.Optional("id"): cv.string,
+        vol.Optional("type"): cv.string,
+        vol.Required("label"): cv.string,
+        vol.Optional("value"): cv.string,
+        vol.Optional("track"): cv.boolean,
+    }
+)
+
+# Asset (appliance) fields shared by add/update. Descriptive/temporal details live
+# in the free-form ``metadata`` list; only the fields that wire into Home Assistant
+# stay structured — ``manufacturer``/``model`` (device card), ``manual_url`` (device
+# configuration_url) and ``cost`` (inventory value rollup). Cost is coerced to float.
 _ASSET_FIELDS = {
     vol.Optional("name"): cv.string,
     vol.Optional("kind"): cv.string,
@@ -115,16 +129,9 @@ _ASSET_FIELDS = {
     vol.Optional("icon"): cv.string,
     vol.Optional("manufacturer"): cv.string,
     vol.Optional("model"): cv.string,
-    vol.Optional("serial_number"): cv.string,
-    vol.Optional("manufacture_date"): cv.string,
-    vol.Optional("purchase_date"): cv.string,
-    vol.Optional("install_date"): cv.string,
-    vol.Optional("warranty_expiry"): cv.string,
-    vol.Optional("warranty_provider"): cv.string,
-    vol.Optional("vendor"): cv.string,
     vol.Optional("cost"): vol.Coerce(float),
     vol.Optional("manual_url"): cv.string,
-    vol.Optional("notes"): cv.string,
+    vol.Optional("metadata"): [_METADATA_SCHEMA],
     vol.Optional("parts"): [_PART_SCHEMA],
     vol.Optional("parent_asset_id"): cv.string,
     vol.Optional("related_device_ids"): [cv.string],

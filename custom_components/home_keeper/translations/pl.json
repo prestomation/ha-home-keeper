@@ -173,34 +173,6 @@
           "name": "Model",
           "description": "Nazwa lub numer modelu."
         },
-        "serial_number": {
-          "name": "Numer seryjny",
-          "description": "Numer seryjny."
-        },
-        "manufacture_date": {
-          "name": "Data produkcji",
-          "description": "Data ISO (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Data zakupu",
-          "description": "Data ISO (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Data instalacji",
-          "description": "Data ISO (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Koniec gwarancji",
-          "description": "Data ISO (YYYY-MM-DD). Wyświetlana jako czujnik daty na urządzeniu."
-        },
-        "warranty_provider": {
-          "name": "Gwarant",
-          "description": "Kto honoruje gwarancję."
-        },
-        "vendor": {
-          "name": "Sprzedawca",
-          "description": "Gdzie kupić ponownie / usługodawca."
-        },
         "cost": {
           "name": "Koszt",
           "description": "Cena zakupu."
@@ -213,6 +185,10 @@
           "name": "Ikona",
           "description": "Opcjonalna ikona mdi (np. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+        },
         "parts": {
           "name": "Części",
           "description": "Strukturalne części/elementy zużywalne; elementy zużywalne z interwałem napędzają zadanie konserwacji."
@@ -224,10 +200,6 @@
         "related_device_ids": {
           "name": "Powiązane urządzenia",
           "description": "Inne urządzenia z rejestru do powiązania z tym urządzeniem."
-        },
-        "notes": {
-          "name": "Notatki",
-          "description": "Notatki w postaci dowolnego tekstu."
         }
       }
     },
@@ -259,34 +231,6 @@
           "name": "Model",
           "description": "Nazwa lub numer modelu."
         },
-        "serial_number": {
-          "name": "Numer seryjny",
-          "description": "Numer seryjny."
-        },
-        "manufacture_date": {
-          "name": "Data produkcji",
-          "description": "Data ISO (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Data zakupu",
-          "description": "Data ISO (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Data instalacji",
-          "description": "Data ISO (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Koniec gwarancji",
-          "description": "Data ISO (YYYY-MM-DD)."
-        },
-        "warranty_provider": {
-          "name": "Gwarant",
-          "description": "Kto honoruje gwarancję."
-        },
-        "vendor": {
-          "name": "Sprzedawca",
-          "description": "Gdzie kupić ponownie / usługodawca."
-        },
         "cost": {
           "name": "Koszt",
           "description": "Cena zakupu."
@@ -299,6 +243,10 @@
           "name": "Ikona",
           "description": "Opcjonalna ikona mdi (np. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (see add_asset)."
+        },
         "parts": {
           "name": "Części",
           "description": "Strukturalne części/elementy zużywalne; elementy zużywalne z interwałem napędzają zadanie konserwacji."
@@ -310,10 +258,6 @@
         "related_device_ids": {
           "name": "Powiązane urządzenia",
           "description": "Inne urządzenia z rejestru do powiązania z tym urządzeniem."
-        },
-        "notes": {
-          "name": "Notatki",
-          "description": "Notatki w postaci dowolnego tekstu."
         }
       }
     },
@@ -358,18 +302,6 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Następny termin"
-      },
-      "manufacture_date": {
-        "name": "Data produkcji"
-      },
-      "purchase_date": {
-        "name": "Data zakupu"
-      },
-      "install_date": {
-        "name": "Data instalacji"
-      },
-      "warranty_expiry": {
-        "name": "Koniec gwarancji"
       }
     },
     "binary_sensor": {

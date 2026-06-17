@@ -3,6 +3,7 @@ import * as api from './api';
 import {
   buildTaskPayload,
   selArea,
+  selBool,
   selDate,
   selDevice,
   selIcon,
@@ -15,7 +16,17 @@ import {
   type HaFormElement,
 } from './forms';
 import { setLanguage, t, tn } from './i18n';
-import type { Asset, AssetKind, Hass, ManagedBy, PanelInfo, Part, Task } from './types';
+import type {
+  Asset,
+  AssetKind,
+  Hass,
+  ManagedBy,
+  MetadataEntry,
+  MetadataType,
+  PanelInfo,
+  Part,
+  Task,
+} from './types';
 import {
   areaName,
   assetSummary,
@@ -162,6 +173,8 @@ const STYLES = `
   }
   .hk-part-head { display: flex; align-items: center; justify-content: space-between; }
   .hk-part-head .label { font-size: 0.85rem; color: var(--secondary-text-color); }
+  .hk-meta-seeds { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
+  .hk-meta-seeds ha-button { --mdc-typography-button-font-size: 0.8rem; }
 
   /* Parts list on the appliance detail page */
   .hk-parts { display: flex; flex-direction: column; }
@@ -590,7 +603,14 @@ export class HomeKeeperPanel extends HTMLElement {
   private _openEditAsset(asset: Asset): void {
     this._detail = null;
     this._view = 'appliances';
-    this._assetEdit = { open: true, asset: { ...asset, parts: [...(asset.parts || [])] } };
+    this._assetEdit = {
+      open: true,
+      asset: {
+        ...asset,
+        parts: [...(asset.parts || [])],
+        metadata: (asset.metadata || []).map((m) => ({ ...m })),
+      },
+    };
     this._render();
   }
   private _closeAssetForm(): void {
@@ -612,7 +632,9 @@ export class HomeKeeperPanel extends HTMLElement {
       return;
     }
     const parts = (a.parts || []).filter((p) => p.name && p.name.trim());
-    const payload: Partial<Asset> = { ...a, parts };
+    // Drop half-finished metadata rows (no label) so they don't fail validation.
+    const metadata = (a.metadata || []).filter((m) => m.label && m.label.trim());
+    const payload: Partial<Asset> = { ...a, parts, metadata };
     try {
       if (a.id) await api.updateAsset(this._hass, a.id, payload);
       else await api.addAsset(this._hass, payload);
@@ -1117,6 +1139,12 @@ export class HomeKeeperPanel extends HTMLElement {
     return this._assetDetail(asset);
   }
 
+  /** Render a URL as a clickable anchor that opens in the browser (new tab). */
+  private _link(url: string): string {
+    const safe = escapeHTML(url);
+    return `<a href="${safe}" target="_blank" rel="noopener">${safe}</a>`;
+  }
+
   /** One label/value row, omitted entirely when the value is empty. */
   private _row(label: string, value?: string | null, isHtml = false): string {
     if (value == null || value === '') return '';
@@ -1221,29 +1249,23 @@ export class HomeKeeperPanel extends HTMLElement {
       : '';
     const title =
       asset.name || deviceName(this._hass?.devices, asset.device_id) || t('appliance.fallbackName');
-    const warranty = asset.warranty_expiry
-      ? asset.warranty_provider
-        ? `${asset.warranty_expiry} (${asset.warranty_provider})`
-        : asset.warranty_expiry
-      : '';
-    const manual = asset.manual_url
-      ? `<a href="${escapeHTML(asset.manual_url)}" target="_blank" rel="noopener">${escapeHTML(
-          asset.manual_url,
-        )}</a>`
-      : '';
+    const manual = asset.manual_url ? this._link(asset.manual_url) : '';
     const cost = asset.cost != null ? String(asset.cost) : '';
+    // Structured (HA-wired) fields first, then the free-form metadata entries.
+    const meta = (asset.metadata || [])
+      .map((m) =>
+        m.value
+          ? this._row(m.label, m.type === 'link' ? this._link(m.value) : m.value, m.type === 'link')
+          : '',
+      )
+      .join('');
     const details = [
       this._row(t('field.manufacturer'), asset.manufacturer),
       this._row(t('field.model'), asset.model),
-      this._row(t('field.serial_number'), asset.serial_number),
       this._row(t('field.area_id'), areaName(this._hass?.areas, asset.area_id)),
-      this._row(t('field.purchase_date'), asset.purchase_date),
-      this._row(t('field.install_date'), asset.install_date),
-      this._row(t('field.warranty_expiry'), warranty),
       this._row(t('field.cost'), cost),
-      this._row(t('field.vendor'), asset.vendor),
       this._row(t('field.manual_url'), manual, true),
-      this._row(t('field.notes'), asset.notes),
+      meta,
     ].join('');
     const detailsCard = details
       ? `<div class="hk-section">${escapeHTML(t('detail.about'))}</div>
@@ -1525,7 +1547,6 @@ export class HomeKeeperPanel extends HTMLElement {
         schema: [
           { name: 'manufacturer', selector: selText() },
           { name: 'model', selector: selText() },
-          { name: 'serial_number', selector: selText() },
         ],
       });
       fields.push({
@@ -1541,34 +1562,38 @@ export class HomeKeeperPanel extends HTMLElement {
     return fields;
   }
 
-  private _ownershipSchema(): FormField[] {
+  /** Structured fields that wire into HA: the manual link and replacement cost. */
+  private _structuredDetailsSchema(): FormField[] {
     return [
-      {
-        name: '',
-        type: 'grid',
-        schema: [
-          { name: 'purchase_date', selector: selDate() },
-          { name: 'install_date', selector: selDate() },
-          { name: 'warranty_expiry', selector: selDate() },
-        ],
-      },
-      {
-        name: '',
-        type: 'grid',
-        schema: [
-          { name: 'warranty_provider', selector: selText() },
-          { name: 'cost', selector: selNumber(0) },
-          { name: 'vendor', selector: selText() },
-        ],
-      },
+      { name: 'manual_url', selector: selText() },
+      { name: 'cost', selector: selNumber(0) },
     ];
   }
 
-  private _referenceSchema(): FormField[] {
-    return [
-      { name: 'manual_url', selector: selText() },
-      { name: 'notes', selector: selText(true) },
+  /** Schema for one free-form metadata entry. The value control swaps by type, and
+   *  a `date` entry adds a "track as sensor" toggle (opt-in automation). */
+  private _metadataSchema(m: MetadataEntry): FormField[] {
+    const valueSelector = m.type === 'date' ? selDate() : selText();
+    const fields: FormField[] = [
+      {
+        name: '',
+        type: 'grid',
+        schema: [
+          {
+            name: 'type',
+            selector: selSelect([
+              { value: 'text', label: t('opt.meta.text') },
+              { value: 'link', label: t('opt.meta.link') },
+              { value: 'date', label: t('opt.meta.date') },
+            ]),
+          },
+          { name: 'label', selector: selText() },
+        ],
+      },
+      { name: 'value', selector: valueSelector },
     ];
+    if (m.type === 'date') fields.push({ name: 'track', selector: selBool() });
+    return fields;
   }
 
   private _partSchema(p: Part): FormField[] {
@@ -1881,7 +1906,6 @@ export class HomeKeeperPanel extends HTMLElement {
         name: x.name ?? '',
         manufacturer: x.manufacturer ?? '',
         model: x.model ?? '',
-        serial_number: x.serial_number ?? '',
         icon: x.icon ?? '',
         parent_asset_id: x.parent_asset_id ?? undefined,
         area_id: x.area_id ?? undefined,
@@ -1894,21 +1918,16 @@ export class HomeKeeperPanel extends HTMLElement {
     );
     inner.appendChild(identity);
 
-    inner.appendChild(this._section(t('section.ownership')));
+    inner.appendChild(this._section(t('section.reference')));
     inner.appendChild(
       this._makeForm(
-        this._ownershipSchema(),
-        {
-          purchase_date: x.purchase_date ?? '',
-          install_date: x.install_date ?? '',
-          warranty_expiry: x.warranty_expiry ?? '',
-          warranty_provider: x.warranty_provider ?? '',
-          cost: x.cost ?? undefined,
-          vendor: x.vendor ?? '',
-        },
+        this._structuredDetailsSchema(),
+        { manual_url: x.manual_url ?? '', cost: x.cost ?? undefined },
         mergeAsset,
       ),
     );
+
+    this._renderMetadataEditor(inner);
 
     this._renderPartsEditor(inner);
 
@@ -1917,15 +1936,6 @@ export class HomeKeeperPanel extends HTMLElement {
       this._makeForm(
         [{ name: 'related_device_ids', selector: selDevice(true) }],
         { related_device_ids: x.related_device_ids ?? [] },
-        mergeAsset,
-      ),
-    );
-
-    inner.appendChild(this._section(t('section.reference')));
-    inner.appendChild(
-      this._makeForm(
-        this._referenceSchema(),
-        { manual_url: x.manual_url ?? '', notes: x.notes ?? '' },
         mergeAsset,
       ),
     );
@@ -1953,6 +1963,98 @@ export class HomeKeeperPanel extends HTMLElement {
 
     card.appendChild(inner);
     host.appendChild(card);
+  }
+
+  private _renderMetadataEditor(inner: HTMLElement): void {
+    inner.appendChild(this._section(t('section.metadata')));
+    const entries = this._assetEdit.asset?.metadata || [];
+    entries.forEach((m, i) => {
+      const box = document.createElement('div');
+      box.className = 'hk-part';
+      box.dataset.idx = String(i);
+      const head = document.createElement('div');
+      head.className = 'hk-part-head';
+      head.innerHTML = `<span class="label">${escapeHTML(t('section.meta_n', { n: i + 1 }))}</span>`;
+      const del = document.createElement('ha-icon-button');
+      del.className = 'part-del';
+      del.setAttribute('label', t('btn.removeField'));
+      del.addEventListener('click', () => {
+        const list = this._assetEdit.asset?.metadata || [];
+        this._assetEdit.asset!.metadata = list.filter((_, j) => j !== i);
+        this._render();
+      });
+      head.appendChild(del);
+      box.appendChild(head);
+
+      const form = this._makeForm(
+        this._metadataSchema(m),
+        {
+          type: m.type ?? 'text',
+          label: m.label ?? '',
+          value: m.value ?? '',
+          track: Boolean(m.track),
+        },
+        (value) => {
+          const prevType = this._assetEdit.asset?.metadata?.[i]?.type;
+          const newType = (value.type as MetadataType) ?? 'text';
+          const updated: MetadataEntry = {
+            id: m.id,
+            type: newType,
+            label: String(value.label ?? ''),
+            // A date control emits selector-shaped strings; text/link emit text.
+            value: value.value != null ? String(value.value) : '',
+            // `track` only applies to dates — drop it otherwise so it can't strand.
+            track: newType === 'date' ? Boolean(value.track) : undefined,
+          };
+          const list = [...(this._assetEdit.asset?.metadata || [])];
+          list[i] = updated;
+          this._assetEdit.asset!.metadata = list;
+          // Re-render when the type changes so the value control (and the date
+          // "track" toggle) swaps to match.
+          if (newType !== prevType) this._render();
+        },
+      );
+      box.appendChild(form);
+
+      if (m.type === 'date') {
+        const note = document.createElement('div');
+        note.className = 'hk-meta';
+        note.textContent = t('meta.trackHint');
+        box.appendChild(note);
+      }
+      inner.appendChild(box);
+    });
+
+    // Quick-add seeds for the common fields (each prelabeled, right type), plus a
+    // generic blank entry — they're all just entries in the list.
+    const seeds: { label: string; type: MetadataType }[] = [
+      { label: t('meta.seed.serial'), type: 'text' },
+      { label: t('meta.seed.warranty_expiry'), type: 'date' },
+      { label: t('meta.seed.purchase_date'), type: 'date' },
+      { label: t('meta.seed.install_date'), type: 'date' },
+      { label: t('meta.seed.warranty_provider'), type: 'text' },
+      { label: t('meta.seed.vendor'), type: 'text' },
+      { label: t('meta.seed.notes'), type: 'text' },
+    ];
+    const addEntry = (entry: MetadataEntry): void => {
+      const list = [...(this._assetEdit.asset?.metadata || [])];
+      list.push(entry);
+      this._assetEdit.asset!.metadata = list;
+      this._render();
+    };
+    const seedRow = document.createElement('div');
+    seedRow.className = 'hk-meta-seeds';
+    for (const s of seeds) {
+      const b = document.createElement('ha-button');
+      b.textContent = s.label;
+      b.addEventListener('click', () => addEntry({ type: s.type, label: s.label, value: '' }));
+      seedRow.appendChild(b);
+    }
+    const custom = document.createElement('ha-button');
+    custom.textContent = t('btn.addField');
+    custom.addEventListener('click', () => addEntry({ type: 'text', label: '', value: '' }));
+    seedRow.appendChild(custom);
+    inner.appendChild(seedRow);
   }
 
   private _renderPartsEditor(inner: HTMLElement): void {

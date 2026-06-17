@@ -51,26 +51,23 @@ class AssetValidationError(ValueError):
     """Raised when asset input fails validation."""
 
 
-# Free-form descriptive metadata stored verbatim (purely informational — these are
-# *not* surfaced as entities, only shown in the panel / device page context).
-# ``manual_url`` and ``icon`` are handled separately (validated).
+# Structured text fields kept verbatim. These two are special: they sync into the
+# Home Assistant device registry (they title/brand the device card), so they stay
+# first-class rather than folding into the free-form ``metadata`` list below.
+# ``manual_url`` (-> device ``configuration_url``), ``icon`` and ``cost`` (-> the
+# inventory value rollup) are likewise structured but validated separately.
 _TEXT_FIELDS = (
     "manufacturer",
     "model",
-    "serial_number",
-    "warranty_provider",
-    "vendor",
-    "notes",
 )
 
-# Date metadata. Each that is set becomes a real ``date`` sensor on the asset's
-# device page (so e.g. "warranty expiring in 30 days -> notify" works natively).
-DATE_FIELDS = (
-    "manufacture_date",
-    "purchase_date",
-    "install_date",
-    "warranty_expiry",
-)
+# Free-form metadata: an ordered list of typed entries the user can shape however
+# they like (serial numbers, warranty/purchase/install dates, provider, links…),
+# replacing the old prescriptive per-field set. Each entry is
+# ``{id, type, label, value[, track]}``. A ``date`` entry with ``track`` set becomes
+# a real ``date`` sensor on the asset's device page (so e.g. "warranty expiring in
+# 30 days -> notify" still works natively, but only for dates you opt in to track).
+METADATA_TYPES = ("text", "link", "date")
 
 _MAX_URL_LEN = 2048
 _ICON_RE = re.compile(r"^[a-z0-9-]+:[a-z0-9-]+$")
@@ -119,17 +116,68 @@ def _normalize_cost(value: Any) -> float | None:
     return cost
 
 
-def _normalize_url(value: Any) -> str:
-    """Validate a manual/docs URL: empty, or an http(s) URL within a size bound."""
+def _normalize_http_url(value: Any, field: str) -> str:
+    """Validate an http(s) URL: empty allowed, else http(s) within a size bound."""
     if value in (None, ""):
         return ""
     text = str(value).strip()
     if len(text) > _MAX_URL_LEN:
-        raise AssetValidationError("manual_url is too long")
+        raise AssetValidationError(f"{field} is too long")
     scheme = text.split("://", 1)[0].lower() if "://" in text else ""
     if scheme not in ("http", "https"):
-        raise AssetValidationError("manual_url must be an http(s) URL")
+        raise AssetValidationError(f"{field} must be an http(s) URL")
     return text
+
+
+def _normalize_url(value: Any) -> str:
+    """Validate the structured manual/docs URL (-> device ``configuration_url``)."""
+    return _normalize_http_url(value, "manual_url")
+
+
+def _normalize_metadata(value: Any) -> list[dict]:
+    """Validate and normalize the free-form ``metadata`` list.
+
+    Each entry is ``{id, type, label, value[, track]}``. ``label`` is required;
+    ``value`` is validated per type (date -> ISO ``YYYY-MM-DD``, link -> http(s)
+    URL, text -> verbatim). ``track`` is only meaningful for a ``date`` entry (it
+    opts that date into a tracked sensor). Entry ids are unique — collisions from
+    a misbehaving caller are regenerated.
+    """
+    if value in (None, ""):
+        return []
+    if not isinstance(value, list):
+        raise AssetValidationError("metadata must be a list")
+    entries = [_normalize_metadata_entry(entry) for entry in value]
+    seen: set[str] = set()
+    for entry in entries:
+        if entry["id"] in seen:
+            entry["id"] = str(uuid.uuid4())
+        seen.add(entry["id"])
+    return entries
+
+
+def _normalize_metadata_entry(raw: Any) -> dict:
+    if not isinstance(raw, dict):
+        raise AssetValidationError("each metadata entry must be an object")
+    mtype = raw.get("type", "text")
+    if mtype not in METADATA_TYPES:
+        raise AssetValidationError(f"invalid metadata type: {mtype!r}")
+    label = str(raw.get("label", "")).strip()
+    if not label:
+        raise AssetValidationError("metadata label must not be empty")
+    entry: dict[str, Any] = {
+        "id": str(raw.get("id") or uuid.uuid4()),
+        "type": mtype,
+        "label": label,
+    }
+    if mtype == "date":
+        entry["value"] = _normalize_date(raw.get("value"), label) or ""
+        entry["track"] = bool(raw.get("track"))
+    elif mtype == "link":
+        entry["value"] = _normalize_http_url(raw.get("value"), label)
+    else:
+        entry["value"] = str(raw.get("value", "")).strip()
+    return entry
 
 
 def _normalize_icon(value: Any) -> str:
@@ -325,10 +373,7 @@ def normalize_fields(data: dict) -> dict:
 
     fields["manual_url"] = _normalize_url(data.get("manual_url"))
     fields["icon"] = _normalize_icon(data.get("icon"))
-
-    for key in DATE_FIELDS:
-        fields[key] = _normalize_date(data.get(key), key)
-
+    fields["metadata"] = _normalize_metadata(data.get("metadata"))
     fields["cost"] = _normalize_cost(data.get("cost"))
     fields["parts"] = _normalize_parts(data.get("parts"))
 
@@ -377,11 +422,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
             "parent_asset_id", existing.get("parent_asset_id")
         ),
         "parts": updates.get("parts", existing.get("parts", [])),
+        "metadata": updates.get("metadata", existing.get("metadata", [])),
         "related_device_ids": updates.get(
             "related_device_ids", existing.get("related_device_ids", [])
         ),
     }
-    for key in (*_TEXT_FIELDS, "manual_url", *DATE_FIELDS):
+    for key in (*_TEXT_FIELDS, "manual_url"):
         candidate[key] = updates.get(key, existing.get(key))
 
     fields = normalize_fields(candidate)

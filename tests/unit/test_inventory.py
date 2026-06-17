@@ -7,7 +7,6 @@ handler supplies them in production).
 
 import csv
 import io
-from datetime import date
 
 import hk_inventory as inv
 
@@ -20,13 +19,12 @@ def _asset(**kw):
         "area_id": None,
         "manufacturer": "Rheem",
         "model": "XE50",
-        "serial_number": "SN-1",
-        "purchase_date": "2024-01-01",
-        "install_date": "2024-01-05",
-        "warranty_expiry": "2030-01-01",
-        "warranty_provider": "Rheem",
-        "vendor": "Home Depot",
         "cost": 900.0,
+        # Descriptive/temporal facts are free-form metadata now.
+        "metadata": [
+            {"id": "m1", "type": "text", "label": "Serial", "value": "SN-1"},
+            {"id": "m2", "type": "date", "label": "Warranty expiry", "value": "2030-01-01"},
+        ],
         "parts": [],
     }
     base.update(kw)
@@ -52,9 +50,11 @@ def test_row_carries_insurance_fields_and_area_name():
     assert row["name"] == "Water heater"
     assert row["area"] == "Garage"
     assert row["manufacturer"] == "Rheem"
-    assert row["serial_number"] == "SN-1"
     assert row["cost"] == 900.0
     assert row["part_count"] == 0
+    # Free-form metadata is flattened into the details summary.
+    assert "Serial: SN-1" in row["details"]
+    assert "Warranty expiry: 2030-01-01" in row["details"]
 
 
 def test_unknown_area_id_yields_none_area():
@@ -102,28 +102,16 @@ def test_rows_sorted_by_name_case_insensitive():
     assert [r["name"] for r in report["assets"]] == ["Apple", "zebra"]
 
 
-def test_warranty_active_flagged_against_today():
-    today = date(2026, 6, 15)
-    active = _asset(id="1", name="A", warranty_expiry="2030-01-01")
-    expired = _asset(id="2", name="B", warranty_expiry="2020-01-01")
-    none = _asset(id="3", name="C", warranty_expiry=None)
-    report = inv.build_inventory([active, expired, none], today=today)
-    by_name = {r["name"]: r for r in report["assets"]}
-    assert by_name["A"]["warranty_active"] is True
-    assert by_name["B"]["warranty_active"] is False
-    assert by_name["C"]["warranty_active"] is None
-
-
-def test_warranty_active_none_without_today():
-    report = inv.build_inventory([_asset()])  # today not supplied
-    assert report["assets"][0]["warranty_active"] is None
-
-
-def test_warranty_active_none_for_malformed_date():
-    report = inv.build_inventory(
-        [_asset(warranty_expiry="not-a-date")], today=date(2026, 6, 15)
+def test_metadata_details_flattened_into_summary():
+    asset = _asset(
+        metadata=[
+            {"id": "m1", "type": "text", "label": "Serial", "value": "SN-9"},
+            {"id": "m2", "type": "link", "label": "Manual", "value": "https://ex/m.pdf"},
+            {"id": "m3", "type": "text", "label": "Blank", "value": ""},  # dropped (no value)
+        ]
     )
-    assert report["assets"][0]["warranty_active"] is None
+    row = inv.build_inventory([asset])["assets"][0]
+    assert row["details"] == "Serial: SN-9; Manual: https://ex/m.pdf"
 
 
 def test_csv_has_header_rows_and_total():
@@ -135,15 +123,16 @@ def test_csv_has_header_rows_and_total():
     )
     text = inv.inventory_to_csv(report)
     rows = list(csv.reader(io.StringIO(text)))
-    assert rows[0][0] == "Name"
+    header = rows[0]
+    assert header[0] == "Name"
     # Two data rows, sorted by name.
     assert rows[1][0] == "Apple"
     assert rows[2][0] == "Box"
-    # A blank spacer row, then the TOTAL row with cost + spares in the last columns.
+    # A blank spacer row, then the TOTAL row with cost + spares under their columns.
     total = rows[-1]
     assert total[0] == "TOTAL"
-    assert total[-2] == "150.0"
-    assert total[-1] == "10.0"
+    assert total[header.index("Cost")] == "150.0"
+    assert total[header.index("Spares value")] == "10.0"
 
 
 def test_csv_neutralizes_formula_injection():

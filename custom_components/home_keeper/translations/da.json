@@ -173,34 +173,6 @@
           "name": "Model",
           "description": "Modelnavn eller -nummer."
         },
-        "serial_number": {
-          "name": "Serienummer",
-          "description": "Serienummer."
-        },
-        "manufacture_date": {
-          "name": "Produktionsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Købsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Installationsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Garantiens udløb",
-          "description": "ISO-dato (YYYY-MM-DD). Vises som en datosensor på enheden."
-        },
-        "warranty_provider": {
-          "name": "Garantiudbyder",
-          "description": "Hvem der dækker garantien."
-        },
-        "vendor": {
-          "name": "Forhandler",
-          "description": "Hvor man genkøber / serviceudbyder."
-        },
         "cost": {
           "name": "Pris",
           "description": "Købspris."
@@ -213,6 +185,10 @@
           "name": "Ikon",
           "description": "Valgfrit mdi-ikon (f.eks. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+        },
         "parts": {
           "name": "Dele",
           "description": "Strukturerede dele/sliddele; sliddele med et interval driver en vedligeholdelsesopgave."
@@ -224,10 +200,6 @@
         "related_device_ids": {
           "name": "Relaterede enheder",
           "description": "Andre registerenheder at knytte til dette apparat."
-        },
-        "notes": {
-          "name": "Noter",
-          "description": "Fritekstnoter."
         }
       }
     },
@@ -259,34 +231,6 @@
           "name": "Model",
           "description": "Modelnavn eller -nummer."
         },
-        "serial_number": {
-          "name": "Serienummer",
-          "description": "Serienummer."
-        },
-        "manufacture_date": {
-          "name": "Produktionsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Købsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Installationsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Garantiens udløb",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "warranty_provider": {
-          "name": "Garantiudbyder",
-          "description": "Hvem der dækker garantien."
-        },
-        "vendor": {
-          "name": "Forhandler",
-          "description": "Hvor man genkøber / serviceudbyder."
-        },
         "cost": {
           "name": "Pris",
           "description": "Købspris."
@@ -299,6 +243,10 @@
           "name": "Ikon",
           "description": "Valgfrit mdi-ikon (f.eks. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (see add_asset)."
+        },
         "parts": {
           "name": "Dele",
           "description": "Strukturerede dele/sliddele; sliddele med et interval driver en vedligeholdelsesopgave."
@@ -310,10 +258,6 @@
         "related_device_ids": {
           "name": "Relaterede enheder",
           "description": "Andre registerenheder at knytte til dette apparat."
-        },
-        "notes": {
-          "name": "Noter",
-          "description": "Fritekstnoter."
         }
       }
     },
@@ -358,18 +302,6 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Næste forfald"
-      },
-      "manufacture_date": {
-        "name": "Produktionsdato"
-      },
-      "purchase_date": {
-        "name": "Købsdato"
-      },
-      "install_date": {
-        "name": "Installationsdato"
-      },
-      "warranty_expiry": {
-        "name": "Garantiens udløb"
       }
     },
     "binary_sensor": {

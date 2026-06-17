@@ -173,34 +173,6 @@
           "name": "Modelo",
           "description": "Nombre o número de modelo."
         },
-        "serial_number": {
-          "name": "Número de serie",
-          "description": "Número de serie."
-        },
-        "manufacture_date": {
-          "name": "Fecha de fabricación",
-          "description": "Fecha ISO (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Fecha de compra",
-          "description": "Fecha ISO (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Fecha de instalación",
-          "description": "Fecha ISO (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Vencimiento de la garantía",
-          "description": "Fecha ISO (YYYY-MM-DD). Se muestra como sensor de fecha en el dispositivo."
-        },
-        "warranty_provider": {
-          "name": "Proveedor de garantía",
-          "description": "Quién cumple la garantía."
-        },
-        "vendor": {
-          "name": "Proveedor",
-          "description": "Dónde recomprar / proveedor de servicio."
-        },
         "cost": {
           "name": "Coste",
           "description": "Precio de compra."
@@ -213,6 +185,10 @@
           "name": "Icono",
           "description": "Icono mdi opcional (p. ej. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+        },
         "parts": {
           "name": "Piezas",
           "description": "Piezas/piezas de desgaste estructuradas; las piezas de desgaste con un intervalo impulsan una tarea de mantenimiento."
@@ -224,10 +200,6 @@
         "related_device_ids": {
           "name": "Dispositivos relacionados",
           "description": "Otros dispositivos del registro a asociar con este electrodoméstico."
-        },
-        "notes": {
-          "name": "Notas",
-          "description": "Notas de texto libre."
         }
       }
     },
@@ -259,34 +231,6 @@
           "name": "Modelo",
           "description": "Nombre o número de modelo."
         },
-        "serial_number": {
-          "name": "Número de serie",
-          "description": "Número de serie."
-        },
-        "manufacture_date": {
-          "name": "Fecha de fabricación",
-          "description": "Fecha ISO (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Fecha de compra",
-          "description": "Fecha ISO (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Fecha de instalación",
-          "description": "Fecha ISO (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Vencimiento de la garantía",
-          "description": "Fecha ISO (YYYY-MM-DD)."
-        },
-        "warranty_provider": {
-          "name": "Proveedor de garantía",
-          "description": "Quién cumple la garantía."
-        },
-        "vendor": {
-          "name": "Proveedor",
-          "description": "Dónde recomprar / proveedor de servicio."
-        },
         "cost": {
           "name": "Coste",
           "description": "Precio de compra."
@@ -299,6 +243,10 @@
           "name": "Icono",
           "description": "Icono mdi opcional (p. ej. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (see add_asset)."
+        },
         "parts": {
           "name": "Piezas",
           "description": "Piezas/piezas de desgaste estructuradas; las piezas de desgaste con un intervalo impulsan una tarea de mantenimiento."
@@ -310,10 +258,6 @@
         "related_device_ids": {
           "name": "Dispositivos relacionados",
           "description": "Otros dispositivos del registro a asociar con este electrodoméstico."
-        },
-        "notes": {
-          "name": "Notas",
-          "description": "Notas de texto libre."
         }
       }
     },
@@ -358,18 +302,6 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Próximo vencimiento"
-      },
-      "manufacture_date": {
-        "name": "Fecha de fabricación"
-      },
-      "purchase_date": {
-        "name": "Fecha de compra"
-      },
-      "install_date": {
-        "name": "Fecha de instalación"
-      },
-      "warranty_expiry": {
-        "name": "Vencimiento de la garantía"
       }
     },
     "binary_sensor": {

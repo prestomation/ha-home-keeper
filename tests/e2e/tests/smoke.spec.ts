@@ -72,11 +72,13 @@ test.describe('Home Keeper panel — smoke', () => {
     // The seeded "Garage water heater" virtual appliance appears with its chip.
     await expect(panel.locator('.hk-name')).toContainText(['Garage water heater']);
     await expect(panel.getByText('Virtual device').first()).toBeVisible();
-    // Add-appliance form: name (text) + warranty (date) fields are present.
+    // Add-appliance form: name (text) field is present; dates are opt-in via the
+    // metadata editor, so quick-adding the "Warranty expiry" seed reveals a date field.
     await panel.locator('#add-btn').click();
     const form = panel.locator('#hk-asset-form');
     await expect(form).toBeVisible();
     await expect(form.locator('ha-selector-text').first()).toBeVisible();
+    await form.locator('ha-button', { hasText: 'Warranty expiry' }).click();
     await expect(form.locator('ha-selector-date').first()).toBeVisible();
     // Switching to "existing device" adds the identity device picker alongside
     // the always-present "Related devices" picker (2 device selectors total).

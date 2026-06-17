@@ -156,6 +156,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // The wear part now exposes a "Last replaced" date field so the maintenance
   // schedule can start from the real date rather than "now".
   await expect(panel.locator('.hk-part').first().locator('ha-selector-date')).toBeVisible();
+  // Custom fields: quick-add a text and a (trackable) date metadata entry so the
+  // shot shows the flexible metadata editor — label/type/value rows plus the
+  // one-click seed buttons for the common fields.
+  await assetForm.locator('ha-button', { hasText: 'Serial number' }).click();
+  await assetForm.locator('ha-button', { hasText: 'Warranty expiry' }).click();
+  await expect(assetForm.locator('.hk-meta-seeds')).toBeVisible();
   await page.screenshot({ path: `${OUT}/6-panel-appliance-create.png`, fullPage: true });
 
   // 4. The usage surfaces — native to-do list + calendar on a dashboard.
