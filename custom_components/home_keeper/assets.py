@@ -235,12 +235,14 @@ def _normalize_parts(value: Any) -> list[dict]:
 
 
 def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
-    """Carry the backend-managed ``last_replaced`` across an edit.
+    """Carry the stored ``last_replaced`` across an edit when the caller omits it.
 
-    The panel submits the full parts list but never exposes ``last_replaced`` (it is
-    stamped on completion), so for parts that already exist (matched by ``id``) we
-    keep the stored value unless the caller explicitly set it. ``stock``/``reorder_at``
-    are ordinary user-editable fields — incoming wins, including a ``None`` that clears
+    The panel can seed ``last_replaced`` when adding a wear item (so the derived
+    maintenance task starts from the real date), but it is also stamped automatically
+    on completion. To avoid a parts round-trip that doesn't re-send it clobbering that
+    completion history, for parts that already exist (matched by ``id``) we keep the
+    stored value unless the caller explicitly set one. ``stock``/``reorder_at`` are
+    ordinary user-editable fields — incoming wins, including a ``None`` that clears
     them — so they are intentionally *not* preserved here (otherwise stock tracking
     could never be switched back off).
     """

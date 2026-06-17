@@ -137,6 +137,12 @@ for it, attached to the appliance's device — so it shows up in your to-do list
 calendar, gets a mark-done button and a next-due sensor on the device page, and
 stamps the part's *last replaced* date when you complete it. No separate bookkeeping.
 
+You can also record **when a wear item was last replaced** right when you add it, so
+the maintenance schedule starts from the real date instead of from today — handy for
+parts you replaced before tracking them here. On the appliance's detail page each part
+reads as a card with its type, replacement cadence, last-replaced date, and spare
+stock at a glance.
+
 Any part can also track **spare inventory** — a *stock* count and a *reorder-at*
 threshold. Completing a wear-item replacement consumes one spare, and when stock drops
 to (or below) the threshold Home Keeper fires a `home_keeper_part_low_stock` event you

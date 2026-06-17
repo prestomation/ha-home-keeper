@@ -333,6 +333,34 @@
             "last_replaced": "2025-05-01",
             "stock": 1,
             "reorder_at": 2
+          },
+          {
+            "id": "part_tp_valve",
+            "name": "T&P relief valve",
+            "part_number": "TP-150",
+            "type": "wear",
+            "vendor": "Home Depot",
+            "cost": 18.0,
+            "notes": "",
+            "replace_interval": 36,
+            "replace_unit": "months",
+            "last_replaced": null,
+            "stock": null,
+            "reorder_at": null
+          },
+          {
+            "id": "part_sediment_filter",
+            "name": "Sediment pre-filter",
+            "part_number": "SF-20",
+            "type": "consumable",
+            "vendor": "Amazon",
+            "cost": 12.0,
+            "notes": "",
+            "replace_interval": null,
+            "replace_unit": null,
+            "last_replaced": null,
+            "stock": 4,
+            "reorder_at": 1
           }
         ],
         "parent_asset_id": null,

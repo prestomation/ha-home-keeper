@@ -76,6 +76,20 @@ const REQUIRED_COMPONENTS = [
 const MDI_DELETE =
   'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z';
 
+// mdi:autorenew — a wear item (replaced on a recurring schedule).
+const MDI_WEAR =
+  'M12,6V9L16,5L12,1V4A8,8 0 0,0 4,12C4,13.57 4.46,15.03 5.24,16.26L6.7,14.8C6.25,' +
+  '13.97 6,13 6,12A6,6 0 0,1 12,6M18.76,7.74L17.3,9.2C17.74,10.04 18,11 18,12A6,6 0 0,' +
+  '1 12,18V15L8,19L12,23V20A8,8 0 0,0 20,12C20,10.43 19.54,8.97 18.76,7.74Z';
+
+// mdi:package-variant-closed — a consumable spare kept in stock.
+const MDI_CONSUMABLE =
+  'M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,' +
+  '22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,' +
+  '6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,' +
+  '6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,' +
+  '9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z';
+
 
 const STYLES = `
   :host { display: block; }
@@ -148,6 +162,45 @@ const STYLES = `
   }
   .hk-part-head { display: flex; align-items: center; justify-content: space-between; }
   .hk-part-head .label { font-size: 0.85rem; color: var(--secondary-text-color); }
+
+  /* Parts list on the appliance detail page */
+  .hk-parts { display: flex; flex-direction: column; }
+  .hk-part-row {
+    display: flex; align-items: flex-start; gap: 14px; padding: 14px 0;
+    border-bottom: 1px solid var(--divider-color);
+  }
+  .hk-part-row:first-child { padding-top: 2px; }
+  .hk-part-row:last-child { border-bottom: none; padding-bottom: 2px; }
+  .hk-part-ic {
+    flex: none; width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--secondary-background-color);
+    color: var(--secondary-text-color); --mdc-icon-size: 22px;
+  }
+  .hk-part-row.wear .hk-part-ic {
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+    color: var(--primary-color);
+  }
+  .hk-part-row .grow { flex: 1; min-width: 0; }
+  .hk-part-name {
+    font-weight: 500; display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap; word-break: break-word;
+  }
+  .hk-part-badge {
+    font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--secondary-text-color);
+    border: 1px solid var(--divider-color); border-radius: 10px; padding: 1px 8px;
+  }
+  .hk-part-row.wear .hk-part-badge {
+    color: var(--primary-color);
+    border-color: color-mix(in srgb, var(--primary-color) 50%, transparent);
+  }
+  .hk-part-sub {
+    color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px;
+    word-break: break-word;
+  }
+  .hk-part-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .hk-part-chips ha-assist-chip { --ha-assist-chip-container-height: 28px; }
   .hk-form-actions { display: flex; gap: 8px; margin-top: 20px; }
   .hk-loading { display: flex; justify-content: center; padding: 48px 0; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
@@ -1215,27 +1268,74 @@ export class HomeKeeperPanel extends HTMLElement {
   private _partsSection(asset: Asset): string {
     const parts = asset.parts || [];
     if (!parts.length) return '';
+    const chip = (label: string, cls = ''): string =>
+      `<ha-assist-chip class="${cls}" label="${escapeHTML(label)}"></ha-assist-chip>`;
     const rows = parts
       .map((p) => {
-        const bits = [t(`opt.part.${p.type}`)];
-        if (p.part_number) bits.push(p.part_number);
-        if (p.replace_interval && p.replace_unit) {
-          bits.push(t('field.replace_interval') + ' ' + p.replace_interval + ' ' + t(`opt.unit.${p.replace_unit}`));
-        }
-        if (p.stock != null) bits.push(t('part.inStock', { n: p.stock }));
-        const low = p.stock != null && p.reorder_at != null && p.stock <= p.reorder_at;
-        const chip = low
-          ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(
-              t('chip.lowStock'),
-            )}"></ha-assist-chip> `
+        const isWear = p.type === 'wear';
+        // Subtitle: the descriptive, identity bits (part number, vendor, cost).
+        const sub: string[] = [];
+        if (p.part_number) sub.push(p.part_number);
+        if (p.vendor) sub.push(p.vendor);
+        if (p.cost != null) sub.push(String(p.cost));
+        const subLine = sub.length
+          ? `<div class="hk-part-sub">${escapeHTML(sub.join(' · '))}</div>`
           : '';
-        const meta = bits.map((b) => escapeHTML(b)).join(' · ');
-        return this._row(p.name, `${chip}${meta}`, true);
+        // Chips: the actionable status (cadence, last replaced, stock on hand).
+        const chips: string[] = [];
+        if (isWear && p.replace_interval && p.replace_unit) {
+          chips.push(
+            chip(
+              t('part.every', {
+                n: p.replace_interval,
+                unit: t(`opt.unit.${p.replace_unit}`),
+              }),
+            ),
+          );
+        }
+        if (isWear) {
+          chips.push(
+            chip(
+              p.last_replaced
+                ? t('part.replacedOn', { date: p.last_replaced })
+                : t('part.neverReplaced'),
+            ),
+          );
+        }
+        const low = p.stock != null && p.reorder_at != null && p.stock <= p.reorder_at;
+        if (p.stock != null) {
+          chips.push(
+            low
+              ? chip(t('part.lowStock', { n: p.stock }), 'hk-overdue')
+              : chip(t('part.inStock', { n: p.stock })),
+          );
+        }
+        const chipRow = chips.length ? `<div class="hk-part-chips">${chips.join('')}</div>` : '';
+        const badge = `<span class="hk-part-badge">${escapeHTML(t(`opt.part.${p.type}`))}</span>`;
+        return `
+          <div class="hk-part-row ${isWear ? 'wear' : 'consumable'}">
+            <div class="hk-part-ic">
+              <ha-svg-icon data-mdi="${isWear ? 'wear' : 'consumable'}"></ha-svg-icon>
+            </div>
+            <div class="grow">
+              <div class="hk-part-name">${escapeHTML(p.name)}${badge}</div>
+              ${subLine}
+              ${chipRow}
+            </div>
+          </div>`;
       })
       .join('');
     return `
       <div class="hk-section">${escapeHTML(t('section.parts'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner hk-parts">${rows}</div></ha-card>`;
+  }
+
+  /** Set the mdi `path` on each part-row icon (ha-svg-icon takes a property). */
+  private _wirePartIcons(root: ShadowRoot): void {
+    root.querySelectorAll<HTMLElement>('.hk-part-ic ha-svg-icon').forEach((el) => {
+      (el as HTMLElement & { path?: string }).path =
+        el.dataset.mdi === 'wear' ? MDI_WEAR : MDI_CONSUMABLE;
+    });
   }
 
   private _relatedTasksSection(asset: Asset): string {
@@ -1522,6 +1622,9 @@ export class HomeKeeperPanel extends HTMLElement {
           },
         ],
       });
+      // Let the user record when the part was last replaced so the derived
+      // maintenance task's clock starts from the real date instead of "now".
+      base.push({ name: 'last_replaced', selector: selDate() });
     }
     return base;
   }
@@ -1551,6 +1654,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._wireDetailActions(root);
       this._wireDetailOpeners(root);
       this._wireDeviceChips(root);
+      this._wirePartIcons(root);
       this._wireHistoryDeletes(root);
       return;
     }
@@ -1884,12 +1988,20 @@ export class HomeKeeperPanel extends HTMLElement {
           reorder_at: p.reorder_at ?? undefined,
           replace_interval: p.replace_interval ?? undefined,
           replace_unit: p.replace_unit ?? 'months',
+          last_replaced: p.last_replaced ?? undefined,
         },
         (value) => {
           const prevType = this._assetEdit.asset?.parts?.[i]?.type;
           const updated: Part = {
             id: p.id,
-            last_replaced: p.last_replaced ?? null,
+            // The last-replaced date is only editable for wear items; preserve any
+            // existing value when the part is a consumable (no field shown).
+            last_replaced:
+              value.type === 'wear'
+                ? value.last_replaced
+                  ? String(value.last_replaced)
+                  : null
+                : (p.last_replaced ?? null),
             name: String(value.part_name ?? ''),
             part_number: String(value.part_number ?? ''),
             type: (value.type as Part['type']) ?? 'consumable',
@@ -1917,12 +2029,7 @@ export class HomeKeeperPanel extends HTMLElement {
       );
       box.appendChild(form);
 
-      if (p.last_replaced) {
-        const note = document.createElement('div');
-        note.className = 'hk-meta';
-        note.textContent = t('part.lastReplaced', { date: p.last_replaced });
-        box.appendChild(note);
-      } else if (p.type === 'wear') {
+      if (p.type === 'wear') {
         const note = document.createElement('div');
         note.className = 'hk-meta';
         note.textContent = t('part.wearHint');
