@@ -5,7 +5,7 @@
 | Name                                              |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |-------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
 | custom\_components/home\_keeper/\_\_init\_\_.py   |      175 |      175 |       16 |        0 |      0% |     8-429 |
-| custom\_components/home\_keeper/assets.py         |      259 |        9 |      118 |        8 |     95% |99, 150-151, 153, 182, 225, 251-\>253, 310, 408-409, 445-\>447 |
+| custom\_components/home\_keeper/assets.py         |      259 |        9 |      118 |        8 |     95% |99, 150-151, 153, 182, 225, 253-\>255, 312, 410-411, 447-\>449 |
 | custom\_components/home\_keeper/binary\_sensor.py |       29 |       29 |        0 |        0 |      0% |      3-57 |
 | custom\_components/home\_keeper/button.py         |       21 |       21 |        0 |        0 |      0% |      8-48 |
 | custom\_components/home\_keeper/calendar.py       |       72 |       72 |       32 |        0 |      0% |     9-132 |
