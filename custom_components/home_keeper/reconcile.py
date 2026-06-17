@@ -103,18 +103,21 @@ def reconcile_part_tasks(
                 },
                 now=now,
             )
-            # Anchor the floating clock to the recorded replacement, or to creation
-            # ("assumed fresh") so that later interval edits re-base off a stable
-            # point instead of drifting to now+interval on each edit.
-            task["last_completed"] = anchored or task["created"]
-            task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
+            # Anchor the floating clock to the recorded replacement. With no
+            # recorded replacement we leave last_completed unset (build_task's
+            # default), so the part reads as due now rather than "assumed fresh" a
+            # full interval out: an unknown replacement history is better surfaced
+            # now — the user can backdate the replacement or mark it done — than
+            # silently hidden for a cycle.
+            if anchored:
+                task["last_completed"] = anchored
+                task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
             result[task["id"]] = task
             changed = True
         else:
             # Only pass fields that actually changed. Passing interval/unit
             # unconditionally would re-trigger a next_due recompute on every
-            # reconcile (setup, any asset edit) and, for a task with no
-            # last_completed, drift next_due forward to now+interval each time.
+            # reconcile (setup, any asset edit), needlessly churning the schedule.
             before = result[tid]
             updates: dict[str, Any] = {}
             if before.get("name") != name:
