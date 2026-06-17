@@ -6,6 +6,24 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0b5] - 2026-06-17
+
+- **Flexible appliance metadata — custom fields replace the fixed metadata form.**
+  An appliance's descriptive details are now a free-form list of **custom fields**
+  instead of a fixed set of inputs. Each field has a label and a type — **text**,
+  **link**, or **date** — and you add as many as you like, with one-click seeds for
+  the common ones (serial number, warranty expiry, purchase/install dates, provider,
+  vendor, notes). Links are clickable and open in the browser. A date field is
+  display-only unless you tick **Track as a sensor**, which surfaces it as a `date`
+  sensor on the device for automations (e.g. *"warranty expiring in 30 days → notify"*)
+  — so you no longer get a sensor for every date whether you use it or not.
+  Manufacturer, model, manual link, cost, icon and area remain dedicated fields (they
+  wire into the Home Assistant device card and the inventory export), and the
+  insurance inventory export keeps its value totals while listing each appliance's
+  custom fields in a new **Details** column. *Note: this changes how appliance
+  metadata is stored; pre-release, an existing appliance's old descriptive fields are
+  not migrated.*
+
 - **A wear-item maintenance task with no recorded replacement date is now due now,
   not "assumed fresh".** When Home Keeper derives a replacement task from an appliance
   wear item that has no "Last replaced" date, it used to assume the part was fresh and
