@@ -13,9 +13,14 @@ hook other integrations subscribe to (`docs/INTEGRATING.md`); this generalises t
 pattern into a complete, well-documented catalog so **automations and other integrations
 can react to the full lifecycle**, not just completion and low-stock.
 
-> **Back-compatible by construction.** The two existing event names and their payload
-> fields are frozen — this plan only **adds** events and **adds** fields to existing
-> payloads. No automation built today breaks.
+> **Pre-1.0 — free to normalise.** Home Keeper is still a beta (panel `0.3.0bN`), so this
+> plan is **not** bound by back-compatibility. It keeps the existing field names because
+> they're already good (changing them would be churn for its own sake), but it is free to
+> reshape a payload where that yields a cleaner, uniform spine. The one external consumer
+> of the current `home_keeper_task_completed` contract is **Pawsistant** (same owner); any
+> breaking change to that payload is made **in lockstep** with Pawsistant and
+> `docs/INTEGRATING.md`, and lands as a **breaking** CHANGELOG entry rather than an additive
+> one.
 
 ---
 
@@ -113,8 +118,10 @@ Task events carry a common core, so one automation template works across all of 
 }
 ```
 
-- `task_completed` keeps its **exact current fields** (`task_id, name, source, managed_by,
-  completed_at, origin`) and *adds* the spine fields — additive only.
+- `task_completed` adopts the common spine and carries its completion-specific extras
+  (`completed_at`, `origin`) on top. (Its current fields are a subset of the spine plus
+  these two, so in practice this is the spine + 2 — but we're no longer *constrained* to
+  preserve the exact legacy shape; see the pre-1.0 note above.)
 - `task_updated` adds `changed_fields: ["name", "interval", …]`.
 - `task_overdue` adds `next_due` and `days_overdue`; `task_due_soon` adds `next_due` and
   `due_in_hours`.
@@ -209,8 +216,9 @@ HA best-practices for the device triggers).
 1. **`const.py`** — add the `EVENT_*` constants (task created/updated/deleted/uncompleted/
    triggered; part out_of_stock/restocked; asset created/updated/deleted), each with a
    doc-comment like the existing two.
-2. **`events.py`** — add a pure builder per event; reuse the spine. Extend
-   `completion_event_data` *additively* with the spine fields (keep existing keys).
+2. **`events.py`** — add a pure builder per event; reuse the spine. Bring
+   `completion_event_data` onto the spine too (no longer constrained to the legacy shape —
+   if Pawsistant relies on a field, change both repos in lockstep).
 3. **`assets.py`** — change `consume_part_stock` / `adjust_part_stock` to return a
    transition descriptor (`none|low|out|restocked`) instead of a bare boolean; pure, fully
    unit-tested across boundary values (`stock == reorder_at`, `0`, recovery).
@@ -253,12 +261,15 @@ HA best-practices for the device triggers).
    automation examples (both device-trigger and raw `platform: event` YAML). This is the
    "documented well" core.
 2. **`docs/INTEGRATING.md`** — extend §3's event references and the at-a-glance table to
-   list the new events; cross-link `EVENTS.md` as the full catalog.
+   list the new events; cross-link `EVENTS.md` as the full catalog. If the
+   `task_completed` payload shape changed, update its field table here and ship the matching
+   Pawsistant change in lockstep.
 3. **`README.md`** — expand the events/automation section with **use cases** (overdue →
    notify; out-of-stock → shopping list; task created → log) and a couple of example
    automations, per the "document new major features in README" rule.
-4. **`CHANGELOG.md`** — an **Added** entry under the next beta describing the new events and
-   the device-trigger UI, with one automation example.
+4. **`CHANGELOG.md`** — an **Added** entry under the next beta for the new events and the
+   device-trigger UI, with one automation example. If the `task_completed` payload shape
+   changed, add a **Changed/Breaking** note too (and call out the Pawsistant bump).
 5. **`.amazonq/rules/architecture-and-code.md`** + **`AGENTS.md`** — record the convention:
    *every observable state change fires a documented bus event built by a pure `events.py`
    function; edge-triggered transitions are detected in `transitions.py`/coordinator; the
