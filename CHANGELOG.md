@@ -6,6 +6,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0b3] - 2026-06-17
+
 - **Dashboard task card.** A new resizable Lovelace card (`custom:home-keeper-card`)
   shows your tasks as a list with a one-tap **Done** button on each row, and opens an
   inline editor for adding, editing, and deleting tasks without leaving the dashboard.
@@ -14,6 +16,12 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   type, due-within horizon), sorting, status/area/device grouping, a max-items cap, and
   display toggles. Built entirely from Home Assistant's own components and theme
   variables, and it stays in sync with completions made from any other surface.
+- **Fix: the card no longer spins forever when tasks fail to load.** If the task
+  fetch fails (e.g. the integration isn't set up yet, or was removed while a card
+  is still on a dashboard), the card now shows a clear error and keeps retrying on
+  the next update instead of an endless spinner.
+- **Fix: a fast double-tap of a card's Done button no longer records two
+  completions** — a completion already in flight ignores re-entrant taps.
 
 ## [0.3.0b2] - 2026-06-16
 

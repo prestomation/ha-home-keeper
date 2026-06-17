@@ -66,6 +66,7 @@ const S: Record<string, string> = {
   description: 'A resizable list of Home Keeper maintenance tasks with one-tap completion.',
   defaultTitle: 'Tasks',
   empty: 'No tasks yet.',
+  loadError: "Couldn't load tasks. Is the Home Keeper integration set up?",
   // editor field labels (keyed by config field name for computeLabel)
   title: 'Title',
   filter: 'Filter',
@@ -193,7 +194,13 @@ export class HomeKeeperCard extends HTMLElement {
   private _config: HomeKeeperCardConfig = { type: '' };
   private _tasks: Task[] = [];
   private _loaded = false;
+  // Set when the last load failed (e.g. integration not set up); rendered as an
+  // error instead of an endless spinner. Cleared on the next successful load.
+  private _error = false;
   private _signal = '';
+  // Task ids with a completion request in flight, so a double-tap of Done can't
+  // record two completions.
+  private _completing = new Set<string>();
   private _edit: EditState = { open: false, task: null };
   private _collapsed = new Set<string>();
   private _liveHassEls: Array<{ hass?: Hass }> = [];
@@ -334,12 +341,17 @@ export class HomeKeeperCard extends HTMLElement {
     this._refreshing = true;
     try {
       this._tasks = await api.getTasks(this._hass);
-      this._loaded = true;
+      this._error = false;
       this._signal = this._stateSignal(this._hass);
     } catch (err) {
+      // Surface an error rather than spinning forever. We still mark the card
+      // "loaded" so the live-refresh path keeps retrying on the next state
+      // change (e.g. once the integration finishes setting up).
+      this._error = true;
       // eslint-disable-next-line no-console
       console.error('home-keeper-card: failed to load tasks', err);
     } finally {
+      this._loaded = true;
       this._refreshing = false;
     }
     this._render();
@@ -361,16 +373,21 @@ export class HomeKeeperCard extends HTMLElement {
 
   // ── completion / CRUD ───────────────────────────────────────────────────────
   private async _complete(task: Task): Promise<void> {
-    if (!this._hass) return;
+    // Ignore a re-entrant tap while this task's completion is already in flight,
+    // so a double-click doesn't record two completions.
+    if (!this._hass || this._completing.has(task.id)) return;
     const prompt = task.managed_by?.completion_prompt;
     if (this._config.confirm_complete || prompt) {
       const msg = prompt || t('btn.done') + ' — ' + task.name + '?';
       if (!window.confirm(msg)) return;
     }
+    this._completing.add(task.id);
     try {
       await api.completeTask(this._hass, task.id);
     } catch (err) {
       console.error('home-keeper-card: complete failed', err);
+    } finally {
+      this._completing.delete(task.id);
     }
     await this._refresh();
   }
@@ -435,6 +452,8 @@ export class HomeKeeperCard extends HTMLElement {
     let body: string;
     if (!this._loaded) {
       body = `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
+    } else if (this._error) {
+      body = `<div class="hk-empty"><ha-alert alert-type="error">${escapeHTML(S.loadError)}</ha-alert></div>`;
     } else {
       body = this._listHtml();
     }
