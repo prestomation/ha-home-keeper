@@ -53,13 +53,15 @@ def test_creates_task_anchored_on_last_replaced():
     ).isoformat()
 
 
-def test_creates_task_anchored_on_creation_when_no_last_replaced():
+def test_creates_task_due_now_when_no_last_replaced():
     asset = _asset(parts=[_wear_part()])
     tasks, _ = _reconcile({"a1": asset})
     task = _only(tasks)
-    # No recorded replacement → "assumed fresh" at creation.
-    assert task["last_completed"] == task["created"] == NOW.isoformat()
-    assert task["next_due"] == r.compute_floating_next_due(NOW, 12, "months", now=NOW).isoformat()
+    # No recorded replacement → due now (not "assumed fresh" a full interval out).
+    # An unknown replacement history is surfaced now; the user can backdate the
+    # replacement or mark it done.
+    assert task["last_completed"] is None
+    assert task["next_due"] == NOW.isoformat()
 
 
 def test_uses_appliance_fallback_when_asset_name_blank():

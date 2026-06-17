@@ -6,6 +6,15 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+- **A wear-item maintenance task with no recorded replacement date is now due now,
+  not "assumed fresh".** When Home Keeper derives a replacement task from an appliance
+  wear item that has no "Last replaced" date, it used to assume the part was fresh and
+  schedule the first reminder a full interval out. It now reads as **due immediately**,
+  matching how brand-new floating tasks behave: an unknown replacement history is
+  surfaced now rather than hidden for a cycle. Backdate the part's last-replaced date
+  (or mark the task done) to start its clock from a known point instead. Wear items
+  with a recorded replacement date are unaffected.
+
 ## [0.3.0b4] - 2026-06-17
 
 - **Backdate a wear item's last replacement when adding it.** The parts editor now
