@@ -6,6 +6,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0b4] - 2026-06-17
+
 - **Backdate a wear item's last replacement when adding it.** The parts editor now
   has an optional "Last replaced" date field for wear items, so the maintenance task
   it creates starts its clock from the real replacement date instead of from today —
