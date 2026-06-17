@@ -173,34 +173,6 @@
           "name": "Modell",
           "description": "Modellnavn eller -nummer."
         },
-        "serial_number": {
-          "name": "Serienummer",
-          "description": "Serienummer."
-        },
-        "manufacture_date": {
-          "name": "Produksjonsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Kjøpsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Installasjonsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Garantiutløp",
-          "description": "ISO-dato (YYYY-MM-DD). Vises som en datosensor på enheten."
-        },
-        "warranty_provider": {
-          "name": "Garantileverandør",
-          "description": "Hvem som dekker garantien."
-        },
-        "vendor": {
-          "name": "Leverandør",
-          "description": "Hvor man kjøper på nytt / tjenesteleverandør."
-        },
         "cost": {
           "name": "Kostnad",
           "description": "Kjøpspris."
@@ -213,6 +185,10 @@
           "name": "Ikon",
           "description": "Valgfritt mdi-ikon (f.eks. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+        },
         "parts": {
           "name": "Deler",
           "description": "Strukturerte deler/slitedeler; slitedeler med et intervall oppretter en vedlikeholdsoppgave."
@@ -224,10 +200,6 @@
         "related_device_ids": {
           "name": "Relaterte enheter",
           "description": "Andre enheter fra enhetsregisteret å knytte til dette apparatet."
-        },
-        "notes": {
-          "name": "Notater",
-          "description": "Fritekstnotater."
         }
       }
     },
@@ -259,34 +231,6 @@
           "name": "Modell",
           "description": "Modellnavn eller -nummer."
         },
-        "serial_number": {
-          "name": "Serienummer",
-          "description": "Serienummer."
-        },
-        "manufacture_date": {
-          "name": "Produksjonsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Kjøpsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Installasjonsdato",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Garantiutløp",
-          "description": "ISO-dato (YYYY-MM-DD)."
-        },
-        "warranty_provider": {
-          "name": "Garantileverandør",
-          "description": "Hvem som dekker garantien."
-        },
-        "vendor": {
-          "name": "Leverandør",
-          "description": "Hvor man kjøper på nytt / tjenesteleverandør."
-        },
         "cost": {
           "name": "Kostnad",
           "description": "Kjøpspris."
@@ -299,6 +243,10 @@
           "name": "Ikon",
           "description": "Valgfritt mdi-ikon (f.eks. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (see add_asset)."
+        },
         "parts": {
           "name": "Deler",
           "description": "Strukturerte deler/slitedeler; slitedeler med et intervall oppretter en vedlikeholdsoppgave."
@@ -310,10 +258,6 @@
         "related_device_ids": {
           "name": "Relaterte enheter",
           "description": "Andre enheter fra enhetsregisteret å knytte til dette apparatet."
-        },
-        "notes": {
-          "name": "Notater",
-          "description": "Fritekstnotater."
         }
       }
     },
@@ -358,18 +302,6 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Neste forfall"
-      },
-      "manufacture_date": {
-        "name": "Produksjonsdato"
-      },
-      "purchase_date": {
-        "name": "Kjøpsdato"
-      },
-      "install_date": {
-        "name": "Installasjonsdato"
-      },
-      "warranty_expiry": {
-        "name": "Garantiutløp"
       }
     },
     "binary_sensor": {

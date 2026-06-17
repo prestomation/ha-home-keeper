@@ -34,14 +34,20 @@ def _spares_value(part: dict[str, Any]) -> float:
     return _num(cost) * int(stock)
 
 
-def _warranty_active(warranty_expiry: Any, today: date | None) -> bool | None:
-    """Whether a warranty is still in force as of ``today`` (None if unknowable)."""
-    if today is None or not warranty_expiry:
-        return None
-    try:
-        return date.fromisoformat(str(warranty_expiry)) >= today
-    except ValueError:
-        return None
+def _metadata_details(asset: dict[str, Any]) -> str:
+    """Flatten an asset's free-form metadata into a ``label: value; …`` summary.
+
+    Keeps the descriptive facts (serial, warranty, purchase date, provider…) — now
+    user-defined rather than fixed columns — discoverable in the export without a
+    prescriptive column per field.
+    """
+    parts = []
+    for entry in asset.get("metadata") or []:
+        value = entry.get("value")
+        label = entry.get("label")
+        if label and value:
+            parts.append(f"{label}: {value}")
+    return "; ".join(parts)
 
 
 def build_inventory(
@@ -52,9 +58,9 @@ def build_inventory(
 ) -> dict[str, Any]:
     """Return a flat inventory report: one row per appliance plus rolled-up totals.
 
-    ``area_names`` maps ``area_id`` -> human-readable name; ``today`` (when given)
-    flags whether each warranty is still active. Rows are sorted by name so the
-    export is stable.
+    ``area_names`` maps ``area_id`` -> human-readable name. Rows are sorted by name
+    so the export is stable. ``today`` is accepted for signature stability but no
+    longer used (warranty is free-form metadata now, not a fixed column).
     """
     area_names = area_names or {}
     rows: list[dict[str, Any]] = []
@@ -76,16 +82,10 @@ def build_inventory(
                 "area": area_names.get(area_id) if area_id else None,
                 "manufacturer": asset.get("manufacturer") or "",
                 "model": asset.get("model") or "",
-                "serial_number": asset.get("serial_number") or "",
-                "purchase_date": asset.get("purchase_date"),
-                "install_date": asset.get("install_date"),
-                "warranty_expiry": asset.get("warranty_expiry"),
-                "warranty_active": _warranty_active(asset.get("warranty_expiry"), today),
-                "warranty_provider": asset.get("warranty_provider") or "",
-                "vendor": asset.get("vendor") or "",
                 "cost": cost,
                 "spares_value": spares_value,
                 "part_count": len(parts),
+                "details": _metadata_details(asset),
             }
         )
         total_cost += _num(cost)
@@ -100,19 +100,17 @@ def build_inventory(
     return {"assets": rows, "totals": totals}
 
 
-# (row key, CSV header) — the columns most useful on an insurance schedule.
+# (row key, CSV header) — the columns most useful on an insurance schedule. The
+# free-form descriptive facts (serial, warranty, dates…) ride in the trailing
+# Details column rather than a fixed column each.
 _CSV_COLUMNS = (
     ("name", "Name"),
     ("area", "Area"),
     ("manufacturer", "Manufacturer"),
     ("model", "Model"),
-    ("serial_number", "Serial number"),
-    ("purchase_date", "Purchase date"),
-    ("warranty_expiry", "Warranty expiry"),
-    ("warranty_provider", "Warranty provider"),
-    ("vendor", "Vendor"),
     ("cost", "Cost"),
     ("spares_value", "Spares value"),
+    ("details", "Details"),
 )
 
 
@@ -140,10 +138,12 @@ def inventory_to_csv(inventory: dict[str, Any]) -> str:
     for row in inventory.get("assets", []):
         writer.writerow([_cell(row.get(key)) for key, _header in _CSV_COLUMNS])
     totals = inventory.get("totals", {})
-    # Blank spacer, then a TOTAL row aligned under the Cost / Spares value columns.
-    blanks = [""] * (len(_CSV_COLUMNS) - 3)
+    # Blank spacer, then a TOTAL row with the totals placed under their own columns.
+    keys = [key for key, _header in _CSV_COLUMNS]
+    total_row = [""] * len(_CSV_COLUMNS)
+    total_row[0] = "TOTAL"
+    total_row[keys.index("cost")] = _cell(totals.get("total_cost"))
+    total_row[keys.index("spares_value")] = _cell(totals.get("spares_value"))
     writer.writerow([])
-    writer.writerow(
-        ["TOTAL", *blanks, _cell(totals.get("total_cost")), _cell(totals.get("spares_value"))]
-    )
+    writer.writerow(total_row)
     return buf.getvalue()

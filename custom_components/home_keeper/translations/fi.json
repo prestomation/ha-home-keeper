@@ -173,34 +173,6 @@
           "name": "Malli",
           "description": "Mallin nimi tai numero."
         },
-        "serial_number": {
-          "name": "Sarjanumero",
-          "description": "Sarjanumero."
-        },
-        "manufacture_date": {
-          "name": "Valmistuspäivä",
-          "description": "ISO-päivä (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Ostopäivä",
-          "description": "ISO-päivä (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Asennuspäivä",
-          "description": "ISO-päivä (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Takuun päättyminen",
-          "description": "ISO-päivä (YYYY-MM-DD). Näytetään laitteen päivämääräanturina."
-        },
-        "warranty_provider": {
-          "name": "Takuun myöntäjä",
-          "description": "Kuka vastaa takuusta."
-        },
-        "vendor": {
-          "name": "Myyjä",
-          "description": "Mistä ostaa uudelleen / huoltopalvelu."
-        },
         "cost": {
           "name": "Hinta",
           "description": "Ostohinta."
@@ -213,6 +185,10 @@
           "name": "Kuvake",
           "description": "Valinnainen mdi-kuvake (esim. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+        },
         "parts": {
           "name": "Osat",
           "description": "Jäsennellyt osat/kuluvat osat; aikavälillä varustetut kuluvat osat ohjaavat huoltotehtävää."
@@ -224,10 +200,6 @@
         "related_device_ids": {
           "name": "Liittyvät laitteet",
           "description": "Muut rekisterin laitteet, jotka liitetään tähän laitteeseen."
-        },
-        "notes": {
-          "name": "Muistiinpanot",
-          "description": "Vapaamuotoiset muistiinpanot."
         }
       }
     },
@@ -259,34 +231,6 @@
           "name": "Malli",
           "description": "Mallin nimi tai numero."
         },
-        "serial_number": {
-          "name": "Sarjanumero",
-          "description": "Sarjanumero."
-        },
-        "manufacture_date": {
-          "name": "Valmistuspäivä",
-          "description": "ISO-päivä (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Ostopäivä",
-          "description": "ISO-päivä (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Asennuspäivä",
-          "description": "ISO-päivä (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Takuun päättyminen",
-          "description": "ISO-päivä (YYYY-MM-DD)."
-        },
-        "warranty_provider": {
-          "name": "Takuun myöntäjä",
-          "description": "Kuka vastaa takuusta."
-        },
-        "vendor": {
-          "name": "Myyjä",
-          "description": "Mistä ostaa uudelleen / huoltopalvelu."
-        },
         "cost": {
           "name": "Hinta",
           "description": "Ostohinta."
@@ -299,6 +243,10 @@
           "name": "Kuvake",
           "description": "Valinnainen mdi-kuvake (esim. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (see add_asset)."
+        },
         "parts": {
           "name": "Osat",
           "description": "Jäsennellyt osat/kuluvat osat; aikavälillä varustetut kuluvat osat ohjaavat huoltotehtävää."
@@ -310,10 +258,6 @@
         "related_device_ids": {
           "name": "Liittyvät laitteet",
           "description": "Muut rekisterin laitteet, jotka liitetään tähän laitteeseen."
-        },
-        "notes": {
-          "name": "Muistiinpanot",
-          "description": "Vapaamuotoiset muistiinpanot."
         }
       }
     },
@@ -358,18 +302,6 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Seuraava eräpäivä"
-      },
-      "manufacture_date": {
-        "name": "Valmistuspäivä"
-      },
-      "purchase_date": {
-        "name": "Ostopäivä"
-      },
-      "install_date": {
-        "name": "Asennuspäivä"
-      },
-      "warranty_expiry": {
-        "name": "Takuun päättyminen"
       }
     },
     "binary_sensor": {

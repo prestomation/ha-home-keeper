@@ -155,7 +155,7 @@ describe('areaName', () => {
 
 describe('assetSummary', () => {
   const areas = { kitchen: { area_id: 'kitchen', name: 'Kitchen' } };
-  it('joins make/model, area and warranty', () => {
+  it('joins make/model and area', () => {
     expect(
       assetSummary(
         {
@@ -165,11 +165,10 @@ describe('assetSummary', () => {
           manufacturer: 'LG',
           model: 'X1',
           area_id: 'kitchen',
-          warranty_expiry: '2030-01-01',
         },
         areas,
       ),
-    ).toBe('LG X1 · Kitchen · warranty to 2030-01-01');
+    ).toBe('LG X1 · Kitchen');
   });
   it('falls back when there are no details', () => {
     expect(assetSummary({ id: 'a', kind: 'virtual', name: 'Fridge' })).toBe('No details yet');

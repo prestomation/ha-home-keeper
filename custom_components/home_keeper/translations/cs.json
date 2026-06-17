@@ -173,34 +173,6 @@
           "name": "Model",
           "description": "Název nebo číslo modelu."
         },
-        "serial_number": {
-          "name": "Sériové číslo",
-          "description": "Sériové číslo."
-        },
-        "manufacture_date": {
-          "name": "Datum výroby",
-          "description": "ISO datum (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Datum nákupu",
-          "description": "ISO datum (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Datum instalace",
-          "description": "ISO datum (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Konec záruky",
-          "description": "ISO datum (YYYY-MM-DD). Zobrazí se jako datumový senzor na zařízení."
-        },
-        "warranty_provider": {
-          "name": "Poskytovatel záruky",
-          "description": "Kdo poskytuje záruku."
-        },
-        "vendor": {
-          "name": "Prodejce",
-          "description": "Kde znovu koupit / poskytovatel servisu."
-        },
         "cost": {
           "name": "Cena",
           "description": "Pořizovací cena."
@@ -213,6 +185,10 @@
           "name": "Ikona",
           "description": "Volitelná mdi ikona (např. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+        },
         "parts": {
           "name": "Díly",
           "description": "Strukturované díly/opotřebitelné položky; opotřebitelné položky s intervalem řídí úkol údržby."
@@ -224,10 +200,6 @@
         "related_device_ids": {
           "name": "Související zařízení",
           "description": "Další zařízení z registru, která se přiřadí k tomuto spotřebiči."
-        },
-        "notes": {
-          "name": "Poznámky",
-          "description": "Poznámky ve volném textu."
         }
       }
     },
@@ -259,34 +231,6 @@
           "name": "Model",
           "description": "Název nebo číslo modelu."
         },
-        "serial_number": {
-          "name": "Sériové číslo",
-          "description": "Sériové číslo."
-        },
-        "manufacture_date": {
-          "name": "Datum výroby",
-          "description": "ISO datum (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Datum nákupu",
-          "description": "ISO datum (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Datum instalace",
-          "description": "ISO datum (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Konec záruky",
-          "description": "ISO datum (YYYY-MM-DD)."
-        },
-        "warranty_provider": {
-          "name": "Poskytovatel záruky",
-          "description": "Kdo poskytuje záruku."
-        },
-        "vendor": {
-          "name": "Prodejce",
-          "description": "Kde znovu koupit / poskytovatel servisu."
-        },
         "cost": {
           "name": "Cena",
           "description": "Pořizovací cena."
@@ -299,6 +243,10 @@
           "name": "Ikona",
           "description": "Volitelná mdi ikona (např. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (see add_asset)."
+        },
         "parts": {
           "name": "Díly",
           "description": "Strukturované díly/opotřebitelné položky; opotřebitelné položky s intervalem řídí úkol údržby."
@@ -310,10 +258,6 @@
         "related_device_ids": {
           "name": "Související zařízení",
           "description": "Další zařízení z registru, která se přiřadí k tomuto spotřebiči."
-        },
-        "notes": {
-          "name": "Poznámky",
-          "description": "Poznámky ve volném textu."
         }
       }
     },
@@ -358,18 +302,6 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Příští termín"
-      },
-      "manufacture_date": {
-        "name": "Datum výroby"
-      },
-      "purchase_date": {
-        "name": "Datum nákupu"
-      },
-      "install_date": {
-        "name": "Datum instalace"
-      },
-      "warranty_expiry": {
-        "name": "Konec záruky"
       }
     },
     "binary_sensor": {

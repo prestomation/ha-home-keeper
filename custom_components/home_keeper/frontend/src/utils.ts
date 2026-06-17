@@ -199,9 +199,6 @@ export function assetSummary(
   if (makeModel) bits.push(makeModel);
   const area = areaName(areas, asset.area_id);
   if (area) bits.push(area);
-  if (asset.warranty_expiry) {
-    bits.push(t('asset.warrantyTo', { date: asset.warranty_expiry }));
-  }
   const partCount = asset.parts?.length ?? 0;
   if (partCount) bits.push(tn('asset.parts', partCount));
   return bits.length ? bits.join(' · ') : t('asset.noDetails');

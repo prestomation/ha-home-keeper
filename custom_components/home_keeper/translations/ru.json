@@ -173,34 +173,6 @@
           "name": "Модель",
           "description": "Название или номер модели."
         },
-        "serial_number": {
-          "name": "Серийный номер",
-          "description": "Серийный номер."
-        },
-        "manufacture_date": {
-          "name": "Дата изготовления",
-          "description": "Дата в формате ISO (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Дата покупки",
-          "description": "Дата в формате ISO (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Дата установки",
-          "description": "Дата в формате ISO (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Окончание гарантии",
-          "description": "Дата в формате ISO (YYYY-MM-DD). Отображается как датчик даты на устройстве."
-        },
-        "warranty_provider": {
-          "name": "Поставщик гарантии",
-          "description": "Кто обеспечивает гарантию."
-        },
-        "vendor": {
-          "name": "Продавец",
-          "description": "Где купить снова / сервисная служба."
-        },
         "cost": {
           "name": "Стоимость",
           "description": "Цена покупки."
@@ -213,6 +185,10 @@
           "name": "Значок",
           "description": "Необязательный значок mdi (напр. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+        },
         "parts": {
           "name": "Детали",
           "description": "Структурированные детали/изнашиваемые элементы; изнашиваемые элементы с интервалом создают задачу обслуживания."
@@ -224,10 +200,6 @@
         "related_device_ids": {
           "name": "Связанные устройства",
           "description": "Другие устройства реестра, связываемые с этим устройством."
-        },
-        "notes": {
-          "name": "Заметки",
-          "description": "Произвольные заметки."
         }
       }
     },
@@ -259,34 +231,6 @@
           "name": "Модель",
           "description": "Название или номер модели."
         },
-        "serial_number": {
-          "name": "Серийный номер",
-          "description": "Серийный номер."
-        },
-        "manufacture_date": {
-          "name": "Дата изготовления",
-          "description": "Дата в формате ISO (YYYY-MM-DD)."
-        },
-        "purchase_date": {
-          "name": "Дата покупки",
-          "description": "Дата в формате ISO (YYYY-MM-DD)."
-        },
-        "install_date": {
-          "name": "Дата установки",
-          "description": "Дата в формате ISO (YYYY-MM-DD)."
-        },
-        "warranty_expiry": {
-          "name": "Окончание гарантии",
-          "description": "Дата в формате ISO (YYYY-MM-DD)."
-        },
-        "warranty_provider": {
-          "name": "Поставщик гарантии",
-          "description": "Кто обеспечивает гарантию."
-        },
-        "vendor": {
-          "name": "Продавец",
-          "description": "Где купить снова / сервисная служба."
-        },
         "cost": {
           "name": "Стоимость",
           "description": "Цена покупки."
@@ -299,6 +243,10 @@
           "name": "Значок",
           "description": "Необязательный значок mdi (напр. mdi:piano)."
         },
+        "metadata": {
+          "name": "Metadata",
+          "description": "Free-form metadata entries (see add_asset)."
+        },
         "parts": {
           "name": "Детали",
           "description": "Структурированные детали/изнашиваемые элементы; изнашиваемые элементы с интервалом создают задачу обслуживания."
@@ -310,10 +258,6 @@
         "related_device_ids": {
           "name": "Связанные устройства",
           "description": "Другие устройства реестра, связываемые с этим устройством."
-        },
-        "notes": {
-          "name": "Заметки",
-          "description": "Произвольные заметки."
         }
       }
     },
@@ -358,18 +302,6 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Следующий срок"
-      },
-      "manufacture_date": {
-        "name": "Дата изготовления"
-      },
-      "purchase_date": {
-        "name": "Дата покупки"
-      },
-      "install_date": {
-        "name": "Дата установки"
-      },
-      "warranty_expiry": {
-        "name": "Окончание гарантии"
       }
     },
     "binary_sensor": {

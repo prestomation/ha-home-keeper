@@ -1,451 +1,491 @@
 {
-  "version": 1,
-  "minor_version": 1,
-  "key": "home_keeper",
-  "data": {
-    "tasks": {
-      "task_fridge_filter": {
-        "id": "task_fridge_filter",
-        "name": "Replace fridge filter",
-        "notes": "PureSource Ultra II",
-        "recurrence_type": "floating",
-        "interval": 1,
-        "unit": "months",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "created": "2026-05-01T09:00:00-04:00",
-        "last_completed": "2026-06-01T09:00:00-04:00",
-        "next_due": "2026-07-01T09:00:00-04:00",
-        "completions": [
-          {
-            "ts": "2026-03-01T09:00:00-04:00"
-          },
-          {
-            "ts": "2026-04-02T09:00:00-04:00"
-          },
-          {
-            "ts": "2026-05-01T09:00:00-04:00"
-          },
-          {
-            "ts": "2026-06-01T09:00:00-04:00"
-          }
-        ]
-      },
-      "task_anode": {
-        "id": "task_anode",
-        "name": "Replace Anode rod (Garage water heater)",
-        "notes": "",
-        "recurrence_type": "floating",
-        "interval": 12,
-        "unit": "months",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "created": "2022-05-10T10:00:00-04:00",
-        "last_completed": "2025-05-01T10:00:00-04:00",
-        "next_due": "2026-05-01T10:00:00-04:00",
-        "completions": [
-          {
-            "ts": "2023-05-01T10:00:00-04:00"
-          },
-          {
-            "ts": "2024-05-04T10:00:00-04:00"
-          },
-          {
-            "ts": "2025-05-01T10:00:00-04:00"
-          }
-        ],
-        "source": {
-          "part": {
-            "asset_id": "asset_water_heater",
-            "part_id": "part_anode"
-          }
-        }
-      },
-      "task_medicine": {
-        "id": "task_medicine",
-        "name": "Take medicine",
-        "notes": "After breakfast",
-        "recurrence_type": "fixed",
-        "interval": 1,
-        "freq": "DAILY",
-        "anchor": "2026-01-01T08:00:00-04:00",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "created": "2026-01-01T08:00:00-04:00",
-        "last_completed": null,
-        "next_due": "2026-06-14T08:00:00-04:00",
-        "completions": []
-      },
-      "task_furnace_filter": {
-        "id": "task_furnace_filter",
-        "name": "Replace furnace filter",
-        "notes": "20x25x1 MERV 11",
-        "recurrence_type": "floating",
-        "interval": 3,
-        "unit": "months",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "created": "2026-04-01T10:00:00-04:00",
-        "last_completed": "2026-04-01T10:00:00-04:00",
-        "next_due": "2026-07-01T10:00:00-04:00",
-        "completions": [
-          {
-            "ts": "2026-04-01T10:00:00-04:00"
-          }
-        ]
-      },
-      "task_water_filter": {
-        "id": "task_water_filter",
-        "name": "Replace water filter",
-        "notes": "Under-sink RO filter",
-        "recurrence_type": "floating",
-        "interval": 1,
-        "unit": "months",
-        "device_id": "kitchen_fridge_demo",
-        "area_id": null,
-        "enabled": true,
-        "created": "2026-03-20T12:00:00-04:00",
-        "last_completed": "2026-04-20T12:00:00-04:00",
-        "next_due": "2026-05-20T12:00:00-04:00",
-        "completions": [
-          {
-            "ts": "2026-04-20T12:00:00-04:00"
-          }
-        ]
-      },
-      "task_buddy_medicine": {
-        "id": "task_buddy_medicine",
-        "name": "Buddy: Medicine",
-        "notes": "",
-        "recurrence_type": "floating",
-        "interval": 2,
-        "unit": "weeks",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "created": "2026-05-15T08:00:00-04:00",
-        "last_completed": "2026-06-08T08:00:00-04:00",
-        "next_due": "2026-06-22T08:00:00-04:00",
-        "completions": [
-          {
-            "ts": "2026-05-25T08:00:00-04:00"
-          },
-          {
-            "ts": "2026-06-08T08:00:00-04:00"
-          }
-        ],
-        "source": {
-          "pawsistant": {
-            "dog_id": "dog_buddy",
-            "event_type": "medicine",
-            "schedule_id": "sched_buddy_medicine"
-          }
-        },
-        "managed_by": {
-          "integration": "pawsistant",
-          "display_name": "Pawsistant",
-          "icon": "mdi:paw",
-          "locked_fields": ["device_id", "name"],
-          "completion_prompt": "Log as Buddy's medicine dose?",
-          "deletion_protected": true,
-          "config_entry_id": "home_keeper_test_entry"
-        }
-      },
-      "task_rex_vet": {
-        "id": "task_rex_vet",
-        "name": "Rex: Vet checkup",
-        "notes": "",
-        "recurrence_type": "floating",
-        "interval": 6,
-        "unit": "months",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "created": "2025-12-01T09:00:00-04:00",
-        "last_completed": "2026-01-10T09:00:00-04:00",
-        "next_due": "2026-07-10T09:00:00-04:00",
-        "completions": [
-          {
-            "ts": "2026-01-10T09:00:00-04:00"
-          }
-        ],
-        "source": {
-          "pawsistant": {
-            "dog_id": "dog_rex",
-            "event_type": "vet",
-            "schedule_id": "sched_rex_vet"
-          }
-        },
-        "managed_by": {
-          "integration": "pawsistant",
-          "display_name": "Pawsistant",
-          "icon": "mdi:paw",
-          "locked_fields": ["device_id", "name"],
-          "completion_prompt": "Log as Rex's vet checkup?",
-          "deletion_protected": true,
-          "config_entry_id": "uninstalled_entry_demo"
-        }
-      },
-      "task_door_battery": {
-        "id": "task_door_battery",
-        "name": "Replace battery: Front door sensor",
-        "notes": "2× AAA",
-        "recurrence_type": "triggered",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "created": "2024-01-05T09:00:00-04:00",
-        "last_completed": "2025-04-02T09:00:00-04:00",
-        "next_due": "2026-06-11T07:30:00-04:00",
-        "completions": [
-          {
-            "ts": "2024-05-01T09:00:00-04:00"
-          },
-          {
-            "ts": "2025-04-02T09:00:00-04:00"
-          }
-        ],
-        "source": {
-          "home_keeper_battery_notes": {
-            "device_id": "front_door_sensor_demo"
-          }
-        },
-        "managed_by": {
-          "integration": "home_keeper_battery_notes",
-          "display_name": "Battery Notes",
-          "icon": "mdi:battery-alert",
-          "locked_fields": ["name", "device_id"],
-          "completion_prompt": "Mark battery as replaced?",
-          "deletion_protected": true,
-          "config_entry_id": "home_keeper_test_entry"
-        }
-      },
-      "task_smoke_battery": {
-        "id": "task_smoke_battery",
-        "name": "Replace battery: Hallway smoke alarm",
-        "notes": "1× 9V",
-        "recurrence_type": "triggered",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "created": "2023-02-01T09:00:00-04:00",
-        "last_completed": "2026-01-15T10:00:00-04:00",
-        "next_due": null,
-        "completions": [
-          {
-            "ts": "2024-01-20T10:00:00-04:00"
-          },
-          {
-            "ts": "2025-01-10T10:00:00-04:00"
-          },
-          {
-            "ts": "2026-01-15T10:00:00-04:00"
-          }
-        ],
-        "source": {
-          "home_keeper_battery_notes": {
-            "device_id": "smoke_alarm_demo"
-          }
-        },
-        "managed_by": {
-          "integration": "home_keeper_battery_notes",
-          "display_name": "Battery Notes",
-          "icon": "mdi:battery-alert",
-          "locked_fields": ["name", "device_id"],
-          "completion_prompt": "Mark battery as replaced?",
-          "deletion_protected": true,
-          "config_entry_id": "home_keeper_test_entry"
-        }
-      },
-      "task_thermostat_battery": {
-        "id": "task_thermostat_battery",
-        "name": "Replace battery: Thermostat",
-        "notes": "2× AA",
-        "recurrence_type": "triggered",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "created": "2025-03-01T09:00:00-04:00",
-        "last_completed": "2025-12-01T10:00:00-04:00",
-        "next_due": null,
-        "completions": [
-          {
-            "ts": "2025-12-01T10:00:00-04:00"
-          }
-        ],
-        "source": {
-          "home_keeper_battery_notes": {
-            "device_id": "thermostat_demo"
-          }
-        },
-        "managed_by": {
-          "integration": "home_keeper_battery_notes",
-          "display_name": "Battery Notes",
-          "icon": "mdi:battery-alert",
-          "locked_fields": ["name", "device_id"],
-          "completion_prompt": "Mark battery as replaced?",
-          "deletion_protected": true,
-          "config_entry_id": "home_keeper_test_entry"
-        }
-      }
-    },
-    "assets": {
-      "asset_water_heater": {
-        "id": "asset_water_heater",
-        "kind": "virtual",
-        "name": "Garage water heater",
-        "device_id": null,
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_asset_water_heater"
-          ]
-        ],
-        "connections": [],
-        "area_id": null,
-        "manufacturer": "Rheem",
-        "model": "XE50T10HS45U0",
-        "serial_number": "RH-0001",
-        "manufacture_date": null,
-        "purchase_date": "2022-05-01",
-        "install_date": "2022-05-10",
-        "warranty_expiry": "2032-05-01",
-        "warranty_provider": "Rheem",
-        "vendor": "Home Depot",
-        "cost": 649.0,
-        "manual_url": "https://example.com/water-heater-manual",
-        "icon": "mdi:water-boiler",
-        "parts": [
-          {
-            "id": "part_anode",
-            "name": "Anode rod",
-            "part_number": "AR-1",
-            "type": "wear",
-            "vendor": "Home Depot",
-            "cost": 35.0,
-            "notes": "",
-            "replace_interval": 12,
-            "replace_unit": "months",
-            "last_replaced": "2025-05-01",
-            "stock": 1,
-            "reorder_at": 2
-          },
-          {
-            "id": "part_tp_valve",
-            "name": "T&P relief valve",
-            "part_number": "TP-150",
-            "type": "wear",
-            "vendor": "Home Depot",
-            "cost": 18.0,
-            "notes": "",
-            "replace_interval": 36,
-            "replace_unit": "months",
-            "last_replaced": null,
-            "stock": null,
-            "reorder_at": null
-          },
-          {
-            "id": "part_sediment_filter",
-            "name": "Sediment pre-filter",
-            "part_number": "SF-20",
-            "type": "consumable",
-            "vendor": "Amazon",
-            "cost": 12.0,
-            "notes": "",
-            "replace_interval": null,
-            "replace_unit": null,
-            "last_replaced": null,
-            "stock": 4,
-            "reorder_at": 1
-          }
-        ],
-        "parent_asset_id": null,
-        "related_device_ids": [],
-        "notes": "Garage corner, behind the shelving",
-        "created": "2026-05-01T09:00:00-04:00",
-        "task_history": [
-          {
-            "task_id": "old_tank_flush",
-            "task_name": "Flush water heater tank",
-            "part_id": null,
-            "completions": [
-              {
-                "ts": "2023-06-01T10:00:00-04:00"
-              },
-              {
-                "ts": "2024-06-01T10:00:00-04:00"
-              }
-            ],
-            "archived_at": "2025-06-15T10:00:00-04:00"
-          }
-        ]
-      },
-      "asset_shades": {
-        "id": "asset_shades",
-        "kind": "virtual",
-        "name": "Living room shades",
-        "device_id": null,
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_asset_shades"
-          ]
-        ],
-        "connections": [],
-        "area_id": null,
-        "manufacturer": "Lutron",
-        "model": "Serena",
-        "serial_number": "",
-        "manufacture_date": null,
-        "purchase_date": null,
-        "install_date": null,
-        "warranty_expiry": null,
-        "warranty_provider": "",
-        "vendor": "",
-        "cost": null,
-        "manual_url": "",
-        "icon": "mdi:blinds",
-        "parts": [],
-        "parent_asset_id": null,
-        "related_device_ids": [],
-        "notes": "",
-        "created": "2026-05-01T09:00:00-04:00"
-      },
-      "asset_radio_shade": {
-        "id": "asset_radio_shade",
-        "kind": "virtual",
-        "name": "Radio shade controller",
-        "device_id": null,
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_asset_radio_shade"
-          ]
-        ],
-        "connections": [],
-        "area_id": null,
-        "manufacturer": "Lutron",
-        "model": "RF",
-        "serial_number": "",
-        "manufacture_date": null,
-        "purchase_date": null,
-        "install_date": null,
-        "warranty_expiry": null,
-        "warranty_provider": "",
-        "vendor": "",
-        "cost": null,
-        "manual_url": "",
-        "icon": "",
-        "parts": [],
-        "parent_asset_id": "asset_shades",
-        "related_device_ids": [],
-        "notes": "",
-        "created": "2026-05-01T09:00:00-04:00"
-      }
+ "version": 1,
+ "minor_version": 1,
+ "key": "home_keeper",
+ "data": {
+  "tasks": {
+   "task_fridge_filter": {
+    "id": "task_fridge_filter",
+    "name": "Replace fridge filter",
+    "notes": "PureSource Ultra II",
+    "recurrence_type": "floating",
+    "interval": 1,
+    "unit": "months",
+    "device_id": null,
+    "area_id": null,
+    "enabled": true,
+    "created": "2026-05-01T09:00:00-04:00",
+    "last_completed": "2026-06-01T09:00:00-04:00",
+    "next_due": "2026-07-01T09:00:00-04:00",
+    "completions": [
+     {
+      "ts": "2026-03-01T09:00:00-04:00"
+     },
+     {
+      "ts": "2026-04-02T09:00:00-04:00"
+     },
+     {
+      "ts": "2026-05-01T09:00:00-04:00"
+     },
+     {
+      "ts": "2026-06-01T09:00:00-04:00"
+     }
+    ]
+   },
+   "task_anode": {
+    "id": "task_anode",
+    "name": "Replace Anode rod (Garage water heater)",
+    "notes": "",
+    "recurrence_type": "floating",
+    "interval": 12,
+    "unit": "months",
+    "device_id": null,
+    "area_id": null,
+    "enabled": true,
+    "created": "2022-05-10T10:00:00-04:00",
+    "last_completed": "2025-05-01T10:00:00-04:00",
+    "next_due": "2026-05-01T10:00:00-04:00",
+    "completions": [
+     {
+      "ts": "2023-05-01T10:00:00-04:00"
+     },
+     {
+      "ts": "2024-05-04T10:00:00-04:00"
+     },
+     {
+      "ts": "2025-05-01T10:00:00-04:00"
+     }
+    ],
+    "source": {
+     "part": {
+      "asset_id": "asset_water_heater",
+      "part_id": "part_anode"
+     }
     }
+   },
+   "task_medicine": {
+    "id": "task_medicine",
+    "name": "Take medicine",
+    "notes": "After breakfast",
+    "recurrence_type": "fixed",
+    "interval": 1,
+    "freq": "DAILY",
+    "anchor": "2026-01-01T08:00:00-04:00",
+    "device_id": null,
+    "area_id": null,
+    "enabled": true,
+    "created": "2026-01-01T08:00:00-04:00",
+    "last_completed": null,
+    "next_due": "2026-06-14T08:00:00-04:00",
+    "completions": []
+   },
+   "task_furnace_filter": {
+    "id": "task_furnace_filter",
+    "name": "Replace furnace filter",
+    "notes": "20x25x1 MERV 11",
+    "recurrence_type": "floating",
+    "interval": 3,
+    "unit": "months",
+    "device_id": null,
+    "area_id": null,
+    "enabled": true,
+    "created": "2026-04-01T10:00:00-04:00",
+    "last_completed": "2026-04-01T10:00:00-04:00",
+    "next_due": "2026-07-01T10:00:00-04:00",
+    "completions": [
+     {
+      "ts": "2026-04-01T10:00:00-04:00"
+     }
+    ]
+   },
+   "task_water_filter": {
+    "id": "task_water_filter",
+    "name": "Replace water filter",
+    "notes": "Under-sink RO filter",
+    "recurrence_type": "floating",
+    "interval": 1,
+    "unit": "months",
+    "device_id": "kitchen_fridge_demo",
+    "area_id": null,
+    "enabled": true,
+    "created": "2026-03-20T12:00:00-04:00",
+    "last_completed": "2026-04-20T12:00:00-04:00",
+    "next_due": "2026-05-20T12:00:00-04:00",
+    "completions": [
+     {
+      "ts": "2026-04-20T12:00:00-04:00"
+     }
+    ]
+   },
+   "task_buddy_medicine": {
+    "id": "task_buddy_medicine",
+    "name": "Buddy: Medicine",
+    "notes": "",
+    "recurrence_type": "floating",
+    "interval": 2,
+    "unit": "weeks",
+    "device_id": null,
+    "area_id": null,
+    "enabled": true,
+    "created": "2026-05-15T08:00:00-04:00",
+    "last_completed": "2026-06-08T08:00:00-04:00",
+    "next_due": "2026-06-22T08:00:00-04:00",
+    "completions": [
+     {
+      "ts": "2026-05-25T08:00:00-04:00"
+     },
+     {
+      "ts": "2026-06-08T08:00:00-04:00"
+     }
+    ],
+    "source": {
+     "pawsistant": {
+      "dog_id": "dog_buddy",
+      "event_type": "medicine",
+      "schedule_id": "sched_buddy_medicine"
+     }
+    },
+    "managed_by": {
+     "integration": "pawsistant",
+     "display_name": "Pawsistant",
+     "icon": "mdi:paw",
+     "locked_fields": [
+      "device_id",
+      "name"
+     ],
+     "completion_prompt": "Log as Buddy's medicine dose?",
+     "deletion_protected": true,
+     "config_entry_id": "home_keeper_test_entry"
+    }
+   },
+   "task_rex_vet": {
+    "id": "task_rex_vet",
+    "name": "Rex: Vet checkup",
+    "notes": "",
+    "recurrence_type": "floating",
+    "interval": 6,
+    "unit": "months",
+    "device_id": null,
+    "area_id": null,
+    "enabled": true,
+    "created": "2025-12-01T09:00:00-04:00",
+    "last_completed": "2026-01-10T09:00:00-04:00",
+    "next_due": "2026-07-10T09:00:00-04:00",
+    "completions": [
+     {
+      "ts": "2026-01-10T09:00:00-04:00"
+     }
+    ],
+    "source": {
+     "pawsistant": {
+      "dog_id": "dog_rex",
+      "event_type": "vet",
+      "schedule_id": "sched_rex_vet"
+     }
+    },
+    "managed_by": {
+     "integration": "pawsistant",
+     "display_name": "Pawsistant",
+     "icon": "mdi:paw",
+     "locked_fields": [
+      "device_id",
+      "name"
+     ],
+     "completion_prompt": "Log as Rex's vet checkup?",
+     "deletion_protected": true,
+     "config_entry_id": "uninstalled_entry_demo"
+    }
+   },
+   "task_door_battery": {
+    "id": "task_door_battery",
+    "name": "Replace battery: Front door sensor",
+    "notes": "2\u00d7 AAA",
+    "recurrence_type": "triggered",
+    "device_id": null,
+    "area_id": null,
+    "enabled": true,
+    "created": "2024-01-05T09:00:00-04:00",
+    "last_completed": "2025-04-02T09:00:00-04:00",
+    "next_due": "2026-06-11T07:30:00-04:00",
+    "completions": [
+     {
+      "ts": "2024-05-01T09:00:00-04:00"
+     },
+     {
+      "ts": "2025-04-02T09:00:00-04:00"
+     }
+    ],
+    "source": {
+     "home_keeper_battery_notes": {
+      "device_id": "front_door_sensor_demo"
+     }
+    },
+    "managed_by": {
+     "integration": "home_keeper_battery_notes",
+     "display_name": "Battery Notes",
+     "icon": "mdi:battery-alert",
+     "locked_fields": [
+      "name",
+      "device_id"
+     ],
+     "completion_prompt": "Mark battery as replaced?",
+     "deletion_protected": true,
+     "config_entry_id": "home_keeper_test_entry"
+    }
+   },
+   "task_smoke_battery": {
+    "id": "task_smoke_battery",
+    "name": "Replace battery: Hallway smoke alarm",
+    "notes": "1\u00d7 9V",
+    "recurrence_type": "triggered",
+    "device_id": null,
+    "area_id": null,
+    "enabled": true,
+    "created": "2023-02-01T09:00:00-04:00",
+    "last_completed": "2026-01-15T10:00:00-04:00",
+    "next_due": null,
+    "completions": [
+     {
+      "ts": "2024-01-20T10:00:00-04:00"
+     },
+     {
+      "ts": "2025-01-10T10:00:00-04:00"
+     },
+     {
+      "ts": "2026-01-15T10:00:00-04:00"
+     }
+    ],
+    "source": {
+     "home_keeper_battery_notes": {
+      "device_id": "smoke_alarm_demo"
+     }
+    },
+    "managed_by": {
+     "integration": "home_keeper_battery_notes",
+     "display_name": "Battery Notes",
+     "icon": "mdi:battery-alert",
+     "locked_fields": [
+      "name",
+      "device_id"
+     ],
+     "completion_prompt": "Mark battery as replaced?",
+     "deletion_protected": true,
+     "config_entry_id": "home_keeper_test_entry"
+    }
+   },
+   "task_thermostat_battery": {
+    "id": "task_thermostat_battery",
+    "name": "Replace battery: Thermostat",
+    "notes": "2\u00d7 AA",
+    "recurrence_type": "triggered",
+    "device_id": null,
+    "area_id": null,
+    "enabled": true,
+    "created": "2025-03-01T09:00:00-04:00",
+    "last_completed": "2025-12-01T10:00:00-04:00",
+    "next_due": null,
+    "completions": [
+     {
+      "ts": "2025-12-01T10:00:00-04:00"
+     }
+    ],
+    "source": {
+     "home_keeper_battery_notes": {
+      "device_id": "thermostat_demo"
+     }
+    },
+    "managed_by": {
+     "integration": "home_keeper_battery_notes",
+     "display_name": "Battery Notes",
+     "icon": "mdi:battery-alert",
+     "locked_fields": [
+      "name",
+      "device_id"
+     ],
+     "completion_prompt": "Mark battery as replaced?",
+     "deletion_protected": true,
+     "config_entry_id": "home_keeper_test_entry"
+    }
+   }
+  },
+  "assets": {
+   "asset_water_heater": {
+    "id": "asset_water_heater",
+    "kind": "virtual",
+    "name": "Garage water heater",
+    "device_id": null,
+    "identifiers": [
+     [
+      "home_keeper",
+      "asset_asset_water_heater"
+     ]
+    ],
+    "connections": [],
+    "area_id": null,
+    "manufacturer": "Rheem",
+    "model": "XE50T10HS45U0",
+    "cost": 649.0,
+    "manual_url": "https://example.com/water-heater-manual",
+    "icon": "mdi:water-boiler",
+    "parts": [
+     {
+      "id": "part_anode",
+      "name": "Anode rod",
+      "part_number": "AR-1",
+      "type": "wear",
+      "vendor": "Home Depot",
+      "cost": 35.0,
+      "notes": "",
+      "replace_interval": 12,
+      "replace_unit": "months",
+      "last_replaced": "2025-05-01",
+      "stock": 1,
+      "reorder_at": 2
+     },
+     {
+      "id": "part_tp_valve",
+      "name": "T&P relief valve",
+      "part_number": "TP-150",
+      "type": "wear",
+      "vendor": "Home Depot",
+      "cost": 18.0,
+      "notes": "",
+      "replace_interval": 36,
+      "replace_unit": "months",
+      "last_replaced": null,
+      "stock": null,
+      "reorder_at": null
+     },
+     {
+      "id": "part_sediment_filter",
+      "name": "Sediment pre-filter",
+      "part_number": "SF-20",
+      "type": "consumable",
+      "vendor": "Amazon",
+      "cost": 12.0,
+      "notes": "",
+      "replace_interval": null,
+      "replace_unit": null,
+      "last_replaced": null,
+      "stock": 4,
+      "reorder_at": 1
+     }
+    ],
+    "parent_asset_id": null,
+    "related_device_ids": [],
+    "created": "2026-05-01T09:00:00-04:00",
+    "task_history": [
+     {
+      "task_id": "old_tank_flush",
+      "task_name": "Flush water heater tank",
+      "part_id": null,
+      "completions": [
+       {
+        "ts": "2023-06-01T10:00:00-04:00"
+       },
+       {
+        "ts": "2024-06-01T10:00:00-04:00"
+       }
+      ],
+      "archived_at": "2025-06-15T10:00:00-04:00"
+     }
+    ],
+    "metadata": [
+     {
+      "id": "asset_water_heater_meta_serial_number",
+      "type": "text",
+      "label": "Serial",
+      "value": "RH-0001"
+     },
+     {
+      "id": "asset_water_heater_meta_purchase_date",
+      "type": "date",
+      "label": "Purchase date",
+      "value": "2022-05-01",
+      "track": true
+     },
+     {
+      "id": "asset_water_heater_meta_install_date",
+      "type": "date",
+      "label": "Install date",
+      "value": "2022-05-10",
+      "track": true
+     },
+     {
+      "id": "asset_water_heater_meta_warranty_expiry",
+      "type": "date",
+      "label": "Warranty expiry",
+      "value": "2032-05-01",
+      "track": true
+     },
+     {
+      "id": "asset_water_heater_meta_warranty_provider",
+      "type": "text",
+      "label": "Warranty provider",
+      "value": "Rheem"
+     },
+     {
+      "id": "asset_water_heater_meta_vendor",
+      "type": "text",
+      "label": "Vendor",
+      "value": "Home Depot"
+     },
+     {
+      "id": "asset_water_heater_meta_notes",
+      "type": "text",
+      "label": "Notes",
+      "value": "Garage corner, behind the shelving"
+     }
+    ]
+   },
+   "asset_shades": {
+    "id": "asset_shades",
+    "kind": "virtual",
+    "name": "Living room shades",
+    "device_id": null,
+    "identifiers": [
+     [
+      "home_keeper",
+      "asset_asset_shades"
+     ]
+    ],
+    "connections": [],
+    "area_id": null,
+    "manufacturer": "Lutron",
+    "model": "Serena",
+    "cost": null,
+    "manual_url": "",
+    "icon": "mdi:blinds",
+    "parts": [],
+    "parent_asset_id": null,
+    "related_device_ids": [],
+    "created": "2026-05-01T09:00:00-04:00",
+    "metadata": []
+   },
+   "asset_radio_shade": {
+    "id": "asset_radio_shade",
+    "kind": "virtual",
+    "name": "Radio shade controller",
+    "device_id": null,
+    "identifiers": [
+     [
+      "home_keeper",
+      "asset_asset_radio_shade"
+     ]
+    ],
+    "connections": [],
+    "area_id": null,
+    "manufacturer": "Lutron",
+    "model": "RF",
+    "cost": null,
+    "manual_url": "",
+    "icon": "",
+    "parts": [],
+    "parent_asset_id": "asset_shades",
+    "related_device_ids": [],
+    "created": "2026-05-01T09:00:00-04:00",
+    "metadata": []
+   }
   }
+ }
 }

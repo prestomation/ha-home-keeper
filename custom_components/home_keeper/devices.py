@@ -172,7 +172,6 @@ async def _reconcile_virtual(
         "name": asset["name"],
         "manufacturer": asset.get("manufacturer") or None,
         "model": asset.get("model") or None,
-        "serial_number": asset.get("serial_number") or None,
         "configuration_url": _CONFIGURATION_URL,
     }
     if via_device is not None:
@@ -183,7 +182,7 @@ async def _reconcile_virtual(
     updates: dict[str, Any] = {}
     if device.name != asset["name"]:
         updates["name"] = asset["name"]
-    for field in ("manufacturer", "model", "serial_number"):
+    for field in ("manufacturer", "model"):
         desired = asset.get(field) or None
         if getattr(device, field, None) != desired and _supports_kwarg(
             registry.async_update_device, field

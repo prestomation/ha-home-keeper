@@ -4,14 +4,16 @@ Two kinds, both living on a device page:
 
 * ``HomeKeeperNextDueSensor`` — per-task "next due" timestamp, for tasks attached
   to a device.
-* ``HomeKeeperAssetDateSensor`` — per-asset metadata dates (purchase / install /
-  manufacture / warranty expiry) so temporal attributes are automatable natively
-  (e.g. "warranty expiring in 30 days -> notify") and show in state history.
+* ``HomeKeeperAssetDateSensor`` — a tracked ``date`` metadata entry on an asset, so
+  temporal attributes are automatable natively (e.g. "warranty expiring in 30 days
+  -> notify") and show in state history. Only metadata dates the user opts into
+  tracking (``track``) get a sensor; the rest are display-only.
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -20,20 +22,21 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .assets import DATE_FIELDS
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
 from .entity import HomeKeeperTaskEntity
 
-# Default icon for each asset date sensor. The display name is resolved from the
-# integration's translations via each entity's ``translation_key`` (the field
-# name), so it localizes with the user's Home Assistant language.
-ASSET_DATE_ICONS: dict[str, str] = {
-    "manufacture_date": "mdi:factory",
-    "purchase_date": "mdi:cart",
-    "install_date": "mdi:wrench-clock",
-    "warranty_expiry": "mdi:shield-check",
-}
+# Default icon for a tracked-date sensor when the asset has no custom icon.
+_DATE_ICON = "mdi:calendar-clock"
+
+
+def _tracked_dates(asset: dict[str, Any]) -> list[dict[str, Any]]:
+    """The asset's metadata entries that are tracked dates with a value set."""
+    return [
+        entry
+        for entry in (asset.get("metadata") or [])
+        if entry.get("type") == "date" and entry.get("track") and entry.get("value")
+    ]
 
 
 async def async_setup_entry(
@@ -51,11 +54,10 @@ async def async_setup_entry(
         device_info = coordinator.device_info_for_device_id(asset.get("device_id"))
         if device_info is None:
             continue
-        for field in DATE_FIELDS:
-            if asset.get(field):
-                entities.append(
-                    HomeKeeperAssetDateSensor(coordinator, asset["id"], field, device_info)
-                )
+        for meta in _tracked_dates(asset):
+            entities.append(
+                HomeKeeperAssetDateSensor(coordinator, asset["id"], meta, device_info)
+            )
     async_add_entities(entities)
 
 
@@ -93,11 +95,12 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
 class HomeKeeperAssetDateSensor(
     CoordinatorEntity[HomeKeeperCoordinator], SensorEntity
 ):
-    """A single ``date`` metadata value for an asset, on its device page.
+    """A single tracked ``date`` metadata entry for an asset, on its device page.
 
-    The value lives in stored asset metadata (not the task map); asset edits reload
-    the config entry, which recreates these entities, so a plain coordinator read is
-    enough to stay current.
+    The value lives in the asset's free-form ``metadata`` list (not the task map);
+    asset edits reload the config entry, which recreates these entities, so a plain
+    coordinator read is enough to stay current. The entity is named from the entry's
+    user-supplied ``label`` (not a translation, since labels are free-form).
     """
 
     _attr_has_entity_name = True
@@ -107,24 +110,31 @@ class HomeKeeperAssetDateSensor(
         self,
         coordinator: HomeKeeperCoordinator,
         asset_id: str,
-        field: str,
+        entry: dict[str, Any],
         device_info,
     ) -> None:
         super().__init__(coordinator)
         self._asset_id = asset_id
-        self._field = field
-        # Name comes from translations keyed by the field name (localized).
-        self._attr_translation_key = field
-        # A user-chosen appliance icon overrides the per-field default.
+        self._entry_id = entry["id"]
+        # Name is the user's free-form label (no localization for custom fields).
+        self._attr_name = entry.get("label")
+        # A user-chosen appliance icon overrides the default.
         asset = coordinator.store.get_asset(asset_id) or {}
-        self._attr_icon = asset.get("icon") or ASSET_DATE_ICONS.get(field)
-        self._attr_unique_id = f"{DOMAIN}_asset_{asset_id}_{field}"
+        self._attr_icon = asset.get("icon") or _DATE_ICON
+        self._attr_unique_id = f"{DOMAIN}_asset_{asset_id}_meta_{entry['id']}"
         self._attr_device_info = device_info
+
+    def _entry(self) -> dict[str, Any] | None:
+        asset = self.coordinator.store.get_asset(self._asset_id) or {}
+        for entry in asset.get("metadata") or []:
+            if entry.get("id") == self._entry_id:
+                return entry
+        return None
 
     @property
     def native_value(self) -> date | None:
-        asset = self.coordinator.store.get_asset(self._asset_id) or {}
-        value = asset.get(self._field)
+        entry = self._entry()
+        value = entry.get("value") if entry else None
         if not value:
             return None
         try:

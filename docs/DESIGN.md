@@ -80,12 +80,13 @@ commands; all mutations funnel through `HomeKeeperStore` alongside tasks in the 
 - **Asset-metadata layer** — keyed by an `id`, with a `device_id` anchor that can
   point at *any* device. `kind == "existing"` attaches metadata to a device another
   integration owns (we never mutate that device); `kind == "virtual"` is one we
-  provision. Reuses HA-native fields first (device `manufacturer`/`model`/
-  `serial_number`/area) and owns only the gap: manufacture/purchase/install dates,
-  warranty expiry + provider, cost, vendor, manual link, consumable part numbers,
-  notes. Each set **date** field becomes a `date` sensor
-  (`HomeKeeperAssetDateSensor`) merged onto the device page via
-  `coordinator.device_info_for_device_id`, so e.g. warranty expiry is automatable.
+  provision. Only the fields that wire into HA stay structured — `manufacturer`/`model`
+  (the device card), `manual_url`, `cost` (the inventory value rollup), `icon`, `area`.
+  Everything else is a free-form **`metadata`** list: ordered `{id, type, label, value}`
+  entries where `type` is `text`, `link`, or `date`. A `date` entry with `track: true`
+  becomes a `date` sensor (`HomeKeeperAssetDateSensor`, named from its label) merged
+  onto the device page via `coordinator.device_info_for_device_id`, so e.g. a tracked
+  warranty-expiry date is automatable; untracked dates are display-only.
 - **Virtual-device provision** — `devices.async_reconcile_assets()` registers a real
   registry device with `async_get_or_create(config_entry_id=..., identifiers={...})`,
   idempotently on setup and after each asset mutation, writes the assigned

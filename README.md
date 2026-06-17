@@ -109,20 +109,26 @@ There are two ways to use it:
 - **Existing device** — point Home Keeper at a device another integration already
   provides (a smart fridge) and enrich it with the same metadata, without owning it.
 
-Either way you can record **asset metadata** — manufacturer/model/serial, an mdi
-icon, purchase / install / **warranty-expiry** dates, cost, vendor, and a manual
-link. Dates become real `date` **sensors** on the device page, so they're automatable
-natively — e.g. *"warranty expiring in 30 days → notify me"* — and show up in state
-history without any custom card.
+Either way you can record **asset metadata**. A few structured fields wire into Home
+Assistant — manufacturer/model (the device card), an mdi icon, a manual link, and a
+replacement cost — and beyond that you add a free-form list of **custom fields**, each
+a label with a value typed as **text**, **link**, or **date** (seeded with common ones
+like serial number, warranty expiry, purchase/install dates, provider, vendor). Links
+are clickable and open in the browser. Tick **track** on a date and it becomes a real
+`date` **sensor** on the device page, so it's automatable natively — e.g. *"warranty
+expiring in 30 days → notify me"* — and shows up in state history without any custom
+card. Untracked dates stay display-only, so you're not flooded with sensors you don't
+use.
 
 Tapping an appliance opens a **detail page** that gathers its metadata, parts, related
 tasks, subdevices, and full maintenance history (including the retained history of
 tasks deleted while still assigned to it) in one place.
 
 The **Appliances** tab also has an **Export inventory** button that downloads a CSV
-**home inventory** — make/model/serial, purchase and warranty dates, replacement cost,
-and the value of spares on hand, with a grand total. It's the grab-and-go record you
-want for an insurance claim, built from metadata you've already entered.
+**home inventory** — make/model, replacement cost, the value of spares on hand (with a
+grand total), and a Details column flattening each appliance's custom fields (serial,
+warranty, dates…). It's the grab-and-go record you want for an insurance claim, built
+from metadata you've already entered.
 
 ![Appliance detail page](docs/images/8-panel-appliance-detail.png)
 
