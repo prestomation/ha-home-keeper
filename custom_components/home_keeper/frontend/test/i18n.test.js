@@ -3,18 +3,35 @@ import { resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { getLanguage, setLanguage, t, tn } from '../src/i18n.ts';
 import { DEFAULT_LOCALE, LOCALES } from '../src/locales/index.ts';
-import untranslatedBaseline from './untranslated-baseline.json';
 import unusedKeysBaseline from './unused-keys-baseline.json';
-import pluralCategoriesBaseline from './plural-categories-baseline.json';
 
 // The i18n module holds global state; reset to the default after every test.
 afterEach(() => setLanguage(DEFAULT_LOCALE));
 
 // --- Shared helpers for source/value-level guardrails -----------------------
 
-// Strings identical to English by design in (essentially) every language.
-// Keep tiny and justified; everything else identical to English is a leak.
-const INTENTIONALLY_IDENTICAL = new Set(['app.title', 'due.none']);
+// Strings identical to English by design in every language. `app.title` is the
+// product name, `due.none` is an em dash, and `managed.completionHint` is the
+// bare `{prompt}` placeholder (no translatable text). Keep this tiny.
+const INTENTIONALLY_IDENTICAL = new Set(['app.title', 'due.none', 'managed.completionHint']);
+
+// Per-locale cognates / loanwords whose translation is genuinely identical to
+// English in that language (reviewed individually): German "Name"/"Status",
+// French "Stock"/"Date", Dutch "week"/"Label", universal "Model"/"Link"/"Type".
+// Locale-specific, so the guard stays strict for every other locale.
+const COGNATE_IDENTICAL = {
+  ca: ['field.cost', 'field.model', 'field.notes', 'meta.seed.notes', 'opt.meta.text'],
+  cs: ['field.model', 'opt.meta.text'],
+  da: ['chip.orphaned', 'field.kind', 'field.model', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
+  de: ['chip.orphaned', 'detail.about', 'field.name', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
+  fr: ['field.kind', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'opt.meta.date'],
+  it: ['field.area_id', 'group.area', 'opt.meta.link'],
+  nb: ['field.kind', 'field.type', 'group.status'],
+  nl: ['detail.about', 'field.kind', 'field.label', 'field.model', 'field.type', 'group.status', 'opt.meta.link', 'recurrence.unit.week.one', 'section.later'],
+  pl: ['field.model', 'group.status', 'opt.meta.link'],
+  'pt-BR': ['group.status', 'opt.meta.link'],
+  sv: ['chip.orphaned', 'group.integration', 'group.status', 'opt.meta.text'],
+};
 
 // Concatenate all panel TypeScript sources once for static key analysis.
 const SRC = (() => {
@@ -146,22 +163,17 @@ describe('locale key parity', () => {
 
 describe('untranslated-string guard', () => {
   // A locale value equal to its English source is almost always an untranslated
-  // leak. INTENTIONALLY_IDENTICAL covers strings identical by design; the
-  // per-locale backlog in untranslated-baseline.json is frozen debt that may
-  // only shrink. New leaks — and stale baseline entries — fail.
+  // leak. The only escape hatch is INTENTIONALLY_IDENTICAL (identical by design).
   const en = LOCALES[DEFAULT_LOCALE];
   for (const [lang, table] of Object.entries(LOCALES)) {
     if (lang === DEFAULT_LOCALE) continue;
-    it(`${lang} ships no new English-identical strings`, () => {
-      const baseline = new Set(untranslatedBaseline[lang] || []);
-      const identical = Object.keys(en).filter(
-        (k) => table[k] === en[k] && !INTENTIONALLY_IDENTICAL.has(k),
-      );
-      const newLeaks = identical.filter((k) => !baseline.has(k)).sort();
-      const stale = [...baseline].filter((k) => !identical.includes(k)).sort();
-      // newLeaks: translate them (or allowlist if identical by design).
-      // stale: translated now — remove from untranslated-baseline.json.
-      expect({ newLeaks, stale }).toEqual({ newLeaks: [], stale: [] });
+    it(`${lang} ships no English-identical strings`, () => {
+      const allowed = new Set([...INTENTIONALLY_IDENTICAL, ...(COGNATE_IDENTICAL[lang] || [])]);
+      const leaks = Object.keys(en)
+        .filter((k) => table[k] === en[k] && !allowed.has(k))
+        .sort();
+      // Translate these, or (if identical by design) add to the allowlist above.
+      expect(leaks).toEqual([]);
     });
   }
 });
@@ -200,8 +212,7 @@ describe('key usage', () => {
 describe('plural-category completeness', () => {
   // tn() falls back to `.other`, but Slavic/Romance grammar needs few/many. For
   // each locale, every plural base key must define every CLDR category the
-  // locale uses. plural-categories-baseline.json freezes the current gaps and
-  // may only shrink.
+  // locale uses.
   const en = LOCALES[DEFAULT_LOCALE];
   const pluralBases = new Set();
   for (const k of Object.keys(en)) {
@@ -217,12 +228,8 @@ describe('plural-category completeness', () => {
         if (en[`${base}.other`] === undefined) continue;
         for (const c of cats) if (table[`${base}.${c}`] === undefined) missing.push(`${base}.${c}`);
       }
-      missing.sort();
-      const baseline = new Set(pluralCategoriesBaseline[lang] || []);
-      const newGaps = missing.filter((k) => !baseline.has(k));
-      const stale = [...baseline].filter((k) => !missing.includes(k)).sort();
-      // newGaps: add the missing plural form. stale: provided now — debaseline.
-      expect({ newGaps, stale }).toEqual({ newGaps: [], stale: [] });
+      // Add the missing plural form(s) to the locale.
+      expect(missing.sort()).toEqual([]);
     });
   }
 });

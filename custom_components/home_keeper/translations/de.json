@@ -44,8 +44,8 @@
           "description": "Für fixed-Aufgaben: ISO-Datum/Uhrzeit des ersten Auftretens (legt die Tageszeit fest)."
         },
         "last_completed": {
-          "name": "Last completed",
-          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+          "name": "Zuletzt erledigt",
+          "description": "Optionales Datum, wann die Aufgabe zuletzt erledigt wurde. Setzt eine erste Erledigung, sodass eine flexible Aufgabe ab diesem Datum gemessen wird (nächste Fälligkeit = zuletzt erledigt + Intervall), statt sofort fällig zu sein. Weglassen für eine Aufgabe, die noch nie erledigt wurde."
         },
         "device_id": {
           "name": "Gerät",
@@ -112,8 +112,8 @@
           "description": "Die ID der zu löschenden Aufgabe."
         },
         "force": {
-          "name": "Force",
-          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
+          "name": "Erzwingen",
+          "description": "Den Löschschutz für eine von einer anderen Integration verwaltete Aufgabe umgehen. Damit lässt sich eine Aufgabe aufräumen, deren verwaltende Integration deinstalliert wurde oder fehlerhaft ist und sie nicht selbst entfernen kann."
         }
       }
     },
@@ -186,8 +186,8 @@
           "description": "Optionales mdi-Symbol (z. B. mdi:piano)."
         },
         "metadata": {
-          "name": "Metadata",
-          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+          "name": "Metadaten",
+          "description": "Frei definierbare Metadaten-Einträge (Bezeichnung, Typ Text/Link/Datum, Wert); ein Datum mit track:true wird zudem zu einem Sensor."
         },
         "parts": {
           "name": "Teile",
@@ -244,8 +244,8 @@
           "description": "Optionales mdi-Symbol (z. B. mdi:piano)."
         },
         "metadata": {
-          "name": "Metadata",
-          "description": "Free-form metadata entries (see add_asset)."
+          "name": "Metadaten",
+          "description": "Frei definierbare Metadaten-Einträge (siehe add_asset)."
         },
         "parts": {
           "name": "Teile",
@@ -276,26 +276,26 @@
       "description": "Gibt alle Geräte/Assets als Antwort zurück."
     },
     "adjust_part_stock": {
-      "name": "Adjust part stock",
-      "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
+      "name": "Teilebestand anpassen",
+      "description": "Den vorhandenen Ersatzteilbestand um eine vorzeichenbehaftete Differenz ändern (bei null begrenzt). Wenn eine Verringerung die Nachbestellschwelle erreicht oder unterschreitet, wird ein Ereignis für niedrigen Bestand ausgelöst.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "Objekt-ID",
+          "description": "Die ID des Geräts, zu dem das Teil gehört."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose stock to adjust."
+          "name": "Teile-ID",
+          "description": "Die ID des Teils, dessen Bestand angepasst werden soll."
         },
         "delta": {
-          "name": "Delta",
-          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+          "name": "Differenz",
+          "description": "Vorzeichenbehaftete Änderung des Ersatzteilbestands (z. B. -1 zum Verbrauchen, 2 zum Auffüllen)."
         }
       }
     },
     "export_inventory": {
-      "name": "Export inventory",
-      "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
+      "name": "Inventar exportieren",
+      "description": "Gibt ein Hausinventar für Versicherungszwecke als Antwort zurück (eine Zeile pro Gerät plus Summen), mit einer speicherfertigen CSV-Datei unter dem Schlüssel \"csv\"."
     }
   },
   "entity": {
@@ -317,14 +317,14 @@
   },
   "device_automation": {
     "trigger_type": {
-      "task_completed": "Task completed",
-      "task_overdue": "Task became overdue",
-      "task_due_soon": "Task due soon",
-      "task_created": "Task created",
-      "task_updated": "Task updated",
-      "part_low_stock": "Spare part low on stock",
-      "part_out_of_stock": "Spare part out of stock",
-      "part_restocked": "Spare part restocked"
+      "task_completed": "Aufgabe erledigt",
+      "task_overdue": "Aufgabe wurde überfällig",
+      "task_due_soon": "Aufgabe bald fällig",
+      "task_created": "Aufgabe erstellt",
+      "task_updated": "Aufgabe aktualisiert",
+      "part_low_stock": "Ersatzteil mit niedrigem Bestand",
+      "part_out_of_stock": "Ersatzteil nicht vorrätig",
+      "part_restocked": "Ersatzteil aufgefüllt"
     }
   }
 }

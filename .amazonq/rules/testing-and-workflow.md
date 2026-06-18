@@ -32,22 +32,22 @@ every locale:
 - **Key parity** — identical key structure to the English source (no missing/extra).
 - **Placeholder parity** — same `{token}` set per key (no dropped/renamed/typo'd
   tokens), and balanced braces.
-- **No untranslated leaks** — a value byte-identical to its English source fails.
-  Two escape hatches only: a tiny curated `INTENTIONALLY_IDENTICAL`/`_INTENTIONALLY_IDENTICAL`
-  allowlist (brand names, symbols) and a frozen *backlog* baseline of the strings
-  already untranslated when the gate landed.
+- **No untranslated leaks** — a value byte-identical to its English source is a
+  hard failure. Two allowlists are the only escape hatches: a tiny global
+  `INTENTIONALLY_IDENTICAL`/`_INTENTIONALLY_IDENTICAL` (product name, symbols, the
+  bare-`{prompt}` passthrough) and a per-locale `COGNATE_IDENTICAL`/`_COGNATE_IDENTICAL`
+  for reviewed cognates/loanwords (e.g. German "Name", French "Stock", universal
+  "Delta"/"Model"/"Link"). Adding a string to a locale means translating it or
+  justifying it in the per-locale allowlist — never leaving it in English.
 - **Key usage** (frontend) — every literal `t()`/`tn()` key exists in `en.json`;
   `tn()` bases have an `.other` form; no *new* unused keys.
 - **Plural completeness** (frontend) — every plural base defines every CLDR
   category the locale uses (Slavic `few`/`many`, etc.), not just `.other`.
 
-**Baselines may only shrink.** The backlogs live in
-`tests/unit/translations_untranslated_baseline.json` and
-`custom_components/home_keeper/frontend/test/{untranslated,unused-keys,plural-categories}-baseline.json`.
-When you translate a baselined string (or wire up / delete an unused key), the
-test fails as a *stale* entry until you remove it from the baseline — that is how
-the debt is burned down. Never add a new entry to a baseline to silence a gate;
-translate the string or justify it in the allowlist instead.
+The only remaining baseline is `unused-keys-baseline.json` (frontend dead-key
+detection is heuristic, so its backlog is frozen and **may only shrink**): wire up
+or delete a baselined key and the test fails it as stale until you remove the
+entry. There is no untranslated/plural backlog — those gates are absolute.
 
 `python3 ci/i18n-coverage.py` prints per-locale coverage (informational, not a
 gate); CI publishes it to the job summary.

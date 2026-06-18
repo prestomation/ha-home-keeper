@@ -44,8 +44,8 @@
           "description": "对于固定任务：首次发生的 ISO 日期时间（设置每日时间）。"
         },
         "last_completed": {
-          "name": "Last completed",
-          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+          "name": "上次完成",
+          "description": "可选的“上次完成”日期。它会生成一条初始完成记录，使浮动任务从该日期开始计算（下次到期 = 上次完成 + 间隔），而不是立即到期。对于从未完成过的任务请留空。"
         },
         "device_id": {
           "name": "设备",
@@ -112,8 +112,8 @@
           "description": "要删除的任务的 id。"
         },
         "force": {
-          "name": "Force",
-          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
+          "name": "强制",
+          "description": "绕过对由其他集成管理的任务的删除保护。当管理该任务的集成已被卸载，或运行异常而无法自行移除该任务时，可用此选项进行清理。"
         }
       }
     },
@@ -186,8 +186,8 @@
           "description": "可选的 mdi 图标（例如 mdi:piano）。"
         },
         "metadata": {
-          "name": "Metadata",
-          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+          "name": "元数据",
+          "description": "自由格式的元数据条目（标签、类型为文本/链接/日期、值）；当日期设置 track:true 时还会成为一个传感器。"
         },
         "parts": {
           "name": "部件",
@@ -244,8 +244,8 @@
           "description": "可选的 mdi 图标（例如 mdi:piano）。"
         },
         "metadata": {
-          "name": "Metadata",
-          "description": "Free-form metadata entries (see add_asset)."
+          "name": "元数据",
+          "description": "自由格式的元数据条目（参见 add_asset）。"
         },
         "parts": {
           "name": "部件",
@@ -276,26 +276,26 @@
       "description": "以响应形式返回所有电器/资产。"
     },
     "adjust_part_stock": {
-      "name": "Adjust part stock",
-      "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
+      "name": "调整零件库存",
+      "description": "按带符号的增量更改零件的现有备件数量（下限为零）。当减少量达到或越过再订购阈值时，将触发低库存事件。",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "资产 ID",
+          "description": "该零件所属设备的 ID。"
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose stock to adjust."
+          "name": "零件 ID",
+          "description": "要调整库存的零件的 ID。"
         },
         "delta": {
-          "name": "Delta",
-          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+          "name": "增量",
+          "description": "应用于备件数量的带符号变更（例如 -1 表示消耗，2 表示补货）。"
         }
       }
     },
     "export_inventory": {
-      "name": "Export inventory",
-      "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
+      "name": "导出清单",
+      "description": "以响应形式返回用于保险的家庭清单（每个设备一行，外加合计），并在“csv”键下提供可直接保存的 CSV。"
     }
   },
   "entity": {
@@ -317,14 +317,14 @@
   },
   "device_automation": {
     "trigger_type": {
-      "task_completed": "Task completed",
-      "task_overdue": "Task became overdue",
-      "task_due_soon": "Task due soon",
-      "task_created": "Task created",
-      "task_updated": "Task updated",
-      "part_low_stock": "Spare part low on stock",
-      "part_out_of_stock": "Spare part out of stock",
-      "part_restocked": "Spare part restocked"
+      "task_completed": "任务已完成",
+      "task_overdue": "任务已逾期",
+      "task_due_soon": "任务即将到期",
+      "task_created": "任务已创建",
+      "task_updated": "任务已更新",
+      "part_low_stock": "备件库存不足",
+      "part_out_of_stock": "备件缺货",
+      "part_restocked": "备件已补货"
     }
   }
 }

@@ -44,8 +44,8 @@
           "description": "Per a tasques fixes: data i hora ISO de la primera ocurrència (estableix l'hora del dia)."
         },
         "last_completed": {
-          "name": "Last completed",
-          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+          "name": "Última realització",
+          "description": "Data opcional d'«última realització». Crea una realització inicial perquè una tasca flotant comenci a comptar-se a partir d'aquesta data (proper venciment = última realització + interval) en lloc de vèncer immediatament. Ometeu-la per a una tasca que mai s'ha fet."
         },
         "device_id": {
           "name": "Dispositiu",
@@ -112,8 +112,8 @@
           "description": "L'id de la tasca a eliminar."
         },
         "force": {
-          "name": "Force",
-          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
+          "name": "Força",
+          "description": "Omet la protecció d'eliminació d'una tasca gestionada per una altra integració. Useu-ho per netejar una tasca la integració gestora de la qual s'ha desinstal·lat o funciona malament i no la pot eliminar ella mateixa."
         }
       }
     },
@@ -186,8 +186,8 @@
           "description": "Icona mdi opcional (p. ex. mdi:piano)."
         },
         "metadata": {
-          "name": "Metadata",
-          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+          "name": "Metadades",
+          "description": "Entrades de metadades de format lliure (etiqueta, tipus text/enllaç/data, valor); una data amb track:true també esdevé un sensor."
         },
         "parts": {
           "name": "Peces",
@@ -244,8 +244,8 @@
           "description": "Icona mdi opcional (p. ex. mdi:piano)."
         },
         "metadata": {
-          "name": "Metadata",
-          "description": "Free-form metadata entries (see add_asset)."
+          "name": "Metadades",
+          "description": "Entrades de metadades de format lliure (vegeu add_asset)."
         },
         "parts": {
           "name": "Peces",
@@ -276,26 +276,26 @@
       "description": "Retornar tots els electrodomèstics/actius com a resposta."
     },
     "adjust_part_stock": {
-      "name": "Adjust part stock",
-      "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
+      "name": "Ajustar estoc de peces",
+      "description": "Canvia el nombre de peces de recanvi disponibles per un delta amb signe (limitat a zero). Quan una disminució arriba o supera el llindar de reabastiment, es dispara un esdeveniment d'estoc baix.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "ID de l'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany la peça."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose stock to adjust."
+          "name": "ID de la peça",
+          "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc."
         },
         "delta": {
           "name": "Delta",
-          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+          "description": "Canvi amb signe que s'aplica al nombre de recanvis (p. ex. -1 per consumir, 2 per reabastir)."
         }
       }
     },
     "export_inventory": {
-      "name": "Export inventory",
-      "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
+      "name": "Exportar inventari",
+      "description": "Retorna un inventari de la llar per a l'assegurança com a resposta (una fila per electrodomèstic més els totals), amb un CSV a punt per desar sota la clau \"csv\"."
     }
   },
   "entity": {
@@ -317,14 +317,14 @@
   },
   "device_automation": {
     "trigger_type": {
-      "task_completed": "Task completed",
-      "task_overdue": "Task became overdue",
-      "task_due_soon": "Task due soon",
-      "task_created": "Task created",
-      "task_updated": "Task updated",
-      "part_low_stock": "Spare part low on stock",
-      "part_out_of_stock": "Spare part out of stock",
-      "part_restocked": "Spare part restocked"
+      "task_completed": "Tasca completada",
+      "task_overdue": "La tasca ha quedat endarrerida",
+      "task_due_soon": "La tasca venç aviat",
+      "task_created": "Tasca creada",
+      "task_updated": "Tasca actualitzada",
+      "part_low_stock": "Peça de recanvi amb estoc baix",
+      "part_out_of_stock": "Peça de recanvi sense estoc",
+      "part_restocked": "Peça de recanvi reabastida"
     }
   }
 }
