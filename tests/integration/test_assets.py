@@ -18,8 +18,7 @@ def test_seeded_virtual_asset_has_warranty_date_sensor(ha):
     # entry, which is surfaced as a date sensor on its (virtual) device page.
     warranty = _find_state(
         ha,
-        lambda s: s["entity_id"].startswith("sensor.")
-        and "warranty" in s["entity_id"],
+        lambda s: s["entity_id"].startswith("sensor.") and "warranty" in s["entity_id"],
     )
     assert warranty, "expected a warranty-expiry date sensor for the virtual asset"
     assert any(s["state"] == "2032-05-01" for s in warranty)
@@ -56,9 +55,7 @@ def test_add_asset_then_attach_task_creates_device_entities(ha):
     )
 
     def _find_new_asset():
-        resp = call_service(
-            ha, "home_keeper", "list_assets", {}, return_response=True
-        )
+        resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
         payload = resp.get("service_response", resp)
         for a in payload["assets"]:
             if a["name"] == "Test dehumidifier" and a.get("device_id"):
@@ -136,7 +133,9 @@ def test_existing_device_asset_persists_identifier_snapshot(ha):
         {
             "kind": "existing",
             "device_id": device_id,
-            "metadata": [{"type": "text", "label": "Warranty provider", "value": "ACME"}],
+            "metadata": [
+                {"type": "text", "label": "Warranty provider", "value": "ACME"}
+            ],
         },
     )
 
@@ -180,7 +179,9 @@ def test_wear_part_creates_maintenance_task_with_device_entities(ha):
     assert anode_tasks[0].get("source", {}).get("part"), "task should carry part source"
     # Its per-task entities appear; the button merges onto the appliance device, so
     # its entity_id derives from the device name ("Garage water heater").
-    mark_done = [s["entity_id"] for s in list_states(ha) if "mark_done" in s["entity_id"]]
+    mark_done = [
+        s["entity_id"] for s in list_states(ha) if "mark_done" in s["entity_id"]
+    ]
     assert any("garage_water_heater" in eid for eid in mark_done), mark_done
 
 
@@ -199,8 +200,12 @@ def test_cannot_delete_derived_part_task(ha):
     from conftest import HA_URL
 
     anode = _anode_task(ha)
-    r = ha.post(f"{HA_URL}/api/services/home_keeper/delete_task", json={"task_id": anode["id"]})
-    assert r.status_code >= 400, f"deleting a derived task should be rejected, got {r.status_code}"
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/delete_task", json={"task_id": anode["id"]}
+    )
+    assert r.status_code >= 400, (
+        f"deleting a derived task should be rejected, got {r.status_code}"
+    )
     resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
     assert any(
         t["id"] == anode["id"] for t in resp.get("service_response", resp)["tasks"]
@@ -219,10 +224,17 @@ def test_completing_derived_part_task_survives_reconcile(ha):
     lc, nd = after_complete["last_completed"], after_complete["next_due"]
     assert lc, "completion should set last_completed"
     # Editing the asset triggers a reconcile of its part tasks.
-    call_service(ha, "home_keeper", "update_asset", {"asset_id": asset_id, "manufacturer": "poke"})
+    call_service(
+        ha,
+        "home_keeper",
+        "update_asset",
+        {"asset_id": asset_id, "manufacturer": "poke"},
+    )
     time.sleep(1)
     after_reconcile = next(t for t in _all_tasks(ha) if t["id"] == anode["id"])
-    assert after_reconcile["last_completed"] == lc, "reconcile must not revert the completion"
+    assert after_reconcile["last_completed"] == lc, (
+        "reconcile must not revert the completion"
+    )
     assert after_reconcile["next_due"] == nd
 
 
@@ -238,7 +250,9 @@ def _part_tasks_for(ha, asset_id):
 
 def _newest_asset_named(ha, name):
     resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
-    matches = [a for a in resp.get("service_response", resp)["assets"] if a["name"] == name]
+    matches = [
+        a for a in resp.get("service_response", resp)["assets"] if a["name"] == name
+    ]
     return matches[-1] if matches else None
 
 
@@ -257,7 +271,12 @@ def test_removing_wear_part_deletes_its_derived_task(ha):
         {
             "name": name,
             "parts": [
-                {"name": "Belt", "type": "wear", "replace_interval": 6, "replace_unit": "months"}
+                {
+                    "name": "Belt",
+                    "type": "wear",
+                    "replace_interval": 6,
+                    "replace_unit": "months",
+                }
             ],
         },
     )
@@ -267,15 +286,21 @@ def test_removing_wear_part_deletes_its_derived_task(ha):
         if asset and _part_tasks_for(ha, asset["id"]):
             break
         time.sleep(1)
-    assert asset and _part_tasks_for(ha, asset["id"]), "wear part should have created a task"
+    assert asset and _part_tasks_for(ha, asset["id"]), (
+        "wear part should have created a task"
+    )
 
-    call_service(ha, "home_keeper", "update_asset", {"asset_id": asset["id"], "parts": []})
+    call_service(
+        ha, "home_keeper", "update_asset", {"asset_id": asset["id"], "parts": []}
+    )
 
     for _ in range(20):
         if not _part_tasks_for(ha, asset["id"]):
             break
         time.sleep(1)
-    assert not _part_tasks_for(ha, asset["id"]), "derived task should be removed with its part"
+    assert not _part_tasks_for(ha, asset["id"]), (
+        "derived task should be removed with its part"
+    )
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
@@ -293,7 +318,14 @@ def test_wear_part_next_due_does_not_drift_on_asset_edit(ha):
         "add_asset",
         {
             "name": name,
-            "parts": [{"name": "Filter", "type": "wear", "replace_interval": 3, "replace_unit": "months"}],
+            "parts": [
+                {
+                    "name": "Filter",
+                    "type": "wear",
+                    "replace_interval": 3,
+                    "replace_unit": "months",
+                }
+            ],
         },
     )
     asset = None
@@ -302,10 +334,17 @@ def test_wear_part_next_due_does_not_drift_on_asset_edit(ha):
         if asset and _part_tasks_for(ha, asset["id"]):
             break
         time.sleep(1)
-    assert asset and _part_tasks_for(ha, asset["id"]), "wear part should have created a task"
+    assert asset and _part_tasks_for(ha, asset["id"]), (
+        "wear part should have created a task"
+    )
     due_before = _part_tasks_for(ha, asset["id"])[0]["next_due"]
 
-    call_service(ha, "home_keeper", "update_asset", {"asset_id": asset["id"], "name": name + " v2"})
+    call_service(
+        ha,
+        "home_keeper",
+        "update_asset",
+        {"asset_id": asset["id"], "name": name + " v2"},
+    )
 
     due_after = _part_tasks_for(ha, asset["id"])[0]["next_due"]
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
@@ -326,11 +365,16 @@ def test_subdevice_has_warranty_independent_and_parent_seeded(ha):
 def test_related_device_can_be_attached(ha):
     # Create a virtual appliance, then relate it to an existing device id and confirm
     # the relationship round-trips (panel-only association for foreign devices).
-    call_service(ha, "home_keeper", "add_asset", {"name": "Living room piano", "icon": "mdi:piano"})
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {"name": "Living room piano", "icon": "mdi:piano"},
+    )
     resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
     assets = resp.get("service_response", resp)["assets"]
     piano = next(a for a in assets if a["name"] == "Living room piano")
-    # Relate it to the seeded water heater's (virtual) device as a stand-in foreign device.
+    # Relate it to the seeded water heater's (virtual) device as a foreign device.
     wh = next(a for a in assets if a["id"] == "asset_water_heater")
     call_service(
         ha,
@@ -408,7 +452,9 @@ def test_deleting_a_task_assigned_to_an_appliance_archives_its_history(ha):
     asset = next(a for a in _assets(ha) if a["name"] == "Archive test heater")
     history = asset.get("task_history", [])
     entry = next((h for h in history if h["task_id"] == task_id), None)
-    assert entry is not None, "deleted task's history should be archived on the appliance"
+    assert entry is not None, (
+        "deleted task's history should be archived on the appliance"
+    )
     assert entry["task_name"] == "Archive test flush"
     assert len(entry["completions"]) == 1
 
@@ -421,8 +467,12 @@ def test_deleting_a_standalone_task_does_not_archive(ha):
         ha,
         "home_keeper",
         "add_task",
-        {"name": "Standalone no-archive", "recurrence_type": "floating",
-         "interval": 1, "unit": "weeks"},
+        {
+            "name": "Standalone no-archive",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "weeks",
+        },
         return_response=True,
     )
     task_id = add.get("service_response", add)["task_id"]
@@ -430,9 +480,9 @@ def test_deleting_a_standalone_task_does_not_archive(ha):
     call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
 
     for asset in _assets(ha):
-        assert all(
-            h["task_id"] != task_id for h in asset.get("task_history", [])
-        ), "a standalone task's history must not be archived anywhere"
+        assert all(h["task_id"] != task_id for h in asset.get("task_history", [])), (
+            "a standalone task's history must not be archived anywhere"
+        )
 
 
 def _water_heater(ha):
@@ -462,13 +512,17 @@ def test_adjust_part_stock_service_clamps_and_restocks(ha):
     part = next(p for p in wh["parts"] if p["name"] == "Anode rod")
     # Force to zero (clamped at zero) regardless of prior state, then restock by 2.
     call_service(
-        ha, "home_keeper", "adjust_part_stock",
+        ha,
+        "home_keeper",
+        "adjust_part_stock",
         {"asset_id": wh["id"], "part_id": part["id"], "delta": -100},
     )
     part = next(p for p in _water_heater(ha)["parts"] if p["name"] == "Anode rod")
     assert part["stock"] == 0
     call_service(
-        ha, "home_keeper", "adjust_part_stock",
+        ha,
+        "home_keeper",
+        "adjust_part_stock",
         {"asset_id": wh["id"], "part_id": part["id"], "delta": 2},
     )
     part = next(p for p in _water_heater(ha)["parts"] if p["name"] == "Anode rod")
@@ -519,24 +573,33 @@ def test_low_stock_event_fires_on_crossing_not_on_restock(ha):
     sentinel = "input_text.hk_last_low_stock_part"
 
     def _reset():
-        call_service(ha, "input_text", "set_value",
-                     {"entity_id": sentinel, "value": "none"})
+        call_service(
+            ha, "input_text", "set_value", {"entity_id": sentinel, "value": "none"}
+        )
 
     def _captured():
         st = get_state(ha, sentinel)
         return st["state"] if st else None
 
     # Restock well above the threshold (reorder_at=2) so the next drop is a crossing.
-    call_service(ha, "home_keeper", "adjust_part_stock",
-                 {"asset_id": wh["id"], "part_id": pid, "delta": 10})
+    call_service(
+        ha,
+        "home_keeper",
+        "adjust_part_stock",
+        {"asset_id": wh["id"], "part_id": pid, "delta": 10},
+    )
     _reset()
     # Drop across the threshold but stay above zero -> a *low-stock* crossing (a drop
     # all the way to zero is the more specific `part_out_of_stock` event instead). Land
     # at the threshold so the part reads low without being out.
     part = next(p for p in _water_heater(ha)["parts"] if p["id"] == pid)
     target = max(1, part["reorder_at"])
-    call_service(ha, "home_keeper", "adjust_part_stock",
-                 {"asset_id": wh["id"], "part_id": pid, "delta": target - part["stock"]})
+    call_service(
+        ha,
+        "home_keeper",
+        "adjust_part_stock",
+        {"asset_id": wh["id"], "part_id": pid, "delta": target - part["stock"]},
+    )
     deadline = time.monotonic() + 10
     captured = None
     while time.monotonic() < deadline:
@@ -550,7 +613,11 @@ def test_low_stock_event_fires_on_crossing_not_on_restock(ha):
 
     # A restock that leaves the part not-low must NOT re-fire the event.
     _reset()
-    call_service(ha, "home_keeper", "adjust_part_stock",
-                 {"asset_id": wh["id"], "part_id": pid, "delta": 10})
+    call_service(
+        ha,
+        "home_keeper",
+        "adjust_part_stock",
+        {"asset_id": wh["id"], "part_id": pid, "delta": 10},
+    )
     time.sleep(2)
     assert _captured() == "none", "a restock must not fire a low-stock event"

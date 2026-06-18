@@ -137,9 +137,7 @@ _ASSET_FIELDS = {
     vol.Optional("related_device_ids"): [cv.string],
 }
 ADD_ASSET_SCHEMA = vol.Schema(_ASSET_FIELDS)
-UPDATE_ASSET_SCHEMA = vol.Schema(
-    {vol.Required("asset_id"): cv.string, **_ASSET_FIELDS}
-)
+UPDATE_ASSET_SCHEMA = vol.Schema({vol.Required("asset_id"): cv.string, **_ASSET_FIELDS})
 ASSET_ID_SCHEMA = vol.Schema({vol.Required("asset_id"): cv.string})
 
 # Adjust a part's on-hand spare count by a (signed) delta; clamped at zero.

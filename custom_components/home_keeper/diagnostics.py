@@ -28,9 +28,7 @@ async def async_get_config_entry_diagnostics(
             "tasks": len(tasks),
             "assets": len(assets),
             "parts": sum(len(a.get("parts", [])) for a in assets),
-            "virtual_devices": sum(
-                1 for a in assets if a.get("kind") == "virtual"
-            ),
+            "virtual_devices": sum(1 for a in assets if a.get("kind") == "virtual"),
         },
         "tasks": tasks,
         "assets": assets,

@@ -49,7 +49,10 @@ def test_relates_by_related_device():
 
 def test_unrelated_standalone_task():
     assert a.task_relates_to_asset({"id": "t", "name": "x"}, _asset()) is False
-    assert a.task_relates_to_asset({"id": "t", "name": "x", "device_id": "z"}, _asset()) is False
+    assert (
+        a.task_relates_to_asset({"id": "t", "name": "x", "device_id": "z"}, _asset())
+        is False
+    )
 
 
 def test_tasks_for_asset_filters():
@@ -71,14 +74,19 @@ def test_find_archiving_asset_prefers_part_source():
 
 def test_find_archiving_asset_by_device():
     assets = {"asset1": _asset()}
-    found = a.find_archiving_asset(assets, {"id": "t", "name": "x", "device_id": "dev1"})
+    found = a.find_archiving_asset(
+        assets, {"id": "t", "name": "x", "device_id": "dev1"}
+    )
     assert found["id"] == "asset1"
 
 
 def test_find_archiving_asset_none_for_standalone():
     assets = {"asset1": _asset()}
     assert a.find_archiving_asset(assets, {"id": "t", "name": "x"}) is None
-    assert a.find_archiving_asset(assets, {"id": "t", "name": "x", "device_id": "z"}) is None
+    assert (
+        a.find_archiving_asset(assets, {"id": "t", "name": "x", "device_id": "z"})
+        is None
+    )
 
 
 def test_find_archiving_asset_part_source_missing_asset():
@@ -88,7 +96,9 @@ def test_find_archiving_asset_part_source_missing_asset():
 
 # ── archive entry construction & append ──────────────────────────────────────
 def test_build_archived_history_snapshots_name_and_part():
-    entry = a.build_archived_history(_part_task(), archived_at="2026-06-15T00:00:00-04:00")
+    entry = a.build_archived_history(
+        _part_task(), archived_at="2026-06-15T00:00:00-04:00"
+    )
     assert entry["task_id"] == "t1"
     assert entry["task_name"] == "Replace anode"
     assert entry["part_id"] == "p1"
@@ -98,7 +108,11 @@ def test_build_archived_history_snapshots_name_and_part():
 
 def test_build_archived_history_standalone_has_no_part():
     entry = a.build_archived_history(
-        {"id": "t", "name": "Flush tank", "completions": [{"ts": "2025-01-01T00:00:00-04:00"}]},
+        {
+            "id": "t",
+            "name": "Flush tank",
+            "completions": [{"ts": "2025-01-01T00:00:00-04:00"}],
+        },
         archived_at="2026-06-15T00:00:00-04:00",
     )
     assert entry["part_id"] is None
@@ -106,7 +120,9 @@ def test_build_archived_history_standalone_has_no_part():
 
 def test_append_task_history_appends_and_returns_true():
     asset = _asset()
-    entry = a.build_archived_history(_part_task(), archived_at="2026-06-15T00:00:00-04:00")
+    entry = a.build_archived_history(
+        _part_task(), archived_at="2026-06-15T00:00:00-04:00"
+    )
     assert a.append_task_history(asset, entry) is True
     assert asset["task_history"] == [entry]
 
@@ -114,7 +130,8 @@ def test_append_task_history_appends_and_returns_true():
 def test_append_task_history_skips_empty_completions():
     asset = _asset()
     entry = a.build_archived_history(
-        {"id": "t", "name": "x", "completions": []}, archived_at="2026-06-15T00:00:00-04:00"
+        {"id": "t", "name": "x", "completions": []},
+        archived_at="2026-06-15T00:00:00-04:00",
     )
     assert a.append_task_history(asset, entry) is False
     assert "task_history" not in asset
@@ -122,7 +139,9 @@ def test_append_task_history_skips_empty_completions():
 
 def test_append_task_history_dedupes_by_task_id():
     asset = _asset()
-    entry = a.build_archived_history(_part_task(), archived_at="2026-06-15T00:00:00-04:00")
+    entry = a.build_archived_history(
+        _part_task(), archived_at="2026-06-15T00:00:00-04:00"
+    )
     assert a.append_task_history(asset, entry) is True
     assert a.append_task_history(asset, entry) is False
     assert len(asset["task_history"]) == 1
@@ -148,19 +167,33 @@ def _asset_with_history():
 
 def test_remove_archived_completion_drops_one():
     asset = _asset_with_history()
-    assert a.remove_archived_completion(asset, "old_flush", "2024-06-01T10:00:00-04:00") is True
-    assert asset["task_history"][0]["completions"] == [{"ts": "2023-06-01T10:00:00-04:00"}]
+    assert (
+        a.remove_archived_completion(asset, "old_flush", "2024-06-01T10:00:00-04:00")
+        is True
+    )
+    assert asset["task_history"][0]["completions"] == [
+        {"ts": "2023-06-01T10:00:00-04:00"}
+    ]
 
 
 def test_remove_archived_completion_drops_entry_when_emptied():
     asset = _asset_with_history()
     asset["task_history"][0]["completions"] = [{"ts": "2023-06-01T10:00:00-04:00"}]
-    assert a.remove_archived_completion(asset, "old_flush", "2023-06-01T10:00:00-04:00") is True
+    assert (
+        a.remove_archived_completion(asset, "old_flush", "2023-06-01T10:00:00-04:00")
+        is True
+    )
     assert asset["task_history"] == []
 
 
 def test_remove_archived_completion_missing_is_noop():
     asset = _asset_with_history()
-    assert a.remove_archived_completion(asset, "old_flush", "2099-01-01T00:00:00-04:00") is False
-    assert a.remove_archived_completion(asset, "no_such_task", "2024-06-01T10:00:00-04:00") is False
+    assert (
+        a.remove_archived_completion(asset, "old_flush", "2099-01-01T00:00:00-04:00")
+        is False
+    )
+    assert (
+        a.remove_archived_completion(asset, "no_such_task", "2024-06-01T10:00:00-04:00")
+        is False
+    )
     assert a.remove_archived_completion(_asset(), "x", "y") is False

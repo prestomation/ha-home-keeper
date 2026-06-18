@@ -35,7 +35,9 @@ async def async_setup_entry(
     async_add_entities([HomeKeeperTodoListEntity(coordinator)])
 
 
-class HomeKeeperTodoListEntity(CoordinatorEntity[HomeKeeperCoordinator], TodoListEntity):
+class HomeKeeperTodoListEntity(
+    CoordinatorEntity[HomeKeeperCoordinator], TodoListEntity
+):
     """A single to-do list backed by the Home Keeper task store."""
 
     # No device for this hub entity, so anchor the entity_id explicitly via the

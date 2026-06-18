@@ -151,7 +151,9 @@ async def async_attach_trigger(
         {
             event_trigger.CONF_PLATFORM: "event",
             event_trigger.CONF_EVENT_TYPE: _EVENT_BY_TYPE[trigger_type],
-            event_trigger.CONF_EVENT_DATA: event_data if event_data is not None else _NO_MATCH,
+            event_trigger.CONF_EVENT_DATA: event_data
+            if event_data is not None
+            else _NO_MATCH,
         }
     )
     return await event_trigger.async_attach_trigger(

@@ -57,16 +57,22 @@ def test_device_attached_task_creates_per_task_entities(ha):
     ids = [s["entity_id"] for s in states]
     # The seeded "water filter" task has a device_id, so it gets button + sensor +
     # binary_sensor entities.
-    assert any(eid.startswith("button.") and "water_filter" in eid or
-               eid == "button.replace_water_filter_mark_done" for eid in ids) or \
-        any("mark_done" in eid for eid in ids)
+    assert any(
+        (eid.startswith("button.") and "water_filter" in eid)
+        or eid == "button.replace_water_filter_mark_done"
+        for eid in ids
+    ) or any("mark_done" in eid for eid in ids)
     assert any("next_due" in eid for eid in ids)
     assert any("overdue" in eid for eid in ids)
 
 
 def test_overdue_binary_sensor_is_on_for_overdue_task(ha):
     states = list_states(ha)
-    overdue = [s for s in states if s["entity_id"].endswith("_overdue") or "overdue" in s["entity_id"]]
+    overdue = [
+        s
+        for s in states
+        if s["entity_id"].endswith("_overdue") or "overdue" in s["entity_id"]
+    ]
     assert overdue, "expected at least one overdue binary_sensor"
     # The seeded water filter is overdue.
     assert any(s["state"] == "on" for s in overdue)
@@ -125,7 +131,13 @@ def test_add_task_accepts_and_round_trips_opaque_source(ha):
     # A contributing integration tags its task with a domain-namespaced source dict;
     # Home Keeper must accept it on the service and store it verbatim (see
     # docs/INTEGRATING.md).
-    source = {"pawsistant": {"dog_id": "buddy", "event_type": "medicine", "schedule_id": "sched-1"}}
+    source = {
+        "pawsistant": {
+            "dog_id": "buddy",
+            "event_type": "medicine",
+            "schedule_id": "sched-1",
+        }
+    }
     call_service(
         ha,
         "home_keeper",
@@ -168,7 +180,9 @@ def test_complete_task_fires_event_with_source_and_origin(ha):
         t["id"] for t in _list_tasks(ha) if t["name"] == "Event payload probe"
     )
 
-    call_service(ha, "home_keeper", "complete_task", {"task_id": task_id, "origin": origin})
+    call_service(
+        ha, "home_keeper", "complete_task", {"task_id": task_id, "origin": origin}
+    )
 
     # The capture automation records the last completion's origin/source.
     poll_state(
@@ -222,7 +236,7 @@ def test_renaming_task_updates_device_entity_name(ha):
     try:
         eid = None
         for _ in range(20):
-            eid, before = _find_button_by_name(ha, "Rename probe original")
+            eid, _before = _find_button_by_name(ha, "Rename probe original")
             if eid:
                 break
             time.sleep(1)

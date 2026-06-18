@@ -347,9 +347,7 @@ async def ws_adjust_part_stock(
     connection.send_result(msg["id"], {"asset": asset})
 
 
-@websocket_api.websocket_command(
-    {vol.Required("type"): "home_keeper/export_inventory"}
-)
+@websocket_api.websocket_command({vol.Required("type"): "home_keeper/export_inventory"})
 @websocket_api.async_response
 async def ws_export_inventory(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]

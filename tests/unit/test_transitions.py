@@ -5,12 +5,12 @@ runtime): a task announces due-soon then overdue against the same ``next_due`` e
 once each, re-arms when its schedule moves, and never fires while dormant or disabled.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import hk_transitions as t
 from hk_const import EVENT_TASK_DUE_SOON, EVENT_TASK_OVERDUE
 
-TZ = timezone.utc
+TZ = UTC
 NOW = datetime(2026, 6, 18, 12, 0, tzinfo=TZ)
 
 
@@ -89,7 +89,7 @@ def test_triggered_task_fires_overdue_on_arm():
     _, state = t.detect_transitions({}, {"d": dormant}, now=NOW)
 
     armed = _task("d", next_due=NOW, recurrence_type="triggered")
-    fired, state2 = t.detect_transitions(state, {"d": armed}, now=NOW)
+    fired, _state2 = t.detect_transitions(state, {"d": armed}, now=NOW)
     assert _names(fired) == [EVENT_TASK_OVERDUE]
 
 

@@ -102,7 +102,8 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         # reading (correct for zoneinfo/DST) rather than shifting it.
         if parsed_anchor.tzinfo is None:
             parsed_anchor = (
-                parsed_anchor.replace(tzinfo=tz) if tz is not None
+                parsed_anchor.replace(tzinfo=tz)
+                if tz is not None
                 else parsed_anchor.astimezone()
             )
         fields["freq"] = freq
@@ -246,6 +247,8 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # complete_task (armed timestamp vs dormant None), so editing name/notes/device
     # must never recompute it (that would re-arm a dormant "monitored" task).
     recurrence_keys = {"recurrence_type", "interval", "unit", "freq", "anchor"}
-    if merged.get("recurrence_type") != REC_TRIGGERED and (recurrence_keys & set(updates)):
+    if merged.get("recurrence_type") != REC_TRIGGERED and (
+        recurrence_keys & set(updates)
+    ):
         merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
     return merged

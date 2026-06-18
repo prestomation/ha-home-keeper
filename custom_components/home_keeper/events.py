@@ -80,9 +80,7 @@ def asset_event_data(
     return data
 
 
-def stock_event_data(
-    asset: dict[str, Any], part: dict[str, Any]
-) -> dict[str, Any]:
+def stock_event_data(asset: dict[str, Any], part: dict[str, Any]) -> dict[str, Any]:
     """Return the shared payload for the three `home_keeper_part_*` stock events.
 
     Low-stock, out-of-stock and restocked all carry the same shape so an automation

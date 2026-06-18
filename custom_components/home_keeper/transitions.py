@@ -74,7 +74,9 @@ def detect_transitions(
                 fired.append(
                     (
                         EVENT_TASK_DUE_SOON,
-                        events.task_event_data(task, extra={"due_in_hours": due_in_hours}),
+                        events.task_event_data(
+                            task, extra={"due_in_hours": due_in_hours}
+                        ),
                     )
                 )
                 due_soon_fired = True
@@ -83,7 +85,9 @@ def detect_transitions(
                 fired.append(
                     (
                         EVENT_TASK_OVERDUE,
-                        events.task_event_data(task, extra={"days_overdue": days_overdue}),
+                        events.task_event_data(
+                            task, extra={"days_overdue": days_overdue}
+                        ),
                     )
                 )
                 overdue_fired = True
