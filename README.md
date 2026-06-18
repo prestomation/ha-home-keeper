@@ -174,8 +174,44 @@ sensor next to your *Piano*) — which show up alongside the appliance in the pa
 Task services: `home_keeper.add_task`, `update_task`, `delete_task`, `complete_task`,
 `trigger_task` (arm a condition-driven task), and `list_tasks` (returns a response).
 
-Appliance services: `home_keeper.add_asset`, `update_asset`, `delete_asset`, and
-`list_assets` (returns a response). All are available for automations.
+Appliance services: `home_keeper.add_asset`, `update_asset`, `delete_asset`,
+`adjust_part_stock`, `list_assets` and `export_inventory` (the last two return a
+response). All are available for automations.
+
+## Events & automations
+
+**Use case:** *"tell me when maintenance falls behind, or a spare runs out — and let me
+wire it into the rest of my home."* Home Keeper fires a Home Assistant **bus event** for
+every meaningful change so you can automate on it:
+
+- **Tasks** — created, updated, completed, uncompleted, deleted, armed, and the
+  time-based **overdue** / **due-soon** transitions.
+- **Spare parts** — **low stock**, **out of stock**, and **restocked**.
+- **Appliances** — created, updated, deleted.
+
+**How you use it.** Two ways: pick a **device trigger** in the visual automation editor
+(on a task's device or an appliance you'll see entries like *"Task became overdue"* or
+*"Spare part out of stock"* — no event names to memorise), or use a plain `platform:
+event` trigger for global automations. For example, *spare part out of stock → add it to
+the shopping list*:
+
+```yaml
+automation:
+  - alias: "Spare out of stock → shopping list"
+    trigger:
+      - platform: event
+        event_type: home_keeper_part_out_of_stock
+    action:
+      - service: todo.add_item
+        target: { entity_id: todo.shopping_list }
+        data:
+          item: "{{ trigger.event.data.part_name }} ({{ trigger.event.data.vendor }})"
+```
+
+The events are **edge-triggered** (one event per crossing, never repeated each cycle)
+and silently baselined on restart (no “overdue” storm after a reboot). The full catalog
+— every event, its payload, and more examples — is in
+[docs/EVENTS.md](docs/EVENTS.md).
 
 ## Integrating with Home Keeper
 

@@ -92,6 +92,29 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
 - Read-only/report actions use `SupportsResponse.ONLY`; data mutations reload the
   entry or refresh the coordinator exactly as the equivalent CRUD service does.
 
+## Events are the observation surface — fire one for every state change
+- **Every observable state change fires a documented `home_keeper_<noun>_<verb>` bus
+  event**, built by a **pure function in `events.py`** (no HA imports) so the test fake
+  (`testing.py`) and integrators test against the exact shipped payload — it can't
+  drift. Fire at the **`store.py` mutation chokepoint**, not in a service handler, so
+  every surface (panel, service, websocket, contributing integration) is observed
+  uniformly. *Every* path that mutates the task/asset map counts — including the
+  non-CRUD ones (`reconcile_part_tasks`, `detach_tasks_from_device`, `delete_asset`'s
+  cascade), which must fire their own create/update/delete events.
+- **Edge-triggered transitions live in a pure module + the coordinator.** Time-based
+  events (`overdue`/`due_soon`) are detected by `transitions.detect_transitions` (pure,
+  unit-tested with an injected `now`) and fired from `coordinator._async_update_data`;
+  stock crossings (`low`/`out`/`restocked`) come from `assets.stock_transition`. Fire
+  **once per crossing** (keyed on `next_due` / threshold), never every refresh, and
+  **baseline silently on startup** (the coordinator gates firing until setup completes)
+  so a restart never replays a transition storm.
+- **Keep the catalog in sync.** A new event is not done until it's in
+  [`docs/EVENTS.md`](../../docs/EVENTS.md) (the canonical catalog: when it fires,
+  payload, semantics) and, if device-facing, exposed as a `device_trigger.py` trigger
+  with `strings.json` `device_automation` labels at full translation parity. Events are
+  *observations* of changes that already flow through services/store methods, so they
+  need **no** new service.
+
 ## Errors, validation & security
 - Service handlers raise `ServiceValidationError` for user-facing errors.
   Websocket commands return structured errors via `connection.send_error`.

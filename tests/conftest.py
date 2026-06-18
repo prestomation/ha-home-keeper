@@ -34,6 +34,7 @@ def _load_pure_modules() -> None:
         "models",
         "assets",
         "events",
+        "transitions",
         "reconcile",
         "inventory",
     ):
@@ -50,6 +51,7 @@ def _load_pure_modules() -> None:
     sys.modules["hk_models"] = sys.modules["hk.models"]
     sys.modules["hk_assets"] = sys.modules["hk.assets"]
     sys.modules["hk_events"] = sys.modules["hk.events"]
+    sys.modules["hk_transitions"] = sys.modules["hk.transitions"]
     sys.modules["hk_reconcile"] = sys.modules["hk.reconcile"]
     sys.modules["hk_inventory"] = sys.modules["hk.inventory"]
 

@@ -311,33 +311,63 @@ def part_is_low(part: dict) -> bool:
     return stock is not None and reorder is not None and stock <= reorder
 
 
-def consume_part_stock(part: dict) -> bool:
+# Stock-change outcomes, returned by ``stock_transition`` / ``consume_part_stock`` /
+# ``adjust_part_stock``. Each maps to one bus event (or none); see store.py.
+STOCK_NONE = "none"
+STOCK_LOW = "low"
+STOCK_OUT = "out"
+STOCK_RESTOCKED = "restocked"
+
+
+def stock_transition(old: int, new: int, reorder_at: int | None) -> str:
+    """Classify a stock change from *old* to *new* as a single edge transition.
+
+    Returns one of ``"none" | "low" | "out" | "restocked"``. This is the pure core
+    behind the edge-triggered stock events: it fires once *per crossing* rather than on
+    every step. Precedence matters — ``"out"`` (reaching zero) wins over ``"low"`` so a
+    single decrement that drops an already-low part to zero is reported as out-of-stock,
+    not a (repeat) low-stock. A part with no ``reorder_at`` threshold is untracked and
+    never transitions.
+    """
+    if reorder_at is None:
+        return STOCK_NONE
+    if new == 0 and old > 0:
+        return STOCK_OUT
+    if new <= reorder_at and old > reorder_at:
+        return STOCK_LOW
+    if new > reorder_at and old <= reorder_at:
+        return STOCK_RESTOCKED
+    return STOCK_NONE
+
+
+def consume_part_stock(part: dict) -> str:
     """Decrement a part's on-hand ``stock`` by one (never below zero).
 
-    A no-op for parts that don't track stock. Returns ``True`` only when this
-    consumption *crosses* the part from not-low into low (edge-triggered), so the
-    caller emits one low-stock signal per crossing rather than on every step while
-    already low.
+    A no-op (``STOCK_NONE``) for parts that don't track stock. Otherwise returns the
+    edge transition (``stock_transition``) this consumption caused, so the caller emits
+    at most one stock event per crossing rather than on every step while already low.
     """
     stock = part.get("stock")
     if stock is None:
-        return False
-    was_low = part_is_low(part)
-    part["stock"] = max(0, int(stock) - 1)
-    return part_is_low(part) and not was_low
+        return STOCK_NONE
+    old = int(stock)
+    new = max(0, old - 1)
+    part["stock"] = new
+    return stock_transition(old, new, part.get("reorder_at"))
 
 
-def adjust_part_stock(part: dict, delta: int) -> bool:
+def adjust_part_stock(part: dict, delta: int) -> str:
     """Adjust a part's on-hand ``stock`` by ``delta`` (clamped at zero).
 
-    Begins tracking from zero for a previously untracked part. Returns ``True`` only
-    when the adjustment *crosses* the part from not-low into low (edge-triggered); a
-    restock, or a decrease while already low, returns ``False``.
+    Begins tracking from zero for a previously untracked part. Returns the edge
+    transition (``stock_transition``) the adjustment caused — ``"low"`` / ``"out"`` on a
+    decrease that crosses a threshold, ``"restocked"`` when a restock lifts it back above
+    the reorder point, else ``"none"``.
     """
-    was_low = part_is_low(part)
-    current = part.get("stock") or 0
-    part["stock"] = max(0, int(current) + int(delta))
-    return part_is_low(part) and not was_low
+    old = int(part.get("stock") or 0)
+    new = max(0, old + int(delta))
+    part["stock"] = new
+    return stock_transition(old, new, part.get("reorder_at"))
 
 
 def normalize_fields(data: dict) -> dict:

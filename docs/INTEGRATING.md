@@ -149,6 +149,18 @@ Event payload:
 | `completed_at` | `str` (ISO) | When it was completed. |
 | `origin` | `str \| None` | Whatever the completer passed; `None` for a manual/Home-Keeper-UI completion. |
 
+The payload also carries the common task **spine** (`device_id`, `area_id`,
+`recurrence_type`, `next_due`, `enabled`, `managed_by`) — see
+[EVENTS.md](EVENTS.md#task-event-spine). If you only read the fields above, nothing
+changes for you.
+
+> **`home_keeper_task_completed` is one of a full catalog.** Home Keeper fires events
+> for the entire lifecycle — tasks created/updated/deleted/uncompleted/triggered,
+> overdue/due-soon, spare parts low/out/restocked, and appliances created/updated/
+> deleted — all built by the same pure payload builders in `events.py`. If your
+> integration needs to react to more than completion, see [EVENTS.md](EVENTS.md) for the
+> catalog. Everything below stays focused on the completion contract.
+
 ## 4. Two-way sync and loop prevention
 
 To make the task behave like "the same button" on both sides you complete it from your

@@ -20,7 +20,9 @@ except ImportError:  # pragma: no cover - older HA fallback
     from homeassistant.helpers.entity import DeviceInfo  # type: ignore[no-redef]
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.util import dt as dt_util
 
+from . import transitions
 from .const import DOMAIN
 from .store import HomeKeeperStore
 
@@ -61,9 +63,33 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         )
         self.store = store
         self.entry = entry
+        # Edge state for the time-based task events (overdue / due-soon). Carried
+        # across refreshes so each is fired at most once per ``next_due``; see
+        # transitions.detect_transitions.
+        self._edge_state: transitions.StateMap = {}
+        # Firing is gated until setup finishes (enable_transition_events) so the
+        # several refreshes during async_setup_entry silently *baseline* current state
+        # — an HA restart never replays an "overdue" storm for tasks already overdue.
+        self._events_enabled = False
+
+    def enable_transition_events(self) -> None:
+        """Start firing overdue/due-soon events (called once setup is complete).
+
+        Until this is called, refreshes still update the edge state but fire nothing,
+        so the post-restart steady state is baselined silently and only genuine
+        transitions observed while running are announced.
+        """
+        self._events_enabled = True
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
-        return self.store.get_tasks()
+        tasks = self.store.get_tasks()
+        fired, self._edge_state = transitions.detect_transitions(
+            self._edge_state, tasks, now=dt_util.now()
+        )
+        if self._events_enabled:
+            for event_name, payload in fired:
+                self.hass.bus.async_fire(event_name, payload)
+        return tasks
 
     def device_attached_task_ids(self) -> list[str]:
         """Enabled task ids attached to a device (so get per-task entities)."""

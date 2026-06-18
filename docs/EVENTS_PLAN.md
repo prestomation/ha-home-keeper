@@ -1,6 +1,11 @@
 # Comprehensive Events & Automation Hooks
 
-**Status: planned.** This document specifies a full, consistent set of Home Assistant
+**Status: implemented.** The event catalog, the pure `transitions.py` detector, the
+coordinator wiring, the `device_trigger.py` automation-editor surface, and the docs
+below all shipped. The canonical user/integrator reference is
+[`docs/EVENTS.md`](EVENTS.md); this document is kept as the design rationale.
+
+This document specifies a full, consistent set of Home Assistant
 **bus events** for every meaningful thing that happens in Home Keeper — a task is
 created, edited, completed, deleted, becomes overdue or due-soon; a spare part runs low,
 runs out, or is restocked; an appliance is added, changed, or removed — plus the

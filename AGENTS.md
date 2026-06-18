@@ -90,6 +90,12 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   for the service: add the service first (with a `services.yaml` entry and
   `strings.json` localization parity), and have any websocket command delegate to
   the same store method. See `.amazonq/rules/architecture-and-code.md`.
+- **Fire a `home_keeper_<noun>_<verb>` event for every state change.** Built by a pure
+  builder in `events.py`, fired at the `store.py` chokepoint (including the non-CRUD
+  mutation paths), edge-triggered for transitions (`transitions.py` + the coordinator,
+  baselined silently on startup). A new event isn't done until it's in `docs/EVENTS.md`
+  and, if device-facing, in `device_trigger.py` with translation-parity labels. Events
+  need no new service. See `.amazonq/rules/architecture-and-code.md` and `docs/EVENTS.md`.
 - Tasks are plain dicts: `id, name, notes, recurrence_type, interval, unit|freq,
   anchor, device_id, area_id, enabled, last_completed, next_due, completions[]`.
 - All datetimes are timezone-aware (`homeassistant.util.dt`); `recurrence.py` takes

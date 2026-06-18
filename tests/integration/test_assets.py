@@ -530,9 +530,13 @@ def test_low_stock_event_fires_on_crossing_not_on_restock(ha):
     call_service(ha, "home_keeper", "adjust_part_stock",
                  {"asset_id": wh["id"], "part_id": pid, "delta": 10})
     _reset()
-    # Drop across the threshold to zero -> exactly one low-stock event for this part.
+    # Drop across the threshold but stay above zero -> a *low-stock* crossing (a drop
+    # all the way to zero is the more specific `part_out_of_stock` event instead). Land
+    # at the threshold so the part reads low without being out.
+    part = next(p for p in _water_heater(ha)["parts"] if p["id"] == pid)
+    target = max(1, part["reorder_at"])
     call_service(ha, "home_keeper", "adjust_part_stock",
-                 {"asset_id": wh["id"], "part_id": pid, "delta": -100})
+                 {"asset_id": wh["id"], "part_id": pid, "delta": target - part["stock"]})
     deadline = time.monotonic() + 10
     captured = None
     while time.monotonic() < deadline:
@@ -540,7 +544,9 @@ def test_low_stock_event_fires_on_crossing_not_on_restock(ha):
         if captured and captured != "none":
             break
         time.sleep(0.5)
-    assert captured == f"{pid}@0", f"expected a low-stock event for {pid}, got {captured!r}"
+    assert captured == f"{pid}@{target}", (
+        f"expected a low-stock event for {pid}, got {captured!r}"
+    )
 
     # A restock that leaves the part not-low must NOT re-fire the event.
     _reset()

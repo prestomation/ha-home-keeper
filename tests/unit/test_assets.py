@@ -402,39 +402,57 @@ def test_part_is_low():
     assert a.part_is_low({"stock": 0, "reorder_at": None}) is False
 
 
+def test_stock_transition_classifies_crossings():
+    # No threshold -> untracked, never transitions.
+    assert a.stock_transition(5, 4, None) == a.STOCK_NONE
+    # Crossing into low.
+    assert a.stock_transition(2, 1, 1) == a.STOCK_LOW
+    # Reaching zero wins over "low" (more specific) even from an already-low part.
+    assert a.stock_transition(1, 0, 1) == a.STOCK_OUT
+    assert a.stock_transition(3, 0, 5) == a.STOCK_OUT
+    # Restock lifts back above the threshold.
+    assert a.stock_transition(1, 4, 1) == a.STOCK_RESTOCKED
+    # Restock that's still at/below threshold is not a recovery.
+    assert a.stock_transition(0, 2, 2) == a.STOCK_NONE
+    # No crossing while comfortably above, or already low without reaching zero.
+    assert a.stock_transition(3, 2, 1) == a.STOCK_NONE
+    assert a.stock_transition(2, 1, 3) == a.STOCK_NONE
+
+
 def test_consume_part_stock_flags_low_only_on_crossing():
     part = {"stock": 3, "reorder_at": 1}
     # 3 -> 2, still above the threshold of 1.
-    assert a.consume_part_stock(part) is False
+    assert a.consume_part_stock(part) == a.STOCK_NONE
     assert part["stock"] == 2
     # 2 -> 1 crosses from not-low into low.
-    assert a.consume_part_stock(part) is True
+    assert a.consume_part_stock(part) == a.STOCK_LOW
     assert part["stock"] == 1
-    # 1 -> 0, already low: edge-triggered, so no repeat signal.
-    assert a.consume_part_stock(part) is False
+    # 1 -> 0, already low: reaching zero is now reported as out-of-stock (the old
+    # bare boolean stayed silent here).
+    assert a.consume_part_stock(part) == a.STOCK_OUT
     assert part["stock"] == 0
 
 
 def test_consume_part_stock_floors_at_zero_without_refiring():
-    # Already low (and at zero): consuming again clamps at zero and does not re-fire.
+    # Already at zero: consuming again clamps at zero and does not re-fire.
     part = {"stock": 0, "reorder_at": 0}
-    assert a.consume_part_stock(part) is False
+    assert a.consume_part_stock(part) == a.STOCK_NONE
     assert part["stock"] == 0
 
 
 def test_consume_part_stock_noop_when_untracked():
     part = {"stock": None, "reorder_at": 2}
-    assert a.consume_part_stock(part) is False
+    assert a.consume_part_stock(part) == a.STOCK_NONE
     assert part["stock"] is None
 
 
 def test_adjust_part_stock_restock_and_clamp():
     part = {"stock": 1, "reorder_at": 1}
-    # Restock by 3 -> 4, no longer low.
-    assert a.adjust_part_stock(part, 3) is False
+    # Restock by 3 -> 4, recovers above the threshold.
+    assert a.adjust_part_stock(part, 3) == a.STOCK_RESTOCKED
     assert part["stock"] == 4
-    # Consume 5 -> clamps at 0, now low.
-    assert a.adjust_part_stock(part, -5) is True
+    # Consume 5 -> clamps at 0: out of stock.
+    assert a.adjust_part_stock(part, -5) == a.STOCK_OUT
     assert part["stock"] == 0
 
 
@@ -444,13 +462,13 @@ def test_adjust_part_stock_begins_tracking_from_zero():
     assert part["stock"] == 2
 
 
-def test_adjust_part_stock_no_refire_while_already_low():
-    # Decreasing while already low must not re-signal (edge-triggered).
+def test_adjust_part_stock_to_zero_reports_out():
+    # Decreasing while already low to exactly zero reports out-of-stock.
     part = {"stock": 1, "reorder_at": 2}
-    assert a.adjust_part_stock(part, -1) is False
+    assert a.adjust_part_stock(part, -1) == a.STOCK_OUT
     assert part["stock"] == 0
-    # Restocking back up to/below the threshold also doesn't signal.
-    assert a.adjust_part_stock(part, 2) is False
+    # Restocking back up to (still <=) the threshold is not a recovery.
+    assert a.adjust_part_stock(part, 2) == a.STOCK_NONE
     assert part["stock"] == 2
 
 
