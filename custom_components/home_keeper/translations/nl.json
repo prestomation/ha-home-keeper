@@ -44,8 +44,8 @@
           "description": "Voor fixed-taken: ISO-datum/tijd van de eerste keer (stelt het tijdstip van de dag in)."
         },
         "last_completed": {
-          "name": "Last completed",
-          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+          "name": "Laatst voltooid",
+          "description": "Optionele datum waarop de taak het laatst is uitgevoerd. Stelt een eerste voltooiing in zodat een zwevende taak vanaf deze datum wordt gemeten (volgende vervaldatum = laatst uitgevoerd + interval) in plaats van meteen te vervallen. Weglaten voor een taak die nog nooit is uitgevoerd."
         },
         "device_id": {
           "name": "Apparaat",
@@ -112,8 +112,8 @@
           "description": "De id van de te verwijderen taak."
         },
         "force": {
-          "name": "Force",
-          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
+          "name": "Forceren",
+          "description": "Omzeil de verwijderbeveiliging voor een taak die door een andere integratie wordt beheerd. Gebruik dit om een taak op te ruimen waarvan de beherende integratie is verwijderd of zich misdraagt en de taak niet zelf kan verwijderen."
         }
       }
     },
@@ -133,7 +133,7 @@
     },
     "trigger_task": {
       "name": "Taak activeren",
-      "description": "Een voorwaardegestuurde (geactiveerde) taak scherpstellen zodat deze nu als verschuldigd wordt weergegeven — de gebruikersgerichte tegenhanger van Taak voltooien (die deze weer in rust zet). Idempotent; alleen geldig voor geactiveerde taken.",
+      "description": "Een voorwaardegestuurde (geactiveerde) taak scherpstellen zodat deze nu als vervallen wordt weergegeven — de gebruikersgerichte tegenhanger van Taak voltooien (die deze weer in rust zet). Idempotent; alleen geldig voor geactiveerde taken.",
       "fields": {
         "task_id": {
           "name": "Taak-ID",
@@ -187,7 +187,7 @@
         },
         "metadata": {
           "name": "Metadata",
-          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+          "description": "Vrij in te vullen metadata-items (label, type tekst/link/datum, waarde); een datum met track:true wordt ook een sensor."
         },
         "parts": {
           "name": "Onderdelen",
@@ -245,7 +245,7 @@
         },
         "metadata": {
           "name": "Metadata",
-          "description": "Free-form metadata entries (see add_asset)."
+          "description": "Vrij in te vullen metadata-items (zie add_asset)."
         },
         "parts": {
           "name": "Onderdelen",
@@ -276,26 +276,26 @@
       "description": "Geeft alle apparaten/assets als antwoord terug."
     },
     "adjust_part_stock": {
-      "name": "Adjust part stock",
-      "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
+      "name": "Onderdeelvoorraad aanpassen",
+      "description": "Wijzig de beschikbare reservevoorraad van een onderdeel met een verschil met teken (begrensd op nul). Wanneer een verlaging de besteldrempel bereikt of overschrijdt, wordt een gebeurtenis voor lage voorraad geactiveerd.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "Object-ID",
+          "description": "De id van het apparaat waartoe het onderdeel behoort."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose stock to adjust."
+          "name": "Onderdeel-ID",
+          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast."
         },
         "delta": {
-          "name": "Delta",
-          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+          "name": "Verschil",
+          "description": "Wijziging met teken die op de reservevoorraad wordt toegepast (bijv. -1 om te verbruiken, 2 om aan te vullen)."
         }
       }
     },
     "export_inventory": {
-      "name": "Export inventory",
-      "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
+      "name": "Inventaris exporteren",
+      "description": "Geeft een huisinventaris voor verzekeringen terug als antwoord (één rij per apparaat plus totalen), met een direct op te slaan CSV onder de sleutel \"csv\"."
     }
   },
   "entity": {
@@ -317,14 +317,14 @@
   },
   "device_automation": {
     "trigger_type": {
-      "task_completed": "Task completed",
-      "task_overdue": "Task became overdue",
-      "task_due_soon": "Task due soon",
-      "task_created": "Task created",
-      "task_updated": "Task updated",
-      "part_low_stock": "Spare part low on stock",
-      "part_out_of_stock": "Spare part out of stock",
-      "part_restocked": "Spare part restocked"
+      "task_completed": "Taak voltooid",
+      "task_overdue": "Taak is verlopen",
+      "task_due_soon": "Taak vervalt binnenkort",
+      "task_created": "Taak aangemaakt",
+      "task_updated": "Taak bijgewerkt",
+      "part_low_stock": "Reserveonderdeel bijna op",
+      "part_out_of_stock": "Reserveonderdeel niet op voorraad",
+      "part_restocked": "Reserveonderdeel aangevuld"
     }
   }
 }

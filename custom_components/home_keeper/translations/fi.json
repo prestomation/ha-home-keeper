@@ -44,8 +44,8 @@
           "description": "Kiinteille tehtäville: ensimmäisen esiintymän ISO-aikaleima (asettaa kellonajan)."
         },
         "last_completed": {
-          "name": "Last completed",
-          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+          "name": "Viimeksi suoritettu",
+          "description": "Valinnainen 'viimeksi tehty' -päivämäärä. Lisää aloitussuorituksen, jolloin kelluvaa tehtävää aletaan mitata tästä päivämäärästä (seuraava eräpäivä = viimeksi tehty + aikaväli) sen sijaan, että se erääntyisi heti. Jätä pois tehtävälle, jota ei ole koskaan tehty."
         },
         "device_id": {
           "name": "Laite",
@@ -112,8 +112,8 @@
           "description": "Poistettavan tehtävän tunnus."
         },
         "force": {
-          "name": "Force",
-          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
+          "name": "Pakota",
+          "description": "Ohita poistosuojaus tehtävälle, jota hallinnoi toinen integraatio. Käytä tätä siivotaksesi tehtävän, jonka hallinnoiva integraatio on poistettu tai toimii virheellisesti eikä voi poistaa sitä itse."
         }
       }
     },
@@ -186,8 +186,8 @@
           "description": "Valinnainen mdi-kuvake (esim. mdi:piano)."
         },
         "metadata": {
-          "name": "Metadata",
-          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+          "name": "Metatiedot",
+          "description": "Vapaamuotoiset metatietomerkinnät (otsikko, tyyppi teksti/linkki/päivämäärä, arvo); päivämäärästä, jossa track:true, tulee myös anturi."
         },
         "parts": {
           "name": "Osat",
@@ -244,8 +244,8 @@
           "description": "Valinnainen mdi-kuvake (esim. mdi:piano)."
         },
         "metadata": {
-          "name": "Metadata",
-          "description": "Free-form metadata entries (see add_asset)."
+          "name": "Metatiedot",
+          "description": "Vapaamuotoiset metatietomerkinnät (katso add_asset)."
         },
         "parts": {
           "name": "Osat",
@@ -276,26 +276,26 @@
       "description": "Palauta kaikki laitteet/kohteet vastauksena."
     },
     "adjust_part_stock": {
-      "name": "Adjust part stock",
-      "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
+      "name": "Säädä varaosavarastoa",
+      "description": "Muuta varaosan varastomäärää etumerkillisellä erotuksella (rajoitettu nollaan). Kun vähennys saavuttaa tilausrajan tai ylittää sen, käynnistyy alhaisen varaston tapahtuma.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "Kohteen tunnus",
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose stock to adjust."
+          "name": "Varaosan tunnus",
+          "description": "Sen varaosan tunnus, jonka varastoa säädetään."
         },
         "delta": {
-          "name": "Delta",
-          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+          "name": "Erotus",
+          "description": "Etumerkillinen muutos, joka kohdistetaan varaosamäärään (esim. -1 kuluttaaksesi, 2 täydentääksesi)."
         }
       }
     },
     "export_inventory": {
-      "name": "Export inventory",
-      "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
+      "name": "Vie luettelo",
+      "description": "Palauta kotiluettelo vakuutusta varten vastauksena (yksi rivi laitetta kohden sekä summat), valmiina tallennettavan CSV-tiedoston kanssa avaimen \"csv\" alla."
     }
   },
   "entity": {
@@ -317,14 +317,14 @@
   },
   "device_automation": {
     "trigger_type": {
-      "task_completed": "Task completed",
-      "task_overdue": "Task became overdue",
-      "task_due_soon": "Task due soon",
-      "task_created": "Task created",
-      "task_updated": "Task updated",
-      "part_low_stock": "Spare part low on stock",
-      "part_out_of_stock": "Spare part out of stock",
-      "part_restocked": "Spare part restocked"
+      "task_completed": "Tehtävä suoritettu",
+      "task_overdue": "Tehtävä erääntyi",
+      "task_due_soon": "Tehtävä erääntyy pian",
+      "task_created": "Tehtävä luotu",
+      "task_updated": "Tehtävä päivitetty",
+      "part_low_stock": "Varaosan varasto vähissä",
+      "part_out_of_stock": "Varaosa loppu",
+      "part_restocked": "Varaosa täydennetty"
     }
   }
 }

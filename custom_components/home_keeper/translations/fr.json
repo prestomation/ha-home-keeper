@@ -44,8 +44,8 @@
           "description": "Pour les tâches fixed : date/heure ISO de la première occurrence (définit l'heure de la journée)."
         },
         "last_completed": {
-          "name": "Last completed",
-          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+          "name": "Dernière réalisation",
+          "description": "Date facultative de la « dernière réalisation ». Crée une première réalisation afin qu'une tâche flottante soit mesurée à partir de cette date (prochaine échéance = dernière réalisation + intervalle) au lieu d'être due immédiatement. À omettre pour une tâche jamais réalisée."
         },
         "device_id": {
           "name": "Appareil",
@@ -112,8 +112,8 @@
           "description": "L'id de la tâche à supprimer."
         },
         "force": {
-          "name": "Force",
-          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
+          "name": "Forcer",
+          "description": "Contourner la protection de suppression pour une tâche gérée par une autre intégration. À utiliser pour nettoyer une tâche dont l'intégration gestionnaire a été désinstallée ou dysfonctionne et ne peut pas la supprimer elle-même."
         }
       }
     },
@@ -186,8 +186,8 @@
           "description": "Icône mdi facultative (p. ex. mdi:piano)."
         },
         "metadata": {
-          "name": "Metadata",
-          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+          "name": "Métadonnées",
+          "description": "Entrées de métadonnées libres (libellé, type texte/lien/date, valeur) ; une date avec track:true devient également un capteur."
         },
         "parts": {
           "name": "Pièces",
@@ -244,8 +244,8 @@
           "description": "Icône mdi facultative (p. ex. mdi:piano)."
         },
         "metadata": {
-          "name": "Metadata",
-          "description": "Free-form metadata entries (see add_asset)."
+          "name": "Métadonnées",
+          "description": "Entrées de métadonnées libres (voir add_asset)."
         },
         "parts": {
           "name": "Pièces",
@@ -276,26 +276,26 @@
       "description": "Renvoyer tous les appareils/actifs en réponse."
     },
     "adjust_part_stock": {
-      "name": "Adjust part stock",
-      "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
+      "name": "Ajuster le stock de pièces",
+      "description": "Modifie le nombre de pièces de rechange disponibles d'un écart signé (limité à zéro). Lorsqu'une diminution atteint ou franchit le seuil de réapprovisionnement, un événement de stock bas est déclenché.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "ID du bien",
+          "description": "L'identifiant de l'appareil auquel la pièce appartient."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose stock to adjust."
+          "name": "ID de la pièce",
+          "description": "L'identifiant de la pièce dont le stock doit être ajusté."
         },
         "delta": {
-          "name": "Delta",
-          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+          "name": "Écart",
+          "description": "Variation signée à appliquer au nombre de pièces de rechange (par ex. -1 pour consommer, 2 pour réapprovisionner)."
         }
       }
     },
     "export_inventory": {
-      "name": "Export inventory",
-      "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
+      "name": "Exporter l'inventaire",
+      "description": "Renvoie un inventaire du domicile pour l'assurance sous forme de réponse (une ligne par appareil plus les totaux), avec un CSV prêt à enregistrer sous la clé « csv »."
     }
   },
   "entity": {
@@ -317,14 +317,14 @@
   },
   "device_automation": {
     "trigger_type": {
-      "task_completed": "Task completed",
-      "task_overdue": "Task became overdue",
-      "task_due_soon": "Task due soon",
-      "task_created": "Task created",
-      "task_updated": "Task updated",
-      "part_low_stock": "Spare part low on stock",
-      "part_out_of_stock": "Spare part out of stock",
-      "part_restocked": "Spare part restocked"
+      "task_completed": "Tâche réalisée",
+      "task_overdue": "Tâche devenue en retard",
+      "task_due_soon": "Tâche bientôt due",
+      "task_created": "Tâche créée",
+      "task_updated": "Tâche mise à jour",
+      "part_low_stock": "Pièce de rechange en stock bas",
+      "part_out_of_stock": "Pièce de rechange en rupture de stock",
+      "part_restocked": "Pièce de rechange réapprovisionnée"
     }
   }
 }

@@ -36,6 +36,10 @@ jobs:
       - name: Run Python unit tests
         run: bash ci/test-python-unit.sh
 
+      - name: Translation coverage report
+        if: always()
+        run: python3 ci/i18n-coverage.py --markdown >> "$GITHUB_STEP_SUMMARY"
+
       - name: Clean node_modules before validation
         run: rm -rf custom_components/home_keeper/frontend/node_modules
 

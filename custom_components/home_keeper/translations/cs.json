@@ -44,8 +44,8 @@
           "description": "Pro pevné úkoly: ISO datum a čas prvního výskytu (nastaví denní čas)."
         },
         "last_completed": {
-          "name": "Last completed",
-          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+          "name": "Naposledy dokončeno",
+          "description": "Volitelné datum 'naposledy provedeno'. Vytvoří počáteční dokončení, takže plovoucí úkol se začne počítat od tohoto data (příští termín = naposledy provedeno + interval) místo toho, aby byl splatný okamžitě. Vynechejte pro úkol, který nikdy nebyl proveden."
         },
         "device_id": {
           "name": "Zařízení",
@@ -112,8 +112,8 @@
           "description": "ID úkolu, který se má smazat."
         },
         "force": {
-          "name": "Force",
-          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
+          "name": "Vynutit",
+          "description": "Obejde ochranu před smazáním u úkolu spravovaného jinou integrací. Použijte to k vyčištění úkolu, jehož spravující integrace byla odinstalována nebo se chová chybně a nedokáže ho odstranit sama."
         }
       }
     },
@@ -187,7 +187,7 @@
         },
         "metadata": {
           "name": "Metadata",
-          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+          "description": "Volné položky metadat (popisek, typ text/odkaz/datum, hodnota); datum s track:true se navíc stane senzorem."
         },
         "parts": {
           "name": "Díly",
@@ -245,7 +245,7 @@
         },
         "metadata": {
           "name": "Metadata",
-          "description": "Free-form metadata entries (see add_asset)."
+          "description": "Volné položky metadat (viz add_asset)."
         },
         "parts": {
           "name": "Díly",
@@ -276,26 +276,26 @@
       "description": "Vrátit všechny spotřebiče/majetek jako odpověď."
     },
     "adjust_part_stock": {
-      "name": "Adjust part stock",
-      "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
+      "name": "Upravit zásobu dílů",
+      "description": "Změní počet skladových náhradních dílů o znaménkovou hodnotu (omezeno na nulu). Když pokles dosáhne prahu pro doobjednání nebo ho překročí, spustí se událost nízké zásoby.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "ID majetku",
+          "description": "Id spotřebiče, ke kterému díl patří."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose stock to adjust."
+          "name": "ID dílu",
+          "description": "Id dílu, jehož zásobu chcete upravit."
         },
         "delta": {
           "name": "Delta",
-          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+          "description": "Znaménková změna, která se použije na počet náhradních dílů (např. -1 pro spotřebu, 2 pro doplnění)."
         }
       }
     },
     "export_inventory": {
-      "name": "Export inventory",
-      "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
+      "name": "Exportovat inventář",
+      "description": "Vrátí domácí inventář pro pojištění jako odpověď (jeden řádek na spotřebič plus součty), s CSV připraveným k uložení pod klíčem \"csv\"."
     }
   },
   "entity": {
@@ -317,14 +317,14 @@
   },
   "device_automation": {
     "trigger_type": {
-      "task_completed": "Task completed",
-      "task_overdue": "Task became overdue",
-      "task_due_soon": "Task due soon",
-      "task_created": "Task created",
-      "task_updated": "Task updated",
-      "part_low_stock": "Spare part low on stock",
-      "part_out_of_stock": "Spare part out of stock",
-      "part_restocked": "Spare part restocked"
+      "task_completed": "Úkol dokončen",
+      "task_overdue": "Úkol se stal po termínu",
+      "task_due_soon": "Úkol brzy splatný",
+      "task_created": "Úkol vytvořen",
+      "task_updated": "Úkol aktualizován",
+      "part_low_stock": "Náhradní díl s nízkou zásobou",
+      "part_out_of_stock": "Náhradní díl není skladem",
+      "part_restocked": "Náhradní díl doplněn"
     }
   }
 }

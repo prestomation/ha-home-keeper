@@ -44,8 +44,8 @@
           "description": "For fixed-oppgaver: ISO-dato og -tid for første forekomst (angir tid på dagen)."
         },
         "last_completed": {
-          "name": "Last completed",
-          "description": "Optional 'last done' date. Seeds an initial completion so a floating task starts measured from this date (next due = last done + interval) instead of being due immediately. Omit for a task that has never been done."
+          "name": "Sist utført",
+          "description": "Valgfri dato for 'sist utført'. Legger til en innledende fullføring slik at en flytende oppgave måles fra denne datoen (neste forfall = sist utført + intervall) i stedet for å forfalle umiddelbart. Utelat for en oppgave som aldri har blitt utført."
         },
         "device_id": {
           "name": "Enhet",
@@ -112,8 +112,8 @@
           "description": "ID-en til oppgaven som skal slettes."
         },
         "force": {
-          "name": "Force",
-          "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
+          "name": "Tving",
+          "description": "Omgå slettebeskyttelse for en oppgave som administreres av en annen integrasjon. Bruk dette til å rydde opp i en oppgave hvis administrerende integrasjon ble avinstallert eller oppfører seg feil og ikke kan fjerne den selv."
         }
       }
     },
@@ -187,7 +187,7 @@
         },
         "metadata": {
           "name": "Metadata",
-          "description": "Free-form metadata entries (label, type text/link/date, value); a date with track:true also becomes a sensor."
+          "description": "Frie metadataoppføringer (etikett, type tekst/lenke/dato, verdi); en dato med track:true blir også en sensor."
         },
         "parts": {
           "name": "Deler",
@@ -217,7 +217,7 @@
         },
         "device_id": {
           "name": "Enhet",
-          "description": "Knytt en eiendel for en eksisterende enhet til en annen enhet."
+          "description": "Knytt om en eksisterende enhets eiendel."
         },
         "area_id": {
           "name": "Område",
@@ -245,7 +245,7 @@
         },
         "metadata": {
           "name": "Metadata",
-          "description": "Free-form metadata entries (see add_asset)."
+          "description": "Frie metadataoppføringer (se add_asset)."
         },
         "parts": {
           "name": "Deler",
@@ -276,26 +276,26 @@
       "description": "Returner alle apparater/eiendeler som et svar."
     },
     "adjust_part_stock": {
-      "name": "Adjust part stock",
-      "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
+      "name": "Juster reservedelslager",
+      "description": "Endre antall reservedeler på lager med en fortegnsbestemt differanse (begrenset til null). Når en reduksjon når eller krysser bestillingsterskelen, utløses en hendelse om lavt lager.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "Eiendels-ID",
+          "description": "ID-en til apparatet som reservedelen tilhører."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose stock to adjust."
+          "name": "Reservedels-ID",
+          "description": "ID-en til reservedelen hvis lager skal justeres."
         },
         "delta": {
-          "name": "Delta",
-          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+          "name": "Differanse",
+          "description": "Fortegnsbestemt endring som skal brukes på reservedelsantallet (f.eks. -1 for å forbruke, 2 for å fylle på)."
         }
       }
     },
     "export_inventory": {
-      "name": "Export inventory",
-      "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
+      "name": "Eksporter inventar",
+      "description": "Returner et hjemmeinventar for forsikring som et svar (én rad per apparat pluss totaler), med en klar-til-å-lagre CSV under nøkkelen \"csv\"."
     }
   },
   "entity": {
@@ -317,14 +317,14 @@
   },
   "device_automation": {
     "trigger_type": {
-      "task_completed": "Task completed",
-      "task_overdue": "Task became overdue",
-      "task_due_soon": "Task due soon",
-      "task_created": "Task created",
-      "task_updated": "Task updated",
-      "part_low_stock": "Spare part low on stock",
-      "part_out_of_stock": "Spare part out of stock",
-      "part_restocked": "Spare part restocked"
+      "task_completed": "Oppgave utført",
+      "task_overdue": "Oppgave ble forfalt",
+      "task_due_soon": "Oppgave forfaller snart",
+      "task_created": "Oppgave opprettet",
+      "task_updated": "Oppgave oppdatert",
+      "part_low_stock": "Lavt lager av reservedel",
+      "part_out_of_stock": "Reservedel utsolgt",
+      "part_restocked": "Reservedel fylt på"
     }
   }
 }

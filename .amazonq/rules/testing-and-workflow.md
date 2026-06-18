@@ -24,6 +24,34 @@
   (`tests/integration/ha_config/.storage/{home_keeper,core.config_entries}`);
   don't commit runtime-mutated state.
 
+## Translations (quality gates)
+`strings.json` (backend) and `frontend/src/locales/en.json` are the sources of
+truth. Both layers are guarded by tests — `tests/unit/test_translations_parity.py`
+and `custom_components/home_keeper/frontend/test/i18n.test.js` — that enforce, for
+every locale:
+- **Key parity** — identical key structure to the English source (no missing/extra).
+- **Placeholder parity** — same `{token}` set per key (no dropped/renamed/typo'd
+  tokens), and balanced braces.
+- **No untranslated leaks** — a value byte-identical to its English source is a
+  hard failure. Two allowlists are the only escape hatches: a tiny global
+  `INTENTIONALLY_IDENTICAL`/`_INTENTIONALLY_IDENTICAL` (product name, symbols, the
+  bare-`{prompt}` passthrough) and a per-locale `COGNATE_IDENTICAL`/`_COGNATE_IDENTICAL`
+  for reviewed cognates/loanwords (e.g. German "Name", French "Stock", universal
+  "Delta"/"Model"/"Link"). Adding a string to a locale means translating it or
+  justifying it in the per-locale allowlist — never leaving it in English.
+- **Key usage** (frontend) — every literal `t()`/`tn()` key exists in `en.json`;
+  `tn()` bases have an `.other` form; no *new* unused keys.
+- **Plural completeness** (frontend) — every plural base defines every CLDR
+  category the locale uses (Slavic `few`/`many`, etc.), not just `.other`.
+
+The only remaining baseline is `unused-keys-baseline.json` (frontend dead-key
+detection is heuristic, so its backlog is frozen and **may only shrink**): wire up
+or delete a baselined key and the test fails it as stale until you remove the
+entry. There is no untranslated/plural backlog — those gates are absolute.
+
+`python3 ci/i18n-coverage.py` prints per-locale coverage (informational, not a
+gate); CI publishes it to the job summary.
+
 ## Release
 - `manifest.json` `version` is the single source of truth. A release PR bumps it,
   bumps `const.py` `PANEL_VERSION` to match, and adds a `## [X.Y.Z]`
