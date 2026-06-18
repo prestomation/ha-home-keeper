@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
-
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -17,8 +15,7 @@ from . import recurrence
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
 from .entity import HomeKeeperTaskEntity
-
-DUE_SOON_WINDOW = timedelta(days=3)
+from .transitions import DUE_SOON_WINDOW  # shared so the event and entity agree
 
 
 async def async_setup_entry(

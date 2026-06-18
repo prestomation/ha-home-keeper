@@ -6,6 +6,33 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Added
+
+- **Comprehensive events for everything that happens — and automation-editor
+  triggers.** Home Keeper now fires a Home Assistant bus event for every meaningful
+  change, so you can automate on the full lifecycle instead of just completions and
+  low-stock. New events: tasks **created / updated / deleted / uncompleted / triggered**
+  and the time-based **overdue** and **due-soon** transitions; spare parts **out of
+  stock** and **restocked** (alongside the existing low-stock); and appliances
+  **created / updated / deleted**. The time and stock transitions are *edge-triggered*
+  (one event per crossing, never repeated every cycle) and are silently baselined on
+  restart, so a reboot never replays an "overdue" storm. Each event also shows up as a
+  **device trigger** in the visual automation editor — on a task's device or an
+  appliance you can pick *"Task became overdue"* or *"Spare part out of stock"* without
+  knowing the event name. The existing `home_keeper_task_completed` payload gains the
+  full task spine (device/area/recurrence/next-due/enabled) on top of its long-standing
+  fields. See the new [docs/EVENTS.md](docs/EVENTS.md) for the full catalog, payloads
+  and example automations.
+
+### Changed
+
+- **A spare part dropping straight to zero now fires `home_keeper_part_out_of_stock`,
+  not `home_keeper_part_low_stock`.** Out-of-stock is the more specific event and takes
+  precedence. If you had an automation listening for `home_keeper_part_low_stock` to
+  catch a part reaching zero, switch it to (or also listen for)
+  `home_keeper_part_out_of_stock`. A part crossing into low *without* hitting zero still
+  fires `home_keeper_part_low_stock` as before.
+
 ## [0.3.0b5] - 2026-06-17
 
 - **Flexible appliance metadata — custom fields replace the fixed metadata form.**

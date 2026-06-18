@@ -16,17 +16,58 @@ def test_payload_has_contract_fields():
     task = {
         "id": "t1",
         "name": "Medicine",
+        "device_id": "dev1",
+        "area_id": "kitchen",
+        "recurrence_type": "floating",
+        "next_due": "2026-07-01T10:00:00-04:00",
+        "enabled": True,
         "source": {"pawsistant": {"schedule_id": "s1"}},
     }
     data = ev.completion_event_data(task, WHEN, origin="pawsistant")
     assert data == {
         "task_id": "t1",
         "name": "Medicine",
+        "device_id": "dev1",
+        "area_id": "kitchen",
+        "recurrence_type": "floating",
+        "next_due": "2026-07-01T10:00:00-04:00",
+        "enabled": True,
         "source": {"pawsistant": {"schedule_id": "s1"}},
         "managed_by": None,
         "completed_at": WHEN.isoformat(),
         "origin": "pawsistant",
     }
+
+
+def test_task_event_spine_defaults_and_extra():
+    data = ev.task_event_data({"id": "t9"}, extra={"changed_fields": ["name"]})
+    assert data["task_id"] == "t9"
+    # Sensible defaults for a sparse task dict.
+    assert data["device_id"] is None and data["area_id"] is None
+    assert data["enabled"] is True and data["next_due"] is None
+    assert data["source"] is None and data["managed_by"] is None
+    assert data["changed_fields"] == ["name"]
+
+
+def test_asset_event_data_shape():
+    data = ev.asset_event_data(
+        {"id": "a1", "name": "Furnace", "device_id": "dev1"},
+        extra={"changed_fields": ["model"]},
+    )
+    assert data == {
+        "asset_id": "a1",
+        "asset_name": "Furnace",
+        "device_id": "dev1",
+        "changed_fields": ["model"],
+    }
+    # Tolerates a missing name.
+    assert ev.asset_event_data({"id": "a2"})["asset_name"] == ""
+
+
+def test_stock_event_data_alias_matches_low_stock():
+    asset = {"id": "a1", "name": "Furnace", "device_id": "dev1"}
+    part = {"id": "p1", "name": "Filter", "stock": 0, "reorder_at": 1}
+    assert ev.stock_event_data(asset, part) == ev.low_stock_event_data(asset, part)
 
 
 def test_payload_carries_managed_by():

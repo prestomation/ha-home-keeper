@@ -180,6 +180,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _register_services(hass)
+    # Setup is complete: the refreshes above have baselined current overdue/due-soon
+    # state silently, so start firing those events only for transitions from here on.
+    coordinator.enable_transition_events()
     return True
 
 

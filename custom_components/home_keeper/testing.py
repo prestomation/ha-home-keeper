@@ -36,7 +36,14 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.util import dt as dt_util
 
 from . import events, models, recurrence
-from .const import DOMAIN, EVENT_TASK_COMPLETED
+from .const import (
+    DOMAIN,
+    EVENT_TASK_COMPLETED,
+    EVENT_TASK_CREATED,
+    EVENT_TASK_DELETED,
+    EVENT_TASK_TRIGGERED,
+    EVENT_TASK_UPDATED,
+)
 
 # Permissive schema: the fake mirrors behaviour, not validation. Your integration's
 # real calls still flow through Home Keeper's strict schemas in production.
@@ -60,17 +67,25 @@ class FakeHomeKeeper:
     async def _add_task(self, call: ServiceCall) -> dict[str, Any]:
         task = models.build_task(dict(call.data), now=dt_util.now())
         self.tasks[task["id"]] = task
+        self.hass.bus.async_fire(EVENT_TASK_CREATED, events.task_event_data(task))
         return {"task_id": task["id"]}
 
     async def _update_task(self, call: ServiceCall) -> None:
         data = dict(call.data)
         task_id = data.pop("task_id")
-        self.tasks[task_id] = models.merge_update(
-            self.tasks[task_id], data, now=dt_util.now()
-        )
+        merged = models.merge_update(self.tasks[task_id], data, now=dt_util.now())
+        self.tasks[task_id] = merged
+        changed = sorted(k for k in data if k != "task_id")
+        if changed:
+            self.hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(merged, extra={"changed_fields": changed}),
+            )
 
     async def _delete_task(self, call: ServiceCall) -> None:
-        self.tasks.pop(call.data["task_id"], None)
+        task = self.tasks.pop(call.data["task_id"], None)
+        if task is not None:
+            self.hass.bus.async_fire(EVENT_TASK_DELETED, events.task_event_data(task))
 
     async def _complete_task(self, call: ServiceCall) -> None:
         self._complete(
@@ -91,6 +106,7 @@ class FakeHomeKeeper:
                 "trigger_task is only valid for triggered (condition-driven) tasks"
             )
         task["next_due"] = dt_util.now().isoformat()
+        self.hass.bus.async_fire(EVENT_TASK_TRIGGERED, events.task_event_data(task))
 
     async def _list_tasks(self, call: ServiceCall) -> dict[str, Any]:
         return {"tasks": [dict(t) for t in self.tasks.values()]}

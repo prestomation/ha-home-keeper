@@ -17,17 +17,48 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from . import assets, events, models, recurrence
+from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
+    EVENT_ASSET_CREATED,
+    EVENT_ASSET_DELETED,
+    EVENT_ASSET_UPDATED,
     EVENT_PART_LOW_STOCK,
+    EVENT_PART_OUT_OF_STOCK,
+    EVENT_PART_RESTOCKED,
     EVENT_TASK_COMPLETED,
+    EVENT_TASK_CREATED,
+    EVENT_TASK_DELETED,
+    EVENT_TASK_TRIGGERED,
+    EVENT_TASK_UNCOMPLETED,
+    EVENT_TASK_UPDATED,
     REC_TRIGGERED,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
+
+# Stock transition -> the bus event it fires (STOCK_NONE maps to nothing).
+_STOCK_EVENT = {
+    STOCK_LOW: EVENT_PART_LOW_STOCK,
+    STOCK_OUT: EVENT_PART_OUT_OF_STOCK,
+    STOCK_RESTOCKED: EVENT_PART_RESTOCKED,
+}
 from .reconcile import part_source as _part_source
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _changed_fields(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
+    """Top-level keys whose value differs between *before* and *after*.
+
+    Drives the ``changed_fields`` payload on the update events (and the decision to
+    suppress a no-op update event entirely). Backend-managed bookkeeping keys that
+    aren't user-meaningful are ignored so a reschedule doesn't spam ``next_due``/
+    ``completions`` churn as "changes".
+    """
+    ignore = {"completions", "last_completed", "next_due", "created"}
+    keys = (set(before) | set(after)) - ignore
+    return sorted(k for k in keys if before.get(k) != after.get(k))
 
 
 class HomeKeeperStore:
@@ -102,6 +133,7 @@ class HomeKeeperStore:
         self._tasks[task["id"]] = task
         await self._save()
         _LOGGER.debug("Added task %s (%s)", task["id"], task["name"])
+        self._hass.bus.async_fire(EVENT_TASK_CREATED, events.task_event_data(task))
         return task
 
     async def update_task(self, task_id: str, updates: dict[str, Any]) -> dict[str, Any]:
@@ -111,6 +143,14 @@ class HomeKeeperStore:
         merged = models.merge_update(existing, updates, now=dt_util.now())
         self._tasks[task_id] = merged
         await self._save()
+        # Fire only on a real change; carry which fields moved so automations can react
+        # selectively (e.g. a rename vs. a schedule change).
+        changed = _changed_fields(existing, merged)
+        if changed:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(merged, extra={"changed_fields": changed}),
+            )
         return merged
 
     async def trigger_task(self, task_id: str) -> dict[str, Any]:
@@ -134,6 +174,7 @@ class HomeKeeperStore:
         existing["next_due"] = dt_util.now().isoformat()
         await self._save()
         _LOGGER.debug("Triggered task %s (armed, due now)", task_id)
+        self._hass.bus.async_fire(EVENT_TASK_TRIGGERED, events.task_event_data(existing))
         return existing
 
     async def delete_task(self, task_id: str, *, force: bool = False) -> None:
@@ -155,9 +196,11 @@ class HomeKeeperStore:
                     f"Delete it from {display_name} instead."
                 )
         if task_id in self._tasks:
-            self._archive_task_history(self._tasks[task_id])
+            removed = self._tasks[task_id]
+            self._archive_task_history(removed)
             del self._tasks[task_id]
             await self._save()
+            self._hass.bus.async_fire(EVENT_TASK_DELETED, events.task_event_data(removed))
 
     def managed_task_orphaned(self, task: dict[str, Any]) -> bool:
         """Whether a managed task's owning integration is no longer present.
@@ -208,6 +251,13 @@ class HomeKeeperStore:
                 changed.append(tid)
         if changed:
             await self._save()
+            for tid in changed:
+                self._hass.bus.async_fire(
+                    EVENT_TASK_UPDATED,
+                    events.task_event_data(
+                        self._tasks[tid], extra={"changed_fields": ["device_id"]}
+                    ),
+                )
         return changed
 
     # ── asset reads ────────────────────────────────────────────────────────────
@@ -229,6 +279,7 @@ class HomeKeeperStore:
         self._assets[asset["id"]] = asset
         await self._save()
         _LOGGER.debug("Added asset %s (%s)", asset["id"], asset.get("name"))
+        self._hass.bus.async_fire(EVENT_ASSET_CREATED, events.asset_event_data(asset))
         return asset
 
     async def update_asset(
@@ -244,6 +295,12 @@ class HomeKeeperStore:
         merged = assets.merge_update(existing, updates, now=dt_util.now())
         self._assets[asset_id] = merged
         await self._save()
+        changed = _changed_fields(existing, merged)
+        if changed:
+            self._hass.bus.async_fire(
+                EVENT_ASSET_UPDATED,
+                events.asset_event_data(merged, extra={"changed_fields": changed}),
+            )
         return merged
 
     def _validate_parent(
@@ -289,15 +346,23 @@ class HomeKeeperStore:
         asset = self._assets.pop(asset_id, None)
         if asset is None:
             return None
-        self._tasks = {
-            tid: t
+        dropped_ids = {
+            tid
             for tid, t in self._tasks.items()
-            if _part_source(t) is None or _part_source(t).get("asset_id") != asset_id
+            if _part_source(t) is not None and _part_source(t).get("asset_id") == asset_id
+        }
+        dropped = [self._tasks[tid] for tid in dropped_ids]
+        self._tasks = {
+            tid: t for tid, t in self._tasks.items() if tid not in dropped_ids
         }
         for child in self._assets.values():
             if child.get("parent_asset_id") == asset_id:
                 child["parent_asset_id"] = None
         await self._save()
+        # The appliance and the wear-part tasks it owned are both gone — announce each.
+        for task in dropped:
+            self._hass.bus.async_fire(EVENT_TASK_DELETED, events.task_event_data(task))
+        self._hass.bus.async_fire(EVENT_ASSET_DELETED, events.asset_event_data(asset))
         return asset
 
     async def reconcile_part_tasks(self) -> bool:
@@ -306,19 +371,37 @@ class HomeKeeperStore:
         Delegates the (pure) computation to :func:`reconcile.reconcile_part_tasks`
         and persists the result. Returns ``True`` if any task changed.
         """
+        old_tasks = self._tasks
         new_tasks, changed = _reconcile_part_tasks(
-            self._assets, self._tasks, now=dt_util.now()
+            self._assets, old_tasks, now=dt_util.now()
         )
         if changed:
             # A part-derived task dropped here means its wear part was removed while
             # the appliance remains; preserve its history on the appliance. (Deleting
             # the whole appliance drops its derived tasks via delete_asset, before any
             # reconcile, so this only archives part removals — not appliance deletes.)
-            for tid, task in self._tasks.items():
-                if tid not in new_tasks and _part_source(task):
+            removed = [
+                task for tid, task in old_tasks.items() if tid not in new_tasks
+            ]
+            for task in removed:
+                if _part_source(task):
                     self._archive_task_history(task)
             self._tasks = new_tasks
             await self._save()
+            # Wear-part tasks are created/removed here, bypassing add_task/delete_task,
+            # so fire their lifecycle events directly (else this whole class of task is
+            # silent to automations). Reconcile-time *edits* are intentionally not fired
+            # as updates — they're internal churn (name/interval re-derivation), not a
+            # user action.
+            for task in removed:
+                self._hass.bus.async_fire(
+                    EVENT_TASK_DELETED, events.task_event_data(task)
+                )
+            for tid, task in new_tasks.items():
+                if tid not in old_tasks:
+                    self._hass.bus.async_fire(
+                        EVENT_TASK_CREATED, events.task_event_data(task)
+                    )
         return changed
 
     async def complete_task(
@@ -368,6 +451,7 @@ class HomeKeeperStore:
         updated = recurrence.remove_completion(dict(existing), ts, now=dt_util.now())
         self._tasks[task_id] = updated
         await self._save()
+        self._hass.bus.async_fire(EVENT_TASK_UNCOMPLETED, events.task_event_data(updated))
         return updated
 
     async def delete_archived_completion(
@@ -396,35 +480,40 @@ class HomeKeeperStore:
             if part.get("id") == src.get("part_id"):
                 part["last_replaced"] = when_date
                 # Completing a wear-part replacement consumes one stocked spare;
-                # signal a reorder if that drops it to/below its threshold.
-                if assets.consume_part_stock(part):
-                    self._emit_low_stock(asset, part)
+                # signal a low/out-of-stock crossing so users can automate a reorder.
+                self._emit_stock_event(assets.consume_part_stock(part), asset, part)
                 break
 
-    def _emit_low_stock(self, asset: dict[str, Any], part: dict[str, Any]) -> None:
-        """Fire the low-stock event so users can automate a reorder / shopping-list add."""
-        self._hass.bus.async_fire(
-            EVENT_PART_LOW_STOCK, events.low_stock_event_data(asset, part)
-        )
+    def _emit_stock_event(
+        self, transition: str, asset: dict[str, Any], part: dict[str, Any]
+    ) -> None:
+        """Fire the bus event for a stock *transition* (low / out / restocked), if any.
+
+        Edge-triggered: ``assets.stock_transition`` returns the crossing this change
+        caused (or ``none``), so users can automate a reorder / shopping-list add /
+        "back in stock" notification without Home Keeper owning a shopping integration.
+        """
+        event = _STOCK_EVENT.get(transition)
+        if event is not None:
+            self._hass.bus.async_fire(event, events.stock_event_data(asset, part))
 
     async def adjust_part_stock(
         self, asset_id: str, part_id: str, delta: int
     ) -> dict[str, Any]:
         """Change a part's on-hand spare count by ``delta`` (clamped at zero).
 
-        Persists and, when the adjustment crosses the part from not-low into low,
-        fires the low-stock event once (a restock, or a decrease while already low,
-        never nags). Returns the updated asset. Raises ``KeyError`` for an unknown
-        asset or part.
+        Persists and fires the matching edge-triggered stock event once when the
+        adjustment crosses a threshold — low-stock, out-of-stock, or restocked (a
+        decrease while already low never nags). Returns the updated asset. Raises
+        ``KeyError`` for an unknown asset or part.
         """
         asset = self._assets.get(asset_id)
         if asset is None:
             raise KeyError(asset_id)
         for part in asset.get("parts", []):
             if part.get("id") == part_id:
-                crossed_low = assets.adjust_part_stock(part, delta)
+                transition = assets.adjust_part_stock(part, delta)
                 await self._save()
-                if crossed_low:
-                    self._emit_low_stock(asset, part)
+                self._emit_stock_event(transition, asset, part)
                 return asset
         raise KeyError(part_id)

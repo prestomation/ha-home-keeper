@@ -44,6 +44,32 @@ EVENT_TASK_COMPLETED = f"{DOMAIN}_task_completed"
 # shopping integration. Payload is built in events.low_stock_event_data.
 EVENT_PART_LOW_STOCK = f"{DOMAIN}_part_low_stock"
 
+# Comprehensive event catalog (see docs/EVENTS.md). Every observable Home Keeper
+# state change fires a bus event built by a pure function in events.py, so
+# automations and other integrations can react to the full lifecycle — not just
+# completion and low-stock. Names follow ``{DOMAIN}_<noun>_<verb>``; payloads share
+# the common "spine" (events.task_event_data / events.asset_event_data).
+#
+# Task lifecycle — fired at the store.py mutation chokepoints.
+EVENT_TASK_CREATED = f"{DOMAIN}_task_created"
+EVENT_TASK_UPDATED = f"{DOMAIN}_task_updated"  # payload carries ``changed_fields``
+EVENT_TASK_DELETED = f"{DOMAIN}_task_deleted"
+EVENT_TASK_UNCOMPLETED = f"{DOMAIN}_task_uncompleted"  # a completion was undone
+EVENT_TASK_TRIGGERED = f"{DOMAIN}_task_triggered"  # a triggered task was armed
+# Time-based transitions — fired (edge-triggered) from the coordinator. A task is
+# announced at most once per ``next_due`` value while HA is running; see
+# transitions.detect_transitions and coordinator._async_update_data.
+EVENT_TASK_OVERDUE = f"{DOMAIN}_task_overdue"  # + ``days_overdue``
+EVENT_TASK_DUE_SOON = f"{DOMAIN}_task_due_soon"  # + ``due_in_hours``
+# Stock transitions — the siblings of EVENT_PART_LOW_STOCK, edge-triggered the same
+# way (see assets.stock_transition). out_of_stock wins over low on a single step.
+EVENT_PART_OUT_OF_STOCK = f"{DOMAIN}_part_out_of_stock"
+EVENT_PART_RESTOCKED = f"{DOMAIN}_part_restocked"
+# Asset (appliance) lifecycle — fired at the store.py asset chokepoints.
+EVENT_ASSET_CREATED = f"{DOMAIN}_asset_created"
+EVENT_ASSET_UPDATED = f"{DOMAIN}_asset_updated"  # payload carries ``changed_fields``
+EVENT_ASSET_DELETED = f"{DOMAIN}_asset_deleted"
+
 # Assets / appliances (virtual devices + asset metadata).
 # A virtual asset device is registered with identifier
 # (DOMAIN, f"{ASSET_IDENTIFIER_PREFIX}_{asset_id}"); the prefix keeps it from

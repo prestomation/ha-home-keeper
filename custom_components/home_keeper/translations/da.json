@@ -314,5 +314,17 @@
         "name": "{task_name}Markér som udført"
       }
     }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "task_completed": "Task completed",
+      "task_overdue": "Task became overdue",
+      "task_due_soon": "Task due soon",
+      "task_created": "Task created",
+      "task_updated": "Task updated",
+      "part_low_stock": "Spare part low on stock",
+      "part_out_of_stock": "Spare part out of stock",
+      "part_restocked": "Spare part restocked"
+    }
   }
 }
