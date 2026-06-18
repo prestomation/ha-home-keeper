@@ -1,0 +1,90 @@
+{
+  "ca": [
+    "asset.parts.many",
+    "asset.related.many",
+    "asset.subdevices.many",
+    "due.days_ago.many",
+    "due.in_days.many",
+    "history.count.many",
+    "managed.orphanBanner.many",
+    "recurrence.fixed.many",
+    "recurrence.floating.many",
+    "recurrence.unit.day.many",
+    "recurrence.unit.month.many",
+    "recurrence.unit.week.many"
+  ],
+  "cs": [
+    "history.count.few",
+    "history.count.many",
+    "managed.orphanBanner.few",
+    "managed.orphanBanner.many"
+  ],
+  "es": [
+    "asset.parts.many",
+    "asset.related.many",
+    "asset.subdevices.many",
+    "due.days_ago.many",
+    "due.in_days.many",
+    "history.count.many",
+    "managed.orphanBanner.many",
+    "recurrence.fixed.many",
+    "recurrence.floating.many",
+    "recurrence.unit.day.many",
+    "recurrence.unit.month.many",
+    "recurrence.unit.week.many"
+  ],
+  "fr": [
+    "asset.parts.many",
+    "asset.related.many",
+    "asset.subdevices.many",
+    "due.days_ago.many",
+    "due.in_days.many",
+    "history.count.many",
+    "managed.orphanBanner.many",
+    "recurrence.fixed.many",
+    "recurrence.floating.many",
+    "recurrence.unit.day.many",
+    "recurrence.unit.month.many",
+    "recurrence.unit.week.many"
+  ],
+  "it": [
+    "asset.parts.many",
+    "asset.related.many",
+    "asset.subdevices.many",
+    "due.days_ago.many",
+    "due.in_days.many",
+    "history.count.many",
+    "managed.orphanBanner.many",
+    "recurrence.fixed.many",
+    "recurrence.floating.many",
+    "recurrence.unit.day.many",
+    "recurrence.unit.month.many",
+    "recurrence.unit.week.many"
+  ],
+  "pl": [
+    "history.count.few",
+    "history.count.many",
+    "managed.orphanBanner.few",
+    "managed.orphanBanner.many"
+  ],
+  "pt-BR": [
+    "asset.parts.many",
+    "asset.related.many",
+    "asset.subdevices.many",
+    "due.days_ago.many",
+    "due.in_days.many",
+    "history.count.many",
+    "managed.orphanBanner.many",
+    "recurrence.fixed.many",
+    "recurrence.floating.many",
+    "recurrence.unit.day.many",
+    "recurrence.unit.month.many",
+    "recurrence.unit.week.many"
+  ],
+  "ru": [
+    "history.count.few",
+    "history.count.many",
+    "managed.orphanBanner.few",
+    "managed.orphanBanner.many"
+  ]
+}

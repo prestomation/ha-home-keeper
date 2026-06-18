@@ -24,6 +24,34 @@
   (`tests/integration/ha_config/.storage/{home_keeper,core.config_entries}`);
   don't commit runtime-mutated state.
 
+## Translations (quality gates)
+`strings.json` (backend) and `frontend/src/locales/en.json` are the sources of
+truth. Both layers are guarded by tests — `tests/unit/test_translations_parity.py`
+and `custom_components/home_keeper/frontend/test/i18n.test.js` — that enforce, for
+every locale:
+- **Key parity** — identical key structure to the English source (no missing/extra).
+- **Placeholder parity** — same `{token}` set per key (no dropped/renamed/typo'd
+  tokens), and balanced braces.
+- **No untranslated leaks** — a value byte-identical to its English source fails.
+  Two escape hatches only: a tiny curated `INTENTIONALLY_IDENTICAL`/`_INTENTIONALLY_IDENTICAL`
+  allowlist (brand names, symbols) and a frozen *backlog* baseline of the strings
+  already untranslated when the gate landed.
+- **Key usage** (frontend) — every literal `t()`/`tn()` key exists in `en.json`;
+  `tn()` bases have an `.other` form; no *new* unused keys.
+- **Plural completeness** (frontend) — every plural base defines every CLDR
+  category the locale uses (Slavic `few`/`many`, etc.), not just `.other`.
+
+**Baselines may only shrink.** The backlogs live in
+`tests/unit/translations_untranslated_baseline.json` and
+`custom_components/home_keeper/frontend/test/{untranslated,unused-keys,plural-categories}-baseline.json`.
+When you translate a baselined string (or wire up / delete an unused key), the
+test fails as a *stale* entry until you remove it from the baseline — that is how
+the debt is burned down. Never add a new entry to a baseline to silence a gate;
+translate the string or justify it in the allowlist instead.
+
+`python3 ci/i18n-coverage.py` prints per-locale coverage (informational, not a
+gate); CI publishes it to the job summary.
+
 ## Release
 - `manifest.json` `version` is the single source of truth. A release PR bumps it,
   bumps `const.py` `PANEL_VERSION` to match, and adds a `## [X.Y.Z]`
