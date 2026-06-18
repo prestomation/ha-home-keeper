@@ -77,6 +77,16 @@ template uniformly.
 | `home_keeper_task_uncompleted` | `delete_completion` | a completion is undone (re-derives `next_due`) |
 | `home_keeper_task_triggered` | `trigger_task` | a condition-driven task is armed (dormant → due-now) |
 
+> **`add_task`/`delete_task` are not the only mutation paths.** Wear-part maintenance tasks
+> are created and removed by `reconcile_part_tasks` (`store.py:303`), which rewrites
+> `self._tasks` directly and **bypasses** `add_task`/`delete_task`. It must therefore fire
+> `task_created` / `task_deleted` for the tasks it adds/removes (diff `new_tasks` against the
+> old map), or that whole class of tasks is silent. Likewise `detach_tasks_from_device`
+> (`store.py:196`) clears `device_id` in place — fire `task_updated` with
+> `changed_fields: ["device_id"]` (or explicitly document it as a non-event). The "fire at
+> the chokepoint" rule means *every* path that mutates the task map, not just the two CRUD
+> services.
+
 ### Time-based transitions — fired from the coordinator, **edge-triggered**
 
 | Event | When |
@@ -108,7 +118,7 @@ Task events carry a common core, so one automation template works across all of 
 {
   "task_id": "…",
   "name": "…",
-  "device_id": "…",          // resolved registry device id, or null
+  "device_id": "…",          // the task's stored registry device id, echoed verbatim; null if unset
   "area_id": "…",            // null if none
   "recurrence_type": "floating|fixed|triggered",
   "next_due": "…ISO… | null",
@@ -119,8 +129,11 @@ Task events carry a common core, so one automation template works across all of 
 ```
 
 - `task_completed` adopts the common spine and carries its completion-specific extras
-  (`completed_at`, `origin`) on top. (Its current fields are a subset of the spine plus
-  these two, so in practice this is the spine + 2 — but we're no longer *constrained* to
+  (`completed_at`, `origin`) on top. Concretely, `completion_event_data` (`events.py:14`,
+  today only `task_id, name, source, managed_by, completed_at, origin`) gains the missing
+  spine fields `device_id, area_id, recurrence_type, next_due, enabled`. The task dict it's
+  built from is the *post-completion* task (`store.py:346-355`), so `next_due` is already
+  the next occurrence — echo `task.get("next_due")`. (We're no longer *constrained* to
   preserve the exact legacy shape; see the pre-1.0 note above.)
 - `task_updated` adds `changed_fields: ["name", "interval", …]`.
 - `task_overdue` adds `next_due` and `days_overdue`; `task_due_soon` adds `next_due` and
@@ -141,35 +154,75 @@ Keep the **detection logic pure and unit-testable** (matching the `recurrence.py
 `assets.py` convention) in a new `transitions.py` (no HA imports):
 
 ```python
-detect_transitions(prev: dict[str, str], tasks, now) -> (events: list, next_state: dict)
+# state per task: the next_due we announced for, and which events already fired for it
+detect_transitions(prev: dict[str, TaskEdgeState], tasks, now) -> (events, next_state)
 ```
 
-The coordinator holds the small `prev` state map (task_id → the `next_due` value already
-announced) and fires what `detect_transitions` returns. Firing stays in the HA layer; the
-edge logic stays pure.
+**Where it runs — the plan's earlier draft glossed this.** `_async_update_data`
+(`coordinator.py:65`) today only *reads* the store; it fires nothing. Override it so each
+refresh does: read the task map → call `detect_transitions(self._prev, tasks, now)` → fire
+the returned events on the bus → store `next_state` as `self._prev` → return the map. Because
+this runs on **both** the 5-min interval **and** every post-mutation
+`async_request_refresh()` (every service/store mutation already requests a refresh), a
+completion that re-arms a triggered task is observed promptly without a second mechanism.
+Firing stays in the HA layer; the edge logic in `transitions.py` stays pure.
 
 ### Decision B — Edge-triggering and idempotency (don't spam)
 
-Every transition event fires **once per crossing**, never on every 5-minute tick:
+Every transition event fires **once per crossing**, never on every 5-minute tick.
 
-- **Overdue / due-soon:** announce a task at most once per `next_due` value. Completing or
-  rescheduling advances `next_due`, which re-arms the next announcement naturally. The
-  state is keyed on `next_due`, so a task that is *still* overdue next cycle does **not**
-  refire.
+- **Per-task edge state — not a bare `next_due` key.** Keying only on the `next_due` *value*
+  isn't enough: a task crosses **due-soon first, then overdue** against the *same* `next_due`,
+  so the two events need independent "already-fired" flags, and re-firing must reset when
+  `next_due` changes. The state per task is therefore:
+
+  ```python
+  TaskEdgeState = {"next_due": str | None, "due_soon_fired": bool, "overdue_fired": bool}
+  ```
+
+  On each refresh, per task: if its `next_due` differs from the stored one, reset both flags
+  (a reschedule/completion re-arms it). Then fire `due_soon` once if now in the window and
+  `not due_soon_fired`; fire `overdue` once if `now >= next_due` and `not overdue_fired`;
+  set the flags. A task that is *still* overdue next cycle does **not** refire.
+- **Skip non-eligible tasks.** `recurrence.is_overdue`/`is_due_soon` (`recurrence.py:289`)
+  already return `False` when `next_due is None` — so **dormant triggered tasks** (next_due
+  `None`) and tasks with no due date never fire, and arming one (`trigger_task` → a fresh
+  `now` timestamp) is a `next_due` change that correctly re-arms a single overdue
+  announcement. Additionally **filter `enabled is False`**: a disabled task with a stale past
+  `next_due` must not fire. (Re-enabling does not replay missed events — its state is
+  baselined as of the next refresh.)
 - **Restart semantics (recommended): baseline silently on first refresh.** On the first
-  coordinator run after startup, seed the `prev` map from current state **without firing**,
-  so HA restarting doesn't replay an "overdue" storm for tasks that were already overdue.
-  Events then fire only for transitions observed *while HA is running*. The overdue
-  binary_sensor still reflects the steady state regardless, so nothing is lost — this only
-  governs the one-shot *event*. (Alternative: persist a per-task `overdue_announced` marker
-  in the store for cross-restart firing — rejected for v1 as storage churn for little gain;
-  noted as a future option.)
-- **Stock:** out-of-stock and restocked are edge-triggered exactly like the existing
-  low-stock crossing — extend the pure `assets.py` helpers to return a richer **transition
-  descriptor** (`none | low | out | restocked`) instead of today's bare `crossed_low`
-  boolean, then `store.py` maps that to the right event. One chokepoint, three events, no
-  double-firing (a single decrement that goes low *and* to zero fires the most specific:
-  `out_of_stock`).
+  coordinator run after startup, seed the per-task state from current values **without
+  firing**, so an HA restart doesn't replay an "overdue" storm for tasks that were already
+  overdue. Events then fire only for transitions observed *while HA is running*; the overdue
+  binary_sensor still reflects steady state, so nothing is lost — this governs only the
+  one-shot *event*. The state is in-memory (no per-tick storage writes). (Alternative:
+  persist the per-task markers for cross-restart firing — rejected for v1 as churn for
+  little gain; noted as a future option, along with a possible `replay`/clear escape hatch.)
+- **Stock — a pure transition function, not a bare boolean.** Today `consume_part_stock` /
+  `adjust_part_stock` (`assets.py:314,330`) return only `crossed_low: bool`, which **cannot
+  express out-of-stock**. Replace with a pure helper that compares old/new against *both*
+  thresholds, with `out` taking precedence over `low`:
+
+  ```python
+  def stock_transition(old: int, new: int, reorder_at: int | None) -> str:
+      if reorder_at is None:        # untracked part — never fires
+          return "none"
+      if new == 0 and old > 0:      # most specific; wins over a simultaneous low crossing
+          return "out"
+      if new <= reorder_at and old > reorder_at:
+          return "low"
+      if new > reorder_at and old <= reorder_at:
+          return "restocked"
+      return "none"
+  ```
+
+  `store.py` maps `out|low|restocked` to the corresponding event. Events fire **only when the
+  part tracks both `stock` and `reorder_at`** (untracked parts return `none`). This also
+  closes the gap where a part already at/below threshold drops to zero — the old boolean saw
+  "already low" and stayed silent; `stock_transition` fires `out`. Enumerate and update both
+  current callers (`_stamp_part_replacement` consume path, `adjust_part_stock`) when changing
+  the return type.
 
 ### Decision C — Automation-UI surface: device triggers
 
@@ -184,9 +237,20 @@ This works broadly because nearly everything in Home Keeper already has a regist
 `async_get_triggers(hass, device_id)` offers, per device, the relevant subset: *Task
 completed / overdue / due-soon* (and created/updated) for task devices; *Low stock /
 Out of stock / Restocked* for appliance devices. `async_attach_trigger` delegates to HA's
-`event_trigger` with the event type and a `device_id` filter on the payload — so the device
-trigger is a thin, well-tested wrapper over the same bus event. Trigger labels live in
-`strings.json` under `device_automation`, with **translation parity** across all 16 locales
+`event_trigger`, filtering the event payload — **but on the right key**:
+
+- A **self-owned task device** is `(DOMAIN, task_id)`, yet that task's event payload carries
+  `device_id: null` (its `device_id` is unset). Filtering by `device_id` would match nothing
+  *and* leak every other standalone task's events. So for a self-owned task device, resolve
+  the registry device back to its `task_id` (read the `(DOMAIN, …)` identifier) and filter on
+  **`event.data.task_id`**.
+- A task **attached to an existing device** (or an **asset/appliance** virtual device) is
+  shared by potentially several tasks/parts; filter on **`event.data.device_id`**.
+
+So `async_attach_trigger` picks the filter key from the device kind. (This is why the
+detector/builders must populate `task_id` on every task event and `device_id` on stock/asset
+events.) Trigger labels live in `strings.json` under `device_automation`, with **translation
+parity** across all 16 locales
 (enforced by `test_translations_parity.py`).
 
 Global, non-device automations (e.g. "*any* part low" → one shopping-list automation)
@@ -222,37 +286,56 @@ HA best-practices for the device triggers).
 3. **`assets.py`** — change `consume_part_stock` / `adjust_part_stock` to return a
    transition descriptor (`none|low|out|restocked`) instead of a bare boolean; pure, fully
    unit-tested across boundary values (`stock == reorder_at`, `0`, recovery).
-4. **`store.py`** — fire events at the chokepoints: `add_task`/`update_task`/`delete_task`/
-   `trigger_task`/`delete_completion`, `add_asset`/`update_asset`/`delete_asset`, and map
-   the stock descriptor in `_emit_low_stock`'s sibling(s). `update_task` fires only when
-   `merged != existing`, with `changed_fields` computed from the diff.
-5. **`testing.py`** — extend the fake to expose the new events via the same builders, so
-   integrators can test reactions (mirrors the existing `fire_user_completion`).
-6. **Tests** — unit (`events.py` builders, `assets.py` transitions), integration (each
-   mutation fires exactly one event with the right payload; no double-fire on a single
-   decrement that goes low-and-zero).
+4. **`store.py`** — fire events at **every** chokepoint that mutates the map, not just the
+   CRUD services:
+   - `add_task`/`update_task`/`delete_task`/`trigger_task`/`delete_completion`,
+     `add_asset`/`update_asset`/`delete_asset`, and the stock descriptor in the
+     `_emit_low_stock` sibling(s).
+   - **`reconcile_part_tasks`** (`store.py:303`) — diff `new_tasks` vs the old map and fire
+     `task_created`/`task_deleted` for the wear-part tasks it adds/removes (else they're
+     silent).
+   - **`detach_tasks_from_device`** (`store.py:196`) — fire `task_updated`
+     (`changed_fields: ["device_id"]`) for each task it clears.
+   - `update_task` fires only when `merged != existing`, with `changed_fields` from the diff.
+5. **`testing.py`** — extend the fake to fire the new events via the same `events.py`
+   builders (so the integrator contract can't drift), adding helpers mirroring
+   `fire_user_completion`: at least `fire_task_created(task)`, `fire_task_updated(task,
+   changed_fields)`, `fire_task_deleted(task_id)`, and the stock-event helpers. (Time-based
+   overdue/due-soon helpers come with Phase 2's `now` injection.)
+6. **Tests** — unit (`events.py` builders, `assets.py` `stock_transition` across all
+   boundaries: `==reorder_at`, →0, restock-from-0, untracked→`none`), integration (each
+   mutation fires exactly one event with the right payload; a single decrement crossing both
+   low and zero fires **`out_of_stock` only**; `reconcile_part_tasks` create/remove fire).
 
 ### Phase 2 — Time-based transitions (overdue / due-soon)
 
-1. **`transitions.py`** (new, pure) — `detect_transitions(prev, tasks, now)` returning the
-   events to fire and the next state map; `DUE_SOON_WINDOW` constant (default 24 h).
-2. **`coordinator.py`** — hold the `prev` map, baseline-on-first-refresh (Decision B), call
-   the detector each refresh, fire results on the bus. Fire on the **immediate** post-mutation
-   refresh too, so completing a task that re-arms a triggered one is observed promptly.
-3. **Tests** — unit: crossing fires once, still-overdue doesn't refire, completion re-arms,
-   startup baselines silently, DST/timezone-aware `now` (deterministic, injected `now`).
+1. **`transitions.py`** (new, pure) — `detect_transitions(prev, tasks, now)` over the
+   `TaskEdgeState` map (Decision B): per-task `due_soon_fired`/`overdue_fired` flags reset on
+   `next_due` change, skip `next_due is None` and `enabled is False`; `DUE_SOON_WINDOW`
+   constant (default 24 h).
+2. **`coordinator.py`** — override `_async_update_data` (Decision A) to read → detect → fire →
+   store `self._prev` → return. Baseline-on-first-refresh (no firing on the first run). Runs on
+   both the 5-min interval and every post-mutation `async_request_refresh()`, so a completion
+   re-arming a triggered task is observed promptly — no second mechanism.
+3. **Tests** — unit: due-soon then overdue both fire once for one `next_due`; still-overdue
+   doesn't refire; completion/reschedule re-arms; disabled task with stale `next_due` never
+   fires; dormant triggered task fires only on arm; startup baselines silently; DST/timezone
+   boundary on the due-soon window (deterministic, injected `now`).
 
 ### Phase 3 — Automation-UI device triggers
 
 1. **`device_trigger.py`** (new) — `async_get_triggers` (task vs appliance device subsets),
-   `async_attach_trigger` delegating to `event_trigger` with a `device_id` data filter,
-   `TRIGGER_SCHEMA`, and `async_get_trigger_capabilities` where useful.
+   `async_attach_trigger` delegating to `event_trigger` with the **filter key chosen by
+   device kind** (Decision C): `task_id` for self-owned task devices, `device_id` for
+   existing-device/asset devices. `TRIGGER_SCHEMA`, and `async_get_trigger_capabilities`
+   where useful.
 2. **`strings.json` + `translations/*.json`** — `device_automation.trigger_type` labels,
    parity across all locales (enforced by the parity test).
 3. **`manifest.json`** — no change (device triggers need no extra dependency).
-4. **Tests** — `async_get_triggers` returns the right set per device kind;
-   `async_attach_trigger` fires the action when the matching bus event is emitted; a
-   non-matching `device_id` does not.
+4. **Tests** — `async_get_triggers` returns the right set per device kind; a **self-owned
+   task device** trigger fires for *its* task's event and **not** for another standalone
+   task's (the `device_id: null` leak this avoids); an existing-device trigger fires for any
+   task on that device; a non-matching device does not fire.
 
 ### Phase 4 — Documentation (the deliverable's whole point)
 
