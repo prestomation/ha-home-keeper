@@ -217,7 +217,7 @@
         },
         "device_id": {
           "name": "Enhet",
-          "description": "Knytt en eiendel for en eksisterende enhet til en annen enhet."
+          "description": "Knytt om en eksisterende enhets eiendel."
         },
         "area_id": {
           "name": "Område",
@@ -280,7 +280,7 @@
       "description": "Endre antall reservedeler på lager med en fortegnsbestemt differanse (begrenset til null). Når en reduksjon når eller krysser bestillingsterskelen, utløses en hendelse om lavt lager.",
       "fields": {
         "asset_id": {
-          "name": "Ressurs-ID",
+          "name": "Eiendels-ID",
           "description": "ID-en til apparatet som reservedelen tilhører."
         },
         "part_id": {

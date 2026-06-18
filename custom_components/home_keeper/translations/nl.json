@@ -45,7 +45,7 @@
         },
         "last_completed": {
           "name": "Laatst voltooid",
-          "description": "Optionele datum waarop de taak het laatst is uitgevoerd. Stelt een eerste voltooiing in zodat een zwevende taak vanaf deze datum wordt gemeten (volgende vervaldatum = laatst uitgevoerd + interval) in plaats van meteen verschuldigd te zijn. Weglaten voor een taak die nog nooit is uitgevoerd."
+          "description": "Optionele datum waarop de taak het laatst is uitgevoerd. Stelt een eerste voltooiing in zodat een zwevende taak vanaf deze datum wordt gemeten (volgende vervaldatum = laatst uitgevoerd + interval) in plaats van meteen te vervallen. Weglaten voor een taak die nog nooit is uitgevoerd."
         },
         "device_id": {
           "name": "Apparaat",
@@ -133,7 +133,7 @@
     },
     "trigger_task": {
       "name": "Taak activeren",
-      "description": "Een voorwaardegestuurde (geactiveerde) taak scherpstellen zodat deze nu als verschuldigd wordt weergegeven — de gebruikersgerichte tegenhanger van Taak voltooien (die deze weer in rust zet). Idempotent; alleen geldig voor geactiveerde taken.",
+      "description": "Een voorwaardegestuurde (geactiveerde) taak scherpstellen zodat deze nu als vervallen wordt weergegeven — de gebruikersgerichte tegenhanger van Taak voltooien (die deze weer in rust zet). Idempotent; alleen geldig voor geactiveerde taken.",
       "fields": {
         "task_id": {
           "name": "Taak-ID",
@@ -319,7 +319,7 @@
     "trigger_type": {
       "task_completed": "Taak voltooid",
       "task_overdue": "Taak is verlopen",
-      "task_due_soon": "Taak binnenkort verschuldigd",
+      "task_due_soon": "Taak vervalt binnenkort",
       "task_created": "Taak aangemaakt",
       "task_updated": "Taak bijgewerkt",
       "part_low_stock": "Reserveonderdeel bijna op",

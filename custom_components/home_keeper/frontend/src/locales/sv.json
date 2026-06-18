@@ -120,7 +120,7 @@
   "history.empty": "Inga slutföranden registrerade ännu.",
   "history.count.one": "{n} slutförande",
   "history.count.other": "{n} slutföranden",
-  "history.cadence": "≈ var {days} dag",
+  "history.cadence": "≈ var {days}:e dag",
   "history.archived": "borttagen uppgift",
   "btn.back": "Tillbaka",
   "group.by": "Gruppera efter",

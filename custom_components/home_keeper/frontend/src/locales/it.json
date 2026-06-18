@@ -174,7 +174,7 @@
   "meta.seed.warranty_provider": "Fornitore della garanzia",
   "meta.seed.vendor": "Venditore",
   "meta.seed.notes": "Note",
-  "asset.parts.many": "{n} ricambi",
+  "asset.parts.many": "{n} componenti",
   "asset.related.many": "{n} correlati",
   "asset.subdevices.many": "{n} sottodispositivi",
   "due.days_ago.many": "{n} giorni fa",

@@ -182,7 +182,7 @@
   "history.count.many": "{n} réalisations",
   "managed.orphanBanner.many": "{n} tâches sont gérées par des intégrations qui ne sont plus installées.",
   "recurrence.fixed.many": "tous les {n} {unit}",
-  "recurrence.floating.many": "tous les {n} {unit} après réalisation",
+  "recurrence.floating.many": "tous les {n} {unit} après l'achèvement",
   "recurrence.unit.day.many": "jours",
   "recurrence.unit.month.many": "mois",
   "recurrence.unit.week.many": "semaines"
