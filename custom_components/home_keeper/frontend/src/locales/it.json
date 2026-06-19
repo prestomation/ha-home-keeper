@@ -185,5 +185,13 @@
   "recurrence.floating.many": "ogni {n} {unit} dopo il completamento",
   "recurrence.unit.day.many": "giorni",
   "recurrence.unit.month.many": "mesi",
-  "recurrence.unit.week.many": "settimane"
+  "recurrence.unit.week.many": "settimane",
+  "tab.settings": "Impostazioni",
+  "settings.heading": "Sincronizzazione sensori di problema",
+  "settings.help": "Rispecchia i sensori binari con classe dispositivo «problema» come attività. Un'attività sincronizzata resta attiva finché il sensore segnala un problema e si azzera automaticamente quando l'integrazione di origine lo risolve; non può essere completata in Home Keeper. Escludi sotto sensori, aree o etichette specifici.",
+  "settings.saved": "Salvato",
+  "settings.sync_problem_sensors": "Sincronizza i sensori di problema come attività",
+  "settings.problem_sensor_exclude_entities": "Sensori esclusi",
+  "settings.problem_sensor_exclude_areas": "Aree escluse",
+  "settings.problem_sensor_exclude_labels": "Etichette escluse"
 }

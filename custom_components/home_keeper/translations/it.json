@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Esporta inventario",
       "description": "Restituisce un inventario domestico per l'assicurazione come risposta (una riga per elettrodomestico più i totali), con un CSV pronto da salvare sotto la chiave «csv»."
+    },
+    "set_options": {
+      "name": "Imposta opzioni",
+      "description": "Aggiorna le opzioni dell'integrazione Home Keeper: le stesse impostazioni della scheda Impostazioni del pannello e del flusso opzioni. Cambiano solo i campi forniti.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Sincronizza i sensori di problema come attività"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Sensori esclusi"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Aree escluse"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Etichette escluse"
+        }
+      }
     }
   },
   "entity": {

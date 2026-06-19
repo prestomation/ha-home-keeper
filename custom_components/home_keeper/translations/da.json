@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Eksportér inventar",
       "description": "Returnér et hjemmeinventar til forsikring som et svar (én række pr. apparat plus totaler) med en klar-til-at-gemme CSV under nøglen \"csv\"."
+    },
+    "set_options": {
+      "name": "Angiv indstillinger",
+      "description": "Opdater Home Keepers integrationsindstillinger — de samme som fanen Indstillinger i panelet og indstillingsdialogen. Kun de angivne felter ændres.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Synkronisér problemsensorer som opgaver"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Udeladte sensorer"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Udeladte områder"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Udeladte etiketter"
+        }
+      }
     }
   },
   "entity": {

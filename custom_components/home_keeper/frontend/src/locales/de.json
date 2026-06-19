@@ -173,5 +173,13 @@
   "meta.seed.install_date": "Einbaudatum",
   "meta.seed.warranty_provider": "Garantiegeber",
   "meta.seed.vendor": "Anbieter",
-  "meta.seed.notes": "Notizen"
+  "meta.seed.notes": "Notizen",
+  "tab.settings": "Einstellungen",
+  "settings.heading": "Problemsensor-Synchronisierung",
+  "settings.help": "Binärsensoren mit der Geräteklasse „Problem“ als Aufgaben spiegeln. Eine synchronisierte Aufgabe bleibt aktiv, solange ihr Sensor ein Problem meldet, und wird automatisch gelöscht, wenn die Quellintegration es behebt; sie kann in Home Keeper nicht abgeschlossen werden. Schließe unten bestimmte Sensoren, Bereiche oder Labels aus.",
+  "settings.saved": "Gespeichert",
+  "settings.sync_problem_sensors": "Problemsensoren als Aufgaben synchronisieren",
+  "settings.problem_sensor_exclude_entities": "Ausgeschlossene Sensoren",
+  "settings.problem_sensor_exclude_areas": "Ausgeschlossene Bereiche",
+  "settings.problem_sensor_exclude_labels": "Ausgeschlossene Labels"
 }

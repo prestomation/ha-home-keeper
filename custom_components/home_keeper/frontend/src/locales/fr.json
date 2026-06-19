@@ -185,5 +185,13 @@
   "recurrence.floating.many": "tous les {n} {unit} après l'achèvement",
   "recurrence.unit.day.many": "jours",
   "recurrence.unit.month.many": "mois",
-  "recurrence.unit.week.many": "semaines"
+  "recurrence.unit.week.many": "semaines",
+  "tab.settings": "Réglages",
+  "settings.heading": "Synchronisation des capteurs de problème",
+  "settings.help": "Refléter les capteurs binaires de classe « problème » sous forme de tâches. Une tâche synchronisée reste active tant que son capteur signale un problème et se vide automatiquement lorsque l'intégration d'origine le résout ; elle ne peut pas être terminée dans Home Keeper. Excluez ci-dessous certains capteurs, zones ou étiquettes.",
+  "settings.saved": "Enregistré",
+  "settings.sync_problem_sensors": "Synchroniser les capteurs de problème en tâches",
+  "settings.problem_sensor_exclude_entities": "Capteurs exclus",
+  "settings.problem_sensor_exclude_areas": "Zones exclues",
+  "settings.problem_sensor_exclude_labels": "Étiquettes exclues"
 }

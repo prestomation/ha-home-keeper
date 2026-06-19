@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Eksportuj inwentarz",
       "description": "Zwraca inwentarz domowy do celów ubezpieczeniowych jako odpowiedź (jeden wiersz na urządzenie plus sumy), z gotowym do zapisania plikiem CSV pod kluczem \"csv\"."
+    },
+    "set_options": {
+      "name": "Ustaw opcje",
+      "description": "Aktualizuje opcje integracji Home Keeper — te same ustawienia co karta Ustawienia w panelu i okno opcji. Zmieniają się tylko przekazane pola.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Synchronizuj czujniki problemów jako zadania"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Wykluczone czujniki"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Wykluczone obszary"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Wykluczone etykiety"
+        }
+      }
     }
   },
   "entity": {

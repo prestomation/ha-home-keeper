@@ -100,7 +100,7 @@ export function areaName(
 // ── panel routing ────────────────────────────────────────────────────────────
 
 /** The navigable list view; mirrors the panel's two tabs. */
-export type PanelView = 'tasks' | 'appliances';
+export type PanelView = 'tasks' | 'appliances' | 'settings';
 
 /**
  * A fully-resolved panel location: which tab is shown and, optionally, the
@@ -124,8 +124,10 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
     .split('/')
     .map((p) => p.trim())
     .filter(Boolean);
-  const view: PanelView = parts[0] === 'appliances' ? 'appliances' : 'tasks';
-  if (parts[1]) {
+  const view: PanelView =
+    parts[0] === 'appliances' ? 'appliances' : parts[0] === 'settings' ? 'settings' : 'tasks';
+  // Only the tasks/appliances lists drill into a detail page; settings has none.
+  if (parts[1] && view !== 'settings') {
     const kind = view === 'appliances' ? 'asset' : 'task';
     return { view, detail: { kind, id: decodeURIComponent(parts[1]) } };
   }

@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Exporter l'inventaire",
       "description": "Renvoie un inventaire du domicile pour l'assurance sous forme de réponse (une ligne par appareil plus les totaux), avec un CSV prêt à enregistrer sous la clé « csv »."
+    },
+    "set_options": {
+      "name": "Définir les options",
+      "description": "Met à jour les options de l'intégration Home Keeper — les mêmes réglages que l'onglet Réglages du panneau et le flux d'options. Seuls les champs fournis changent.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Synchroniser les capteurs de problème en tâches"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Capteurs exclus"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Zones exclues"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Étiquettes exclues"
+        }
+      }
     }
   },
   "entity": {

@@ -39,6 +39,13 @@ export const selDevice = (multiple = false): Selector => ({
   device: multiple ? { multiple: true } : {},
 });
 export const selArea = (multiple = false): Selector => ({ area: multiple ? { multiple: true } : {} });
+export const selLabel = (multiple = false): Selector => ({
+  label: multiple ? { multiple: true } : {},
+});
+export const selEntity = (
+  filter: { domain?: string; device_class?: string },
+  multiple = false,
+): Selector => ({ entity: { filter, multiple } });
 export const selIcon = (): Selector => ({ icon: {} });
 export const selSelect = (
   options: { value: string; label: string }[],
@@ -204,4 +211,21 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     if (lastCompleted) payload.last_completed = lastCompleted;
   }
   return payload;
+}
+
+/**
+ * The `ha-form` schema for the panel's Settings tab — a 1:1 mirror of the options
+ * flow: the problem-sensor sync toggle plus entity / area / label exclusions. The
+ * entity picker is filtered to `device_class: problem` binary sensors.
+ */
+export function settingsSchema(): FormField[] {
+  return [
+    { name: 'sync_problem_sensors', selector: selBool() },
+    {
+      name: 'problem_sensor_exclude_entities',
+      selector: selEntity({ domain: 'binary_sensor', device_class: 'problem' }, true),
+    },
+    { name: 'problem_sensor_exclude_areas', selector: selArea(true) },
+    { name: 'problem_sensor_exclude_labels', selector: selLabel(true) },
+  ];
 }

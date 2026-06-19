@@ -434,3 +434,38 @@ export_inventory:
     Return a home inventory for insurance as a response — one row per appliance
     (make/model/serial, purchase + warranty dates, replacement cost, on-hand spares
     value) with rolled-up totals, plus a ready-to-save CSV under the "csv" key.
+
+set_options:
+  name: Set options
+  description: >-
+    Update Home Keeper's integration options (the same settings as the panel's
+    Settings tab and the options flow). Only the fields you pass change. Currently
+    controls whether device_class "problem" binary sensors are synced as tasks, with
+    entity / area / label exclusions.
+  fields:
+    sync_problem_sensors:
+      name: Sync problem sensors as tasks
+      description: Mirror every device_class "problem" binary sensor as a task.
+      selector:
+        boolean:
+    problem_sensor_exclude_entities:
+      name: Excluded sensors
+      description: Problem binary sensors to leave out of syncing.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            domain: binary_sensor
+            device_class: problem
+    problem_sensor_exclude_areas:
+      name: Excluded areas
+      description: Areas whose problem sensors should not be synced.
+      selector:
+        area:
+          multiple: true
+    problem_sensor_exclude_labels:
+      name: Excluded labels
+      description: Labels whose problem sensors should not be synced.
+      selector:
+        label:
+          multiple: true

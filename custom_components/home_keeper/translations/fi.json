@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Vie luettelo",
       "description": "Palauta kotiluettelo vakuutusta varten vastauksena (yksi rivi laitetta kohden sekä summat), valmiina tallennettavan CSV-tiedoston kanssa avaimen \"csv\" alla."
+    },
+    "set_options": {
+      "name": "Aseta asetukset",
+      "description": "Päivitä Home Keeperin integraatioasetukset – samat kuin paneelin Asetukset-välilehdellä ja asetusvalintaikkunassa. Vain annetut kentät muuttuvat.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Synkronoi ongelma-anturit tehtäviksi"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Poissuljetut anturit"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Poissuljetut alueet"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Poissuljetut tunnisteet"
+        }
+      }
     }
   },
   "entity": {

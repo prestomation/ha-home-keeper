@@ -168,6 +168,17 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   the existing per-task entities — do NOT build a parallel "problem sensor". A synced
   task that's created/removed reloads the entry (per-task entities); arm/clear is a
   plain coordinator refresh.
+- **Options have three editing surfaces that share `options.py`.** Config-entry
+  `options` are edited from the **options flow**, the **`home_keeper.set_options`
+  service**, AND the panel's **Settings tab** (via `home_keeper/get_options` +
+  `home_keeper/set_options` websocket commands). Key list / defaults / normalization
+  live in `options.py` (`current_options`, `async_set_options`) so they can't drift;
+  every writer goes through `async_update_entry`, which fires the update listener and
+  reloads. Per the services rule, the panel ws command is a UI optimization — the
+  `set_options` service is the canonical write path. The Settings tab is a top-level
+  panel view (`_view === 'settings'`, deep-linked `/home-keeper/settings`) that
+  autosaves each `ha-form` change; build its schema from the same selectors in
+  `forms.ts` (`settingsSchema`).
 - **Relationships.** `parent_asset_id` (virtual only) → native `via_device`
   (provision parents-first via `_ancestor_depth`; reject cycles with
   `assets.would_create_cycle`). `related_device_ids` is panel-only (foreign devices

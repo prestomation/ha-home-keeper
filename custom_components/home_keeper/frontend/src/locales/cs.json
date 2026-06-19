@@ -197,5 +197,13 @@
   "history.count.few": "{n} dokončení",
   "history.count.many": "{n} dokončení",
   "managed.orphanBanner.few": "{n} úkoly jsou spravovány integracemi, které již nejsou nainstalovány.",
-  "managed.orphanBanner.many": "{n} úkolu je spravováno integracemi, které již nejsou nainstalovány."
+  "managed.orphanBanner.many": "{n} úkolu je spravováno integracemi, které již nejsou nainstalovány.",
+  "tab.settings": "Nastavení",
+  "settings.heading": "Synchronizace senzorů problémů",
+  "settings.help": "Zrcadlí binární senzory s třídou zařízení „problém“ jako úkoly. Synchronizovaný úkol zůstává aktivní, dokud senzor hlásí problém, a automaticky se vymaže, jakmile jej zdrojová integrace vyřeší; v Home Keeper jej nelze dokončit. Níže vylučte konkrétní senzory, oblasti nebo štítky.",
+  "settings.saved": "Uloženo",
+  "settings.sync_problem_sensors": "Synchronizovat senzory problémů jako úkoly",
+  "settings.problem_sensor_exclude_entities": "Vyloučené senzory",
+  "settings.problem_sensor_exclude_areas": "Vyloučené oblasti",
+  "settings.problem_sensor_exclude_labels": "Vyloučené štítky"
 }

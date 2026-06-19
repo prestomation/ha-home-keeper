@@ -1,10 +1,30 @@
-import type { Asset, Hass, Inventory, Task } from './types';
+import type { Asset, Hass, HomeKeeperOptions, Inventory, Task } from './types';
 
 /** Thin wrappers around the Home Keeper websocket commands. */
 
 export async function getTasks(hass: Hass): Promise<Task[]> {
   const res = await hass.callWS<{ tasks: Task[] }>({ type: 'home_keeper/get_tasks' });
   return res.tasks;
+}
+
+/** Read the integration options (for the Settings tab). */
+export async function getOptions(hass: Hass): Promise<HomeKeeperOptions> {
+  const res = await hass.callWS<{ options: HomeKeeperOptions }>({
+    type: 'home_keeper/get_options',
+  });
+  return res.options;
+}
+
+/** Persist a partial options change (the backend reloads + re-syncs). */
+export async function setOptions(
+  hass: Hass,
+  options: Partial<HomeKeeperOptions>,
+): Promise<HomeKeeperOptions> {
+  const res = await hass.callWS<{ options: HomeKeeperOptions }>({
+    type: 'home_keeper/set_options',
+    options,
+  });
+  return res.options;
 }
 
 export async function addTask(hass: Hass, task: Partial<Task>): Promise<Task> {

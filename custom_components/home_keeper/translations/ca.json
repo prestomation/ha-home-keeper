@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Exportar inventari",
       "description": "Retorna un inventari de la llar per a l'assegurança com a resposta (una fila per electrodomèstic més els totals), amb un CSV a punt per desar sota la clau \"csv\"."
+    },
+    "set_options": {
+      "name": "Defineix opcions",
+      "description": "Actualitza les opcions de la integració Home Keeper: la mateixa configuració que la pestanya Configuració del tauler i el flux d'opcions. Només canvien els camps que passis.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Sincronitza els sensors de problema com a tasques"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Sensors exclosos"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Àrees excloses"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Etiquetes excloses"
+        }
+      }
     }
   },
   "entity": {

@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Exportera inventarium",
       "description": "Returnerar ett heminventarium för försäkring som svar (en rad per apparat plus summor), med en färdig CSV-fil att spara under nyckeln \"csv\"."
+    },
+    "set_options": {
+      "name": "Ange alternativ",
+      "description": "Uppdatera Home Keepers integrationsalternativ — samma inställningar som panelens Inställningar-flik och alternativflödet. Endast de fält du anger ändras.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Synkronisera problemsensorer som uppgifter"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Uteslutna sensorer"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Uteslutna områden"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Uteslutna etiketter"
+        }
+      }
     }
   },
   "entity": {

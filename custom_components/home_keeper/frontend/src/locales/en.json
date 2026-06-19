@@ -173,5 +173,13 @@
   "group.integration": "Integration",
   "section.standalone": "Your tasks",
   "section.managedBy": "Managed by {name}",
-  "managed.completionHint": "{prompt}"
+  "managed.completionHint": "{prompt}",
+  "tab.settings": "Settings",
+  "settings.heading": "Problem sensor sync",
+  "settings.help": "Mirror binary sensors with the \"problem\" device class as tasks. A synced task stays active while its sensor reports a problem and clears automatically when the source integration resolves it; it can't be completed in Home Keeper. Exclude specific sensors, areas, or labels below.",
+  "settings.saved": "Saved",
+  "settings.sync_problem_sensors": "Sync problem sensors as tasks",
+  "settings.problem_sensor_exclude_entities": "Excluded sensors",
+  "settings.problem_sensor_exclude_areas": "Excluded areas",
+  "settings.problem_sensor_exclude_labels": "Excluded labels"
 }

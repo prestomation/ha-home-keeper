@@ -10,6 +10,7 @@ import {
   selNumber,
   selSelect,
   selText,
+  settingsSchema,
   taskFormData,
   taskSchema,
   type FormField,
@@ -20,6 +21,7 @@ import type {
   Asset,
   AssetKind,
   Hass,
+  HomeKeeperOptions,
   ManagedBy,
   MetadataEntry,
   MetadataType,
@@ -163,6 +165,11 @@ const STYLES = `
   .hk-form-card { margin-bottom: 16px; }
   .hk-form-inner { padding: 16px; }
   .hk-form-title { font-size: 1.1rem; font-weight: 500; margin-bottom: 8px; }
+  .hk-settings-intro {
+    color: var(--secondary-text-color); font-size: 0.9rem;
+    margin-bottom: 16px; line-height: 1.4;
+  }
+  #hk-settings ha-form { display: block; }
   .hk-section {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
     text-transform: uppercase; letter-spacing: 0.04em; margin: 20px 0 8px;
@@ -371,7 +378,9 @@ export class HomeKeeperPanel extends HTMLElement {
   private _loadedEntryIds: Set<string> = new Set();
   private _edit: EditState = { open: false, task: null };
   private _assetEdit: AssetEditState = { open: false, asset: null };
-  private _view: 'tasks' | 'appliances' = 'tasks';
+  private _view: 'tasks' | 'appliances' | 'settings' = 'tasks';
+  // Integration options for the Settings tab (loaded lazily with the rest).
+  private _options: HomeKeeperOptions | null = null;
   // List controls (persisted in localStorage).
   private _groupBy: GroupBy = 'status';
   private _filter: TaskFilter = 'all';
@@ -516,16 +525,18 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _reload(): Promise<void> {
     if (!this._hass) return;
     try {
-      const [tasks, assets, entryDomains, loadedEntryIds] = await Promise.all([
+      const [tasks, assets, entryDomains, loadedEntryIds, options] = await Promise.all([
         api.getTasks(this._hass),
         api.getAssets(this._hass),
         api.getEntryDomains(this._hass).catch(() => ({})),
         api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
+        api.getOptions(this._hass).catch(() => null),
       ]);
       this._tasks = tasks;
       this._assets = assets;
       this._entryDomains = entryDomains;
       this._loadedEntryIds = loadedEntryIds;
+      this._options = options;
       this._loaded = true;
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -762,13 +773,12 @@ export class HomeKeeperPanel extends HTMLElement {
           <ha-button id="back-btn">‹ ${escapeHTML(t('btn.back'))}</ha-button>
         </div>
         ${this._detailView()}`;
+    } else if (this._view === 'settings') {
+      inner = `${this._tabs()}<div id="hk-settings-host"></div>`;
     } else {
       const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
       inner = `
-        <ha-tab-group>
-          <ha-tab-group-tab id="tab-tasks" panel="tasks" ${onTasks ? 'active' : ''}>${escapeHTML(t('tab.tasks'))}</ha-tab-group-tab>
-          <ha-tab-group-tab id="tab-appliances" panel="appliances" ${onTasks ? '' : 'active'}>${escapeHTML(t('tab.appliances'))}</ha-tab-group-tab>
-        </ha-tab-group>
+        ${this._tabs()}
         <div class="hk-actionbar">
           <ha-button raised id="add-btn">${escapeHTML(addLabel)}</ha-button>
           ${onTasks ? '' : `<ha-button id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
@@ -790,6 +800,17 @@ export class HomeKeeperPanel extends HTMLElement {
       </div>
     `;
     this._hydrate();
+  }
+
+  /** The top tab bar (Tasks / Appliances / Settings), with the active tab marked. */
+  private _tabs(): string {
+    const v = this._view;
+    return `
+      <ha-tab-group>
+        <ha-tab-group-tab id="tab-tasks" panel="tasks" ${v === 'tasks' ? 'active' : ''}>${escapeHTML(t('tab.tasks'))}</ha-tab-group-tab>
+        <ha-tab-group-tab id="tab-appliances" panel="appliances" ${v === 'appliances' ? 'active' : ''}>${escapeHTML(t('tab.appliances'))}</ha-tab-group-tab>
+        <ha-tab-group-tab id="tab-settings" panel="settings" ${v === 'settings' ? 'active' : ''}>${escapeHTML(t('tab.settings'))}</ha-tab-group-tab>
+      </ha-tab-group>`;
   }
 
   // ── list controls (filter + group-by) ───────────────────────────────────────
@@ -1698,9 +1719,12 @@ export class HomeKeeperPanel extends HTMLElement {
     root
       .getElementById('tab-appliances')
       ?.addEventListener('click', () => this._switchView('appliances'));
+    root
+      .getElementById('tab-settings')
+      ?.addEventListener('click', () => this._switchView('settings'));
     root.querySelector('ha-tab-group')?.addEventListener('sl-tab-show', (e: Event) => {
       const name = (e as CustomEvent<{ name?: string }>).detail?.name;
-      if (name === 'tasks' || name === 'appliances') this._switchView(name);
+      if (name === 'tasks' || name === 'appliances' || name === 'settings') this._switchView(name);
     });
 
     root.getElementById('add-btn')?.addEventListener('click', () => {
@@ -1739,6 +1763,8 @@ export class HomeKeeperPanel extends HTMLElement {
       if (this._view === 'tasks' && this._edit.open) this._renderTaskForm(host);
       else if (this._view === 'appliances' && this._assetEdit.open) this._renderAssetForm(host);
     }
+    const settingsHost = root.getElementById('hk-settings-host');
+    if (settingsHost) this._renderSettingsForm(settingsHost);
 
     // Card actions: the row opens the detail page; tasks keep a quick "Done".
     this._wireDetailOpeners(root);
@@ -1812,11 +1838,56 @@ export class HomeKeeperPanel extends HTMLElement {
     });
   }
 
-  private _switchView(view: 'tasks' | 'appliances'): void {
+  private _switchView(view: 'tasks' | 'appliances' | 'settings'): void {
     if (this._view === view) return;
     // Switching tabs is a lateral move, not a drill-in: replace so Back doesn't
     // retrace every tab toggle.
     this._navigate({ view, detail: null }, true);
+  }
+
+  /** Render the Settings tab — an `ha-form` mirror of the options flow that
+   *  autosaves each change (the backend reloads + re-runs the problem sync). */
+  private _renderSettingsForm(host: HTMLElement): void {
+    const opts: HomeKeeperOptions = this._options ?? {
+      sync_problem_sensors: false,
+      problem_sensor_exclude_entities: [],
+      problem_sensor_exclude_areas: [],
+      problem_sensor_exclude_labels: [],
+    };
+    const card = document.createElement('ha-card');
+    card.className = 'hk-form-card';
+    card.id = 'hk-settings';
+    const inner = document.createElement('div');
+    inner.className = 'hk-form-inner';
+    inner.innerHTML = `
+      <div class="hk-form-title">${escapeHTML(t('settings.heading'))}</div>
+      <div class="hk-settings-intro">${escapeHTML(t('settings.help'))}</div>`;
+    const form = document.createElement('ha-form') as HaFormElement;
+    form.hass = this._hass;
+    form.schema = settingsSchema();
+    form.data = { ...opts };
+    form.computeLabel = (s: { name: string }): string => (s.name ? t('settings.' + s.name) : '');
+    form.addEventListener('value-changed', (e: Event) => {
+      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      void this._saveOptions(value as Partial<HomeKeeperOptions>);
+    });
+    this._liveHassEls.push(form);
+    inner.appendChild(form);
+    card.appendChild(inner);
+    host.appendChild(card);
+  }
+
+  private async _saveOptions(value: Partial<HomeKeeperOptions>): Promise<void> {
+    if (!this._hass) return;
+    // Keep local state in sync optimistically so the form doesn't flicker; the
+    // backend persists, reloads the entry and re-runs the problem-sensor sync.
+    this._options = { ...(this._options as HomeKeeperOptions), ...value };
+    try {
+      await api.setOptions(this._hass, value);
+      this._toast(t('settings.saved'));
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
+    }
   }
 
   private _makeForm(

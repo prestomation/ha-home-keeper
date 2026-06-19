@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Exportovat inventář",
       "description": "Vrátí domácí inventář pro pojištění jako odpověď (jeden řádek na spotřebič plus součty), s CSV připraveným k uložení pod klíčem \"csv\"."
+    },
+    "set_options": {
+      "name": "Nastavit možnosti",
+      "description": "Aktualizuje možnosti integrace Home Keeper – stejná nastavení jako karta Nastavení v panelu a dialog možností. Změní se jen předaná pole.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Synchronizovat senzory problémů jako úkoly"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Vyloučené senzory"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Vyloučené oblasti"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Vyloučené štítky"
+        }
+      }
     }
   },
   "entity": {
