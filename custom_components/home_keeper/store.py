@@ -36,6 +36,11 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
+from .problem_tasks import problem_sensor_entity_id as _problem_entity
+from .problem_tasks import problem_source as _problem_source
+from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks
+from .reconcile import part_source as _part_source
+from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 
 # Stock transition -> the bus event it fires (STOCK_NONE maps to nothing).
 _STOCK_EVENT = {
@@ -43,11 +48,6 @@ _STOCK_EVENT = {
     STOCK_OUT: EVENT_PART_OUT_OF_STOCK,
     STOCK_RESTOCKED: EVENT_PART_RESTOCKED,
 }
-from .reconcile import part_source as _part_source  # noqa: E402
-from .reconcile import reconcile_part_tasks as _reconcile_part_tasks  # noqa: E402
-from .problem_tasks import problem_sensor_entity_id as _problem_entity  # noqa: E402
-from .problem_tasks import problem_source as _problem_source  # noqa: E402
-from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks  # noqa: E402
 
 _LOGGER = logging.getLogger(__name__)
 

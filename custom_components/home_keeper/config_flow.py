@@ -12,13 +12,13 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
     OptionsFlow,
 )
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
@@ -86,15 +86,11 @@ class HomeKeeperOptionsFlow(OptionsFlow):
                 vol.Optional(
                     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
                     default=current.get(OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS, []),
-                ): selector.AreaSelector(
-                    selector.AreaSelectorConfig(multiple=True)
-                ),
+                ): selector.AreaSelector(selector.AreaSelectorConfig(multiple=True)),
                 vol.Optional(
                     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
                     default=current.get(OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS, []),
-                ): selector.LabelSelector(
-                    selector.LabelSelectorConfig(multiple=True)
-                ),
+                ): selector.LabelSelector(selector.LabelSelectorConfig(multiple=True)),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

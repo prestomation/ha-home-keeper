@@ -17,8 +17,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers import (
-    area_registry as ar,
     device_registry as dr,
+)
+from homeassistant.helpers import (
     entity_registry as er,
 )
 from homeassistant.helpers.event import async_track_state_change_event
@@ -122,9 +123,7 @@ class ProblemSensorSync:
                 continue
             if entry.disabled or entry.entity_id in exclude_entities:
                 continue
-            device = (
-                dev_reg.async_get(entry.device_id) if entry.device_id else None
-            )
+            device = dev_reg.async_get(entry.device_id) if entry.device_id else None
             area_id = entry.area_id or (device.area_id if device else None)
             if area_id in exclude_areas:
                 continue
@@ -171,8 +170,10 @@ class ProblemSensorSync:
         self._hass.async_create_task(self._async_reconcile())
 
     async def _async_reconcile(self) -> None:
-        entity_set_changed = await self._coordinator.store.reconcile_problem_sensor_tasks(
-            self._eligible(), config_entry_id=self._entry.entry_id
+        entity_set_changed = (
+            await self._coordinator.store.reconcile_problem_sensor_tasks(
+                self._eligible(), config_entry_id=self._entry.entry_id
+            )
         )
         if entity_set_changed:
             # A synced task was created/removed: its per-task device entities must be

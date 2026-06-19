@@ -102,7 +102,7 @@ def test_removes_task_when_sensor_no_longer_eligible():
 
 def test_carries_through_unrelated_tasks():
     other = {"t1": {"id": "t1", "name": "Flush water heater", "source": None}}
-    tasks, ops, changed = _reconcile(_eligible(is_problem=True), dict(other))
+    tasks, _ops, changed = _reconcile(_eligible(is_problem=True), dict(other))
     assert "t1" in tasks
     assert len(tasks) == 2  # the unrelated task plus the new synced one
     assert changed is True
@@ -114,10 +114,10 @@ def test_updates_name_device_area_without_an_op():
         _eligible(is_problem=True, name="Old name", device_id="dev1")
     )
     tid = next(iter(tasks))
-    tasks2, ops, changed = _reconcile(
-        _eligible(is_problem=True, name="New name", device_id="dev2", area_id="kitchen"),
-        tasks,
+    moved = _eligible(
+        is_problem=True, name="New name", device_id="dev2", area_id="kitchen"
     )
+    tasks2, ops, changed = _reconcile(moved, tasks)
     task = tasks2[tid]
     assert task["name"] == "New name"
     assert task["device_id"] == "dev2"
