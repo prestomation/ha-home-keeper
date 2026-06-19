@@ -42,18 +42,43 @@ def _wait_present(ha, present: bool, timeout=30) -> bool:
     return False
 
 
+def _wait_stable_present(ha, present: bool, timeout=60) -> bool:
+    """Like _wait_present, but require the result to hold for two consecutive reads.
+
+    ``list_tasks`` works as soon as ``entry.runtime_data`` is set — which happens
+    early in ``async_setup_entry``, before the reload has fully finished. Requiring a
+    stable reading avoids acting on a mid-reload snapshot (and toggling again into a
+    *concurrent* reload, which is what the rapid off→on flip below would otherwise
+    race into).
+    """
+    deadline = time.monotonic() + timeout
+    hits = 0
+    while time.monotonic() < deadline:
+        try:
+            ok = _synced_present(ha) == present
+        except Exception:
+            ok = False  # entry mid-reload — retry
+        hits = hits + 1 if ok else 0
+        if hits >= 2:
+            return True
+        time.sleep(1)
+    return False
+
+
 def test_set_options_toggles_problem_sync(ha):
     # Baseline: syncing is on in the test config, so the mirror task exists.
     assert _wait_present(ha, True), "expected the synced task at start"
 
-    # Turn syncing off via the service → entry reloads → synced task removed.
+    # Turn syncing off via the service → entry reloads → synced task removed. Wait
+    # for the reload to fully settle before toggling back so the two reloads don't
+    # overlap (a list_tasks read can succeed mid-setup).
     call_service(ha, "home_keeper", "set_options", {"sync_problem_sensors": False})
-    assert _wait_present(ha, False), (
+    assert _wait_stable_present(ha, False), (
         "disabling sync via set_options should remove the synced task"
     )
 
     # Turn it back on → the task is recreated. Leaves the config as it started.
     call_service(ha, "home_keeper", "set_options", {"sync_problem_sensors": True})
-    assert _wait_present(ha, True), (
+    assert _wait_stable_present(ha, True), (
         "re-enabling sync via set_options should recreate the synced task"
     )
