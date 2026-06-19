@@ -6,6 +6,17 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0b10] - 2026-06-19
+
+### Changed
+
+- **A synced problem-sensor task now shows its *Done* button disabled instead of
+  hiding it.** Previously the action just vanished for these un-completable tasks,
+  which read as "missing" rather than "blocked". The button is now visibly greyed,
+  and tapping it (in the panel or the dashboard card) pops up a short explanation
+  that the problem clears automatically once the originating integration resolves it
+  — so it's clear *why* you can't mark it done here.
+
 ## [0.3.0b9] - 2026-06-19
 
 ### Added

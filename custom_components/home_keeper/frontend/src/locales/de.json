@@ -181,5 +181,6 @@
   "settings.sync_problem_sensors": "Problemsensoren als Aufgaben synchronisieren",
   "settings.problem_sensor_exclude_entities": "Ausgeschlossene Sensoren",
   "settings.problem_sensor_exclude_areas": "Ausgeschlossene Bereiche",
-  "settings.problem_sensor_exclude_labels": "Ausgeschlossene Labels"
+  "settings.problem_sensor_exclude_labels": "Ausgeschlossene Labels",
+  "done.blocked": "Das kann in Home Keeper nicht abgeschlossen werden – die zuständige Integration löscht es."
 }

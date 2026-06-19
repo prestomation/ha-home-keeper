@@ -205,5 +205,6 @@
   "settings.sync_problem_sensors": "Synchronizuj czujniki problemów jako zadania",
   "settings.problem_sensor_exclude_entities": "Wykluczone czujniki",
   "settings.problem_sensor_exclude_areas": "Wykluczone obszary",
-  "settings.problem_sensor_exclude_labels": "Wykluczone etykiety"
+  "settings.problem_sensor_exclude_labels": "Wykluczone etykiety",
+  "done.blocked": "Tego nie można ukończyć w Home Keeper — czyści to integracja, która jest jego właścicielem."
 }

@@ -96,12 +96,17 @@ problem becomes a visible, trackable to-do without writing an automation.
 - **How it works:** the task is **armed** while the sensor reports a problem and
   **clears itself** the moment the originating integration resolves it (the sensor goes
   back to OK). Because of that, these tasks **can't be completed in Home Keeper** — the
-  problem has to be fixed for real — so there's no *Done* button; the detail page
-  explains how it clears instead. Each task inherits the sensor's **device and area**.
+  problem has to be fixed for real — so the *Done* button is shown **disabled**, and
+  tapping it pops up the reason (the detail page also explains how it clears). Each
+  task inherits the sensor's **device and area**.
 - **Scope it:** syncing is **off by default**; once on, exclude specific **entities,
   areas, or labels** — from the panel's **Settings** tab (below) or the options flow.
 
-![Synced problem-sensor task detail — armed and due-now, with no Done button and the prompt explaining it clears when the source resolves it](docs/images/16-panel-problem-sensor-detail.png)
+![Synced problem-sensor task detail — armed and due-now, with a disabled Done button and the prompt explaining it clears when the source resolves it](docs/images/16-panel-problem-sensor-detail.png)
+
+Tapping the disabled **Done** explains why it can't be completed here:
+
+![Tapping the disabled Done pops up a toast: the problem clears automatically when the originating integration resolves it](docs/images/16b-panel-problem-sensor-blocked-toast.png)
 
 ## Settings
 

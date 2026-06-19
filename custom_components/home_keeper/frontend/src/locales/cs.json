@@ -205,5 +205,6 @@
   "settings.sync_problem_sensors": "Synchronizovat senzory problémů jako úkoly",
   "settings.problem_sensor_exclude_entities": "Vyloučené senzory",
   "settings.problem_sensor_exclude_areas": "Vyloučené oblasti",
-  "settings.problem_sensor_exclude_labels": "Vyloučené štítky"
+  "settings.problem_sensor_exclude_labels": "Vyloučené štítky",
+  "done.blocked": "Toto nelze v Home Keeper dokončit – vymaže to integrace, která jej vlastní."
 }

@@ -181,5 +181,6 @@
   "settings.sync_problem_sensors": "Synkroniser problemsensorer som oppgaver",
   "settings.problem_sensor_exclude_entities": "Ekskluderte sensorer",
   "settings.problem_sensor_exclude_areas": "Ekskluderte områder",
-  "settings.problem_sensor_exclude_labels": "Ekskluderte etiketter"
+  "settings.problem_sensor_exclude_labels": "Ekskluderte etiketter",
+  "done.blocked": "Dette kan ikke fullføres i Home Keeper – den eiende integrasjonen tømmer det."
 }

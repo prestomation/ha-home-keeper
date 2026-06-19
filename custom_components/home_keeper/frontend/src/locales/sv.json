@@ -181,5 +181,6 @@
   "settings.sync_problem_sensors": "Synkronisera problemsensorer som uppgifter",
   "settings.problem_sensor_exclude_entities": "Uteslutna sensorer",
   "settings.problem_sensor_exclude_areas": "Uteslutna områden",
-  "settings.problem_sensor_exclude_labels": "Uteslutna etiketter"
+  "settings.problem_sensor_exclude_labels": "Uteslutna etiketter",
+  "done.blocked": "Detta kan inte slutföras i Home Keeper – den ägande integrationen rensar det."
 }

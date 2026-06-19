@@ -1,12 +1,17 @@
 {
   "domain": "home_keeper",
   "name": "Home Keeper",
-  "codeowners": ["@prestomation"],
+  "codeowners": [
+    "@prestomation"
+  ],
   "config_flow": true,
-  "dependencies": ["http", "frontend"],
+  "dependencies": [
+    "http",
+    "frontend"
+  ],
   "documentation": "https://github.com/prestomation/ha-home-keeper",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/prestomation/ha-home-keeper/issues",
   "requirements": [],
-  "version": "0.3.0b9"
+  "version": "0.3.0b10"
 }

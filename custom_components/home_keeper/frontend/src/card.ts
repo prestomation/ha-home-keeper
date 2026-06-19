@@ -152,6 +152,8 @@ const STYLES = `
     --mdc-icon-size: 18px;
   }
   ha-icon-button.hk-done { color: var(--primary-color); flex: none; }
+  /* A completion-blocked task's mark-done looks inert but stays tappable to explain. */
+  ha-icon-button.hk-done.blocked { color: var(--disabled-text-color); }
   .hk-loading { display: flex; justify-content: center; padding: 32px 0; }
   .hk-empty { padding: 16px; }
   .hk-more {
@@ -372,6 +374,23 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   // ── completion / CRUD ───────────────────────────────────────────────────────
+  /** Surface a transient message via HA's toast notification. */
+  private _toast(message: string): void {
+    this.dispatchEvent(
+      new CustomEvent('hass-notification', {
+        detail: { message },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  /** A completion-blocked task (e.g. a synced problem sensor) can't be marked done
+   *  here — its owning integration clears it. Explain why instead of completing. */
+  private _notifyBlocked(task: Task): void {
+    this._toast(task.managed_by?.completion_prompt || t('done.blocked'));
+  }
+
   private async _complete(task: Task): Promise<void> {
     // Ignore a re-entrant tap while this task's completion is already in flight,
     // so a double-click doesn't record two completions.
@@ -546,14 +565,14 @@ export class HomeKeeperCard extends HTMLElement {
       this._config.show_notes && task.notes
         ? `<div class="hk-notes">${escapeHTML(task.notes)}</div>`
         : '';
-    // A dormant triggered task has nothing to complete — its owner arms it. A
-    // completion-blocked task (a synced problem sensor) can't be completed here
-    // either; its source clears it. Hide the mark-done action in both cases.
+    // A dormant triggered task has nothing to complete — its owner arms it; hide the
+    // action. A completion-blocked task (a synced problem sensor) keeps a *disabled*
+    // mark-done that, on tap, explains its source clears it.
     const dormant = task.recurrence_type === 'triggered' && !task.next_due;
-    const done =
-      dormant || task.managed_by?.completion_blocked
-        ? ''
-        : `<ha-icon-button class="hk-done" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.done'))}"></ha-icon-button>`;
+    const blocked = Boolean(task.managed_by?.completion_blocked);
+    const done = dormant
+      ? ''
+      : `<ha-icon-button class="hk-done${blocked ? ' blocked' : ''}" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.done'))}"></ha-icon-button>`;
     return `
       <div class="hk-row${overdue ? ' overdue' : ''}">
         <div class="grow" data-edit-id="${escapeHTML(task.id)}" role="button" tabindex="0">
@@ -585,7 +604,9 @@ export class HomeKeeperCard extends HTMLElement {
       b.addEventListener('click', (e) => {
         e.stopPropagation();
         const task = this._tasks.find((x) => x.id === b.dataset.id);
-        if (task) void this._complete(task);
+        if (!task) return;
+        if (task.managed_by?.completion_blocked) this._notifyBlocked(task);
+        else void this._complete(task);
       });
     });
 
