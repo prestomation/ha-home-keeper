@@ -114,7 +114,7 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.check.outputs.release == 'true' && github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: "v${{ steps.check.outputs.version }}"
           name: "v${{ steps.check.outputs.version }}"
