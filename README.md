@@ -197,6 +197,13 @@ sync with completions — without Home Keeper knowing anything about them. See
 [docs/INTEGRATING.md](docs/INTEGRATING.md) for the contract (the `source` field, the
 `home_keeper_task_completed` event, and two-way completion sync).
 
+### Known integrations
+
+| Integration | Description | How it integrates |
+|---|---|---|
+| [Home Keeper — Battery Notes](https://github.com/prestomation/ha-home-keeper-battery-notes) | Glue between [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes) and Home Keeper | Uses Home Keeper's **triggered** task type — arms a *"Replace battery"* task when a battery goes low and clears it when replaced, keeping both sides in sync so completion from either side is recorded in both. |
+| [Pawsistant](https://github.com/prestomation/pawsistant) | Pet-care logger for tracking recurring pet activities | Attaches Home Keeper floating-recurrence tasks to pet care schedules (e.g. *"medicine every 2 weeks"*), so completing the task in Home Keeper logs the event in Pawsistant, and logging it in Pawsistant marks the task done — with no loop. |
+
 ## Localization
 
 The integration and the sidebar panel are localized into **16 languages** and follow
