@@ -118,7 +118,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
-  // 1i. The "Monitored" status section holds dormant condition-driven tasks
+  // 18. The same blocked Done on a Tasks-*list* card row — greyed/disabled (not a
+  // working complete action); clicking it pops the same reason as the detail page.
+  const sumpCard = panel.locator('.hk-card', { hasText: 'Sump pump problem' });
+  await expect(sumpCard.locator('.done-blocked-wrap ha-button[disabled]')).toHaveCount(1);
+  await sumpCard.locator('.done-blocked-wrap').click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/18-panel-tasks-blocked-done.png`, fullPage: true });
   // (healthy batteries) — collapsed by default to stay out of the way, one click
   // to browse. Expand it for the shot.
   const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');
