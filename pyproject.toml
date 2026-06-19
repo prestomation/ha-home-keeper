@@ -36,3 +36,19 @@ omit = ["custom_components/home_keeper/testing.py"]
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+# Pragmatic-but-meaningful set: pyflakes/pycodestyle, import sorting, pyupgrade,
+# bugbear, comprehensions, simplify, and Ruff's own rules.
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-third-party = ["homeassistant"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests favour explicit loops / try-except over these "simplify" suggestions.
+"tests/**" = ["SIM105", "SIM113"]

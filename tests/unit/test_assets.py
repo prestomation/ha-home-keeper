@@ -50,7 +50,9 @@ def test_build_existing_asset_keeps_device_id_no_identifier():
         {
             "kind": "existing",
             "device_id": "dev_xyz",
-            "metadata": [{"type": "date", "label": "Warranty expiry", "value": "2030-01-01"}],
+            "metadata": [
+                {"type": "date", "label": "Warranty expiry", "value": "2030-01-01"}
+            ],
         },
         now=NOW,
     )
@@ -73,8 +75,17 @@ def test_metadata_entries_normalized():
             "metadata": [
                 {"type": "date", "label": "Purchase date", "value": "2024-03-15"},
                 # A full datetime should be truncated to its date.
-                {"type": "date", "label": "Warranty expiry", "value": "2029-03-15T00:00:00", "track": True},
-                {"type": "link", "label": "Spec sheet", "value": "https://example.com/spec.pdf"},
+                {
+                    "type": "date",
+                    "label": "Warranty expiry",
+                    "value": "2029-03-15T00:00:00",
+                    "track": True,
+                },
+                {
+                    "type": "link",
+                    "label": "Spec sheet",
+                    "value": "https://example.com/spec.pdf",
+                },
                 {"type": "text", "label": "Serial", "value": "  SN-7  "},
             ],
         },
@@ -103,14 +114,20 @@ def test_metadata_requires_label():
 def test_metadata_rejects_bad_type():
     with pytest.raises(a.AssetValidationError):
         a.build_asset(
-            {"name": "Furnace", "metadata": [{"type": "number", "label": "x", "value": "1"}]},
+            {
+                "name": "Furnace",
+                "metadata": [{"type": "number", "label": "x", "value": "1"}],
+            },
             now=NOW,
         )
 
 
 def test_metadata_empty_date_is_blank():
     asset = a.build_asset(
-        {"name": "Furnace", "metadata": [{"type": "date", "label": "Purchase date", "value": ""}]},
+        {
+            "name": "Furnace",
+            "metadata": [{"type": "date", "label": "Purchase date", "value": ""}],
+        },
         now=NOW,
     )
     assert asset["metadata"][0]["value"] == ""
@@ -119,7 +136,12 @@ def test_metadata_empty_date_is_blank():
 def test_metadata_bad_date_raises():
     with pytest.raises(a.AssetValidationError):
         a.build_asset(
-            {"name": "Furnace", "metadata": [{"type": "date", "label": "Warranty", "value": "not-a-date"}]},
+            {
+                "name": "Furnace",
+                "metadata": [
+                    {"type": "date", "label": "Warranty", "value": "not-a-date"}
+                ],
+            },
             now=NOW,
         )
 
@@ -127,7 +149,12 @@ def test_metadata_bad_date_raises():
 def test_metadata_link_rejects_non_http():
     with pytest.raises(a.AssetValidationError):
         a.build_asset(
-            {"name": "Furnace", "metadata": [{"type": "link", "label": "Bad", "value": "javascript:alert(1)"}]},
+            {
+                "name": "Furnace",
+                "metadata": [
+                    {"type": "link", "label": "Bad", "value": "javascript:alert(1)"}
+                ],
+            },
             now=NOW,
         )
 
@@ -154,7 +181,12 @@ def test_manual_url_accepts_http_and_https():
 
 
 def test_manual_url_rejects_non_http_scheme():
-    for bad in ("javascript:alert(1)", "ftp://example.com", "data:text/html,x", "/relative"):
+    for bad in (
+        "javascript:alert(1)",
+        "ftp://example.com",
+        "data:text/html,x",
+        "/relative",
+    ):
         with pytest.raises(a.AssetValidationError):
             a.build_asset({"name": "Furnace", "manual_url": bad}, now=NOW)
 
@@ -182,7 +214,9 @@ def test_merge_update_changes_metadata_preserves_anchors():
         asset,
         {
             "manufacturer": "LG",
-            "metadata": [{"type": "date", "label": "Warranty expiry", "value": "2031-06-01"}],
+            "metadata": [
+                {"type": "date", "label": "Warranty expiry", "value": "2031-06-01"}
+            ],
         },
         now=NOW,
     )
@@ -195,9 +229,7 @@ def test_merge_update_changes_metadata_preserves_anchors():
 
 
 def test_merge_update_existing_can_retarget_device():
-    asset = a.build_asset(
-        {"kind": "existing", "device_id": "dev_a"}, now=NOW
-    )
+    asset = a.build_asset({"kind": "existing", "device_id": "dev_a"}, now=NOW)
     updated = a.merge_update(asset, {"device_id": "dev_b"}, now=NOW)
     assert updated["device_id"] == "dev_b"
     assert updated["kind"] == "existing"
@@ -207,7 +239,10 @@ def test_merge_update_existing_can_retarget_device():
 
 
 def test_icon_valid_and_invalid():
-    assert a.build_asset({"name": "Piano", "icon": "mdi:piano"}, now=NOW)["icon"] == "mdi:piano"
+    assert (
+        a.build_asset({"name": "Piano", "icon": "mdi:piano"}, now=NOW)["icon"]
+        == "mdi:piano"
+    )
     assert a.build_asset({"name": "Piano"}, now=NOW)["icon"] == ""
     with pytest.raises(a.AssetValidationError):
         a.build_asset({"name": "Piano", "icon": "not an icon"}, now=NOW)
@@ -225,8 +260,13 @@ def test_parts_normalized_with_ids_and_types():
         {
             "name": "Shades",
             "parts": [
-                {"name": "Shade material", "type": "wear", "replace_interval": 10,
-                 "replace_unit": "months", "cost": "120"},
+                {
+                    "name": "Shade material",
+                    "type": "wear",
+                    "replace_interval": 10,
+                    "replace_unit": "months",
+                    "cost": "120",
+                },
                 {"name": "Cord", "part_number": "C-9"},  # defaults to consumable
             ],
         },
@@ -253,14 +293,27 @@ def test_part_requires_name_and_valid_type():
 def test_part_bad_interval_unit_rejected():
     with pytest.raises(a.AssetValidationError):
         a.build_asset(
-            {"name": "X", "parts": [{"name": "p", "replace_interval": 1, "replace_unit": "eons"}]},
+            {
+                "name": "X",
+                "parts": [{"name": "p", "replace_interval": 1, "replace_unit": "eons"}],
+            },
             now=NOW,
         )
 
 
 def test_merge_update_preserves_part_last_replaced():
     asset = a.build_asset(
-        {"name": "Shades", "parts": [{"name": "Material", "type": "wear", "replace_interval": 6, "replace_unit": "months"}]},
+        {
+            "name": "Shades",
+            "parts": [
+                {
+                    "name": "Material",
+                    "type": "wear",
+                    "replace_interval": 6,
+                    "replace_unit": "months",
+                }
+            ],
+        },
         now=NOW,
     )
     pid = asset["parts"][0]["id"]
@@ -268,7 +321,17 @@ def test_merge_update_preserves_part_last_replaced():
     # The panel re-submits the part without last_replaced; merge must keep it.
     updated = a.merge_update(
         asset,
-        {"parts": [{"id": pid, "name": "Material", "type": "wear", "replace_interval": 12, "replace_unit": "months"}]},
+        {
+            "parts": [
+                {
+                    "id": pid,
+                    "name": "Material",
+                    "type": "wear",
+                    "replace_interval": 12,
+                    "replace_unit": "months",
+                }
+            ]
+        },
         now=NOW,
     )
     assert updated["parts"][0]["last_replaced"] == "2025-01-01"
@@ -276,7 +339,12 @@ def test_merge_update_preserves_part_last_replaced():
 
 
 def test_migrate_legacy_part_numbers():
-    legacy = {"id": "x", "kind": "virtual", "name": "WH", "part_numbers": "anode rod AR-1"}
+    legacy = {
+        "id": "x",
+        "kind": "virtual",
+        "name": "WH",
+        "part_numbers": "anode rod AR-1",
+    }
     changed = a.migrate_legacy_part_numbers(legacy)
     assert changed is True
     assert "part_numbers" not in legacy
@@ -296,7 +364,8 @@ def test_parent_asset_id_only_for_virtual():
 
 
 def test_part_rejects_future_last_replaced():
-    from datetime import date, timedelta as _td
+    from datetime import date
+    from datetime import timedelta as _td
 
     future = (date.today() + _td(days=30)).isoformat()
     with pytest.raises(a.AssetValidationError):
@@ -310,7 +379,10 @@ def test_part_allows_today_last_replaced():
     from datetime import date
 
     asset = a.build_asset(
-        {"name": "Boiler", "parts": [{"name": "Anode", "last_replaced": date.today().isoformat()}]},
+        {
+            "name": "Boiler",
+            "parts": [{"name": "Anode", "last_replaced": date.today().isoformat()}],
+        },
         now=NOW,
     )
     assert asset["parts"][0]["last_replaced"] == date.today().isoformat()
@@ -334,7 +406,10 @@ def test_duplicate_part_ids_are_regenerated():
 def test_oversized_replace_interval_rejected():
     with pytest.raises(a.AssetValidationError):
         a.build_asset(
-            {"name": "Box", "parts": [{"name": "A", "type": "wear", "replace_interval": 10**9}]},
+            {
+                "name": "Box",
+                "parts": [{"name": "A", "type": "wear", "replace_interval": 10**9}],
+            },
             now=NOW,
         )
 
@@ -362,7 +437,10 @@ def test_would_create_cycle():
 # ── spare-inventory tracking (stock / reorder_at) ──────────────────────────────
 def test_part_stock_fields_normalized():
     asset = a.build_asset(
-        {"name": "Furnace", "parts": [{"name": "Filter", "stock": "4", "reorder_at": "1"}]},
+        {
+            "name": "Furnace",
+            "parts": [{"name": "Filter", "stock": "4", "reorder_at": "1"}],
+        },
         now=NOW,
     )
     part = asset["parts"][0]
@@ -485,9 +563,7 @@ def test_merge_update_clears_part_stock_when_omitted():
     )
     pid = asset["parts"][0]["id"]
     asset["parts"][0]["last_replaced"] = "2025-01-01"  # backend completion stamp
-    updated = a.merge_update(
-        asset, {"parts": [{"id": pid, "name": "Filter"}]}, now=NOW
-    )
+    updated = a.merge_update(asset, {"parts": [{"id": pid, "name": "Filter"}]}, now=NOW)
     assert updated["parts"][0]["stock"] is None
     assert updated["parts"][0]["reorder_at"] is None
     assert updated["parts"][0]["last_replaced"] == "2025-01-01"

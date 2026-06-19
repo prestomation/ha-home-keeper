@@ -104,7 +104,9 @@ def _step(dt: datetime, freq: str, interval: int) -> datetime:
     raise ValueError(f"unknown freq: {freq!r}")
 
 
-def _fast_forward(anchor: datetime, freq: str, interval: int, target: datetime) -> datetime:
+def _fast_forward(
+    anchor: datetime, freq: str, interval: int, target: datetime
+) -> datetime:
     """An occurrence at or just before *target*, jumped to in O(1).
 
     A long-dormant fixed schedule can be thousands of steps past its anchor;

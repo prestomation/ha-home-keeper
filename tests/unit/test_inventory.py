@@ -23,7 +23,12 @@ def _asset(**kw):
         # Descriptive/temporal facts are free-form metadata now.
         "metadata": [
             {"id": "m1", "type": "text", "label": "Serial", "value": "SN-1"},
-            {"id": "m2", "type": "date", "label": "Warranty expiry", "value": "2030-01-01"},
+            {
+                "id": "m2",
+                "type": "date",
+                "label": "Warranty expiry",
+                "value": "2030-01-01",
+            },
         ],
         "parts": [],
     }
@@ -78,7 +83,9 @@ def test_spares_value_is_cost_times_stock():
 
 
 def test_totals_roll_up_cost_and_spares():
-    a = _asset(id="a1", name="A", cost=100.0, parts=[{"name": "p", "cost": 10.0, "stock": 2}])
+    a = _asset(
+        id="a1", name="A", cost=100.0, parts=[{"name": "p", "cost": 10.0, "stock": 2}]
+    )
     b = _asset(id="b1", name="B", cost=50.0, parts=[])
     report = inv.build_inventory([a, b])
     assert report["totals"] == {
@@ -106,8 +113,18 @@ def test_metadata_details_flattened_into_summary():
     asset = _asset(
         metadata=[
             {"id": "m1", "type": "text", "label": "Serial", "value": "SN-9"},
-            {"id": "m2", "type": "link", "label": "Manual", "value": "https://ex/m.pdf"},
-            {"id": "m3", "type": "text", "label": "Blank", "value": ""},  # dropped (no value)
+            {
+                "id": "m2",
+                "type": "link",
+                "label": "Manual",
+                "value": "https://ex/m.pdf",
+            },
+            {
+                "id": "m3",
+                "type": "text",
+                "label": "Blank",
+                "value": "",
+            },  # dropped (no value)
         ]
     )
     row = inv.build_inventory([asset])["assets"][0]
@@ -117,7 +134,12 @@ def test_metadata_details_flattened_into_summary():
 def test_csv_has_header_rows_and_total():
     report = inv.build_inventory(
         [
-            _asset(id="1", name="Apple", cost=100.0, parts=[{"name": "p", "cost": 5.0, "stock": 2}]),
+            _asset(
+                id="1",
+                name="Apple",
+                cost=100.0,
+                parts=[{"name": "p", "cost": 5.0, "stock": 2}],
+            ),
             _asset(id="2", name="Box", cost=50.0, parts=[]),
         ]
     )
@@ -139,19 +161,27 @@ def test_csv_neutralizes_formula_injection():
     # A field a spreadsheet would treat as a formula is prefixed with ' so it renders
     # as literal text (CSV/formula injection guard).
     report = inv.build_inventory(
-        [_asset(id="1", name="=HYPERLINK(\"http://evil\")", manufacturer="@SUM(A1)")]
+        [_asset(id="1", name='=HYPERLINK("http://evil")', manufacturer="@SUM(A1)")]
     )
     text = inv.inventory_to_csv(report)
-    row = next(r for r in csv.reader(io.StringIO(text)) if r and r[0].endswith("evil\")"))
-    assert row[0].startswith("'="), "a formula-like name must be prefixed with an apostrophe"
+    row = next(
+        r for r in csv.reader(io.StringIO(text)) if r and r[0].endswith('evil")')
+    )
+    assert row[0].startswith("'="), (
+        "a formula-like name must be prefixed with an apostrophe"
+    )
     assert row[2].startswith("'@"), "a formula-like manufacturer must be neutralized"
 
 
 def test_spares_total_does_not_drift_from_per_row_rounding():
     # Per-row spares are rounded for display, but the grand total accumulates the raw
     # values and rounds once, so it can't drift from summing rounded rows.
-    a = _asset(id="1", name="A", cost=0.0, parts=[{"name": "p", "cost": 0.005, "stock": 1}])
-    b = _asset(id="2", name="B", cost=0.0, parts=[{"name": "q", "cost": 0.005, "stock": 1}])
+    a = _asset(
+        id="1", name="A", cost=0.0, parts=[{"name": "p", "cost": 0.005, "stock": 1}]
+    )
+    b = _asset(
+        id="2", name="B", cost=0.0, parts=[{"name": "q", "cost": 0.005, "stock": 1}]
+    )
     report = inv.build_inventory([a, b])
     # Each row rounds 0.005 -> 0.01 (banker's rounding may give 0.0), but the total is
     # round(0.005 + 0.005) == 0.01 regardless.

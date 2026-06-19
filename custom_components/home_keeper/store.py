@@ -42,8 +42,8 @@ _STOCK_EVENT = {
     STOCK_OUT: EVENT_PART_OUT_OF_STOCK,
     STOCK_RESTOCKED: EVENT_PART_RESTOCKED,
 }
-from .reconcile import part_source as _part_source
-from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
+from .reconcile import part_source as _part_source  # noqa: E402
+from .reconcile import reconcile_part_tasks as _reconcile_part_tasks  # noqa: E402
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -136,7 +136,9 @@ class HomeKeeperStore:
         self._hass.bus.async_fire(EVENT_TASK_CREATED, events.task_event_data(task))
         return task
 
-    async def update_task(self, task_id: str, updates: dict[str, Any]) -> dict[str, Any]:
+    async def update_task(
+        self, task_id: str, updates: dict[str, Any]
+    ) -> dict[str, Any]:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
@@ -174,7 +176,9 @@ class HomeKeeperStore:
         existing["next_due"] = dt_util.now().isoformat()
         await self._save()
         _LOGGER.debug("Triggered task %s (armed, due now)", task_id)
-        self._hass.bus.async_fire(EVENT_TASK_TRIGGERED, events.task_event_data(existing))
+        self._hass.bus.async_fire(
+            EVENT_TASK_TRIGGERED, events.task_event_data(existing)
+        )
         return existing
 
     async def delete_task(self, task_id: str, *, force: bool = False) -> None:
@@ -190,7 +194,9 @@ class HomeKeeperStore:
             managed_by = task.get("managed_by")
             orphaned = self.managed_task_orphaned(task)
             if models.deletion_blocked(task, orphaned=orphaned, force=force):
-                display_name = (managed_by or {}).get("display_name") or "an integration"
+                display_name = (managed_by or {}).get(
+                    "display_name"
+                ) or "an integration"
                 raise models.TaskValidationError(
                     f"This task is managed by {display_name}. "
                     f"Delete it from {display_name} instead."
@@ -200,7 +206,9 @@ class HomeKeeperStore:
             self._archive_task_history(removed)
             del self._tasks[task_id]
             await self._save()
-            self._hass.bus.async_fire(EVENT_TASK_DELETED, events.task_event_data(removed))
+            self._hass.bus.async_fire(
+                EVENT_TASK_DELETED, events.task_event_data(removed)
+            )
 
     def managed_task_orphaned(self, task: dict[str, Any]) -> bool:
         """Whether a managed task's owning integration is no longer present.
@@ -349,7 +357,8 @@ class HomeKeeperStore:
         dropped_ids = {
             tid
             for tid, t in self._tasks.items()
-            if _part_source(t) is not None and _part_source(t).get("asset_id") == asset_id
+            if _part_source(t) is not None
+            and _part_source(t).get("asset_id") == asset_id
         }
         dropped = [self._tasks[tid] for tid in dropped_ids]
         self._tasks = {
@@ -380,9 +389,7 @@ class HomeKeeperStore:
             # the appliance remains; preserve its history on the appliance. (Deleting
             # the whole appliance drops its derived tasks via delete_asset, before any
             # reconcile, so this only archives part removals — not appliance deletes.)
-            removed = [
-                task for tid, task in old_tasks.items() if tid not in new_tasks
-            ]
+            removed = [task for tid, task in old_tasks.items() if tid not in new_tasks]
             for task in removed:
                 if _part_source(task):
                     self._archive_task_history(task)
@@ -405,7 +412,11 @@ class HomeKeeperStore:
         return changed
 
     async def complete_task(
-        self, task_id: str, completed_at: Any | None = None, *, origin: str | None = None
+        self,
+        task_id: str,
+        completed_at: Any | None = None,
+        *,
+        origin: str | None = None,
     ) -> dict[str, Any]:
         """Mark a task completed and advance its recurrence.
 
@@ -451,7 +462,9 @@ class HomeKeeperStore:
         updated = recurrence.remove_completion(dict(existing), ts, now=dt_util.now())
         self._tasks[task_id] = updated
         await self._save()
-        self._hass.bus.async_fire(EVENT_TASK_UNCOMPLETED, events.task_event_data(updated))
+        self._hass.bus.async_fire(
+            EVENT_TASK_UNCOMPLETED, events.task_event_data(updated)
+        )
         return updated
 
     async def delete_archived_completion(

@@ -44,7 +44,9 @@ def _complete_onboarding():
     elif r.status_code == 403:
         return _login("test", "testtest1")
     else:
-        raise RuntimeError(f"Failed to create onboarding user: {r.status_code} {r.text}")
+        raise RuntimeError(
+            f"Failed to create onboarding user: {r.status_code} {r.text}"
+        )
 
     r = requests.post(
         f"{HA_URL}/auth/token",
@@ -62,10 +64,16 @@ def _complete_onboarding():
     for endpoint, payload in [
         ("core_config", {}),
         ("analytics", {}),
-        ("integration", {"client_id": f"{HA_URL}/", "redirect_uri": f"{HA_URL}/?auth_callback=1"}),
+        (
+            "integration",
+            {"client_id": f"{HA_URL}/", "redirect_uri": f"{HA_URL}/?auth_callback=1"},
+        ),
     ]:
         requests.post(
-            f"{HA_URL}/api/onboarding/{endpoint}", headers=headers, json=payload, timeout=10
+            f"{HA_URL}/api/onboarding/{endpoint}",
+            headers=headers,
+            json=payload,
+            timeout=10,
         )
 
     return access_token
@@ -171,6 +179,4 @@ def poll_state(ha, entity_id, condition, timeout=20):
         time.sleep(1)
     state_obj = get_state(ha, entity_id)
     state_val = state_obj["state"] if state_obj else "<entity not found>"
-    raise TimeoutError(
-        f"Timed out waiting for {entity_id}. Last state: {state_val}"
-    )
+    raise TimeoutError(f"Timed out waiting for {entity_id}. Last state: {state_val}")

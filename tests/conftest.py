@@ -18,7 +18,9 @@ import sys
 import types
 from pathlib import Path
 
-_COMPONENT_DIR = Path(__file__).resolve().parent.parent / "custom_components" / "home_keeper"
+_COMPONENT_DIR = (
+    Path(__file__).resolve().parent.parent / "custom_components" / "home_keeper"
+)
 
 
 def _load_pure_modules() -> None:

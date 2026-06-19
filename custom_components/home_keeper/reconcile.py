@@ -99,7 +99,9 @@ def reconcile_part_tasks(
                     "unit": part["replace_unit"],
                     "device_id": asset.get("device_id"),
                     "area_id": asset.get("area_id"),
-                    "source": {"part": {"asset_id": asset["id"], "part_id": part["id"]}},
+                    "source": {
+                        "part": {"asset_id": asset["id"], "part_id": part["id"]}
+                    },
                 },
                 now=now,
             )
@@ -111,7 +113,9 @@ def reconcile_part_tasks(
             # silently hidden for a cycle.
             if anchored:
                 task["last_completed"] = anchored
-                task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
+                task["next_due"] = recurrence.compute_next_due(
+                    task, now=now
+                ).isoformat()
             result[task["id"]] = task
             changed = True
         else:
@@ -130,7 +134,9 @@ def reconcile_part_tasks(
                 updates["device_id"] = asset.get("device_id")
             if before.get("area_id") != asset.get("area_id"):
                 updates["area_id"] = asset.get("area_id")
-            merged = models.merge_update(before, updates, now=now) if updates else before
+            merged = (
+                models.merge_update(before, updates, now=now) if updates else before
+            )
             # Heal a legacy timezone-naive last_completed (older builds stored a
             # date-only last_replaced verbatim, yielding a naive next_due that crashed
             # the sensors/calendar). Only re-qualify a naive value — never overwrite a
@@ -140,7 +146,9 @@ def reconcile_part_tasks(
             if healed and healed != lc:
                 merged = dict(merged)
                 merged["last_completed"] = healed
-                merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
+                merged["next_due"] = recurrence.compute_next_due(
+                    merged, now=now
+                ).isoformat()
             if merged is not before:
                 result[tid] = merged
                 changed = True

@@ -26,7 +26,7 @@ def _num(value: Any) -> float:
 
 
 def _spares_value(part: dict[str, Any]) -> float:
-    """On-hand value of a part: unit cost × stock (0 when either is unknown)."""
+    """On-hand value of a part: unit cost * stock (0 when either is unknown)."""
     cost = part.get("cost")
     stock = part.get("stock")
     if cost is None or stock is None:

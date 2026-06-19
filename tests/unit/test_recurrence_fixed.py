@@ -66,7 +66,10 @@ def test_expand_fixed_occurrences_weekly():
 
 def test_expand_empty_when_range_inverted():
     anchor = dt(2026, 1, 1, 8)
-    assert r.expand_fixed_occurrences(anchor, "DAILY", 1, dt(2026, 6, 2), dt(2026, 6, 1)) == []
+    assert (
+        r.expand_fixed_occurrences(anchor, "DAILY", 1, dt(2026, 6, 2), dt(2026, 6, 1))
+        == []
+    )
 
 
 def test_next_daily_occurrence_with_far_past_anchor_does_not_raise():
@@ -90,12 +93,17 @@ def test_next_weekly_occurrence_with_far_past_anchor():
 def test_expand_daily_with_far_past_anchor_returns_window():
     anchor = dt(2020, 1, 1, 8)
     occ = r.expand_fixed_occurrences(anchor, "DAILY", 1, dt(2026, 6, 1), dt(2026, 6, 4))
-    assert [o.date().isoformat() for o in occ] == ["2026-06-01", "2026-06-02", "2026-06-03"]
+    assert [o.date().isoformat() for o in occ] == [
+        "2026-06-01",
+        "2026-06-02",
+        "2026-06-03",
+    ]
 
 
 def test_remove_completion_keeps_fixed_schedule():
+    from datetime import datetime, timedelta, timezone
+
     import hk_recurrence as r
-    from datetime import datetime, timezone, timedelta
 
     tz = timezone(timedelta(hours=-4))
     now = datetime(2026, 6, 13, 10, tzinfo=tz)

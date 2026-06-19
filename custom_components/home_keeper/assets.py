@@ -261,7 +261,10 @@ def _normalize_part(raw: Any) -> dict:
         part["replace_unit"] = unit
     # A future "last replaced" would push the derived maintenance task far out and
     # silently hide it; it can only be a past (or today's) date.
-    if part["last_replaced"] and date.fromisoformat(part["last_replaced"]) > date.today():
+    if (
+        part["last_replaced"]
+        and date.fromisoformat(part["last_replaced"]) > date.today()
+    ):
         raise AssetValidationError("last_replaced must not be in the future")
     return part
 
@@ -361,7 +364,7 @@ def adjust_part_stock(part: dict, delta: int) -> str:
 
     Begins tracking from zero for a previously untracked part. Returns the edge
     transition (``stock_transition``) the adjustment caused — ``"low"`` / ``"out"`` on a
-    decrease that crosses a threshold, ``"restocked"`` when a restock lifts it back above
+    decrease that crosses a threshold, ``"restocked"`` when a restock lifts it above
     the reorder point, else ``"none"``.
     """
     old = int(part.get("stock") or 0)
@@ -547,9 +550,7 @@ def tasks_for_asset(asset: dict, tasks: list[dict]) -> list[dict]:
     return [task for task in tasks if task_relates_to_asset(task, asset)]
 
 
-def find_archiving_asset(
-    assets_by_id: dict[str, dict], task: dict
-) -> dict | None:
+def find_archiving_asset(assets_by_id: dict[str, dict], task: dict) -> dict | None:
     """The asset a deleted *task*'s history should be preserved on, or None.
 
     Precedence: the part-source appliance (the strong, explicit link) first, then

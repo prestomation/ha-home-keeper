@@ -10,9 +10,8 @@ refresh; here we cover the deterministic, mutation-driven events.
 import asyncio
 import json
 
-import pytest
 import websockets
-from conftest import HA_URL, call_service
+from conftest import call_service
 
 WS_URL = "ws://localhost:8123/api/websocket"
 
@@ -52,7 +51,7 @@ async def _capture(token, event_types, action, *, expected, timeout=20):
 
         try:
             await asyncio.wait_for(_drain(), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
     return captured
 
@@ -78,14 +77,22 @@ def test_task_lifecycle_events(ha, ha_token):
             ha,
             "home_keeper",
             "add_task",
-            {"name": "Event test task", "recurrence_type": "floating",
-             "interval": 7, "unit": "days"},
+            {
+                "name": "Event test task",
+                "recurrence_type": "floating",
+                "interval": 7,
+                "unit": "days",
+            },
             return_response=True,
         )
         body = resp.get("service_response", resp)
         created_id["id"] = body["task_id"]
-        call_service(ha, "home_keeper", "update_task",
-                     {"task_id": body["task_id"], "name": "Renamed task"})
+        call_service(
+            ha,
+            "home_keeper",
+            "update_task",
+            {"task_id": body["task_id"], "name": "Renamed task"},
+        )
         call_service(ha, "home_keeper", "complete_task", {"task_id": body["task_id"]})
         call_service(ha, "home_keeper", "delete_task", {"task_id": body["task_id"]})
 
@@ -128,7 +135,12 @@ def test_stock_transition_events(ha, ha_token):
             {
                 "name": "Event test appliance",
                 "parts": [
-                    {"name": "Widget", "type": "consumable", "stock": 2, "reorder_at": 1}
+                    {
+                        "name": "Widget",
+                        "type": "consumable",
+                        "stock": 2,
+                        "reorder_at": 1,
+                    }
                 ],
             },
         )
@@ -149,7 +161,11 @@ def test_stock_transition_events(ha, ha_token):
                 ha,
                 "home_keeper",
                 "adjust_part_stock",
-                {"asset_id": ids["asset_id"], "part_id": ids["part_id"], "delta": delta},
+                {
+                    "asset_id": ids["asset_id"],
+                    "part_id": ids["part_id"],
+                    "delta": delta,
+                },
             )
 
     events = _by_type(
@@ -174,7 +190,7 @@ def test_stock_transition_events(ha, ha_token):
 
 
 async def _ws_commands(token, commands):
-    """Open one authed websocket, send each command dict (id auto-assigned), return results."""
+    """Open one authed websocket; send each command; return the replies."""
     results = []
     async with websockets.connect(WS_URL, max_size=None) as ws:
         assert json.loads(await ws.recv())["type"] == "auth_required"
@@ -191,9 +207,7 @@ async def _ws_commands(token, commands):
 
 def test_device_triggers_offered_for_appliance_and_task_devices(ha, ha_token):
     """async_get_triggers offers Home Keeper triggers on the right devices."""
-    (devices_reply,) = _run_ws(
-        ha_token, [{"type": "config/device_registry/list"}]
-    )
+    (devices_reply,) = _run_ws(ha_token, [{"type": "config/device_registry/list"}])
     devices = devices_reply["result"]
 
     def _is_hk(device):
@@ -234,10 +248,10 @@ def test_asset_lifecycle_events(ha, ha_token):
     def action():
         call_service(ha, "home_keeper", "add_asset", {"name": "Asset event appliance"})
 
-    events = _by_type(
-        _run(ha_token, ["home_keeper_asset_created"], action, expected=1)
+    events = _by_type(_run(ha_token, ["home_keeper_asset_created"], action, expected=1))
+    assert (
+        events["home_keeper_asset_created"][0]["asset_name"] == "Asset event appliance"
     )
-    assert events["home_keeper_asset_created"][0]["asset_name"] == "Asset event appliance"
 
     # Find and delete it, asserting the deletion event.
     assets = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
@@ -249,7 +263,5 @@ def test_asset_lifecycle_events(ha, ha_token):
     def delete():
         call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset_id})
 
-    events = _by_type(
-        _run(ha_token, ["home_keeper_asset_deleted"], delete, expected=1)
-    )
+    events = _by_type(_run(ha_token, ["home_keeper_asset_deleted"], delete, expected=1))
     assert events["home_keeper_asset_deleted"][0]["asset_id"] == asset_id

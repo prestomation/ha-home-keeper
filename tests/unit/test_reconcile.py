@@ -48,9 +48,10 @@ def test_creates_task_anchored_on_last_replaced():
     assert task["source"]["part"] == {"asset_id": "a1", "part_id": "p1"}
     anchor = datetime.fromisoformat("2025-05-01").replace(tzinfo=TZ)
     assert task["last_completed"] == anchor.isoformat()
-    assert task["next_due"] == r.compute_floating_next_due(
-        anchor, 12, "months", now=NOW
-    ).isoformat()
+    assert (
+        task["next_due"]
+        == r.compute_floating_next_due(anchor, 12, "months", now=NOW).isoformat()
+    )
 
 
 def test_creates_task_due_now_when_no_last_replaced():
@@ -78,7 +79,9 @@ def test_consumable_part_creates_no_task():
 
 
 def test_wear_part_without_interval_creates_no_task():
-    asset = _asset(parts=[{"id": "p1", "name": "Belt", "type": "wear", "replace_interval": None}])
+    asset = _asset(
+        parts=[{"id": "p1", "name": "Belt", "type": "wear", "replace_interval": None}]
+    )
     tasks, changed = _reconcile({"a1": asset})
     assert tasks == {} and changed is False
 
@@ -135,9 +138,10 @@ def test_changing_interval_rebases_off_anchor_not_now():
     tasks, changed = _reconcile({"a1": bumped}, created)
     assert changed is True
     anchor = datetime.fromisoformat("2025-05-01").replace(tzinfo=TZ)
-    assert _only(tasks)["next_due"] == r.compute_floating_next_due(
-        anchor, 24, "months", now=NOW
-    ).isoformat()
+    assert (
+        _only(tasks)["next_due"]
+        == r.compute_floating_next_due(anchor, 24, "months", now=NOW).isoformat()
+    )
 
 
 def test_changing_device_id_updates_task():
@@ -164,12 +168,16 @@ def test_changing_replace_unit_updates_task():
 # ── timezone healing vs. real completions ─────────────────────────────────────
 def test_heals_legacy_naive_last_completed():
     # Simulate a task persisted by an older build: naive last_completed/next_due.
-    created, _ = _reconcile({"a1": _asset(parts=[_wear_part(last_replaced="2025-05-01")])})
+    created, _ = _reconcile(
+        {"a1": _asset(parts=[_wear_part(last_replaced="2025-05-01")])}
+    )
     task = _only(created)
     tid = task["id"]
     task["last_completed"] = "2025-05-01T00:00:00"  # naive (no tz)
     task["next_due"] = "2026-05-01T00:00:00"  # naive
-    tasks, changed = _reconcile({"a1": _asset(parts=[_wear_part(last_replaced="2025-05-01")])}, created)
+    tasks, changed = _reconcile(
+        {"a1": _asset(parts=[_wear_part(last_replaced="2025-05-01")])}, created
+    )
     assert changed is True
     healed = tasks[tid]
     assert healed["last_completed"].endswith("-04:00")  # now aware
@@ -207,7 +215,9 @@ def test_part_source_extracts_provenance():
 def test_qualify_iso():
     assert rc.qualify_iso("2025-05-01", TZ) == "2025-05-01T00:00:00-04:00"
     # Already-aware values are returned unchanged.
-    assert rc.qualify_iso("2025-05-01T12:00:00-04:00", TZ) == "2025-05-01T12:00:00-04:00"
+    assert (
+        rc.qualify_iso("2025-05-01T12:00:00-04:00", TZ) == "2025-05-01T12:00:00-04:00"
+    )
     assert rc.qualify_iso(None, TZ) is None
     assert rc.qualify_iso("", TZ) is None
     assert rc.qualify_iso("not-a-date", TZ) is None

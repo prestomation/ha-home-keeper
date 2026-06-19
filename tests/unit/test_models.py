@@ -11,7 +11,12 @@ NOW = datetime(2026, 6, 13, 10, tzinfo=TZ)
 
 def test_build_floating_task_sets_id_and_is_due_now():
     task = m.build_task(
-        {"name": "Furnace filter", "recurrence_type": "floating", "interval": 3, "unit": "months"},
+        {
+            "name": "Furnace filter",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+        },
         now=NOW,
     )
     assert task["id"]
@@ -129,17 +134,30 @@ def test_build_fixed_task_normalizes_naive_anchor():
 
 def test_build_task_rejects_missing_name():
     with pytest.raises(m.TaskValidationError):
-        m.build_task({"recurrence_type": "floating", "interval": 1, "unit": "days"}, now=NOW)
+        m.build_task(
+            {"recurrence_type": "floating", "interval": 1, "unit": "days"}, now=NOW
+        )
 
 
 def test_build_task_rejects_bad_unit():
     with pytest.raises(m.TaskValidationError):
-        m.build_task({"name": "x", "recurrence_type": "floating", "interval": 1, "unit": "lightyears"}, now=NOW)
+        m.build_task(
+            {
+                "name": "x",
+                "recurrence_type": "floating",
+                "interval": 1,
+                "unit": "lightyears",
+            },
+            now=NOW,
+        )
 
 
 def test_build_task_rejects_bad_interval():
     with pytest.raises(m.TaskValidationError):
-        m.build_task({"name": "x", "recurrence_type": "floating", "interval": 0, "unit": "days"}, now=NOW)
+        m.build_task(
+            {"name": "x", "recurrence_type": "floating", "interval": 0, "unit": "days"},
+            now=NOW,
+        )
 
 
 def test_build_task_rejects_oversized_interval():
@@ -147,7 +165,12 @@ def test_build_task_rejects_oversized_interval():
     # OverflowError that surfaces as a 500.
     with pytest.raises(m.TaskValidationError):
         m.build_task(
-            {"name": "x", "recurrence_type": "floating", "interval": 10**9, "unit": "days"},
+            {
+                "name": "x",
+                "recurrence_type": "floating",
+                "interval": 10**9,
+                "unit": "days",
+            },
             now=NOW,
         )
 
@@ -157,14 +180,24 @@ def test_build_task_rejects_non_numeric_interval():
     # validation error (not a raw ValueError that crashes the command).
     with pytest.raises(m.TaskValidationError):
         m.build_task(
-            {"name": "x", "recurrence_type": "floating", "interval": "soon", "unit": "days"},
+            {
+                "name": "x",
+                "recurrence_type": "floating",
+                "interval": "soon",
+                "unit": "days",
+            },
             now=NOW,
         )
 
 
 def test_merge_update_name_only_keeps_schedule():
     task = m.build_task(
-        {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},
+        {
+            "name": "Filter",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "months",
+        },
         now=NOW,
     )
     original_due = task["next_due"]
@@ -195,7 +228,9 @@ def test_merge_update_interval_recomputes_due():
 def test_build_task_carries_opaque_source():
     # ``source`` is opaque provenance owned by a contributing integration; build_task
     # must store it verbatim so the task can be matched/echoed later.
-    source = {"pawsistant": {"dog_id": "d1", "event_type": "medicine", "schedule_id": "s1"}}
+    source = {
+        "pawsistant": {"dog_id": "d1", "event_type": "medicine", "schedule_id": "s1"}
+    }
     task = m.build_task(
         {
             "name": "Medicine",
@@ -211,7 +246,12 @@ def test_build_task_carries_opaque_source():
 
 def test_build_task_source_defaults_to_none():
     task = m.build_task(
-        {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},
+        {
+            "name": "Filter",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "months",
+        },
         now=NOW,
     )
     assert task["source"] is None
@@ -258,7 +298,12 @@ def test_build_task_carries_managed_by():
 
 def test_build_task_managed_by_defaults_to_none():
     task = m.build_task(
-        {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},
+        {
+            "name": "Filter",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "months",
+        },
         now=NOW,
     )
     assert task["managed_by"] is None
@@ -287,17 +332,24 @@ def test_merge_update_respects_locked_fields():
         {"name": "Hacked name", "device_id": "evil-device", "interval": 4},
         now=NOW,
     )
-    assert updated["name"] == "Buddy: Medicine"     # locked — unchanged
+    assert updated["name"] == "Buddy: Medicine"  # locked — unchanged
     assert updated["device_id"] == "dev-buddy-123"  # locked — unchanged
-    assert updated["interval"] == 4                 # not locked — changed
+    assert updated["interval"] == 4  # not locked — changed
 
 
 def test_merge_update_without_managed_by_allows_all_fields():
     task = m.build_task(
-        {"name": "Filter", "recurrence_type": "floating", "interval": 1, "unit": "months"},
+        {
+            "name": "Filter",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "months",
+        },
         now=NOW,
     )
-    updated = m.merge_update(task, {"name": "New name", "device_id": "some-device"}, now=NOW)
+    updated = m.merge_update(
+        task, {"name": "New name", "device_id": "some-device"}, now=NOW
+    )
     assert updated["name"] == "New name"
     assert updated["device_id"] == "some-device"
 
@@ -348,7 +400,11 @@ def test_deletion_force_bypasses_protection():
 
 
 def test_deletion_not_blocked_without_protection():
-    task = {"id": "t1", "name": "X", "managed_by": {"integration": "p", "display_name": "P"}}
+    task = {
+        "id": "t1",
+        "name": "X",
+        "managed_by": {"integration": "p", "display_name": "P"},
+    }
     assert m.deletion_blocked(task, orphaned=False) is False
 
 
@@ -445,15 +501,13 @@ def test_build_triggered_task_is_created_active_with_no_schedule_fields():
 def test_triggered_task_does_not_require_unit_or_freq():
     # normalize_fields must not fall through to the fixed branch (which demands
     # freq/anchor) for a triggered task.
-    fields = m.normalize_fields(
-        {"name": "Mop up leak", "recurrence_type": "triggered"}
-    )
+    fields = m.normalize_fields({"name": "Mop up leak", "recurrence_type": "triggered"})
     assert fields["recurrence_type"] == "triggered"
     assert "unit" not in fields and "freq" not in fields and "interval" not in fields
 
 
 def test_merge_update_preserves_triggered_dormant_state():
-    # Editing the notes of a dormant triggered task must not re-arm it or add a schedule.
+    # Editing a dormant triggered task's notes must not re-arm it or add a schedule.
     task = m.build_task(
         {"name": "Replace battery", "recurrence_type": "triggered"}, now=NOW
     )

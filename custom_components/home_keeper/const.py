@@ -27,7 +27,8 @@ STORAGE_VERSION = 1
 # How many completion timestamps to retain per task. Generous so the panel's task
 # history shows years of cadence (e.g. 500 monthly completions ≈ 40 years) while
 # still bounding the stored list. When a task that belongs to an appliance is
-# deleted, this history is archived onto the appliance (see ``assets.append_task_history``).
+# deleted, this history is archived onto the appliance
+# (see ``assets.append_task_history``).
 MAX_COMPLETION_HISTORY = 500
 
 # Event fired on the HA event bus whenever a task is completed (from any surface:
@@ -127,7 +128,7 @@ MAX_INTERVAL = 10_000
 # interface so integrations like Battery Notes can push maintenance tasks without
 # this integration knowing anything about them. The intended hook is a dispatcher
 # signal plus a `home_keeper.contribute_task` service. See docs/DESIGN.md.
-SIGNAL_TASK_CONTRIBUTION = f"{DOMAIN}_task_contribution"  # noqa: F841  (reserved)
+SIGNAL_TASK_CONTRIBUTION = f"{DOMAIN}_task_contribution"
 
 # Well-known field on a task dict that Home Keeper inspects (unlike the opaque
 # ``source`` field). Declares the integration that owns the task: which fields

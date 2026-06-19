@@ -136,7 +136,7 @@ class FakeHomeKeeper:
     def fire_user_completion(
         self, task_id: str, completed_at: Any | None = None
     ) -> dict[str, Any]:
-        """Simulate a user checking the task off in Home Keeper's UI (``origin`` None)."""
+        """Simulate a user checking the task off in the UI (``origin`` None)."""
         return self._complete(task_id, completed_at, None)
 
     def get_task_by_source(self, namespace: str, **match: Any) -> dict[str, Any] | None:

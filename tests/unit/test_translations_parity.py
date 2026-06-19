@@ -28,9 +28,7 @@ from pathlib import Path
 import pytest
 
 _COMPONENT_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "custom_components"
-    / "home_keeper"
+    Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
 )
 _STRINGS = _COMPONENT_DIR / "strings.json"
 _TRANSLATIONS = _COMPONENT_DIR / "translations"
@@ -50,18 +48,94 @@ _INTENTIONALLY_IDENTICAL: frozenset[str] = frozenset(
 # for every other locale. Examples: German "Name", French "Notes", Catalan
 # "Cost", and technical loanwords "Delta"/"Model"/"Metadata"/"Interval".
 _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
-    "ca": frozenset({"services.add_asset.fields.cost.name", "services.add_asset.fields.model.name", "services.add_task.fields.interval.name", "services.add_task.fields.notes.name", "services.adjust_part_stock.fields.delta.name", "services.update_asset.fields.cost.name", "services.update_asset.fields.model.name", "services.update_task.fields.interval.name", "services.update_task.fields.notes.name"}),
-    "cs": frozenset({"services.add_asset.fields.metadata.name", "services.add_asset.fields.model.name", "services.add_task.fields.interval.name", "services.adjust_part_stock.fields.delta.name", "services.update_asset.fields.metadata.name", "services.update_asset.fields.model.name", "services.update_task.fields.interval.name"}),
-    "da": frozenset({"services.add_asset.fields.metadata.name", "services.add_asset.fields.model.name", "services.add_task.fields.interval.name", "services.update_asset.fields.metadata.name", "services.update_asset.fields.model.name", "services.update_task.fields.interval.name"}),
-    "de": frozenset({"services.add_asset.fields.name.name", "services.add_task.fields.name.name", "services.update_asset.fields.name.name", "services.update_task.fields.name.name"}),
+    "ca": frozenset(
+        {
+            "services.add_asset.fields.cost.name",
+            "services.add_asset.fields.model.name",
+            "services.add_task.fields.interval.name",
+            "services.add_task.fields.notes.name",
+            "services.adjust_part_stock.fields.delta.name",
+            "services.update_asset.fields.cost.name",
+            "services.update_asset.fields.model.name",
+            "services.update_task.fields.interval.name",
+            "services.update_task.fields.notes.name",
+        }
+    ),
+    "cs": frozenset(
+        {
+            "services.add_asset.fields.metadata.name",
+            "services.add_asset.fields.model.name",
+            "services.add_task.fields.interval.name",
+            "services.adjust_part_stock.fields.delta.name",
+            "services.update_asset.fields.metadata.name",
+            "services.update_asset.fields.model.name",
+            "services.update_task.fields.interval.name",
+        }
+    ),
+    "da": frozenset(
+        {
+            "services.add_asset.fields.metadata.name",
+            "services.add_asset.fields.model.name",
+            "services.add_task.fields.interval.name",
+            "services.update_asset.fields.metadata.name",
+            "services.update_asset.fields.model.name",
+            "services.update_task.fields.interval.name",
+        }
+    ),
+    "de": frozenset(
+        {
+            "services.add_asset.fields.name.name",
+            "services.add_task.fields.name.name",
+            "services.update_asset.fields.name.name",
+            "services.update_task.fields.name.name",
+        }
+    ),
     "es": frozenset({"services.adjust_part_stock.fields.delta.name"}),
-    "fr": frozenset({"services.add_task.fields.notes.name", "services.update_task.fields.notes.name"}),
-    "it": frozenset({"services.add_asset.fields.area_id.name", "services.add_task.fields.area_id.name", "services.adjust_part_stock.fields.delta.name", "services.update_asset.fields.area_id.name", "services.update_task.fields.area_id.name"}),
-    "nb": frozenset({"services.add_asset.fields.metadata.name", "services.update_asset.fields.metadata.name"}),
-    "nl": frozenset({"services.add_asset.fields.metadata.name", "services.add_asset.fields.model.name", "services.add_task.fields.interval.name", "services.update_asset.fields.metadata.name", "services.update_asset.fields.model.name", "services.update_task.fields.interval.name"}),
-    "pl": frozenset({"services.add_asset.fields.model.name", "services.adjust_part_stock.fields.delta.name", "services.update_asset.fields.model.name"}),
+    "fr": frozenset(
+        {
+            "services.add_task.fields.notes.name",
+            "services.update_task.fields.notes.name",
+        }
+    ),
+    "it": frozenset(
+        {
+            "services.add_asset.fields.area_id.name",
+            "services.add_task.fields.area_id.name",
+            "services.adjust_part_stock.fields.delta.name",
+            "services.update_asset.fields.area_id.name",
+            "services.update_task.fields.area_id.name",
+        }
+    ),
+    "nb": frozenset(
+        {
+            "services.add_asset.fields.metadata.name",
+            "services.update_asset.fields.metadata.name",
+        }
+    ),
+    "nl": frozenset(
+        {
+            "services.add_asset.fields.metadata.name",
+            "services.add_asset.fields.model.name",
+            "services.add_task.fields.interval.name",
+            "services.update_asset.fields.metadata.name",
+            "services.update_asset.fields.model.name",
+            "services.update_task.fields.interval.name",
+        }
+    ),
+    "pl": frozenset(
+        {
+            "services.add_asset.fields.model.name",
+            "services.adjust_part_stock.fields.delta.name",
+            "services.update_asset.fields.model.name",
+        }
+    ),
     "pt-BR": frozenset({"services.adjust_part_stock.fields.delta.name"}),
-    "sv": frozenset({"services.add_asset.fields.metadata.name", "services.update_asset.fields.metadata.name"}),
+    "sv": frozenset(
+        {
+            "services.add_asset.fields.metadata.name",
+            "services.update_asset.fields.metadata.name",
+        }
+    ),
 }
 
 # Token of the form ``{name}`` used by HA/Python ``str.format`` placeholders.

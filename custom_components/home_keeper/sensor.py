@@ -92,9 +92,7 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
         }
 
 
-class HomeKeeperAssetDateSensor(
-    CoordinatorEntity[HomeKeeperCoordinator], SensorEntity
-):
+class HomeKeeperAssetDateSensor(CoordinatorEntity[HomeKeeperCoordinator], SensorEntity):
     """A single tracked ``date`` metadata entry for an asset, on its device page.
 
     The value lives in the asset's free-form ``metadata`` list (not the task map);
