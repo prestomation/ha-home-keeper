@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper est déjà configuré."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options de Home Keeper",
+        "description": "Refléter les capteurs binaires de classe « problème » sous forme de tâches. Une tâche synchronisée reste active tant que son capteur signale un problème et se vide automatiquement lorsque l'intégration d'origine le résout ; elle ne peut pas être terminée dans Home Keeper. Excluez ci-dessous certains capteurs, zones ou étiquettes.",
+        "data": {
+          "sync_problem_sensors": "Synchroniser les capteurs de problème en tâches",
+          "problem_sensor_exclude_entities": "Capteurs exclus",
+          "problem_sensor_exclude_areas": "Zones exclues",
+          "problem_sensor_exclude_labels": "Étiquettes exclues"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Ajouter une tâche",

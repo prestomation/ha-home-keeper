@@ -34,6 +34,13 @@ All event names follow `home_keeper_<noun>_<verb>`. Task events share a common
 | `home_keeper_task_uncompleted` | a completion is undone (`next_due` is re-derived) |
 | `home_keeper_task_triggered` | a condition-driven (triggered) task is armed (dormant → due-now) |
 
+**Synced `problem` binary sensors** (when *Sync problem sensors* is on) ride these same
+events: a mirror task is `created` for each `device_class: problem` sensor, `triggered`
+when the sensor reports a problem, and `completed` when it clears — the completion event
+carries `origin: home_keeper_problem_sensor_sync` and `source:
+{"problem_sensor": {"entity_id": …}}` so an automation can tell a self-clearing problem
+from a user-completed chore. (These tasks can’t be completed by hand — see the README.)
+
 ### Time-based transitions (edge-triggered)
 
 | Event | Fires when |

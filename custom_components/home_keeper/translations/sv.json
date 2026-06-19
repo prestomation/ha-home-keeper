@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper är redan konfigurerad."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Keeper-inställningar",
+        "description": "Spegla binärsensorer med enhetsklassen ”problem” som uppgifter. En synkroniserad uppgift förblir aktiv så länge sensorn rapporterar ett problem och rensas automatiskt när källintegrationen löser det; den kan inte slutföras i Home Keeper. Uteslut specifika sensorer, områden eller etiketter nedan.",
+        "data": {
+          "sync_problem_sensors": "Synkronisera problemsensorer som uppgifter",
+          "problem_sensor_exclude_entities": "Uteslutna sensorer",
+          "problem_sensor_exclude_areas": "Uteslutna områden",
+          "problem_sensor_exclude_labels": "Uteslutna etiketter"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Lägg till uppgift",

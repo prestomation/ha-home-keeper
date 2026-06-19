@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper is already set up."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Keeper options",
+        "description": "Mirror binary sensors with the \"problem\" device class as tasks. A synced task stays active while its sensor reports a problem and clears automatically when the source integration resolves it; it can't be completed in Home Keeper. Exclude specific sensors, areas, or labels below.",
+        "data": {
+          "sync_problem_sensors": "Sync problem sensors as tasks",
+          "problem_sensor_exclude_entities": "Excluded sensors",
+          "problem_sensor_exclude_areas": "Excluded areas",
+          "problem_sensor_exclude_labels": "Excluded labels"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Add task",

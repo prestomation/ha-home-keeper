@@ -31,6 +31,7 @@ from .const import (
     EVENT_TASK_TRIGGERED,
     EVENT_TASK_UNCOMPLETED,
     EVENT_TASK_UPDATED,
+    ORIGIN_PROBLEM_SENSOR_SYNC,
     REC_TRIGGERED,
     STORAGE_KEY,
     STORAGE_VERSION,
@@ -44,8 +45,30 @@ _STOCK_EVENT = {
 }
 from .reconcile import part_source as _part_source  # noqa: E402
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks  # noqa: E402
+from .problem_tasks import problem_sensor_entity_id as _problem_entity  # noqa: E402
+from .problem_tasks import problem_source as _problem_source  # noqa: E402
+from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks  # noqa: E402
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
+    """Raise unless *origin* authorizes mutating a problem-sensor-synced task.
+
+    A synced task mirrors a ``device_class: problem`` binary sensor and is owned by
+    the sync. Every user-facing surface (to-do, button, service, websocket, panel)
+    calls without :data:`ORIGIN_PROBLEM_SENSOR_SYNC`, so this rejects them with a
+    clear message; only the internal sync (which passes the marker) may arm or clear
+    the task. The problem itself has to be resolved in the originating integration.
+    """
+    if _problem_source(task) is None or origin == ORIGIN_PROBLEM_SENSOR_SYNC:
+        return
+    entity_id = _problem_entity(task) or "the originating integration"
+    raise models.TaskValidationError(
+        f"This task mirrors the problem sensor {entity_id} and can't be cleared in "
+        "Home Keeper. Resolve the problem in the originating integration — the task "
+        "clears automatically when the sensor returns to OK."
+    )
 
 
 def _changed_fields(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
@@ -155,7 +178,9 @@ class HomeKeeperStore:
             )
         return merged
 
-    async def trigger_task(self, task_id: str) -> dict[str, Any]:
+    async def trigger_task(
+        self, task_id: str, *, origin: str | None = None
+    ) -> dict[str, Any]:
         """Arm a condition-driven (``triggered``) task so it reads as due-now.
 
         Sets ``next_due`` to now, moving the task from dormant to active. This is the
@@ -173,6 +198,7 @@ class HomeKeeperStore:
             raise models.TaskValidationError(
                 "trigger_task is only valid for triggered (condition-driven) tasks"
             )
+        _reject_synced_problem(existing, origin)
         existing["next_due"] = dt_util.now().isoformat()
         await self._save()
         _LOGGER.debug("Triggered task %s (armed, due now)", task_id)
@@ -411,6 +437,53 @@ class HomeKeeperStore:
                     )
         return changed
 
+    async def reconcile_problem_sensor_tasks(
+        self, eligible: dict[str, dict[str, Any]], *, config_entry_id: str
+    ) -> bool:
+        """Sync the triggered tasks mirroring ``device_class: problem`` sensors.
+
+        *eligible* maps ``entity_id`` -> ``{"name", "device_id", "area_id",
+        "is_problem"}`` for the sensors that should be synced (the HA-aware filtering
+        — option on, exclusions, skipping Home Keeper's own entities — happens in
+        ``problem_sync.py``; an empty map removes every synced task, e.g. when the
+        option is turned off). Delegates the diff to the pure
+        :func:`problem_tasks.reconcile_problem_tasks`, persists, and fires the
+        matching lifecycle events. Returns ``True`` when the per-task **entity set**
+        changed (a task was created or removed) so the caller can decide between a
+        full entry reload and a plain coordinator refresh.
+        """
+        new_tasks, ops, changed = _reconcile_problem_tasks(
+            eligible, self._tasks, config_entry_id=config_entry_id, now=dt_util.now()
+        )
+        if not changed:
+            return False
+        self._tasks = new_tasks
+        await self._save()
+        entity_set_changed = False
+        for kind, task in ops:
+            if kind == "created":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_CREATED, events.task_event_data(task)
+                )
+                entity_set_changed = True
+            elif kind == "deleted":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_DELETED, events.task_event_data(task)
+                )
+                entity_set_changed = True
+            elif kind == "armed":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_TRIGGERED, events.task_event_data(task)
+                )
+            elif kind == "cleared":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_COMPLETED,
+                    events.completion_event_data(
+                        task, dt_util.now(), ORIGIN_PROBLEM_SENSOR_SYNC
+                    ),
+                )
+        return entity_set_changed
+
     async def complete_task(
         self,
         task_id: str,
@@ -435,6 +508,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
+        _reject_synced_problem(existing, origin)
         now = dt_util.now()
         when = completed_at or now
         updated = recurrence.apply_completion(dict(existing), when, now=now)
@@ -459,6 +533,9 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
+        # A synced problem task's history is owned by the sync (arm/clear), not the
+        # user; don't let the panel/websocket rewrite it.
+        _reject_synced_problem(existing, None)
         updated = recurrence.remove_completion(dict(existing), ts, now=dt_util.now())
         self._tasks[task_id] = updated
         await self._save()

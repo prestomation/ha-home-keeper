@@ -22,6 +22,7 @@ from .assets import AssetValidationError
 from .const import DOMAIN, PLATFORMS
 from .coordinator import HomeKeeperCoordinator, entity_set_key
 from .models import TaskValidationError
+from .problem_sync import ProblemSensorSync
 from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -167,9 +168,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Provision/reconcile virtual asset devices and the tasks derived from wear
     # parts BEFORE forwarding platforms so the registry devices and per-task
-    # entities exist when the platforms set up.
+    # entities exist when the platforms set up. The same applies to the tasks
+    # mirroring ``device_class: problem`` binary sensors (when syncing is enabled).
     await devices.async_reconcile_assets(hass, entry, store)
     await store.reconcile_part_tasks()
+    problem_sync = ProblemSensorSync(hass, entry, coordinator)
+    await problem_sync.async_initial_reconcile()
+    coordinator.problem_sync = problem_sync
     await coordinator.async_request_refresh()
 
     await panel.async_register_panel(hass)
@@ -178,10 +183,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _register_services(hass)
+    # React to options-flow changes (e.g. toggling problem-sensor syncing) by
+    # reloading the entry, which re-runs this setup with the new options.
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+    # Now that platforms are up, start the live problem-sensor listeners (these may
+    # reload the entry when a synced task is created/removed, so they run last).
+    problem_sync.async_start_listeners()
     # Setup is complete: the refreshes above have baselined current overdue/due-soon
     # state silently, so start firing those events only for transitions from here on.
     coordinator.enable_transition_events()
     return True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the entry when its options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 def _register_services(hass: HomeAssistant) -> None:
@@ -256,6 +272,8 @@ def _register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(
                 f"Task not found: {call.data['task_id']}"
             ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(str(err)) from err
         await coord.async_request_refresh()
 
     async def handle_trigger_task(call: ServiceCall) -> None:

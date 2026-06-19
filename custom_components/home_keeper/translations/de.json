@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper ist bereits eingerichtet."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home-Keeper-Optionen",
+        "description": "Binärsensoren mit der Geräteklasse „Problem“ als Aufgaben spiegeln. Eine synchronisierte Aufgabe bleibt aktiv, solange ihr Sensor ein Problem meldet, und wird automatisch gelöscht, wenn die Quellintegration es behebt; sie kann in Home Keeper nicht abgeschlossen werden. Schließe unten bestimmte Sensoren, Bereiche oder Labels aus.",
+        "data": {
+          "sync_problem_sensors": "Problemsensoren als Aufgaben synchronisieren",
+          "problem_sensor_exclude_entities": "Ausgeschlossene Sensoren",
+          "problem_sensor_exclude_areas": "Ausgeschlossene Bereiche",
+          "problem_sensor_exclude_labels": "Ausgeschlossene Labels"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Aufgabe hinzufügen",

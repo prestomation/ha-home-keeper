@@ -19,6 +19,18 @@ frontend:
 # environment representative and the console clean.
 recorder:
 
+# A `device_class: problem` binary sensor, kept "on", so the problem-sensor sync
+# (enabled via the home_keeper config entry's options) has something to mirror — it
+# drives the seeded `task_sump_problem` synced task used by the screenshot capture
+# and integration coverage. A unique_id registers it in the entity registry so the
+# sync's enumeration can find it.
+template:
+  - binary_sensor:
+      - name: "Sump pump problem"
+        unique_id: sump_pump_problem
+        device_class: problem
+        state: "{{ true }}"
+
 # Dedicated YAML dashboard used by the Playwright e2e suite. The default
 # (storage-mode) dashboard from onboarding is left untouched. The Home Keeper
 # todo/calendar entities resolve via HA's built-in cards.

@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper is al ingesteld."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Keeper-opties",
+        "description": "Binaire sensoren met de apparaatklasse 'probleem' als taken spiegelen. Een gesynchroniseerde taak blijft actief zolang de sensor een probleem meldt en wordt automatisch gewist wanneer de bronintegratie het oplost; hij kan niet in Home Keeper worden voltooid. Sluit hieronder specifieke sensoren, gebieden of labels uit.",
+        "data": {
+          "sync_problem_sensors": "Probleemsensoren als taken synchroniseren",
+          "problem_sensor_exclude_entities": "Uitgesloten sensoren",
+          "problem_sensor_exclude_areas": "Uitgesloten gebieden",
+          "problem_sensor_exclude_labels": "Uitgesloten labels"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Taak toevoegen",

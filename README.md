@@ -82,6 +82,27 @@ the companion [Battery Notes glue](https://github.com/prestomation/ha-home-keepe
 
 ![Battery task detail — monitored, managed by Battery Notes, with replacement history](docs/images/14-panel-battery-detail.png)
 
+### Sync `problem` binary sensors as tasks
+
+Lots of integrations already expose a `binary_sensor` with the **`problem`** device
+class — a leak detector, an appliance fault, a UPS on battery, a printer error. Turn on
+**Sync problem sensors** (*Settings → Devices & services → Home Keeper → Configure*) and
+Home Keeper automatically mirrors every one of them as a triggered task, so a real-world
+problem becomes a visible, trackable to-do without writing an automation.
+
+- **What it solves:** one place that surfaces *"something is wrong"* across every
+  integration — on the to-do list, the calendar, and the offending device's own page —
+  instead of a problem sensor quietly flipping `on` where nobody looks.
+- **How it works:** the task is **armed** while the sensor reports a problem and
+  **clears itself** the moment the originating integration resolves it (the sensor goes
+  back to OK). Because of that, these tasks **can't be completed in Home Keeper** — the
+  problem has to be fixed for real — so there's no *Done* button; the detail page
+  explains how it clears instead. Each task inherits the sensor's **device and area**.
+- **Scope it:** syncing is **off by default**; once on, exclude specific **entities,
+  areas, or labels** in the same options screen.
+
+![Synced problem-sensor task detail — armed and due-now, with no Done button and the prompt explaining it clears when the source resolves it](docs/images/16-panel-problem-sensor-detail.png)
+
 ## Dashboard task card
 
 The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizable list

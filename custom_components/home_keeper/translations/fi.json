@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper on jo määritetty."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Keeper -asetukset",
+        "description": "Peilaa laiteluokan ”ongelma” binäärianturit tehtäviksi. Synkronoitu tehtävä pysyy aktiivisena niin kauan kuin anturi ilmoittaa ongelmasta ja tyhjenee automaattisesti, kun lähdeintegraatio ratkaisee sen; sitä ei voi merkitä valmiiksi Home Keeperissä. Sulje alta pois tietyt anturit, alueet tai tunnisteet.",
+        "data": {
+          "sync_problem_sensors": "Synkronoi ongelma-anturit tehtäviksi",
+          "problem_sensor_exclude_entities": "Poissuljetut anturit",
+          "problem_sensor_exclude_areas": "Poissuljetut alueet",
+          "problem_sensor_exclude_labels": "Poissuljetut tunnisteet"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Lisää tehtävä",

@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper ja està configurat."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcions de Home Keeper",
+        "description": "Reflecteix els sensors binaris amb la classe de dispositiu «problema» com a tasques. Una tasca sincronitzada es manté activa mentre el sensor informa d'un problema i s'esborra automàticament quan la integració d'origen el resol; no es pot completar a Home Keeper. Exclou a sota sensors, àrees o etiquetes concrets.",
+        "data": {
+          "sync_problem_sensors": "Sincronitza els sensors de problema com a tasques",
+          "problem_sensor_exclude_entities": "Sensors exclosos",
+          "problem_sensor_exclude_areas": "Àrees excloses",
+          "problem_sensor_exclude_labels": "Etiquetes excloses"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Afegir tasca",

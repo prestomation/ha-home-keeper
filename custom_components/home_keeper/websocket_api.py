@@ -171,6 +171,9 @@ async def ws_complete_task(
     except KeyError:
         connection.send_error(msg["id"], "not_found", "Unknown task_id")
         return
+    except TaskValidationError as err:
+        connection.send_error(msg["id"], "not_allowed", str(err))
+        return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
 
@@ -194,6 +197,9 @@ async def ws_delete_completion(
         task = await coord.store.delete_completion(msg["task_id"], msg["ts"])
     except KeyError:
         connection.send_error(msg["id"], "not_found", "Unknown task_id")
+        return
+    except TaskValidationError as err:
+        connection.send_error(msg["id"], "not_allowed", str(err))
         return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})

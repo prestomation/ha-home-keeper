@@ -11,7 +11,9 @@
         "domain": "home_keeper",
         "title": "Home Keeper",
         "data": {},
-        "options": {},
+        "options": {
+          "sync_problem_sensors": true
+        },
         "pref_disable_new_entities": false,
         "pref_disable_polling": false,
         "source": "user",

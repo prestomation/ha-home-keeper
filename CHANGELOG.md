@@ -6,6 +6,23 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0b7] - 2026-06-19
+
+### Added
+
+- **Sync `problem` binary sensors as tasks (opt-in).** A new option —
+  *Settings → Devices & services → Home Keeper → Configure* — automatically mirrors
+  every `binary_sensor` with the `problem` device class as a Home Keeper task. The
+  task is **armed** (shows as due-now on the to-do list, calendar and device page)
+  while the sensor reports a problem and **clears itself automatically** once the
+  originating integration resolves it (the sensor returns to OK). These synced tasks
+  **can't be completed inside Home Keeper** — the underlying problem has to be fixed
+  in real life — so the *Done* action is hidden on every surface (panel, dashboard
+  card, to-do list, device button) and the completion service/websocket reject them
+  with an explanation. Each task inherits the sensor's **device and area**, so it
+  appears on the device's page. Narrow the scope with **entity / area / label
+  exclusions** in the same options screen. Syncing is **off by default**.
+
 ## [0.3.0b6] - 2026-06-19
 
 ### Added

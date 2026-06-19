@@ -17,12 +17,14 @@ from homeassistant.components.todo import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
+from .models import TaskValidationError
 
 
 async def async_setup_entry(
@@ -77,7 +79,16 @@ class HomeKeeperTodoListEntity(
         return items
 
     async def async_update_todo_item(self, item: TodoItem) -> None:
-        """Handle a checkbox toggle: completing advances the recurrence."""
+        """Handle a checkbox toggle: completing advances the recurrence.
+
+        Completing a problem-sensor-synced task is rejected by the store (the
+        originating integration must clear the underlying problem); surface that as a
+        ``HomeAssistantError`` so the to-do card shows the reason and leaves it
+        checked-pending rather than silently swallowing it.
+        """
         if item.status == TodoItemStatus.COMPLETED and item.uid:
-            await self.coordinator.store.complete_task(item.uid)
+            try:
+                await self.coordinator.store.complete_task(item.uid)
+            except TaskValidationError as err:
+                raise HomeAssistantError(str(err)) from err
             await self.coordinator.async_request_refresh()

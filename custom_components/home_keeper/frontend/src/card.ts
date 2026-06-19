@@ -546,11 +546,14 @@ export class HomeKeeperCard extends HTMLElement {
       this._config.show_notes && task.notes
         ? `<div class="hk-notes">${escapeHTML(task.notes)}</div>`
         : '';
-    // A dormant triggered task has nothing to complete — its owner arms it.
+    // A dormant triggered task has nothing to complete — its owner arms it. A
+    // completion-blocked task (a synced problem sensor) can't be completed here
+    // either; its source clears it. Hide the mark-done action in both cases.
     const dormant = task.recurrence_type === 'triggered' && !task.next_due;
-    const done = dormant
-      ? ''
-      : `<ha-icon-button class="hk-done" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.done'))}"></ha-icon-button>`;
+    const done =
+      dormant || task.managed_by?.completion_blocked
+        ? ''
+        : `<ha-icon-button class="hk-done" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.done'))}"></ha-icon-button>`;
     return `
       <div class="hk-row${overdue ? ' overdue' : ''}">
         <div class="grow" data-edit-id="${escapeHTML(task.id)}" role="button" tabindex="0">

@@ -1064,11 +1064,14 @@ export class HomeKeeperPanel extends HTMLElement {
       : '';
     const n = task.completions?.length ?? 0;
     // A dormant triggered task (monitored, not due) has nothing to mark done — its
-    // owning integration arms it when the condition fires. Hide the quick action.
+    // owning integration arms it when the condition fires. A completion-blocked task
+    // (e.g. a synced problem sensor) can never be marked done here — its source
+    // clears it. Either way, hide the quick action.
     const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
-    const doneAction = dormantTriggered
-      ? ''
-      : `<ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
+    const doneAction =
+      dormantTriggered || task.managed_by?.completion_blocked
+        ? ''
+        : `<ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
     // The row opens the task's detail page; "Done" stays as a quick action.
     return `
       <ha-card class="hk-card${overdue ? ' overdue' : ''}" data-id="${escapeHTML(task.id)}">
@@ -1171,11 +1174,12 @@ export class HomeKeeperPanel extends HTMLElement {
     const managedChip = this._managedChip(task);
     const mb = task.managed_by;
 
-    // Wear-part tasks are owned by their appliance; only "Done" is offered.
-    const derived = Boolean(task.source?.part);
+    // Source-owned tasks (wear parts, synced problem sensors) are managed by their
+    // source; the panel offers no edit/delete for them.
+    const sourceOwned = Boolean(task.source?.part) || Boolean(task.source?.problem_sensor);
     const orphaned = this._isManagedOrphan(task);
     let manage = '';
-    if (!derived) {
+    if (!sourceOwned) {
       const editBtn = `<ha-button class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
       // Deletion protection only holds while the owner is present. Once orphaned
       // (owner uninstalled/disabled), the Delete button returns so the user can
@@ -1208,10 +1212,13 @@ export class HomeKeeperPanel extends HTMLElement {
         ? new Date(task.next_due).toLocaleString()
         : t('due.none');
     // Nothing to mark done while dormant — the integration arms it when the
-    // monitored condition fires (e.g. a battery goes low).
-    const doneBtn = dormantTriggered
-      ? ''
-      : `<ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
+    // monitored condition fires (e.g. a battery goes low). A completion-blocked task
+    // (a synced problem sensor) likewise offers no "Done": its source clears it, and
+    // the managed completion prompt below explains how.
+    const doneBtn =
+      dormantTriggered || mb?.completion_blocked
+        ? ''
+        : `<ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
     const notes = task.notes
       ? escapeHTML(task.notes)
       : `<span class="hk-muted">${escapeHTML(t('detail.noNotes'))}</span>`;

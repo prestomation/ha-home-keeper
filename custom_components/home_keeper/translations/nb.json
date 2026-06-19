@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper er allerede satt opp."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Keeper-innstillinger",
+        "description": "Speil binærsensorer med enhetsklassen «problem» som oppgaver. En synkronisert oppgave forblir aktiv så lenge sensoren melder et problem, og tømmes automatisk når kildeintegrasjonen løser det; den kan ikke fullføres i Home Keeper. Utelat bestemte sensorer, områder eller etiketter nedenfor.",
+        "data": {
+          "sync_problem_sensors": "Synkroniser problemsensorer som oppgaver",
+          "problem_sensor_exclude_entities": "Ekskluderte sensorer",
+          "problem_sensor_exclude_areas": "Ekskluderte områder",
+          "problem_sensor_exclude_labels": "Ekskluderte etiketter"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Legg til oppgave",
