@@ -6,6 +6,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0b6] - 2026-06-19
+
 ### Added
 
 - **Comprehensive events for everything that happens — and automation-editor
