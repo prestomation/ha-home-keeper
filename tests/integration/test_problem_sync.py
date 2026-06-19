@@ -18,13 +18,20 @@ def _list_tasks(ha):
 
 
 def _synced_task(ha):
-    """The task mirroring SENSOR, or None — polled (sync runs after a reload)."""
+    """The task mirroring SENSOR, or None — polled (sync runs after a reload).
+
+    Tolerates the transient "No active coordinator" (HTTP 500) while the entry is
+    mid-reload by simply retrying.
+    """
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
-        for task in _list_tasks(ha):
-            src = (task.get("source") or {}).get("problem_sensor")
-            if src and src.get("entity_id") == SENSOR:
-                return task
+        try:
+            for task in _list_tasks(ha):
+                src = (task.get("source") or {}).get("problem_sensor")
+                if src and src.get("entity_id") == SENSOR:
+                    return task
+        except Exception:
+            pass
         time.sleep(1)
     return None
 
