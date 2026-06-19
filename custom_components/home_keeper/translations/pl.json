@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper jest już skonfigurowany."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcje Home Keeper",
+        "description": "Odwzorowuj czujniki binarne o klasie urządzenia „problem” jako zadania. Zsynchronizowane zadanie pozostaje aktywne, dopóki czujnik zgłasza problem, i jest automatycznie czyszczone, gdy integracja źródłowa go rozwiąże; nie można go ukończyć w Home Keeper. Poniżej wyklucz wybrane czujniki, obszary lub etykiety.",
+        "data": {
+          "sync_problem_sensors": "Synchronizuj czujniki problemów jako zadania",
+          "problem_sensor_exclude_entities": "Wykluczone czujniki",
+          "problem_sensor_exclude_areas": "Wykluczone obszary",
+          "problem_sensor_exclude_labels": "Wykluczone etykiety"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Dodaj zadanie",

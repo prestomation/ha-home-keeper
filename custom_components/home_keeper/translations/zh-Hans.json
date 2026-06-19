@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper 已设置。"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Keeper 选项",
+        "description": "将设备类别为“问题”的二进制传感器镜像为任务。同步任务在其传感器报告问题期间保持活动，并在来源集成解决问题后自动清除；无法在 Home Keeper 中完成它。可在下方排除特定传感器、区域或标签。",
+        "data": {
+          "sync_problem_sensors": "将问题传感器同步为任务",
+          "problem_sensor_exclude_entities": "排除的传感器",
+          "problem_sensor_exclude_areas": "排除的区域",
+          "problem_sensor_exclude_labels": "排除的标签"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "添加任务",

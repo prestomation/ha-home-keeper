@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper je již nastaven."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Možnosti Home Keeper",
+        "description": "Zrcadlí binární senzory s třídou zařízení „problém“ jako úkoly. Synchronizovaný úkol zůstává aktivní, dokud senzor hlásí problém, a automaticky se vymaže, jakmile jej zdrojová integrace vyřeší; v Home Keeper jej nelze dokončit. Níže vylučte konkrétní senzory, oblasti nebo štítky.",
+        "data": {
+          "sync_problem_sensors": "Synchronizovat senzory problémů jako úkoly",
+          "problem_sensor_exclude_entities": "Vyloučené senzory",
+          "problem_sensor_exclude_areas": "Vyloučené oblasti",
+          "problem_sensor_exclude_labels": "Vyloučené štítky"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Přidat úkol",

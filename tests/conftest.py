@@ -38,6 +38,7 @@ def _load_pure_modules() -> None:
         "events",
         "transitions",
         "reconcile",
+        "problem_tasks",
         "inventory",
     ):
         spec = importlib.util.spec_from_file_location(
@@ -55,6 +56,7 @@ def _load_pure_modules() -> None:
     sys.modules["hk_events"] = sys.modules["hk.events"]
     sys.modules["hk_transitions"] = sys.modules["hk.transitions"]
     sys.modules["hk_reconcile"] = sys.modules["hk.reconcile"]
+    sys.modules["hk_problem_tasks"] = sys.modules["hk.problem_tasks"]
     sys.modules["hk_inventory"] = sys.modules["hk.inventory"]
 
 

@@ -15,6 +15,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
 from .entity import HomeKeeperTaskEntity
+from .problem_tasks import problem_source
 
 
 async def async_setup_entry(
@@ -22,11 +23,17 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Create a mark-done button for each device-attached task."""
+    """Create a mark-done button for each device-attached task.
+
+    Problem-sensor-synced tasks are skipped: they can't be completed in Home Keeper
+    (the originating integration clears them), so a mark-done button would only ever
+    error. Their next-due sensor / overdue binary sensor still appear on the device.
+    """
     coordinator: HomeKeeperCoordinator = entry.runtime_data
     async_add_entities(
         HomeKeeperMarkDoneButton(coordinator, task_id)
         for task_id in coordinator.device_attached_task_ids()
+        if problem_source(coordinator.data[task_id]) is None
     )
 
 

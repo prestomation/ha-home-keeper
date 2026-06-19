@@ -15,6 +15,11 @@ export interface ManagedBy {
   config_entry_id?: string;
   completion_prompt?: string;
   deletion_protected?: boolean;
+  // The task can't be completed from Home Keeper (it's cleared by its source). The
+  // panel hides the "Done" action and shows `completion_prompt` to explain. Used by
+  // problem-sensor-synced tasks, which clear when the originating integration
+  // resolves the underlying problem.
+  completion_blocked?: boolean;
 }
 
 export interface Task {
@@ -34,8 +39,12 @@ export interface Task {
   next_due?: string;
   completions?: { ts: string }[];
   // Provenance for tasks derived/owned by another source (e.g. an appliance wear
-  // part). Such tasks are managed by their source, so the panel hides edit/delete.
-  source?: { part?: { asset_id: string; part_id: string } } | null;
+  // part, or a synced `device_class: problem` binary sensor). Such tasks are managed
+  // by their source, so the panel hides edit/delete.
+  source?: {
+    part?: { asset_id: string; part_id: string };
+    problem_sensor?: { entity_id: string };
+  } | null;
   // Well-known ownership block that Home Keeper inspects. See docs/INTEGRATING.md §6.
   managed_by?: ManagedBy | null;
 }

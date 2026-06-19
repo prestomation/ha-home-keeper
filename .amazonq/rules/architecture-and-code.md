@@ -152,6 +152,22 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   `models.build_task`/`recurrence.py` + the existing per-task entities — do NOT build
   a parallel "part sensor". A load-time shim migrates the legacy `part_numbers` string
   (no storage-version bump).
+- **Problem-sensor sync.** When the `sync_problem_sensors` option is on, every
+  `binary_sensor` with `device_class: problem` is mirrored as a **triggered** task by
+  the pure `problem_tasks.reconcile_problem_tasks` (wrapped by
+  `store.reconcile_problem_sensor_tasks`), driven by the HA-aware `problem_sync.py`
+  (registry enumeration + a state listener; **skip Home Keeper's own
+  `platform == DOMAIN` entities** so our overdue sensors can't feed back in). Tag
+  `source={"problem_sensor":{entity_id}}` + a `managed_by` block with
+  `completion_blocked: True` so the reconciler owns it and every surface hides *Done*.
+  These tasks are **externally-owned / un-completable**: arm on problem, auto-clear when
+  the sensor returns to OK, and **never** let a user complete/trigger/uncomplete them —
+  `store` rejects those unless the call carries `origin=ORIGIN_PROBLEM_SENSOR_SYNC`. The
+  options flow (`config_flow.HomeKeeperOptionsFlow`) carries the toggle + entity/area/
+  label exclusions; an options change reloads the entry. Reuse `models.build_task` +
+  the existing per-task entities — do NOT build a parallel "problem sensor". A synced
+  task that's created/removed reloads the entry (per-task entities); arm/clear is a
+  plain coordinator refresh.
 - **Relationships.** `parent_asset_id` (virtual only) → native `via_device`
   (provision parents-first via `_ancestor_depth`; reject cycles with
   `assets.would_create_cycle`). `related_device_ids` is panel-only (foreign devices

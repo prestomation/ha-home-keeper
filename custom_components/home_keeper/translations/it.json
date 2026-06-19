@@ -10,6 +10,20 @@
       "already_configured": "Home Keeper è già configurato."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni di Home Keeper",
+        "description": "Rispecchia i sensori binari con classe dispositivo «problema» come attività. Un'attività sincronizzata resta attiva finché il sensore segnala un problema e si azzera automaticamente quando l'integrazione di origine lo risolve; non può essere completata in Home Keeper. Escludi sotto sensori, aree o etichette specifici.",
+        "data": {
+          "sync_problem_sensors": "Sincronizza i sensori di problema come attività",
+          "problem_sensor_exclude_entities": "Sensori esclusi",
+          "problem_sensor_exclude_areas": "Aree escluse",
+          "problem_sensor_exclude_labels": "Etichette escluse"
+        }
+      }
+    }
+  },
   "services": {
     "add_task": {
       "name": "Aggiungi attività",

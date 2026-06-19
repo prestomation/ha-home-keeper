@@ -99,6 +99,19 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
+  // 1h2. A synced "problem" binary-sensor task. Home Keeper mirrors every
+  // device_class: problem sensor as a task that's armed while the problem is active
+  // (created at runtime by the sync, so locate it by name rather than a fixed id).
+  // It can't be completed here — the originating integration clears it — so there is
+  // no "Done" button, just the completion prompt explaining how it resolves.
+  await panel.locator('.hk-card', { hasText: 'Sump pump problem' }).locator('.detail-open').first().click();
+  await expect(panel.locator('.hk-managed-prompt')).toBeVisible();
+  await expect(panel.locator('.d-done')).toHaveCount(0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/16-panel-problem-sensor-detail.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
   // 1i. The "Monitored" status section holds dormant condition-driven tasks
   // (healthy batteries) — collapsed by default to stay out of the way, one click
   // to browse. Expand it for the shot.

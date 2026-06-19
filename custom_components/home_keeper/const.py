@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.3.0b6"
+PANEL_VERSION = "0.3.0b7"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -90,6 +90,30 @@ PART_TYPES = [PART_CONSUMABLE, PART_WEAR]
 # Marker on a task dict identifying it as derived from an asset part, so the
 # part-task reconciler owns it: ``task["source"] = {"asset_id", "part_id"}``.
 TASK_SOURCE_PART = "part"
+
+# Marker on a task dict identifying it as synced from a ``device_class: problem``
+# binary sensor: ``task["source"] = {"problem_sensor": {"entity_id": ...}}``. Such
+# a task is a condition-driven (triggered) mirror of the sensor — armed while the
+# sensor reports a problem, dormant once it clears. It is owned entirely by the
+# problem-sensor reconciler and CANNOT be completed from inside Home Keeper: the
+# originating integration must resolve the real-world problem (the sensor goes
+# back to ``off``), at which point Home Keeper auto-clears the task. See
+# ``problem_tasks.py`` / ``problem_sync.py``.
+TASK_SOURCE_PROBLEM_SENSOR = "problem_sensor"
+
+# Opaque ``origin`` marker the problem-sensor sync passes to ``complete_task`` /
+# ``trigger_task`` to authorize the otherwise-blocked arm/clear of a synced task.
+# Every user-facing completion surface (to-do, button, service, websocket, panel)
+# omits it, so they are rejected; only the internal sync can drive these tasks.
+ORIGIN_PROBLEM_SENSOR_SYNC = f"{DOMAIN}_problem_sensor_sync"
+
+# Config-entry options keys (set via the options flow). Syncing is opt-in.
+OPTION_SYNC_PROBLEM_SENSORS = "sync_problem_sensors"  # bool, default False
+# Exclusion filters narrowing which ``device_class: problem`` binary sensors are
+# synced when the option is on. Lists of entity ids / area ids / label ids.
+OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES = "problem_sensor_exclude_entities"
+OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS = "problem_sensor_exclude_areas"
+OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS = "problem_sensor_exclude_labels"
 
 
 # Recurrence types.
