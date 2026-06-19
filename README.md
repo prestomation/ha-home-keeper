@@ -7,10 +7,6 @@
 Track home **maintenance** and **chores** in Home Assistant — fridge/furnace filter
 changes, water filters, taking medicine, and anything else that recurs.
 
-> ⚠️ **Prototype.** This is an early UX prototype to try out interaction ideas. The
-> data model, entities, and panel are functional but expect rough edges and change.
-> See [IDEAS.md](IDEAS.md) for what's planned next.
-
 ![Home Keeper task list](docs/images/1-panel-task-list.png)
 
 ## Features at a glance
