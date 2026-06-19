@@ -4,7 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-cov>=4.0", "requests>=2.31"]
+dev = ["pytest>=9.1.0", "pytest-cov>=4.0", "requests>=2.31"]
 
 # Make the integration pip-installable straight from git (no PyPI publish needed),
 # so other integrations can depend on it in their test suite and import
