@@ -99,9 +99,20 @@ problem becomes a visible, trackable to-do without writing an automation.
   problem has to be fixed for real — so there's no *Done* button; the detail page
   explains how it clears instead. Each task inherits the sensor's **device and area**.
 - **Scope it:** syncing is **off by default**; once on, exclude specific **entities,
-  areas, or labels** in the same options screen.
+  areas, or labels** — from the panel's **Settings** tab (below) or the options flow.
 
 ![Synced problem-sensor task detail — armed and due-now, with no Done button and the prompt explaining it clears when the source resolves it](docs/images/16-panel-problem-sensor-detail.png)
+
+## Settings
+
+Home Keeper's integration options are editable right in the panel — a **Settings**
+tab alongside Tasks and Appliances — so you never have to dig through *Settings →
+Devices & services → Configure*. It's a plain form that mirrors the options flow
+(currently the **problem-sensor sync** toggle plus entity / area / label exclusions)
+and **saves as you change it**. The same options remain available through the HA
+options flow and the `home_keeper.set_options` service (for automations).
+
+![The Home Keeper Settings tab — a form with the problem-sensor sync toggle and entity/area/label exclusion pickers](docs/images/17-panel-settings.png)
 
 ## Dashboard task card
 

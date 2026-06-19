@@ -187,3 +187,12 @@ export interface Asset {
 export interface PanelInfo {
   config?: Record<string, unknown>;
 }
+
+/** Integration-wide options, edited from the panel's Settings tab (and mirrored by
+ *  the options flow + the `home_keeper.set_options` service). */
+export interface HomeKeeperOptions {
+  sync_problem_sensors: boolean;
+  problem_sensor_exclude_entities: string[];
+  problem_sensor_exclude_areas: string[];
+  problem_sensor_exclude_labels: string[];
+}

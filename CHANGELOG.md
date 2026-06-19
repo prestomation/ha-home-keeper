@@ -6,6 +6,18 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0b9] - 2026-06-19
+
+### Added
+
+- **A Settings tab in the panel.** Home Keeper's integration options are now editable
+  right in the sidebar panel — a **Settings** tab alongside Tasks and Appliances — so
+  you don't have to dig through *Settings → Devices & services → Configure*. It's a
+  plain form mirroring the options flow (the **problem-sensor sync** toggle plus
+  entity / area / label exclusions) that **saves as you change it**. The options flow
+  still works, and a new **`home_keeper.set_options`** service exposes the same
+  settings to automations.
+
 ## [0.3.0b7] - 2026-06-19
 
 ### Added

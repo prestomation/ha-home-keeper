@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Inventar exportieren",
       "description": "Gibt ein Hausinventar für Versicherungszwecke als Antwort zurück (eine Zeile pro Gerät plus Summen), mit einer speicherfertigen CSV-Datei unter dem Schlüssel \"csv\"."
+    },
+    "set_options": {
+      "name": "Optionen festlegen",
+      "description": "Aktualisiere die Integrationsoptionen von Home Keeper – dieselben Einstellungen wie im Einstellungen-Tab des Panels und im Optionsdialog. Nur die übergebenen Felder ändern sich.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Problemsensoren als Aufgaben synchronisieren"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Ausgeschlossene Sensoren"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Ausgeschlossene Bereiche"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Ausgeschlossene Labels"
+        }
+      }
     }
   },
   "entity": {

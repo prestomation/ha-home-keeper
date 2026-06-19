@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Export inventory",
       "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
+    },
+    "set_options": {
+      "name": "Set options",
+      "description": "Update Home Keeper's integration options — the same settings as the panel's Settings tab and the options flow. Only the fields you pass change.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Sync problem sensors as tasks"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Excluded sensors"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Excluded areas"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Excluded labels"
+        }
+      }
     }
   },
   "entity": {

@@ -17,9 +17,16 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
-from . import card, devices, inventory, panel, websocket_api
+from . import card, devices, inventory, options, panel, websocket_api
 from .assets import AssetValidationError
-from .const import DOMAIN, PLATFORMS
+from .const import (
+    DOMAIN,
+    OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
+    OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
+    OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
+    OPTION_SYNC_PROBLEM_SENSORS,
+    PLATFORMS,
+)
 from .coordinator import HomeKeeperCoordinator, entity_set_key
 from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
@@ -150,6 +157,24 @@ ADJUST_PART_STOCK_SCHEMA = vol.Schema(
     }
 )
 EXPORT_INVENTORY_SCHEMA = vol.Schema({})
+
+# Integration-wide options, also editable from the panel's Settings tab and the
+# options flow. Every field is optional so an automation can flip just one (e.g.
+# turn syncing off) without restating the exclusion lists. See options.py.
+SET_OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Optional(OPTION_SYNC_PROBLEM_SENSORS): cv.boolean,
+        vol.Optional(OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
+        vol.Optional(OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
+        vol.Optional(OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
+    }
+)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -391,12 +416,20 @@ def _register_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN, "adjust_part_stock", handle_adjust_part_stock, ADJUST_PART_STOCK_SCHEMA
     )
+
+    async def handle_set_options(call: ServiceCall) -> None:
+        coord = _coordinator()
+        await options.async_set_options(hass, coord.entry, dict(call.data))
+
     hass.services.async_register(
         DOMAIN,
         "export_inventory",
         handle_export_inventory,
         EXPORT_INVENTORY_SCHEMA,
         supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN, "set_options", handle_set_options, SET_OPTIONS_SCHEMA
     )
 
 
@@ -430,6 +463,7 @@ _SERVICES = (
     "list_assets",
     "adjust_part_stock",
     "export_inventory",
+    "set_options",
 )
 
 

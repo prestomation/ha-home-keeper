@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "Inventaris exporteren",
       "description": "Geeft een huisinventaris voor verzekeringen terug als antwoord (één rij per apparaat plus totalen), met een direct op te slaan CSV onder de sleutel \"csv\"."
+    },
+    "set_options": {
+      "name": "Opties instellen",
+      "description": "Werk de integratieopties van Home Keeper bij — dezelfde instellingen als het tabblad Instellingen van het paneel en de optiestroom. Alleen de doorgegeven velden veranderen.",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "Probleemsensoren als taken synchroniseren"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "Uitgesloten sensoren"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "Uitgesloten gebieden"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "Uitgesloten labels"
+        }
+      }
     }
   },
   "entity": {

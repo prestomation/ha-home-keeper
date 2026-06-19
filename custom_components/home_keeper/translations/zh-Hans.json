@@ -310,6 +310,24 @@
     "export_inventory": {
       "name": "导出清单",
       "description": "以响应形式返回用于保险的家庭清单（每个设备一行，外加合计），并在“csv”键下提供可直接保存的 CSV。"
+    },
+    "set_options": {
+      "name": "设置选项",
+      "description": "更新 Home Keeper 的集成选项——与面板“设置”标签页和选项流程相同的设置。仅更改你传入的字段。",
+      "fields": {
+        "sync_problem_sensors": {
+          "name": "将问题传感器同步为任务"
+        },
+        "problem_sensor_exclude_entities": {
+          "name": "排除的传感器"
+        },
+        "problem_sensor_exclude_areas": {
+          "name": "排除的区域"
+        },
+        "problem_sensor_exclude_labels": {
+          "name": "排除的标签"
+        }
+      }
     }
   },
   "entity": {

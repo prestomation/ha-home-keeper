@@ -14,7 +14,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
-from . import devices, inventory
+from . import devices, inventory, options
 from .assets import AssetValidationError
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator, entity_set_key
@@ -54,6 +54,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_delete_asset)
     websocket_api.async_register_command(hass, ws_adjust_part_stock)
     websocket_api.async_register_command(hass, ws_export_inventory)
+    websocket_api.async_register_command(hass, ws_get_options)
+    websocket_api.async_register_command(hass, ws_set_options)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_tasks"})
@@ -372,3 +374,39 @@ async def ws_export_inventory(
         msg["id"],
         {"inventory": report, "csv": inventory.inventory_to_csv(report)},
     )
+
+
+@websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_options"})
+@websocket_api.async_response
+async def ws_get_options(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Return the config-entry options for the panel's Settings tab."""
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    connection.send_result(msg["id"], {"options": options.current_options(coord.entry)})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/set_options",
+        vol.Required("options"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_set_options(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Persist options from the Settings tab (delegates to the shared service path).
+
+    ``async_set_options`` updates the entry, which reloads it and re-runs the
+    problem-sensor sync. Mirrors the ``home_keeper.set_options`` service.
+    """
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    merged = await options.async_set_options(hass, coord.entry, msg["options"])
+    connection.send_result(msg["id"], {"options": merged})

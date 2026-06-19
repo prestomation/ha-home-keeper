@@ -177,6 +177,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(assetForm.locator('.hk-meta-seeds')).toBeVisible();
   await page.screenshot({ path: `${OUT}/6-panel-appliance-create.png`, fullPage: true });
 
+  // 17. The Settings tab — a friendly form mirroring the options flow (the
+  // problem-sensor sync toggle + entity / area / label exclusions), saved on change.
+  await openPanel(page);
+  await panel.locator('#tab-settings').click();
+  await expect(panel.locator('#hk-settings')).toBeVisible();
+  await expect(panel.locator('#hk-settings ha-form')).toBeVisible();
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: `${OUT}/17-panel-settings.png`, fullPage: true });
+
   // 4. The usage surfaces — native to-do list + calendar on a dashboard.
   await openDashboard(page);
   await page.waitForTimeout(1500); // let cards settle
