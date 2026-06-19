@@ -193,5 +193,6 @@
   "settings.sync_problem_sensors": "Synchroniser les capteurs de problème en tâches",
   "settings.problem_sensor_exclude_entities": "Capteurs exclus",
   "settings.problem_sensor_exclude_areas": "Zones exclues",
-  "settings.problem_sensor_exclude_labels": "Étiquettes exclues"
+  "settings.problem_sensor_exclude_labels": "Étiquettes exclues",
+  "done.blocked": "Ceci ne peut pas être terminé dans Home Keeper — l'intégration propriétaire s'en charge."
 }

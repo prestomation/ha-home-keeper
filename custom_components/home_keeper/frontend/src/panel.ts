@@ -129,6 +129,11 @@ const STYLES = `
   }
   .hk-meta { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
   .hk-card-actions { display: flex; align-items: center; gap: 4px; }
+  /* A completion-blocked Done (e.g. a synced problem sensor): the inner ha-button is
+     natively disabled (greyed), and the wrapping span stays clickable so a tap can
+     explain why it can't be completed here. */
+  .done-blocked-wrap { cursor: pointer; display: inline-flex; }
+  .done-blocked-wrap ha-button { pointer-events: none; }
   ha-assist-chip.hk-overdue {
     --ha-assist-chip-container-color: var(--error-color);
     --md-assist-chip-label-text-color: var(--text-primary-color, #fff);
@@ -593,6 +598,21 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!this._hass) return;
     await api.completeTask(this._hass, task.id);
     await this._refresh();
+  }
+
+  /** A completion-blocked task (e.g. a synced problem sensor) can't be marked done
+   *  here — its owning integration clears it. Explain why instead of completing. */
+  private _notifyBlocked(task: Task): void {
+    this._toast(task.managed_by?.completion_prompt || t('done.blocked'));
+  }
+
+  /** Render a *disabled* Done for a completion-blocked task, wrapped in a clickable
+   *  span (the native `disabled` greys the button correctly across HA button
+   *  versions, but swallows clicks — so the span carries the tap → explanation and a
+   *  hover tooltip). ``raised`` matches the prominent detail-page button. */
+  private _blockedDone(wrapClass: string, task: Task, raised = false): string {
+    const reason = task.managed_by?.completion_prompt || t('done.blocked');
+    return `<span class="${wrapClass} done-blocked-wrap" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-button ${raised ? 'raised ' : ''}disabled>${escapeHTML(t('btn.done'))}</ha-button></span>`;
   }
   private async _delete(task: Task): Promise<void> {
     if (!this._hass) return;
@@ -1085,13 +1105,14 @@ export class HomeKeeperPanel extends HTMLElement {
       : '';
     const n = task.completions?.length ?? 0;
     // A dormant triggered task (monitored, not due) has nothing to mark done — its
-    // owning integration arms it when the condition fires. A completion-blocked task
-    // (e.g. a synced problem sensor) can never be marked done here — its source
-    // clears it. Either way, hide the quick action.
+    // owning integration arms it when the condition fires; hide the action. A
+    // completion-blocked task (e.g. a synced problem sensor) keeps a *disabled* Done
+    // that explains why on click, rather than silently offering no action.
     const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
-    const doneAction =
-      dormantTriggered || task.managed_by?.completion_blocked
-        ? ''
+    const doneAction = dormantTriggered
+      ? ''
+      : task.managed_by?.completion_blocked
+        ? this._blockedDone('done-blocked-wrap', task)
         : `<ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
     // The row opens the task's detail page; "Done" stays as a quick action.
     return `
@@ -1234,11 +1255,12 @@ export class HomeKeeperPanel extends HTMLElement {
         : t('due.none');
     // Nothing to mark done while dormant — the integration arms it when the
     // monitored condition fires (e.g. a battery goes low). A completion-blocked task
-    // (a synced problem sensor) likewise offers no "Done": its source clears it, and
-    // the managed completion prompt below explains how.
-    const doneBtn =
-      dormantTriggered || mb?.completion_blocked
-        ? ''
+    // (a synced problem sensor) keeps a *disabled* Done that, on click, explains its
+    // source clears it (the managed completion prompt also shows below).
+    const doneBtn = dormantTriggered
+      ? ''
+      : mb?.completion_blocked
+        ? this._blockedDone('d-done-blocked-wrap', task, true)
         : `<ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
     const notes = task.notes
       ? escapeHTML(task.notes)
@@ -1776,6 +1798,14 @@ export class HomeKeeperPanel extends HTMLElement {
         }),
       );
     }
+    // A completion-blocked Done (card row or detail) explains why on click rather
+    // than completing — its source clears it.
+    root.querySelectorAll<HTMLElement>('.done-blocked-wrap').forEach((b) =>
+      b.addEventListener('click', () => {
+        const task = this._tasks.find((x) => x.id === b.dataset.id);
+        if (task) this._notifyBlocked(task);
+      }),
+    );
     this._wireDeviceChips(root);
   }
 
@@ -1806,6 +1836,9 @@ export class HomeKeeperPanel extends HTMLElement {
       const task = this._tasks.find((x) => x.id === d.id);
       if (!task) return;
       root.querySelector('.d-done')?.addEventListener('click', () => void this._complete(task));
+      root
+        .querySelector('.d-done-blocked-wrap')
+        ?.addEventListener('click', () => this._notifyBlocked(task));
       root.querySelector('.d-edit')?.addEventListener('click', () => this._openEdit(task));
       root.querySelector('.d-del')?.addEventListener('click', () => {
         // The detail is about to vanish: replace it with its list so Forward

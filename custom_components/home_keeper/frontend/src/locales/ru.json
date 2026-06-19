@@ -205,5 +205,6 @@
   "settings.sync_problem_sensors": "Синхронизировать датчики проблем как задачи",
   "settings.problem_sensor_exclude_entities": "Исключённые датчики",
   "settings.problem_sensor_exclude_areas": "Исключённые зоны",
-  "settings.problem_sensor_exclude_labels": "Исключённые метки"
+  "settings.problem_sensor_exclude_labels": "Исключённые метки",
+  "done.blocked": "Это нельзя завершить в Home Keeper — его очищает владеющая им интеграция."
 }

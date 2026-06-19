@@ -181,5 +181,6 @@
   "settings.sync_problem_sensors": "Probleemsensoren als taken synchroniseren",
   "settings.problem_sensor_exclude_entities": "Uitgesloten sensoren",
   "settings.problem_sensor_exclude_areas": "Uitgesloten gebieden",
-  "settings.problem_sensor_exclude_labels": "Uitgesloten labels"
+  "settings.problem_sensor_exclude_labels": "Uitgesloten labels",
+  "done.blocked": "Dit kan niet in Home Keeper worden voltooid — de eigenaar-integratie wist het."
 }

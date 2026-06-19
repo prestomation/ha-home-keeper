@@ -102,17 +102,29 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 1h2. A synced "problem" binary-sensor task. Home Keeper mirrors every
   // device_class: problem sensor as a task that's armed while the problem is active
   // (created at runtime by the sync, so locate it by name rather than a fixed id).
-  // It can't be completed here — the originating integration clears it — so there is
-  // no "Done" button, just the completion prompt explaining how it resolves.
+  // It can't be completed here — the originating integration clears it — so the Done
+  // action is shown *disabled*; clicking it pops up the reason. The completion prompt
+  // also explains how it resolves.
   await panel.locator('.hk-card', { hasText: 'Sump pump problem' }).locator('.detail-open').first().click();
   await expect(panel.locator('.hk-managed-prompt')).toBeVisible();
-  await expect(panel.locator('.d-done')).toHaveCount(0);
+  await expect(panel.locator('.d-done-blocked-wrap')).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/16-panel-problem-sensor-detail.png`, fullPage: true });
+  // Tapping the disabled Done surfaces a toast explaining why it can't be completed
+  // here (best-effort capture — the toast is transient).
+  await panel.locator('.d-done-blocked-wrap').click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/16b-panel-problem-sensor-blocked-toast.png`, fullPage: true });
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
-  // 1i. The "Monitored" status section holds dormant condition-driven tasks
+  // 18. The same blocked Done on a Tasks-*list* card row — greyed/disabled (not a
+  // working complete action); clicking it pops the same reason as the detail page.
+  const sumpCard = panel.locator('.hk-card', { hasText: 'Sump pump problem' });
+  await expect(sumpCard.locator('.done-blocked-wrap ha-button[disabled]')).toHaveCount(1);
+  await sumpCard.locator('.done-blocked-wrap').click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/18-panel-tasks-blocked-done.png`, fullPage: true });
   // (healthy batteries) — collapsed by default to stay out of the way, one click
   // to browse. Expand it for the shot.
   const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');

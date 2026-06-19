@@ -193,5 +193,6 @@
   "settings.sync_problem_sensors": "Sincronizza i sensori di problema come attività",
   "settings.problem_sensor_exclude_entities": "Sensori esclusi",
   "settings.problem_sensor_exclude_areas": "Aree escluse",
-  "settings.problem_sensor_exclude_labels": "Etichette escluse"
+  "settings.problem_sensor_exclude_labels": "Etichette escluse",
+  "done.blocked": "Non può essere completato in Home Keeper: lo azzera l'integrazione che lo possiede."
 }

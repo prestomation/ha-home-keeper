@@ -181,5 +181,6 @@
   "settings.sync_problem_sensors": "Synkronoi ongelma-anturit tehtäviksi",
   "settings.problem_sensor_exclude_entities": "Poissuljetut anturit",
   "settings.problem_sensor_exclude_areas": "Poissuljetut alueet",
-  "settings.problem_sensor_exclude_labels": "Poissuljetut tunnisteet"
+  "settings.problem_sensor_exclude_labels": "Poissuljetut tunnisteet",
+  "done.blocked": "Tätä ei voi merkitä valmiiksi Home Keeperissä — omistava integraatio tyhjentää sen."
 }

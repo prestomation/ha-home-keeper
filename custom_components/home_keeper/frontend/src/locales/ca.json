@@ -193,5 +193,6 @@
   "settings.sync_problem_sensors": "Sincronitza els sensors de problema com a tasques",
   "settings.problem_sensor_exclude_entities": "Sensors exclosos",
   "settings.problem_sensor_exclude_areas": "Àrees excloses",
-  "settings.problem_sensor_exclude_labels": "Etiquetes excloses"
+  "settings.problem_sensor_exclude_labels": "Etiquetes excloses",
+  "done.blocked": "Això no es pot completar a Home Keeper: ho esborra la integració propietària."
 }
