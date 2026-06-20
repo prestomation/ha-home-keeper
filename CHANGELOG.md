@@ -6,6 +6,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0b11] - 2026-06-20
+
 ### Added
 
 - **Filter the dashboard card by label — one card per subject.** Tag tasks with
