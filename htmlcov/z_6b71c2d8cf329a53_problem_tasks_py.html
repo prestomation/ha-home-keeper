@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_reconcile_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
-            created at 2026-06-20 22:21 +0000
+            created at 2026-06-20 23:21 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -228,8 +228,8 @@
     <p class="pln"><span class="n"><a id="t144" href="#t144">144</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t145" href="#t145">145</a></span><span class="t">    <span class="com"># Create or arm/clear/update the rest.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t146" href="#t146">146</a></span><span class="t">    <span class="key">for</span> <span class="nam">entity_id</span><span class="op">,</span> <span class="nam">meta</span> <span class="key">in</span> <span class="nam">eligible</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t147" href="#t147">147</a></span><span class="t">        <span class="nam">tid</span> <span class="op">=</span> <span class="nam">existing_by_entity</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">entity_id</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t148" href="#t148">148</a></span><span class="t">        <span class="key">if</span> <span class="nam">tid</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t147" href="#t147">147</a></span><span class="t">        <span class="nam">existing_tid</span> <span class="op">=</span> <span class="nam">existing_by_entity</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">entity_id</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t148" href="#t148">148</a></span><span class="t">        <span class="key">if</span> <span class="nam">existing_tid</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t149" href="#t149">149</a></span><span class="t">            <span class="nam">task</span> <span class="op">=</span> <span class="nam">_build_task</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t150" href="#t150">150</a></span><span class="t">                <span class="nam">entity_id</span><span class="op">,</span> <span class="nam">meta</span><span class="op">,</span> <span class="nam">config_entry_id</span><span class="op">=</span><span class="nam">config_entry_id</span><span class="op">,</span> <span class="nam">now</span><span class="op">=</span><span class="nam">now</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t151" href="#t151">151</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -238,7 +238,7 @@
     <p class="run"><span class="n"><a id="t154" href="#t154">154</a></span><span class="t">            <span class="nam">changed</span> <span class="op">=</span> <span class="key">True</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t155" href="#t155">155</a></span><span class="t">            <span class="key">continue</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t156" href="#t156">156</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t157" href="#t157">157</a></span><span class="t">        <span class="nam">task</span> <span class="op">=</span> <span class="nam">result</span><span class="op">[</span><span class="nam">tid</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t157" href="#t157">157</a></span><span class="t">        <span class="nam">task</span> <span class="op">=</span> <span class="nam">result</span><span class="op">[</span><span class="nam">existing_tid</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t158" href="#t158">158</a></span><span class="t">        <span class="com"># Re-derive owned metadata that follows the sensor (rename, re-home to a new</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t159" href="#t159">159</a></span><span class="t">        <span class="com"># device/area). Silent churn &#8212; not announced as a user-facing update.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t160" href="#t160">160</a></span><span class="t">        <span class="nam">managed_by</span> <span class="op">=</span> <span class="nam">build_managed_by</span><span class="op">(</span><span class="nam">entity_id</span><span class="op">,</span> <span class="nam">config_entry_id</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -274,7 +274,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_reconcile_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
-            created at 2026-06-20 22:21 +0000
+            created at 2026-06-20 23:21 +0000
         </p>
     </div>
 </footer>
