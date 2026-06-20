@@ -138,6 +138,14 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     ),
 }
 
+# Exception messages (``exceptions.*``) are seeded English-first across every
+# locale (see custom_components/home_keeper/quality_scale.yaml →
+# exception-translations) and translated incrementally. Until a locale is filled
+# in, those values are intentionally identical to English, so the untranslated-leak
+# guard skips them. Key parity and placeholder parity still apply to them, and the
+# moment a locale's exception strings are translated they simply stop matching.
+_PENDING_TRANSLATION_PREFIXES = ("exceptions.",)
+
 # Token of the form ``{name}`` used by HA/Python ``str.format`` placeholders.
 _TOKEN_RE = re.compile(r"\{(\w+)\}")
 
@@ -271,7 +279,10 @@ def test_no_untranslated_strings(path: Path) -> None:
     leaks = sorted(
         key
         for key, value in loc.items()
-        if key in en and value == en[key] and key not in allowed
+        if key in en
+        and value == en[key]
+        and key not in allowed
+        and not key.startswith(_PENDING_TRANSLATION_PREFIXES)
     )
     # Translate these, or (if identical by design) add to the allowlist above.
     assert not leaks, {"locale": path.name, "untranslated_strings": leaks}

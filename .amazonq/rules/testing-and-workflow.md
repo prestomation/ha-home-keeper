@@ -59,6 +59,22 @@ gate); CI publishes it to the job summary.
   GitHub pre-releases → HACS beta channel.
 - The built `home-keeper-panel.js` is gitignored; CI builds it.
 
+## Typing (strict-typing gate — Platinum)
+- The integration is **fully typed** and ships `custom_components/home_keeper/py.typed`.
+  `lint.yml` runs `mypy custom_components/home_keeper` with Home Assistant installed
+  (so HA's own types resolve); config is `[tool.mypy]` in `pyproject.toml`. Keep it
+  error-free — a new untyped def or a real type mismatch fails CI.
+- Run it locally before pushing: `pip install mypy homeassistant && mypy
+  custom_components/home_keeper`. The pure modules (`models.py`, `recurrence.py`,
+  `events.py`) stay HA-free and type-check standalone.
+
+## Quality scale
+- Home Keeper targets **Platinum** (`manifest.json` `quality_scale`), with the
+  per-rule ledger in `custom_components/home_keeper/quality_scale.yaml`. Keep the
+  ledger current: when you add a capability that touches a rule (a new entity
+  category, a repair, discovery, an external dependency, …), update its status in
+  the same change. Networking/discovery/auth rules are `exempt` (local, deviceless).
+
 ## Amazon Q reviews
 - After every push and when opening a PR, request a critical Amazon Q review by
   commenting `/q review {request}`. Ask explicitly for *critical/skeptical*

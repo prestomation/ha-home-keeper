@@ -124,8 +124,19 @@ not implemented yet. Hook points: `const.SIGNAL_TASK_CONTRIBUTION` and the
 - Env prep: `ci/setup-browser-env.sh` (wired to a Claude Code SessionStart hook).
 - Auth: `tests/e2e/global-setup.ts` completes onboarding and performs a real login.
 
+## Typing & quality scale
+
+- The integration is **fully typed** and targets the **Platinum** quality scale
+  (`manifest.json` `quality_scale`; per-rule ledger in
+  `custom_components/home_keeper/quality_scale.yaml`). `lint.yml` runs `mypy` against
+  the integration with Home Assistant installed — keep it error-free, and run it
+  locally (`pip install mypy homeassistant && mypy custom_components/home_keeper`)
+  before pushing. User-facing exceptions must be localized (translation keys under
+  `strings.json` → `exceptions`); see `.amazonq/rules/`.
+
 ## CI
 
+- `lint.yml` — ruff lint + format check, and **mypy** strict typing (HA installed).
 - `test.yml` — vitest, pytest unit, HACS validation, hassfest.
 - `integration.yml` — Docker-based integration tests.
 - `e2e.yml` — Docker + Playwright; uploads the Playwright report on failure.

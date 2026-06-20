@@ -79,7 +79,7 @@ def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
     return None
 
 
-def _hk_identifier(device) -> str | None:
+def _hk_identifier(device: dr.DeviceEntry) -> str | None:
     """Return the Home Keeper registry identifier value for *device*, or None."""
     for domain, value in device.identifiers:
         if domain == DOMAIN:

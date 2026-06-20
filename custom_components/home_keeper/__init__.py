@@ -132,7 +132,7 @@ _METADATA_SCHEMA = vol.Schema(
 # in the free-form ``metadata`` list; only the fields that wire into Home Assistant
 # stay structured — ``manufacturer``/``model`` (device card), ``manual_url`` (device
 # configuration_url) and ``cost`` (inventory value rollup). Cost is coerced to float.
-_ASSET_FIELDS = {
+_ASSET_FIELDS: dict[Any, Any] = {
     vol.Optional("name"): cv.string,
     vol.Optional("kind"): cv.string,
     vol.Optional("device_id"): cv.string,
@@ -254,7 +254,11 @@ def _register_services(hass: HomeAssistant) -> None:
 
     def _check_area(data: dict) -> None:
         if not devices.area_exists(hass, data.get("area_id")):
-            raise ServiceValidationError(f"Unknown area_id: {data.get('area_id')}")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="unknown_area",
+                translation_placeholders={"area_id": str(data.get("area_id"))},
+            )
 
     async def handle_add_task(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
@@ -262,7 +266,11 @@ def _register_services(hass: HomeAssistant) -> None:
         try:
             task = await coord.store.add_task(dict(call.data))
         except TaskValidationError as err:
-            raise ServiceValidationError(str(err)) from err
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
         await hass.config_entries.async_reload(coord.entry.entry_id)
         return {"task_id": task["id"]}
 
@@ -276,9 +284,17 @@ def _register_services(hass: HomeAssistant) -> None:
         try:
             updated = await coord.store.update_task(task_id, data)
         except KeyError:
-            raise ServiceValidationError(f"Task not found: {task_id}") from None
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": task_id},
+            ) from None
         except TaskValidationError as err:
-            raise ServiceValidationError(str(err)) from err
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
         # Only changes that alter which per-task entities exist (device link or
         # enabled state) need a full entry reload; otherwise a refresh suffices.
         if entity_set_key(updated) != before:
@@ -293,7 +309,11 @@ def _register_services(hass: HomeAssistant) -> None:
                 call.data["task_id"], force=call.data.get("force", False)
             )
         except TaskValidationError as err:
-            raise ServiceValidationError(str(err)) from err
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
         await hass.config_entries.async_reload(coord.entry.entry_id)
 
     async def handle_complete_task(call: ServiceCall) -> None:
@@ -306,10 +326,16 @@ def _register_services(hass: HomeAssistant) -> None:
             )
         except KeyError:
             raise ServiceValidationError(
-                f"Task not found: {call.data['task_id']}"
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
             ) from None
         except TaskValidationError as err:
-            raise ServiceValidationError(str(err)) from err
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
         await coord.async_request_refresh()
 
     async def handle_trigger_task(call: ServiceCall) -> None:
@@ -318,10 +344,16 @@ def _register_services(hass: HomeAssistant) -> None:
             await coord.store.trigger_task(call.data["task_id"])
         except KeyError:
             raise ServiceValidationError(
-                f"Task not found: {call.data['task_id']}"
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
             ) from None
         except TaskValidationError as err:
-            raise ServiceValidationError(str(err)) from err
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
         # Arming only flips next_due (dormant <-> active); the per-task entity set is
         # unchanged, so a refresh is enough — no entry reload (mirrors complete_task).
         await coord.async_request_refresh()
@@ -336,7 +368,11 @@ def _register_services(hass: HomeAssistant) -> None:
         try:
             await coord.store.add_asset(dict(call.data))
         except AssetValidationError as err:
-            raise ServiceValidationError(str(err)) from err
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_asset",
+                translation_placeholders={"error": str(err)},
+            ) from err
         await devices.async_apply_asset_change(hass, coord.entry, coord.store)
 
     async def handle_update_asset(call: ServiceCall) -> None:
@@ -347,9 +383,17 @@ def _register_services(hass: HomeAssistant) -> None:
         try:
             await coord.store.update_asset(asset_id, data)
         except KeyError:
-            raise ServiceValidationError(f"Asset not found: {asset_id}") from None
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="asset_not_found",
+                translation_placeholders={"asset_id": asset_id},
+            ) from None
         except AssetValidationError as err:
-            raise ServiceValidationError(str(err)) from err
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_asset",
+                translation_placeholders={"error": str(err)},
+            ) from err
         await devices.async_apply_asset_change(hass, coord.entry, coord.store)
 
     async def handle_delete_asset(call: ServiceCall) -> None:
@@ -368,8 +412,12 @@ def _register_services(hass: HomeAssistant) -> None:
             )
         except KeyError:
             raise ServiceValidationError(
-                f"Unknown asset_id or part_id: {call.data['asset_id']} / "
-                f"{call.data['part_id']}"
+                translation_domain=DOMAIN,
+                translation_key="unknown_part",
+                translation_placeholders={
+                    "asset_id": call.data["asset_id"],
+                    "part_id": call.data["part_id"],
+                },
             ) from None
         await coord.async_request_refresh()
 

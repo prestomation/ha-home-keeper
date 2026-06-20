@@ -144,8 +144,8 @@ def reconcile_problem_tasks(
 
     # Create or arm/clear/update the rest.
     for entity_id, meta in eligible.items():
-        tid = existing_by_entity.get(entity_id)
-        if tid is None:
+        existing_tid = existing_by_entity.get(entity_id)
+        if existing_tid is None:
             task = _build_task(
                 entity_id, meta, config_entry_id=config_entry_id, now=now
             )
@@ -154,7 +154,7 @@ def reconcile_problem_tasks(
             changed = True
             continue
 
-        task = result[tid]
+        task = result[existing_tid]
         # Re-derive owned metadata that follows the sensor (rename, re-home to a new
         # device/area). Silent churn — not announced as a user-facing update.
         managed_by = build_managed_by(entity_id, config_entry_id)

@@ -1,0 +1,179 @@
+# Home Assistant Integration Quality Scale self-assessment.
+# https://developers.home-assistant.io/docs/core/integration-quality-scale/
+#
+# Home Keeper is a local, deviceless "service" integration: a recurring-task /
+# home-maintenance manager backed by a single local JSON store. It makes no
+# network requests and has no external dependency, so the networking, discovery
+# and authentication rules are exempt; everything else is met. The manifest
+# declares `quality_scale: platinum`.
+rules:
+  # ── Bronze ────────────────────────────────────────────────────────────────
+  action-setup:
+    status: done
+    comment: >-
+      All data actions are home_keeper.* services; handlers validate input and
+      raise a localized ServiceValidationError when an id/area is unknown.
+  appropriate-polling:
+    status: done
+    comment: >-
+      The coordinator refreshes local state on a 5-minute interval to advance
+      time-based due/overdue transitions. No network polling.
+  brands:
+    status: exempt
+    comment: Custom (HACS) integration; not part of the home-assistant/brands repo.
+  common-modules: done
+  config-flow: done
+  config-flow-test-coverage:
+    status: done
+    comment: tests/integration covers setup and the options flow.
+  dependency-transparency:
+    status: done
+    comment: No external requirements; depends only on HA core http + frontend.
+  docs-actions:
+    status: done
+    comment: Services documented in services.yaml, strings.json and README.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions:
+    status: done
+    comment: async_remove_entry clears stored data; README covers removal.
+  entity-event-setup:
+    status: done
+    comment: Entities are CoordinatorEntity subclasses; HA manages subscriptions.
+  entity-unique-id: done
+  has-entity-name:
+    status: done
+    comment: Per-task and per-asset entities set _attr_has_entity_name.
+  runtime-data:
+    status: done
+    comment: entry.runtime_data holds the coordinator.
+  test-before-configure:
+    status: exempt
+    comment: >-
+      Single-instance local integration; the config flow takes no input and has
+      no connection to validate.
+  test-before-setup:
+    status: exempt
+    comment: No external connection; setup reads a local store and cannot fail on I/O.
+  unique-config-entry:
+    status: done
+    comment: >-
+      Single instance enforced via async_set_unique_id + _abort_if_unique_id_configured.
+
+  # ── Silver ────────────────────────────────────────────────────────────────
+  action-exceptions:
+    status: done
+    comment: Handlers raise localized ServiceValidationError / HomeAssistantError.
+  config-entry-unloading:
+    status: done
+    comment: async_unload_entry unloads platforms and tears down listeners.
+  docs-configuration-parameters:
+    status: done
+    comment: Options (problem-sensor sync, exclusions) documented in README.
+  docs-installation-parameters:
+    status: exempt
+    comment: Config flow takes no parameters (single instance, no credentials).
+  entity-unavailable:
+    status: exempt
+    comment: State derives from the always-available local store.
+  integration-owner:
+    status: done
+    comment: codeowners set in manifest.json.
+  log-when-unavailable:
+    status: exempt
+    comment: No external resource that can become unavailable.
+  parallel-updates:
+    status: exempt
+    comment: >-
+      All reads go through a single coordinator and all writes through the local
+      store; there is no per-entity device I/O to serialize.
+  reauthentication-flow:
+    status: exempt
+    comment: No authentication.
+  test-coverage:
+    status: done
+    comment: Unit + integration + e2e tiers.
+
+  # ── Gold ──────────────────────────────────────────────────────────────────
+  devices:
+    status: done
+    comment: >-
+      Per-task and per-asset entities attach to devices via DeviceInfo; virtual
+      appliance devices are reconciled in devices.py.
+  diagnostics:
+    status: done
+    comment: diagnostics.py implements config-entry diagnostics.
+  discovery:
+    status: exempt
+    comment: Nothing to discover (local task manager).
+  discovery-update-info:
+    status: exempt
+    comment: No discovery.
+  docs-data-update:
+    status: done
+    comment: README/docs explain the coordinator refresh + event model.
+  docs-examples:
+    status: done
+    comment: docs/EVENTS.md and README include automation examples.
+  docs-known-limitations: done
+  docs-supported-devices:
+    status: exempt
+    comment: Not device-specific; works with any HA area/device a task is attached to.
+  docs-supported-functions:
+    status: done
+    comment: README documents entities and services.
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices:
+    status: done
+    comment: Appliance devices and per-task entities are added/removed on reconcile.
+  entity-category:
+    status: exempt
+    comment: All entities are primary user-facing; none are diagnostic/config.
+  entity-device-class:
+    status: done
+    comment: Next-due sensors use SensorDeviceClass.DATE; overdue is a binary_sensor.
+  entity-disabled-by-default:
+    status: exempt
+    comment: All entities are primary and enabled.
+  entity-translations:
+    status: done
+    comment: strings.json provides entity name translations across 16 locales.
+  exception-translations:
+    status: done
+    comment: >-
+      Service/entity exceptions use translation_domain + translation_key (see
+      strings.json "exceptions"). Messages are seeded English-first across all 16
+      locales and translated incrementally; a unit drift-guard
+      (tests/unit/test_exception_translations.py) keeps every raise localized.
+  icon-translations:
+    status: exempt
+    comment: Entities use static MDI icons; no state-based icon translation needed.
+  reconfiguration-flow:
+    status: exempt
+    comment: >-
+      No connection settings to reconfigure; ongoing settings live in the options
+      flow and the admin panel.
+  repair-issues:
+    status: exempt
+    comment: >-
+      Local integration with no external failure modes needing a user-actionable
+      repair; validation errors surface inline via ServiceValidationError.
+  stale-devices:
+    status: done
+    comment: >-
+      Appliance / part-task devices are removed during reconcile when their asset
+      or part goes away.
+
+  # ── Platinum ──────────────────────────────────────────────────────────────
+  async-dependency:
+    status: exempt
+    comment: No external dependency; pure-async with a local store.
+  inject-websession:
+    status: exempt
+    comment: Makes no HTTP requests; no web session to inject.
+  strict-typing:
+    status: done
+    comment: >-
+      Fully typed; ships py.typed; CI runs mypy (lint.yml) against the integration
+      with Home Assistant installed. Config in pyproject.toml [tool.mypy].

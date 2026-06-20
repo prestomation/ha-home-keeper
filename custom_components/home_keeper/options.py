@@ -51,7 +51,7 @@ def current_options(entry: ConfigEntry) -> dict[str, Any]:
     A fully-populated dict keeps the panel form and the options flow simple — they
     never have to special-case a missing key.
     """
-    opts = entry.options or {}
+    opts = dict(entry.options)
     result: dict[str, Any] = {
         OPTION_SYNC_PROBLEM_SENSORS: bool(opts.get(OPTION_SYNC_PROBLEM_SENSORS, False)),
     }

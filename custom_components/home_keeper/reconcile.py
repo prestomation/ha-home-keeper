@@ -70,7 +70,7 @@ def reconcile_part_tasks(
     for tid, task in result.items():
         src = part_source(task)
         if src:
-            existing_by_key[(src.get("asset_id"), src.get("part_id"))] = tid
+            existing_by_key[(src["asset_id"], src["part_id"])] = tid
 
     changed = False
 
@@ -89,8 +89,8 @@ def reconcile_part_tasks(
         # next-due sensor, overdue binary_sensor, and the calendar (which compare it
         # against an aware "now").
         anchored = qualify_iso(part.get("last_replaced"), now.tzinfo)
-        tid = existing_by_key.get(key)
-        if tid is None:
+        existing_tid = existing_by_key.get(key)
+        if existing_tid is None:
             task = models.build_task(
                 {
                     "name": name,
@@ -122,7 +122,7 @@ def reconcile_part_tasks(
             # Only pass fields that actually changed. Passing interval/unit
             # unconditionally would re-trigger a next_due recompute on every
             # reconcile (setup, any asset edit), needlessly churning the schedule.
-            before = result[tid]
+            before = result[existing_tid]
             updates: dict[str, Any] = {}
             if before.get("name") != name:
                 updates["name"] = name
