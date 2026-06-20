@@ -563,7 +563,12 @@ def test_build_task_normalizes_labels():
 
 def test_build_task_defaults_labels_to_empty():
     task = m.build_task(
-        {"name": "Mow lawn", "recurrence_type": "floating", "interval": 1, "unit": "weeks"},
+        {
+            "name": "Mow lawn",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "weeks",
+        },
         now=NOW,
     )
     assert task["labels"] == []
@@ -585,7 +590,12 @@ def test_build_task_rejects_non_list_labels():
 
 def test_merge_update_sets_labels_when_provided():
     task = m.build_task(
-        {"name": "Wash car", "recurrence_type": "floating", "interval": 2, "unit": "weeks"},
+        {
+            "name": "Wash car",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+        },
         now=NOW,
     )
     updated = m.merge_update(task, {"labels": ["car", "car", "exterior"]}, now=NOW)
