@@ -6,6 +6,19 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Added
+
+- **Voice control (Assist).** Two new conversation intents let you manage chores
+  hands-free. Say *"mark the furnace filter as done"*, *"I just replaced the fridge
+  filter"*, or *"clear take medicine"* to complete a task — Home Keeper fuzzy-matches
+  the spoken name, and if more than one task could match it lists them and asks which
+  one rather than risk completing the wrong chore. Ask *"what chores are due?"* to
+  hear the tasks that are due or overdue. Voice completions flow through the same path
+  as every other surface (they advance recurrence and fire
+  `home_keeper_task_completed`), and a problem-sensor-synced task still can't be
+  cleared this way. Copy `custom_sentences/en/home_keeper.yaml` into your config to
+  teach the default Assist agent the phrases — see the README "Voice control" section.
+
 ### Fixed
 
 - **Settings exclusions now take effect immediately.** Adding a problem-sensor

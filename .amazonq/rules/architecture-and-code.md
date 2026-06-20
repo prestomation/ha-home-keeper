@@ -105,6 +105,31 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
 - Read-only/report actions use `SupportsResponse.ONLY`; data mutations reload the
   entry or refresh the coordinator exactly as the equivalent CRUD service does.
 
+## Conversation/voice intents delegate to the store — they are not a new path
+- Assist intents live in `intents.py` (`intent.IntentHandler` subclasses, registered
+  via `intent.async_register` from `async_setup_intents`, called in
+  `async_setup_entry` after `_register_services`). Registration is **global and
+  idempotent** (keyed by `intent_type`), so it survives entry reloads; handlers
+  resolve the coordinator per-call (never capture it). Like a websocket command, an
+  intent is an **additional UI surface that delegates to the same `HomeKeeperStore`
+  method** (e.g. `complete_task` with `origin=ORIGIN_INTENT`) — never a divergent
+  mutation path, so completions stay observable and obey the same guards (a
+  problem-sensor-synced task is still rejected). No new service is required when an
+  existing one already covers the action.
+- **Keep intent resolution pure and testable.** Fuzzy task-name matching and
+  due-task selection live in `task_match.py` (no HA imports, loaded in the `hk`
+  synthetic package) so the branchy logic is unit-tested in isolation; the handler
+  only does HA-specific work (registry name→id lookups, spoken responses, error
+  mapping). Prefer **disambiguation over guessing** — when more than one task could
+  match, return candidates and ask, because completing the wrong task advances its
+  recurrence.
+- **Ship the sentences and test the NLU layer.** Natural-language phrases live in
+  `custom_sentences/<lang>/home_keeper.yaml` (users copy them into their config). The
+  sentence→intent→slot routing is covered by a `hassil` unit test
+  (`tests/unit/test_intent_sentences.py`) — the same engine HA uses — and the
+  handler→store wiring by an integration test driving `/api/intent/handle` (the test
+  config enables `intent:`).
+
 ## Events are the observation surface — fire one for every state change
 - **Every observable state change fires a documented `home_keeper_<noun>_<verb>` bus
   event**, built by a **pure function in `events.py`** (no HA imports) so the test fake

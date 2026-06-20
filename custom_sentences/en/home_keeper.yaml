@@ -1,0 +1,31 @@
+# Home Keeper voice/Assist sentences.
+#
+# Copy this file to your Home Assistant config under
+#   <config>/custom_sentences/en/home_keeper.yaml
+# (create the folders if needed) and restart Home Assistant. The default Assist
+# conversation agent then routes these utterances to Home Keeper's intent handlers
+# (registered automatically by the integration). See README "Voice control".
+#
+# {name} is a wildcard that captures the spoken task name; Home Keeper fuzzy-matches
+# it against your tasks and asks you to clarify if more than one could match.
+language: "en"
+intents:
+  HomeKeeperCompleteTask:
+    data:
+      - sentences:
+          - "mark [the] {name} (as done|done|as complete|complete|completed)"
+          - "complete [the] [task] {name}"
+          - "clear [the] [task] {name}"
+          - "check off [the] {name}"
+          - "[I] [just] (finished|did|completed|replaced|changed|cleaned) [the] {name}"
+  HomeKeeperListDueTasks:
+    data:
+      - sentences:
+          - "what [home keeper] (tasks|chores) are due [right now|today]"
+          - "what [home keeper] (tasks|chores) (do I have|are there) due [right now|today]"
+          - "what [home keeper] (tasks|chores) (need|needs) [to be] done"
+          - "(what is|what's) due [right now|today]"
+          - "do I have any [home keeper] (tasks|chores) due"
+lists:
+  name:
+    wildcard: true

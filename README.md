@@ -213,6 +213,31 @@ integrations HA won't let us reparent — which show up alongside the appliance.
 > heater now has its own device page with a warranty-expiry sensor, plus an automatic
 > *"Replace Anode rod"* to-do that's due 12 months after each completion.
 
+## Voice control (Assist)
+
+Complete and check on your chores hands-free. Home Keeper ships two
+[Assist](https://www.home-assistant.io/voice_control/) intents so you can clear
+tasks by voice or text instead of opening the panel:
+
+- **Complete a task** — *"mark the furnace filter as done"*, *"I just replaced the
+  fridge filter"*, *"clear take medicine"*, *"check off the water filter"*. Home
+  Keeper fuzzy-matches what you said against your tasks, completes the match (which
+  advances its recurrence and fires the usual `home_keeper_task_completed` event),
+  and reads back a confirmation. If more than one task could match — you have a
+  *fridge* filter and a *furnace* filter and only said "filter" — it lists them and
+  asks which one rather than guessing, so it never clears the wrong chore. A
+  problem-sensor-synced task can't be cleared by voice (the same rule as everywhere
+  else); Assist explains why.
+- **Ask what's due** — *"what chores are due?"*, *"what tasks need to be done?"*,
+  *"what's due right now?"* — and Home Keeper reads back the tasks that are due or
+  overdue.
+
+**Setup.** The intent handlers are registered automatically. To teach the default
+Assist agent the sentences, copy
+[`custom_sentences/en/home_keeper.yaml`](custom_sentences/en/home_keeper.yaml) into
+your Home Assistant config at `<config>/custom_sentences/en/home_keeper.yaml`
+(create the folders if needed) and restart Home Assistant.
+
 ## Services
 
 Every data action is a Home Assistant service, so it's usable from automations,

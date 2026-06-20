@@ -9,6 +9,12 @@ homeassistant:
 # Enable the REST API
 api:
 
+# Enable the intent component so the /api/intent/handle endpoint is available. The
+# Home Keeper conversation intents (registered by the integration) are exercised
+# through it in tests/integration/test_intents.py. A real install gets this via
+# default_config; this minimal test config omits that, so enable it explicitly.
+intent:
+
 # Enable frontend (required for the custom sidebar panel + Lovelace resources)
 frontend:
 

@@ -40,6 +40,7 @@ def _load_pure_modules() -> None:
         "reconcile",
         "problem_tasks",
         "inventory",
+        "task_match",
     ):
         spec = importlib.util.spec_from_file_location(
             f"hk.{name}", str(_COMPONENT_DIR / f"{name}.py")
@@ -58,6 +59,7 @@ def _load_pure_modules() -> None:
     sys.modules["hk_reconcile"] = sys.modules["hk.reconcile"]
     sys.modules["hk_problem_tasks"] = sys.modules["hk.problem_tasks"]
     sys.modules["hk_inventory"] = sys.modules["hk.inventory"]
+    sys.modules["hk_task_match"] = sys.modules["hk.task_match"]
 
 
 _load_pure_modules()

@@ -17,7 +17,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
-from . import card, devices, inventory, options, panel, websocket_api
+from . import card, devices, intents, inventory, options, panel, websocket_api
 from .assets import AssetValidationError
 from .const import (
     DOMAIN,
@@ -211,6 +211,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _register_services(hass)
+    # Register the conversation/voice intents (idempotent across reloads). These are
+    # an additional Assist surface that delegates to the same store methods as the
+    # services/entities — never a substitute for the complete_task service.
+    await intents.async_setup_intents(hass)
     # React to options-flow changes (e.g. toggling problem-sensor syncing) by
     # reloading the entry, which re-runs this setup with the new options.
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))

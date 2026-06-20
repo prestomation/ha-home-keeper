@@ -107,6 +107,19 @@ TASK_SOURCE_PROBLEM_SENSOR = "problem_sensor"
 # omits it, so they are rejected; only the internal sync can drive these tasks.
 ORIGIN_PROBLEM_SENSOR_SYNC = f"{DOMAIN}_problem_sensor_sync"
 
+# Conversation / voice intents. The handlers live in ``intents.py`` (registered in
+# ``async_setup_entry``) and delegate to the same store methods every other surface
+# uses; the natural-language sentences that route to them ship in
+# ``custom_sentences/en/home_keeper.yaml``. See docs and README "Voice control".
+INTENT_COMPLETE_TASK = "HomeKeeperCompleteTask"
+INTENT_LIST_DUE_TASKS = "HomeKeeperListDueTasks"
+
+# Opaque ``origin`` marker stamped on completions driven by the voice/intent layer
+# (passed to ``store.complete_task``), so automations subscribed to
+# ``home_keeper_task_completed`` can recognise — and ignore — the echo of a
+# completion they themselves triggered by voice. Home Keeper never interprets it.
+ORIGIN_INTENT = f"{DOMAIN}_intent"
+
 # Config-entry options keys (set via the options flow). Syncing is opt-in.
 OPTION_SYNC_PROBLEM_SENSORS = "sync_problem_sensors"  # bool, default False
 # Exclusion filters narrowing which ``device_class: problem`` binary sensors are
