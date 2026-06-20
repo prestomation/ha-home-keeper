@@ -6,6 +6,15 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Settings exclusions now take effect immediately.** Adding a problem-sensor
+  entity, area, or label to a *skip* list in the panel's **Settings** tab is now
+  reflected right away: the integration reload that re-runs the problem-sensor sync
+  is awaited before the save returns, and the panel refreshes its task list so the
+  excluded sensor's synced task disappears (or reappears when you clear the
+  exclusion) without needing a manual refresh or page reload.
+
 ## [0.3.0b11] - 2026-06-20
 
 ### Added
