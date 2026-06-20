@@ -161,6 +161,7 @@
   "section.metadata": "Anpassade fält",
   "section.meta_n": "Fält {n}",
   "field.label": "Etikett",
+  "field.labels": "Etiketter",
   "field.value": "Värde",
   "field.track": "Spåra som sensor (för automationer)",
   "opt.meta.text": "Text",

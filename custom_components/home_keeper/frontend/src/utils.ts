@@ -1,5 +1,5 @@
 import { t, tn } from './i18n';
-import type { Asset, HassArea, Task } from './types';
+import type { Asset, HassArea, HassLabel, Task } from './types';
 
 /** Escape user-provided text before injecting into innerHTML. */
 export function escapeHTML(value: unknown): string {
@@ -95,6 +95,15 @@ export function areaName(
 ): string {
   if (!areaId) return '';
   return areas?.[areaId]?.name || areaId;
+}
+
+/** Resolve a label id to its display name using hass.labels (falls back to the id). */
+export function labelName(
+  labels: Record<string, HassLabel> | undefined,
+  labelId: string | null | undefined,
+): string {
+  if (!labelId) return '';
+  return labels?.[labelId]?.name || labelId;
 }
 
 // ── panel routing ────────────────────────────────────────────────────────────

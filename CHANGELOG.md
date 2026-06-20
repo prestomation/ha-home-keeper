@@ -6,6 +6,21 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Added
+
+- **Filter the dashboard card by label — one card per subject.** Tag tasks with
+  Home Assistant labels (e.g. `dog`, `car`, a kid's name) and point a Home Keeper
+  card at one or more of them to get a focused list: a card for the dog, one for
+  home maintenance, one for the car, one per kid. The label filter matches a task
+  by its own labels **or** by the labels on its attached device or area — so a
+  Home Keeper virtual appliance you've labelled in *Settings → Devices* is picked
+  up automatically, and a subject doesn't have to map onto an HA area or device.
+  Configure it from the card editor (**Limit to labels**, plus an **Any/All** match
+  mode and an optional **Show labels** toggle that renders each task's label chips).
+  Tasks now carry a `labels` field, editable in the panel/card task form and via the
+  `home_keeper.add_task` / `home_keeper.update_task` services; the value is also
+  echoed on every task event.
+
 ## [0.3.0b10] - 2026-06-19
 
 ### Changed

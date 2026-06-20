@@ -30,6 +30,9 @@
      {
       "ts": "2026-06-01T09:00:00-04:00"
      }
+    ],
+    "labels": [
+     "home"
     ]
    },
    "task_anode": {
@@ -96,6 +99,9 @@
      {
       "ts": "2026-04-01T10:00:00-04:00"
      }
+    ],
+    "labels": [
+     "home"
     ]
    },
    "task_water_filter": {
@@ -115,6 +121,9 @@
      {
       "ts": "2026-04-20T12:00:00-04:00"
      }
+    ],
+    "labels": [
+     "home"
     ]
    },
    "task_buddy_medicine": {
@@ -156,7 +165,10 @@
      "completion_prompt": "Log as Buddy's medicine dose?",
      "deletion_protected": true,
      "config_entry_id": "home_keeper_test_entry"
-    }
+    },
+    "labels": [
+     "dog"
+    ]
    },
    "task_rex_vet": {
     "id": "task_rex_vet",
@@ -194,12 +206,15 @@
      "completion_prompt": "Log as Rex's vet checkup?",
      "deletion_protected": true,
      "config_entry_id": "uninstalled_entry_demo"
-    }
+    },
+    "labels": [
+     "dog"
+    ]
    },
    "task_door_battery": {
     "id": "task_door_battery",
     "name": "Replace battery: Front door sensor",
-    "notes": "2\u00d7 AAA",
+    "notes": "2× AAA",
     "recurrence_type": "triggered",
     "device_id": null,
     "area_id": null,
@@ -236,7 +251,7 @@
    "task_smoke_battery": {
     "id": "task_smoke_battery",
     "name": "Replace battery: Hallway smoke alarm",
-    "notes": "1\u00d7 9V",
+    "notes": "1× 9V",
     "recurrence_type": "triggered",
     "device_id": null,
     "area_id": null,
@@ -276,7 +291,7 @@
    "task_thermostat_battery": {
     "id": "task_thermostat_battery",
     "name": "Replace battery: Thermostat",
-    "notes": "2\u00d7 AA",
+    "notes": "2× AA",
     "recurrence_type": "triggered",
     "device_id": null,
     "area_id": null,

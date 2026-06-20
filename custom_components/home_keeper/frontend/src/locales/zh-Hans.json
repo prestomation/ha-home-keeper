@@ -161,6 +161,7 @@
   "section.metadata": "自定义字段",
   "section.meta_n": "字段 {n}",
   "field.label": "标签",
+  "field.labels": "标签",
   "field.value": "值",
   "field.track": "作为传感器跟踪（用于自动化）",
   "opt.meta.text": "文本",

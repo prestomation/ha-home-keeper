@@ -95,6 +95,9 @@ export function taskSchema(task: Partial<Task>): FormField[] {
       ...(!locked.has('device_id')
         ? [{ name: 'device_id', selector: selDevice() } as FormField]
         : []),
+      ...(!locked.has('labels')
+        ? [{ name: 'labels', selector: selLabel(true) } as FormField]
+        : []),
     ];
   }
 
@@ -158,6 +161,7 @@ export function taskSchema(task: Partial<Task>): FormField[] {
       ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
       : []),
     ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
+    ...(!locked.has('labels') ? [{ name: 'labels', selector: selLabel(true) } as FormField] : []),
   ];
   return fields;
 }
@@ -174,6 +178,7 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     anchor: isoToHaDateTime(task.anchor) ?? '',
     last_completed: isoToHaDateTime(task.last_completed) ?? '',
     device_id: task.device_id ?? undefined,
+    labels: task.labels ?? [],
   };
 }
 
@@ -206,6 +211,9 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
     }
   }
+  // Labels apply to every task kind (including triggered) and always round-trip,
+  // so an empty array correctly clears a task's labels on update.
+  payload.labels = Array.isArray(task.labels) ? task.labels : [];
   if (!task.id) {
     const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
     if (lastCompleted) payload.last_completed = lastCompleted;

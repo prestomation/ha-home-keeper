@@ -54,6 +54,8 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("last_completed"): cv.datetime,
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
+        # HA label-registry ids; used (with device/area labels) to scope the card.
+        vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("source"): dict,
         vol.Optional("managed_by"): dict,
     }
@@ -70,6 +72,7 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("anchor"): cv.string,
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
+        vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("source"): dict,
     }
 )

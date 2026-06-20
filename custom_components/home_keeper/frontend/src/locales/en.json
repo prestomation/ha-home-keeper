@@ -46,6 +46,7 @@
   "field.name": "Name",
   "field.notes": "Notes",
   "field.label": "Label",
+  "field.labels": "Labels",
   "field.value": "Value",
   "field.track": "Track as a sensor (for automations)",
   "field.recurrence_type": "Recurrence",

@@ -14,6 +14,7 @@ import {
   selArea,
   selBool,
   selDevice,
+  selLabel,
   selNumber,
   selSelect,
   selText,
@@ -23,13 +24,14 @@ import {
   type HaFormElement,
 } from './forms';
 import { setLanguage, t, tn } from './i18n';
-import type { Hass, Task } from './types';
+import type { Hass, HassLabel, Task } from './types';
 import {
   areaName,
   deviceName,
   dueLabel,
   escapeHTML,
   isOverdue,
+  labelName,
   recurrenceSummary,
 } from './utils';
 
@@ -74,12 +76,15 @@ const S: Record<string, string> = {
   group_by: 'Group by',
   areas: 'Limit to areas',
   devices: 'Limit to devices',
+  labels: 'Limit to labels',
+  label_match: 'Label match',
   recurrence_types: 'Limit to recurrence types',
   horizon_days: 'Show tasks due within (days, 0 = no limit)',
   max_items: 'Max tasks shown (0 = unlimited)',
   show_add: 'Show add button',
   show_notes: 'Show notes',
   show_area: 'Show area / device',
+  show_labels: 'Show labels',
   hide_managed: 'Hide integration-managed tasks',
   show_disabled: 'Include disabled tasks',
   confirm_complete: 'Confirm before completing',
@@ -109,6 +114,10 @@ const RECURRENCE_OPTS = [
   { value: 'fixed', label: 'Fixed' },
   { value: 'triggered', label: 'Triggered (monitored)' },
 ];
+const LABEL_MATCH_OPTS = [
+  { value: 'any', label: 'Any selected label' },
+  { value: 'all', label: 'All selected labels' },
+];
 
 const STYLES = `
   :host { display: block; height: 100%; }
@@ -137,6 +146,14 @@ const STYLES = `
   }
   .hk-notes { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
   .hk-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  /* Label chips read as a distinct, primary-tinted tag so they stand apart from
+     the neutral status / area chips. */
+  ha-assist-chip.hk-label {
+    --ha-assist-chip-container-color: var(--primary-color);
+    --md-assist-chip-label-text-color: var(--text-primary-color, #fff);
+    --ha-assist-chip-label-text-color: var(--text-primary-color, #fff);
+    --md-assist-chip-outline-color: transparent;
+  }
   ha-assist-chip.hk-overdue {
     --ha-assist-chip-container-color: var(--error-color);
     --md-assist-chip-label-text-color: var(--text-primary-color, #fff);
@@ -195,6 +212,9 @@ export class HomeKeeperCard extends HTMLElement {
   private _hass?: Hass;
   private _config: HomeKeeperCardConfig = { type: '' };
   private _tasks: Task[] = [];
+  // HA label registry (id -> entry), fetched once so label chips can show real
+  // names rather than raw ids. Empty until loaded; lookups fall back to the id.
+  private _labels: Record<string, HassLabel> = {};
   private _loaded = false;
   // Set when the last load failed (e.g. integration not set up); rendered as an
   // error instead of an endless spinner. Cleared on the next successful load.
@@ -290,8 +310,19 @@ export class HomeKeeperCard extends HTMLElement {
         Promise.race([customElements.whenDefined(n), new Promise((r) => setTimeout(r, 2000))]),
       ),
     );
+    await this._loadLabels();
     this._render();
     if (this._hass && !this._loaded) await this._refresh();
+  }
+
+  /** Fetch the HA label registry once (best-effort) so chips can show names. */
+  private async _loadLabels(): Promise<void> {
+    if (!this._hass || Object.keys(this._labels).length) return;
+    try {
+      this._labels = await api.getLabels(this._hass);
+    } catch {
+      // Registry unavailable — chips fall back to the raw label id.
+    }
   }
 
   /**
@@ -363,8 +394,9 @@ export class HomeKeeperCard extends HTMLElement {
   /** The filtered+sorted task list (pre-grouping, pre-truncation). */
   private _shaped(now = Date.now()): Task[] {
     const devices = this._hass?.devices;
-    const filtered = filterTasks(this._tasks, this._config, devices, now);
-    return sortTasks(filtered, this._config.sort ?? 'due', this._hass?.areas, devices);
+    const areas = this._hass?.areas;
+    const filtered = filterTasks(this._tasks, this._config, devices, now, areas);
+    return sortTasks(filtered, this._config.sort ?? 'due', areas, devices);
   }
 
   private _visibleCount(): number {
@@ -559,6 +591,16 @@ export class HomeKeeperCard extends HTMLElement {
       const label = area || dev;
       if (label) areaChip = `<ha-assist-chip label="${escapeHTML(label)}"></ha-assist-chip>`;
     }
+    let labelChips = '';
+    if (this._config.show_labels && task.labels?.length) {
+      const labels = Object.keys(this._labels).length ? this._labels : this._hass?.labels;
+      labelChips = task.labels
+        .map(
+          (id) =>
+            `<ha-assist-chip class="hk-label" label="${escapeHTML(labelName(labels, id))}"></ha-assist-chip>`,
+        )
+        .join('');
+    }
     const n = task.completions?.length ?? 0;
     const meta = `${escapeHTML(recurrenceSummary(task))}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}`;
     const notes =
@@ -579,7 +621,7 @@ export class HomeKeeperCard extends HTMLElement {
           <div class="hk-name">${escapeHTML(task.name)}</div>
           <div class="hk-meta">${meta}</div>
           ${notes}
-          <div class="hk-chips">${statusChip}${areaChip}${managedChip}</div>
+          <div class="hk-chips">${statusChip}${areaChip}${labelChips}${managedChip}</div>
         </div>
         ${done}
       </div>`;
@@ -730,6 +772,8 @@ export class HomeKeeperCardEditor extends HTMLElement {
       },
       { name: 'areas', selector: selArea(true) },
       { name: 'devices', selector: selDevice(true) },
+      { name: 'labels', selector: selLabel(true) },
+      { name: 'label_match', selector: selSelect(LABEL_MATCH_OPTS) },
       { name: 'recurrence_types', selector: selSelect(RECURRENCE_OPTS, true) },
       {
         name: '',
@@ -746,6 +790,7 @@ export class HomeKeeperCardEditor extends HTMLElement {
           { name: 'show_add', selector: selBool() },
           { name: 'show_notes', selector: selBool() },
           { name: 'show_area', selector: selBool() },
+          { name: 'show_labels', selector: selBool() },
           { name: 'hide_managed', selector: selBool() },
           { name: 'show_disabled', selector: selBool() },
           { name: 'confirm_complete', selector: selBool() },

@@ -161,6 +161,7 @@
   "section.metadata": "Brugerdefinerede felter",
   "section.meta_n": "Felt {n}",
   "field.label": "Etiket",
+  "field.labels": "Etiketter",
   "field.value": "Værdi",
   "field.track": "Spor som en sensor (til automatiseringer)",
   "opt.meta.text": "Tekst",

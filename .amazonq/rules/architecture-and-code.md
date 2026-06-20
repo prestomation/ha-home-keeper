@@ -56,7 +56,20 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
 ## Task data model
 - Tasks are plain JSON-serializable dicts (never model objects in storage), with
   keys: `id, name, notes, recurrence_type, interval, unit|freq, anchor,
-  device_id, area_id, enabled, last_completed, next_due, completions[], created`.
+  device_id, area_id, labels[], enabled, last_completed, next_due, completions[],
+  created`.
+- `labels[]` are **Home Assistant label-registry ids** (the same registry as device/
+  area/entity labels), normalized in `models.normalize_labels` (de-duped, blank-
+  stripped). `merge_update` only rewrites `labels` when the caller sends the key, so a
+  rename never stamps a phantom `labels: []` (which would surface as a spurious
+  `labels` in `changed_fields`). Pre-existing tasks may lack the key — treat absent as
+  empty. Don't garbage-collect ids whose HA label was deleted: a stale id simply stops
+  matching, which is harmless.
+- The dashboard card filters on labels by **union resolution** (`card-filter.taskLabelIds`):
+  a task matches if the label is on the task itself, its attached device, or its
+  effective area (`taskAreaId`). This is what lets a card be scoped to a "subject"
+  (dog/car/kid) that isn't an HA area or device — keep this transitive rule intact when
+  touching card filtering, and keep `card-filter.ts` pure/DOM-free.
 - All task mutations go through `HomeKeeperStore`; entities and the panel read via
   the `HomeKeeperCoordinator` and never mutate storage directly.
 

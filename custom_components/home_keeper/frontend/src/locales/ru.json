@@ -181,6 +181,7 @@
   "section.metadata": "Свои поля",
   "section.meta_n": "Поле {n}",
   "field.label": "Метка",
+  "field.labels": "Метки",
   "field.value": "Значение",
   "field.track": "Отслеживать как датчик (для автоматизаций)",
   "opt.meta.text": "Текст",

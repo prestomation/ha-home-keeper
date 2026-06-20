@@ -16,6 +16,14 @@ views:
         title: By status
         group_by: status
         show_notes: true
+      # A subject card: only tasks carrying the "dog" label (directly, or via a
+      # labelled device/area), with each task's label chips shown. Exercises the
+      # label filter and the show_labels display option.
+      - type: custom:home-keeper-card
+        title: Dog
+        labels:
+          - dog
+        show_labels: true
       - type: todo-list
         entity: todo.home_keeper_tasks
       - type: calendar

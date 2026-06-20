@@ -1,10 +1,22 @@
-import type { Asset, Hass, HomeKeeperOptions, Inventory, Task } from './types';
+import type { Asset, Hass, HassLabel, HomeKeeperOptions, Inventory, Task } from './types';
 
 /** Thin wrappers around the Home Keeper websocket commands. */
 
 export async function getTasks(hass: Hass): Promise<Task[]> {
   const res = await hass.callWS<{ tasks: Task[] }>({ type: 'home_keeper/get_tasks' });
   return res.tasks;
+}
+
+/**
+ * The HA label registry, keyed by `label_id`. Home Assistant doesn't eagerly
+ * populate `hass.labels` on every surface (unlike areas/devices), so the card
+ * fetches it directly to resolve label ids to display names/colors for its chips.
+ */
+export async function getLabels(hass: Hass): Promise<Record<string, HassLabel>> {
+  const list = await hass.callWS<HassLabel[]>({ type: 'config/label_registry/list' });
+  const map: Record<string, HassLabel> = {};
+  for (const label of list) map[label.label_id] = label;
+  return map;
 }
 
 /** Read the integration options (for the Settings tab). */

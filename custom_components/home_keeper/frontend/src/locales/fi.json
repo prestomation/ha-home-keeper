@@ -161,6 +161,7 @@
   "section.metadata": "Mukautetut kentät",
   "section.meta_n": "Kenttä {n}",
   "field.label": "Otsikko",
+  "field.labels": "Tunnisteet",
   "field.value": "Arvo",
   "field.track": "Seuraa anturina (automaatioita varten)",
   "opt.meta.text": "Teksti",

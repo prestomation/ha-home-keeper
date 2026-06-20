@@ -161,6 +161,7 @@
   "section.metadata": "Aangepaste velden",
   "section.meta_n": "Veld {n}",
   "field.label": "Label",
+  "field.labels": "Etiketten",
   "field.value": "Waarde",
   "field.track": "Volgen als sensor (voor automatiseringen)",
   "opt.meta.text": "Tekst",

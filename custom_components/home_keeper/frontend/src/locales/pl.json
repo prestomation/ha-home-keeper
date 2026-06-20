@@ -181,6 +181,7 @@
   "section.metadata": "Pola niestandardowe",
   "section.meta_n": "Pole {n}",
   "field.label": "Etykieta",
+  "field.labels": "Etykiety",
   "field.value": "Wartość",
   "field.track": "Śledź jako sensor (do automatyzacji)",
   "opt.meta.text": "Tekst",

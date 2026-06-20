@@ -28,6 +28,12 @@ export interface HomeKeeperCardConfig {
   areas?: string[];
   /** Restrict to tasks attached to these devices. */
   devices?: string[];
+  /** Restrict to tasks carrying these HA labels — on the task itself, its device,
+   *  or its effective area. The backbone of per-subject cards (one per dog/car/kid). */
+  labels?: string[];
+  /** When several labels are configured: match a task carrying ANY of them
+   *  (default) or only one carrying ALL of them. */
+  label_match?: 'any' | 'all';
   /** Restrict to these recurrence types. */
   recurrence_types?: RecurrenceType[];
   /** Only show dated tasks due within this many days (0 = no limit). */
@@ -44,6 +50,8 @@ export interface HomeKeeperCardConfig {
   show_notes?: boolean;
   /** Show the task's area/device chip. Default true. */
   show_area?: boolean;
+  /** Show the task's own label chips. Default false. */
+  show_labels?: boolean;
   /** Ask for confirmation before completing a task. Default false. */
   confirm_complete?: boolean;
 }
@@ -86,6 +94,40 @@ export function taskAreaId(
   return dev?.area_id ?? undefined;
 }
 
+/**
+ * Every HA label that scopes a task: its own labels, plus those on its attached
+ * device and its effective area. This union is what makes a "label = dog" card
+ * pick up both a task tagged `dog` directly and a task on a device labelled `dog`
+ * (a Home Keeper virtual-asset device can be labelled in Settings → Devices like
+ * any other), so a subject doesn't have to map onto an HA area or device.
+ */
+export function taskLabelIds(
+  task: Task,
+  devices?: Record<string, HassDevice>,
+  areas?: Record<string, HassArea>,
+): Set<string> {
+  const ids = new Set<string>(task.labels ?? []);
+  const dev = task.device_id ? devices?.[task.device_id] : undefined;
+  for (const id of dev?.labels ?? []) ids.add(id);
+  const areaId = taskAreaId(task, devices);
+  const area = areaId ? areas?.[areaId] : undefined;
+  for (const id of area?.labels ?? []) ids.add(id);
+  return ids;
+}
+
+function matchesLabels(
+  taskLabels: Set<string>,
+  wanted: Set<string>,
+  mode: 'any' | 'all',
+): boolean {
+  if (mode === 'all') {
+    for (const id of wanted) if (!taskLabels.has(id)) return false;
+    return true;
+  }
+  for (const id of wanted) if (taskLabels.has(id)) return true;
+  return false;
+}
+
 function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
   const due = task.next_due ? new Date(task.next_due).getTime() : NaN;
   const dated = !Number.isNaN(due);
@@ -105,15 +147,24 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
   }
 }
 
-/** Apply every configured filter, returning the surviving tasks (unsorted). */
+/**
+ * Apply every configured filter, returning the surviving tasks (unsorted).
+ *
+ * `areas` is the HA area registry (passed last to stay backward-compatible with
+ * existing positional callers); it's only needed so a label filter can match a
+ * task via the labels on its effective area.
+ */
 export function filterTasks(
   tasks: Task[],
   config: HomeKeeperCardConfig,
   devices?: Record<string, HassDevice>,
   now = Date.now(),
+  areas?: Record<string, HassArea>,
 ): Task[] {
-  const areas = config.areas?.length ? new Set(config.areas) : null;
+  const areaSet = config.areas?.length ? new Set(config.areas) : null;
   const devSet = config.devices?.length ? new Set(config.devices) : null;
+  const labelSet = config.labels?.length ? new Set(config.labels) : null;
+  const labelMode = config.label_match === 'all' ? 'all' : 'any';
   const recTypes = config.recurrence_types?.length ? new Set(config.recurrence_types) : null;
   const filter = config.filter ?? 'all';
   const horizon = Math.max(0, Number(config.horizon_days) || 0);
@@ -125,8 +176,10 @@ export function filterTasks(
   return tasks.filter((task) => {
     if (!config.show_disabled && task.enabled === false) return false;
     if (config.hide_managed && task.managed_by) return false;
-    if (areas && !areas.has(taskAreaId(task, devices) ?? '')) return false;
+    if (areaSet && !areaSet.has(taskAreaId(task, devices) ?? '')) return false;
     if (devSet && !devSet.has(task.device_id ?? '')) return false;
+    if (labelSet && !matchesLabels(taskLabelIds(task, devices, areas), labelSet, labelMode))
+      return false;
     if (recTypes && !recTypes.has(task.recurrence_type)) return false;
     if (!matchesFilter(task, filter, now)) return false;
     if (horizonCutoff) {

@@ -544,3 +544,65 @@ def test_merge_update_keeps_armed_triggered_armed():
         task, {"recurrence_type": "triggered", "interval": 1, "notes": "x"}, now=NOW
     )
     assert merged["next_due"] == armed
+
+
+def test_build_task_normalizes_labels():
+    # Labels are de-duplicated and blank-stripped, order preserved.
+    task = m.build_task(
+        {
+            "name": "Vet visit",
+            "recurrence_type": "floating",
+            "interval": 6,
+            "unit": "months",
+            "labels": ["dog", "", "dog", " vet "],
+        },
+        now=NOW,
+    )
+    assert task["labels"] == ["dog", "vet"]
+
+
+def test_build_task_defaults_labels_to_empty():
+    task = m.build_task(
+        {"name": "Mow lawn", "recurrence_type": "floating", "interval": 1, "unit": "weeks"},
+        now=NOW,
+    )
+    assert task["labels"] == []
+
+
+def test_build_task_rejects_non_list_labels():
+    with pytest.raises(m.TaskValidationError):
+        m.build_task(
+            {
+                "name": "Bad",
+                "recurrence_type": "floating",
+                "interval": 1,
+                "unit": "weeks",
+                "labels": {"not": "a list"},
+            },
+            now=NOW,
+        )
+
+
+def test_merge_update_sets_labels_when_provided():
+    task = m.build_task(
+        {"name": "Wash car", "recurrence_type": "floating", "interval": 2, "unit": "weeks"},
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"labels": ["car", "car", "exterior"]}, now=NOW)
+    assert updated["labels"] == ["car", "exterior"]
+
+
+def test_merge_update_leaves_labels_untouched_when_absent():
+    # A plain rename must not stamp/clear labels (no phantom "labels changed").
+    task = m.build_task(
+        {
+            "name": "Wash car",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "labels": ["car"],
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"name": "Wash the car"}, now=NOW)
+    assert updated["labels"] == ["car"]

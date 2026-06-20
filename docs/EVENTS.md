@@ -93,6 +93,7 @@ Every task event carries this core (per-event extras noted above are merged in):
 | `recurrence_type` | `str` | `floating` / `fixed` / `triggered` |
 | `next_due` | `str \| None` | ISO; `None` for a dormant triggered task |
 | `enabled` | `bool` | |
+| `labels` | `list[str]` | HA label-registry ids attached to the task (empty list when none); used by the dashboard card's label filter |
 | `source` | `dict \| None` | opaque provenance, echoed verbatim ([INTEGRATING.md](INTEGRATING.md)) |
 | `managed_by` | `dict \| None` | well-known ownership block, or `None` |
 
