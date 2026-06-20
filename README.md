@@ -273,11 +273,32 @@ The integration and the sidebar panel are localized into **16 languages** and fo
 your Home Assistant language, falling back to English for anything untranslated.
 Translations live in `custom_components/home_keeper/translations/`.
 
+## Quality scale
+
+Home Keeper targets Home Assistant's
+[**Platinum** integration quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/).
+The per-rule self-assessment lives in
+[`custom_components/home_keeper/quality_scale.yaml`](custom_components/home_keeper/quality_scale.yaml).
+As a local, deviceless service integration (no network, no external dependency),
+the networking/discovery/authentication rules are *exempt*; the rest are met,
+including **strict typing** (the integration ships `py.typed` and CI runs `mypy`
+against it with Home Assistant installed) and an **async, single-coordinator**
+core.
+
+> **One known caveat — localized exceptions:** error messages raised by services
+> and entities now use Home Assistant translation keys (`strings.json` →
+> `exceptions`), but their text is currently **English-first in every locale** and
+> is being translated incrementally. A unit drift-guard
+> (`tests/unit/test_exception_translations.py`) ensures every new raise stays
+> localizable.
+
 ## Development
 
 - Backend: `custom_components/home_keeper/` (recurrence engine in `recurrence.py`).
 - Panel frontend: `custom_components/home_keeper/frontend/` (TypeScript + Rollup).
 - Tests: `pytest` unit (`tests/unit`), Docker integration (`tests/integration`),
   Playwright e2e (`tests/e2e`), and vitest frontend tests.
+- Typing: `mypy custom_components/home_keeper` (config in `pyproject.toml`,
+  enforced by `lint.yml`). Requires Home Assistant installed so its types resolve.
 
 See [AGENTS.md](AGENTS.md) for workflow and [RELEASE.md](RELEASE.md) for releases.

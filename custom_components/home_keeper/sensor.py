@@ -18,6 +18,7 @@ from typing import Any
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
@@ -109,7 +110,7 @@ class HomeKeeperAssetDateSensor(CoordinatorEntity[HomeKeeperCoordinator], Sensor
         coordinator: HomeKeeperCoordinator,
         asset_id: str,
         entry: dict[str, Any],
-        device_info,
+        device_info: DeviceInfo | None,
     ) -> None:
         super().__init__(coordinator)
         self._asset_id = asset_id

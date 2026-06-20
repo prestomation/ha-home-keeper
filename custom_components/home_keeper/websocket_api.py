@@ -29,7 +29,12 @@ def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
     return None
 
 
-def _area_ok(hass, connection, msg, payload: dict) -> bool:
+def _area_ok(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    payload: dict,
+) -> bool:
     """Validate a payload's area_id against HA areas; send an error if unknown."""
     area_id = payload.get("area_id")
     if devices.area_exists(hass, area_id):

@@ -279,7 +279,7 @@ def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
             break
     task["completions"] = history
     if history:
-        latest = max(history, key=lambda entry: _parse(entry["ts"]))
+        latest = max(history, key=lambda entry: datetime.fromisoformat(entry["ts"]))
         task["last_completed"] = latest["ts"]
     else:
         task["last_completed"] = None

@@ -90,5 +90,9 @@ class HomeKeeperTodoListEntity(
             try:
                 await self.coordinator.store.complete_task(item.uid)
             except TaskValidationError as err:
-                raise HomeAssistantError(str(err)) from err
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="complete_failed",
+                    translation_placeholders={"error": str(err)},
+                ) from err
             await self.coordinator.async_request_refresh()

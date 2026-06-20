@@ -380,12 +380,11 @@ class HomeKeeperStore:
         asset = self._assets.pop(asset_id, None)
         if asset is None:
             return None
-        dropped_ids = {
-            tid
-            for tid, t in self._tasks.items()
-            if _part_source(t) is not None
-            and _part_source(t).get("asset_id") == asset_id
-        }
+        dropped_ids = set()
+        for tid, t in self._tasks.items():
+            src = _part_source(t)
+            if src is not None and src.get("asset_id") == asset_id:
+                dropped_ids.add(tid)
         dropped = [self._tasks[tid] for tid in dropped_ids]
         self._tasks = {
             tid: t for tid, t in self._tasks.items() if tid not in dropped_ids
@@ -562,7 +561,7 @@ class HomeKeeperStore:
         src = _part_source(task)
         if not src:
             return
-        asset = self._assets.get(src.get("asset_id"))
+        asset = self._assets.get(src["asset_id"])
         if not asset:
             return
         when_date = when.date().isoformat() if hasattr(when, "date") else str(when)[:10]

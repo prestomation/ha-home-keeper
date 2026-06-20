@@ -20,3 +20,17 @@ jobs:
         run: ruff check custom_components tests ci
       - name: Ruff format check
         run: ruff format --check custom_components tests ci
+
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # Install Home Assistant so its own types resolve — strict typing against the
+      # real HA API is the Platinum quality-scale gate (quality_scale.yaml).
+      - name: Install mypy + Home Assistant
+        run: pip install mypy homeassistant
+      - name: Mypy (strict typing)
+        run: mypy custom_components/home_keeper

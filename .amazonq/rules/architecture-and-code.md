@@ -209,6 +209,19 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   physical); DO set `configuration_url`. Validate `area_id` at the HA boundary
   (`devices.area_exists`), never in the pure model. See `IDEAS.md` / `docs/DESIGN.md`.
 
+## Exceptions are localized (exception-translations)
+- Every user-facing exception raised from a service handler or entity
+  (`ServiceValidationError`, `HomeAssistantError`) MUST be constructed with
+  `translation_domain=DOMAIN` + a `translation_key` (plus `translation_placeholders`)
+  — never a bare f-string. Define the key under `exceptions` in `strings.json`. A
+  pure-AST drift-guard (`tests/unit/test_exception_translations.py`) fails the build
+  on a bare-string raise or a key missing from `strings.json`.
+- Exception message text is currently **English-first across all 16 locales** and
+  translated incrementally; `test_translations_parity.py` skips the
+  untranslated-leak check for `exceptions.*` (via `_PENDING_TRANSLATION_PREFIXES`)
+  while still enforcing key + placeholder parity. Translating a locale's exception
+  strings just makes them stop matching English — no test change needed.
+
 ## Deferred: cross-integration contribution API
 - The stable interface for other integrations (e.g. Battery Notes) to contribute
   tasks is intentionally **not implemented yet**. Only documented hook points

@@ -6,6 +6,22 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Added
+
+- **Platinum integration quality scale.** Home Keeper now declares the
+  [Platinum quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/),
+  with a per-rule ledger in `custom_components/home_keeper/quality_scale.yaml`. The
+  codebase is fully type-checked (`mypy`, with `py.typed`) in CI.
+
+### Changed
+
+- **Error messages are now localizable.** Errors raised by Home Keeper services and
+  entities use Home Assistant translation keys (`strings.json` → `exceptions`) so
+  they can be translated (currently English-first across all locales, translated
+  incrementally).
+- Home Keeper now registers as a **service**-type integration (`integration_type`),
+  so Home Assistant groups it accordingly in the UI.
+
 ### Fixed
 
 - **Settings exclusions now take effect immediately.** Adding a problem-sensor

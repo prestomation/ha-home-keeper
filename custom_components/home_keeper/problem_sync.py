@@ -15,7 +15,13 @@ from typing import Any
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON
-from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.core import (
+    CALLBACK_TYPE,
+    Event,
+    EventStateChangedData,
+    HomeAssistant,
+    callback,
+)
 from homeassistant.helpers import (
     device_registry as dr,
 )
@@ -153,12 +159,14 @@ class ProblemSensorSync:
 
     # ── live updates ─────────────────────────────────────────────────────────
     @callback
-    def _handle_state_change(self, event: Event) -> None:
+    def _handle_state_change(self, event: Event[EventStateChangedData]) -> None:
         # A tracked sensor flipped on/off — re-sync (arm/clear). Cheap dict diff.
         self._hass.async_create_task(self._async_reconcile())
 
     @callback
-    def _handle_registry_update(self, event: Event) -> None:
+    def _handle_registry_update(
+        self, event: Event[er.EventEntityRegistryUpdatedData]
+    ) -> None:
         # A binary sensor was added/removed/relabeled/re-homed — recompute the
         # eligible set, resubscribe, and reconcile (may create/remove tasks).
         if event.data.get("entity_id", "").split(".")[0] not in (

@@ -358,5 +358,28 @@
       "part_out_of_stock": "Ricambio esaurito",
       "part_restocked": "Ricambio rifornito"
     }
+  },
+  "exceptions": {
+    "unknown_area": {
+      "message": "Unknown area: {area_id}"
+    },
+    "invalid_task": {
+      "message": "{error}"
+    },
+    "task_not_found": {
+      "message": "Task not found: {task_id}"
+    },
+    "invalid_asset": {
+      "message": "{error}"
+    },
+    "asset_not_found": {
+      "message": "Asset not found: {asset_id}"
+    },
+    "unknown_part": {
+      "message": "Unknown appliance or part: {asset_id} / {part_id}"
+    },
+    "complete_failed": {
+      "message": "{error}"
+    }
   }
 }

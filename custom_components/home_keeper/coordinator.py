@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -25,6 +25,9 @@ from homeassistant.util import dt as dt_util
 from . import transitions
 from .const import DOMAIN
 from .store import HomeKeeperStore
+
+if TYPE_CHECKING:
+    from .problem_sync import ProblemSensorSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,6 +66,8 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         )
         self.store = store
         self.entry = entry
+        # The problem-sensor sync helper, attached during async_setup_entry.
+        self.problem_sync: ProblemSensorSync | None = None
         # Edge state for the time-based task events (overdue / due-soon). Carried
         # across refreshes so each is fired at most once per ``next_due``; see
         # transitions.detect_transitions.
@@ -99,7 +104,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if task.get("device_id") and task.get("enabled", True)
         ]
 
-    def _existing_device(self, device_id: str | None):
+    def _existing_device(self, device_id: str | None) -> dr.DeviceEntry | None:
         """Resolve ``device_id`` to a registry device, or ``None``.
 
         Single source of truth for "is this an existing device we can merge onto?"

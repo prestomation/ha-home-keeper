@@ -212,7 +212,9 @@ async def _reconcile_virtual(
             asset["id"],
         )
     if updates:
-        device = registry.async_update_device(device.id, **updates)
+        updated = registry.async_update_device(device.id, **updates)
+        if updated is not None:
+            device = updated
 
     await store.set_asset_device_id(asset["id"], device.id)
 
