@@ -40,8 +40,10 @@ show_missing = true
 # Strict typing is a Platinum quality-scale gate (see custom_components/home_keeper/
 # quality_scale.yaml). CI runs `mypy custom_components/home_keeper` with Home
 # Assistant installed so HA's own types resolve; keep the integration error-free.
+# Target 3.13 to match modern Home Assistant (it uses 3.13-only typing syntax, so a
+# lower target makes mypy fail to even parse HA's own sources).
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
