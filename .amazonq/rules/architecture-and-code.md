@@ -192,6 +192,16 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   panel view (`_view === 'settings'`, deep-linked `/home-keeper/settings`) that
   autosaves each `ha-form` change; build its schema from the same selectors in
   `forms.ts` (`settingsSchema`).
+  - **The service / ws write path `await`s the reload so the change takes effect
+    immediately.** `async_set_options` updates the entry and then awaits
+    `async_reload` itself (flagging the entry via `caller_is_reloading` so the update
+    listener doesn't fire a second, overlapping reload), so by the time the call
+    returns the problem-sensor sync has reconciled for the new exclusions. The fire-
+    and-forget update-listener reload (kept for the options *flow*, which updates the
+    entry directly) raced the panel's read and left excluded sensors' synced tasks
+    lingering. Correspondingly, the panel's `_saveOptions` re-`_reload()`s its cached
+    tasks after the save (without re-rendering the form being edited) so the Tasks tab
+    reflects the exclusion right away.
 - **Relationships.** `parent_asset_id` (virtual only) → native `via_device`
   (provision parents-first via `_ancestor_depth`; reject cycles with
   `assets.would_create_cycle`). `related_device_ids` is panel-only (foreign devices

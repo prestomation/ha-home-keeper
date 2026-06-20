@@ -82,3 +82,37 @@ def test_set_options_toggles_problem_sync(ha):
     assert _wait_stable_present(ha, True), (
         "re-enabling sync via set_options should recreate the synced task"
     )
+
+
+def test_set_options_exclude_takes_effect_immediately(ha):
+    """Adding an entity exclusion removes its synced task synchronously.
+
+    ``set_options`` awaits the reload, so the reconcile has run by the time the
+    call returns — the synced task is gone on the very next read, no polling. This
+    is what makes the panel's Settings change "take effect right away": the panel
+    refreshes its task list as soon as the service resolves. Regression guard.
+    """
+    assert _wait_present(ha, True), "expected the synced task at start"
+
+    # Exclude the sensor; the service returns only after the reconcile reload.
+    call_service(
+        ha,
+        "home_keeper",
+        "set_options",
+        {"problem_sensor_exclude_entities": [SENSOR]},
+    )
+    assert not _synced_present(ha), (
+        "excluding the sensor should remove its synced task immediately (no wait)"
+    )
+
+    # Clear the exclusion → the task is recreated, again on the next read. Restores
+    # the config to how it started for the following tests.
+    call_service(
+        ha,
+        "home_keeper",
+        "set_options",
+        {"problem_sensor_exclude_entities": []},
+    )
+    assert _synced_present(ha), (
+        "clearing the exclusion should recreate the synced task immediately (no wait)"
+    )

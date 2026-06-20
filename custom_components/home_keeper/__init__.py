@@ -224,7 +224,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload the entry when its options change."""
+    """Reload the entry when its options change.
+
+    The options *flow* updates the entry directly, so this listener performs the
+    reload. The service / panel path goes through ``options.async_set_options``,
+    which awaits its own reload so the caller observes the reconciled task set — it
+    flags the entry while doing so, so we don't fire a second, overlapping reload.
+    """
+    if options.caller_is_reloading(entry.entry_id):
+        return
     await hass.config_entries.async_reload(entry.entry_id)
 
 

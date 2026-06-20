@@ -1917,6 +1917,12 @@ export class HomeKeeperPanel extends HTMLElement {
     this._options = { ...(this._options as HomeKeeperOptions), ...value };
     try {
       await api.setOptions(this._hass, value);
+      // setOptions resolves only once the backend has reloaded and reconciled the
+      // synced problem-sensor tasks for the new exclusions. Refresh our cached
+      // tasks (without re-rendering — that would tear down the form the user is
+      // still editing) so the change is reflected the moment they return to the
+      // Tasks tab, rather than lingering until the next refresh.
+      await this._reload();
       this._toast(t('settings.saved'));
     } catch (err) {
       this._toast(String((err as { message?: string })?.message || err));
