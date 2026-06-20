@@ -80,6 +80,15 @@ add_task:
       description: Optional area to associate with this task.
       selector:
         area:
+    labels:
+      name: Labels
+      description: >-
+        Optional Home Assistant labels to tag this task with (e.g. "dog", "car",
+        a kid's name). Used by the dashboard card's label filter, which also
+        matches a task via the labels on its attached device or area.
+      selector:
+        label:
+          multiple: true
     source:
       name: Source
       description: >-
@@ -159,6 +168,14 @@ update_task:
       description: Area to associate with this task.
       selector:
         area:
+    labels:
+      name: Labels
+      description: >-
+        Home Assistant labels to tag this task with (replaces the current set).
+        Used by the dashboard card's label filter.
+      selector:
+        label:
+          multiple: true
     source:
       name: Source
       description: >-

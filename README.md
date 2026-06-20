@@ -125,11 +125,37 @@ The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizabl
 of your tasks with a one-tap **Done** button on each row; tapping a row opens an inline
 add/edit/delete form. It's auto-registered (no resource setup) and appears in the
 dashboard **"Add card"** picker. Its GUI editor lets you filter (by status, area,
-device, recurrence type, or a "due within N days" horizon), sort, group, cap rows, and
-toggle what each row shows. It's built from HA's own components and theme and reflects
-completions made anywhere else in real time.
+device, **label**, recurrence type, or a "due within N days" horizon), sort, group, cap
+rows, and toggle what each row shows. It's built from HA's own components and theme and
+reflects completions made anywhere else in real time.
 
 ![Home Keeper task card grouped into status sections, with an inline add form](docs/images/card-grouped.png)
+
+### Filter by label — one card per subject
+
+Most homes have natural "buckets" of upkeep that don't map onto a room or a single
+device: **the dog, the car, home maintenance, each kid's chores**. Tag tasks with
+Home Assistant **labels** and point a card at one (or more) of them to get a focused
+list per subject — a card for the dog, one for the car, one per kid.
+
+A task matches a label filter if **the task itself** carries the label **or** its
+**attached device or area** does. So labelling a Home Keeper *virtual appliance*
+(which is a real device under *Settings → Devices*) — or any device a task is attached
+to — automatically pulls its tasks into the matching card, and a subject never has to
+be modelled as an HA area or device.
+
+How to use it:
+
+- **Tag tasks**: open a task's form (in the panel or the card) and pick one or more
+  labels in the **Labels** field. You can also set labels via the
+  `home_keeper.add_task` / `home_keeper.update_task` services.
+- **Tag devices** (optional): apply the same labels to devices/appliances in
+  *Settings → Devices* to sweep all their tasks into a card without tagging each one.
+- **Point a card at a label**: in the card editor set **Limit to labels** (with an
+  **Any/All** match mode when you list several), and optionally enable **Show labels**
+  to render each task's label chips.
+
+![Home Keeper card filtered to the "dog" label, showing label chips on each row](docs/images/card-label-filter.png)
 
 ## Appliances & virtual devices
 

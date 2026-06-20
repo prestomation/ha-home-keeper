@@ -48,6 +48,23 @@ test.describe('Home Keeper card — dashboard', () => {
     ).toBeVisible();
   });
 
+  test('the label-filtered card shows only labelled tasks, with named label chips', async ({
+    page,
+  }) => {
+    await openCardDashboard(page);
+    // The third card instance is configured labels: [dog], show_labels: true.
+    const dog = page.locator('home-keeper-card').nth(2);
+    await dog.waitFor({ state: 'attached', timeout: 30_000 });
+    await expect(dog.locator('.hk-name', { hasText: 'Buddy: Medicine' })).toBeVisible({
+      timeout: 30_000,
+    });
+    // Both seeded dog tasks pass the filter; non-dog tasks (e.g. the water filter) don't.
+    await expect(dog.locator('.hk-name', { hasText: 'Rex: Vet checkup' })).toBeVisible();
+    await expect(dog.locator('.hk-name', { hasText: 'Replace water filter' })).toHaveCount(0);
+    // The label chip resolves the id to its registry name ("Dog", not "dog").
+    await expect(dog.locator('ha-assist-chip.hk-label').first()).toHaveAttribute('label', 'Dog');
+  });
+
   test('full lifecycle: add, complete, edit, then delete a task from the card', async ({
     page,
   }) => {

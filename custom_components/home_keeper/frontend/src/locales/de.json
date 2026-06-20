@@ -161,6 +161,7 @@
   "section.metadata": "Eigene Felder",
   "section.meta_n": "Feld {n}",
   "field.label": "Bezeichnung",
+  "field.labels": "Etiketten",
   "field.value": "Wert",
   "field.track": "Als Sensor verfolgen (für Automationen)",
   "opt.meta.text": "Text",

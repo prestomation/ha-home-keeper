@@ -161,6 +161,7 @@
   "section.metadata": "Camps personalitzats",
   "section.meta_n": "Camp {n}",
   "field.label": "Etiqueta",
+  "field.labels": "Etiquetes",
   "field.value": "Valor",
   "field.track": "Fes-ne el seguiment com a sensor (per a automatitzacions)",
   "opt.meta.text": "Text",

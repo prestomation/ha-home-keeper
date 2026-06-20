@@ -161,6 +161,7 @@
   "section.metadata": "Champs personnalisés",
   "section.meta_n": "Champ {n}",
   "field.label": "Libellé",
+  "field.labels": "Étiquettes",
   "field.value": "Valeur",
   "field.track": "Suivre comme capteur (pour les automatisations)",
   "opt.meta.text": "Texte",

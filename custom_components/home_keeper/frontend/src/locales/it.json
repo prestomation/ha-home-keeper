@@ -161,6 +161,7 @@
   "section.metadata": "Campi personalizzati",
   "section.meta_n": "Campo {n}",
   "field.label": "Etichetta",
+  "field.labels": "Etichette",
   "field.value": "Valore",
   "field.track": "Traccia come sensore (per le automazioni)",
   "opt.meta.text": "Testo",

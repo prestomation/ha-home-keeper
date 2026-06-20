@@ -115,6 +115,50 @@ describe('filterTasks', () => {
     const ids = filterTasks(all, { type: '', recurrence_types: ['triggered'] }, {}, NOW).map((t) => t.id);
     expect(ids).toEqual(['m']);
   });
+
+  describe('label filter', () => {
+    const due = (over) => task({ next_due: new Date(NOW + DAY).toISOString(), ...over });
+    const tagged = due({ id: 'tg', labels: ['dog'] });
+    const viaDevice = due({ id: 'vd', device_id: 'dev1' });
+    const viaArea = due({ id: 'va', area_id: 'yard' });
+    const untagged = due({ id: 'ut' });
+    const devices = { dev1: { id: 'dev1', labels: ['dog'] } };
+    const areas = { yard: { area_id: 'yard', name: 'Yard', labels: ['dog'] } };
+    const list = [tagged, viaDevice, viaArea, untagged];
+
+    it("matches a task's own label, plus labels via its device and effective area", () => {
+      const ids = filterTasks(list, { type: '', labels: ['dog'] }, devices, NOW, areas)
+        .map((t) => t.id)
+        .sort();
+      expect(ids).toEqual(['tg', 'va', 'vd']);
+    });
+
+    it('defaults to ANY: a task with one of several configured labels survives', () => {
+      const ids = filterTasks(
+        [due({ id: 'a', labels: ['dog'] }), due({ id: 'b', labels: ['car'] }), untagged],
+        { type: '', labels: ['dog', 'car'] },
+        {},
+        NOW,
+        {},
+      )
+        .map((t) => t.id)
+        .sort();
+      expect(ids).toEqual(['a', 'b']);
+    });
+
+    it('label_match=all requires every configured label', () => {
+      const both = due({ id: 'both', labels: ['dog', 'vet'] });
+      const one = due({ id: 'one', labels: ['dog'] });
+      const ids = filterTasks(
+        [both, one],
+        { type: '', labels: ['dog', 'vet'], label_match: 'all' },
+        {},
+        NOW,
+        {},
+      ).map((t) => t.id);
+      expect(ids).toEqual(['both']);
+    });
+  });
 });
 
 describe('sortTasks', () => {

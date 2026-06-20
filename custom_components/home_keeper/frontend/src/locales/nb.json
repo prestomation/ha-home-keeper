@@ -161,6 +161,7 @@
   "section.metadata": "Egendefinerte felter",
   "section.meta_n": "Felt {n}",
   "field.label": "Etikett",
+  "field.labels": "Etiketter",
   "field.value": "Verdi",
   "field.track": "Spor som en sensor (for automatiseringer)",
   "opt.meta.text": "Tekst",

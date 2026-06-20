@@ -21,6 +21,7 @@ def test_payload_has_contract_fields():
         "recurrence_type": "floating",
         "next_due": "2026-07-01T10:00:00-04:00",
         "enabled": True,
+        "labels": ["dog"],
         "source": {"pawsistant": {"schedule_id": "s1"}},
     }
     data = ev.completion_event_data(task, WHEN, origin="pawsistant")
@@ -32,6 +33,7 @@ def test_payload_has_contract_fields():
         "recurrence_type": "floating",
         "next_due": "2026-07-01T10:00:00-04:00",
         "enabled": True,
+        "labels": ["dog"],
         "source": {"pawsistant": {"schedule_id": "s1"}},
         "managed_by": None,
         "completed_at": WHEN.isoformat(),
@@ -46,6 +48,7 @@ def test_task_event_spine_defaults_and_extra():
     assert data["device_id"] is None and data["area_id"] is None
     assert data["enabled"] is True and data["next_due"] is None
     assert data["source"] is None and data["managed_by"] is None
+    assert data["labels"] == []  # defaults to empty for a label-less task
     assert data["changed_fields"] == ["name"]
 
 

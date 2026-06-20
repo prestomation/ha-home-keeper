@@ -18,12 +18,13 @@ def task_event_data(
 
     One template works across `home_keeper_task_created` / `_updated` / `_deleted` /
     `_completed` / `_uncompleted` / `_triggered` / `_overdue` / `_due_soon`: the same
-    identity (``task_id``/``name``), attachment (``device_id``/``area_id``), schedule
-    state (``recurrence_type``/``next_due``/``enabled``), and the opaque ``source`` /
-    well-known ``managed_by`` blocks Home Keeper echoes verbatim. ``device_id`` is the
-    task's stored registry device id (already a registry id; echoed as-is, or ``None``
-    when the task isn't attached to a device — its per-task entities then live on a
-    self-owned device keyed on ``task_id``). Per-event extras (``changed_fields``,
+    identity (``task_id``/``name``), attachment (``device_id``/``area_id``/``labels``),
+    schedule state (``recurrence_type``/``next_due``/``enabled``), and the opaque
+    ``source`` / well-known ``managed_by`` blocks Home Keeper echoes verbatim.
+    ``device_id`` is the task's stored registry device id (already a registry id;
+    echoed as-is, or ``None`` when the task isn't attached to a device — its per-task
+    entities then live on a self-owned device keyed on ``task_id``). Per-event extras
+    (``changed_fields``,
     ``days_overdue``, ``due_in_hours``) are merged in via *extra*.
     """
     data: dict[str, Any] = {
@@ -34,6 +35,7 @@ def task_event_data(
         "recurrence_type": task.get("recurrence_type"),
         "next_due": task.get("next_due"),
         "enabled": task.get("enabled", True),
+        "labels": task.get("labels", []),
         "source": task.get("source"),
         "managed_by": task.get("managed_by"),
     }

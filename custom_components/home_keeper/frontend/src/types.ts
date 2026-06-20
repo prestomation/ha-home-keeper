@@ -38,6 +38,9 @@ export interface Task {
   last_completed?: string | null;
   next_due?: string;
   completions?: { ts: string }[];
+  // HA label-registry ids attached directly to this task. The dashboard card can
+  // filter by label, matching a task via its own labels or those on its device/area.
+  labels?: string[];
   // Provenance for tasks derived/owned by another source (e.g. an appliance wear
   // part, or a synced `device_class: problem` binary sensor). Such tasks are managed
   // by their source, so the panel hides edit/delete.
@@ -58,11 +61,24 @@ export interface HassDevice {
   area_id?: string | null;
   primary_config_entry?: string | null;
   config_entries?: string[];
+  // HA label-registry ids applied to this device (Settings → Devices). A task
+  // attached to a labelled device inherits the device's labels for card filtering.
+  labels?: string[];
 }
 
 export interface HassArea {
   area_id: string;
   name: string;
+  // HA label-registry ids applied to this area; inherited by a task's effective area.
+  labels?: string[];
+}
+
+/** Minimal shape of a Home Assistant label-registry entry (only what the card reads). */
+export interface HassLabel {
+  label_id: string;
+  name: string;
+  color?: string | null;
+  icon?: string | null;
 }
 
 /** Minimal shape of a Home Assistant entity state (only what the card reads). */
@@ -77,6 +93,7 @@ export interface Hass {
   callWS<T = unknown>(msg: Record<string, unknown>): Promise<T>;
   devices?: Record<string, HassDevice>;
   areas?: Record<string, HassArea>;
+  labels?: Record<string, HassLabel>;
   states?: Record<string, HassEntity>;
   language?: string;
   // The live websocket connection; used by the card to subscribe to the

@@ -161,6 +161,7 @@
   "section.metadata": "Campos personalizados",
   "section.meta_n": "Campo {n}",
   "field.label": "Rótulo",
+  "field.labels": "Rótulos",
   "field.value": "Valor",
   "field.track": "Rastrear como sensor (para automações)",
   "opt.meta.text": "Texto",

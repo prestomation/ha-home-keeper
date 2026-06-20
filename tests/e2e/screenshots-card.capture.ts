@@ -44,6 +44,13 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await expect(grouped.locator('details.hk-group').first()).toBeVisible();
   await shotCard(page, grouped, `${OUT}/card-grouped.png`);
 
+  // 3b. The label-filtered "Dog" card — only tasks carrying the `dog` label, with
+  // each row's label chips shown (exercises labels filter + show_labels).
+  const labelCard = page.locator('home-keeper-card').nth(2);
+  await expect(labelCard.locator('.hk-name').first()).toBeVisible();
+  await expect(labelCard.locator('ha-assist-chip.hk-label').first()).toBeVisible();
+  await shotCard(page, labelCard, `${OUT}/card-label-filter.png`);
+
   // 4. The inline add/edit form opened from the card header.
   await card.locator('#hk-add').click();
   const form = card.locator('.hk-form');

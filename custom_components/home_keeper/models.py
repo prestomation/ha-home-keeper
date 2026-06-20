@@ -34,6 +34,32 @@ def _require(data: dict, key: str) -> Any:
     return data[key]
 
 
+def normalize_labels(value: Any) -> list[str]:
+    """Normalize a task's ``labels`` into a de-duplicated list of HA label ids.
+
+    Accepts a list/tuple of strings (Home Assistant label ids), a single string,
+    or ``None``; blanks and duplicates are dropped while order is preserved.
+    Labels reference HA's shared label registry, so the same id (e.g. ``"dog"``)
+    can sit on a task here and on a device/area in the registry — that's what
+    lets the dashboard card filter across both. Anything that isn't a string or
+    list fails loudly at the edge rather than persisting junk.
+    """
+    if value in (None, "", []):
+        return []
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, (list, tuple)):
+        raise TaskValidationError("labels must be a list of label ids")
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in value:
+        label = str(item).strip()
+        if label and label not in seen:
+            seen.add(label)
+            result.append(label)
+    return result
+
+
 def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     """Validate and normalize the user-supplied fields of a task.
 
@@ -193,6 +219,9 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # opaque ``source``). Declares which fields are locked, deletion protection,
         # and display metadata. See docs/INTEGRATING.md §6.
         "managed_by": data.get("managed_by"),
+        # HA label-registry ids attached to this task. Free-form, many-to-many, and
+        # used (alongside device/area labels) to scope the dashboard card.
+        "labels": normalize_labels(data.get("labels")),
         **fields,
     }
     seed = data.get("last_completed")
@@ -242,6 +271,13 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     }
     fields = normalize_fields(candidate, tz=now.tzinfo)
     merged.update(fields)
+
+    # Labels are independent of recurrence/identity, so handle them outside
+    # normalize_fields: only rewrite when the caller actually sent ``labels`` (a
+    # plain rename must not spuriously stamp ``labels: []`` onto a task that never
+    # had the field, which would surface as a phantom "labels changed" event).
+    if "labels" in updates:
+        merged["labels"] = normalize_labels(updates["labels"])
 
     # A triggered task has no schedule: its next_due is owned by trigger_task /
     # complete_task (armed timestamp vs dormant None), so editing name/notes/device
