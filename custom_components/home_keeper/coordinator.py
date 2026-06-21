@@ -22,7 +22,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from . import models, recurrence, transitions
+from . import companions, models, recurrence, transitions
 from .const import DOMAIN, OPTION_ONE_OFF_RETENTION_DAYS
 from .options import current_options
 from .store import HomeKeeperStore
@@ -96,6 +96,11 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         if self._events_enabled:
             for event_name, payload in fired:
                 self.hass.bus.async_fire(event_name, payload)
+        # Re-detect companions on the same cadence so a popular upstream installed at
+        # runtime (e.g. Battery Notes) surfaces a suggestion, and an
+        # installed/removed glue updates — edge-triggered + silently baselined inside
+        # the registry (a no-op until it's live).
+        companions.async_reconcile(self.hass)
         return tasks
 
     async def _purge_expired_one_offs(self) -> None:

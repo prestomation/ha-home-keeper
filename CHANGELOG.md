@@ -6,6 +6,22 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Added
+
+- **Companion discovery (Settings → Companions).** Home Keeper now surfaces
+  integrations that work with it, right in the panel. **Connected** companions
+  (integrations that announce themselves — e.g. Pawsistant, or the Battery Notes
+  bridge) get a **Configure** button that deep-links to their own settings.
+  **Suggested** rows point you at a bridge for a *popular* integration you already have
+  installed (e.g. **Battery Notes**) but haven't connected yet, with an **Install**
+  link and a **Dismiss** to silence it. Two paths feed this: an integration can
+  *register itself* via the new `home_keeper.register_companion` service (so Home
+  Keeper never hard-codes it), and Home Keeper *detects* a small curated set of popular
+  upstreams from a catalog. New `home_keeper_companion_connected` /
+  `home_keeper_companion_suggested` events let automations react. See the
+  [Companions](README.md#companions--discover-integrations-that-work-with-home-keeper)
+  README section and [docs/INTEGRATING.md](docs/INTEGRATING.md) §7.
+
 ## [0.3.0] - 2026-06-21
 
 This release adds three new ways to drive tasks — condition-driven `triggered`

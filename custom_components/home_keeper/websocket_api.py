@@ -14,7 +14,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
-from . import devices, inventory, options
+from . import companions, devices, inventory, options
 from .assets import AssetValidationError
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator, entity_set_key
@@ -62,6 +62,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_export_inventory)
     websocket_api.async_register_command(hass, ws_get_options)
     websocket_api.async_register_command(hass, ws_set_options)
+    websocket_api.async_register_command(hass, ws_get_companions)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_tasks"})
@@ -460,3 +461,22 @@ async def ws_set_options(
         return
     merged = await options.async_set_options(hass, coord.entry, msg["options"])
     connection.send_result(msg["id"], {"options": merged})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_companions"})
+@websocket_api.async_response
+async def ws_get_companions(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Return the companion rows for the Settings → Companions section.
+
+    Merges self-registered companions (the push path) with catalog detection of
+    popular upstreams whose glue isn't installed yet (the pull path). See
+    companions.py.
+    """
+    if _coordinator(hass) is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    connection.send_result(
+        msg["id"], {"companions": companions.async_list_companions(hass)}
+    )

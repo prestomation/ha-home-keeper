@@ -227,5 +227,16 @@
   "completion.markDone": "Отметить как выполненное",
   "completion.skip": "Пропустить детали",
   "completion.by": "выполнил {who}",
-  "done.needsDetails": "Откройте эту задачу в Home Keeper, чтобы добавить необходимые детали."
+  "done.needsDetails": "Откройте эту задачу в Home Keeper, чтобы добавить необходимые детали.",
+  "companions.heading": "Компаньоны",
+  "companions.help": "Интеграции, работающие с Home Keeper. Подключите компаньон, чтобы управлять им здесь, или установите предлагаемый мост, чтобы связать уже используемое приложение.",
+  "companions.empty": "Интеграции-компаньоны пока не обнаружены.",
+  "companions.connected": "Подключено",
+  "companions.suggested": "Предложено",
+  "companions.chip.connected": "Подключено",
+  "companions.chip.suggested": "Предложено",
+  "companions.configure": "Настроить",
+  "companions.install": "Установить",
+  "companions.dismiss": "Скрыть",
+  "companions.docs": "Документация"
 }

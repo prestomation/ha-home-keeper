@@ -203,5 +203,16 @@
   "completion.markDone": "Als erledigt markieren",
   "completion.skip": "Details überspringen",
   "completion.by": "von {who}",
-  "done.needsDetails": "Öffne diese Aufgabe in Home Keeper, um die erforderlichen Details hinzuzufügen."
+  "done.needsDetails": "Öffne diese Aufgabe in Home Keeper, um die erforderlichen Details hinzuzufügen.",
+  "companions.heading": "Begleiter",
+  "companions.help": "Integrationen, die mit Home Keeper zusammenarbeiten. Verbinde einen Begleiter, um ihn hier zu verwalten, oder installiere eine vorgeschlagene Brücke, um eine bereits genutzte App zu verknüpfen.",
+  "companions.empty": "Noch keine Begleiter-Integrationen erkannt.",
+  "companions.connected": "Verbunden",
+  "companions.suggested": "Vorgeschlagen",
+  "companions.chip.connected": "Verbunden",
+  "companions.chip.suggested": "Vorgeschlagen",
+  "companions.configure": "Konfigurieren",
+  "companions.install": "Installieren",
+  "companions.dismiss": "Ausblenden",
+  "companions.docs": "Dokumentation"
 }

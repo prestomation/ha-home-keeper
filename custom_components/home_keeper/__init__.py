@@ -12,15 +12,17 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
-from . import card, devices, inventory, options, panel, websocket_api
+from . import card, companions, devices, inventory, options, panel, websocket_api
 from .assets import AssetValidationError
 from .const import (
     DOMAIN,
+    OPTION_DISMISSED_COMPANIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
@@ -215,6 +217,9 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS): vol.All(
             cv.ensure_list, [cv.string]
         ),
+        # Catalog glue domains the user dismissed from the Companions "Suggested"
+        # list. A list of domain strings.
+        vol.Optional(OPTION_DISMISSED_COMPANIONS): vol.All(cv.ensure_list, [cv.string]),
     }
 )
 
@@ -250,6 +255,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _register_services(hass)
+    # Now that the register_companion service exists, ask companions to (re-)announce
+    # themselves and run a catalog-detection pass. Companions that set up before Home
+    # Keeper listen for this ping; those that set up after register at their own setup.
+    companions.async_request_registration(hass)
     # React to options-flow changes (e.g. toggling problem-sensor syncing) by
     # reloading the entry, which re-runs this setup with the new options.
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
@@ -259,7 +268,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Setup is complete: the refreshes above have baselined current overdue/due-soon
     # state silently, so start firing those events only for transitions from here on.
     coordinator.enable_transition_events()
+    # Flip the companion registry live only once HA has fully started, so companions
+    # that self-register during startup (and catalog upstreams already installed) are
+    # baselined silently — an HA restart never replays a companion_connected storm.
+    entry.async_on_unload(async_at_started(hass, _async_companions_go_live))
     return True
+
+
+@callback
+def _async_companions_go_live(hass: HomeAssistant) -> None:
+    """Baseline current companions silently, then start firing discovery events."""
+    registry = companions.async_get_registry(hass)
+    registry.reconcile()  # capture whatever registered during startup (still silent)
+    registry.set_live()
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -549,6 +570,21 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         await options.async_set_options(hass, coord.entry, dict(call.data))
 
+    async def handle_register_companion(call: ServiceCall) -> dict[str, Any]:
+        """Record a companion integration that works with Home Keeper.
+
+        The push half of companion discovery: a Home-Keeper-aware integration
+        announces itself so it surfaces in the panel's Companions list (and an
+        automation can react to ``home_keeper_companion_connected``). Home Keeper
+        stores the descriptor verbatim and never imports the companion. See
+        docs/INTEGRATING.md and companions.py.
+        """
+        companions.async_register_companion(hass, dict(call.data))
+        return {"ok": True}
+
+    async def handle_list_companions(call: ServiceCall) -> dict[str, Any]:
+        return {"companions": companions.async_list_companions(hass)}
+
     hass.services.async_register(
         DOMAIN,
         "export_inventory",
@@ -558,6 +594,20 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, "set_options", handle_set_options, SET_OPTIONS_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "register_companion",
+        handle_register_companion,
+        companions.REGISTER_COMPANION_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "list_companions",
+        handle_list_companions,
+        schema=vol.Schema({}),
+        supports_response=SupportsResponse.ONLY,
     )
 
 
@@ -593,6 +643,8 @@ _SERVICES = (
     "adjust_part_stock",
     "export_inventory",
     "set_options",
+    "register_companion",
+    "list_companions",
 )
 
 

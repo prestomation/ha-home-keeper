@@ -215,5 +215,16 @@
   "completion.markDone": "Marca com a fet",
   "completion.skip": "Omet els detalls",
   "completion.by": "per {who}",
-  "done.needsDetails": "Obre aquesta tasca a Home Keeper per afegir els detalls necessaris."
+  "done.needsDetails": "Obre aquesta tasca a Home Keeper per afegir els detalls necessaris.",
+  "companions.heading": "Complements",
+  "companions.help": "Integracions que funcionen amb Home Keeper. Connecta un complement per gestionar-lo aquí, o instaŀla un pont suggerit per enllaçar una aplicació que ja utilitzes.",
+  "companions.empty": "Encara no s'ha detectat cap integració complementària.",
+  "companions.connected": "Connectat",
+  "companions.suggested": "Suggerit",
+  "companions.chip.connected": "Connectat",
+  "companions.chip.suggested": "Suggerit",
+  "companions.configure": "Configura",
+  "companions.install": "Instaŀla",
+  "companions.dismiss": "Descarta",
+  "companions.docs": "Documentació"
 }

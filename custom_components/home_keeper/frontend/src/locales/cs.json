@@ -227,5 +227,16 @@
   "completion.markDone": "Označit jako hotové",
   "completion.skip": "Přeskočit detaily",
   "completion.by": "od {who}",
-  "done.needsDetails": "Otevřete tento úkol v Home Keeper a doplňte požadované detaily."
+  "done.needsDetails": "Otevřete tento úkol v Home Keeper a doplňte požadované detaily.",
+  "companions.heading": "Doplňky",
+  "companions.help": "Integrace, které spolupracují s Home Keeper. Připojte doplněk a spravujte jej zde, nebo nainstalujte navrhovaný most pro propojení aplikace, kterou už používáte.",
+  "companions.empty": "Zatím nebyly zjištěny žádné doplňkové integrace.",
+  "companions.connected": "Připojeno",
+  "companions.suggested": "Navrženo",
+  "companions.chip.connected": "Připojeno",
+  "companions.chip.suggested": "Navrženo",
+  "companions.configure": "Konfigurovat",
+  "companions.install": "Nainstalovat",
+  "companions.dismiss": "Odmítnout",
+  "companions.docs": "Dokumentace"
 }

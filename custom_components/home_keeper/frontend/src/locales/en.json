@@ -203,5 +203,16 @@
   "completion.markDone": "Mark done",
   "completion.skip": "Skip details",
   "completion.by": "by {who}",
-  "done.needsDetails": "Open this task in Home Keeper to add the required details."
+  "done.needsDetails": "Open this task in Home Keeper to add the required details.",
+  "companions.heading": "Companions",
+  "companions.help": "Integrations that work with Home Keeper. Connect a companion to manage it here, or install a suggested bridge to link an app you already use.",
+  "companions.empty": "No companion integrations detected yet.",
+  "companions.connected": "Connected",
+  "companions.suggested": "Suggested",
+  "companions.chip.connected": "Connected",
+  "companions.chip.suggested": "Suggested",
+  "companions.configure": "Configure",
+  "companions.install": "Install",
+  "companions.dismiss": "Dismiss",
+  "companions.docs": "Docs"
 }

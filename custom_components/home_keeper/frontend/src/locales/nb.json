@@ -203,5 +203,16 @@
   "completion.markDone": "Merk som ferdig",
   "completion.skip": "Hopp over detaljer",
   "completion.by": "av {who}",
-  "done.needsDetails": "Åpne denne oppgaven i Home Keeper for å legge til de påkrevde detaljene."
+  "done.needsDetails": "Åpne denne oppgaven i Home Keeper for å legge til de påkrevde detaljene.",
+  "companions.heading": "Følgesvenner",
+  "companions.help": "Integrasjoner som fungerer med Home Keeper. Koble til en følgesvenn for å administrere den her, eller installer en foreslått bro for å knytte til en app du allerede bruker.",
+  "companions.empty": "Ingen følgesvenn-integrasjoner oppdaget ennå.",
+  "companions.connected": "Tilkoblet",
+  "companions.suggested": "Foreslått",
+  "companions.chip.connected": "Tilkoblet",
+  "companions.chip.suggested": "Foreslått",
+  "companions.configure": "Konfigurer",
+  "companions.install": "Installer",
+  "companions.dismiss": "Avvis",
+  "companions.docs": "Dokumentasjon"
 }

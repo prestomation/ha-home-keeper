@@ -586,3 +586,71 @@ set_options:
       selector:
         label:
           multiple: true
+    dismissed_companions:
+      name: Dismissed companions
+      description: >-
+        Glue integration domains to hide from the Settings → Companions
+        "Suggested" list. Dismissing only silences a suggestion; a connected
+        pairing is always shown.
+      selector:
+        text:
+          multiple: true
+
+register_companion:
+  name: Register companion
+  description: >-
+    Announce another integration that works with Home Keeper so it appears in the
+    panel's Settings → Companions section. Intended to be called by a
+    Home-Keeper-aware integration at its own setup (and in response to the
+    home_keeper_register_companions event). Home Keeper stores the descriptor
+    verbatim and never imports the companion.
+  fields:
+    domain:
+      name: Domain
+      description: The companion integration's domain.
+      required: true
+      example: pawsistant
+      selector:
+        text:
+    name:
+      name: Name
+      description: Display name shown in the Companions list.
+      required: true
+      example: Pawsistant
+      selector:
+        text:
+    icon:
+      name: Icon
+      description: An mdi icon for the row.
+      example: mdi:paw
+      selector:
+        icon:
+    description:
+      name: Description
+      description: One line describing what the companion does with Home Keeper.
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry id
+      description: >-
+        The companion's config entry id, so the panel's "Configure" button can
+        deep-link to its options page.
+      selector:
+        text:
+    docs_url:
+      name: Docs URL
+      description: A link to the companion's documentation.
+      selector:
+        text:
+    capabilities:
+      name: Capabilities
+      description: Free-form capability tags (e.g. care_schedules, battery_replacement).
+      selector:
+        text:
+          multiple: true
+
+list_companions:
+  name: List companions
+  description: >-
+    Return the merged companion list (self-registered integrations plus detected
+    upstreams whose glue isn't installed yet) as a response.

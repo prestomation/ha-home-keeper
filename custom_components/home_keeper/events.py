@@ -115,3 +115,21 @@ def stock_event_data(asset: dict[str, Any], part: dict[str, Any]) -> dict[str, A
 # Back-compat alias: the low-stock event predates the generalised stock events and is
 # the documented name integrators built against (docs/INTEGRATING.md).
 low_stock_event_data = stock_event_data
+
+
+def companion_event_data(companion: dict[str, Any]) -> dict[str, Any]:
+    """Return the payload for `home_keeper_companion_connected` / `_suggested`.
+
+    A *companion* row (see companions_catalog.build_companion_list) carries enough
+    for an automation to react to ecosystem changes — "notify me when a compatible
+    integration is detected" — without re-querying: which integration, whether it's
+    connected or merely suggested, and (for a connected companion) the config entry
+    whose options page configures it.
+    """
+    return {
+        "domain": companion.get("domain"),
+        "name": companion.get("name"),
+        "status": companion.get("status"),
+        "config_entry_id": companion.get("config_entry_id"),
+        "upstream_domain": companion.get("upstream_domain"),
+    }

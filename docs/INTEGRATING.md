@@ -362,6 +362,64 @@ fires `home_keeper_task_completed` (origin `None`) and Home Keeper has already s
 task dormant for you — your listener just applies its own side-effect (without
 re-calling `complete_task`). Triggered tasks never appear on the calendar.
 
+## 7. Discovery: announce yourself so users can find you (optional)
+
+Everything above works without Home Keeper knowing your integration exists. But users
+generally don't know two integrations work together until they stumble onto it. To
+close that gap, Home Keeper has a **companion registry**: announce yourself and you'll
+appear in the panel's **Settings → Companions** section, with a **Configure** button
+that deep-links to your own integration page (`/config/integrations/integration/<your
+domain>`, where your **Configure** is one click away — the same deep link Home Keeper
+uses for "Edit in X"; there's no stable public URL to open an options *dialog*
+directly).
+
+Call the `home_keeper.register_companion` service at your setup (guarded so you degrade
+gracefully when Home Keeper is absent), and again whenever Home Keeper asks companions
+to re-announce — it fires `home_keeper_register_companions` at its own setup (and on
+reload), which covers the case where Home Keeper starts *after* you:
+
+```python
+DOMAIN_HK = "home_keeper"
+
+async def _announce(hass, entry):
+    if not hass.services.has_service(DOMAIN_HK, "register_companion"):
+        return
+    await hass.services.async_call(
+        DOMAIN_HK,
+        "register_companion",
+        {
+            "domain": "my_integration",
+            "name": "My Integration",
+            "icon": "mdi:puzzle",
+            "description": "One line on what it does with Home Keeper.",
+            # Carried for the panel's "Configure" button (today it deep-links by
+            # domain to your integration page; the entry id is stored for future use).
+            "config_entry_id": entry.entry_id,
+            "docs_url": "https://github.com/me/my-integration",
+            "capabilities": ["whatever_you_provide"],
+        },
+        blocking=False,
+    )
+
+# In async_setup_entry:
+await _announce(hass, entry)
+entry.async_on_unload(
+    hass.bus.async_listen("home_keeper_register_companions", lambda _e: hass.async_create_task(_announce(hass, entry)))
+)
+```
+
+Home Keeper stores the descriptor **verbatim** and never imports your integration. The
+registry is in-memory and best-effort: it survives Home Keeper config-entry reloads and
+is rebuilt on restart as companions re-announce. Registering fires
+`home_keeper_companion_connected` (edge-triggered) so automations can react.
+
+> **Popular integrations that aren't Home-Keeper-aware.** Home Keeper also ships a tiny
+> curated *catalog* so it can detect a popular upstream (e.g. Battery Notes) and
+> **suggest** the glue that bridges it — even before that glue is installed. That path
+> is for integrations Home Keeper can't expect to call `register_companion` themselves;
+> if you're writing a Home-Keeper-aware integration, just register. The glue itself
+> registers like any other companion once installed.
+
 ## Testing your integration
 
 Home Keeper ships a fake so you can test the contract end-to-end **without** standing

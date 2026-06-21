@@ -122,11 +122,21 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   of truth, and Back/Forward move within the panel — never mutate view/detail
   state directly to navigate. See `.amazonq/rules/architecture-and-code.md`.
 
-## Cross-integration contribution (DEFERRED)
+## Companion discovery (implemented)
 
-The stable interface for other integrations (e.g. Battery Notes) to push tasks is
-not implemented yet. Hook points: `const.SIGNAL_TASK_CONTRIBUTION` and the
-`# DEFERRED` marker in `__init__.py`. See IDEAS.md before building it.
+Integrations that work with Home Keeper surface in the panel's **Settings →
+Companions** section. Two paths feed one in-memory registry: integrations
+*self-register* via the `home_keeper.register_companion` service (push), and Home
+Keeper *detects* a small curated catalog of popular upstreams and suggests their glue
+(pull). See `companions.py` / `companions_catalog.py` and
+`.amazonq/rules/architecture-and-code.md` → "Companion discovery".
+
+## Cross-integration contribution (task push) — partially deferred
+
+The `add_task` + `home_keeper_task_completed` contract for *pushing tasks* ships and is
+documented in `docs/INTEGRATING.md`. The fuller dedicated **upsert/reconcile**
+contribution service is still deferred — hook point `const.SIGNAL_TASK_CONTRIBUTION`.
+See IDEAS.md before building it.
 
 ## Browser e2e tests (Playwright)
 
