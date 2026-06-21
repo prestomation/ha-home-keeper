@@ -65,6 +65,10 @@
           "name": "Date d'échéance",
           "description": "Pour les tâches one-off : date/heure ISO à laquelle la tâche est due. Facultatif ; par défaut maintenant (due aujourd'hui)."
         },
+        "sensor": {
+          "name": "Déclencheur par capteur",
+          "description": "Pour les tâches de capteur : une table avec le capteur numérique lié — entity_id, mode (usage ou threshold) et ses champs."
+        },
         "last_completed": {
           "name": "Dernière réalisation",
           "description": "Date facultative de la « dernière réalisation ». Crée une première réalisation afin qu'une tâche flottante soit mesurée à partir de cette date (prochaine échéance = dernière réalisation + intervalle) au lieu d'être due immédiatement. À omettre pour une tâche jamais réalisée."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Date d'échéance",
           "description": "Date/heure ISO à laquelle la tâche est due (one-off)."
+        },
+        "sensor": {
+          "name": "Déclencheur par capteur",
+          "description": "Liaison de capteur pour une tâche de capteur — entity_id, mode et ses champs (remplace toute la liaison)."
         },
         "device_id": {
           "name": "Appareil",

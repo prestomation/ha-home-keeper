@@ -35,6 +35,7 @@ from .const import (
     REC_FIXED,
     REC_FLOATING,
     REC_ONE_OFF,
+    REC_SENSOR,
     REC_TRIGGERED,
     UNIT_DAYS,
     UNIT_MONTHS,
@@ -240,11 +241,12 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
         return next_fixed_occurrence(
             anchor, task["freq"], int(task["interval"]), after=now
         )
-    if rec_type == REC_TRIGGERED:
-        # A condition-driven task has no schedule: computing a due date means
+    if rec_type in (REC_TRIGGERED, REC_SENSOR):
+        # A condition/sensor-driven task has no schedule: computing a due date means
         # *arming* it (the condition is true), so it reads as due-now. Going
         # dormant is the asymmetric job of ``apply_completion`` (next_due -> None);
-        # this function is only ever called to (re)arm.
+        # this function is only ever called to (re)arm. A sensor task is armed by the
+        # watcher (``store.trigger_task``); ``build_task`` starts it dormant.
         return now
     if rec_type == REC_ONE_OFF:
         # A do-once task is due at its stored ``due`` date. Going dormant on
@@ -304,11 +306,13 @@ def apply_completion(
         task["next_due"] = next_fixed_occurrence(
             anchor, task["freq"], int(task["interval"]), after=now
         ).isoformat()
-    elif rec_type in (REC_TRIGGERED, REC_ONE_OFF):
-        # A one-off is permanently complete; a triggered task clears its condition.
-        # Both go dormant (every time surface drops them). Undoing the completion
-        # re-arms a one-off (see ``remove_completion``); a triggered task is
-        # re-armed only by its owning integration.
+    elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR):
+        # A one-off is permanently complete; a triggered task clears its condition; a
+        # sensor task's crossing has been actioned (and its meter reset by the store,
+        # which has the live reading). All go dormant (every time surface drops them).
+        # Undoing the completion re-arms a one-off (see ``remove_completion``); a
+        # triggered task is re-armed only by its owning integration, and a sensor task
+        # only by the watcher on a fresh crossing.
         task["next_due"] = None
     else:
         raise ValueError(f"unknown recurrence_type: {rec_type!r}")
@@ -346,7 +350,7 @@ def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
         task["next_due"] = (
             compute_next_due(task, now=now).isoformat() if not history else None
         )
-    elif rec_type != REC_TRIGGERED:
+    elif rec_type not in (REC_TRIGGERED, REC_SENSOR):
         task["next_due"] = compute_next_due(task, now=now).isoformat()
     return task
 

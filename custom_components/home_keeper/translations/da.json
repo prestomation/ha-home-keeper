@@ -65,6 +65,10 @@
           "name": "Forfaldsdato",
           "description": "For engangsopgaver: ISO-dato og -tid, hvor opgaven forfalder. Valgfri; standard er nu (forfalder i dag)."
         },
+        "sensor": {
+          "name": "Sensorudløser",
+          "description": "Til sensoropgaver: et map med den tilknyttede numeriske sensor – entity_id, tilstand (usage eller threshold) og dens felter."
+        },
         "last_completed": {
           "name": "Sidst udført",
           "description": "Valgfri dato for 'sidst udført'. Tilføjer en indledende udførelse, så en flydende opgave måles fra denne dato (næste forfald = sidst udført + interval) i stedet for at forfalde med det samme. Udelad for en opgave, der aldrig er blevet udført."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Forfaldsdato",
           "description": "ISO-dato og -tid, hvor opgaven forfalder (engangsopgave)."
+        },
+        "sensor": {
+          "name": "Sensorudløser",
+          "description": "Sensorbinding for en sensoropgave – entity_id, tilstand og dens felter (erstatter hele bindingen)."
         },
         "device_id": {
           "name": "Enhed",

@@ -39,6 +39,7 @@ def _load_pure_modules() -> None:
         "transitions",
         "reconcile",
         "problem_tasks",
+        "sensor_tasks",
         "inventory",
         "companions_catalog",
     ):
@@ -58,6 +59,7 @@ def _load_pure_modules() -> None:
     sys.modules["hk_transitions"] = sys.modules["hk.transitions"]
     sys.modules["hk_reconcile"] = sys.modules["hk.reconcile"]
     sys.modules["hk_problem_tasks"] = sys.modules["hk.problem_tasks"]
+    sys.modules["hk_sensor_tasks"] = sys.modules["hk.sensor_tasks"]
     sys.modules["hk_inventory"] = sys.modules["hk.inventory"]
     sys.modules["hk_companions_catalog"] = sys.modules["hk.companions_catalog"]
 

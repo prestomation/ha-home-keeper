@@ -65,6 +65,10 @@
           "name": "Data de vencimento",
           "description": "Para tarefas one-off: data e hora ISO em que a tarefa vence. Opcional; o padrão é agora (vence hoje)."
         },
+        "sensor": {
+          "name": "Gatilho por sensor",
+          "description": "Para tarefas de sensor: um mapa com o sensor numérico vinculado: entity_id, modo (usage ou threshold) e seus campos."
+        },
         "last_completed": {
           "name": "Última conclusão",
           "description": "Data opcional de 'última realização'. Cria uma conclusão inicial para que uma tarefa flutuante comece a ser medida a partir desta data (próximo vencimento = última realização + intervalo) em vez de vencer imediatamente. Omita para uma tarefa que nunca foi feita."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Data de vencimento",
           "description": "Data e hora ISO em que a tarefa vence (one-off)."
+        },
+        "sensor": {
+          "name": "Gatilho por sensor",
+          "description": "Vínculo do sensor para uma tarefa de sensor: entity_id, modo e seus campos (substitui todo o vínculo)."
         },
         "device_id": {
           "name": "Dispositivo",

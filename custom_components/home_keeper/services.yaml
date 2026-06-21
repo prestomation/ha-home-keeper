@@ -21,10 +21,11 @@ add_task:
       name: Recurrence type
       description: >-
         floating (measured from completion), fixed (anchored schedule), one-off
-        (do-once — uses "due", goes dormant when completed), or triggered
+        (do-once — uses "due", goes dormant when completed), triggered
         (condition-driven — no schedule; an owning integration arms it via trigger_task
-        and clears it via complete_task). interval/unit/freq/anchor are N/A for one-off
-        and triggered.
+        and clears it via complete_task), or sensor (due-state derived from a bound
+        numeric sensor — uses "sensor"). interval/unit/freq/anchor are N/A for one-off,
+        triggered, and sensor.
       selector:
         select:
           options:
@@ -32,6 +33,7 @@ add_task:
             - fixed
             - one-off
             - triggered
+            - sensor
     interval:
       name: Interval
       description: Repeat every N units/steps (floating/fixed only; N/A for triggered).
@@ -72,6 +74,19 @@ add_task:
       example: "2026-07-01T08:00:00"
       selector:
         text:
+    sensor:
+      name: Sensor trigger
+      description: >-
+        For sensor tasks - a mapping describing the bound numeric sensor. Always
+        entity_id and mode ("usage" or "threshold"). For usage (a meter): target
+        (arm once the reading advances this many units since the last completion).
+        For threshold: comparison (">=", "<=", ">", "<", "==", "!="), value, and an
+        optional for_seconds hold. Optional attribute reads an entity attribute
+        instead of the state. Example - {"entity_id": "sensor.odometer", "mode":
+        "usage", "target": 15000}.
+      example: '{"entity_id": "sensor.odometer", "mode": "usage", "target": 15000}'
+      selector:
+        object:
     last_completed:
       name: Last completed
       description: >-
@@ -133,7 +148,8 @@ update_task:
     recurrence_type:
       name: Recurrence type
       description: >-
-        floating, fixed, one-off (do-once), or triggered (condition-driven, no schedule).
+        floating, fixed, one-off (do-once), triggered (condition-driven, no schedule),
+        or sensor (derived from a bound numeric sensor).
       selector:
         select:
           options:
@@ -141,6 +157,7 @@ update_task:
             - fixed
             - one-off
             - triggered
+            - sensor
     interval:
       name: Interval
       description: Repeat every N units/steps.
@@ -176,6 +193,13 @@ update_task:
       description: ISO datetime the task is due (one-off).
       selector:
         text:
+    sensor:
+      name: Sensor trigger
+      description: >-
+        Sensor binding for a sensor task (see add_task): entity_id, mode
+        (usage/threshold) and the mode's fields. Replaces the whole binding.
+      selector:
+        object:
     device_id:
       name: Device
       description: Device to attach this task to.

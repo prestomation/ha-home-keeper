@@ -23,8 +23,13 @@ from .const import (
     MAX_INTERVAL,
     REC_FLOATING,
     REC_ONE_OFF,
+    REC_SENSOR,
     REC_TRIGGERED,
     RECURRENCE_TYPES,
+    SENSOR_COMPARISONS,
+    SENSOR_MODE_THRESHOLD,
+    SENSOR_MODE_USAGE,
+    SENSOR_MODES,
     UNITS,
 )
 
@@ -86,6 +91,72 @@ def normalize_completion_required_fields(value: Any, mode: str) -> list[str]:
             if field in allowed and field not in result:
                 result.append(field)
     return result or ["note"]
+
+
+def normalize_sensor(data: Any) -> dict[str, Any]:
+    """Validate and normalize a sensor-based task's ``sensor`` binding.
+
+    A sensor task derives its armed/dormant state from a bound numeric entity. The
+    binding always carries ``entity_id`` and ``mode``; the rest is mode-specific:
+
+    * ``usage`` (a meter) — ``target`` (> 0): arm when the reading advances ``target``
+      units past ``baseline``. ``baseline`` (the reading captured at creation / last
+      completion) is carried through if present; a fresh task leaves it unset for the
+      watcher to stamp from the live reading.
+    * ``threshold`` — ``comparison`` (one of :data:`SENSOR_COMPARISONS`) against a
+      numeric ``value``, with an optional non-negative ``for_seconds`` hold.
+
+    An optional ``attribute`` reads that entity attribute instead of the state. Raises
+    :class:`TaskValidationError` on any malformed field so bad input fails at the edge
+    rather than persisting. Pure — no HA imports.
+    """
+    if not isinstance(data, dict):
+        raise TaskValidationError("a sensor task requires a sensor configuration")
+    entity_id = str(data.get("entity_id") or "").strip()
+    if not entity_id:
+        raise TaskValidationError("sensor.entity_id is required")
+    mode = data.get("mode") or SENSOR_MODE_USAGE
+    if mode not in SENSOR_MODES:
+        raise TaskValidationError(f"invalid sensor mode: {mode!r}")
+    result: dict[str, Any] = {"entity_id": entity_id, "mode": mode}
+    attribute = str(data.get("attribute") or "").strip()
+    if attribute:
+        result["attribute"] = attribute
+
+    if mode == SENSOR_MODE_USAGE:
+        try:
+            target = float(data.get("target"))
+        except (TypeError, ValueError) as err:
+            raise TaskValidationError("sensor.target must be a number") from err
+        if target <= 0:
+            raise TaskValidationError("sensor.target must be > 0")
+        result["target"] = target
+        baseline = data.get("baseline")
+        if baseline not in (None, ""):
+            try:
+                result["baseline"] = float(baseline)
+            except (TypeError, ValueError) as err:
+                raise TaskValidationError("sensor.baseline must be a number") from err
+    else:  # SENSOR_MODE_THRESHOLD
+        comparison = data.get("comparison")
+        if comparison not in SENSOR_COMPARISONS:
+            raise TaskValidationError(f"invalid sensor comparison: {comparison!r}")
+        try:
+            value = float(data.get("value"))
+        except (TypeError, ValueError) as err:
+            raise TaskValidationError("sensor.value must be a number") from err
+        result["comparison"] = comparison
+        result["value"] = value
+        raw_for = data.get("for_seconds") or 0
+        try:
+            for_seconds = int(raw_for)
+        except (TypeError, ValueError) as err:
+            raise TaskValidationError("sensor.for_seconds must be an integer") from err
+        if for_seconds < 0:
+            raise TaskValidationError("sensor.for_seconds must be >= 0")
+        if for_seconds:
+            result["for_seconds"] = for_seconds
+    return result
 
 
 def _require(data: dict, key: str) -> Any:
@@ -163,6 +234,14 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     # timestamp = armed/due), managed by the owning integration via add/complete/
     # trigger. Return early so we don't validate or store schedule fields it lacks.
     if rec_type == REC_TRIGGERED:
+        return fields
+
+    # A sensor-based task has no clock-driven cadence either: its schedule fields are
+    # replaced by a ``sensor`` binding that the watcher evaluates to arm/clear it. Its
+    # state is carried by next_due (None = dormant, a timestamp = armed). Validate the
+    # binding and return early so we don't validate or store interval/unit/freq.
+    if rec_type == REC_SENSOR:
+        fields["sensor"] = normalize_sensor(data.get("sensor"))
         return fields
 
     # A do-once task has no cadence (no interval/unit/freq) — only a single ``due``
@@ -328,7 +407,12 @@ def build_task(data: dict, *, now: datetime) -> dict:
         **fields,
     }
     seed = data.get("last_completed")
-    if seed not in (None, ""):
+    if task["recurrence_type"] == REC_SENSOR:
+        # A sensor task is born dormant: the watcher arms it (via ``trigger_task``)
+        # only once the live reading actually meets its condition. ``compute_next_due``
+        # would read as due-now (the re-arm contract), so set ``None`` directly.
+        task["next_due"] = None
+    elif seed not in (None, ""):
         # Recording the seed as a completion both stamps last_completed and lets the
         # recurrence engine derive next_due (floating -> seed + interval; fixed stays
         # anchor-driven, the seed just becomes its first history entry).
@@ -372,6 +456,7 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "freq": updates.get("freq", existing.get("freq")),
         "anchor": updates.get("anchor", existing.get("anchor")),
         "due": updates.get("due", existing.get("due")),
+        "sensor": updates.get("sensor", existing.get("sensor")),
         "completion_detail": updates.get(
             "completion_detail", existing.get("completion_detail")
         ),
@@ -394,12 +479,30 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     if "labels" in updates:
         merged["labels"] = normalize_labels(updates["labels"])
 
-    # A triggered task has no schedule: its next_due is owned by trigger_task /
-    # complete_task (armed timestamp vs dormant None), so editing name/notes/device
-    # must never recompute it (that would re-arm a dormant "monitored" task).
-    recurrence_keys = {"recurrence_type", "interval", "unit", "freq", "anchor", "due"}
-    if merged.get("recurrence_type") != REC_TRIGGERED and (
+    # A triggered or sensor task has no schedule: its next_due is owned by the arm /
+    # complete chokepoints (armed timestamp vs dormant None), so editing
+    # name/notes/device/threshold must never recompute it (that would re-arm a dormant
+    # "monitored" task). Re-targeting the sensor binding does not arm the task either;
+    # the watcher re-evaluates it on the next tick / state change.
+    recurrence_keys = {
+        "recurrence_type",
+        "interval",
+        "unit",
+        "freq",
+        "anchor",
+        "due",
+        "sensor",
+    }
+    if merged.get("recurrence_type") not in (REC_TRIGGERED, REC_SENSOR) and (
         recurrence_keys & set(updates)
     ):
         merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
+    elif (
+        merged.get("recurrence_type") == REC_SENSOR
+        and existing.get("recurrence_type") != REC_SENSOR
+    ):
+        # Converting an existing (e.g. floating, due-now) task into a sensor task: it
+        # starts dormant like a freshly-built one, so the watcher arms it only when the
+        # bound reading meets the condition (rather than inheriting a stale due date).
+        merged["next_due"] = None
     return merged

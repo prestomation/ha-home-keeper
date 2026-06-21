@@ -65,6 +65,10 @@
           "name": "Data de venciment",
           "description": "Per a tasques úniques: data i hora ISO en què venç la tasca. Opcional; per defecte, ara (venç avui)."
         },
+        "sensor": {
+          "name": "Activador per sensor",
+          "description": "Per a tasques de sensor: un mapa amb el sensor numèric vinculat: entity_id, mode (usage o threshold) i els seus camps."
+        },
         "last_completed": {
           "name": "Última realització",
           "description": "Data opcional d'«última realització». Crea una realització inicial perquè una tasca flotant comenci a comptar-se a partir d'aquesta data (proper venciment = última realització + interval) en lloc de vèncer immediatament. Ometeu-la per a una tasca que mai s'ha fet."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Data de venciment",
           "description": "Data i hora ISO en què venç la tasca (one-off)."
+        },
+        "sensor": {
+          "name": "Activador per sensor",
+          "description": "Vinculació del sensor per a una tasca de sensor: entity_id, mode i els seus camps (substitueix tota la configuració)."
         },
         "device_id": {
           "name": "Dispositiu",
