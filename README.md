@@ -90,6 +90,11 @@ same fields for automations.
 
 ![The completion-details dialog — note, cost, who and photo captured when a task is marked done](docs/images/11-panel-completion-dialog.png)
 
+Every completion's note and cost (and who/photo) then show in the task's history,
+where each entry can be edited or removed:
+
+![Task history annotated with per-completion cost and notes, each row editable](docs/images/7-panel-task-detail.png)
+
 Administration and usage are intentionally **separated**: you **manage** tasks and
 appliances from the **Home Keeper** sidebar panel, and **use** them through native HA
 entities and the dashboard card. The panel list view can group/filter tasks, and

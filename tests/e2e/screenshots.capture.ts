@@ -36,18 +36,18 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // "required" opens this dialog on Done so you can record a note, cost, who and a
   // photo. The seeded "Replace fridge filter" task is set to optional capture.
   await panel.locator('.done-btn[data-id="task_fridge_filter"]').click();
-  const completionDialog = panel.locator('ha-dialog[open]');
-  await expect(completionDialog).toBeVisible();
-  await completionDialog
-    .locator('ha-selector-text textarea, ha-selector-text input')
-    .first()
-    .fill('Replaced cartridge; rinsed housing');
-  await completionDialog.locator('ha-selector-number input').first().fill('42.50');
-  await page.waitForTimeout(400);
+  // ha-dialog portals its surface, so wait on an inner field rather than the host.
+  const noteField = panel
+    .locator('ha-dialog[open] ha-selector-text textarea, ha-dialog[open] ha-selector-text input')
+    .first();
+  await noteField.waitFor({ state: 'visible', timeout: 15_000 });
+  await noteField.fill('Replaced cartridge; rinsed housing');
+  await panel.locator('ha-dialog[open] ha-selector-number input').first().fill('42.50');
+  await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/11-panel-completion-dialog.png`, fullPage: true });
-  // Cancel so the capture doesn't record an extra completion.
-  await completionDialog.getByRole('button', { name: /cancel/i }).click();
-  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+  // Dismiss via Escape (closes ha-dialog) so the capture records no extra completion.
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
 
   // 1b. Task detail page — click a task to see its full schedule, notes and the
   // completion history of every time it was done (now annotated with the per-
