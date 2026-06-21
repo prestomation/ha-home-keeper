@@ -238,5 +238,20 @@
   "companions.configure": "Konfigurovat",
   "companions.install": "Nainstalovat",
   "companions.dismiss": "Odmítnout",
-  "companions.docs": "Dokumentace"
+  "companions.docs": "Dokumentace",
+  "opt.recurrence.sensor": "Podle senzoru",
+  "recurrence.sensor": "Podle senzoru",
+  "opt.sensor_mode.usage": "Spotřeba / měřič",
+  "opt.sensor_mode.threshold": "Práh",
+  "field.sensor_entity_id": "Senzor",
+  "field.sensor_mode": "Režim spouštění",
+  "field.sensor_target": "Cíl (jednotky)",
+  "field.sensor_value": "Hodnota prahu",
+  "field.sensor_comparison": "Porovnání",
+  "field.sensor_for": "Podržení (sekundy)",
+  "field.sensor_attribute": "Atribut (volitelné)",
+  "recurrence.sensorUsage": "Každých {target} použití",
+  "recurrence.sensorThreshold": "Když {comparison} {value}",
+  "sensor.usageProgress": "{consumed} z {target} využito ({entity})",
+  "sensor.usageTarget": "Cíl {target} ({entity})"
 }

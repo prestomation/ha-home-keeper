@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import type { Hass, Task } from './types';
+import type { Hass, SensorBinding, SensorComparison, SensorMode, Task } from './types';
 
 /**
  * Shared `ha-form` primitives and the task form's schema/data/payload helpers.
@@ -104,8 +104,11 @@ export function taskSchema(task: Partial<Task>): FormField[] {
   const isFixed = task.recurrence_type === 'fixed';
   // A one-off (do-once) task has no cadence at all — just a single due date.
   const isOneOff = task.recurrence_type === 'one-off';
+  // A sensor-based task has no clock cadence — its due-state comes from a bound
+  // numeric sensor. Show the binding fields instead of interval/unit/freq.
+  const isSensor = task.recurrence_type === 'sensor';
 
-  const cadenceSubFields: FormField[] = isOneOff
+  const cadenceSubFields: FormField[] = isOneOff || isSensor
     ? []
     : isFixed
     ? [
@@ -141,6 +144,44 @@ export function taskSchema(task: Partial<Task>): FormField[] {
   const cadence: FormField | null =
     cadenceSubFields.length > 0 ? { name: '', type: 'grid', schema: cadenceSubFields } : null;
 
+  // Sensor-based task: an entity picker, a mode toggle, and the mode's fields. The
+  // current mode comes from the live edit state (flat `sensor_mode`) or the loaded
+  // task's binding, defaulting to usage. Comparison labels are language-neutral
+  // symbols, so they need no translation.
+  const sd = task as Record<string, unknown>;
+  const sensorMode =
+    (sd.sensor_mode as string | undefined) ?? task.sensor?.mode ?? 'usage';
+  const sensorFields: FormField[] = isSensor
+    ? [
+        { name: 'sensor_entity_id', required: true, selector: selEntity({}) },
+        {
+          name: 'sensor_mode',
+          selector: selSelect([
+            { value: 'usage', label: t('opt.sensor_mode.usage') },
+            { value: 'threshold', label: t('opt.sensor_mode.threshold') },
+          ]),
+        },
+        ...(sensorMode === 'threshold'
+          ? [
+              {
+                name: 'sensor_comparison',
+                selector: selSelect([
+                  { value: '>=', label: '≥' },
+                  { value: '<=', label: '≤' },
+                  { value: '>', label: '>' },
+                  { value: '<', label: '<' },
+                  { value: '==', label: '=' },
+                  { value: '!=', label: '≠' },
+                ]),
+              } as FormField,
+              { name: 'sensor_value', required: true, selector: { number: { mode: 'box' } } },
+              { name: 'sensor_for', selector: selNumber(0) },
+            ]
+          : [{ name: 'sensor_target', required: true, selector: selNumber(0) } as FormField]),
+        { name: 'sensor_attribute', selector: selText() },
+      ]
+    : [];
+
   const fields: FormField[] = [
     ...(!locked.has('name')
       ? [{ name: 'name', required: true, selector: selText() } as FormField]
@@ -154,11 +195,13 @@ export function taskSchema(task: Partial<Task>): FormField[] {
               { value: 'floating', label: t('opt.recurrence.floating') },
               { value: 'fixed', label: t('opt.recurrence.fixed') },
               { value: 'one-off', label: t('opt.recurrence.one-off') },
+              { value: 'sensor', label: t('opt.recurrence.sensor') },
             ]),
           } as FormField,
         ]
       : []),
     ...(cadence ? [cadence] : []),
+    ...sensorFields,
     ...(isFixed && !locked.has('anchor')
       ? [{ name: 'anchor', selector: selDateTime() } as FormField]
       : []),
@@ -199,6 +242,14 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // A new one-off defaults its due date to now; an existing one shows its stored due.
     due: isoToHaDateTime(task.due) ?? (task.id ? '' : isoToHaDateTime(new Date().toISOString())),
     last_completed: isoToHaDateTime(task.last_completed) ?? '',
+    // Sensor binding flattened to form fields; assembled back in buildTaskPayload.
+    sensor_entity_id: task.sensor?.entity_id ?? '',
+    sensor_mode: task.sensor?.mode ?? 'usage',
+    sensor_target: task.sensor?.target ?? undefined,
+    sensor_value: task.sensor?.value ?? undefined,
+    sensor_comparison: task.sensor?.comparison ?? '>=',
+    sensor_for: task.sensor?.for_seconds ?? 0,
+    sensor_attribute: task.sensor?.attribute ?? '',
     device_id: task.device_id ?? undefined,
     labels: task.labels ?? [],
     completion_detail: task.completion_detail ?? 'none',
@@ -218,6 +269,35 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       name: task.name,
       notes: task.notes || '',
       device_id: task.device_id || null,
+    };
+  } else if (task.recurrence_type === 'sensor') {
+    // A sensor task carries a `sensor` binding instead of a clock cadence; the form
+    // holds its parts as flat `sensor_*` fields, assembled here.
+    const sd = task as Record<string, unknown>;
+    const mode = ((sd.sensor_mode as SensorMode) || task.sensor?.mode || 'usage') as SensorMode;
+    const sensor: SensorBinding = {
+      entity_id: String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? ''),
+      mode,
+    };
+    const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
+    if (attribute) sensor.attribute = attribute;
+    if (mode === 'usage') {
+      sensor.target = Number(sd.sensor_target ?? task.sensor?.target) || 0;
+    } else {
+      sensor.comparison = (sd.sensor_comparison as SensorComparison) ||
+        task.sensor?.comparison ||
+        '>=';
+      sensor.value = Number(sd.sensor_value ?? task.sensor?.value) || 0;
+      const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds) || 0;
+      if (forSeconds > 0) sensor.for_seconds = forSeconds;
+    }
+    payload = {
+      name: task.name,
+      notes: task.notes || '',
+      recurrence_type: 'sensor',
+      device_id: task.device_id || null,
+      sensor,
+      completion_detail: task.completion_detail || 'none',
     };
   } else {
     payload = {

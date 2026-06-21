@@ -20,17 +20,18 @@ const INTENTIONALLY_IDENTICAL = new Set(['app.title', 'due.none', 'managed.compl
 // French "Stock"/"Date", Dutch "week"/"Label", universal "Model"/"Link"/"Type".
 // Locale-specific, so the guard stays strict for every other locale.
 const COGNATE_IDENTICAL = {
-  ca: ['field.cost', 'field.model', 'field.notes', 'meta.seed.notes', 'opt.meta.text'],
+  ca: ['field.cost', 'field.model', 'field.notes', 'field.sensor_entity_id', 'meta.seed.notes', 'opt.meta.text'],
   cs: ['field.model', 'opt.meta.text'],
-  da: ['chip.orphaned', 'field.kind', 'field.model', 'field.note', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
-  de: ['chip.orphaned', 'detail.about', 'field.name', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
+  da: ['chip.orphaned', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
+  de: ['chip.orphaned', 'detail.about', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
+  es: ['field.sensor_entity_id'],
   fr: ['completion.photo', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'opt.meta.date'],
   it: ['field.area_id', 'group.area', 'opt.meta.link'],
-  nb: ['field.kind', 'field.type', 'group.status'],
-  nl: ['detail.about', 'field.kind', 'field.label', 'field.model', 'field.type', 'group.status', 'opt.meta.link', 'recurrence.unit.week.one', 'section.later'],
+  nb: ['field.kind', 'field.sensor_entity_id', 'field.type', 'group.status'],
+  nl: ['detail.about', 'field.kind', 'field.label', 'field.model', 'field.sensor_entity_id', 'field.type', 'group.status', 'opt.meta.link', 'recurrence.unit.week.one', 'section.later'],
   pl: ['field.model', 'group.status', 'opt.meta.link'],
-  'pt-BR': ['group.status', 'opt.meta.link'],
-  sv: ['chip.orphaned', 'group.integration', 'group.status', 'opt.meta.text'],
+  'pt-BR': ['field.sensor_entity_id', 'group.status', 'opt.meta.link'],
+  sv: ['chip.orphaned', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.text'],
 };
 
 // Concatenate all panel TypeScript sources once for static key analysis.

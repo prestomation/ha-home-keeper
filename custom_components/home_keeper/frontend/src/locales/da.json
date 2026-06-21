@@ -214,5 +214,20 @@
   "companions.configure": "Konfigurer",
   "companions.install": "Installer",
   "companions.dismiss": "Afvis",
-  "companions.docs": "Dokumentation"
+  "companions.docs": "Dokumentation",
+  "opt.recurrence.sensor": "Sensorbaseret",
+  "recurrence.sensor": "Sensorbaseret",
+  "opt.sensor_mode.usage": "Forbrug / måler",
+  "opt.sensor_mode.threshold": "Tærskel",
+  "field.sensor_entity_id": "Sensor",
+  "field.sensor_mode": "Udløsertilstand",
+  "field.sensor_target": "Mål (enheder)",
+  "field.sensor_value": "Tærskelværdi",
+  "field.sensor_comparison": "Sammenligning",
+  "field.sensor_for": "Hold (sekunder)",
+  "field.sensor_attribute": "Attribut (valgfrit)",
+  "recurrence.sensorUsage": "Hver {target} brug",
+  "recurrence.sensorThreshold": "Når {comparison} {value}",
+  "sensor.usageProgress": "{consumed} af {target} brugt ({entity})",
+  "sensor.usageTarget": "Mål {target} ({entity})"
 }

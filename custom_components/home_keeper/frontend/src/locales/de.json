@@ -214,5 +214,20 @@
   "companions.configure": "Konfigurieren",
   "companions.install": "Installieren",
   "companions.dismiss": "Ausblenden",
-  "companions.docs": "Dokumentation"
+  "companions.docs": "Dokumentation",
+  "opt.recurrence.sensor": "Sensorbasiert",
+  "recurrence.sensor": "Sensorbasiert",
+  "opt.sensor_mode.usage": "Verbrauch / Zähler",
+  "opt.sensor_mode.threshold": "Schwellenwert",
+  "field.sensor_entity_id": "Sensor",
+  "field.sensor_mode": "Auslösemodus",
+  "field.sensor_target": "Ziel (Einheiten)",
+  "field.sensor_value": "Schwellenwert",
+  "field.sensor_comparison": "Vergleich",
+  "field.sensor_for": "Haltezeit (Sekunden)",
+  "field.sensor_attribute": "Attribut (optional)",
+  "recurrence.sensorUsage": "Alle {target} Nutzung",
+  "recurrence.sensorThreshold": "Wenn {comparison} {value}",
+  "sensor.usageProgress": "{consumed} von {target} verbraucht ({entity})",
+  "sensor.usageTarget": "Ziel {target} ({entity})"
 }

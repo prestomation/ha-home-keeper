@@ -214,5 +214,20 @@
   "companions.configure": "Configure",
   "companions.install": "Install",
   "companions.dismiss": "Dismiss",
-  "companions.docs": "Docs"
+  "companions.docs": "Docs",
+  "opt.recurrence.sensor": "Sensor-based",
+  "recurrence.sensor": "Sensor-based",
+  "opt.sensor_mode.usage": "Usage / meter",
+  "opt.sensor_mode.threshold": "Threshold",
+  "field.sensor_entity_id": "Sensor",
+  "field.sensor_mode": "Trigger mode",
+  "field.sensor_target": "Target (units)",
+  "field.sensor_value": "Threshold value",
+  "field.sensor_comparison": "Comparison",
+  "field.sensor_for": "Hold (seconds)",
+  "field.sensor_attribute": "Attribute (optional)",
+  "recurrence.sensorUsage": "Every {target} of use",
+  "recurrence.sensorThreshold": "When {comparison} {value}",
+  "sensor.usageProgress": "{consumed} of {target} used ({entity})",
+  "sensor.usageTarget": "Target {target} ({entity})"
 }

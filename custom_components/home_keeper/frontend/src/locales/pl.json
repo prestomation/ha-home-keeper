@@ -238,5 +238,20 @@
   "companions.configure": "Konfiguruj",
   "companions.install": "Zainstaluj",
   "companions.dismiss": "Odrzuć",
-  "companions.docs": "Dokumentacja"
+  "companions.docs": "Dokumentacja",
+  "opt.recurrence.sensor": "Na podstawie czujnika",
+  "recurrence.sensor": "Na podstawie czujnika",
+  "opt.sensor_mode.usage": "Zużycie / licznik",
+  "opt.sensor_mode.threshold": "Próg",
+  "field.sensor_entity_id": "Czujnik",
+  "field.sensor_mode": "Tryb wyzwalania",
+  "field.sensor_target": "Cel (jednostki)",
+  "field.sensor_value": "Wartość progu",
+  "field.sensor_comparison": "Porównanie",
+  "field.sensor_for": "Przytrzymanie (sekundy)",
+  "field.sensor_attribute": "Atrybut (opcjonalnie)",
+  "recurrence.sensorUsage": "Co {target} użycia",
+  "recurrence.sensorThreshold": "Gdy {comparison} {value}",
+  "sensor.usageProgress": "{consumed} z {target} wykorzystane ({entity})",
+  "sensor.usageTarget": "Cel {target} ({entity})"
 }

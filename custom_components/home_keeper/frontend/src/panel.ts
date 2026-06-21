@@ -1352,6 +1352,36 @@ export class HomeKeeperPanel extends HTMLElement {
     }</span></div>`;
   }
 
+  /** A human-readable line for a sensor task's binding, with live progress when the
+   *  bound entity's current value is known: usage shows "consumed / target (entity)";
+   *  threshold shows "entity: current (cmp value)". Falls back to the binding alone
+   *  when the reading is unavailable. */
+  private _sensorProgress(task: Task): string {
+    const s = task.sensor;
+    if (!s) return '';
+    const state = this._hass?.states?.[s.entity_id];
+    const raw = state
+      ? s.attribute
+        ? (state.attributes?.[s.attribute] as unknown)
+        : state.state
+      : undefined;
+    const reading = raw == null || raw === '' ? NaN : Number(raw);
+    const entity = s.entity_id;
+    if (s.mode === 'threshold') {
+      const cond = `${s.comparison ?? ''} ${s.value ?? ''}`.trim();
+      return Number.isNaN(reading)
+        ? `${entity} (${cond})`
+        : `${entity}: ${reading} (${cond})`;
+    }
+    // usage / meter
+    const target = s.target ?? 0;
+    if (!Number.isNaN(reading) && s.baseline != null) {
+      const consumed = Math.max(0, reading - s.baseline);
+      return t('sensor.usageProgress', { consumed, target, entity });
+    }
+    return t('sensor.usageTarget', { target, entity });
+  }
+
   private _historySection(kind: 'task' | 'asset', id: string): string {
     const groups = this._completionGroupsFor(kind, id);
     return `
@@ -1437,6 +1467,7 @@ export class HomeKeeperPanel extends HTMLElement {
       <div class="hk-section">${escapeHTML(t('detail.schedule'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         ${this._row(t('field.recurrence_type'), recurrenceSummary(task))}
+        ${task.recurrence_type === 'sensor' ? this._row(t('field.sensor_entity_id'), this._sensorProgress(task)) : ''}
         ${this._row(t('detail.nextDue'), due)}
       </div></ha-card>
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>

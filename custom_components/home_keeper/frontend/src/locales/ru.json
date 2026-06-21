@@ -238,5 +238,20 @@
   "companions.configure": "Настроить",
   "companions.install": "Установить",
   "companions.dismiss": "Скрыть",
-  "companions.docs": "Документация"
+  "companions.docs": "Документация",
+  "opt.recurrence.sensor": "На основе датчика",
+  "recurrence.sensor": "На основе датчика",
+  "opt.sensor_mode.usage": "Использование / счётчик",
+  "opt.sensor_mode.threshold": "Порог",
+  "field.sensor_entity_id": "Датчик",
+  "field.sensor_mode": "Режим срабатывания",
+  "field.sensor_target": "Цель (единицы)",
+  "field.sensor_value": "Пороговое значение",
+  "field.sensor_comparison": "Сравнение",
+  "field.sensor_for": "Удержание (секунды)",
+  "field.sensor_attribute": "Атрибут (необязательно)",
+  "recurrence.sensorUsage": "Каждые {target} использования",
+  "recurrence.sensorThreshold": "Когда {comparison} {value}",
+  "sensor.usageProgress": "{consumed} из {target} использовано ({entity})",
+  "sensor.usageTarget": "Цель {target} ({entity})"
 }

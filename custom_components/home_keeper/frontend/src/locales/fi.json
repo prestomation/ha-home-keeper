@@ -214,5 +214,20 @@
   "companions.configure": "Määritä",
   "companions.install": "Asenna",
   "companions.dismiss": "Hylkää",
-  "companions.docs": "Dokumentaatio"
+  "companions.docs": "Dokumentaatio",
+  "opt.recurrence.sensor": "Anturipohjainen",
+  "recurrence.sensor": "Anturipohjainen",
+  "opt.sensor_mode.usage": "Käyttö / mittari",
+  "opt.sensor_mode.threshold": "Kynnys",
+  "field.sensor_entity_id": "Anturi",
+  "field.sensor_mode": "Laukaisutila",
+  "field.sensor_target": "Tavoite (yksiköt)",
+  "field.sensor_value": "Kynnysarvo",
+  "field.sensor_comparison": "Vertailu",
+  "field.sensor_for": "Pito (sekuntia)",
+  "field.sensor_attribute": "Määrite (valinnainen)",
+  "recurrence.sensorUsage": "Joka {target} käyttöä",
+  "recurrence.sensorThreshold": "Kun {comparison} {value}",
+  "sensor.usageProgress": "{consumed}/{target} käytetty ({entity})",
+  "sensor.usageTarget": "Tavoite {target} ({entity})"
 }
