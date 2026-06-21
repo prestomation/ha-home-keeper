@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Uppdatera slutförande",
+      "description": "Ändrar metadata (anteckning, kostnad, foto, vem) för ett redan registrerat slutförande som identifieras med sin tidsstämpel. Ändrar varken schemat eller förfallodatumet.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID:t för uppgiften vars slutförande du redigerar."
+        },
+        "ts": {
+          "name": "Tidsstämpel för slutförande",
+          "description": "ISO-tidsstämpeln (ts) för slutförandeposten som ska redigeras."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Utlös uppgift",
       "description": "Aktivera en villkorsstyrd (utlöst) uppgift så att den visas som förfallen nu — användarens motsvarighet till Slutför uppgift (som återställer den till vilande). Idempotent; gäller endast utlösta uppgifter.",

@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Mettre à jour l'achèvement",
+      "description": "Modifie les métadonnées (note, coût, photo, qui) d'un achèvement déjà enregistré, identifié par son horodatage. Ne change ni la planification ni la date d'échéance.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'id de la tâche dont vous modifiez l'achèvement."
+        },
+        "ts": {
+          "name": "Horodatage de l'achèvement",
+          "description": "L'horodatage ISO (ts) de l'entrée d'achèvement à modifier."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Déclencher la tâche",
       "description": "Armer une tâche pilotée par condition (déclenchée) afin qu'elle apparaisse comme due maintenant — l'équivalent côté utilisateur de « Terminer la tâche » (qui la remet en sommeil). Idempotent ; valable uniquement pour les tâches déclenchées.",

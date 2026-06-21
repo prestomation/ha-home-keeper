@@ -223,8 +223,22 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
     raise ValueError(f"unknown recurrence_type: {rec_type!r}")
 
 
-def apply_completion(task: dict, completed_at: datetime, *, now: datetime) -> dict:
+def apply_completion(
+    task: dict,
+    completed_at: datetime,
+    *,
+    now: datetime,
+    metadata: dict | None = None,
+) -> dict:
     """Return *task* mutated to reflect a completion at *completed_at*.
+
+    *metadata* is an optional, pre-cleaned mapping of per-completion context
+    (``note``/``cost``/``photo``/``who`` — see
+    ``models.normalize_completion_metadata``). Its keys are merged into the new
+    history entry alongside the mandatory ``ts``; an empty/None mapping records just
+    the timestamp (the historical behaviour). This function stays agnostic about
+    *which* keys are valid — cleaning/validation is the caller's job — so the pure
+    recurrence math is unaffected by the metadata feature.
 
     Records the completion in history (capped) and recomputes ``next_due``:
 
@@ -237,7 +251,10 @@ def apply_completion(task: dict, completed_at: datetime, *, now: datetime) -> di
       replacement cadence accumulates on the task.
     """
     history = list(task.get("completions", []))
-    history.append({"ts": completed_at.isoformat()})
+    entry: dict = {"ts": completed_at.isoformat()}
+    if metadata:
+        entry.update(metadata)
+    history.append(entry)
     if len(history) > MAX_COMPLETION_HISTORY:
         history = history[-MAX_COMPLETION_HISTORY:]
     task["completions"] = history
@@ -286,6 +303,45 @@ def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
     if task.get("recurrence_type") != REC_TRIGGERED:
         task["next_due"] = compute_next_due(task, now=now).isoformat()
     return task
+
+
+def update_completion(
+    task: dict, ts: str, metadata: dict, *, fields: tuple[str, ...]
+) -> tuple[dict, str | None]:
+    """Edit the metadata of the completion at ISO timestamp *ts* in place.
+
+    Used to amend a past completion (fix a note, add a forgotten cost/photo). For
+    each key in *fields* (the recognised metadata keys), a non-empty value in
+    *metadata* is set on the entry and an absent/empty value clears it — so an edit
+    that blanks the note removes the key rather than storing ``""``. ``ts``,
+    schedule, and ``last_completed``/``next_due`` are never touched: amending a log
+    entry must not rewind or re-arm a task. Raises :class:`KeyError`-free — instead a
+    ``ValueError`` is raised when no entry matches *ts* so the caller can surface a
+    clear error.
+
+    Returns ``(task, replaced_photo)`` where *replaced_photo* is the previous
+    ``photo`` id when the edit changed or cleared it (so the HA layer can delete the
+    now-orphaned image), else ``None``.
+    """
+    history = list(task.get("completions", []))
+    target: dict | None = None
+    for entry in history:
+        if entry.get("ts") == ts:
+            target = entry
+            break
+    if target is None:
+        raise ValueError(f"no completion at {ts!r}")
+    old_photo = target.get("photo")
+    for key in fields:
+        value = metadata.get(key)
+        if value in (None, ""):
+            target.pop(key, None)
+        else:
+            target[key] = value
+    task["completions"] = history
+    new_photo = target.get("photo")
+    replaced_photo = old_photo if old_photo and old_photo != new_photo else None
+    return task, replaced_photo
 
 
 def is_overdue(task: dict, *, now: datetime) -> bool:

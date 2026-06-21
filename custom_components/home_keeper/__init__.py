@@ -56,6 +56,12 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("area_id"): cv.string,
         # HA label-registry ids; used (with device/area labels) to scope the card.
         vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
+        # Per-task completion-capture mode + (optionally) which metadata fields are
+        # mandatory. See const.COMPLETION_DETAIL_* / COMPLETION_METADATA_FIELDS.
+        vol.Optional("completion_detail"): cv.string,
+        vol.Optional("completion_required_fields"): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
         vol.Optional("source"): dict,
         vol.Optional("managed_by"): dict,
     }
@@ -73,6 +79,10 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
         vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("completion_detail"): cv.string,
+        vol.Optional("completion_required_fields"): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
         vol.Optional("source"): dict,
     }
 )
@@ -90,13 +100,34 @@ DELETE_TASK_SCHEMA = vol.Schema(
 )
 # ``origin`` is a free-form marker the caller passes so it can recognise (and ignore)
 # the completion event it triggered. Home Keeper only echoes it back in the event.
+# The metadata fields (note/cost/photo/who) are the optional per-completion context;
+# ``photo`` is an image-upload id and ``who`` a person entity id.
 COMPLETE_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
         vol.Optional("completed_at"): cv.datetime,
         vol.Optional("origin"): cv.string,
+        vol.Optional("note"): cv.string,
+        vol.Optional("cost"): vol.Coerce(float),
+        vol.Optional("photo"): cv.string,
+        vol.Optional("who"): cv.string,
     }
 )
+# Amend a recorded completion's metadata after the fact (identified by its ``ts``).
+UPDATE_COMPLETION_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("ts"): cv.string,
+        vol.Optional("note"): cv.string,
+        vol.Optional("cost"): vol.Coerce(float),
+        vol.Optional("photo"): cv.string,
+        vol.Optional("who"): cv.string,
+    }
+)
+
+# The completion-metadata keys shared by complete_task / update_completion, lifted
+# out of a service call's data into the ``metadata`` mapping the store expects.
+_COMPLETION_METADATA_KEYS = ("note", "cost", "photo", "who")
 
 # Structured part (wear item) for the add/update asset schema.
 _PART_SCHEMA = vol.Schema(
@@ -316,6 +347,10 @@ def _register_services(hass: HomeAssistant) -> None:
             ) from err
         await hass.config_entries.async_reload(coord.entry.entry_id)
 
+    def _completion_metadata(data: dict) -> dict[str, Any]:
+        """Lift the per-completion metadata keys out of a service call's data."""
+        return {k: data[k] for k in _COMPLETION_METADATA_KEYS if k in data}
+
     async def handle_complete_task(call: ServiceCall) -> None:
         coord = _coordinator()
         try:
@@ -323,6 +358,29 @@ def _register_services(hass: HomeAssistant) -> None:
                 call.data["task_id"],
                 call.data.get("completed_at"),
                 origin=call.data.get("origin"),
+                metadata=_completion_metadata(call.data),
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await coord.async_request_refresh()
+
+    async def handle_update_completion(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.update_completion(
+                call.data["task_id"],
+                call.data["ts"],
+                _completion_metadata(call.data),
             )
         except KeyError:
             raise ServiceValidationError(
@@ -447,6 +505,9 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN, "complete_task", handle_complete_task, COMPLETE_TASK_SCHEMA
     )
     hass.services.async_register(
+        DOMAIN, "update_completion", handle_update_completion, UPDATE_COMPLETION_SCHEMA
+    )
+    hass.services.async_register(
         DOMAIN, "trigger_task", handle_trigger_task, TRIGGER_TASK_SCHEMA
     )
     hass.services.async_register(
@@ -514,6 +575,7 @@ _SERVICES = (
     "update_task",
     "delete_task",
     "complete_task",
+    "update_completion",
     "trigger_task",
     "list_tasks",
     "add_asset",

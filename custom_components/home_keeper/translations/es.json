@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Actualizar finalización",
+      "description": "Modifica los metadatos (nota, coste, foto, quién) de una finalización ya registrada, identificada por su marca de tiempo. No cambia la programación ni la fecha de vencimiento.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea cuya finalización estás editando."
+        },
+        "ts": {
+          "name": "Marca de tiempo de finalización",
+          "description": "La marca de tiempo ISO (ts) de la entrada de finalización que se va a editar."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Activar tarea",
       "description": "Armar una tarea controlada por condición (activada) para que aparezca como vencida ahora — la contraparte para el usuario de Completar tarea (que la devuelve a estado inactivo). Idempotente; solo válido para tareas activadas.",

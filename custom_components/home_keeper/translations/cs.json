@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Upravit dokončení",
+      "description": "Upraví metadata (poznámku, cenu, fotku, kdo) již zaznamenaného dokončení určeného podle časového razítka. Nemění plán ani datum splatnosti.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu, jehož dokončení upravujete."
+        },
+        "ts": {
+          "name": "Časové razítko dokončení",
+          "description": "Časové razítko ISO (ts) položky dokončení, kterou chcete upravit."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Spustit úkol",
       "description": "Aktivovat úkol řízený podmínkou (spouštěný) tak, aby se zobrazoval jako nyní splatný — uživatelský protějšek k Dokončit úkol (které jej vrátí zpět do nečinného stavu). Idempotentní; platí pouze pro spouštěné úkoly.",

@@ -30,8 +30,9 @@ All event names follow `home_keeper_<noun>_<verb>`. Task events share a common
 | `home_keeper_task_created` | a task is created (panel, service, contributing integration, or a wear-part task auto-generated from an appliance) |
 | `home_keeper_task_updated` | a task actually changes; payload adds `changed_fields` |
 | `home_keeper_task_deleted` | a task is removed (directly, or because its appliance/part was) |
-| `home_keeper_task_completed` | a task is completed from **any** surface (to-do checkbox, device button, `complete_task`); payload adds `completed_at`, `origin` |
+| `home_keeper_task_completed` | a task is completed from **any** surface (to-do checkbox, device button, `complete_task`); payload adds `completed_at`, `origin`, and any per-completion metadata that was recorded (`note`, `cost`, `photo`, `who`) |
 | `home_keeper_task_uncompleted` | a completion is undone (`next_due` is re-derived) |
+| `home_keeper_task_completion_updated` | a recorded completion's metadata (`note`/`cost`/`photo`/`who`) is edited after the fact; payload adds the edited completion's `ts`. The schedule is untouched. |
 | `home_keeper_task_triggered` | a condition-driven (triggered) task is armed (dormant → due-now) |
 
 **Synced `problem` binary sensors** (when *Sync problem sensors* is on) ride these same

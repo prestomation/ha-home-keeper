@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Aktualizuj ukończenie",
+      "description": "Zmienia metadane (notatkę, koszt, zdjęcie, kto) już zapisanego ukończenia, identyfikowanego po znaczniku czasu. Nie zmienia harmonogramu ani terminu.",
+      "fields": {
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator zadania, którego ukończenie edytujesz."
+        },
+        "ts": {
+          "name": "Znacznik czasu ukończenia",
+          "description": "Znacznik czasu ISO (ts) wpisu ukończenia do edycji."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Wyzwól zadanie",
       "description": "Uzbrój zadanie sterowane warunkiem (wyzwalane), aby było widoczne jako wymagane teraz — odpowiednik dla użytkownika polecenia Ukończ zadanie (które przywraca je do stanu uśpienia). Idempotentne; ważne tylko dla zadań wyzwalanych.",

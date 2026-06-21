@@ -1,6 +1,21 @@
 # Per-Completion Metadata (notes, cost, photo, who)
 
-**Status: planned.** Today every completion records only a timestamp
+**Status: backend landed; frontend next.** The data model, recurrence layer,
+services (`complete_task` metadata fields + new `update_completion`), websocket
+commands, completion + `task_completion_updated` events, and the latest-completion
+sensor attributes are implemented and unit-tested. The panel capture dialog, photo
+upload, person picker, and history edit (with screenshots) are the remaining phase.
+
+**Schema note (forward-compat for per-field required).** The capture mode lives on
+the task as `completion_detail` (`none` / `optional` / `required`), and the fields a
+`required` task makes mandatory live in a separate list, `completion_required_fields`.
+v1 derives that list from the mode (`required` → `["note"]`) and offers only the
+three-way mode picker — but enforcement (in the panel) reads the *list*, not a
+hard-coded "note". So a later "which fields are required" per-task editor only needs to
+populate the list; no storage migration. Both fields are additive and read with
+`.get()`.
+
+Today every completion records only a timestamp
 (`task["completions"][] = {"ts": <iso>}`). This feature lets a completion carry
 optional context — a **note**, a **cost**, a **photo**, and **who** did the work —
 captured when a task is marked done and editable afterwards. It builds directly on the

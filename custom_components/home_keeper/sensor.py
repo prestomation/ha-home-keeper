@@ -84,13 +84,25 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         task = self._task
-        return {
+        completions = task.get("completions", [])
+        attrs: dict[str, Any] = {
             "task_id": self._task_id,
             "task_name": task.get("name"),
             "recurrence_type": task.get("recurrence_type"),
             "last_completed": task.get("last_completed"),
-            "completions_count": len(task.get("completions", [])),
+            "completions_count": len(completions),
         }
+        # Surface the most recent completion's metadata so automations/dashboards can
+        # read "who did it / what did it cost / the note / the photo" without parsing
+        # the history array. Keys are only present when that completion recorded them.
+        if completions:
+            # Match ``last_completed`` (the chronologically latest), not merely the
+            # last appended, so an out-of-order seed can't shadow a real completion.
+            latest = max(completions, key=lambda c: c.get("ts") or "")
+            for key in ("note", "cost", "photo", "who"):
+                if key in latest:
+                    attrs[f"last_completion_{key}"] = latest[key]
+        return attrs
 
 
 class HomeKeeperAssetDateSensor(CoordinatorEntity[HomeKeeperCoordinator], SensorEntity):

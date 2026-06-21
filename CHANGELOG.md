@@ -8,6 +8,18 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ### Added
 
+- **Per-completion metadata (note, cost, photo, who).** A completion can now carry
+  optional context: a free-form note, a cost, a photo (a Home Assistant image-upload
+  id), and who did it (a `person` entity). Capture is a **per-task setting** —
+  `none` (the default one-click *Done*), `optional` (a details dialog with everything
+  optional), or `required` (the dialog with mandatory fields). The set of required
+  fields is stored per task (`completion_required_fields`) so it can later be made
+  field-by-field configurable without a data migration. New `home_keeper.complete_task`
+  fields and a new `home_keeper.update_completion` service expose this to automations;
+  the latest completion's metadata is mirrored on the task's *next due* sensor
+  attributes, and a `home_keeper_task_completion_updated` event fires when a past
+  completion is edited. *(Backend + service/event layer; the panel capture dialog
+  ships next.)*
 - **Platinum integration quality scale.** Home Keeper now declares the
   [Platinum quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/),
   with a per-rule ledger in `custom_components/home_keeper/quality_scale.yaml`. The

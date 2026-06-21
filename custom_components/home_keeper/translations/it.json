@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Aggiorna completamento",
+      "description": "Modifica i metadati (nota, costo, foto, chi) di un completamento già registrato, identificato dalla sua marca temporale. Non modifica la pianificazione né la data di scadenza.",
+      "fields": {
+        "task_id": {
+          "name": "ID attività",
+          "description": "L'id dell'attività di cui stai modificando il completamento."
+        },
+        "ts": {
+          "name": "Marca temporale del completamento",
+          "description": "La marca temporale ISO (ts) della voce di completamento da modificare."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Attiva attività",
       "description": "Arma un'attività guidata da condizione (attivata) in modo che risulti dovuta ora — la controparte rivolta all'utente di Completa attività (che la riporta in stato dormiente). Idempotente; valido solo per attività attivate.",

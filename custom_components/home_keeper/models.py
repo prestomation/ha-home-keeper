@@ -15,6 +15,10 @@ from typing import Any
 
 from . import recurrence
 from .const import (
+    COMPLETION_DETAIL_MODES,
+    COMPLETION_DETAIL_NONE,
+    COMPLETION_DETAIL_REQUIRED,
+    COMPLETION_METADATA_FIELDS,
     FREQS,
     MAX_INTERVAL,
     REC_FLOATING,
@@ -26,6 +30,61 @@ from .const import (
 
 class TaskValidationError(ValueError):
     """Raised when task input fails validation."""
+
+
+def normalize_completion_metadata(data: Any) -> dict[str, Any]:
+    """Clean optional per-completion metadata into a dict of non-empty keys.
+
+    Accepts a mapping with any of ``note`` / ``cost`` / ``photo`` / ``who`` and
+    returns only the keys that carry a value: strings are stripped (blanks dropped),
+    ``cost`` is coerced to a non-negative ``float``, and ``photo`` / ``who`` are
+    opaque id strings (an image-upload id and a ``person`` entity id respectively).
+    The result is what gets merged into a completion's history entry, so an empty
+    input yields an empty dict (a plain timestamped completion). Pure — no HA imports.
+    """
+    if not isinstance(data, dict) or not data:
+        return {}
+    result: dict[str, Any] = {}
+    note = str(data.get("note") or "").strip()
+    if note:
+        result["note"] = note
+    cost = data.get("cost")
+    if cost not in (None, ""):
+        try:
+            cost_value = float(cost)
+        except (TypeError, ValueError) as err:
+            raise TaskValidationError("cost must be a number") from err
+        if cost_value < 0:
+            raise TaskValidationError("cost must be >= 0")
+        result["cost"] = cost_value
+    photo = str(data.get("photo") or "").strip()
+    if photo:
+        result["photo"] = photo
+    who = str(data.get("who") or "").strip()
+    if who:
+        result["who"] = who
+    return result
+
+
+def normalize_completion_required_fields(value: Any, mode: str) -> list[str]:
+    """Normalize a task's ``completion_required_fields`` for capture *mode*.
+
+    Keeps only recognised metadata field names (order-preserving, de-duplicated).
+    The list is only meaningful when *mode* is ``required`` — for ``none`` /
+    ``optional`` it is forced empty (nothing is mandatory). When ``required`` with no
+    explicit list, it defaults to ``["note"]`` so v1's single capture-mode picker has
+    a sensible mandatory field; a future per-field editor simply passes its own list.
+    """
+    if mode != COMPLETION_DETAIL_REQUIRED:
+        return []
+    allowed = set(COMPLETION_METADATA_FIELDS)
+    result: list[str] = []
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            field = str(item).strip()
+            if field in allowed and field not in result:
+                result.append(field)
+    return result or ["note"]
 
 
 def _require(data: dict, key: str) -> Any:
@@ -79,6 +138,10 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     if rec_type not in RECURRENCE_TYPES:
         raise TaskValidationError(f"invalid recurrence_type: {rec_type!r}")
 
+    detail_mode = data.get("completion_detail") or COMPLETION_DETAIL_NONE
+    if detail_mode not in COMPLETION_DETAIL_MODES:
+        raise TaskValidationError(f"invalid completion_detail: {detail_mode!r}")
+
     fields: dict[str, Any] = {
         "name": name,
         "notes": str(data.get("notes", "")),
@@ -86,6 +149,12 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         "device_id": data.get("device_id") or None,
         "area_id": data.get("area_id") or None,
         "enabled": bool(data.get("enabled", True)),
+        # Per-task completion-capture mode + the fields it makes mandatory. Stored on
+        # every task kind (the dialog applies regardless of recurrence). See const.py.
+        "completion_detail": detail_mode,
+        "completion_required_fields": normalize_completion_required_fields(
+            data.get("completion_required_fields"), detail_mode
+        ),
     }
 
     # A triggered (condition-driven) task has no schedule at all: no interval, unit,
@@ -268,6 +337,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "unit": updates.get("unit", existing.get("unit")),
         "freq": updates.get("freq", existing.get("freq")),
         "anchor": updates.get("anchor", existing.get("anchor")),
+        "completion_detail": updates.get(
+            "completion_detail", existing.get("completion_detail")
+        ),
+        "completion_required_fields": updates.get(
+            "completion_required_fields", existing.get("completion_required_fields")
+        ),
     }
     fields = normalize_fields(candidate, tz=now.tzinfo)
     merged.update(fields)
