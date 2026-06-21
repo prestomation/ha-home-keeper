@@ -25,6 +25,11 @@ const config: Config = {
   trailingSlash: false,
 
   onBrokenLinks: 'throw',
+  // Anchors are tracked separately from page links and default to 'warn', so a link
+  // to a heading that doesn't exist on the target page (e.g. a README same-page
+  // anchor whose section moved to its own guide page without being registered in
+  // sync-docs.mjs) would slip through. Fail the build on those too.
+  onBrokenAnchors: 'throw',
 
   markdown: {
     // Treat .md as CommonMark (and .mdx as MDX). The generated pages carry

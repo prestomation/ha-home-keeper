@@ -36,6 +36,9 @@ const ANCHOR_ROUTES = {
   '#one-off-do-once-tasks': '/docs/guide/one-off-tasks',
   '#sensor-based-tasks-usage-meters--thresholds': '/docs/guide/sensor-tasks',
   '#appliances--virtual-devices': '/docs/guide/appliances',
+  // The "Companions" subsection lives under the Settings section (→ settings page).
+  '#companions--discover-integrations-that-work-with-home-keeper':
+    '/docs/guide/settings#companions--discover-integrations-that-work-with-home-keeper',
 };
 
 // Rewrite every Markdown link/image target. `sourceDir` is the canonical file's
