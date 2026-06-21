@@ -6,20 +6,127 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-21
+
+This release adds three new ways to drive tasks — condition-driven `triggered`
+tasks, one-off do-once tasks, and synced `problem` binary sensors — a Lovelace
+dashboard card, rich per-completion history, a comprehensive event/automation
+surface, in-panel Settings, and more flexible appliances, and moves the
+integration onto the Platinum quality scale. Highlights, for anyone upgrading
+from 0.2.0:
+
 ### Added
 
-- **One-off (do-once) tasks.** A new recurrence type for tasks that happen once
-  rather than on a schedule — renew a passport, register a car, replace a single
-  item. Pick **One-off** on the task form and choose a **due date** (defaults to
-  today); it shows on the to-do list, calendar and overdue sensors like any task
-  until you complete it, then goes dormant and moves to a collapsed **Completed**
-  section in the panel (its completion history is kept). Undoing the completion
-  brings it back to its due date. Available to automations via
-  `home_keeper.add_task` / `update_task` (`recurrence_type: one-off` with a `due`).
-- **Auto-cleanup for completed one-offs.** A new **One-off retention (days)** option
-  (Settings tab, options flow, and the `home_keeper.set_options` service) deletes a
-  completed one-off this many days after it's done. The default, `0`, keeps completed
-  one-offs forever.
+- **Condition-driven (`triggered`) tasks.** A recurrence type for maintenance that
+  responds to a *condition* rather than a schedule — a battery going low, a leak, a
+  filter past its threshold. A triggered task has no schedule: an owning integration
+  arms it (the new `home_keeper.trigger_task` service, or by creating it) when the
+  condition becomes true and clears it (`complete_task`) when it resolves, which
+  records the event in history and returns the task to a dormant state. Dormant
+  triggered tasks are invisible to the to-do list, calendar, and overdue sensors, and
+  the panel tucks them into a collapsed **"Monitored"** section; armed ones read as
+  due-now everywhere. This is the engine behind the Battery Notes glue integration.
+- **One-off (do-once) tasks.** A recurrence type for tasks that happen once rather
+  than on a schedule — renew a passport, register a car, replace a single item. Pick
+  **One-off** on the task form and choose a **due date** (defaults to today); it shows
+  on the to-do list, calendar and overdue sensors like any task until you complete it,
+  then goes dormant and moves to a collapsed **Completed** section in the panel (its
+  completion history is kept). Undoing the completion brings it back to its due date.
+  Available to automations via `home_keeper.add_task` / `update_task`
+  (`recurrence_type: one-off` with a `due`). A new **One-off retention (days)** option
+  (Settings tab, options flow, and `home_keeper.set_options`) can auto-delete a
+  completed one-off this many days after it's done; the default `0` keeps them forever.
+- **Sync `problem` binary sensors as tasks (opt-in).** A new option automatically
+  mirrors every `binary_sensor` with the `problem` device class as a Home Keeper task.
+  The task is **armed** (shows as due-now on the to-do list, calendar and device page)
+  while the sensor reports a problem and **clears itself automatically** once the
+  originating integration resolves it. These synced tasks can't be completed inside
+  Home Keeper — the underlying problem has to be fixed in real life — so the *Done*
+  action is shown disabled on every surface and tapping it explains why. Each task
+  inherits the sensor's **device and area**; narrow the scope with **entity / area /
+  label exclusions**. Off by default.
+- **Dashboard task card.** A resizable Lovelace card (`custom:home-keeper-card`) shows
+  your tasks as a list with a one-tap **Done** button on each row, and opens an inline
+  editor for adding, editing, and deleting tasks without leaving the dashboard. It is
+  auto-registered as a resource (no manual setup) and appears in the "Add card" picker.
+  A GUI config editor exposes filtering (by status, area, device, recurrence type,
+  due-within horizon, and **labels**), sorting, status/area/device grouping, a
+  max-items cap, and display toggles. Built entirely from Home Assistant's own
+  components and theme variables, and it stays in sync with completions made from any
+  other surface.
+- **Task labels & per-subject cards.** Tasks now carry a `labels` field — editable in
+  the panel/card task form and via `home_keeper.add_task` / `update_task`, and echoed
+  on every task event. Point a card at one or more labels (e.g. `dog`, `car`, a kid's
+  name) to get a focused list: a card per subject. The filter matches a task by its own
+  labels **or** by the labels on its attached device or area.
+- **Per-completion metadata (note, cost, photo, who).** A completion can now carry
+  optional context: a free-form note, a cost, a photo (uploaded to Home Assistant's
+  image store), and who did it (a `person` entity). Capture is a **per-task setting** —
+  `none` (the default one-tap *Done*), `optional` (a details dialog, plus a *Skip*
+  shortcut), or `required` (the dialog with mandatory field(s)). The panel shows each
+  completion's note/cost/photo/who in the task history and lets you **edit** a past
+  entry without changing the schedule. New `home_keeper.complete_task` fields and a new
+  `home_keeper.update_completion` service expose this to automations; the latest
+  completion's metadata is mirrored on the task's *next due* sensor attributes, and a
+  `home_keeper_task_completion_updated` event fires when a past completion is edited.
+- **Comprehensive lifecycle events + automation-editor device triggers.** Home Keeper
+  now fires a Home Assistant bus event for every meaningful change, so you can automate
+  on the full lifecycle instead of just completions and low-stock. New events: tasks
+  **created / updated / deleted / uncompleted / triggered** and the time-based
+  **overdue** and **due-soon** transitions; spare parts **out of stock** and
+  **restocked** (alongside the existing low-stock); and appliances **created / updated
+  / deleted**. The time and stock transitions are *edge-triggered* (one event per
+  crossing) and silently baselined on restart, so a reboot never replays an "overdue"
+  storm. Each event also shows up as a **device trigger** in the visual automation
+  editor. See [docs/EVENTS.md](docs/EVENTS.md) for the full catalog and example
+  automations.
+- **A Settings tab in the panel.** Home Keeper's integration options are now editable
+  right in the sidebar panel — a **Settings** tab alongside Tasks and Appliances — so
+  you don't have to dig through *Settings → Devices & services → Configure*. It mirrors
+  the options flow and **saves as you change it**. The options flow still works, and a
+  new **`home_keeper.set_options`** service exposes the same settings to automations.
+- **Flexible appliance metadata — custom fields.** An appliance's descriptive details
+  are now a free-form list of **custom fields** instead of a fixed set of inputs. Each
+  field has a label and a type — **text**, **link**, or **date** — and you add as many
+  as you like, with one-click seeds for the common ones (serial number, warranty
+  expiry, purchase/install dates, provider, vendor, notes). A date field is
+  display-only unless you tick **Track as a sensor**, which surfaces it as a `date`
+  sensor on the device for automations (e.g. *"warranty expiring in 30 days → notify"*).
+  Manufacturer, model, manual link, cost, icon and area remain dedicated fields, and the
+  insurance inventory export lists each appliance's custom fields in a new **Details**
+  column. *Note: this changes how appliance metadata is stored — an existing
+  appliance's old descriptive fields are not migrated; re-enter them as custom fields.*
+- **Backdating when creating tasks and parts.** The New Task form has an optional
+  **Last completed** field that seeds an initial completion so a floating task's
+  next-due is measured from when the activity actually last happened; integrations can
+  pass the same via `home_keeper.add_task`'s `last_completed`. The parts editor gains a
+  matching **Last replaced** date for wear items so the maintenance task it creates
+  starts its clock from the real replacement date. The appliance parts list was also
+  redesigned into per-part cards (type icon/badge, cadence, last-replaced, spare-stock).
+- **Platinum integration quality scale.** Home Keeper now declares the
+  [Platinum quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/),
+  with a per-rule ledger in `custom_components/home_keeper/quality_scale.yaml`. The
+  codebase is fully type-checked (`mypy`, with `py.typed`) in CI.
+
+### Changed
+
+- **A wear-item replacement task with no recorded last-replaced date is now due now,
+  not "assumed fresh".** When Home Keeper derives a replacement task from an appliance
+  wear item that has no "Last replaced" date, it now reads as **due immediately**
+  (matching brand-new floating tasks) instead of scheduling the first reminder a full
+  interval out. Backdate the part's last-replaced date (or mark the task done) to start
+  its clock from a known point. Wear items with a recorded replacement date are
+  unaffected.
+- **A spare part dropping straight to zero now fires `home_keeper_part_out_of_stock`,
+  not `home_keeper_part_low_stock`.** Out-of-stock is the more specific event and takes
+  precedence. If an automation listened for `home_keeper_part_low_stock` to catch a
+  part reaching zero, switch it to (or also listen for) `home_keeper_part_out_of_stock`.
+  A part crossing into low *without* hitting zero still fires `home_keeper_part_low_stock`.
+- **User-facing error messages are now localizable.** Errors raised by Home Keeper
+  services and entities use Home Assistant translation keys (`strings.json` →
+  `exceptions`) so they can be translated (English-first for now).
+- **Home Keeper now registers as a service-type integration** (`integration_type`), so
+  Home Assistant groups it accordingly in the UI.
 
 ## [0.3.0b12] - 2026-06-21
 
