@@ -6,6 +6,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.3.0b12] - 2026-06-21
+
 ### Added
 
 - **Per-completion metadata (note, cost, photo, who).** A completion can now carry
