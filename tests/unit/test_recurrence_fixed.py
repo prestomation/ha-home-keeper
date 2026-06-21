@@ -100,6 +100,61 @@ def test_expand_daily_with_far_past_anchor_returns_window():
     ]
 
 
+def _naive_next_monthly(anchor, interval, after):
+    """Reference: smallest occurrence strictly after *after* by single-stepping."""
+    if anchor > after:
+        return anchor
+    occ = anchor
+    while occ <= after:
+        occ = r.add_months(occ, interval)
+    return occ
+
+
+def test_next_monthly_occurrence_with_far_past_anchor_does_not_raise():
+    # Regression: a fixed MONTHLY task anchored more than MAX_EXPAND_ITERATIONS
+    # months (~41.6 years) in the past used to blow the iteration cap and raise a
+    # RuntimeError, taking the next-due sensor / calendar / overdue sensor down (the
+    # MONTHLY branch of _fast_forward did not jump). It must compute the correct
+    # next occurrence instead.
+    anchor = dt(1976, 6, 21, 9)  # 50 years before `after`
+    after = dt(2026, 6, 21)
+    nxt = r.next_fixed_occurrence(anchor, "MONTHLY", 1, after=after)
+    assert nxt == dt(2026, 6, 21, 9)
+    assert nxt == _naive_next_monthly(anchor, 1, after)
+
+
+def test_next_monthly_far_past_matches_naive_across_day_clamping():
+    # The O(1) MONTHLY fast-forward must stay byte-identical to single-stepping,
+    # including end-of-month clamping (Jan 31 -> Feb 28 -> ... sticks at 28) and
+    # leap years. Spot-check several clamping-prone anchors/intervals far in the past.
+    after = dt(2026, 6, 13, 9)
+    cases = [
+        (dt(1980, 1, 31, 9), 1),
+        (dt(1980, 3, 31, 9), 1),
+        (dt(1981, 1, 29, 9), 1),
+        (dt(1975, 8, 30, 9), 2),
+        (dt(1970, 12, 31, 9), 3),
+        (dt(1984, 2, 29, 9), 12),
+    ]
+    for anchor, interval in cases:
+        assert r.next_fixed_occurrence(
+            anchor, "MONTHLY", interval, after=after
+        ) == _naive_next_monthly(anchor, interval, after), (anchor, interval)
+
+
+def test_expand_monthly_with_far_past_anchor_returns_window():
+    anchor = dt(1980, 1, 31, 9)  # far past + end-of-month clamping
+    occ = r.expand_fixed_occurrences(
+        anchor, "MONTHLY", 1, dt(2026, 6, 1), dt(2026, 9, 1)
+    )
+    # Day clamps to 28 permanently once a non-leap February is crossed.
+    assert [o.date().isoformat() for o in occ] == [
+        "2026-06-28",
+        "2026-07-28",
+        "2026-08-28",
+    ]
+
+
 def test_remove_completion_keeps_fixed_schedule():
     from datetime import datetime, timedelta, timezone
 

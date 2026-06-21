@@ -546,6 +546,40 @@ def test_merge_update_keeps_armed_triggered_armed():
     assert merged["next_due"] == armed
 
 
+def test_merge_update_converts_triggered_to_floating():
+    # Regression: a triggered task has no interval, so merge_update's candidate
+    # carries interval=None. normalize_fields' `data.get("interval", 1)` returned
+    # that None (key present) instead of defaulting to 1, raising "interval must be
+    # a valid integer". Converting to floating with just unit must now succeed,
+    # defaulting interval to 1 like a fresh creation.
+    task = m.build_task(
+        {"name": "Replace battery", "recurrence_type": "triggered"}, now=NOW
+    )
+    merged = m.merge_update(
+        task, {"recurrence_type": "floating", "unit": "days"}, now=NOW
+    )
+    assert merged["recurrence_type"] == "floating"
+    assert merged["interval"] == 1
+    assert merged["unit"] == "days"
+    # A floating task with no completion is due now.
+    assert merged["next_due"] == NOW.isoformat()
+
+
+def test_merge_update_converts_triggered_to_floating_with_explicit_interval():
+    # When the conversion does supply an interval, it is honored (not overwritten).
+    task = m.build_task(
+        {"name": "Replace battery", "recurrence_type": "triggered"}, now=NOW
+    )
+    merged = m.merge_update(
+        task,
+        {"recurrence_type": "floating", "unit": "months", "interval": 6},
+        now=NOW,
+    )
+    assert merged["recurrence_type"] == "floating"
+    assert merged["interval"] == 6
+    assert merged["unit"] == "months"
+
+
 def test_build_task_normalizes_labels():
     # Labels are de-duplicated and blank-stripped, order preserved.
     task = m.build_task(

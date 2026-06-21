@@ -164,8 +164,16 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     if rec_type == REC_TRIGGERED:
         return fields
 
+    # Default to 1 when interval is absent *or* explicitly unset. ``merge_update``
+    # always carries an ``interval`` key forward, so for a task that never had one
+    # (e.g. converting a triggered task to floating/fixed) the value is ``None``;
+    # ``dict.get("interval", 1)`` would return that ``None`` rather than the default,
+    # so coalesce here to keep the conversion working like a fresh creation.
+    raw_interval = data.get("interval", 1)
+    if raw_interval in (None, ""):
+        raw_interval = 1
     try:
-        interval = int(data.get("interval", 1))
+        interval = int(raw_interval)
     except (TypeError, ValueError) as err:
         raise TaskValidationError("interval must be a valid integer") from err
     if interval < 1:
