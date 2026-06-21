@@ -580,6 +580,88 @@ def test_merge_update_converts_triggered_to_floating_with_explicit_interval():
     assert merged["unit"] == "months"
 
 
+def test_build_one_off_task_uses_due_date_and_no_schedule_fields():
+    due = datetime(2026, 7, 1, 8, tzinfo=TZ)
+    task = m.build_task(
+        {
+            "name": "Renew passport",
+            "recurrence_type": "one-off",
+            "due": due.isoformat(),
+        },
+        now=NOW,
+    )
+    assert task["recurrence_type"] == "one-off"
+    assert task["due"] == due.isoformat()
+    assert task["next_due"] == due.isoformat()
+    assert task["last_completed"] is None
+    for key in ("interval", "unit", "freq", "anchor"):
+        assert key not in task
+
+
+def test_build_one_off_task_defaults_due_to_now():
+    # A one-off created without an explicit due date is due today (now).
+    task = m.build_task({"name": "Call plumber", "recurrence_type": "one-off"}, now=NOW)
+    assert task["due"] == NOW.isoformat()
+    assert task["next_due"] == NOW.isoformat()
+
+
+def test_build_one_off_task_qualifies_naive_due():
+    # A naive due (from the panel's datetime-local picker) is qualified with caller tz.
+    task = m.build_task(
+        {"name": "Pay tax", "recurrence_type": "one-off", "due": "2026-07-01T08:00:00"},
+        now=NOW,
+    )
+    assert task["due"] == datetime(2026, 7, 1, 8, tzinfo=TZ).isoformat()
+
+
+def test_build_one_off_task_rejects_invalid_due():
+    with pytest.raises(m.TaskValidationError):
+        m.build_task(
+            {"name": "Bad", "recurrence_type": "one-off", "due": "not-a-date"},
+            now=NOW,
+        )
+
+
+def test_merge_update_one_off_change_due_rearms():
+    task = m.build_task(
+        {"name": "Renew passport", "recurrence_type": "one-off"}, now=NOW
+    )
+    new_due = datetime(2026, 9, 1, 8, tzinfo=TZ)
+    merged = m.merge_update(task, {"due": new_due.isoformat()}, now=NOW)
+    assert merged["due"] == new_due.isoformat()
+    assert merged["next_due"] == new_due.isoformat()
+
+
+def test_merge_update_convert_to_one_off_without_due_defaults_to_now():
+    # A service caller converting a floating task to one-off may not send a due;
+    # it defaults to now (due today) instead of failing validation.
+    task = m.build_task(
+        {
+            "name": "Filter",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "months",
+        },
+        now=NOW,
+    )
+    merged = m.merge_update(task, {"recurrence_type": "one-off"}, now=NOW)
+    assert merged["recurrence_type"] == "one-off"
+    assert merged["due"] == NOW.isoformat()
+    assert merged["next_due"] == NOW.isoformat()
+
+
+def test_merge_update_one_off_edit_notes_keeps_completed_dormant():
+    # Editing a completed (dormant) one-off's notes must not re-arm it.
+    task = m.build_task(
+        {"name": "Renew passport", "recurrence_type": "one-off"}, now=NOW
+    )
+    task["next_due"] = None  # completed -> dormant
+    task["last_completed"] = NOW.isoformat()
+    merged = m.merge_update(task, {"notes": "done at the post office"}, now=NOW)
+    assert merged["next_due"] is None
+    assert merged["notes"] == "done at the post office"
+
+
 def test_build_task_normalizes_labels():
     # Labels are de-duplicated and blank-stripped, order preserved.
     task = m.build_task(

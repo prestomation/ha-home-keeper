@@ -6,6 +6,21 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Added
+
+- **One-off (do-once) tasks.** A new recurrence type for tasks that happen once
+  rather than on a schedule — renew a passport, register a car, replace a single
+  item. Pick **One-off** on the task form and choose a **due date** (defaults to
+  today); it shows on the to-do list, calendar and overdue sensors like any task
+  until you complete it, then goes dormant and moves to a collapsed **Completed**
+  section in the panel (its completion history is kept). Undoing the completion
+  brings it back to its due date. Available to automations via
+  `home_keeper.add_task` / `update_task` (`recurrence_type: one-off` with a `due`).
+- **Auto-cleanup for completed one-offs.** A new **One-off retention (days)** option
+  (Settings tab, options flow, and the `home_keeper.set_options` service) deletes a
+  completed one-off this many days after it's done. The default, `0`, keeps completed
+  one-offs forever.
+
 ## [0.3.0b12] - 2026-06-21
 
 ### Added

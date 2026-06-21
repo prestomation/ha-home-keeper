@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Probleemsensoren als taken synchroniseren",
           "problem_sensor_exclude_entities": "Uitgesloten sensoren",
           "problem_sensor_exclude_areas": "Uitgesloten gebieden",
-          "problem_sensor_exclude_labels": "Uitgesloten labels"
+          "problem_sensor_exclude_labels": "Uitgesloten labels",
+          "one_off_retention_days": "Bewaartermijn eenmalige taken (dagen)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden voltooide one-offs voor altijd bewaard."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Herhalingstype",
-          "description": "floating (gemeten vanaf voltooiing) of fixed (verankerd schema)."
+          "description": "floating (gemeten vanaf voltooiing), fixed (verankerd schema) of one-off (eenmalig, gebruikt een vervaldatum)."
         },
         "interval": {
           "name": "Interval",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Anker",
           "description": "Voor fixed-taken: ISO-datum/tijd van de eerste keer (stelt het tijdstip van de dag in)."
+        },
+        "due": {
+          "name": "Vervaldatum",
+          "description": "Voor one-off-taken: ISO-datum/tijd waarop de taak vervalt. Optioneel; standaard nu (vervalt vandaag)."
         },
         "last_completed": {
           "name": "Laatst voltooid",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Herhalingstype",
-          "description": "floating of fixed."
+          "description": "floating, fixed of one-off (eenmalig)."
         },
         "interval": {
           "name": "Interval",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Anker",
           "description": "ISO-datum/tijd van de eerste keer (fixed)."
+        },
+        "due": {
+          "name": "Vervaldatum",
+          "description": "ISO-datum/tijd waarop de taak vervalt (one-off)."
         },
         "device_id": {
           "name": "Apparaat",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Uitgesloten labels"
+        },
+        "one_off_retention_days": {
+          "name": "Bewaartermijn eenmalige taken (dagen)",
+          "description": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden ze voor altijd bewaard."
         }
       }
     }

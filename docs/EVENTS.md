@@ -91,8 +91,8 @@ Every task event carries this core (per-event extras noted above are merged in):
 | `name` | `str` | |
 | `device_id` | `str \| None` | the task’s registry device id, or `None` when it’s a standalone task (its entities then live on a self-owned device) |
 | `area_id` | `str \| None` | |
-| `recurrence_type` | `str` | `floating` / `fixed` / `triggered` |
-| `next_due` | `str \| None` | ISO; `None` for a dormant triggered task |
+| `recurrence_type` | `str` | `floating` / `fixed` / `one-off` / `triggered` |
+| `next_due` | `str \| None` | ISO; `None` for a dormant triggered task or a completed one-off |
 | `enabled` | `bool` | |
 | `labels` | `list[str]` | HA label-registry ids attached to the task (empty list when none); used by the dashboard card's label filter |
 | `source` | `dict \| None` | opaque provenance, echoed verbatim ([INTEGRATING.md](INTEGRATING.md)) |

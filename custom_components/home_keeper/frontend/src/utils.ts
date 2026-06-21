@@ -21,6 +21,8 @@ export function recurrenceSummary(task: Task): string {
   // A triggered task has no schedule — it is "monitored" and only due when its
   // owning integration arms it (e.g. Battery Notes when a battery goes low).
   if (task.recurrence_type === 'triggered') return t('recurrence.triggered');
+  // A one-off (do-once) task has no cadence — just a single due date.
+  if (task.recurrence_type === 'one-off') return t('recurrence.oneOff');
   const n = task.interval || 1;
   if (task.recurrence_type === 'floating') {
     const base = (task.unit || 'days').replace(/s$/, ''); // day / week / month
@@ -48,6 +50,10 @@ export function dueLabel(task: Task, now: Date = new Date()): string {
   // A dormant triggered task is armed-but-not-due: show "Monitored", not "no date".
   if (task.recurrence_type === 'triggered' && !task.next_due) {
     return t('due.monitored');
+  }
+  // A completed one-off (do-once, now dormant) reads as "Completed".
+  if (task.recurrence_type === 'one-off' && !task.next_due && task.last_completed) {
+    return t('due.completed');
   }
   if (!task.next_due) return t('due.none');
   const due = new Date(task.next_due);

@@ -19,7 +19,11 @@
           "sync_problem_sensors": "将问题传感器同步为任务",
           "problem_sensor_exclude_entities": "排除的传感器",
           "problem_sensor_exclude_areas": "排除的区域",
-          "problem_sensor_exclude_labels": "排除的标签"
+          "problem_sensor_exclude_labels": "排除的标签",
+          "one_off_retention_days": "一次性任务保留天数"
+        },
+        "data_description": {
+          "one_off_retention_days": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留已完成的一次性任务。"
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "重复类型",
-          "description": "floating（从完成时算起）或 fixed（锚定日程）。"
+          "description": "floating（从完成时算起）、fixed（锚定日程）或 one-off（仅执行一次，使用到期日期）。"
         },
         "interval": {
           "name": "间隔",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "锚点",
           "description": "对于固定任务：首次发生的 ISO 日期时间（设置每日时间）。"
+        },
+        "due": {
+          "name": "到期日期",
+          "description": "对于一次性任务：任务到期的 ISO 日期时间。可选；默认为现在（今天到期）。"
         },
         "last_completed": {
           "name": "上次完成",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "重复类型",
-          "description": "floating 或 fixed。"
+          "description": "floating、fixed 或 one-off（仅执行一次）。"
         },
         "interval": {
           "name": "间隔",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "锚点",
           "description": "首次发生的 ISO 日期时间（fixed）。"
+        },
+        "due": {
+          "name": "到期日期",
+          "description": "任务到期的 ISO 日期时间（one-off）。"
         },
         "device_id": {
           "name": "设备",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "排除的标签"
+        },
+        "one_off_retention_days": {
+          "name": "一次性任务保留天数",
+          "description": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留。"
         }
       }
     }

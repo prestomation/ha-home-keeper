@@ -22,6 +22,7 @@ from .const import (
     FREQS,
     MAX_INTERVAL,
     REC_FLOATING,
+    REC_ONE_OFF,
     REC_TRIGGERED,
     RECURRENCE_TYPES,
     UNITS,
@@ -164,6 +165,26 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     if rec_type == REC_TRIGGERED:
         return fields
 
+    # A do-once task has no cadence (no interval/unit/freq) — only a single ``due``
+    # datetime. Its state is carried by next_due (the due date, or None once
+    # completed). Qualify a naive value with the caller tz exactly like a fixed
+    # anchor (the panel's <input type="datetime-local"> yields a naive value), then
+    # return early so we don't validate or store schedule fields it lacks.
+    if rec_type == REC_ONE_OFF:
+        due = _require(data, "due")
+        try:
+            parsed_due = datetime.fromisoformat(due)
+        except (TypeError, ValueError) as err:
+            raise TaskValidationError(f"invalid due datetime: {due!r}") from err
+        if parsed_due.tzinfo is None:
+            parsed_due = (
+                parsed_due.replace(tzinfo=tz)
+                if tz is not None
+                else parsed_due.astimezone()
+            )
+        fields["due"] = parsed_due.isoformat()
+        return fields
+
     # Default to 1 when interval is absent *or* explicitly unset. ``merge_update``
     # always carries an ``interval`` key forward, so for a task that never had one
     # (e.g. converting a triggered task to floating/fixed) the value is ``None``;
@@ -281,7 +302,12 @@ def build_task(data: dict, *, now: datetime) -> dict:
     starts measured from a known "last done" date rather than due-now. Used by
     integrations that already know when the activity last happened (e.g. Pawsistant
     passing a pet's most recent logged event). Without it, a floating task is due now.
+
+    A one-off task without an explicit ``due`` defaults to *now* (due today), so the
+    service / a caller can create a do-once task with just a name.
     """
+    if data.get("recurrence_type") == REC_ONE_OFF and not data.get("due"):
+        data = {**data, "due": now.isoformat()}
     fields = normalize_fields(data, tz=now.tzinfo)
     validate_managed_by(data.get("managed_by"))
     task: dict[str, Any] = {
@@ -345,6 +371,7 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "unit": updates.get("unit", existing.get("unit")),
         "freq": updates.get("freq", existing.get("freq")),
         "anchor": updates.get("anchor", existing.get("anchor")),
+        "due": updates.get("due", existing.get("due")),
         "completion_detail": updates.get(
             "completion_detail", existing.get("completion_detail")
         ),
@@ -352,6 +379,11 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
             "completion_required_fields", existing.get("completion_required_fields")
         ),
     }
+    # Converting a task to one-off without supplying a due date defaults to now (due
+    # today), mirroring build_task — so the conversion can't fail for a missing due
+    # (the panel always sends one, but a service caller may not).
+    if candidate["recurrence_type"] == REC_ONE_OFF and not candidate.get("due"):
+        candidate["due"] = now.isoformat()
     fields = normalize_fields(candidate, tz=now.tzinfo)
     merged.update(fields)
 
@@ -365,7 +397,7 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # A triggered task has no schedule: its next_due is owned by trigger_task /
     # complete_task (armed timestamp vs dormant None), so editing name/notes/device
     # must never recompute it (that would re-arm a dormant "monitored" task).
-    recurrence_keys = {"recurrence_type", "interval", "unit", "freq", "anchor"}
+    recurrence_keys = {"recurrence_type", "interval", "unit", "freq", "anchor", "due"}
     if merged.get("recurrence_type") != REC_TRIGGERED and (
         recurrence_keys & set(updates)
     ):

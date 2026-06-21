@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Sync problem sensors as tasks",
           "problem_sensor_exclude_entities": "Excluded sensors",
           "problem_sensor_exclude_areas": "Excluded areas",
-          "problem_sensor_exclude_labels": "Excluded labels"
+          "problem_sensor_exclude_labels": "Excluded labels",
+          "one_off_retention_days": "One-off retention (days)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Auto-delete a completed one-off task this many days after it is completed. 0 keeps completed one-offs forever."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Recurrence type",
-          "description": "floating (measured from completion) or fixed (anchored schedule)."
+          "description": "floating (measured from completion), fixed (anchored schedule), or one-off (do-once, uses a due date)."
         },
         "interval": {
           "name": "Interval",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Anchor",
           "description": "For fixed tasks: ISO datetime of the first occurrence (sets the time of day)."
+        },
+        "due": {
+          "name": "Due date",
+          "description": "For one-off tasks: ISO datetime the task is due. Optional; defaults to now (due today)."
         },
         "last_completed": {
           "name": "Last completed",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Recurrence type",
-          "description": "floating or fixed."
+          "description": "floating, fixed, or one-off (do-once)."
         },
         "interval": {
           "name": "Interval",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Anchor",
           "description": "ISO datetime of the first occurrence (fixed)."
+        },
+        "due": {
+          "name": "Due date",
+          "description": "ISO datetime the task is due (one-off)."
         },
         "device_id": {
           "name": "Device",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Excluded labels"
+        },
+        "one_off_retention_days": {
+          "name": "One-off retention (days)",
+          "description": "Auto-delete a completed one-off task this many days after completion. 0 keeps them forever."
         }
       }
     }

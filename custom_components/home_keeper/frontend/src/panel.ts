@@ -435,7 +435,7 @@ export class HomeKeeperPanel extends HTMLElement {
   // Group sections the user collapsed this session (open is the default). The
   // "monitored" status bucket — dormant condition-driven tasks like healthy
   // batteries — starts collapsed so it stays out of the way but one click to browse.
-  private _collapsed = new Set<string>(['status:monitored']);
+  private _collapsed = new Set<string>(['status:monitored', 'status:completed']);
   // The object whose full detail page is open, or null for the list view.
   private _detail: { kind: 'task' | 'asset'; id: string } | null = null;
   // The panel's URL prefix (e.g. `/home-keeper`), supplied by HA via `route`.
@@ -1000,11 +1000,15 @@ export class HomeKeeperPanel extends HTMLElement {
   private _statusBucket(
     task: Task,
     now = Date.now(),
-  ): 'overdue' | 'soon' | 'later' | 'monitored' | 'none' {
+  ): 'overdue' | 'soon' | 'later' | 'monitored' | 'completed' | 'none' {
     // A dormant triggered task is "monitored" — armed-but-not-due — and lands in its
     // own (default-collapsed) section rather than the generic no-schedule bucket. An
     // armed one (next_due set) flows through the normal overdue/soon/later logic.
     if (task.recurrence_type === 'triggered' && !task.next_due) return 'monitored';
+    // A completed one-off (do-once, now dormant) goes to its own collapsed section so
+    // it leaves the active list without cluttering the generic no-schedule bucket.
+    if (task.recurrence_type === 'one-off' && !task.next_due && task.last_completed)
+      return 'completed';
     if (!task.next_due) return 'none';
     const due = new Date(task.next_due).getTime();
     if (due <= now) return 'overdue';
@@ -1023,7 +1027,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const group = this._effectiveGroup();
     if (group === 'status') {
       const order: {
-        bucket: 'overdue' | 'soon' | 'later' | 'monitored' | 'none';
+        bucket: 'overdue' | 'soon' | 'later' | 'monitored' | 'completed' | 'none';
         label: string;
       }[] = [
         { bucket: 'overdue', label: t('chip.overdue') },
@@ -1031,6 +1035,7 @@ export class HomeKeeperPanel extends HTMLElement {
         { bucket: 'later', label: t('section.later') },
         { bucket: 'monitored', label: t('section.monitored') },
         { bucket: 'none', label: t('section.noSchedule') },
+        { bucket: 'completed', label: t('section.completed') },
       ];
       return order
         .map(({ bucket, label }) => ({
@@ -1210,16 +1215,23 @@ export class HomeKeeperPanel extends HTMLElement {
       : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
     const dev = task.device_id ? this._deviceChip(task.device_id) : '';
     const managedChip = this._managedChip(task);
+    // A completed one-off (do-once, now dormant) shows when it was done instead of a
+    // due date.
+    const completedOneOff =
+      task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
     const dueText = task.next_due
       ? ` · ${escapeHTML(t('form.task.due', { date: new Date(task.next_due).toLocaleDateString() }))}`
-      : '';
+      : completedOneOff
+        ? ` · ${escapeHTML(t('form.task.completedOn', { date: new Date(task.last_completed as string).toLocaleDateString() }))}`
+        : '';
     const n = task.completions?.length ?? 0;
     // A dormant triggered task (monitored, not due) has nothing to mark done — its
     // owning integration arms it when the condition fires; hide the action. A
-    // completion-blocked task (e.g. a synced problem sensor) keeps a *disabled* Done
-    // that explains why on click, rather than silently offering no action.
+    // completed one-off is already done, so it too hides Done. A completion-blocked
+    // task (e.g. a synced problem sensor) keeps a *disabled* Done that explains why
+    // on click, rather than silently offering no action.
     const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
-    const doneAction = dormantTriggered
+    const doneAction = dormantTriggered || completedOneOff
       ? ''
       : task.managed_by?.completion_blocked
         ? this._blockedDone('done-blocked-wrap', task)
@@ -1358,16 +1370,21 @@ export class HomeKeeperPanel extends HTMLElement {
           : '';
 
     const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
+    const completedOneOff =
+      task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
     const due = dormantTriggered
       ? t('due.monitored')
-      : task.next_due
-        ? new Date(task.next_due).toLocaleString()
-        : t('due.none');
+      : completedOneOff
+        ? t('form.task.completedOn', { date: new Date(task.last_completed as string).toLocaleString() })
+        : task.next_due
+          ? new Date(task.next_due).toLocaleString()
+          : t('due.none');
     // Nothing to mark done while dormant — the integration arms it when the
-    // monitored condition fires (e.g. a battery goes low). A completion-blocked task
-    // (a synced problem sensor) keeps a *disabled* Done that, on click, explains its
-    // source clears it (the managed completion prompt also shows below).
-    const doneBtn = dormantTriggered
+    // monitored condition fires (e.g. a battery goes low) — or once a one-off is
+    // already completed. A completion-blocked task (a synced problem sensor) keeps a
+    // *disabled* Done that, on click, explains its source clears it (the managed
+    // completion prompt also shows below).
+    const doneBtn = dormantTriggered || completedOneOff
       ? ''
       : mb?.completion_blocked
         ? this._blockedDone('d-done-blocked-wrap', task, true)
@@ -2000,6 +2017,7 @@ export class HomeKeeperPanel extends HTMLElement {
       problem_sensor_exclude_entities: [],
       problem_sensor_exclude_areas: [],
       problem_sensor_exclude_labels: [],
+      one_off_retention_days: 0,
     };
     const card = document.createElement('ha-card');
     card.className = 'hk-form-card';

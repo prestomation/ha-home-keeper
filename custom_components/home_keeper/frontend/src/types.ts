@@ -1,7 +1,9 @@
 // `triggered` is a condition-driven task with no schedule: its `next_due` is its
 // state (absent/null = dormant, a timestamp = armed/due-now). Owned by another
 // integration; rendered read-only in the panel. See docs/INTEGRATING.md.
-export type RecurrenceType = 'floating' | 'fixed' | 'triggered';
+// `one-off` is a user-scheduled do-once task: it carries a `due` date and goes
+// dormant (next_due null) once completed, landing in the panel's Completed section.
+export type RecurrenceType = 'floating' | 'fixed' | 'triggered' | 'one-off';
 export type Unit = 'days' | 'weeks' | 'months';
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
@@ -47,6 +49,8 @@ export interface Task {
   unit?: Unit;
   freq?: Freq;
   anchor?: string;
+  // The chosen due date for a one-off task (absent on other kinds).
+  due?: string;
   device_id?: string | null;
   area_id?: string | null;
   enabled?: boolean;
@@ -235,4 +239,6 @@ export interface HomeKeeperOptions {
   problem_sensor_exclude_entities: string[];
   problem_sensor_exclude_areas: string[];
   problem_sensor_exclude_labels: string[];
+  // Auto-delete a completed one-off this many days after completion; 0 = keep forever.
+  one_off_retention_days: number;
 }

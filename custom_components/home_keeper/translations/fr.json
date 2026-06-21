@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Synchroniser les capteurs de problème en tâches",
           "problem_sensor_exclude_entities": "Capteurs exclus",
           "problem_sensor_exclude_areas": "Zones exclues",
-          "problem_sensor_exclude_labels": "Étiquettes exclues"
+          "problem_sensor_exclude_labels": "Étiquettes exclues",
+          "one_off_retention_days": "Conservation des tâches ponctuelles (jours)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 conserve indéfiniment les tâches ponctuelles terminées."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Type de récurrence",
-          "description": "floating (mesuré à partir de l'achèvement) ou fixed (calendrier ancré)."
+          "description": "floating (mesuré à partir de l'achèvement), fixed (calendrier ancré) ou one-off (à faire une fois, utilise une date d'échéance)."
         },
         "interval": {
           "name": "Intervalle",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Ancre",
           "description": "Pour les tâches fixed : date/heure ISO de la première occurrence (définit l'heure de la journée)."
+        },
+        "due": {
+          "name": "Date d'échéance",
+          "description": "Pour les tâches one-off : date/heure ISO à laquelle la tâche est due. Facultatif ; par défaut maintenant (due aujourd'hui)."
         },
         "last_completed": {
           "name": "Dernière réalisation",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Type de récurrence",
-          "description": "floating ou fixed."
+          "description": "floating, fixed ou one-off (à faire une fois)."
         },
         "interval": {
           "name": "Intervalle",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Ancre",
           "description": "Date/heure ISO de la première occurrence (fixed)."
+        },
+        "due": {
+          "name": "Date d'échéance",
+          "description": "Date/heure ISO à laquelle la tâche est due (one-off)."
         },
         "device_id": {
           "name": "Appareil",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Étiquettes exclues"
+        },
+        "one_off_retention_days": {
+          "name": "Conservation des tâches ponctuelles (jours)",
+          "description": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 les conserve indéfiniment."
         }
       }
     }

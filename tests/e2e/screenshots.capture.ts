@@ -151,6 +151,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/15-panel-monitored-section.png`, fullPage: true });
 
+  // 19. The Completed section — a one-off (do-once) task drops here once it's done,
+  // leaving the active list but keeping its completion history. Collapsed by default
+  // (like Monitored); expand it for the shot.
+  const completed = panel.locator('details.hk-group[data-group-key="status:completed"]');
+  await completed.locator('summary').click();
+  await expect(completed.locator('.hk-card').first()).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/19-panel-completed-section.png`, fullPage: true });
+
   // 2. Create form — floating recurrence + device picker.
   await panel.locator('#add-btn').click();
   await expect(panel.locator('#hk-form')).toBeVisible();
@@ -161,6 +170,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Fixed/);
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/3-panel-create-fixed.png`, fullPage: true });
+
+  // 20. Create form switched to a one-off (do-once) task — no cadence, just a single
+  // Due date picker. Completing it later sends it to the Completed section.
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /One-off/);
+  await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
+  await page.screenshot({ path: `${OUT}/20-panel-create-one-off.png`, fullPage: true });
 
   // 5. Appliances tab — the asset list with the seeded virtual device.
   await panel.locator('#tab-appliances').click();
