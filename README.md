@@ -88,6 +88,17 @@ same fields for automations.
 > The set of *required* fields is stored per task, so a future release can let you
 > require specific fields (e.g. always a cost) without any migration.
 
+> **Where "require details" applies.** The capture dialog — and the *required*
+> gate — live in the **panel**. Completing a task from a surface that has no dialog
+> (the native **to-do** checkbox, the mobile app, the device **mark-done** button, or
+> a bare `home_keeper.complete_task` service call) just records the completion
+> immediately, with whatever metadata was passed (none from a checkbox). This is
+> deliberate: those surfaces can't prompt, and hard-blocking them would make a
+> *required* task impossible to complete from the to-do list or an automation. So
+> *required* is a capture prompt in the panel, not a global constraint — the dashboard
+> card honours it by sending you to the panel instead of quick-completing. Automations
+> that want to record detail can pass `note` / `cost` / `photo` / `who` to the service.
+
 ![The completion-details dialog — note, cost, who and photo captured when a task is marked done](docs/images/11-panel-completion-dialog.png)
 
 Every completion's note and cost (and who/photo) then show in the task's history,

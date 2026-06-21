@@ -88,6 +88,15 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   future per-field "which are required" editor needs only to populate the list — no
   storage migration. Both fields are additive (`.get()` with `none`/`[]` defaults); no
   `STORAGE_VERSION` bump.
+- **Capture mode is a panel-only prompt, not a chokepoint constraint.** `store.complete_task`
+  records whatever metadata it's given and **never rejects** a completion for missing
+  required fields, and the `complete_task` service/websocket fields are all optional. The
+  `optional`/`required` gate lives in the panel completion dialog (the card defers a
+  `required` task to the panel). This is intentional: every non-panel surface (the native
+  `todo` checkbox, the device `button`, automations/voice via the service) funnels through
+  the same chokepoint and can't show a dialog, so enforcing there would make a `required`
+  task uncompletable from those surfaces. Keep enforcement where a dialog can be shown; do
+  not add hard required-field validation to the store/service.
 
 ## Entities & devices
 - Entity `unique_id`s are anchored to the task `id` so they survive renames.
