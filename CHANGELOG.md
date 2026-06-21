@@ -38,17 +38,6 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ### Fixed
 
-- **Fixed monthly schedules anchored far in the past no longer crash.** A `fixed`
-  task with a `MONTHLY` frequency whose anchor was more than ~41 years before now
-  (with a 1-month interval) could blow the recurrence engine's iteration cap and
-  raise, taking down the task's *next due* sensor, *overdue* binary sensor, and the
-  calendar. The monthly fast-forward now jumps to the right occurrence directly,
-  matching the day-by-day clamping behaviour exactly (verified against an
-  exhaustive reference) including end-of-month and leap-year cases.
-- **Converting a monitored (triggered) task to a recurring one no longer errors.**
-  Changing a `triggered` task to `floating`/`fixed` without re-sending an interval
-  raised "interval must be a valid integer"; the interval now defaults to 1 (as on
-  a fresh task) when not supplied.
 - **Settings exclusions now take effect immediately.** Adding a problem-sensor
   entity, area, or label to a *skip* list in the panel's **Settings** tab is now
   reflected right away: the integration reload that re-runs the problem-sensor sync
