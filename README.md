@@ -213,9 +213,9 @@ that ecosystem for you:
 - **Connected** — integrations that work with Home Keeper and have announced themselves
   (e.g. [Pawsistant](https://github.com/prestomation/pawsistant), or the
   [Battery Notes bridge](https://github.com/prestomation/ha-home-keeper-battery-notes)).
-  Each row has a **Configure** button that jumps straight to that integration's own
-  settings — so the pet-care schedules or the battery-task options live where they
-  belong, one click away.
+  Each row has a **Configure** button that takes you to that integration's own page —
+  so the pet-care schedules or the battery-task options live where they belong, one
+  click away.
 - **Suggested** — Home Keeper also recognises a few *popular* integrations that aren't
   Home-Keeper-aware themselves. If you have one installed (e.g. **Battery Notes**) but
   not the small "glue" that bridges it, Home Keeper points you at it with an **Install**

@@ -75,6 +75,16 @@ def test_dismissed_suggestion_is_hidden():
     assert rows == []
 
 
+def test_registered_companion_uninstalled_is_dropped():
+    # A companion that self-registered and was then uninstalled (its domain no longer
+    # has a config entry) must not linger as a stale "connected" row.
+    registered = {
+        "pawsistant": {"domain": "pawsistant", "name": "Pawsistant", "config_entry_id": "e1"}
+    }
+    rows = cat.build_companion_list(registered, installed_domains=set())
+    assert rows == []
+
+
 def test_dismiss_does_not_hide_a_connected_pairing():
     # Dismissal only silences a *suggestion*; a connected glue is always shown.
     rows = cat.build_companion_list(

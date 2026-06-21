@@ -12,9 +12,10 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
 from . import card, companions, devices, inventory, options, panel, websocket_api
@@ -267,7 +268,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Setup is complete: the refreshes above have baselined current overdue/due-soon
     # state silently, so start firing those events only for transitions from here on.
     coordinator.enable_transition_events()
+    # Flip the companion registry live only once HA has fully started, so companions
+    # that self-register during startup (and catalog upstreams already installed) are
+    # baselined silently — an HA restart never replays a companion_connected storm.
+    entry.async_on_unload(async_at_started(hass, _async_companions_go_live))
     return True
+
+
+@callback
+def _async_companions_go_live(hass: HomeAssistant) -> None:
+    """Baseline current companions silently, then start firing discovery events."""
+    registry = companions.async_get_registry(hass)
+    registry.reconcile()  # capture whatever registered during startup (still silent)
+    registry.set_live()
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:

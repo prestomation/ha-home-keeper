@@ -284,10 +284,14 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   ping, so discovery works regardless of startup order.
 - New events (`home_keeper_companion_connected` / `_suggested`) are edge-triggered and
   deduped per domain in the registry; documented in `docs/EVENTS.md`.
-- The "Configure" action **deep-links to the companion's own options page**
-  (`/config/integrations/integration/<domain>`). Home Keeper does **not** reimplement a
-  companion's settings — ownership stays with the companion (descriptor carries
-  `config_entry_id`). Don't add inline companion settings without an explicit decision.
+- The "Configure" action **deep-links by domain to the companion's integration page**
+  (`/config/integrations/integration/<domain>`) — the same helper as the "Edit in X"
+  managed-task link (`panel._navigateToIntegration`). There's no stable public API to
+  pop an options *dialog* directly from a custom panel, so the integration page (where
+  Configure is one click away) is the deep link; the descriptor still carries
+  `config_entry_id` for future use. Home Keeper does **not** reimplement a companion's
+  settings — ownership stays with the companion. Don't add inline companion settings
+  without an explicit decision.
 - The two new services (`register_companion`, `list_companions`) are
   developer/automation-facing; their English names live in `services.yaml` (no
   `strings.json`/16-locale parity entries, unlike user-facing UI strings). The panel

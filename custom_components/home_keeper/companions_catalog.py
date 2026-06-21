@@ -142,9 +142,14 @@ def build_companion_list(
     dismissed = dismissed or set()
     rows: list[dict[str, Any]] = []
 
-    # Self-registered companions are always shown as connected.
+    # Self-registered companions show as connected — but only while their
+    # integration is still installed. A companion that self-registered and was then
+    # uninstalled mid-run lingers in the in-memory registry; dropping it here (its
+    # domain no longer has a config entry) keeps the list honest and avoids a
+    # Configure deep-link to a now-removed integration.
     for domain in sorted(registered):
-        rows.append(_connected_from_registered(domain, registered[domain]))
+        if domain in installed_domains:
+            rows.append(_connected_from_registered(domain, registered[domain]))
 
     # Catalog detection fills in the rest, skipping anything already registered.
     for entry in CATALOG:

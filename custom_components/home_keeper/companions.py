@@ -6,14 +6,22 @@ without HA.
 
 The registry is a small in-memory object on ``hass.data`` (one per HA instance). It
 holds the companions that have *self-registered* (the push path) and remembers which
-companion domains it has already announced an event for, so the
-``home_keeper_companion_connected`` / ``_suggested`` events are edge-triggered and
-deduped. Self-registration survives Home Keeper config-entry reloads (``hass.data``
-isn't cleared on reload); a full HA restart rebuilds it as companions re-announce in
-response to ``EVENT_REGISTER_COMPANIONS``.
+companion domains it has already announced, so the
+``home_keeper_companion_connected`` / ``_suggested`` events are **edge-triggered**.
+
+Event firing follows the same baseline-on-startup contract as the coordinator's
+time-based transitions (see ``coordinator.py`` / ``transitions.py``):
+
+* Reads (``async_list_companions`` → ``build``) are pure and **never** fire events.
+* ``reconcile`` recomputes the connected/suggested sets and fires an event only for a
+  domain that newly entered a state — and only once the registry is **live**.
+* The registry stays *not live* (silently baselining) until ``set_live`` is called
+  from ``async_at_started`` (HA fully started), so an HA restart never replays a
+  ``companion_connected`` storm for companions that were already there.
 
 Detection of the *pull* path (a popular upstream installed, its glue absent) is
-computed on demand by scanning ``hass.config_entries`` — no background poller.
+recomputed cheaply on each coordinator refresh (5-minute cadence) and whenever a
+companion (re-)registers — no dedicated config-entry listener needed.
 """
 
 from __future__ import annotations
@@ -30,6 +38,7 @@ from . import events
 from .companions_catalog import STATUS_CONNECTED, STATUS_SUGGESTED
 from .const import (
     DATA_COMPANIONS,
+    DOMAIN,
     EVENT_COMPANION_CONNECTED,
     EVENT_COMPANION_SUGGESTED,
     EVENT_REGISTER_COMPANIONS,
@@ -38,10 +47,24 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _http_url(value: Any) -> str:
+    """Validate a string is an http(s) URL, else reject.
+
+    The companion descriptor is stored verbatim and a ``docs_url`` flows into the
+    panel's ``window.open``; restricting the scheme here keeps a malicious/compromised
+    companion from smuggling a ``javascript:`` (or other) URL through.
+    """
+    text = cv.string(value)
+    if text.startswith("http://") or text.startswith("https://"):
+        return text
+    raise vol.Invalid("expected an http(s) URL")
+
+
 # A companion's self-registration descriptor. ``domain`` and ``name`` are required;
 # everything else is optional metadata the panel uses to render and deep-link the row.
 # ``config_entry_id`` lets the panel's "Configure" button open the companion's own
-# options page. Extra keys are ignored (forward-compatible).
+# integration page. Extra keys are ignored (forward-compatible).
 REGISTER_COMPANION_SCHEMA = vol.Schema(
     {
         vol.Required("domain"): cv.string,
@@ -49,7 +72,7 @@ REGISTER_COMPANION_SCHEMA = vol.Schema(
         vol.Optional("icon"): cv.string,
         vol.Optional("description"): cv.string,
         vol.Optional("config_entry_id"): cv.string,
-        vol.Optional("docs_url"): cv.string,
+        vol.Optional("docs_url"): _http_url,
         vol.Optional("capabilities"): vol.All(cv.ensure_list, [cv.string]),
     },
     extra=vol.REMOVE_EXTRA,
@@ -57,18 +80,31 @@ REGISTER_COMPANION_SCHEMA = vol.Schema(
 
 
 class CompanionRegistry:
-    """Holds self-registered companions and dedupes discovery events."""
+    """Holds self-registered companions and edge-triggers discovery events."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self._hass = hass
         self._registered: dict[str, dict[str, Any]] = {}
-        # Domains we've already fired a connected/suggested event for, so the events
-        # are edge-triggered (announced at most once per state while HA is running).
-        self._announced_connected: set[str] = set()
-        self._announced_suggested: set[str] = set()
+        # The connected / suggested domains as of the last reconcile. After each
+        # reconcile these mirror the current state; an event fires (when live) for a
+        # domain that wasn't in the prior set.
+        self._connected: set[str] = set()
+        self._suggested: set[str] = set()
+        # Gated like the coordinator's transition events: reconciles before this is
+        # set baseline silently; only genuine changes observed while running fire.
+        self._live = False
+
+    @callback
+    def set_live(self) -> None:
+        """Start firing discovery events (called once from ``async_at_started``)."""
+        self._live = True
 
     def register(self, descriptor: dict[str, Any]) -> dict[str, Any]:
-        """Record a self-registered companion (idempotent); returns the stored row."""
+        """Record a self-registered companion (idempotent); returns the stored row.
+
+        Does not fire events itself — the caller runs ``reconcile`` so a new
+        registration is announced through the single edge-trigger path.
+        """
         domain = descriptor["domain"]
         stored = {
             "domain": domain,
@@ -79,14 +115,9 @@ class CompanionRegistry:
             "docs_url": descriptor.get("docs_url"),
             "capabilities": list(descriptor.get("capabilities") or []),
         }
-        changed = self._registered.get(domain) != stored
-        self._registered[domain] = stored
-        if changed:
+        if self._registered.get(domain) != stored:
             _LOGGER.debug("Companion registered: %s", domain)
-        # A (re-)registration means it's connected; re-announce if this is new and
-        # drop any prior "suggested" announcement so a later suggestion of the same
-        # domain (shouldn't happen) would re-fire.
-        self._announced_suggested.discard(domain)
+        self._registered[domain] = stored
         return stored
 
     def _installed_domains(self) -> set[str]:
@@ -95,42 +126,53 @@ class CompanionRegistry:
 
     def _dismissed(self) -> set[str]:
         """Catalog glue domains the user dismissed (read from Home Keeper options)."""
-        from .const import DOMAIN
-
         dismissed: set[str] = set()
         for entry in self._hass.config_entries.async_entries(DOMAIN):
             for domain in entry.options.get(OPTION_DISMISSED_COMPANIONS, []) or []:
                 dismissed.add(str(domain))
         return dismissed
 
-    def list_public(self) -> list[dict[str, Any]]:
-        """Build the public companion rows and fire any new discovery events."""
-        rows = catalog.build_companion_list(
+    def build(self) -> list[dict[str, Any]]:
+        """Return the merged companion rows — a pure read, never fires events."""
+        return catalog.build_companion_list(
             self._registered,
             self._installed_domains(),
             dismissed=self._dismissed(),
         )
-        self._announce(rows)
-        return rows
 
     @callback
-    def _announce(self, rows: list[dict[str, Any]]) -> None:
-        """Edge-trigger connected/suggested events for newly-seen companion rows."""
-        for row in rows:
-            domain = row.get("domain")
-            status = row.get("status")
-            if not isinstance(domain, str):
-                continue
-            if status == STATUS_CONNECTED and domain not in self._announced_connected:
-                self._announced_connected.add(domain)
+    def reconcile(self) -> list[dict[str, Any]]:
+        """Rebuild the rows, firing an event for any domain that newly changed state.
+
+        Always updates the connected/suggested baselines; fires events only when the
+        registry is live, so startup reconciles baseline silently. A domain that
+        leaves a state (e.g. a companion uninstalled) is dropped from the set, so a
+        later re-appearance re-announces.
+        """
+        rows = self.build()
+        by_domain = {
+            row["domain"]: row for row in rows if isinstance(row.get("domain"), str)
+        }
+        connected_now = {
+            d for d, row in by_domain.items() if row.get("status") == STATUS_CONNECTED
+        }
+        suggested_now = {
+            d for d, row in by_domain.items() if row.get("status") == STATUS_SUGGESTED
+        }
+        if self._live:
+            for domain in sorted(connected_now - self._connected):
                 self._hass.bus.async_fire(
-                    EVENT_COMPANION_CONNECTED, events.companion_event_data(row)
+                    EVENT_COMPANION_CONNECTED,
+                    events.companion_event_data(by_domain[domain]),
                 )
-            elif status == STATUS_SUGGESTED and domain not in self._announced_suggested:
-                self._announced_suggested.add(domain)
+            for domain in sorted(suggested_now - self._suggested):
                 self._hass.bus.async_fire(
-                    EVENT_COMPANION_SUGGESTED, events.companion_event_data(row)
+                    EVENT_COMPANION_SUGGESTED,
+                    events.companion_event_data(by_domain[domain]),
                 )
+        self._connected = connected_now
+        self._suggested = suggested_now
+        return rows
 
 
 def async_get_registry(hass: HomeAssistant) -> CompanionRegistry:
@@ -144,17 +186,32 @@ def async_get_registry(hass: HomeAssistant) -> CompanionRegistry:
 
 @callback
 def async_register_companion(hass: HomeAssistant, descriptor: dict[str, Any]) -> None:
-    """Register a companion and immediately reconcile so its event fires."""
-    async_get_registry(hass).register(descriptor)
-    # Rebuild the list so a newly-connected companion announces right away (and any
-    # suggestion it satisfies is re-evaluated).
-    async_get_registry(hass).list_public()
+    """Register a companion and reconcile so a newly-connected one announces."""
+    registry = async_get_registry(hass)
+    registry.register(descriptor)
+    registry.reconcile()
 
 
 @callback
 def async_list_companions(hass: HomeAssistant) -> list[dict[str, Any]]:
-    """Return the merged companion rows (self-registered + catalog detection)."""
-    return async_get_registry(hass).list_public()
+    """Return the merged companion rows (self-registered + catalog detection).
+
+    A pure read — used by the ``get_companions`` websocket command and the
+    ``list_companions`` service. Never fires events.
+    """
+    return async_get_registry(hass).build()
+
+
+@callback
+def async_reconcile(hass: HomeAssistant) -> None:
+    """Recompute companion state and fire edge-triggered events (coordinator tick)."""
+    async_get_registry(hass).reconcile()
+
+
+@callback
+def async_set_live(hass: HomeAssistant) -> None:
+    """Flip the registry live so subsequent reconciles fire events."""
+    async_get_registry(hass).set_live()
 
 
 @callback
@@ -163,12 +220,11 @@ def async_request_registration(hass: HomeAssistant) -> None:
 
     Fired once Home Keeper's services exist so companions that set up first (and
     thus saw no ``register_companion`` service) get a chance to register. The
-    detection pass afterwards surfaces catalog *suggestions* even when no companion
-    self-registers.
+    reconcile afterwards baselines catalog *suggestions* (silently, since the
+    registry isn't live until ``async_at_started``).
     """
     hass.bus.async_fire(EVENT_REGISTER_COMPANIONS)
-    # Catalog suggestions don't depend on anyone responding to the ping.
-    async_list_companions(hass)
+    async_reconcile(hass)
 
 
 __all__ = [
@@ -178,6 +234,8 @@ __all__ = [
     "CompanionRegistry",
     "async_get_registry",
     "async_list_companions",
+    "async_reconcile",
     "async_register_companion",
     "async_request_registration",
+    "async_set_live",
 ]

@@ -2011,16 +2011,12 @@ export class HomeKeeperPanel extends HTMLElement {
         this._navigate({ view: 'tasks', detail: null }, true);
         void this._delete(task);
       });
-      // "Edit in X" deep link: navigate to the managing integration's config page.
+      // "Edit in X" deep link: navigate to the managing integration's config page
+      // (same helper the Companions "Configure" button uses).
       root.querySelectorAll<HTMLElement>('.d-open-in').forEach((btn) => {
         btn.addEventListener('click', () => {
           const domain = btn.dataset.domain;
-          if (domain) {
-            history.pushState(null, '', `/config/integrations/integration/${domain}`);
-            window.dispatchEvent(
-              new CustomEvent('location-changed', { detail: { replace: false }, bubbles: true, composed: true }),
-            );
-          }
+          if (domain) this._navigateToIntegration(domain);
         });
       });
       return;
@@ -2182,7 +2178,9 @@ export class HomeKeeperPanel extends HTMLElement {
     root.querySelectorAll<HTMLElement>('.hk-comp-install, .hk-comp-docs').forEach((b) =>
       b.addEventListener('click', () => {
         const url = b.dataset.url;
-        if (url) window.open(url, '_blank', 'noopener');
+        // Defense in depth: the backend already restricts docs_url to http(s), but
+        // only open externally-supplied links with a safe scheme regardless.
+        if (url && /^https?:\/\//i.test(url)) window.open(url, '_blank', 'noopener');
       }),
     );
     root.querySelectorAll<HTMLElement>('.hk-comp-dismiss').forEach((b) =>

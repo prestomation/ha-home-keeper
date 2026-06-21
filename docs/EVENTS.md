@@ -79,16 +79,22 @@ specific event), not `low_stock`.
 | `home_keeper_asset_updated` | an appliance changes; payload adds `changed_fields` |
 | `home_keeper_asset_deleted` | an appliance is removed |
 
-### Companion discovery (edge-triggered, deduped per domain)
+### Companion discovery (edge-triggered, baselined on startup)
 
 Home Keeper surfaces integrations that work with it (see the panel's **Settings →
-Companions** section, and [INTEGRATING.md](INTEGRATING.md) §7). These fire at most
-once per domain while HA is running.
+Companions** section, and [INTEGRATING.md](INTEGRATING.md) §7). Like the time-based
+transitions above, the current state is **baselined silently at startup** — companions
+already connected/suggested when HA starts do **not** fire — and an event fires only
+when a companion *changes* into that state while HA is running (a companion
+self-registers, a glue is installed, or a curated upstream is installed). State is
+re-detected on the coordinator's refresh cadence (~5 min), so installing an upstream
+surfaces a suggestion within one cycle. These never fire from a read (opening the
+panel or calling `list_companions` fires nothing).
 
 | Event | Fires when |
 |---|---|
-| `home_keeper_companion_connected` | a companion first becomes connected — it self-registered via `home_keeper.register_companion`, or a known glue is detected installed; payload adds `domain`, `name`, `status`, `config_entry_id` |
-| `home_keeper_companion_suggested` | a curated upstream is detected installed but its glue isn't yet; payload adds `domain` (the glue), `name`, `status`, `upstream_domain` |
+| `home_keeper_companion_connected` | a companion newly becomes connected — it self-registered via `home_keeper.register_companion`, or a known glue is newly detected installed; payload adds `domain`, `name`, `status`, `config_entry_id` |
+| `home_keeper_companion_suggested` | a curated upstream is newly detected installed while its glue isn't; payload adds `domain` (the glue), `name`, `status`, `upstream_domain` |
 
 There is also a fire-and-forget **request** event Home Keeper emits (at its setup and
 on reload) to ask companions to (re-)announce themselves:

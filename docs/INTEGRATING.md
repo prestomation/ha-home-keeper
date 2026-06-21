@@ -368,7 +368,10 @@ Everything above works without Home Keeper knowing your integration exists. But 
 generally don't know two integrations work together until they stumble onto it. To
 close that gap, Home Keeper has a **companion registry**: announce yourself and you'll
 appear in the panel's **Settings → Companions** section, with a **Configure** button
-that deep-links to your own options page.
+that deep-links to your own integration page (`/config/integrations/integration/<your
+domain>`, where your **Configure** is one click away — the same deep link Home Keeper
+uses for "Edit in X"; there's no stable public URL to open an options *dialog*
+directly).
 
 Call the `home_keeper.register_companion` service at your setup (guarded so you degrade
 gracefully when Home Keeper is absent), and again whenever Home Keeper asks companions
@@ -389,7 +392,8 @@ async def _announce(hass, entry):
             "name": "My Integration",
             "icon": "mdi:puzzle",
             "description": "One line on what it does with Home Keeper.",
-            # Lets the panel's "Configure" button open *your* options page.
+            # Carried for the panel's "Configure" button (today it deep-links by
+            # domain to your integration page; the entry id is stored for future use).
             "config_entry_id": entry.entry_id,
             "docs_url": "https://github.com/me/my-integration",
             "capabilities": ["whatever_you_provide"],
