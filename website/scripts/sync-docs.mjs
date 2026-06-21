@@ -2,6 +2,7 @@
 // authored once and never duplicated:
 //
 //   README.md            -> website/docs/guide/*.md   (User Guide, split by ## section)
+//   CHANGELOG.md         -> website/docs/release-notes.md
 //   docs/INTEGRATING.md  -> website/developer/integrating.md
 //   docs/EVENTS.md       -> website/developer/events.md
 //   docs/DESIGN.md       -> website/developer/architecture.md
@@ -196,5 +197,23 @@ async function buildDeveloperGuide() {
   console.log(`[sync-docs] wrote ${DEV_DOCS.length} Developer Guide pages`);
 }
 
+// ---------------------------------------------------------------------------
+// Release Notes — CHANGELOG.md copied as a single page
+// ---------------------------------------------------------------------------
+
+async function buildReleaseNotes() {
+  const raw = await readFile(resolve(repo, 'CHANGELOG.md'), 'utf8');
+  // Drop the leading H1 — frontmatter title renders it.
+  const withoutH1 = raw.replace(/^#\s+.+\n+/, '');
+  const body = rewriteLinks(withoutH1, '').trim();
+  const page =
+    frontmatter({title: 'Release Notes', label: 'Release Notes', position: 99}) +
+    body +
+    '\n';
+  await writeFile(resolve(website, 'docs', 'release-notes.md'), page);
+  console.log('[sync-docs] wrote Release Notes page');
+}
+
 await buildUserGuide();
 await buildDeveloperGuide();
+await buildReleaseNotes();
