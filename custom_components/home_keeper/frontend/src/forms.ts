@@ -208,7 +208,7 @@ export function taskSchema(task: Partial<Task>): FormField[] {
     ...(isOneOff && !locked.has('due')
       ? [{ name: 'due', selector: selDateTime() } as FormField]
       : []),
-    ...(!task.id && !isOneOff && !locked.has('last_completed')
+    ...(!task.id && !isOneOff && !isSensor && !locked.has('last_completed')
       ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
       : []),
     ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
@@ -231,6 +231,10 @@ export function taskSchema(task: Partial<Task>): FormField[] {
 
 /** Map a task onto the `ha-form` data object (selector-shaped values). */
 export function taskFormData(task: Partial<Task>): Record<string, unknown> {
+  // The edit state spreads flat `sensor_*` fields onto the task as the user edits;
+  // read them back here so the form reflects the live mode/values, not just a loaded
+  // task's nested binding.
+  const sd = task as Record<string, unknown>;
   return {
     name: task.name ?? '',
     notes: task.notes ?? '',
@@ -243,13 +247,15 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     due: isoToHaDateTime(task.due) ?? (task.id ? '' : isoToHaDateTime(new Date().toISOString())),
     last_completed: isoToHaDateTime(task.last_completed) ?? '',
     // Sensor binding flattened to form fields; assembled back in buildTaskPayload.
-    sensor_entity_id: task.sensor?.entity_id ?? '',
-    sensor_mode: task.sensor?.mode ?? 'usage',
-    sensor_target: task.sensor?.target ?? undefined,
-    sensor_value: task.sensor?.value ?? undefined,
-    sensor_comparison: task.sensor?.comparison ?? '>=',
-    sensor_for: task.sensor?.for_seconds ?? 0,
-    sensor_attribute: task.sensor?.attribute ?? '',
+    // The live edit state already holds flat `sensor_*` values (the form mutates
+    // them), so prefer those and fall back to a loaded task's nested binding.
+    sensor_entity_id: sd.sensor_entity_id ?? task.sensor?.entity_id ?? '',
+    sensor_mode: sd.sensor_mode ?? task.sensor?.mode ?? 'usage',
+    sensor_target: sd.sensor_target ?? task.sensor?.target ?? undefined,
+    sensor_value: sd.sensor_value ?? task.sensor?.value ?? undefined,
+    sensor_comparison: sd.sensor_comparison ?? task.sensor?.comparison ?? '>=',
+    sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
+    sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
     device_id: task.device_id ?? undefined,
     labels: task.labels ?? [],
     completion_detail: task.completion_detail ?? 'none',

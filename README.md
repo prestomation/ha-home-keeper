@@ -228,9 +228,9 @@ event. While waiting it reads as **Monitored**, and the task detail shows live p
 also create one from automations/scripts with the `home_keeper.add_task` service by
 passing a `sensor` mapping.
 
-![Creating a sensor-based task — pick the sensor, the mode, and a target or threshold](docs/images/30-panel-create-sensor-task.png)
+![Creating a usage/meter sensor task — pick the sensor and a target; no clock cadence](docs/images/30-panel-create-sensor-task.png)
 
-![Sensor task detail — live meter progress and the next-due state](docs/images/31-panel-sensor-task-detail.png)
+![The same form in threshold mode — a comparison, a value, and an optional hold](docs/images/31-panel-create-sensor-threshold.png)
 
 ## Settings
 

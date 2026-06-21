@@ -42,6 +42,13 @@ describe('task form — sensor-based tasks', () => {
     expect(data.sensor_target).toBe(15000);
   });
 
+  it('reflects the live flat sensor_mode (not just a loaded binding)', () => {
+    // Regression: while editing, the form state holds flat sensor_* fields; the mode
+    // dropdown must show the live value so the matching fields render.
+    const data = taskFormData({ recurrence_type: 'sensor', sensor_mode: 'threshold' });
+    expect(data.sensor_mode).toBe('threshold');
+  });
+
   it('assembles a usage payload from flat fields', () => {
     const payload = buildTaskPayload({
       name: 'Oil change',

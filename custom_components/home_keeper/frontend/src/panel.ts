@@ -2279,14 +2279,19 @@ export class HomeKeeperPanel extends HTMLElement {
 
     const form = this._makeForm(taskSchema(task), taskFormData(task), (value) => {
       const prevType = this._edit.task?.recurrence_type;
+      const prevSensorMode = (this._edit.task as Record<string, unknown> | undefined)
+        ?.sensor_mode;
       this._edit.task = {
         ...this._edit.task,
         ...value,
         interval: Number(value.interval) || 1,
       } as Partial<Task>;
       this._edit.error = undefined;
-      // Recurrence type toggles which cadence fields show -> re-render.
-      if (value.recurrence_type !== prevType) this._render();
+      // The recurrence type (which cadence/sensor fields show) and the sensor mode
+      // (usage vs. threshold fields) each toggle the visible schema -> re-render.
+      if (value.recurrence_type !== prevType || value.sensor_mode !== prevSensorMode) {
+        this._render();
+      }
     });
     form.id = 'hk-task-form';
     inner.appendChild(form);
