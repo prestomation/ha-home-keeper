@@ -134,7 +134,12 @@ def test_convert_floating_to_sensor():
         task,
         {
             "recurrence_type": "sensor",
-            "sensor": {"entity_id": "sensor.h", "mode": "threshold", "comparison": ">", "value": 90},
+            "sensor": {
+                "entity_id": "sensor.h",
+                "mode": "threshold",
+                "comparison": ">",
+                "value": 90,
+            },
         },
         now=NOW,
     )
