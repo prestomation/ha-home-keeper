@@ -20,6 +20,7 @@ Keeper isn't installed, your calls are simply skipped.
 |---|---|
 | Create a recurring task | Call `home_keeper.add_task` with a `source` namespaced under your domain |
 | Create a *condition-driven* task | Call `home_keeper.add_task` with `recurrence_type: "triggered"` (no schedule) |
+| Create a *sensor-based* task | Call `home_keeper.add_task` with `recurrence_type: "sensor"` and a `sensor` mapping (Home Keeper evaluates it for you — see §7) |
 | Learn the new task's id | Read `task_id` from `add_task`'s response (`return_response=True`) |
 | React when a task is completed | Subscribe to the `home_keeper_task_completed` event |
 | Complete a task from your side | Call `home_keeper.complete_task` with a unique `origin` |
@@ -361,6 +362,31 @@ Two-way sync works exactly as in §3–§4: a user checking the task off in Home
 fires `home_keeper_task_completed` (origin `None`) and Home Keeper has already set the
 task dormant for you — your listener just applies its own side-effect (without
 re-calling `complete_task`). Triggered tasks never appear on the calendar.
+
+### Sensor-based tasks (Home Keeper arms them for you)
+
+A **sensor** task is the self-driven cousin of a triggered task: instead of *you*
+arming it, you hand Home Keeper a numeric entity and a condition and it arms the task
+itself. Pass `recurrence_type: "sensor"` and a `sensor` mapping:
+
+```python
+# Usage / meter: due once the reading advances 15000 units since the last completion.
+{"recurrence_type": "sensor",
+ "sensor": {"entity_id": "sensor.odometer", "mode": "usage", "target": 15000}}
+
+# Threshold: due when the reading crosses the comparison (optional for_seconds hold,
+# optional attribute to read instead of the state).
+{"recurrence_type": "sensor",
+ "sensor": {"entity_id": "sensor.airflow", "mode": "threshold",
+            "comparison": "<", "value": 60, "for_seconds": 120}}
+```
+
+The task starts **dormant**; Home Keeper's internal watcher arms it (firing
+`home_keeper_task_triggered`, then `home_keeper_task_overdue`) when the condition is
+met. Completing it clears it like any user task — and for a `usage` meter, resets the
+baseline so the next interval is measured from the reading at completion. You don't
+arm/clear it yourself; this is internal to Home Keeper, so no contribution API is
+involved.
 
 ## 7. Discovery: announce yourself so users can find you (optional)
 

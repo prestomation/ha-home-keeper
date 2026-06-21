@@ -21,6 +21,17 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   `home_keeper_companion_suggested` events let automations react. See the
   [Companions](README.md#companions--discover-integrations-that-work-with-home-keeper)
   README section and [docs/INTEGRATING.md](docs/INTEGRATING.md) §7.
+- **Sensor-based tasks.** A recurrence type whose due-state is derived from a bound
+  numeric Home Assistant entity rather than the clock, in two modes. **Usage / meter**
+  generalises floating recurrence from elapsed time to elapsed sensor *units* — *"service
+  every 500 running hours"*, *"oil every 15,000 km"* — arming once the reading advances
+  the chosen **target** since the last completion (which resets the meter; a meter reset
+  re-anchors automatically). **Threshold** arms when the reading crosses a comparison
+  against a value, with an optional hold and attribute read — *"replace the filter when
+  airflow drops below 60 %"* — and re-arms only on a fresh crossing. Armed sensor tasks
+  appear on the to-do list and fire `home_keeper_task_overdue` like any
+  other; the task detail shows live meter progress. Create them in the panel or via
+  `home_keeper.add_task` with a `sensor` mapping.
 
 ## [0.3.0] - 2026-06-21
 
