@@ -1,9 +1,16 @@
 # Home Keeper
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![HACS Validation](https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml/badge.svg)](https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml)
-[![License](https://img.shields.io/github/license/prestomation/ha-home-keeper)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-website-03a9f4.svg)](https://prestomation.github.io/ha-home-keeper/)
+[![Integration Usage][usage-shield]][usage]
+[![GitHub Downloads][downloads-shield]][releases]
+[![GitHub Release][release-shield]][releases]
+[![GitHub Release Date][release-date-shield]][releases]
+[![GitHub Activity][commits-shield]][commits]
+[![License][license-shield]](LICENSE)
+[![hacs][hacs-shield]][hacs]
+![Project Maintenance][maintenance-shield]
+[![HACS Validation][hacs-validation-shield]][hacs-validation]
+[![HA Version][ha-version-shield]][ha-version]
+[![Docs][docs-shield]][docs]
 
 Track home **maintenance** and **chores** in Home Assistant — fridge/furnace filter
 changes, water filters, taking medicine, and anything else that recurs.
@@ -390,3 +397,22 @@ core.
   enforced by `lint.yml`). Requires Home Assistant installed so its types resolve.
 
 See [AGENTS.md](AGENTS.md) for workflow and [RELEASE.md](RELEASE.md) for releases.
+
+[usage-shield]: https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=integration%20usage&suffix=%20installs&cacheSeconds=15600&url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.home_keeper.total&style=for-the-badge
+[usage]: https://analytics.home-assistant.io/
+[downloads-shield]: https://img.shields.io/github/downloads/prestomation/ha-home-keeper/total.svg?style=for-the-badge
+[releases]: https://github.com/prestomation/ha-home-keeper/releases
+[release-shield]: https://img.shields.io/github/release/prestomation/ha-home-keeper.svg?style=for-the-badge
+[release-date-shield]: https://img.shields.io/github/release-date/prestomation/ha-home-keeper?style=for-the-badge
+[commits-shield]: https://img.shields.io/github/last-commit/prestomation/ha-home-keeper?style=for-the-badge
+[commits]: https://github.com/prestomation/ha-home-keeper/commits/main
+[license-shield]: https://img.shields.io/github/license/prestomation/ha-home-keeper.svg?style=for-the-badge
+[hacs-shield]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge
+[hacs]: https://github.com/hacs/integration
+[maintenance-shield]: https://img.shields.io/badge/maintainer-%40prestomation-blue.svg?style=for-the-badge
+[hacs-validation-shield]: https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml/badge.svg
+[hacs-validation]: https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml
+[ha-version-shield]: https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg?style=for-the-badge
+[ha-version]: https://www.home-assistant.io/
+[docs-shield]: https://img.shields.io/badge/docs-website-03a9f4.svg?style=for-the-badge
+[docs]: https://prestomation.github.io/ha-home-keeper/
