@@ -79,6 +79,15 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
 - **Admin vs usage:** management lives in the **sidebar panel** (a custom HA panel);
   usage is exposed via native `todo`/`calendar` entities and per-task device-page
   entities. Don't blur these — administration stays in the panel.
+- **Docs site:** `website/` is a Docusaurus site deployed to GitHub Pages
+  (https://prestomation.github.io/ha-home-keeper/). It has a **User Guide**
+  (`website/docs/`) and a **Developer Guide** (`website/developer/`, the
+  `docs/INTEGRATING.md` equivalent). Screenshots are **not** duplicated: a build step
+  (`website/scripts/sync-assets.mjs`) mirrors `docs/images/` into the static tree, so
+  `docs/images/` stays the single home for screenshots and the UI-screenshots gate is
+  unchanged. Production deploys on push to `main`; **every PR gets a live preview** at
+  `pr-preview/pr-<n>/` (see `website/README.md`). When a user-facing feature lands,
+  update the site pages alongside `README.md`.
 
 ## Conventions
 
