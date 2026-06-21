@@ -3,9 +3,14 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![HACS Validation](https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml/badge.svg)](https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml)
 [![License](https://img.shields.io/github/license/prestomation/ha-home-keeper)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-website-03a9f4.svg)](https://prestomation.github.io/ha-home-keeper/)
 
 Track home **maintenance** and **chores** in Home Assistant — fridge/furnace filter
 changes, water filters, taking medicine, and anything else that recurs.
+
+> 📖 **Full documentation** — a browsable User Guide and Developer Guide — lives at
+> **<https://prestomation.github.io/ha-home-keeper/>**. The site is generated from this
+> README and `docs/`, so they never drift.
 
 ![Home Keeper task list](docs/images/1-panel-task-list.png)
 
@@ -328,12 +333,13 @@ Events are **edge-triggered** (one event per crossing, never repeated each cycle
 silently baselined on restart (no "overdue" storm after a reboot). The full catalog —
 every event, its payload, and more examples — is in [docs/EVENTS.md](docs/EVENTS.md).
 
-## Integrating with Home Keeper
+## Integrations
 
-Other integrations can contribute their own recurring tasks to Home Keeper and stay in
-sync with completions — without Home Keeper knowing anything about them. See
-[docs/INTEGRATING.md](docs/INTEGRATING.md) for the contract (the `source` field, the
-`home_keeper_task_completed` event, and two-way completion sync).
+Home Keeper is **open to other integrations**: they can contribute their own recurring
+tasks and stay in sync with completions, without Home Keeper knowing anything about them.
+Installing a compatible integration can populate and maintain your task list
+automatically — for example a battery integration that schedules *"replace battery"* or a
+pet tracker that schedules *"give medicine"*.
 
 ### Known integrations
 
@@ -341,6 +347,13 @@ sync with completions — without Home Keeper knowing anything about them. See
 |---|---|---|
 | [Home Keeper — Battery Notes](https://github.com/prestomation/ha-home-keeper-battery-notes) | Glue between [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes) and Home Keeper | Uses Home Keeper's **triggered** task type — arms a *"Replace battery"* task when a battery goes low and clears it when replaced, keeping both sides in sync so completion from either side is recorded in both. |
 | [Pawsistant](https://github.com/prestomation/pawsistant) | Pet-care logger for tracking recurring pet activities | Attaches Home Keeper floating-recurrence tasks to pet care schedules (e.g. *"medicine every 2 weeks"*), so completing the task in Home Keeper logs the event in Pawsistant, and logging it in Pawsistant marks the task done — with no loop. |
+
+> **Author an integration?** If you build a Home Assistant integration and want it to push
+> tasks into Home Keeper, see the developer guide,
+> [docs/INTEGRATING.md](docs/INTEGRATING.md), for the contract (the `source` field, the
+> `home_keeper_task_completed` event, and two-way completion sync) — and
+> [docs/GLUE_INTEGRATIONS.md](docs/GLUE_INTEGRATIONS.md) for the thin "glue" pattern that
+> bridges an existing integration (like Battery Notes) to Home Keeper.
 
 ## Localization
 

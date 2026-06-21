@@ -6,9 +6,29 @@ The user-facing documentation site for Home Keeper, built with
 
 It has two audiences with independent sidebars:
 
-- **User Guide** (`docs/`, served at `/docs`) — how to install and use Home Keeper.
-- **Developer Guide** (`developer/`, served at `/developer`) — the equivalent of
+- **User Guide** (served at `/docs`) — how to install and use Home Keeper.
+- **Developer Guide** (served at `/developer`) — the equivalent of
   `docs/INTEGRATING.md`: how other integrations talk to Home Keeper.
+
+## Content is generated — edit the canonical sources
+
+The content pages are **not** authored in `website/`. `scripts/sync-docs.mjs`
+generates them from the repo's canonical Markdown and rewrites links/images:
+
+| Source (canonical) | Generated (gitignored) |
+|---|---|
+| `README.md` (split by `##` section) | `website/docs/guide/*.md` (User Guide) |
+| `docs/INTEGRATING.md` | `website/developer/integrating.md` |
+| `docs/EVENTS.md` | `website/developer/events.md` |
+| `docs/DESIGN.md` | `website/developer/architecture.md` |
+
+So to change the docs, **edit `README.md` or `docs/*.md`** — never the generated
+trees (`website/docs/guide/`, `website/developer/`), which are wiped and rebuilt on
+every `npm run sync`. The only hand-authored pages in `website/` are the landing page
+(`src/pages/index.tsx`) and the User Guide intro (`docs/intro.md`).
+
+`README.md` is the source for the whole User Guide, so it stays the comprehensive
+user doc — don't slim it down to a stub.
 
 ## Local development
 
@@ -20,11 +40,12 @@ npm run build    # production build into website/build
 npm run typecheck
 ```
 
-Screenshots are **not** copied into the repo. `scripts/sync-assets.mjs` mirrors the
-integration's committed screenshots from `../docs/images` into
-`static/img/screenshots/` automatically before `start`/`build` (so reference them in
-docs as `/img/screenshots/<file>.png`). `docs/images` stays the single home for
-screenshots — keep capturing there with the Playwright harness.
+`npm run sync` (auto-run before `start`/`build`/`typecheck`) does two things:
+`scripts/sync-assets.mjs` mirrors the committed screenshots from `../docs/images` into
+`static/img/screenshots/` (reference them in docs as `/img/screenshots/<file>.png`),
+and `scripts/sync-docs.mjs` generates the content pages (see above). `docs/images`
+stays the single home for screenshots — keep capturing there with the Playwright
+harness.
 
 ## Deployment
 

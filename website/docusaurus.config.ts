@@ -27,6 +27,9 @@ const config: Config = {
   onBrokenLinks: 'throw',
 
   markdown: {
+    // Treat .md as CommonMark (and .mdx as MDX). The generated pages carry
+    // literal { } and < > in prose/tables, which MDX would mis-parse as JSX.
+    format: 'detect',
     hooks: {
       onBrokenMarkdownLinks: 'warn',
     },

@@ -4,9 +4,10 @@
   "private": true,
   "description": "Documentation site for the Home Keeper Home Assistant integration.",
   "scripts": {
-    "sync-assets": "node scripts/sync-assets.mjs",
-    "prestart": "npm run sync-assets",
-    "prebuild": "npm run sync-assets",
+    "sync": "node scripts/sync-assets.mjs && node scripts/sync-docs.mjs",
+    "prestart": "npm run sync",
+    "prebuild": "npm run sync",
+    "pretypecheck": "npm run sync",
     "docusaurus": "docusaurus",
     "start": "docusaurus start",
     "build": "docusaurus build",
