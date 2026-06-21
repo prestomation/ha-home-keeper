@@ -1,0 +1,50 @@
+name: Docs site — deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'docs/images/**'
+      - '.github/workflows/docs-deploy.yml'
+  workflow_dispatch:
+
+# Production publishes to the root of the gh-pages branch. PR previews live under
+# pr-preview/ on the same branch, so clean-exclude keeps them from being wiped.
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install
+        working-directory: website
+        run: npm ci
+
+      - name: Build
+        working-directory: website
+        env:
+          DOCS_BASE_URL: /ha-home-keeper/
+        run: npm run build
+
+      - name: Deploy to gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: website/build
+          clean: true
+          clean-exclude: |
+            pr-preview/

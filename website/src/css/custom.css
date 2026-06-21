@@ -1,0 +1,60 @@
+/**
+ * HA-flavored Docusaurus theme.
+ *
+ * Home Assistant's signature accent is "HA blue" (#03a9f4). We adopt it as the
+ * Infima primary color (with a generated dark/light ramp) so the site reads as
+ * Home-Assistant-adjacent without trying to pixel-match the official docs.
+ */
+
+:root {
+  --ifm-color-primary: #03a9f4;
+  --ifm-color-primary-dark: #0398db;
+  --ifm-color-primary-darker: #038fcf;
+  --ifm-color-primary-darkest: #0276aa;
+  --ifm-color-primary-light: #1eb3f5;
+  --ifm-color-primary-lighter: #2bb7f6;
+  --ifm-color-primary-lightest: #51c4f8;
+
+  --ifm-code-font-size: 95%;
+  --ifm-font-family-base: Roboto, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ifm-navbar-background-color: #03a9f4;
+  --ifm-navbar-link-color: #ffffff;
+  --ifm-navbar-link-hover-color: #ffffff;
+  --ifm-navbar-title-color: #ffffff;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* HA's dark surfaces lean toward a deep blue-gray. */
+[data-theme='dark'] {
+  --ifm-color-primary: #39b6f6;
+  --ifm-color-primary-dark: #1ba9f4;
+  --ifm-color-primary-darker: #0fa3f3;
+  --ifm-color-primary-darkest: #0987cd;
+  --ifm-color-primary-light: #57c3f8;
+  --ifm-color-primary-lighter: #65c9f8;
+  --ifm-color-primary-lightest: #92d8fb;
+
+  --ifm-background-color: #111418;
+  --ifm-navbar-background-color: #1c1f24;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Keep the navbar a solid HA-blue bar with white controls in light mode. */
+.navbar {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+html:not([data-theme='dark']) .navbar .navbar__title,
+html:not([data-theme='dark']) .navbar .navbar__link {
+  color: #ffffff;
+}
+
+html:not([data-theme='dark']) .navbar .clean-btn {
+  color: #ffffff;
+}
+
+/* Screenshots in docs get a subtle frame so light-on-light shots stay legible. */
+.markdown img {
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
