@@ -3,9 +3,14 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![HACS Validation](https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml/badge.svg)](https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml)
 [![License](https://img.shields.io/github/license/prestomation/ha-home-keeper)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-website-03a9f4.svg)](https://prestomation.github.io/ha-home-keeper/)
 
 Track home **maintenance** and **chores** in Home Assistant — fridge/furnace filter
 changes, water filters, taking medicine, and anything else that recurs.
+
+> 📖 **Full documentation** — a browsable User Guide and Developer Guide — lives at
+> **<https://prestomation.github.io/ha-home-keeper/>**. The site is generated from this
+> README and `docs/`, so they never drift.
 
 ![Home Keeper task list](docs/images/1-panel-task-list.png)
 

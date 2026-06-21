@@ -34,7 +34,7 @@ changes, water filters, taking medicine, and anything else that recurs.
 
 ## Where to next
 
-- New here? Start with [Installation](./installation.md), then the
-  [core concepts](./concepts.md).
+- New here? Start with [Installation](/docs/guide/installation), then the
+  [core concepts](/docs/guide/concepts).
 - Building an integration that talks to Home Keeper? See the
   [Developer Guide](/developer/integrating).

@@ -11,6 +11,10 @@
 # Synced from ../docs/images at build/start time (see scripts/sync-assets.mjs)
 /static/img/screenshots
 
+# Generated from canonical Markdown at build/start time (see scripts/sync-docs.mjs)
+/docs/guide
+/developer
+
 # Misc
 .DS_Store
 .env.local
