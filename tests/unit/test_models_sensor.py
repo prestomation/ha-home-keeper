@@ -123,6 +123,43 @@ def test_update_sensor_target_does_not_rearm():
     # Editing the binding must not recompute/clear next_due (still armed).
     assert updated["next_due"] == NOW.isoformat()
     assert updated["sensor"]["target"] == 20000
+    # The accumulated meter baseline must survive an edit that doesn't carry one
+    # (the panel rebuilds the binding from form fields, omitting baseline).
+    assert updated["sensor"]["baseline"] == 1000
+
+
+def test_update_usage_task_preserves_baseline_only_for_same_entity():
+    task = m.build_task(
+        {
+            "name": "Oil",
+            "recurrence_type": "sensor",
+            "sensor": {"entity_id": "sensor.odo", "mode": "usage", "target": 15000},
+        },
+        now=NOW,
+    )
+    task["sensor"]["baseline"] = 41000
+    # Re-pointing at a different entity (a genuinely new meter) must NOT carry the old
+    # baseline over — it re-anchors to the new meter's first reading (None for now).
+    rebound = m.merge_update(
+        task,
+        {"sensor": {"entity_id": "sensor.other_odo", "mode": "usage", "target": 15000}},
+        now=NOW,
+    )
+    assert "baseline" not in rebound["sensor"]
+    # An explicit baseline in the update is respected over the old one.
+    explicit = m.merge_update(
+        task,
+        {
+            "sensor": {
+                "entity_id": "sensor.odo",
+                "mode": "usage",
+                "target": 15000,
+                "baseline": 50000,
+            }
+        },
+        now=NOW,
+    )
+    assert explicit["sensor"]["baseline"] == 50000
 
 
 def test_convert_floating_to_sensor():

@@ -18,7 +18,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from . import recurrence
-from .const import DOMAIN, REC_FIXED, REC_TRIGGERED
+from .const import DOMAIN, REC_FIXED, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
 
 # Default duration shown for each task occurrence on the calendar.
@@ -83,10 +83,10 @@ class HomeKeeperCalendarEntity(
 
     def _next_start(self, task: dict, now: datetime) -> datetime | None:
         """Soonest upcoming occurrence start for a single task, or None."""
-        # Triggered (condition-driven) tasks have no schedule to project — they are
-        # "due now" while armed and invisible otherwise — so they never belong on a
-        # forward-looking calendar.
-        if task.get("recurrence_type") == REC_TRIGGERED:
+        # Triggered (condition-driven) and sensor-based tasks have no schedule to
+        # project — they are "due now" while armed and invisible otherwise — so they
+        # never belong on a forward-looking calendar.
+        if task.get("recurrence_type") in (REC_TRIGGERED, REC_SENSOR):
             return None
         if task.get("recurrence_type") == REC_FIXED:
             anchor = dt_util.parse_datetime(task["anchor"])
@@ -114,7 +114,7 @@ class HomeKeeperCalendarEntity(
         for task in self.coordinator.data.values():
             if not task.get("enabled", True):
                 continue
-            if task.get("recurrence_type") == REC_TRIGGERED:
+            if task.get("recurrence_type") in (REC_TRIGGERED, REC_SENSOR):
                 continue  # no schedule to expand (see _next_start)
             if task.get("recurrence_type") == REC_FIXED:
                 anchor = dt_util.parse_datetime(task["anchor"])

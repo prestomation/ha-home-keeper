@@ -477,6 +477,25 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     fields = normalize_fields(candidate, tz=now.tzinfo)
     merged.update(fields)
 
+    # Preserve a usage meter's accumulated baseline across edits. The panel's edit
+    # payload rebuilds the ``sensor`` binding from form fields and never carries the
+    # watcher-stamped ``baseline``, so without this a plain rename or target tweak
+    # would drop it and the watcher would re-anchor to the current reading — silently
+    # resetting "12,000 of 15,000" to zero. Carry the old baseline forward only when
+    # the binding still points at the same entity in usage mode and the update didn't
+    # set one explicitly; changing the entity (a genuinely new meter) re-baselines.
+    new_sensor = merged.get("sensor")
+    old_sensor = existing.get("sensor")
+    if (
+        isinstance(new_sensor, dict)
+        and new_sensor.get("mode") == SENSOR_MODE_USAGE
+        and "baseline" not in new_sensor
+        and isinstance(old_sensor, dict)
+        and old_sensor.get("entity_id") == new_sensor.get("entity_id")
+        and old_sensor.get("baseline") is not None
+    ):
+        new_sensor["baseline"] = old_sensor["baseline"]
+
     # Labels are independent of recurrence/identity, so handle them outside
     # normalize_fields: only rewrite when the caller actually sent ``labels`` (a
     # plain rename must not spuriously stamp ``labels: []`` onto a task that never

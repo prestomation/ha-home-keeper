@@ -640,14 +640,18 @@ class HomeKeeperStore:
         completing a floating task resets its clock: the next arming is measured from
         the reading at completion. Done here (the store is HA-aware) rather than in the
         pure recurrence layer. If the bound entity is currently unavailable the baseline
-        is left as-is and the watcher re-anchors it on the next valid reading.
+        is cleared (``None``) so the watcher re-anchors on the first valid reading after
+        completion rather than measuring from the stale pre-completion baseline.
         """
         cfg = sensor_tasks.sensor_config(task)
         if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
             return
-        reading = sensor_watcher.read_sensor_value(self._hass, cfg)
-        if reading is not None:
-            cfg["baseline"] = reading
+        # Reset the meter to the reading at completion. If the entity is currently
+        # unavailable, clear the baseline (``None``) so the watcher re-anchors to the
+        # first valid reading *after* completion rather than measuring from the now
+        # stale pre-completion baseline — which could otherwise immediately re-arm the
+        # task if the meter advanced past target while the entity was unavailable.
+        cfg["baseline"] = sensor_watcher.read_sensor_value(self._hass, cfg)
 
     def _stamp_part_replacement(self, task: dict[str, Any], when: Any) -> None:
         src = _part_source(task)
