@@ -183,5 +183,19 @@
   "settings.problem_sensor_exclude_entities": "Excluded sensors",
   "settings.problem_sensor_exclude_areas": "Excluded areas",
   "settings.problem_sensor_exclude_labels": "Excluded labels",
-  "done.blocked": "This can't be completed in Home Keeper — it's cleared by the integration that owns it."
+  "done.blocked": "This can't be completed in Home Keeper — it's cleared by the integration that owns it.",
+  "opt.completion_detail.none": "One-tap done (no details)",
+  "opt.completion_detail.optional": "Ask for details (optional)",
+  "opt.completion_detail.required": "Require details",
+  "field.completion_detail": "On completion",
+  "field.note": "Note",
+  "field.who": "Who did it",
+  "completion.edit": "Edit completion",
+  "completion.title": "Log: {name}",
+  "completion.photo": "Photo",
+  "completion.required": "Fill in the required fields to continue.",
+  "completion.markDone": "Mark done",
+  "completion.skip": "Skip details",
+  "completion.by": "by {who}",
+  "done.needsDetails": "Open this task in Home Keeper to add the required details."
 }

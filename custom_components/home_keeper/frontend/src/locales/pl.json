@@ -207,5 +207,19 @@
   "settings.problem_sensor_exclude_entities": "Wykluczone czujniki",
   "settings.problem_sensor_exclude_areas": "Wykluczone obszary",
   "settings.problem_sensor_exclude_labels": "Wykluczone etykiety",
-  "done.blocked": "Tego nie można ukończyć w Home Keeper — czyści to integracja, która jest jego właścicielem."
+  "done.blocked": "Tego nie można ukończyć w Home Keeper — czyści to integracja, która jest jego właścicielem.",
+  "opt.completion_detail.none": "Gotowe jednym dotknięciem (bez szczegółów)",
+  "opt.completion_detail.optional": "Pytaj o szczegóły (opcjonalnie)",
+  "opt.completion_detail.required": "Wymagaj szczegółów",
+  "field.completion_detail": "Przy ukończeniu",
+  "field.note": "Notatka",
+  "field.who": "Kto to zrobił",
+  "completion.edit": "Edytuj ukończenie",
+  "completion.title": "Zapisz: {name}",
+  "completion.photo": "Zdjęcie",
+  "completion.required": "Wypełnij wymagane pola, aby kontynuować.",
+  "completion.markDone": "Oznacz jako zrobione",
+  "completion.skip": "Pomiń szczegóły",
+  "completion.by": "przez {who}",
+  "done.needsDetails": "Otwórz to zadanie w Home Keeper, aby dodać wymagane szczegóły."
 }

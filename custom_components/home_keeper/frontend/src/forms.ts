@@ -162,6 +162,18 @@ export function taskSchema(task: Partial<Task>): FormField[] {
       : []),
     ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
     ...(!locked.has('labels') ? [{ name: 'labels', selector: selLabel(true) } as FormField] : []),
+    ...(!locked.has('completion_detail')
+      ? [
+          {
+            name: 'completion_detail',
+            selector: selSelect([
+              { value: 'none', label: t('opt.completion_detail.none') },
+              { value: 'optional', label: t('opt.completion_detail.optional') },
+              { value: 'required', label: t('opt.completion_detail.required') },
+            ]),
+          } as FormField,
+        ]
+      : []),
   ];
   return fields;
 }
@@ -179,6 +191,7 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     last_completed: isoToHaDateTime(task.last_completed) ?? '',
     device_id: task.device_id ?? undefined,
     labels: task.labels ?? [],
+    completion_detail: task.completion_detail ?? 'none',
   };
 }
 
@@ -210,6 +223,9 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       payload.freq = task.freq || 'DAILY';
       payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
     }
+    // Capture mode applies to scheduled tasks; the backend derives which fields a
+    // `required` task makes mandatory (v1: the note).
+    payload.completion_detail = task.completion_detail || 'none';
   }
   // Labels apply to every task kind (including triggered) and always round-trip,
   // so an empty array correctly clears a task's labels on update.

@@ -183,5 +183,19 @@
   "settings.problem_sensor_exclude_entities": "Uitgesloten sensoren",
   "settings.problem_sensor_exclude_areas": "Uitgesloten gebieden",
   "settings.problem_sensor_exclude_labels": "Uitgesloten labels",
-  "done.blocked": "Dit kan niet in Home Keeper worden voltooid — de eigenaar-integratie wist het."
+  "done.blocked": "Dit kan niet in Home Keeper worden voltooid — de eigenaar-integratie wist het.",
+  "opt.completion_detail.none": "Klaar met één tik (geen details)",
+  "opt.completion_detail.optional": "Om details vragen (optioneel)",
+  "opt.completion_detail.required": "Details vereisen",
+  "field.completion_detail": "Bij voltooien",
+  "field.note": "Notitie",
+  "field.who": "Wie het deed",
+  "completion.edit": "Voltooiing bewerken",
+  "completion.title": "Vastleggen: {name}",
+  "completion.photo": "Foto",
+  "completion.required": "Vul de verplichte velden in om door te gaan.",
+  "completion.markDone": "Markeren als gedaan",
+  "completion.skip": "Details overslaan",
+  "completion.by": "door {who}",
+  "done.needsDetails": "Open deze taak in Home Keeper om de vereiste details toe te voegen."
 }

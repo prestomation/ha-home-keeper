@@ -183,5 +183,19 @@
   "settings.problem_sensor_exclude_entities": "Uteslutna sensorer",
   "settings.problem_sensor_exclude_areas": "Uteslutna områden",
   "settings.problem_sensor_exclude_labels": "Uteslutna etiketter",
-  "done.blocked": "Detta kan inte slutföras i Home Keeper – den ägande integrationen rensar det."
+  "done.blocked": "Detta kan inte slutföras i Home Keeper – den ägande integrationen rensar det.",
+  "opt.completion_detail.none": "Klar med en knapptryckning (utan detaljer)",
+  "opt.completion_detail.optional": "Fråga efter detaljer (valfritt)",
+  "opt.completion_detail.required": "Kräv detaljer",
+  "field.completion_detail": "Vid slutförande",
+  "field.note": "Anteckning",
+  "field.who": "Vem som gjorde det",
+  "completion.edit": "Redigera slutförande",
+  "completion.title": "Registrera: {name}",
+  "completion.photo": "Foto",
+  "completion.required": "Fyll i de obligatoriska fälten för att fortsätta.",
+  "completion.markDone": "Markera som klar",
+  "completion.skip": "Hoppa över detaljer",
+  "completion.by": "av {who}",
+  "done.needsDetails": "Öppna den här uppgiften i Home Keeper för att lägga till de obligatoriska detaljerna."
 }

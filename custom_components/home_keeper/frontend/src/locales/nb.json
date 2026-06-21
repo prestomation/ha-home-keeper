@@ -183,5 +183,19 @@
   "settings.problem_sensor_exclude_entities": "Ekskluderte sensorer",
   "settings.problem_sensor_exclude_areas": "Ekskluderte områder",
   "settings.problem_sensor_exclude_labels": "Ekskluderte etiketter",
-  "done.blocked": "Dette kan ikke fullføres i Home Keeper – den eiende integrasjonen tømmer det."
+  "done.blocked": "Dette kan ikke fullføres i Home Keeper – den eiende integrasjonen tømmer det.",
+  "opt.completion_detail.none": "Ferdig med ett trykk (uten detaljer)",
+  "opt.completion_detail.optional": "Be om detaljer (valgfritt)",
+  "opt.completion_detail.required": "Krev detaljer",
+  "field.completion_detail": "Ved fullføring",
+  "field.note": "Notat",
+  "field.who": "Hvem som gjorde det",
+  "completion.edit": "Rediger fullføring",
+  "completion.title": "Registrer: {name}",
+  "completion.photo": "Bilde",
+  "completion.required": "Fyll ut de påkrevde feltene for å fortsette.",
+  "completion.markDone": "Merk som ferdig",
+  "completion.skip": "Hopp over detaljer",
+  "completion.by": "av {who}",
+  "done.needsDetails": "Åpne denne oppgaven i Home Keeper for å legge til de påkrevde detaljene."
 }

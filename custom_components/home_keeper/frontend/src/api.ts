@@ -64,10 +64,54 @@ export async function deleteTask(hass: Hass, taskId: string): Promise<void> {
   await hass.callWS({ type: 'home_keeper/delete_task', task_id: taskId });
 }
 
-export async function completeTask(hass: Hass, taskId: string): Promise<Task> {
+/** Optional per-completion metadata sent with a completion or an edit. */
+export interface CompletionMetadata {
+  note?: string;
+  cost?: number;
+  photo?: string;
+  who?: string;
+}
+
+/** Drop empty metadata keys so we never send blank `note: ""` etc. */
+function metadataMsg(metadata?: CompletionMetadata): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (!metadata) return out;
+  if (metadata.note) out.note = metadata.note;
+  if (metadata.cost != null && !Number.isNaN(metadata.cost)) out.cost = metadata.cost;
+  if (metadata.photo) out.photo = metadata.photo;
+  if (metadata.who) out.who = metadata.who;
+  return out;
+}
+
+export async function completeTask(
+  hass: Hass,
+  taskId: string,
+  metadata?: CompletionMetadata,
+): Promise<Task> {
   const res = await hass.callWS<{ task: Task }>({
     type: 'home_keeper/complete_task',
     task_id: taskId,
+    ...metadataMsg(metadata),
+  });
+  return res.task;
+}
+
+/**
+ * Amend a recorded completion's metadata (identified by its `ts`). Every metadata
+ * key is always sent (blanks omitted) so clearing a field on the backend works:
+ * an omitted key clears it server-side.
+ */
+export async function updateCompletion(
+  hass: Hass,
+  taskId: string,
+  ts: string,
+  metadata: CompletionMetadata,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/update_completion',
+    task_id: taskId,
+    ts,
+    ...metadataMsg(metadata),
   });
   return res.task;
 }

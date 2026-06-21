@@ -57,6 +57,39 @@ A **task** has a name, notes, an optional device it's attached to, and a recurre
 An **appliance** (asset) is the physical thing a task is about — a fridge, furnace,
 water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).
 
+## Logging completions (note, cost, photo, who)
+
+By default marking a task **Done** is one tap. But for the chores you want a record
+of — *"what did this service cost, who did it, what did I notice?"* — a task can
+capture **per-completion detail**: a free-form **note**, a **cost**, a **photo**, and
+**who** did it (a Home Assistant person).
+
+**Use case.** Turn the completion history into a real maintenance log: track what you
+spend on filters over the years, attach a photo of the part you fitted, or note which
+family member last walked the dog — all queryable later from the task's history.
+
+**How it's used.** Each task chooses its capture mode when you create or edit it
+(*On completion*):
+
+- **One-tap done** — the default; no dialog, nothing changes.
+- **Ask for details (optional)** — Done opens a dialog with note / cost / photo / who,
+  all optional (a *Skip details* button still completes instantly).
+- **Require details** — the dialog appears and the required field(s) must be filled
+  before the task can be marked done.
+
+The dialog uploads photos through Home Assistant's native image store and picks *who*
+from your `person` entities. Every recorded completion shows its note, cost, photo
+thumbnail and who in the task's history, where you can **edit** a past entry (fix a
+note, add a forgotten receipt) without disturbing the schedule. The most recent
+completion's details are also exposed on the task's *next due* sensor attributes, and
+the `home_keeper.complete_task` / `home_keeper.update_completion` services carry the
+same fields for automations.
+
+> The set of *required* fields is stored per task, so a future release can let you
+> require specific fields (e.g. always a cost) without any migration.
+
+![The completion-details dialog — note, cost, who and photo captured when a task is marked done](docs/images/11-panel-completion-dialog.png)
+
 Administration and usage are intentionally **separated**: you **manage** tasks and
 appliances from the **Home Keeper** sidebar panel, and **use** them through native HA
 entities and the dashboard card. The panel list view can group/filter tasks, and
@@ -218,8 +251,10 @@ integrations HA won't let us reparent — which show up alongside the appliance.
 Every data action is a Home Assistant service, so it's usable from automations,
 scripts, and voice:
 
-- **Tasks** — `home_keeper.add_task`, `update_task`, `delete_task`, `complete_task`,
-  `trigger_task` (arm a condition-driven task), and `list_tasks` (returns a response).
+- **Tasks** — `home_keeper.add_task`, `update_task`, `delete_task`, `complete_task`
+  (with optional `note`/`cost`/`photo`/`who`), `update_completion` (amend a recorded
+  completion's metadata), `trigger_task` (arm a condition-driven task), and
+  `list_tasks` (returns a response).
 - **Appliances** — `home_keeper.add_asset`, `update_asset`, `delete_asset`,
   `adjust_part_stock`, `list_assets`, and `export_inventory` (the last two return a
   response).
@@ -227,8 +262,8 @@ scripts, and voice:
 ## Events & automations
 
 Home Keeper fires a Home Assistant **bus event** for every meaningful change so you can
-automate on it — tasks (created, updated, completed, uncompleted, deleted, armed, and
-the time-based **overdue** / **due-soon** transitions), spare parts (**low stock**,
+automate on it — tasks (created, updated, completed, uncompleted, completion-edited,
+deleted, armed, and the time-based **overdue** / **due-soon** transitions), spare parts (**low stock**,
 **out of stock**, **restocked**), and appliances (created, updated, deleted).
 
 You can trigger on these two ways: pick a **device trigger** in the visual automation

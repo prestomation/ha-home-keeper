@@ -195,5 +195,19 @@
   "settings.problem_sensor_exclude_entities": "Sensori esclusi",
   "settings.problem_sensor_exclude_areas": "Aree escluse",
   "settings.problem_sensor_exclude_labels": "Etichette escluse",
-  "done.blocked": "Non può essere completato in Home Keeper: lo azzera l'integrazione che lo possiede."
+  "done.blocked": "Non può essere completato in Home Keeper: lo azzera l'integrazione che lo possiede.",
+  "opt.completion_detail.none": "Fatto con un tocco (senza dettagli)",
+  "opt.completion_detail.optional": "Chiedi i dettagli (facoltativo)",
+  "opt.completion_detail.required": "Richiedi i dettagli",
+  "field.completion_detail": "Al completamento",
+  "field.note": "Nota",
+  "field.who": "Chi l'ha fatto",
+  "completion.edit": "Modifica completamento",
+  "completion.title": "Registra: {name}",
+  "completion.photo": "Foto",
+  "completion.required": "Compila i campi obbligatori per continuare.",
+  "completion.markDone": "Segna come fatto",
+  "completion.skip": "Salta i dettagli",
+  "completion.by": "da {who}",
+  "done.needsDetails": "Apri questa attività in Home Keeper per aggiungere i dettagli richiesti."
 }
