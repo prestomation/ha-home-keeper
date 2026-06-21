@@ -49,7 +49,7 @@ def normalize_completion_metadata(data: Any) -> dict[str, Any]:
     if note:
         result["note"] = note
     cost = data.get("cost")
-    if cost not in (None, ""):
+    if cost is not None and cost != "":
         try:
             cost_value = float(cost)
         except (TypeError, ValueError) as err:
