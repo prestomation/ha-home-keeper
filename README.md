@@ -23,9 +23,10 @@ changes, water filters, taking medicine, and anything else that recurs.
 
 ## Features at a glance
 
-- **Tasks, four ways** — **floating** (every N units after last done), **fixed**
-  (anchored calendar schedule), **one-off** (do-once, on a chosen due date), and
-  **triggered** (condition-driven, no schedule — armed/cleared by another integration).
+- **Tasks, five ways** — **floating** (every N units after last done), **fixed**
+  (anchored calendar schedule), **one-off** (do-once, on a chosen due date),
+  **triggered** (condition-driven, no schedule — armed/cleared by another integration),
+  and **sensor-based** (driven by a numeric sensor — usage meters or thresholds).
 - **Used through native HA entities** — a `todo` list, an upcoming-tasks `calendar`,
   and per-device **button / next-due sensor / overdue binary_sensor** on a task's
   device page.
@@ -66,6 +67,9 @@ A **task** has a name, notes, an optional device it's attached to, and a recurre
   independent of when you actually complete it.
 - **One-off** — *do-once* (see [One-off tasks](#one-off-do-once-tasks) below).
 - **Triggered** — *condition-driven, no schedule* (see below).
+- **Sensor-based** — driven by a numeric sensor instead of the clock: *"service the
+  generator every 500 running hours"* or *"replace the filter when airflow drops below
+  60%"* (see [Sensor-based tasks](#sensor-based-tasks-usage-meters--thresholds) below).
 
 An **appliance** (asset) is the physical thing a task is about — a fridge, furnace,
 water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).
@@ -192,6 +196,41 @@ problem becomes a visible, trackable to-do without writing an automation.
 Tapping the disabled **Done** explains why it can't be completed here:
 
 ![Tapping the disabled Done pops up a toast: the problem clears automatically when the originating integration resolves it](docs/images/16b-panel-problem-sensor-blocked-toast.png)
+
+## Sensor-based tasks (usage meters & thresholds)
+
+Some maintenance isn't measured in *time* but in *use*: oil every **15,000 km**, a
+service every **500 running hours**, descale after **50 cycles** — or it's a reaction
+to a **reading crossing a limit**: replace the filter when airflow drops **below 60 %**,
+check coolant when temperature climbs **above 90 °C**. A **sensor-based** task binds a
+task to an existing numeric Home Assistant entity and lets Home Keeper arm it for you —
+no automation to wire up.
+
+Pick **Sensor-based** on the task form, choose the **sensor**, and pick a **mode**:
+
+- **Usage / meter** — set a **target**. Home Keeper records the reading when you create
+  the task (and again each time you complete it), and the task becomes **due** once the
+  meter has advanced by *target* units since then. Completing it "resets the counter"
+  just like a floating task resets its clock; if the meter is reset or the part is
+  replaced (the reading drops), Home Keeper re-anchors automatically so it never gets
+  stuck. Great for odometers, runtime-hours, and cycle counters.
+- **Threshold** — set a **comparison** (`≥ ≤ > < = ≠`) and a **value**, with an optional
+  **hold** (the reading must stay across the line that many seconds, to debounce noise)
+  and an optional **attribute** (read e.g. a climate entity's `current_temperature`
+  instead of its state). The task arms on the crossing and stays due until you complete
+  it — a filter you need to replace doesn't un-need replacing if airflow briefly
+  recovers — then re-arms only on a fresh crossing.
+
+A sensor task behaves like any other once **armed**: it shows on the to-do list and
+calendar, lights the device's overdue sensor, and fires the `home_keeper_task_overdue`
+event. While waiting it reads as **Monitored**, and the task detail shows live progress
+(*"12,300 of 15,000 used"* for a meter, or the current reading vs. the limit). You can
+also create one from automations/scripts with the `home_keeper.add_task` service by
+passing a `sensor` mapping.
+
+![Creating a usage/meter sensor task — pick the sensor and a target; no clock cadence](docs/images/30-panel-create-sensor-task.png)
+
+![The same form in threshold mode — a comparison, a value, and an optional hold](docs/images/31-panel-create-sensor-threshold.png)
 
 ## Settings
 

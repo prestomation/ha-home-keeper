@@ -23,6 +23,18 @@ export function recurrenceSummary(task: Task): string {
   if (task.recurrence_type === 'triggered') return t('recurrence.triggered');
   // A one-off (do-once) task has no cadence — just a single due date.
   if (task.recurrence_type === 'one-off') return t('recurrence.oneOff');
+  // A sensor task is described by its bound numeric condition, not a clock.
+  if (task.recurrence_type === 'sensor') {
+    const s = task.sensor;
+    if (!s) return t('recurrence.sensor');
+    if (s.mode === 'threshold') {
+      return t('recurrence.sensorThreshold', {
+        comparison: s.comparison ?? '',
+        value: s.value ?? '',
+      });
+    }
+    return t('recurrence.sensorUsage', { target: s.target ?? '' });
+  }
   const n = task.interval || 1;
   if (task.recurrence_type === 'floating') {
     const base = (task.unit || 'days').replace(/s$/, ''); // day / week / month
@@ -47,8 +59,12 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
 
 /** Compact relative description of a due date, e.g. "in 3 days" / "2 days ago". */
 export function dueLabel(task: Task, now: Date = new Date()): string {
-  // A dormant triggered task is armed-but-not-due: show "Monitored", not "no date".
-  if (task.recurrence_type === 'triggered' && !task.next_due) {
+  // A dormant triggered/sensor task is armed-but-not-due: show "Monitored", not "no
+  // date" — Home Keeper is watching the condition / sensor and will arm it.
+  if (
+    (task.recurrence_type === 'triggered' || task.recurrence_type === 'sensor') &&
+    !task.next_due
+  ) {
     return t('due.monitored');
   }
   // A completed one-off (do-once, now dormant) reads as "Completed".

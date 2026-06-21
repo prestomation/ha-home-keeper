@@ -33,7 +33,13 @@ All event names follow `home_keeper_<noun>_<verb>`. Task events share a common
 | `home_keeper_task_completed` | a task is completed from **any** surface (to-do checkbox, device button, `complete_task`); payload adds `completed_at`, `origin`, and any per-completion metadata that was recorded (`note`, `cost`, `photo`, `who`) |
 | `home_keeper_task_uncompleted` | a completion is undone (`next_due` is re-derived) |
 | `home_keeper_task_completion_updated` | a recorded completion's metadata (`note`/`cost`/`photo`/`who`) is edited after the fact; payload adds the edited completion's `ts`. The schedule is untouched. |
-| `home_keeper_task_triggered` | a condition-driven (triggered) task is armed (dormant → due-now) |
+| `home_keeper_task_triggered` | a condition-driven (triggered) **or** sensor-based task is armed (dormant → due-now) |
+
+**Sensor-based tasks** reuse the triggered lifecycle: Home Keeper's watcher fires
+`home_keeper_task_triggered` when a bound numeric sensor meets the task's condition (a
+usage meter passing its target, or a threshold crossing), the task then crosses to
+`home_keeper_task_overdue` like any due task, and a normal user `home_keeper_task_completed`
+clears it (resetting a usage meter's baseline). No new event types are introduced.
 
 **Synced `problem` binary sensors** (when *Sync problem sensors* is on) ride these same
 events: a mirror task is `created` for each `device_class: problem` sensor, `triggered`
@@ -115,8 +121,8 @@ Every task event carries this core (per-event extras noted above are merged in):
 | `name` | `str` | |
 | `device_id` | `str \| None` | the task’s registry device id, or `None` when it’s a standalone task (its entities then live on a self-owned device) |
 | `area_id` | `str \| None` | |
-| `recurrence_type` | `str` | `floating` / `fixed` / `one-off` / `triggered` |
-| `next_due` | `str \| None` | ISO; `None` for a dormant triggered task or a completed one-off |
+| `recurrence_type` | `str` | `floating` / `fixed` / `one-off` / `triggered` / `sensor` |
+| `next_due` | `str \| None` | ISO; `None` for a dormant triggered/sensor task or a completed one-off |
 | `enabled` | `bool` | |
 | `labels` | `list[str]` | HA label-registry ids attached to the task (empty list when none); used by the dashboard card's label filter |
 | `source` | `dict \| None` | opaque provenance, echoed verbatim ([INTEGRATING.md](INTEGRATING.md)) |

@@ -226,5 +226,20 @@
   "companions.configure": "Configura",
   "companions.install": "Installa",
   "companions.dismiss": "Ignora",
-  "companions.docs": "Documentazione"
+  "companions.docs": "Documentazione",
+  "opt.recurrence.sensor": "Basato su sensore",
+  "recurrence.sensor": "Basato su sensore",
+  "opt.sensor_mode.usage": "Utilizzo / contatore",
+  "opt.sensor_mode.threshold": "Soglia",
+  "field.sensor_entity_id": "Sensore",
+  "field.sensor_mode": "Modalità di attivazione",
+  "field.sensor_target": "Obiettivo (unità)",
+  "field.sensor_value": "Valore di soglia",
+  "field.sensor_comparison": "Confronto",
+  "field.sensor_for": "Attesa (secondi)",
+  "field.sensor_attribute": "Attributo (opzionale)",
+  "recurrence.sensorUsage": "Ogni {target} di utilizzo",
+  "recurrence.sensorThreshold": "Quando {comparison} {value}",
+  "sensor.usageProgress": "{consumed} di {target} utilizzati ({entity})",
+  "sensor.usageTarget": "Obiettivo {target} ({entity})"
 }

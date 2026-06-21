@@ -65,6 +65,10 @@
           "name": "Data terminu",
           "description": "Dla zadań jednorazowych: data i czas ISO terminu zadania. Opcjonalne; domyślnie teraz (termin dzisiaj)."
         },
+        "sensor": {
+          "name": "Wyzwalacz czujnika",
+          "description": "Dla zadań czujnika: mapa z powiązanym czujnikiem liczbowym – entity_id, tryb (usage lub threshold) i jego pola."
+        },
         "last_completed": {
           "name": "Ostatnio wykonano",
           "description": "Opcjonalna data ostatniego wykonania. Tworzy początkowy wpis ukończenia, dzięki czemu zadanie ruchome zaczyna być liczone od tej daty (następny termin = ostatnie wykonanie + interwał) zamiast być wymagalne natychmiast. Pomiń dla zadania, które nigdy nie zostało wykonane."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Data terminu",
           "description": "Data i czas ISO terminu zadania (jednorazowe)."
+        },
+        "sensor": {
+          "name": "Wyzwalacz czujnika",
+          "description": "Powiązanie czujnika dla zadania czujnika – entity_id, tryb i jego pola (zastępuje całe powiązanie)."
         },
         "device_id": {
           "name": "Urządzenie",

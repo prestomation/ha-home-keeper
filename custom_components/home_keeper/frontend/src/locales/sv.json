@@ -214,5 +214,20 @@
   "companions.configure": "Konfigurera",
   "companions.install": "Installera",
   "companions.dismiss": "Avfärda",
-  "companions.docs": "Dokumentation"
+  "companions.docs": "Dokumentation",
+  "opt.recurrence.sensor": "Sensorbaserad",
+  "recurrence.sensor": "Sensorbaserad",
+  "opt.sensor_mode.usage": "Användning / mätare",
+  "opt.sensor_mode.threshold": "Tröskel",
+  "field.sensor_entity_id": "Sensor",
+  "field.sensor_mode": "Utlösarläge",
+  "field.sensor_target": "Mål (enheter)",
+  "field.sensor_value": "Tröskelvärde",
+  "field.sensor_comparison": "Jämförelse",
+  "field.sensor_for": "Håll (sekunder)",
+  "field.sensor_attribute": "Attribut (valfritt)",
+  "recurrence.sensorUsage": "Var {target} användning",
+  "recurrence.sensorThreshold": "När {comparison} {value}",
+  "sensor.usageProgress": "{consumed} av {target} använt ({entity})",
+  "sensor.usageTarget": "Mål {target} ({entity})"
 }

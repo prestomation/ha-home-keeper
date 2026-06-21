@@ -65,6 +65,10 @@
           "name": "Fecha de vencimiento",
           "description": "Para tareas one-off: fecha y hora ISO en que vence la tarea. Opcional; por defecto es ahora (vence hoy)."
         },
+        "sensor": {
+          "name": "Disparador por sensor",
+          "description": "Para tareas de sensor: un mapa con el sensor numérico vinculado: entity_id, modo (usage o threshold) y sus campos."
+        },
         "last_completed": {
           "name": "Última realización",
           "description": "Fecha opcional de «última realización». Crea una realización inicial para que una tarea flotante se mida a partir de esta fecha (próximo vencimiento = última realización + intervalo) en lugar de vencer de inmediato. Omítela para una tarea que nunca se ha realizado."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Fecha de vencimiento",
           "description": "Fecha y hora ISO en que vence la tarea (one-off)."
+        },
+        "sensor": {
+          "name": "Disparador por sensor",
+          "description": "Vinculación del sensor para una tarea de sensor: entity_id, modo y sus campos (reemplaza toda la configuración)."
         },
         "device_id": {
           "name": "Dispositivo",

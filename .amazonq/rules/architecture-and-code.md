@@ -63,11 +63,28 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   user-scheduled `due` date; `compute_next_due` returns `due`, `apply_completion`
   sets `next_due=None` permanently, and `remove_completion` re-arms to `due` only
   when the final completion is undone), and `triggered` (condition-driven, no
-  schedule — owned by another integration). `one-off` and `triggered` both carry
+  schedule — owned by another integration), and `sensor` (due-state derived from a
+  bound numeric entity — see below). `one-off`, `triggered`, and `sensor` all carry
   **no cadence fields** (`normalize_fields` returns early for each); a completed
-  one-off and a dormant triggered task both have `next_due=None`, so they fall out of
-  every time surface (to-do/calendar/sensors/transitions) for free. Keep the
+  one-off and a dormant triggered/sensor task all have `next_due=None`, so they fall
+  out of every time surface (to-do/calendar/sensors/transitions) for free. Keep the
   recurrence math in pure `recurrence.py` with an explicit `now`.
+- **Sensor-based tasks** (`REC_SENSOR`) bind a task to a numeric entity via a
+  `task["sensor"]` block (`models.normalize_sensor`: `entity_id`, `mode`, and the
+  mode's fields — `target` for `usage`, `comparison`+`value`+optional `for_seconds`
+  for `threshold`, optional `attribute`). Like `triggered`, `next_due` is the state
+  (`None` dormant / timestamp armed) and the task is **user-created** — so, unlike the
+  problem-sensor sync, there is **no auto-creation/reconcile and no entry reload**. The
+  arming math is a **pure evaluator** (`sensor_tasks.py`: `evaluate_usage` /
+  `evaluate_threshold`, plus `compare`/`parse_reading`) and the **HA-aware watcher**
+  (`sensor_watcher.py`) only *evaluates* existing sensor tasks: it subscribes to the
+  bound entities, reads live values, and applies decisions through the store
+  (`trigger_task` to arm — now accepts `REC_SENSOR` — and `set_sensor_baseline` for a
+  usage meter; completion clears + re-baselines via `store.complete_task`). Threshold
+  edge state (was-true / crossed-at) lives in the watcher's memory and is **baselined
+  on startup** (`async_baseline`) so a restart never replays a spurious arm — the same
+  discipline as `transitions.py`. The coordinator's periodic tick calls
+  `sensor_watcher.async_evaluate(refresh=False)` before transition detection.
 - `labels[]` are **Home Assistant label-registry ids** (the same registry as device/
   area/entity labels), normalized in `models.normalize_labels` (de-duped, blank-
   stripped). `merge_update` only rewrites `labels` when the caller sends the key, so a

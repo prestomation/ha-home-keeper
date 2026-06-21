@@ -226,5 +226,20 @@
   "companions.configure": "Configurer",
   "companions.install": "Installer",
   "companions.dismiss": "Ignorer",
-  "companions.docs": "Documentation"
+  "companions.docs": "Documentation",
+  "opt.recurrence.sensor": "Basé sur un capteur",
+  "recurrence.sensor": "Basé sur un capteur",
+  "opt.sensor_mode.usage": "Usage / compteur",
+  "opt.sensor_mode.threshold": "Seuil",
+  "field.sensor_entity_id": "Capteur",
+  "field.sensor_mode": "Mode de déclenchement",
+  "field.sensor_target": "Cible (unités)",
+  "field.sensor_value": "Valeur du seuil",
+  "field.sensor_comparison": "Comparaison",
+  "field.sensor_for": "Maintien (secondes)",
+  "field.sensor_attribute": "Attribut (facultatif)",
+  "recurrence.sensorUsage": "Tous les {target} d'usage",
+  "recurrence.sensorThreshold": "Quand {comparison} {value}",
+  "sensor.usageProgress": "{consumed} sur {target} utilisés ({entity})",
+  "sensor.usageTarget": "Cible {target} ({entity})"
 }

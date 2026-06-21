@@ -177,6 +177,31 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/20-panel-create-one-off.png`, fullPage: true });
 
+  // 30. Create form switched to a sensor-based task (usage / meter) — an entity
+  // picker, a mode toggle, and a target replace the clock cadence. Home Keeper arms
+  // the task once the bound meter advances by the target since the last completion.
+  // Reopen the panel fresh first so no transient tooltip/toast from the blocked-done
+  // steps above lingers over the form.
+  await openPanel(page);
+  await expect(panel.locator('#add-btn')).toBeVisible();
+  await panel.locator('#add-btn').click();
+  await expect(panel.locator('#hk-form')).toBeVisible();
+  await fillText(panel.locator('#hk-task-form'), 0, 'Service generator (runtime hours)');
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Sensor-based/);
+  await expect(panel.locator('#hk-task-form ha-selector-entity').first()).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/30-panel-create-sensor-task.png`, fullPage: true });
+
+  // 31. The same form switched to threshold mode — a comparison + value, plus an
+  // optional hold (seconds) to debounce. The task arms on the crossing. (The sensor
+  // mode select is the 2nd ha-select in the form, after recurrence type.)
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').nth(1), /Threshold/);
+  await expect(panel.locator('#hk-task-form ha-selector-number').first()).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/31-panel-create-sensor-threshold.png`, fullPage: true });
+
   // 5. Appliances tab — the asset list with the seeded virtual device.
   await panel.locator('#tab-appliances').click();
   await expect(panel.locator('.hk-name').first()).toBeVisible();

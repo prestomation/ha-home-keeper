@@ -65,6 +65,10 @@
           "name": "Förfallodatum",
           "description": "För engångsuppgifter: ISO-datum och -tid när uppgiften förfaller. Valfritt; standard är nu (förfaller i dag)."
         },
+        "sensor": {
+          "name": "Sensorutlösare",
+          "description": "För sensoruppgifter: en mappning med den kopplade numeriska sensorn – entity_id, läge (usage eller threshold) och dess fält."
+        },
         "last_completed": {
           "name": "Senast utförd",
           "description": "Valfritt datum för när uppgiften senast utfördes. Anger en första slutförd uppgift så att en flytande uppgift mäts från detta datum (nästa förfallodatum = senast utförd + intervall) i stället för att förfalla omedelbart. Utelämna för en uppgift som aldrig har utförts."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Förfallodatum",
           "description": "ISO-datum och -tid när uppgiften förfaller (engångsuppgift)."
+        },
+        "sensor": {
+          "name": "Sensorutlösare",
+          "description": "Sensorbindning för en sensoruppgift – entity_id, läge och dess fält (ersätter hela bindningen)."
         },
         "device_id": {
           "name": "Enhet",

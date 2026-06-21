@@ -33,6 +33,7 @@ from .const import (
 from .coordinator import HomeKeeperCoordinator, entity_set_key
 from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
+from .sensor_watcher import SensorTaskWatcher
 from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,6 +56,10 @@ ADD_TASK_SCHEMA = vol.Schema(
         # Due date for a one-off (do-once) task. Optional: defaults to "now" (due
         # today) when omitted. Naive values are interpreted in HA's configured tz.
         vol.Optional("due"): cv.string,
+        # Sensor binding for a sensor-based task: a mapping with entity_id, mode
+        # (usage|threshold) and the mode's fields (target / comparison+value+
+        # for_seconds, optional attribute). Validated by models.normalize_sensor.
+        vol.Optional("sensor"): dict,
         # Optional "last done" seed: records an initial completion so a floating task
         # starts measured from this date instead of due-now. See docs/INTEGRATING.md.
         vol.Optional("last_completed"): cv.datetime,
@@ -83,6 +88,7 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("freq"): cv.string,
         vol.Optional("anchor"): cv.string,
         vol.Optional("due"): cv.string,
+        vol.Optional("sensor"): dict,
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
         vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
@@ -265,9 +271,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Now that platforms are up, start the live problem-sensor listeners (these may
     # reload the entry when a synced task is created/removed, so they run last).
     problem_sync.async_start_listeners()
+    # Sensor-based tasks: baseline the watcher's edge state / usage meters BEFORE
+    # attaching it to the coordinator, so the first evaluation only reacts to genuine
+    # transitions (an already-over-threshold sensor at boot does not arm). Then start
+    # its live state listeners.
+    sensor_watcher = SensorTaskWatcher(hass, entry, coordinator)
+    await sensor_watcher.async_baseline()
+    coordinator.sensor_watcher = sensor_watcher
+    sensor_watcher.async_start_listeners()
     # Setup is complete: the refreshes above have baselined current overdue/due-soon
     # state silently, so start firing those events only for transitions from here on.
     coordinator.enable_transition_events()
+    # One evaluation pass now that everything is wired: arms any usage task whose meter
+    # is already past target (e.g. it advanced while HA was down) and fires the genuine
+    # overdue/due-soon events for it.
+    await coordinator.async_request_refresh()
     # Flip the companion registry live only once HA has fully started, so companions
     # that self-register during startup (and catalog upstreams already installed) are
     # baselined silently — an HA restart never replays a companion_connected storm.

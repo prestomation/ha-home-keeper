@@ -214,5 +214,20 @@
   "companions.configure": "Configureren",
   "companions.install": "Installeren",
   "companions.dismiss": "Negeren",
-  "companions.docs": "Documentatie"
+  "companions.docs": "Documentatie",
+  "opt.recurrence.sensor": "Sensorgebaseerd",
+  "recurrence.sensor": "Sensorgebaseerd",
+  "opt.sensor_mode.usage": "Gebruik / meter",
+  "opt.sensor_mode.threshold": "Drempel",
+  "field.sensor_entity_id": "Sensor",
+  "field.sensor_mode": "Triggermodus",
+  "field.sensor_target": "Doel (eenheden)",
+  "field.sensor_value": "Drempelwaarde",
+  "field.sensor_comparison": "Vergelijking",
+  "field.sensor_for": "Vasthouden (seconden)",
+  "field.sensor_attribute": "Attribuut (optioneel)",
+  "recurrence.sensorUsage": "Elke {target} gebruik",
+  "recurrence.sensorThreshold": "Wanneer {comparison} {value}",
+  "sensor.usageProgress": "{consumed} van {target} gebruikt ({entity})",
+  "sensor.usageTarget": "Doel {target} ({entity})"
 }

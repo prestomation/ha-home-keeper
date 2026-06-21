@@ -143,7 +143,37 @@ REC_TRIGGERED = "triggered"
 # triggered task, but undoing the completion re-arms it to ``due`` (its state is
 # history-driven, not condition-driven). See docs/EVENTS.md / README.
 REC_ONE_OFF = "one-off"
-RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED, REC_TRIGGERED, REC_ONE_OFF]
+# A sensor-based task: Home Keeper derives its armed/dormant state from a bound
+# numeric sensor rather than the clock. Like ``triggered`` its ``next_due`` *is* its
+# state (``None`` = dormant, a timestamp = armed/due-now), but Home Keeper itself —
+# not an external owner — arms it via a pure evaluator fed by the live reading. The
+# binding lives in ``task["sensor"]`` (see ``models.normalize_sensor`` /
+# ``sensor_tasks.py``). Two modes: ``usage`` (a meter — due after the reading
+# advances ``target`` units since the last completion) and ``threshold`` (due when
+# the reading crosses a comparison). See docs/SENSOR_TASKS_PLAN.md.
+REC_SENSOR = "sensor"
+RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED, REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR]
+
+# Sensor-based task modes.
+SENSOR_MODE_USAGE = "usage"  # meter: arm when reading - baseline >= target
+SENSOR_MODE_THRESHOLD = "threshold"  # arm on a numeric crossing of value
+SENSOR_MODES = [SENSOR_MODE_USAGE, SENSOR_MODE_THRESHOLD]
+
+# Threshold comparison operators (stored verbatim in ``task["sensor"]["comparison"]``).
+SENSOR_CMP_GE = ">="
+SENSOR_CMP_LE = "<="
+SENSOR_CMP_GT = ">"
+SENSOR_CMP_LT = "<"
+SENSOR_CMP_EQ = "=="
+SENSOR_CMP_NE = "!="
+SENSOR_COMPARISONS = [
+    SENSOR_CMP_GE,
+    SENSOR_CMP_LE,
+    SENSOR_CMP_GT,
+    SENSOR_CMP_LT,
+    SENSOR_CMP_EQ,
+    SENSOR_CMP_NE,
+]
 
 # Per-task capture mode for completion metadata (note / cost / photo / who).
 # ``none`` keeps the existing one-click "Done" (the default, so existing tasks and

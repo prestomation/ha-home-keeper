@@ -34,7 +34,11 @@ const DOC_ROUTES = {
 // README same-page anchors that now live on their own User Guide pages.
 const ANCHOR_ROUTES = {
   '#one-off-do-once-tasks': '/docs/guide/one-off-tasks',
+  '#sensor-based-tasks-usage-meters--thresholds': '/docs/guide/sensor-tasks',
   '#appliances--virtual-devices': '/docs/guide/appliances',
+  // The "Companions" subsection lives under the Settings section (→ settings page).
+  '#companions--discover-integrations-that-work-with-home-keeper':
+    '/docs/guide/settings#companions--discover-integrations-that-work-with-home-keeper',
 };
 
 // Rewrite every Markdown link/image target. `sourceDir` is the canonical file's
@@ -129,6 +133,7 @@ const USER_SECTIONS = [
   {h: 'One-off (do-once) tasks', slug: 'one-off-tasks', title: 'One-off tasks', label: 'One-off tasks'},
   {h: 'Logging completions (note, cost, photo, who)', slug: 'completions', title: 'Logging completions', label: 'Completions'},
   {h: 'Condition-driven (triggered) tasks', slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks'},
+  {h: 'Sensor-based tasks (usage meters & thresholds)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks'},
   {h: 'Settings', slug: 'settings', title: 'Settings'},
   {h: 'Dashboard task card', slug: 'dashboard-card', title: 'Dashboard card', label: 'Dashboard card'},
   {h: 'Appliances & virtual devices', slug: 'appliances', title: 'Appliances', label: 'Appliances'},

@@ -65,6 +65,10 @@
           "name": "Eräpäivä",
           "description": "Kertaluonteisille tehtäville: ISO-aikaleima, jolloin tehtävä erääntyy. Valinnainen; oletuksena nykyhetki (erääntyy tänään)."
         },
+        "sensor": {
+          "name": "Anturilaukaisin",
+          "description": "Anturitehtäville: kartta sidotusta numeerisesta anturista – entity_id, tila (usage tai threshold) ja sen kentät."
+        },
         "last_completed": {
           "name": "Viimeksi suoritettu",
           "description": "Valinnainen 'viimeksi tehty' -päivämäärä. Lisää aloitussuorituksen, jolloin kelluvaa tehtävää aletaan mitata tästä päivämäärästä (seuraava eräpäivä = viimeksi tehty + aikaväli) sen sijaan, että se erääntyisi heti. Jätä pois tehtävälle, jota ei ole koskaan tehty."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Eräpäivä",
           "description": "ISO-aikaleima, jolloin tehtävä erääntyy (one-off)."
+        },
+        "sensor": {
+          "name": "Anturilaukaisin",
+          "description": "Anturisidos anturitehtävälle – entity_id, tila ja sen kentät (korvaa koko sidoksen)."
         },
         "device_id": {
           "name": "Laite",

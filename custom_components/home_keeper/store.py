@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import assets, events, models, recurrence
+from . import assets, events, models, recurrence, sensor_tasks, sensor_watcher
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
     EVENT_ASSET_CREATED,
@@ -33,7 +33,9 @@ from .const import (
     EVENT_TASK_UNCOMPLETED,
     EVENT_TASK_UPDATED,
     ORIGIN_PROBLEM_SENSOR_SYNC,
+    REC_SENSOR,
     REC_TRIGGERED,
+    SENSOR_MODE_USAGE,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
@@ -182,22 +184,23 @@ class HomeKeeperStore:
     async def trigger_task(
         self, task_id: str, *, origin: str | None = None
     ) -> dict[str, Any]:
-        """Arm a condition-driven (``triggered``) task so it reads as due-now.
+        """Arm a condition-driven (``triggered``) or sensor-based task so it's due-now.
 
         Sets ``next_due`` to now, moving the task from dormant to active. This is the
         owner-facing counterpart to ``complete_task`` (which clears it back to
         dormant): an integration calls it when the condition it monitors becomes true
-        again (e.g. a battery drops low after a prior replacement). Idempotent —
+        again (e.g. a battery drops low after a prior replacement), and the sensor-task
+        watcher calls it when a bound reading meets the task's condition. Idempotent —
         arming an already-active task just refreshes its trigger time. Only valid for
-        ``triggered`` tasks; rejects others so callers don't accidentally strand a
-        scheduled task on a fixed due date.
+        ``triggered`` / ``sensor`` tasks; rejects others so callers don't accidentally
+        strand a scheduled task on a fixed due date.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
-        if existing.get("recurrence_type") != REC_TRIGGERED:
+        if existing.get("recurrence_type") not in (REC_TRIGGERED, REC_SENSOR):
             raise models.TaskValidationError(
-                "trigger_task is only valid for triggered (condition-driven) tasks"
+                "trigger_task is only valid for triggered or sensor-based tasks"
             )
         _reject_synced_problem(existing, origin)
         existing["next_due"] = dt_util.now().isoformat()
@@ -207,6 +210,28 @@ class HomeKeeperStore:
             EVENT_TASK_TRIGGERED, events.task_event_data(existing)
         )
         return existing
+
+    async def set_sensor_baseline(
+        self, task_id: str, baseline: float
+    ) -> dict[str, Any]:
+        """Stamp a usage sensor task's meter ``baseline`` (silent bookkeeping).
+
+        Called by the sensor watcher to anchor a fresh usage task to its first live
+        reading and to re-anchor after a meter reset. This is internal state, not a
+        user action, so it persists without firing a lifecycle event (mirroring the
+        wear-part reconcile edits). A no-op for a non-sensor task or an unchanged value.
+        """
+        task = self._tasks.get(task_id)
+        if task is None:
+            raise KeyError(task_id)
+        cfg = task.get("sensor")
+        if not isinstance(cfg, dict):
+            return task
+        if cfg.get("baseline") != baseline:
+            cfg["baseline"] = baseline
+            await self._save()
+            _LOGGER.debug("Set usage baseline for task %s -> %s", task_id, baseline)
+        return task
 
     async def delete_task(self, task_id: str, *, force: bool = False) -> None:
         task = self._tasks.get(task_id)
@@ -522,6 +547,7 @@ class HomeKeeperStore:
         updated = recurrence.apply_completion(
             dict(existing), when, now=now, metadata=clean_metadata
         )
+        self._reset_usage_baseline(updated)
         self._tasks[task_id] = updated
         self._stamp_part_replacement(updated, when)
         await self._save()
@@ -606,6 +632,26 @@ class HomeKeeperStore:
         if assets.remove_archived_completion(asset, task_id, ts):
             await self._save()
         return asset
+
+    def _reset_usage_baseline(self, task: dict[str, Any]) -> None:
+        """Reset a usage sensor task's meter baseline to the live reading on completion.
+
+        Completing a usage task ("I changed the oil") resets its counter just as
+        completing a floating task resets its clock: the next arming is measured from
+        the reading at completion. Done here (the store is HA-aware) rather than in the
+        pure recurrence layer. If the bound entity is currently unavailable the baseline
+        is cleared (``None``) so the watcher re-anchors on the first valid reading after
+        completion rather than measuring from the stale pre-completion baseline.
+        """
+        cfg = sensor_tasks.sensor_config(task)
+        if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
+            return
+        # Reset the meter to the reading at completion. If the entity is currently
+        # unavailable, clear the baseline (``None``) so the watcher re-anchors to the
+        # first valid reading *after* completion rather than measuring from the now
+        # stale pre-completion baseline — which could otherwise immediately re-arm the
+        # task if the meter advanced past target while the entity was unavailable.
+        cfg["baseline"] = sensor_watcher.read_sensor_value(self._hass, cfg)
 
     def _stamp_part_replacement(self, task: dict[str, Any], when: Any) -> None:
         src = _part_source(task)

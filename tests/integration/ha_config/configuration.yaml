@@ -48,6 +48,17 @@ lovelace:
 # home_keeper_task_completed event (the public cross-integration hook). The
 # automation records the event's opaque source/origin so a REST test can assert the
 # event fired with the right payload.
+# A numeric helper the sensor-based-task integration test drives to exercise the
+# sensor watcher: a threshold/usage task binds to it, and changing its value makes
+# Home Keeper arm the task (see tests/integration/test_sensor_watcher.py).
+input_number:
+  hk_demo_meter:
+    name: HK demo meter
+    min: 0
+    max: 1000000
+    step: 1
+    initial: 0
+
 input_text:
   hk_last_completed_source:
     name: HK last completed source

@@ -29,6 +29,7 @@ from .store import HomeKeeperStore
 
 if TYPE_CHECKING:
     from .problem_sync import ProblemSensorSync
+    from .sensor_watcher import SensorTaskWatcher
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,6 +70,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.entry = entry
         # The problem-sensor sync helper, attached during async_setup_entry.
         self.problem_sync: ProblemSensorSync | None = None
+        # The sensor-based-task watcher, attached during async_setup_entry (after its
+        # edge state / usage baselines are seeded, so the periodic tick below only ever
+        # reacts to genuine transitions).
+        self.sensor_watcher: SensorTaskWatcher | None = None
         # Edge state for the time-based task events (overdue / due-soon). Carried
         # across refreshes so each is fired at most once per ``next_due``; see
         # transitions.detect_transitions.
@@ -89,6 +94,11 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         await self._purge_expired_one_offs()
+        # Re-evaluate sensor-based tasks against their bound readings before reading the
+        # task map, so a freshly-armed task surfaces as overdue/due-soon in this same
+        # cycle. No refresh request here — the transition detection below runs next.
+        if self.sensor_watcher is not None:
+            await self.sensor_watcher.async_evaluate(refresh=False)
         tasks = self.store.get_tasks()
         fired, self._edge_state = transitions.detect_transitions(
             self._edge_state, tasks, now=dt_util.now()

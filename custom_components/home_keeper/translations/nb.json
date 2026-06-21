@@ -65,6 +65,10 @@
           "name": "Forfallsdato",
           "description": "For engangsoppgaver: ISO-dato og -tid når oppgaven forfaller. Valgfritt; standard er nå (forfaller i dag)."
         },
+        "sensor": {
+          "name": "Sensorutløser",
+          "description": "For sensoroppgaver: et oppslag med den tilknyttede numeriske sensoren – entity_id, modus (usage eller threshold) og feltene dens."
+        },
         "last_completed": {
           "name": "Sist utført",
           "description": "Valgfri dato for 'sist utført'. Legger til en innledende fullføring slik at en flytende oppgave måles fra denne datoen (neste forfall = sist utført + intervall) i stedet for å forfalle umiddelbart. Utelat for en oppgave som aldri har blitt utført."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Forfallsdato",
           "description": "ISO-dato og -tid når oppgaven forfaller (one-off)."
+        },
+        "sensor": {
+          "name": "Sensorutløser",
+          "description": "Sensorbinding for en sensoroppgave – entity_id, modus og feltene dens (erstatter hele bindingen)."
         },
         "device_id": {
           "name": "Enhet",

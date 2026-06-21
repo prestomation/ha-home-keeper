@@ -65,6 +65,10 @@
           "name": "Vervaldatum",
           "description": "Voor one-off-taken: ISO-datum/tijd waarop de taak vervalt. Optioneel; standaard nu (vervalt vandaag)."
         },
+        "sensor": {
+          "name": "Sensortrigger",
+          "description": "Voor sensortaken: een toewijzing met de gekoppelde numerieke sensor: entity_id, modus (usage of threshold) en de bijbehorende velden."
+        },
         "last_completed": {
           "name": "Laatst voltooid",
           "description": "Optionele datum waarop de taak het laatst is uitgevoerd. Stelt een eerste voltooiing in zodat een zwevende taak vanaf deze datum wordt gemeten (volgende vervaldatum = laatst uitgevoerd + interval) in plaats van meteen te vervallen. Weglaten voor een taak die nog nooit is uitgevoerd."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Vervaldatum",
           "description": "ISO-datum/tijd waarop de taak vervalt (one-off)."
+        },
+        "sensor": {
+          "name": "Sensortrigger",
+          "description": "Sensorkoppeling voor een sensortaak: entity_id, modus en de bijbehorende velden (vervangt de hele koppeling)."
         },
         "device_id": {
           "name": "Apparaat",

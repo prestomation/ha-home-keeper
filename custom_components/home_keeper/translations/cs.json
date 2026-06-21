@@ -65,6 +65,10 @@
           "name": "Datum splatnosti",
           "description": "Pro jednorázové úkoly: ISO datum a čas, kdy je úkol splatný. Volitelné; výchozí je nyní (splatné dnes)."
         },
+        "sensor": {
+          "name": "Spouštěč podle senzoru",
+          "description": "Pro úlohy se senzorem: mapa s připojeným číselným senzorem – entity_id, režim (usage nebo threshold) a jeho pole."
+        },
         "last_completed": {
           "name": "Naposledy dokončeno",
           "description": "Volitelné datum 'naposledy provedeno'. Vytvoří počáteční dokončení, takže plovoucí úkol se začne počítat od tohoto data (příští termín = naposledy provedeno + interval) místo toho, aby byl splatný okamžitě. Vynechejte pro úkol, který nikdy nebyl proveden."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Datum splatnosti",
           "description": "ISO datum a čas, kdy je úkol splatný (jednorázový)."
+        },
+        "sensor": {
+          "name": "Spouštěč podle senzoru",
+          "description": "Vazba senzoru pro úlohu se senzorem – entity_id, režim a jeho pole (nahradí celou vazbu)."
         },
         "device_id": {
           "name": "Zařízení",

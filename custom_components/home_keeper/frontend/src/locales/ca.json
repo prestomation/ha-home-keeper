@@ -226,5 +226,20 @@
   "companions.configure": "Configura",
   "companions.install": "Instaŀla",
   "companions.dismiss": "Descarta",
-  "companions.docs": "Documentació"
+  "companions.docs": "Documentació",
+  "opt.recurrence.sensor": "Basat en sensor",
+  "recurrence.sensor": "Basat en sensor",
+  "opt.sensor_mode.usage": "Ús / comptador",
+  "opt.sensor_mode.threshold": "Llindar",
+  "field.sensor_entity_id": "Sensor",
+  "field.sensor_mode": "Mode d'activació",
+  "field.sensor_target": "Objectiu (unitats)",
+  "field.sensor_value": "Valor del llindar",
+  "field.sensor_comparison": "Comparació",
+  "field.sensor_for": "Manté (segons)",
+  "field.sensor_attribute": "Atribut (opcional)",
+  "recurrence.sensorUsage": "Cada {target} d'ús",
+  "recurrence.sensorThreshold": "Quan {comparison} {value}",
+  "sensor.usageProgress": "{consumed} de {target} usats ({entity})",
+  "sensor.usageTarget": "Objectiu {target} ({entity})"
 }

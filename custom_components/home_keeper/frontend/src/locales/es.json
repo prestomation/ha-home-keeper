@@ -226,5 +226,20 @@
   "companions.configure": "Configurar",
   "companions.install": "Instalar",
   "companions.dismiss": "Descartar",
-  "companions.docs": "Documentación"
+  "companions.docs": "Documentación",
+  "opt.recurrence.sensor": "Basado en sensor",
+  "recurrence.sensor": "Basado en sensor",
+  "opt.sensor_mode.usage": "Uso / contador",
+  "opt.sensor_mode.threshold": "Umbral",
+  "field.sensor_entity_id": "Sensor",
+  "field.sensor_mode": "Modo de activación",
+  "field.sensor_target": "Objetivo (unidades)",
+  "field.sensor_value": "Valor del umbral",
+  "field.sensor_comparison": "Comparación",
+  "field.sensor_for": "Mantener (segundos)",
+  "field.sensor_attribute": "Atributo (opcional)",
+  "recurrence.sensorUsage": "Cada {target} de uso",
+  "recurrence.sensorThreshold": "Cuando {comparison} {value}",
+  "sensor.usageProgress": "{consumed} de {target} usados ({entity})",
+  "sensor.usageTarget": "Objetivo {target} ({entity})"
 }

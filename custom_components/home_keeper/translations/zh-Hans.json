@@ -65,6 +65,10 @@
           "name": "到期日期",
           "description": "对于一次性任务：任务到期的 ISO 日期时间。可选；默认为现在（今天到期）。"
         },
+        "sensor": {
+          "name": "传感器触发",
+          "description": "用于传感器任务：包含所绑定数值传感器的映射 — entity_id、模式（usage 或 threshold）及其字段。"
+        },
         "last_completed": {
           "name": "上次完成",
           "description": "可选的“上次完成”日期。它会生成一条初始完成记录，使浮动任务从该日期开始计算（下次到期 = 上次完成 + 间隔），而不是立即到期。对于从未完成过的任务请留空。"
@@ -118,6 +122,10 @@
         "due": {
           "name": "到期日期",
           "description": "任务到期的 ISO 日期时间（one-off）。"
+        },
+        "sensor": {
+          "name": "传感器触发",
+          "description": "传感器任务的传感器绑定 — entity_id、模式及其字段（替换整个绑定）。"
         },
         "device_id": {
           "name": "设备",

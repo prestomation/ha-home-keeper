@@ -65,6 +65,10 @@
           "name": "Fälligkeitsdatum",
           "description": "Für one-off-Aufgaben: ISO-Datum/Uhrzeit, zu der die Aufgabe fällig ist. Optional; Standard ist jetzt (heute fällig)."
         },
+        "sensor": {
+          "name": "Sensor-Auslöser",
+          "description": "Für Sensoraufgaben: eine Zuordnung mit dem verknüpften numerischen Sensor – entity_id, Modus (usage oder threshold) und dessen Felder."
+        },
         "last_completed": {
           "name": "Zuletzt erledigt",
           "description": "Optionales Datum, wann die Aufgabe zuletzt erledigt wurde. Setzt eine erste Erledigung, sodass eine flexible Aufgabe ab diesem Datum gemessen wird (nächste Fälligkeit = zuletzt erledigt + Intervall), statt sofort fällig zu sein. Weglassen für eine Aufgabe, die noch nie erledigt wurde."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Fälligkeitsdatum",
           "description": "ISO-Datum/Uhrzeit, zu der die Aufgabe fällig ist (one-off)."
+        },
+        "sensor": {
+          "name": "Sensor-Auslöser",
+          "description": "Sensorbindung für eine Sensoraufgabe – entity_id, Modus und dessen Felder (ersetzt die gesamte Bindung)."
         },
         "device_id": {
           "name": "Gerät",

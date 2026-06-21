@@ -65,6 +65,10 @@
           "name": "Data di scadenza",
           "description": "Per le attività one-off: data/ora ISO in cui l'attività è dovuta. Facoltativo; per impostazione predefinita adesso (in scadenza oggi)."
         },
+        "sensor": {
+          "name": "Attivazione da sensore",
+          "description": "Per le attività con sensore: una mappa con il sensore numerico collegato: entity_id, modalità (usage o threshold) e i suoi campi."
+        },
         "last_completed": {
           "name": "Ultimo completamento",
           "description": "Data facoltativa dell'«ultimo completamento». Crea un completamento iniziale in modo che un'attività fluttuante venga misurata a partire da questa data (prossima scadenza = ultimo completamento + intervallo) anziché scadere immediatamente. Ometterla per un'attività mai eseguita."
@@ -118,6 +122,10 @@
         "due": {
           "name": "Data di scadenza",
           "description": "Data/ora ISO in cui l'attività è dovuta (one-off)."
+        },
+        "sensor": {
+          "name": "Attivazione da sensore",
+          "description": "Associazione del sensore per un'attività con sensore: entity_id, modalità e i suoi campi (sostituisce l'intera associazione)."
         },
         "device_id": {
           "name": "Dispositivo",

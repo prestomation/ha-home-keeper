@@ -226,5 +226,20 @@
   "companions.configure": "Configurar",
   "companions.install": "Instalar",
   "companions.dismiss": "Dispensar",
-  "companions.docs": "Documentação"
+  "companions.docs": "Documentação",
+  "opt.recurrence.sensor": "Baseado em sensor",
+  "recurrence.sensor": "Baseado em sensor",
+  "opt.sensor_mode.usage": "Uso / medidor",
+  "opt.sensor_mode.threshold": "Limite",
+  "field.sensor_entity_id": "Sensor",
+  "field.sensor_mode": "Modo de disparo",
+  "field.sensor_target": "Meta (unidades)",
+  "field.sensor_value": "Valor do limite",
+  "field.sensor_comparison": "Comparação",
+  "field.sensor_for": "Espera (segundos)",
+  "field.sensor_attribute": "Atributo (opcional)",
+  "recurrence.sensorUsage": "A cada {target} de uso",
+  "recurrence.sensorThreshold": "Quando {comparison} {value}",
+  "sensor.usageProgress": "{consumed} de {target} usados ({entity})",
+  "sensor.usageTarget": "Meta {target} ({entity})"
 }

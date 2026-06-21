@@ -214,5 +214,20 @@
   "companions.configure": "配置",
   "companions.install": "安装",
   "companions.dismiss": "忽略",
-  "companions.docs": "文档"
+  "companions.docs": "文档",
+  "opt.recurrence.sensor": "基于传感器",
+  "recurrence.sensor": "基于传感器",
+  "opt.sensor_mode.usage": "用量 / 计量",
+  "opt.sensor_mode.threshold": "阈值",
+  "field.sensor_entity_id": "传感器",
+  "field.sensor_mode": "触发模式",
+  "field.sensor_target": "目标（单位）",
+  "field.sensor_value": "阈值数值",
+  "field.sensor_comparison": "比较",
+  "field.sensor_for": "保持（秒）",
+  "field.sensor_attribute": "属性（可选）",
+  "recurrence.sensorUsage": "每使用 {target}",
+  "recurrence.sensorThreshold": "当 {comparison} {value} 时",
+  "sensor.usageProgress": "已用 {consumed} / {target}（{entity}）",
+  "sensor.usageTarget": "目标 {target}（{entity}）"
 }

@@ -3,9 +3,30 @@
 // integration; rendered read-only in the panel. See docs/INTEGRATING.md.
 // `one-off` is a user-scheduled do-once task: it carries a `due` date and goes
 // dormant (next_due null) once completed, landing in the panel's Completed section.
-export type RecurrenceType = 'floating' | 'fixed' | 'triggered' | 'one-off';
+// `sensor` is a sensor-based task: Home Keeper derives its armed/dormant state from
+// a bound numeric sensor (see `SensorBinding`). Like `triggered`, its `next_due` is
+// its state; the user creates it and the backend watcher arms it.
+export type RecurrenceType = 'floating' | 'fixed' | 'triggered' | 'one-off' | 'sensor';
 export type Unit = 'days' | 'weeks' | 'months';
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+export type SensorMode = 'usage' | 'threshold';
+export type SensorComparison = '>=' | '<=' | '>' | '<' | '==' | '!=';
+
+/** The numeric-sensor binding of a sensor-based task. Only the keys relevant to
+ *  `mode` are present: `target` for usage; `comparison`/`value`/`for_seconds` for
+ *  threshold. `baseline` (usage) is the reading at creation / last completion,
+ *  stamped by the backend watcher. `attribute` reads an entity attribute instead
+ *  of the state. */
+export interface SensorBinding {
+  entity_id: string;
+  mode: SensorMode;
+  attribute?: string;
+  target?: number;
+  baseline?: number;
+  comparison?: SensorComparison;
+  value?: number;
+  for_seconds?: number;
+}
 
 /** How a task captures per-completion detail when marked done:
  *  `none` = one-tap; `optional` = a details dialog, all fields optional;
@@ -51,6 +72,8 @@ export interface Task {
   anchor?: string;
   // The chosen due date for a one-off task (absent on other kinds).
   due?: string;
+  // The numeric-sensor binding for a sensor-based task (absent on other kinds).
+  sensor?: SensorBinding | null;
   device_id?: string | null;
   area_id?: string | null;
   enabled?: boolean;
