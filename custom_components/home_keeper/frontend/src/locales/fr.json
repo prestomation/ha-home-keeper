@@ -195,5 +195,19 @@
   "settings.problem_sensor_exclude_entities": "Capteurs exclus",
   "settings.problem_sensor_exclude_areas": "Zones exclues",
   "settings.problem_sensor_exclude_labels": "Étiquettes exclues",
-  "done.blocked": "Ceci ne peut pas être terminé dans Home Keeper — l'intégration propriétaire s'en charge."
+  "done.blocked": "Ceci ne peut pas être terminé dans Home Keeper — l'intégration propriétaire s'en charge.",
+  "opt.completion_detail.none": "Terminé en un geste (sans détails)",
+  "opt.completion_detail.optional": "Demander des détails (facultatif)",
+  "opt.completion_detail.required": "Exiger des détails",
+  "field.completion_detail": "À l'achèvement",
+  "field.note": "Note",
+  "field.who": "Qui l'a fait",
+  "completion.edit": "Modifier l'achèvement",
+  "completion.title": "Enregistrer : {name}",
+  "completion.photo": "Photo",
+  "completion.required": "Renseignez les champs requis pour continuer.",
+  "completion.markDone": "Marquer comme fait",
+  "completion.skip": "Ignorer les détails",
+  "completion.by": "par {who}",
+  "done.needsDetails": "Ouvrez cette tâche dans Home Keeper pour ajouter les détails requis."
 }

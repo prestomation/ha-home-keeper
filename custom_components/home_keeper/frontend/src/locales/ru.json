@@ -207,5 +207,19 @@
   "settings.problem_sensor_exclude_entities": "Исключённые датчики",
   "settings.problem_sensor_exclude_areas": "Исключённые зоны",
   "settings.problem_sensor_exclude_labels": "Исключённые метки",
-  "done.blocked": "Это нельзя завершить в Home Keeper — его очищает владеющая им интеграция."
+  "done.blocked": "Это нельзя завершить в Home Keeper — его очищает владеющая им интеграция.",
+  "opt.completion_detail.none": "Готово одним касанием (без деталей)",
+  "opt.completion_detail.optional": "Спрашивать детали (необязательно)",
+  "opt.completion_detail.required": "Требовать детали",
+  "field.completion_detail": "При завершении",
+  "field.note": "Заметка",
+  "field.who": "Кто выполнил",
+  "completion.edit": "Изменить выполнение",
+  "completion.title": "Записать: {name}",
+  "completion.photo": "Фото",
+  "completion.required": "Заполните обязательные поля, чтобы продолжить.",
+  "completion.markDone": "Отметить как выполненное",
+  "completion.skip": "Пропустить детали",
+  "completion.by": "выполнил {who}",
+  "done.needsDetails": "Откройте эту задачу в Home Keeper, чтобы добавить необходимые детали."
 }

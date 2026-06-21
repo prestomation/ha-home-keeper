@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Oppdater fullføring",
+      "description": "Endrer metadataene (notat, kostnad, bilde, hvem) for en allerede registrert fullføring, identifisert med tidsstempelet. Endrer verken tidsplanen eller forfallsdatoen.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til oppgaven du redigerer fullføringen for."
+        },
+        "ts": {
+          "name": "Tidsstempel for fullføring",
+          "description": "ISO-tidsstempelet (ts) for fullføringsoppføringen som skal redigeres."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Utløs oppgave",
       "description": "Aktiver en betingelsesstyrt (utløst) oppgave slik at den vises som forfalt nå — brukerens motstykke til Fullfør oppgave (som setter den tilbake i hvilemodus). Idempotent; gjelder kun for utløste oppgaver.",

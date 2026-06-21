@@ -45,7 +45,11 @@ def task_event_data(
 
 
 def completion_event_data(
-    task: dict[str, Any], when: Any, origin: str | None
+    task: dict[str, Any],
+    when: Any,
+    origin: str | None,
+    *,
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return the ``home_keeper_task_completed`` event data for a completed task.
 
@@ -53,14 +57,18 @@ def completion_event_data(
     ``when`` is the completion datetime (or an ISO string); ``origin`` is the opaque
     caller marker. The task passed in is the *post-completion* task, so ``next_due`` is
     already the next occurrence (``None`` for a now-dormant triggered task).
+
+    *metadata* is the cleaned per-completion context that was recorded
+    (``note``/``cost``/``photo``/``who``); only the keys that carried a value are
+    merged in, so a plain one-click completion adds nothing beyond the spine.
     """
-    return task_event_data(
-        task,
-        extra={
-            "completed_at": when.isoformat() if hasattr(when, "isoformat") else when,
-            "origin": origin,
-        },
-    )
+    extra: dict[str, Any] = {
+        "completed_at": when.isoformat() if hasattr(when, "isoformat") else when,
+        "origin": origin,
+    }
+    if metadata:
+        extra.update(metadata)
+    return task_event_data(task, extra=extra)
 
 
 def asset_event_data(

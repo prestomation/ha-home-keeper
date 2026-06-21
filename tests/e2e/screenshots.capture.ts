@@ -32,8 +32,26 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(1200); // let the HA sidebar/layout settle (avoid ghosting)
   await page.screenshot({ path: `${OUT}/1-panel-task-list.png`, fullPage: true });
 
+  // 1a2. Completion-details dialog — a task whose capture mode is "optional" or
+  // "required" opens this dialog on Done so you can record a note, cost, who and a
+  // photo. The seeded "Replace fridge filter" task is set to optional capture.
+  await panel.locator('.done-btn[data-id="task_fridge_filter"]').click();
+  // ha-dialog portals its surface, so wait on an inner field rather than the host.
+  const noteField = panel
+    .locator('ha-dialog[open] ha-selector-text textarea, ha-dialog[open] ha-selector-text input')
+    .first();
+  await noteField.waitFor({ state: 'visible', timeout: 15_000 });
+  await noteField.fill('Replaced cartridge; rinsed housing');
+  await panel.locator('ha-dialog[open] ha-selector-number input').first().fill('42.50');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/11-panel-completion-dialog.png`, fullPage: true });
+  // Dismiss via Escape (closes ha-dialog) so the capture records no extra completion.
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+
   // 1b. Task detail page — click a task to see its full schedule, notes and the
-  // completion history of every time it was done.
+  // completion history of every time it was done (now annotated with the per-
+  // completion note and cost recorded at Done time).
   await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
   await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
   await page.waitForTimeout(400);

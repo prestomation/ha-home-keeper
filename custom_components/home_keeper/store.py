@@ -26,6 +26,7 @@ from .const import (
     EVENT_PART_OUT_OF_STOCK,
     EVENT_PART_RESTOCKED,
     EVENT_TASK_COMPLETED,
+    EVENT_TASK_COMPLETION_UPDATED,
     EVENT_TASK_CREATED,
     EVENT_TASK_DELETED,
     EVENT_TASK_TRIGGERED,
@@ -489,8 +490,15 @@ class HomeKeeperStore:
         completed_at: Any | None = None,
         *,
         origin: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Mark a task completed and advance its recurrence.
+
+        *metadata* is the optional per-completion context (``note``/``cost``/
+        ``photo``/``who``); it is cleaned here via
+        ``models.normalize_completion_metadata`` and recorded on the new history
+        entry. The cleaned mapping is also echoed in the completion event so
+        listeners see the same data that was stored.
 
         For a part-derived task, also stamp the part's ``last_replaced`` so the
         appliance record reflects the maintenance.
@@ -510,7 +518,10 @@ class HomeKeeperStore:
         _reject_synced_problem(existing, origin)
         now = dt_util.now()
         when = completed_at or now
-        updated = recurrence.apply_completion(dict(existing), when, now=now)
+        clean_metadata = models.normalize_completion_metadata(metadata)
+        updated = recurrence.apply_completion(
+            dict(existing), when, now=now, metadata=clean_metadata
+        )
         self._tasks[task_id] = updated
         self._stamp_part_replacement(updated, when)
         await self._save()
@@ -519,7 +530,46 @@ class HomeKeeperStore:
         )
         self._hass.bus.async_fire(
             EVENT_TASK_COMPLETED,
-            events.completion_event_data(updated, when, origin),
+            events.completion_event_data(
+                updated, when, origin, metadata=clean_metadata
+            ),
+        )
+        return updated
+
+    async def update_completion(
+        self, task_id: str, ts: str, metadata: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Amend a recorded completion's metadata (note/cost/photo/who).
+
+        Edits the entry identified by ISO timestamp *ts* without touching the
+        schedule — amending the maintenance log must never rewind or re-arm a task.
+        Cleans the metadata the same way as :meth:`complete_task`, persists, and
+        fires ``home_keeper_task_completion_updated``. Raises ``KeyError`` for an
+        unknown task and ``TaskValidationError`` when no completion matches *ts* (or
+        the metadata is invalid). Returns the updated task.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        # A synced problem task's history is owned by the sync, not the user.
+        _reject_synced_problem(existing, None)
+        clean_metadata = models.normalize_completion_metadata(metadata)
+        try:
+            updated, _replaced_photo = recurrence.update_completion(
+                dict(existing),
+                ts,
+                clean_metadata,
+                fields=tuple(models.COMPLETION_METADATA_FIELDS),
+            )
+        except ValueError as err:
+            raise models.TaskValidationError(str(err)) from err
+        self._tasks[task_id] = updated
+        await self._save()
+        # NOTE: a replaced/cleared photo's image-upload blob is cleaned up at the
+        # HA boundary once the panel actually uploads images (frontend phase).
+        self._hass.bus.async_fire(
+            EVENT_TASK_COMPLETION_UPDATED,
+            events.task_event_data(updated, extra={"ts": ts}),
         )
         return updated
 

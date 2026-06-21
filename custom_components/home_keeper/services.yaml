@@ -225,6 +225,77 @@ complete_task:
         triggered (loop prevention). Home Keeper does not interpret it.
       selector:
         text:
+    note:
+      name: Note
+      description: Optional free-form note recorded with this completion.
+      selector:
+        text:
+          multiline: true
+    cost:
+      name: Cost
+      description: Optional cost recorded with this completion (your HA currency).
+      selector:
+        number:
+          min: 0
+          mode: box
+    photo:
+      name: Photo
+      description: >-
+        Optional Home Assistant image-upload id to attach as the completion photo
+        (the panel sets this when you upload from the completion dialog).
+      selector:
+        text:
+    who:
+      name: Who
+      description: Optional person who performed the task (a person entity id).
+      selector:
+        entity:
+          filter:
+            domain: person
+
+update_completion:
+  name: Update completion
+  description: >-
+    Amend the metadata (note, cost, photo, who) of an already-recorded completion,
+    identified by its timestamp. Does not change the schedule or due date.
+  fields:
+    task_id:
+      name: Task ID
+      description: The id of the task whose completion you are editing.
+      required: true
+      selector:
+        text:
+    ts:
+      name: Completion timestamp
+      description: The ISO timestamp (ts) of the completion entry to edit.
+      required: true
+      selector:
+        text:
+    note:
+      name: Note
+      description: New note (omit or leave blank to clear it).
+      selector:
+        text:
+          multiline: true
+    cost:
+      name: Cost
+      description: New cost (omit or leave blank to clear it).
+      selector:
+        number:
+          min: 0
+          mode: box
+    photo:
+      name: Photo
+      description: New image-upload id (omit or leave blank to clear it).
+      selector:
+        text:
+    who:
+      name: Who
+      description: New person entity id (omit or leave blank to clear it).
+      selector:
+        entity:
+          filter:
+            domain: person
 
 trigger_task:
   name: Trigger task

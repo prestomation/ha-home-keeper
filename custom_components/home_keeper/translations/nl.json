@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Voltooiing bijwerken",
+      "description": "Wijzigt de metadata (notitie, kosten, foto, wie) van een al vastgelegde voltooiing, geïdentificeerd door het tijdstempel. Verandert niet de planning of vervaldatum.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "De id van de taak waarvan je de voltooiing bewerkt."
+        },
+        "ts": {
+          "name": "Tijdstempel van voltooiing",
+          "description": "Het ISO-tijdstempel (ts) van het te bewerken voltooiingsitem."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Taak activeren",
       "description": "Een voorwaardegestuurde (geactiveerde) taak scherpstellen zodat deze nu als vervallen wordt weergegeven — de gebruikersgerichte tegenhanger van Taak voltooien (die deze weer in rust zet). Idempotent; alleen geldig voor geactiveerde taken.",

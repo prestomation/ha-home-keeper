@@ -183,5 +183,19 @@
   "settings.problem_sensor_exclude_entities": "Ausgeschlossene Sensoren",
   "settings.problem_sensor_exclude_areas": "Ausgeschlossene Bereiche",
   "settings.problem_sensor_exclude_labels": "Ausgeschlossene Labels",
-  "done.blocked": "Das kann in Home Keeper nicht abgeschlossen werden – die zuständige Integration löscht es."
+  "done.blocked": "Das kann in Home Keeper nicht abgeschlossen werden – die zuständige Integration löscht es.",
+  "opt.completion_detail.none": "Mit einem Tipp erledigt (ohne Details)",
+  "opt.completion_detail.optional": "Nach Details fragen (optional)",
+  "opt.completion_detail.required": "Details verlangen",
+  "field.completion_detail": "Beim Abschließen",
+  "field.note": "Notiz",
+  "field.who": "Wer es erledigt hat",
+  "completion.edit": "Erledigung bearbeiten",
+  "completion.title": "Erfassen: {name}",
+  "completion.photo": "Foto",
+  "completion.required": "Fülle die erforderlichen Felder aus, um fortzufahren.",
+  "completion.markDone": "Als erledigt markieren",
+  "completion.skip": "Details überspringen",
+  "completion.by": "von {who}",
+  "done.needsDetails": "Öffne diese Aufgabe in Home Keeper, um die erforderlichen Details hinzuzufügen."
 }

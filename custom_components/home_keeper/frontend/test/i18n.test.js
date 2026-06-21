@@ -22,9 +22,9 @@ const INTENTIONALLY_IDENTICAL = new Set(['app.title', 'due.none', 'managed.compl
 const COGNATE_IDENTICAL = {
   ca: ['field.cost', 'field.model', 'field.notes', 'meta.seed.notes', 'opt.meta.text'],
   cs: ['field.model', 'opt.meta.text'],
-  da: ['chip.orphaned', 'field.kind', 'field.model', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
+  da: ['chip.orphaned', 'field.kind', 'field.model', 'field.note', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
   de: ['chip.orphaned', 'detail.about', 'field.name', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
-  fr: ['field.kind', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'opt.meta.date'],
+  fr: ['completion.photo', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'opt.meta.date'],
   it: ['field.area_id', 'group.area', 'opt.meta.link'],
   nb: ['field.kind', 'field.type', 'group.status'],
   nl: ['detail.about', 'field.kind', 'field.label', 'field.model', 'field.type', 'group.status', 'opt.meta.link', 'recurrence.unit.week.one', 'section.later'],

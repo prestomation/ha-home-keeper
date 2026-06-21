@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Opdater fuldførelse",
+      "description": "Ændrer metadata (note, pris, foto, hvem) for en allerede registreret fuldførelse, identificeret ved dens tidsstempel. Ændrer hverken tidsplanen eller forfaldsdatoen.",
+      "fields": {
+        "task_id": {
+          "name": "Opgave-ID",
+          "description": "ID'et på opgaven, hvis fuldførelse du redigerer."
+        },
+        "ts": {
+          "name": "Tidsstempel for fuldførelse",
+          "description": "ISO-tidsstemplet (ts) for den fuldførelsespost, der skal redigeres."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Udløs opgave",
       "description": "Aktivér en betingelsesstyret (udløst) opgave, så den fremstår som forfalden nu — brugerens modstykke til Fuldfør opgave (som sætter den tilbage i hviletilstand). Idempotent; gælder kun for udløste opgaver.",

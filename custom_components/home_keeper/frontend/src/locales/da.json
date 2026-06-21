@@ -183,5 +183,19 @@
   "settings.problem_sensor_exclude_entities": "Udeladte sensorer",
   "settings.problem_sensor_exclude_areas": "Udeladte områder",
   "settings.problem_sensor_exclude_labels": "Udeladte etiketter",
-  "done.blocked": "Dette kan ikke fuldføres i Home Keeper — den ejende integration rydder det."
+  "done.blocked": "Dette kan ikke fuldføres i Home Keeper — den ejende integration rydder det.",
+  "opt.completion_detail.none": "Færdig med ét tryk (uden detaljer)",
+  "opt.completion_detail.optional": "Bed om detaljer (valgfrit)",
+  "opt.completion_detail.required": "Kræv detaljer",
+  "field.completion_detail": "Ved fuldførelse",
+  "field.note": "Note",
+  "field.who": "Hvem gjorde det",
+  "completion.edit": "Rediger fuldførelse",
+  "completion.title": "Registrér: {name}",
+  "completion.photo": "Foto",
+  "completion.required": "Udfyld de påkrævede felter for at fortsætte.",
+  "completion.markDone": "Markér som færdig",
+  "completion.skip": "Spring detaljer over",
+  "completion.by": "af {who}",
+  "done.needsDetails": "Åbn denne opgave i Home Keeper for at tilføje de påkrævede detaljer."
 }

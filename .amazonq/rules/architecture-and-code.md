@@ -72,6 +72,22 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   touching card filtering, and keep `card-filter.ts` pure/DOM-free.
 - All task mutations go through `HomeKeeperStore`; entities and the panel read via
   the `HomeKeeperCoordinator` and never mutate storage directly.
+- **Per-completion metadata.** A `completions[]` entry is `{ ts }` plus any of the
+  optional keys `note` / `cost` (number, ≥0) / `photo` (an HA **image-upload id**, never
+  bytes) / `who` (a **`person` entity id** — persons are first-class and stable; not an
+  HA user). Clean inputs through `models.normalize_completion_metadata` (drops empty
+  keys, coerces/validates `cost`); `recurrence.apply_completion(..., metadata=)` merges
+  them and `recurrence.update_completion` amends a past entry **without** touching
+  `ts`/`last_completed`/`next_due` (editing the log must never rewind or re-arm a task).
+  `ts` is the completion's identity for delete/edit/archive.
+- **Capture mode is per task, enforcement is list-driven.** `completion_detail`
+  (`none`/`optional`/`required`) is the user-facing capture mode; the fields a
+  `required` task makes mandatory live in `completion_required_fields` (subset of the
+  metadata keys, normalized by `models.normalize_completion_required_fields`). Always
+  gate a required completion by reading that **list**, never a hard-coded field, so a
+  future per-field "which are required" editor needs only to populate the list — no
+  storage migration. Both fields are additive (`.get()` with `none`/`[]` defaults); no
+  `STORAGE_VERSION` bump.
 
 ## Entities & devices
 - Entity `unique_id`s are anchored to the task `id` so they survive renames.

@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Actualitza la realització",
+      "description": "Modifica les metadades (nota, cost, foto, qui) d'una realització ja registrada, identificada per la seva marca de temps. No canvia la planificació ni la data de venciment.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca de la qual edites la realització."
+        },
+        "ts": {
+          "name": "Marca de temps de la realització",
+          "description": "La marca de temps ISO (ts) de l'entrada de realització a editar."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Activar tasca",
       "description": "Armar una tasca controlada per condició (activada) perquè aparegui com a vençuda ara — la contrapart per a l'usuari de Completar tasca (que la retorna a l'estat inactiu). Idempotent; només vàlid per a tasques activades.",

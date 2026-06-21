@@ -417,6 +417,18 @@ export class HomeKeeperCard extends HTMLElement {
     );
   }
 
+  /** Navigate to the sidebar panel's detail page for a task (HA SPA navigation). */
+  private _navigateToPanel(taskId: string): void {
+    history.pushState(null, '', `/home-keeper/tasks/${encodeURIComponent(taskId)}`);
+    window.dispatchEvent(
+      new CustomEvent('location-changed', {
+        detail: { replace: false },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
   /** A completion-blocked task (e.g. a synced problem sensor) can't be marked done
    *  here — its owning integration clears it. Explain why instead of completing. */
   private _notifyBlocked(task: Task): void {
@@ -427,6 +439,15 @@ export class HomeKeeperCard extends HTMLElement {
     // Ignore a re-entrant tap while this task's completion is already in flight,
     // so a double-click doesn't record two completions.
     if (!this._hass || this._completing.has(task.id)) return;
+    // A task that *requires* completion detail can't be finished from the card's
+    // quick mark-done (there's no dialog here) — send the user to the panel, where
+    // the capture dialog lives. (Optional capture still quick-completes; details
+    // can be added later by editing the completion in the panel.)
+    if (task.completion_detail === 'required') {
+      this._toast(t('done.needsDetails'));
+      this._navigateToPanel(task.id);
+      return;
+    }
     const prompt = task.managed_by?.completion_prompt;
     if (this._config.confirm_complete || prompt) {
       const msg = prompt || t('btn.done') + ' — ' + task.name + '?';

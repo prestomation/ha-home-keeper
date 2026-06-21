@@ -5,6 +5,21 @@ export type RecurrenceType = 'floating' | 'fixed' | 'triggered';
 export type Unit = 'days' | 'weeks' | 'months';
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
+/** How a task captures per-completion detail when marked done:
+ *  `none` = one-tap; `optional` = a details dialog, all fields optional;
+ *  `required` = the dialog with `completion_required_fields` mandatory. */
+export type CompletionDetail = 'none' | 'optional' | 'required';
+
+/** One recorded completion. `ts` is the identity (ISO timestamp); the rest is the
+ *  optional per-completion metadata (note / cost / photo id / who — a person id). */
+export interface Completion {
+  ts: string;
+  note?: string;
+  cost?: number;
+  photo?: string;
+  who?: string;
+}
+
 /** Ownership block set by an integration at task-creation time. Home Keeper
  *  inspects this (unlike the opaque `source`) to enforce UI behavior. */
 export interface ManagedBy {
@@ -37,7 +52,13 @@ export interface Task {
   enabled?: boolean;
   last_completed?: string | null;
   next_due?: string;
-  completions?: { ts: string }[];
+  completions?: Completion[];
+  // Per-task completion-capture mode (default `none` = one-tap done).
+  completion_detail?: CompletionDetail;
+  // Which metadata fields a `required` task makes mandatory. The panel gates a
+  // required completion by reading this list (not a hard-coded field), so a future
+  // per-field editor only needs to populate it.
+  completion_required_fields?: string[];
   // HA label-registry ids attached directly to this task. The dashboard card can
   // filter by label, matching a task via its own labels or those on its device/area.
   labels?: string[];
@@ -96,6 +117,8 @@ export interface Hass {
   labels?: Record<string, HassLabel>;
   states?: Record<string, HassEntity>;
   language?: string;
+  // The instance's configured currency, used to format a completion's cost.
+  config?: { currency?: string };
   // The live websocket connection; used by the card to subscribe to the
   // `home_keeper_task_completed` event so it refreshes when a task is completed
   // from another surface (the panel, a device button, or an automation).

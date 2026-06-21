@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Päivitä suoritus",
+      "description": "Muokkaa jo tallennetun suorituksen metatietoja (muistiinpano, kustannus, kuva, kuka), joka tunnistetaan aikaleimasta. Ei muuta aikataulua eikä eräpäivää.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Sen tehtävän tunnus, jonka suoritusta muokkaat."
+        },
+        "ts": {
+          "name": "Suorituksen aikaleima",
+          "description": "Muokattavan suoritusmerkinnän ISO-aikaleima (ts)."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Laukaise tehtävä",
       "description": "Viritä ehtopohjainen (laukaistava) tehtävä niin, että se näkyy nyt erääntyneenä — käyttäjälle suunnattu vastine toiminnolle Merkitse tehtävä valmiiksi (joka palauttaa sen lepotilaan). Idempotentti; pätee vain laukaistaviin tehtäviin.",

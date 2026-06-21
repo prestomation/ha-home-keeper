@@ -195,5 +195,19 @@
   "settings.problem_sensor_exclude_entities": "Sensores excluidos",
   "settings.problem_sensor_exclude_areas": "Áreas excluidas",
   "settings.problem_sensor_exclude_labels": "Etiquetas excluidas",
-  "done.blocked": "Esto no se puede completar en Home Keeper: lo borra la integración propietaria."
+  "done.blocked": "Esto no se puede completar en Home Keeper: lo borra la integración propietaria.",
+  "opt.completion_detail.none": "Hecho con un toque (sin detalles)",
+  "opt.completion_detail.optional": "Pedir detalles (opcional)",
+  "opt.completion_detail.required": "Exigir detalles",
+  "field.completion_detail": "Al completar",
+  "field.note": "Nota",
+  "field.who": "Quién lo hizo",
+  "completion.edit": "Editar finalización",
+  "completion.title": "Registrar: {name}",
+  "completion.photo": "Foto",
+  "completion.required": "Rellena los campos obligatorios para continuar.",
+  "completion.markDone": "Marcar como hecho",
+  "completion.skip": "Omitir detalles",
+  "completion.by": "por {who}",
+  "done.needsDetails": "Abre esta tarea en Home Keeper para añadir los detalles obligatorios."
 }

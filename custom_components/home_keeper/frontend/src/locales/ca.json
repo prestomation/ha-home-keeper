@@ -195,5 +195,19 @@
   "settings.problem_sensor_exclude_entities": "Sensors exclosos",
   "settings.problem_sensor_exclude_areas": "Àrees excloses",
   "settings.problem_sensor_exclude_labels": "Etiquetes excloses",
-  "done.blocked": "Això no es pot completar a Home Keeper: ho esborra la integració propietària."
+  "done.blocked": "Això no es pot completar a Home Keeper: ho esborra la integració propietària.",
+  "opt.completion_detail.none": "Fet amb un toc (sense detalls)",
+  "opt.completion_detail.optional": "Demana detalls (opcional)",
+  "opt.completion_detail.required": "Exigeix detalls",
+  "field.completion_detail": "En completar",
+  "field.note": "Nota",
+  "field.who": "Qui ho ha fet",
+  "completion.edit": "Edita la realització",
+  "completion.title": "Registra: {name}",
+  "completion.photo": "Foto",
+  "completion.required": "Emplena els camps obligatoris per continuar.",
+  "completion.markDone": "Marca com a fet",
+  "completion.skip": "Omet els detalls",
+  "completion.by": "per {who}",
+  "done.needsDetails": "Obre aquesta tasca a Home Keeper per afegir els detalls necessaris."
 }

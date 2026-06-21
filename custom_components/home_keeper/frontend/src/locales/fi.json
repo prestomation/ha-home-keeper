@@ -183,5 +183,19 @@
   "settings.problem_sensor_exclude_entities": "Poissuljetut anturit",
   "settings.problem_sensor_exclude_areas": "Poissuljetut alueet",
   "settings.problem_sensor_exclude_labels": "Poissuljetut tunnisteet",
-  "done.blocked": "Tätä ei voi merkitä valmiiksi Home Keeperissä — omistava integraatio tyhjentää sen."
+  "done.blocked": "Tätä ei voi merkitä valmiiksi Home Keeperissä — omistava integraatio tyhjentää sen.",
+  "opt.completion_detail.none": "Valmis yhdellä napautuksella (ei tietoja)",
+  "opt.completion_detail.optional": "Kysy tietoja (valinnainen)",
+  "opt.completion_detail.required": "Vaadi tiedot",
+  "field.completion_detail": "Valmistuessa",
+  "field.note": "Muistiinpano",
+  "field.who": "Kuka teki",
+  "completion.edit": "Muokkaa suoritusta",
+  "completion.title": "Kirjaa: {name}",
+  "completion.photo": "Kuva",
+  "completion.required": "Täytä pakolliset kentät jatkaaksesi.",
+  "completion.markDone": "Merkitse tehdyksi",
+  "completion.skip": "Ohita tiedot",
+  "completion.by": "tekijä {who}",
+  "done.needsDetails": "Avaa tämä tehtävä Home Keeperissä lisätäksesi vaaditut tiedot."
 }

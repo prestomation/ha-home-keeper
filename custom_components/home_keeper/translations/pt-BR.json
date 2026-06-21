@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Atualizar conclusão",
+      "description": "Altera os metadados (nota, custo, foto, quem) de uma conclusão já registrada, identificada pelo seu carimbo de data/hora. Não altera a programação nem a data de vencimento.",
+      "fields": {
+        "task_id": {
+          "name": "ID da tarefa",
+          "description": "O id da tarefa cuja conclusão você está editando."
+        },
+        "ts": {
+          "name": "Carimbo de data/hora da conclusão",
+          "description": "O carimbo de data/hora ISO (ts) da entrada de conclusão a editar."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Acionar tarefa",
       "description": "Armar uma tarefa controlada por condição (acionada) para que apareça como vencida agora — a contraparte para o usuário de Concluir tarefa (que a retorna ao estado inativo). Idempotente; válido apenas para tarefas acionadas.",

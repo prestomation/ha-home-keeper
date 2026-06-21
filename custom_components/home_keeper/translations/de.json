@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Erledigung aktualisieren",
+      "description": "Ändert die Metadaten (Notiz, Kosten, Foto, Wer) einer bereits erfassten Erledigung, die anhand ihres Zeitstempels bestimmt wird. Ändert weder den Zeitplan noch das Fälligkeitsdatum.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der Aufgabe, deren Erledigung du bearbeitest."
+        },
+        "ts": {
+          "name": "Erledigungszeitstempel",
+          "description": "Der ISO-Zeitstempel (ts) des zu bearbeitenden Erledigungseintrags."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Aufgabe auslösen",
       "description": "Eine bedingungsgesteuerte (ausgelöste) Aufgabe scharf schalten, sodass sie als jetzt fällig erscheint — das benutzerseitige Gegenstück zu „Aufgabe abschließen“ (das sie wieder in den Ruhezustand versetzt). Idempotent; nur für ausgelöste Aufgaben gültig.",

@@ -16,10 +16,12 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
+import { selEntity } from './forms';
 import { setLanguage, t, tn } from './i18n';
 import type {
   Asset,
   AssetKind,
+  Completion,
   Hass,
   HomeKeeperOptions,
   ManagedBy,
@@ -88,6 +90,11 @@ const REQUIRED_COMPONENTS = [
 // mdi:delete — remove a single completion entry from the history dialog.
 const MDI_DELETE =
   'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z';
+
+// mdi:pencil — edit a single completion's metadata from the history list.
+const MDI_EDIT =
+  'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,' +
+  '3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z';
 
 // mdi:autorenew — a wear item (replaced on a recurring schedule).
 const MDI_WEAR =
@@ -324,13 +331,29 @@ const STYLES = `
   }
   ul.hk-hist-list { list-style: none; margin: 0; padding: 0; }
   ul.hk-hist-list li {
-    display: flex; align-items: center; gap: 12px;
     padding: 2px 0; border-bottom: 1px solid var(--divider-color);
   }
   ul.hk-hist-list li:last-child { border-bottom: none; }
+  .hk-hist-row { display: flex; align-items: center; gap: 12px; }
   ul.hk-hist-list .date { flex: 1; min-width: 0; }
   ul.hk-hist-list .when { color: var(--secondary-text-color); font-size: 0.85rem; white-space: nowrap; }
-  ha-icon-button.hk-hist-del { --mdc-icon-button-size: 36px; color: var(--secondary-text-color); }
+  .hk-hist-actions { display: flex; align-items: center; }
+  ha-icon-button.hk-hist-del, ha-icon-button.hk-hist-edit {
+    --mdc-icon-button-size: 36px; color: var(--secondary-text-color);
+  }
+  .hk-hist-meta {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+    margin: 0 0 6px 2px;
+  }
+  .hk-hist-chips { color: var(--secondary-text-color); font-size: 0.85rem; }
+  .hk-hist-note { font-size: 0.9rem; white-space: pre-wrap; }
+  .hk-hist-photo {
+    height: 56px; width: 56px; object-fit: cover; border-radius: 8px;
+    border: 1px solid var(--divider-color);
+  }
+  /* Completion-details dialog */
+  .hk-completion-body { display: flex; flex-direction: column; gap: 12px; min-width: 320px; }
+  .hk-completion-photo-label { font-weight: 500; font-size: 0.9rem; }
 `;
 
 interface EditState {
@@ -343,10 +366,23 @@ interface AssetEditState {
   asset: Partial<Asset> | null;
   error?: string;
 }
+/**
+ * The completion-details dialog state. Open either to *log* a new completion
+ * (`ts` absent) or to *edit* a recorded one (`ts` set). `data` holds the in-progress
+ * metadata; `required` is the set of fields that must be filled before saving.
+ */
+interface CompletionDialogState {
+  open: boolean;
+  task: Task | null;
+  ts?: string;
+  data: { note?: string; cost?: number; photo?: string; who?: string };
+  required: string[];
+  error?: string;
+}
 /** One task's completion list within a history dialog (live or archived). */
 interface HistoryGroup {
   name: string;
-  completions: { ts: string }[];
+  completions: Completion[];
   archived?: boolean;
   // Deletion context for the per-completion trash button: a live task carries
   // `taskId`; an archived (removed-task) group carries `assetId` + `archivedTaskId`.
@@ -377,6 +413,12 @@ export class HomeKeeperPanel extends HTMLElement {
   public narrow = false;
   private _tasks: Task[] = [];
   private _assets: Asset[] = [];
+  private _completion: CompletionDialogState = {
+    open: false,
+    task: null,
+    data: {},
+    required: [],
+  };
   // config entry id -> integration domain, for resolving device brand logos.
   private _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.
@@ -596,8 +638,75 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private async _complete(task: Task): Promise<void> {
     if (!this._hass) return;
+    // Tasks set to capture detail open a dialog first; the default one-taps.
+    const mode = task.completion_detail || 'none';
+    if (mode === 'optional' || mode === 'required') {
+      this._openCompletionDialog(task);
+      return;
+    }
     await api.completeTask(this._hass, task.id);
     await this._refresh();
+  }
+
+  /** Open the completion-details dialog to log a new completion for *task*. */
+  private _openCompletionDialog(task: Task): void {
+    this._completion = {
+      open: true,
+      task,
+      data: {},
+      required:
+        task.completion_detail === 'required' ? task.completion_required_fields || ['note'] : [],
+    };
+    this._render();
+  }
+
+  /** Open the dialog to edit an already-recorded completion's metadata. */
+  private _openCompletionEdit(task: Task, c: Completion): void {
+    this._completion = {
+      open: true,
+      task,
+      ts: c.ts,
+      data: { note: c.note, cost: c.cost, photo: c.photo, who: c.who },
+      required: [],
+    };
+    this._render();
+  }
+
+  private _closeCompletionDialog(): void {
+    this._completion = { open: false, task: null, data: {}, required: [] };
+    this._render();
+  }
+
+  /** True when every required field of the in-progress completion is filled. */
+  private _completionMissing(): string[] {
+    const d = this._completion.data;
+    return this._completion.required.filter((f) => {
+      const v = (d as Record<string, unknown>)[f];
+      return v == null || v === '' || (typeof v === 'number' && Number.isNaN(v));
+    });
+  }
+
+  /** Save the dialog: a new completion (with metadata) or an edit of a past one. */
+  private async _submitCompletion(): Promise<void> {
+    const c = this._completion;
+    if (!this._hass || !c.task) return;
+    if (c.ts == null && this._completionMissing().length) {
+      c.error = t('completion.required');
+      this._render();
+      return;
+    }
+    try {
+      if (c.ts != null) {
+        await api.updateCompletion(this._hass, c.task.id, c.ts, c.data);
+      } else {
+        await api.completeTask(this._hass, c.task.id, c.data);
+      }
+      this._closeCompletionDialog();
+      await this._refresh();
+    } catch (err) {
+      c.error = String((err as { message?: string })?.message || err);
+      this._render();
+    }
   }
 
   /** A completion-blocked task (e.g. a synced problem sensor) can't be marked done
@@ -818,6 +927,7 @@ export class HomeKeeperPanel extends HTMLElement {
         ${inner}
         <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
       </div>
+      <div id="hk-dialog-host"></div>
     `;
     this._hydrate();
   }
@@ -1709,6 +1819,10 @@ export class HomeKeeperPanel extends HTMLElement {
     const root = this.shadowRoot;
     if (!root) return;
 
+    // The completion-details dialog overlays any view, so build it first.
+    const dialogHost = root.getElementById('hk-dialog-host');
+    if (dialogHost && this._completion.open) this._renderCompletionDialog(dialogHost);
+
     // Header sidebar toggle.
     const menuHost = root.getElementById('menu-host');
     if (menuHost) {
@@ -1995,6 +2109,105 @@ export class HomeKeeperPanel extends HTMLElement {
 
     card.appendChild(inner);
     host.appendChild(card);
+  }
+
+  /** Build the completion-details dialog (log a new completion, or edit a past one). */
+  private _renderCompletionDialog(host: HTMLElement): void {
+    const c = this._completion;
+    if (!c.task) return;
+    const editing = c.ts != null;
+    const dialog = document.createElement('ha-dialog') as HTMLElement & {
+      heading?: string;
+    };
+    dialog.setAttribute('open', '');
+    dialog.setAttribute(
+      'heading',
+      editing ? t('completion.edit') : t('completion.title', { name: c.task.name }),
+    );
+    dialog.addEventListener('closed', () => {
+      if (this._completion.open) this._closeCompletionDialog();
+    });
+
+    const body = document.createElement('div');
+    body.className = 'hk-completion-body';
+
+    // note / cost / who via ha-form; required fields get the asterisk cue.
+    const req = new Set(c.required);
+    const schema: FormField[] = [
+      { name: 'note', required: req.has('note'), selector: selText(true) },
+      { name: 'cost', required: req.has('cost'), selector: selNumber(0) },
+      { name: 'who', required: req.has('who'), selector: selEntity({ domain: 'person' }) },
+    ];
+    const form = this._makeForm(
+      schema,
+      { note: c.data.note ?? '', cost: c.data.cost ?? undefined, who: c.data.who ?? undefined },
+      (value) => {
+        this._completion.data = {
+          ...this._completion.data,
+          note: (value.note as string) || undefined,
+          cost: value.cost == null || value.cost === '' ? undefined : Number(value.cost),
+          who: (value.who as string) || undefined,
+        };
+        this._completion.error = undefined;
+      },
+    );
+    body.appendChild(form);
+
+    // Photo upload via HA's native picture-upload, if the element is available in
+    // this frontend build (degrade gracefully if not — the rest still works).
+    if (customElements.get('ha-picture-upload')) {
+      const label = document.createElement('div');
+      label.className = 'hk-completion-photo-label';
+      label.textContent = t('completion.photo');
+      const upload = document.createElement('ha-picture-upload') as HTMLElement & {
+        hass?: Hass;
+        value?: string | null;
+      };
+      upload.hass = this._hass;
+      upload.value = c.data.photo ?? null;
+      this._liveHassEls.push(upload);
+      const onPhoto = (): void => {
+        this._completion.data = { ...this._completion.data, photo: upload.value || undefined };
+      };
+      upload.addEventListener('change', onPhoto);
+      upload.addEventListener('value-changed', onPhoto);
+      body.append(label, upload);
+    }
+
+    if (c.error) {
+      const err = document.createElement('ha-alert');
+      err.setAttribute('alert-type', 'error');
+      err.textContent = c.error;
+      body.appendChild(err);
+    }
+    dialog.appendChild(body);
+
+    // Primary action: log (or save edit). Optional-mode logging also offers "skip
+    // details" to complete with nothing recorded.
+    const primary = document.createElement('ha-button');
+    primary.setAttribute('slot', 'primaryAction');
+    primary.setAttribute('raised', '');
+    primary.textContent = editing ? t('btn.save') : t('completion.markDone');
+    primary.addEventListener('click', () => void this._submitCompletion());
+    dialog.appendChild(primary);
+
+    if (!editing && c.task.completion_detail === 'optional') {
+      const skip = document.createElement('ha-button');
+      skip.setAttribute('slot', 'secondaryAction');
+      skip.textContent = t('completion.skip');
+      skip.addEventListener('click', () => {
+        this._completion.data = {};
+        void this._submitCompletion();
+      });
+      dialog.appendChild(skip);
+    }
+    const cancel = document.createElement('ha-button');
+    cancel.setAttribute('slot', 'secondaryAction');
+    cancel.textContent = t('btn.cancel');
+    cancel.addEventListener('click', () => this._closeCompletionDialog());
+    dialog.appendChild(cancel);
+
+    host.appendChild(dialog);
   }
 
   private _renderAssetForm(host: HTMLElement): void {
@@ -2314,6 +2527,9 @@ export class HomeKeeperPanel extends HTMLElement {
       : group.assetId
         ? `data-del-asset="${escapeHTML(group.assetId)}" data-del-arch="${escapeHTML(group.archivedTaskId || '')}"`
         : '';
+    // Editing a completion's metadata only applies to a live task (the backend's
+    // update_completion works on tasks, not an appliance's archived history).
+    const editTask = !group.archived ? group.taskId : undefined;
     const items = comps
       .map((c) => {
         const d = new Date(c.ts);
@@ -2322,17 +2538,61 @@ export class HomeKeeperPanel extends HTMLElement {
           month: 'short',
           day: 'numeric',
         });
+        const editBtn = editTask
+          ? `<ha-icon-button class="hk-hist-edit" data-edit-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>`
+          : '';
         return `<li>
-            <span class="date">${escapeHTML(date)}</span>
-            <span class="when">${escapeHTML(this._relativeDay(d))}</span>
-            <ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>
+            <div class="hk-hist-row">
+              <span class="date">${escapeHTML(date)}</span>
+              <span class="when">${escapeHTML(this._relativeDay(d))}</span>
+              <span class="hk-hist-actions">${editBtn}<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button></span>
+            </div>
+            ${this._completionMeta(c)}
           </li>`;
       })
       .join('');
     return `<div class="hk-hist-group">${head}<ul class="hk-hist-list">${items}</ul></div>`;
   }
 
-  /** Set the trash icon and wire each per-completion delete button. */
+  /** Render a completion's recorded metadata (note / cost / who / photo), if any. */
+  private _completionMeta(c: Completion): string {
+    const bits: string[] = [];
+    if (c.cost != null) bits.push(escapeHTML(this._formatCost(c.cost)));
+    if (c.who) bits.push(escapeHTML(t('completion.by', { who: this._personName(c.who) })));
+    const line = bits.length
+      ? `<span class="hk-hist-chips">${bits.join(' · ')}</span>`
+      : '';
+    const note = c.note ? `<span class="hk-hist-note">${escapeHTML(c.note)}</span>` : '';
+    const photo = c.photo
+      ? `<a href="${escapeHTML(c.photo)}" target="_blank" rel="noopener"><img class="hk-hist-photo" src="${escapeHTML(c.photo)}" alt="${escapeHTML(t('completion.photo'))}" /></a>`
+      : '';
+    if (!line && !note && !photo) return '';
+    return `<div class="hk-hist-meta">${line}${note}${photo}</div>`;
+  }
+
+  /** Format a cost in the instance's configured currency (falls back to the number). */
+  private _formatCost(amount: number): string {
+    const currency = this._hass?.config?.currency;
+    if (currency) {
+      try {
+        return new Intl.NumberFormat(this._hass?.language, {
+          style: 'currency',
+          currency,
+        }).format(amount);
+      } catch {
+        /* fall through to a bare number */
+      }
+    }
+    return String(amount);
+  }
+
+  /** Resolve a person entity id to its friendly name (falls back to the id). */
+  private _personName(entityId: string): string {
+    const friendly = this._hass?.states?.[entityId]?.attributes?.friendly_name;
+    return typeof friendly === 'string' && friendly ? friendly : entityId;
+  }
+
+  /** Set the trash/pencil icons and wire each per-completion delete/edit button. */
   private _wireHistoryDeletes(root: ParentNode): void {
     root.querySelectorAll<HTMLElement>('.hk-hist-del').forEach((b) => {
       this._setIcon(b, MDI_DELETE);
@@ -2342,6 +2602,17 @@ export class HomeKeeperPanel extends HTMLElement {
         if (b.dataset.delTask) void this._deleteCompletion(b.dataset.delTask, ts);
         else if (b.dataset.delAsset)
           void this._deleteArchivedCompletion(b.dataset.delAsset, b.dataset.delArch || '', ts);
+      });
+    });
+    root.querySelectorAll<HTMLElement>('.hk-hist-edit').forEach((b) => {
+      this._setIcon(b, MDI_EDIT);
+      b.addEventListener('click', () => {
+        const ts = b.dataset.ts;
+        const taskId = b.dataset.editTask;
+        if (!ts || !taskId) return;
+        const task = this._tasks.find((x) => x.id === taskId);
+        const comp = task?.completions?.find((c) => c.ts === ts);
+        if (task && comp) this._openCompletionEdit(task, comp);
       });
     });
   }

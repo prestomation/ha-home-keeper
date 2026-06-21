@@ -207,5 +207,19 @@
   "settings.problem_sensor_exclude_entities": "Vyloučené senzory",
   "settings.problem_sensor_exclude_areas": "Vyloučené oblasti",
   "settings.problem_sensor_exclude_labels": "Vyloučené štítky",
-  "done.blocked": "Toto nelze v Home Keeper dokončit – vymaže to integrace, která jej vlastní."
+  "done.blocked": "Toto nelze v Home Keeper dokončit – vymaže to integrace, která jej vlastní.",
+  "opt.completion_detail.none": "Hotovo jedním klepnutím (bez detailů)",
+  "opt.completion_detail.optional": "Zeptat se na detaily (volitelné)",
+  "opt.completion_detail.required": "Vyžadovat detaily",
+  "field.completion_detail": "Při dokončení",
+  "field.note": "Poznámka",
+  "field.who": "Kdo to udělal",
+  "completion.edit": "Upravit dokončení",
+  "completion.title": "Zaznamenat: {name}",
+  "completion.photo": "Fotka",
+  "completion.required": "Pro pokračování vyplňte povinná pole.",
+  "completion.markDone": "Označit jako hotové",
+  "completion.skip": "Přeskočit detaily",
+  "completion.by": "od {who}",
+  "done.needsDetails": "Otevřete tento úkol v Home Keeper a doplňte požadované detaily."
 }

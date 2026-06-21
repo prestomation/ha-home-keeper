@@ -145,6 +145,20 @@
         }
       }
     },
+    "update_completion": {
+      "name": "Update completion",
+      "description": "Amend the metadata (note, cost, photo, who) of an already-recorded completion, identified by its timestamp. Does not change the schedule or due date.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task whose completion you are editing."
+        },
+        "ts": {
+          "name": "Completion timestamp",
+          "description": "The ISO timestamp (ts) of the completion entry to edit."
+        }
+      }
+    },
     "trigger_task": {
       "name": "Trigger task",
       "description": "Arm a condition-driven (triggered) task so it reads as due now — the owner-facing counterpart to Complete task (which clears it back to dormant). Idempotent; only valid for triggered tasks.",

@@ -183,5 +183,19 @@
   "settings.problem_sensor_exclude_entities": "排除的传感器",
   "settings.problem_sensor_exclude_areas": "排除的区域",
   "settings.problem_sensor_exclude_labels": "排除的标签",
-  "done.blocked": "无法在 Home Keeper 中完成它——由拥有它的集成清除。"
+  "done.blocked": "无法在 Home Keeper 中完成它——由拥有它的集成清除。",
+  "opt.completion_detail.none": "一键完成（无详情）",
+  "opt.completion_detail.optional": "询问详情（可选）",
+  "opt.completion_detail.required": "要求填写详情",
+  "field.completion_detail": "完成时",
+  "field.note": "备注",
+  "field.who": "由谁完成",
+  "completion.edit": "编辑完成记录",
+  "completion.title": "记录：{name}",
+  "completion.photo": "照片",
+  "completion.required": "请填写必填字段以继续。",
+  "completion.markDone": "标记为完成",
+  "completion.skip": "跳过详情",
+  "completion.by": "由 {who}",
+  "done.needsDetails": "在 Home Keeper 中打开此任务以添加必填详情。"
 }

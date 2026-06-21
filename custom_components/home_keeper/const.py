@@ -66,6 +66,10 @@ EVENT_TASK_DUE_SOON = f"{DOMAIN}_task_due_soon"  # + ``due_in_hours``
 # way (see assets.stock_transition). out_of_stock wins over low on a single step.
 EVENT_PART_OUT_OF_STOCK = f"{DOMAIN}_part_out_of_stock"
 EVENT_PART_RESTOCKED = f"{DOMAIN}_part_restocked"
+# Fired when a recorded completion's metadata (note/cost/photo/who) is edited
+# after the fact — a state change distinct from completing/uncompleting. Carries
+# the task spine plus the edited completion's ``ts``. See docs/EVENTS.md.
+EVENT_TASK_COMPLETION_UPDATED = f"{DOMAIN}_task_completion_updated"
 # Asset (appliance) lifecycle — fired at the store.py asset chokepoints.
 EVENT_ASSET_CREATED = f"{DOMAIN}_asset_created"
 EVENT_ASSET_UPDATED = f"{DOMAIN}_asset_updated"  # payload carries ``changed_fields``
@@ -126,6 +130,26 @@ REC_FIXED = "fixed"
 # active/due-now. See docs/INTEGRATING.md "Condition-driven (triggered) tasks".
 REC_TRIGGERED = "triggered"
 RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED, REC_TRIGGERED]
+
+# Per-task capture mode for completion metadata (note / cost / photo / who).
+# ``none`` keeps the existing one-click "Done" (the default, so existing tasks and
+# automations are unchanged); ``optional`` pops a details dialog on completion with
+# every field optional; ``required`` pops the dialog and makes the task's
+# ``completion_required_fields`` mandatory before it can be marked done.
+COMPLETION_DETAIL_NONE = "none"
+COMPLETION_DETAIL_OPTIONAL = "optional"
+COMPLETION_DETAIL_REQUIRED = "required"
+COMPLETION_DETAIL_MODES = [
+    COMPLETION_DETAIL_NONE,
+    COMPLETION_DETAIL_OPTIONAL,
+    COMPLETION_DETAIL_REQUIRED,
+]
+# The metadata a single completion can carry — also the allowed members of a task's
+# ``completion_required_fields`` list. That list (not a hard-coded "note") is the
+# single source of truth the panel reads to gate a required completion, so a future
+# per-task "which fields are required" editor needs only to populate the list — no
+# storage migration. v1 derives it from the mode (required -> ["note"]).
+COMPLETION_METADATA_FIELDS = ["note", "cost", "photo", "who"]
 
 # Floating interval units.
 UNIT_DAYS = "days"
