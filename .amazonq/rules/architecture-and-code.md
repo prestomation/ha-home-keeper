@@ -263,8 +263,40 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   while still enforcing key + placeholder parity. Translating a locale's exception
   strings just makes them stop matching English — no test change needed.
 
+## Companion discovery (implemented)
+- Home Keeper surfaces integrations that work with it in the panel's **Settings →
+  Companions** section. Two paths feed one registry — keep them separate:
+  - **Push / self-registration.** A Home-Keeper-aware integration announces itself via
+    the `home_keeper.register_companion` service (Pawsistant, the Battery Notes glue).
+    Home Keeper stores the descriptor **verbatim** and never imports the companion —
+    same opacity rule as `source`. The registry is in-memory on `hass.data`
+    (`DATA_COMPANIONS`), best-effort, rebuilt on restart as companions re-announce.
+  - **Pull / catalog detection.** A tiny curated catalog (`companions_catalog.py`,
+    pure) maps a *popular* upstream (e.g. `battery_notes`) to the glue that bridges it,
+    so Home Keeper can **suggest** the glue when the upstream is installed but the glue
+    isn't. Keep the catalog short and high-signal; the merge logic is pure and
+    unit-tested (`tests/unit/test_companions.py`).
+- The merge (`companions_catalog.build_companion_list`) is HA-free and pure; the
+  HA-facing registry + event firing live in `companions.py`. Detection is computed
+  on demand (no background poller) by scanning `hass.config_entries`.
+- Re-announce handshake: Home Keeper fires `home_keeper_register_companions` at setup
+  (and on reload); companions both register at their own setup *and* listen for that
+  ping, so discovery works regardless of startup order.
+- New events (`home_keeper_companion_connected` / `_suggested`) are edge-triggered and
+  deduped per domain in the registry; documented in `docs/EVENTS.md`.
+- The "Configure" action **deep-links to the companion's own options page**
+  (`/config/integrations/integration/<domain>`). Home Keeper does **not** reimplement a
+  companion's settings — ownership stays with the companion (descriptor carries
+  `config_entry_id`). Don't add inline companion settings without an explicit decision.
+- The two new services (`register_companion`, `list_companions`) are
+  developer/automation-facing; their English names live in `services.yaml` (no
+  `strings.json`/16-locale parity entries, unlike user-facing UI strings). The panel
+  Companions strings ARE user-facing and are localized in the frontend `locales/`.
+
 ## Deferred: cross-integration contribution API
 - The stable interface for other integrations (e.g. Battery Notes) to contribute
-  tasks is intentionally **not implemented yet**. Only documented hook points
-  exist (`const.SIGNAL_TASK_CONTRIBUTION`). Do not build it without an explicit
-  decision; see `IDEAS.md` / `docs/DESIGN.md`.
+  tasks via a dedicated upsert/reconcile service is intentionally **not implemented
+  yet** — contributors use the existing `add_task` + event contract (and now
+  `register_companion` for discovery). Only the documented hook point
+  `const.SIGNAL_TASK_CONTRIBUTION` remains reserved. Do not build the fuller
+  contribution service without an explicit decision; see `IDEAS.md` / `docs/DESIGN.md`.

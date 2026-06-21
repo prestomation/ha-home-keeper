@@ -241,4 +241,27 @@ export interface HomeKeeperOptions {
   problem_sensor_exclude_labels: string[];
   // Auto-delete a completed one-off this many days after completion; 0 = keep forever.
   one_off_retention_days: number;
+  // Catalog glue domains dismissed from the Companions "Suggested" list.
+  dismissed_companions?: string[];
+}
+
+/**
+ * A companion integration shown in Settings → Companions. Either *connected*
+ * (self-registered, or a known glue that's installed) or *suggested* (a popular
+ * upstream is installed but its glue isn't). See the backend `companions.py`.
+ */
+export interface Companion {
+  domain: string;
+  name: string;
+  icon?: string;
+  description?: string;
+  status: 'connected' | 'suggested';
+  // Connected rows: the integration domain whose options page "Configure" opens.
+  configure_domain?: string;
+  config_entry_id?: string | null;
+  docs_url?: string | null;
+  capabilities?: string[];
+  // Suggested rows: where to install the glue, and which upstream triggered it.
+  install_url?: string;
+  upstream_domain?: string;
 }

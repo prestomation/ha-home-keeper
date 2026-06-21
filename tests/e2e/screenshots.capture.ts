@@ -231,6 +231,40 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/17-panel-settings.png`, fullPage: true });
 
+  // 17b. Settings → Companions — integrations that work with Home Keeper. The e2e
+  // container ships only Home Keeper, so seed a couple of connected companions via
+  // the public register_companion service to capture the section populated.
+  await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'register_companion', {
+      domain: 'pawsistant',
+      name: 'Pawsistant',
+      icon: 'mdi:paw',
+      description:
+        'Pet care tracker — logs walks, meals, meds and weight, and can schedule recurring pet-care chores as Home Keeper tasks.',
+      config_entry_id: 'demo_pawsistant',
+      docs_url: 'https://github.com/prestomation/Pawsistant',
+      capabilities: ['care_schedules'],
+    });
+    await hass.callService('home_keeper', 'register_companion', {
+      domain: 'home_keeper_battery_notes',
+      name: 'Battery Notes',
+      icon: 'mdi:battery-alert-variant-outline',
+      description:
+        'Turns Battery Notes low-battery alerts into Home Keeper “replace battery” tasks, kept in sync both ways.',
+      config_entry_id: 'demo_battery_notes',
+      capabilities: ['battery_replacement'],
+    });
+  });
+  await openPanel(page);
+  await panel.locator('#tab-settings').click();
+  await expect(panel.locator('#hk-companions')).toBeVisible();
+  await expect(panel.locator('.hk-comp-configure').first()).toBeVisible();
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
+
   // 4. The usage surfaces — native to-do list + calendar on a dashboard.
   await openDashboard(page);
   await page.waitForTimeout(1500); // let cards settle

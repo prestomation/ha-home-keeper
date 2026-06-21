@@ -20,6 +20,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import (
+    OPTION_DISMISSED_COMPANIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
@@ -27,11 +28,13 @@ from .const import (
     OPTION_SYNC_PROBLEM_SENSORS,
 )
 
-# The exclusion options are id lists; the sync toggle is the only boolean.
+# The exclusion options (and the dismissed-companions list) are id/domain lists;
+# the sync toggle is the only boolean.
 _LIST_OPTIONS = (
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
+    OPTION_DISMISSED_COMPANIONS,
 )
 
 # Entry ids whose reload an explicit caller (the ``set_options`` service / the

@@ -204,6 +204,30 @@ options flow and the `home_keeper.set_options` service (for automations).
 
 ![The Home Keeper Settings tab — a form with the problem-sensor sync toggle and entity/area/label exclusion pickers](docs/images/17-panel-settings.png)
 
+### Companions — discover integrations that work with Home Keeper
+
+You shouldn't have to *already know* that another integration pairs with Home Keeper to
+benefit from it. The **Companions** section at the bottom of the Settings tab surfaces
+that ecosystem for you:
+
+- **Connected** — integrations that work with Home Keeper and have announced themselves
+  (e.g. [Pawsistant](https://github.com/prestomation/pawsistant), or the
+  [Battery Notes bridge](https://github.com/prestomation/ha-home-keeper-battery-notes)).
+  Each row has a **Configure** button that jumps straight to that integration's own
+  settings — so the pet-care schedules or the battery-task options live where they
+  belong, one click away.
+- **Suggested** — Home Keeper also recognises a few *popular* integrations that aren't
+  Home-Keeper-aware themselves. If you have one installed (e.g. **Battery Notes**) but
+  not the small "glue" that bridges it, Home Keeper points you at it with an **Install**
+  link. Not interested? **Dismiss** silences that suggestion.
+
+This works in two directions: a Home-Keeper-aware integration *registers itself* (so
+Home Keeper never has to hard-code it), while a popular upstream is *detected* from a
+curated catalog. Either way you find out — from inside Home Keeper — that the pieces fit
+together.
+
+![The Companions section on the Settings tab — connected integrations with Configure buttons](docs/images/21-panel-companions.png)
+
 ## Dashboard task card
 
 The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizable list
@@ -355,10 +379,15 @@ pet tracker that schedules *"give medicine"*.
 | [Home Keeper — Battery Notes](https://github.com/prestomation/ha-home-keeper-battery-notes) | Glue between [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes) and Home Keeper | Uses Home Keeper's **triggered** task type — arms a *"Replace battery"* task when a battery goes low and clears it when replaced, keeping both sides in sync so completion from either side is recorded in both. |
 | [Pawsistant](https://github.com/prestomation/pawsistant) | Pet-care logger for tracking recurring pet activities | Attaches Home Keeper floating-recurrence tasks to pet care schedules (e.g. *"medicine every 2 weeks"*), so completing the task in Home Keeper logs the event in Pawsistant, and logging it in Pawsistant marks the task done — with no loop. |
 
+Installed companions show up automatically in the panel's **[Companions](#companions--discover-integrations-that-work-with-home-keeper)**
+section (Settings tab), where you can jump to each one's settings — and Home Keeper will
+*suggest* the Battery Notes bridge if it sees you have Battery Notes but not the glue.
+
 > **Author an integration?** If you build a Home Assistant integration and want it to push
 > tasks into Home Keeper, see the developer guide,
 > [docs/INTEGRATING.md](docs/INTEGRATING.md), for the contract (the `source` field, the
-> `home_keeper_task_completed` event, and two-way completion sync) — and
+> `home_keeper_task_completed` event, two-way completion sync, and announcing yourself via
+> `home_keeper.register_companion` so you appear under **Companions**) — and
 > [docs/GLUE_INTEGRATIONS.md](docs/GLUE_INTEGRATIONS.md) for the thin "glue" pattern that
 > bridges an existing integration (like Battery Notes) to Home Keeper.
 

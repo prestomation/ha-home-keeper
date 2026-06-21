@@ -79,6 +79,24 @@ specific event), not `low_stock`.
 | `home_keeper_asset_updated` | an appliance changes; payload adds `changed_fields` |
 | `home_keeper_asset_deleted` | an appliance is removed |
 
+### Companion discovery (edge-triggered, deduped per domain)
+
+Home Keeper surfaces integrations that work with it (see the panel's **Settings →
+Companions** section, and [INTEGRATING.md](INTEGRATING.md) §7). These fire at most
+once per domain while HA is running.
+
+| Event | Fires when |
+|---|---|
+| `home_keeper_companion_connected` | a companion first becomes connected — it self-registered via `home_keeper.register_companion`, or a known glue is detected installed; payload adds `domain`, `name`, `status`, `config_entry_id` |
+| `home_keeper_companion_suggested` | a curated upstream is detected installed but its glue isn't yet; payload adds `domain` (the glue), `name`, `status`, `upstream_domain` |
+
+There is also a fire-and-forget **request** event Home Keeper emits (at its setup and
+on reload) to ask companions to (re-)announce themselves:
+
+| Event | Fires when |
+|---|---|
+| `home_keeper_register_companions` | Home Keeper has set up; companion integrations should (re-)call `home_keeper.register_companion`. Carries no data |
+
 ## Payloads
 
 ### Task event spine
@@ -107,6 +125,12 @@ stock events are interchangeable in one template.
 ### Asset event payload
 
 `asset_id`, `asset_name`, `device_id` (+ `changed_fields` for an update).
+
+### Companion event payload
+
+`domain`, `name`, `status` (`connected` / `suggested`), `config_entry_id` (the
+companion's config entry, for a connected companion — `None` otherwise), and
+`upstream_domain` (the detected upstream, for a catalog-suggested glue).
 
 ## Example automations
 

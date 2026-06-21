@@ -1,6 +1,22 @@
-import type { Asset, Hass, HassLabel, HomeKeeperOptions, Inventory, Task } from './types';
+import type {
+  Asset,
+  Companion,
+  Hass,
+  HassLabel,
+  HomeKeeperOptions,
+  Inventory,
+  Task,
+} from './types';
 
 /** Thin wrappers around the Home Keeper websocket commands. */
+
+/** Read the companion integrations for the Settings → Companions section. */
+export async function getCompanions(hass: Hass): Promise<Companion[]> {
+  const res = await hass.callWS<{ companions: Companion[] }>({
+    type: 'home_keeper/get_companions',
+  });
+  return res?.companions ?? [];
+}
 
 export async function getTasks(hass: Hass): Promise<Task[]> {
   const res = await hass.callWS<{ tasks: Task[] }>({ type: 'home_keeper/get_tasks' });

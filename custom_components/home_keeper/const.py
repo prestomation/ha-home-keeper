@@ -122,6 +122,10 @@ OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS = "problem_sensor_exclude_labels"
 # (the default) keeps completed one-offs forever; ``N > 0`` purges them once
 # ``last_completed + N days`` has passed, via the coordinator's periodic refresh.
 OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
+# Catalog glue domains the user dismissed from the Settings → Companions
+# "Suggested" list. A list of domain strings; dismissing only silences a
+# *suggestion* (a connected pairing is always shown). See companions.py.
+OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
 
 
 # Recurrence types.
@@ -187,6 +191,30 @@ MAX_INTERVAL = 10_000
 # this integration knowing anything about them. The intended hook is a dispatcher
 # signal plus a `home_keeper.contribute_task` service. See docs/DESIGN.md.
 SIGNAL_TASK_CONTRIBUTION = f"{DOMAIN}_task_contribution"
+
+# ── Companion discovery ──────────────────────────────────────────────────────
+# A "companion" is another integration that works with Home Keeper. They surface
+# in the panel's Settings → Companions section so users discover the ecosystem.
+# Two paths feed the registry (see companions.py / companions_catalog.py):
+#   • Push: a Home-Keeper-aware integration self-registers via the
+#     ``home_keeper.register_companion`` service (Pawsistant, the Battery Notes glue).
+#   • Pull: Home Keeper detects a popular *upstream* (e.g. Battery Notes) from a
+#     curated catalog and *suggests* the glue that bridges it.
+#
+# Where the in-memory companion registry lives (survives entry reloads; rebuilt on
+# HA restart as companions re-announce).
+DATA_COMPANIONS = f"{DOMAIN}_companions"
+# Bus event Home Keeper fires when it has set up (and on reload) asking companions
+# to (re-)announce themselves. Best-effort: registration survives entry reloads via
+# ``hass.data``, but a full HA restart sets every integration up fresh and ordering
+# isn't guaranteed, so companions both register at their own setup *and* listen for
+# this ping. Carries no data.
+EVENT_REGISTER_COMPANIONS = f"{DOMAIN}_register_companions"
+# Fired (edge-triggered, deduped per domain) when a companion first becomes
+# connected (self-registers or a known glue is detected installed) or when a known
+# upstream's glue is first suggested. Payload built by events.companion_event_data.
+EVENT_COMPANION_CONNECTED = f"{DOMAIN}_companion_connected"
+EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
 
 # Well-known field on a task dict that Home Keeper inspects (unlike the opaque
 # ``source`` field). Declares the integration that owns the task: which fields

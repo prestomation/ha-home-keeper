@@ -203,5 +203,16 @@
   "completion.markDone": "Markeren als gedaan",
   "completion.skip": "Details overslaan",
   "completion.by": "door {who}",
-  "done.needsDetails": "Open deze taak in Home Keeper om de vereiste details toe te voegen."
+  "done.needsDetails": "Open deze taak in Home Keeper om de vereiste details toe te voegen.",
+  "companions.heading": "Metgezellen",
+  "companions.help": "Integraties die met Home Keeper samenwerken. Koppel een metgezel om deze hier te beheren, of installeer een voorgestelde brug om een app te koppelen die je al gebruikt.",
+  "companions.empty": "Nog geen metgezel-integraties gedetecteerd.",
+  "companions.connected": "Verbonden",
+  "companions.suggested": "Voorgesteld",
+  "companions.chip.connected": "Verbonden",
+  "companions.chip.suggested": "Voorgesteld",
+  "companions.configure": "Configureren",
+  "companions.install": "Installeren",
+  "companions.dismiss": "Negeren",
+  "companions.docs": "Documentatie"
 }

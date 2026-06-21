@@ -203,5 +203,16 @@
   "completion.markDone": "Markera som klar",
   "completion.skip": "Hoppa över detaljer",
   "completion.by": "av {who}",
-  "done.needsDetails": "Öppna den här uppgiften i Home Keeper för att lägga till de obligatoriska detaljerna."
+  "done.needsDetails": "Öppna den här uppgiften i Home Keeper för att lägga till de obligatoriska detaljerna.",
+  "companions.heading": "Följeslagare",
+  "companions.help": "Integrationer som fungerar med Home Keeper. Anslut en följeslagare för att hantera den här, eller installera en föreslagen brygga för att länka en app du redan använder.",
+  "companions.empty": "Inga följeslagarintegrationer har upptäckts ännu.",
+  "companions.connected": "Ansluten",
+  "companions.suggested": "Föreslagen",
+  "companions.chip.connected": "Ansluten",
+  "companions.chip.suggested": "Föreslagen",
+  "companions.configure": "Konfigurera",
+  "companions.install": "Installera",
+  "companions.dismiss": "Avfärda",
+  "companions.docs": "Dokumentation"
 }

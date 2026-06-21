@@ -215,5 +215,16 @@
   "completion.markDone": "Segna come fatto",
   "completion.skip": "Salta i dettagli",
   "completion.by": "da {who}",
-  "done.needsDetails": "Apri questa attività in Home Keeper per aggiungere i dettagli richiesti."
+  "done.needsDetails": "Apri questa attività in Home Keeper per aggiungere i dettagli richiesti.",
+  "companions.heading": "Integrazioni partner",
+  "companions.help": "Integrazioni che funzionano con Home Keeper. Collega un partner per gestirlo qui oppure installa un ponte suggerito per collegare un'app che usi già.",
+  "companions.empty": "Nessuna integrazione partner rilevata finora.",
+  "companions.connected": "Connesso",
+  "companions.suggested": "Suggerito",
+  "companions.chip.connected": "Connesso",
+  "companions.chip.suggested": "Suggerito",
+  "companions.configure": "Configura",
+  "companions.install": "Installa",
+  "companions.dismiss": "Ignora",
+  "companions.docs": "Documentazione"
 }

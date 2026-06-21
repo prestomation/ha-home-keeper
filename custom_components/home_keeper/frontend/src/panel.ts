@@ -21,6 +21,7 @@ import { setLanguage, t, tn } from './i18n';
 import type {
   Asset,
   AssetKind,
+  Companion,
   Completion,
   Hass,
   HomeKeeperOptions,
@@ -85,6 +86,8 @@ const REQUIRED_COMPONENTS = [
   'ha-assist-chip',
   'ha-menu-button',
   'ha-svg-icon',
+  // Companion rows render arbitrary mdi icons by name; ha-icon lazy-loads them.
+  'ha-icon',
 ];
 
 // mdi:delete — remove a single completion entry from the history dialog.
@@ -182,6 +185,30 @@ const STYLES = `
     margin-bottom: 16px; line-height: 1.4;
   }
   #hk-settings ha-form { display: block; }
+  /* Companions section (Settings tab). */
+  .hk-companion-group {
+    font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
+    text-transform: uppercase; letter-spacing: 0.04em; margin: 20px 0 8px;
+  }
+  .hk-companion {
+    display: flex; align-items: center; gap: 12px; padding: 12px 0;
+    border-top: 1px solid var(--divider-color);
+  }
+  .hk-companion-ic { color: var(--state-icon-color, var(--primary-text-color)); flex: 0 0 auto; }
+  .hk-companion-body { flex: 1 1 auto; min-width: 0; }
+  .hk-companion-name { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+  .hk-companion-desc {
+    color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4; margin-top: 2px;
+  }
+  .hk-companion-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; flex-wrap: wrap; }
+  ha-assist-chip.hk-comp-connected {
+    --ha-assist-chip-container-color: var(--success-color, #43a047);
+    --ha-assist-chip-filled-container-color: var(--success-color, #43a047);
+    --md-assist-chip-label-text-color: var(--text-primary-color, #fff);
+  }
+  ha-assist-chip.hk-comp-suggested {
+    --ha-assist-chip-container-color: var(--warning-color, #ffa600);
+  }
   .hk-section {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
     text-transform: uppercase; letter-spacing: 0.04em; margin: 20px 0 8px;
@@ -428,6 +455,8 @@ export class HomeKeeperPanel extends HTMLElement {
   private _view: 'tasks' | 'appliances' | 'settings' = 'tasks';
   // Integration options for the Settings tab (loaded lazily with the rest).
   private _options: HomeKeeperOptions | null = null;
+  // Companion integrations shown on the Settings tab (loaded with the rest).
+  private _companions: Companion[] = [];
   // List controls (persisted in localStorage).
   private _groupBy: GroupBy = 'status';
   private _filter: TaskFilter = 'all';
@@ -572,18 +601,21 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _reload(): Promise<void> {
     if (!this._hass) return;
     try {
-      const [tasks, assets, entryDomains, loadedEntryIds, options] = await Promise.all([
-        api.getTasks(this._hass),
-        api.getAssets(this._hass),
-        api.getEntryDomains(this._hass).catch(() => ({})),
-        api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
-        api.getOptions(this._hass).catch(() => null),
-      ]);
+      const [tasks, assets, entryDomains, loadedEntryIds, options, companions] =
+        await Promise.all([
+          api.getTasks(this._hass),
+          api.getAssets(this._hass),
+          api.getEntryDomains(this._hass).catch(() => ({})),
+          api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
+          api.getOptions(this._hass).catch(() => null),
+          api.getCompanions(this._hass).catch(() => [] as Companion[]),
+        ]);
       this._tasks = tasks;
       this._assets = assets;
       this._entryDomains = entryDomains;
       this._loadedEntryIds = loadedEntryIds;
       this._options = options;
+      this._companions = companions ?? [];
       this._loaded = true;
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -903,7 +935,7 @@ export class HomeKeeperPanel extends HTMLElement {
         </div>
         ${this._detailView()}`;
     } else if (this._view === 'settings') {
-      inner = `${this._tabs()}<div id="hk-settings-host"></div>`;
+      inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-companions-host"></div>`;
     } else {
       const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
       inner = `
@@ -1918,6 +1950,8 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     const settingsHost = root.getElementById('hk-settings-host');
     if (settingsHost) this._renderSettingsForm(settingsHost);
+    const companionsHost = root.getElementById('hk-companions-host');
+    if (companionsHost) this._renderCompanions(companionsHost);
 
     // Card actions: the row opens the detail page; tasks keep a quick "Done".
     this._wireDetailOpeners(root);
@@ -2056,6 +2090,130 @@ export class HomeKeeperPanel extends HTMLElement {
       // Tasks tab, rather than lingering until the next refresh.
       await this._reload();
       this._toast(t('settings.saved'));
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
+    }
+  }
+
+  /** Render the Settings → Companions section: integrations that work with
+   *  Home Keeper. *Connected* rows (self-registered, or a detected glue) deep-link
+   *  to the companion's own options page; *Suggested* rows (a popular upstream is
+   *  installed but its glue isn't) offer an install link and can be dismissed. */
+  private _renderCompanions(host: HTMLElement): void {
+    const all = this._companions ?? [];
+    const connected = all.filter((c) => c.status === 'connected');
+    const suggested = all.filter((c) => c.status === 'suggested');
+
+    const card = document.createElement('ha-card');
+    card.className = 'hk-form-card';
+    card.id = 'hk-companions';
+    const inner = document.createElement('div');
+    inner.className = 'hk-form-inner';
+
+    const sections: string[] = [
+      `<div class="hk-form-title">${escapeHTML(t('companions.heading'))}</div>`,
+      `<div class="hk-settings-intro">${escapeHTML(t('companions.help'))}</div>`,
+    ];
+    if (!connected.length && !suggested.length) {
+      sections.push(`<ha-alert alert-type="info">${escapeHTML(t('companions.empty'))}</ha-alert>`);
+    }
+    if (connected.length) {
+      sections.push(
+        `<div class="hk-companion-group">${escapeHTML(t('companions.connected'))}</div>`,
+        ...connected.map((c) => this._companionRow(c)),
+      );
+    }
+    if (suggested.length) {
+      sections.push(
+        `<div class="hk-companion-group">${escapeHTML(t('companions.suggested'))}</div>`,
+        ...suggested.map((c) => this._companionRow(c)),
+      );
+    }
+    inner.innerHTML = sections.join('');
+    card.appendChild(inner);
+    host.appendChild(card);
+    this._wireCompanions(inner);
+  }
+
+  /** One companion row's HTML (icon, name + status chip, description, actions). */
+  private _companionRow(c: Companion): string {
+    const icon = escapeHTML(c.icon || 'mdi:puzzle');
+    const chipLabel = c.status === 'connected' ? t('companions.chip.connected') : t('companions.chip.suggested');
+    const chipClass = c.status === 'connected' ? 'hk-comp-connected' : 'hk-comp-suggested';
+    const actions: string[] =
+      c.status === 'connected'
+        ? [
+            `<ha-button class="hk-comp-configure" data-domain="${escapeHTML(c.configure_domain || c.domain)}">${escapeHTML(t('companions.configure'))}</ha-button>`,
+          ]
+        : [
+            `<ha-button raised class="hk-comp-install" data-url="${escapeHTML(c.install_url || '')}">${escapeHTML(t('companions.install'))}</ha-button>`,
+            `<ha-button class="hk-comp-dismiss" data-domain="${escapeHTML(c.domain)}">${escapeHTML(t('companions.dismiss'))}</ha-button>`,
+          ];
+    if (c.docs_url) {
+      actions.push(
+        `<ha-button class="hk-comp-docs" data-url="${escapeHTML(c.docs_url)}">${escapeHTML(t('companions.docs'))}</ha-button>`,
+      );
+    }
+    const desc = c.description
+      ? `<div class="hk-companion-desc">${escapeHTML(c.description)}</div>`
+      : '';
+    return `
+      <div class="hk-companion">
+        <ha-icon class="hk-companion-ic" icon="${icon}"></ha-icon>
+        <div class="hk-companion-body">
+          <div class="hk-companion-name">
+            ${escapeHTML(c.name)}
+            <ha-assist-chip class="${chipClass}" label="${escapeHTML(chipLabel)}"></ha-assist-chip>
+          </div>
+          ${desc}
+        </div>
+        <div class="hk-companion-actions">${actions.join('')}</div>
+      </div>`;
+  }
+
+  /** Wire a companion section's Configure / Install / Docs / Dismiss buttons. */
+  private _wireCompanions(root: HTMLElement): void {
+    root.querySelectorAll<HTMLElement>('.hk-comp-configure').forEach((b) =>
+      b.addEventListener('click', () => {
+        const domain = b.dataset.domain;
+        if (domain) this._navigateToIntegration(domain);
+      }),
+    );
+    root.querySelectorAll<HTMLElement>('.hk-comp-install, .hk-comp-docs').forEach((b) =>
+      b.addEventListener('click', () => {
+        const url = b.dataset.url;
+        if (url) window.open(url, '_blank', 'noopener');
+      }),
+    );
+    root.querySelectorAll<HTMLElement>('.hk-comp-dismiss').forEach((b) =>
+      b.addEventListener('click', () => {
+        const domain = b.dataset.domain;
+        if (domain) void this._dismissCompanion(domain);
+      }),
+    );
+  }
+
+  /** Deep-link to an integration's config page (same pattern as "Edit in X"). */
+  private _navigateToIntegration(domain: string): void {
+    history.pushState(null, '', `/config/integrations/integration/${domain}`);
+    window.dispatchEvent(
+      new CustomEvent('location-changed', {
+        detail: { replace: false },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  /** Hide a suggested companion by persisting its domain to dismissed_companions. */
+  private async _dismissCompanion(domain: string): Promise<void> {
+    if (!this._hass) return;
+    const current = this._options?.dismissed_companions ?? [];
+    if (current.includes(domain)) return;
+    const dismissed_companions = [...current, domain];
+    try {
+      await api.setOptions(this._hass, { dismissed_companions });
+      await this._refresh();
     } catch (err) {
       this._toast(String((err as { message?: string })?.message || err));
     }

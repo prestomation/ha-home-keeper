@@ -203,5 +203,16 @@
   "completion.markDone": "Merkitse tehdyksi",
   "completion.skip": "Ohita tiedot",
   "completion.by": "tekijä {who}",
-  "done.needsDetails": "Avaa tämä tehtävä Home Keeperissä lisätäksesi vaaditut tiedot."
+  "done.needsDetails": "Avaa tämä tehtävä Home Keeperissä lisätäksesi vaaditut tiedot.",
+  "companions.heading": "Kumppanit",
+  "companions.help": "Integraatiot, jotka toimivat Home Keeperin kanssa. Yhdistä kumppani hallitaksesi sitä täällä tai asenna ehdotettu silta yhdistääksesi jo käyttämäsi sovelluksen.",
+  "companions.empty": "Kumppani-integraatioita ei ole vielä havaittu.",
+  "companions.connected": "Yhdistetty",
+  "companions.suggested": "Ehdotettu",
+  "companions.chip.connected": "Yhdistetty",
+  "companions.chip.suggested": "Ehdotettu",
+  "companions.configure": "Määritä",
+  "companions.install": "Asenna",
+  "companions.dismiss": "Hylkää",
+  "companions.docs": "Dokumentaatio"
 }

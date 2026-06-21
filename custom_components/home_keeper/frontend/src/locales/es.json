@@ -215,5 +215,16 @@
   "completion.markDone": "Marcar como hecho",
   "completion.skip": "Omitir detalles",
   "completion.by": "por {who}",
-  "done.needsDetails": "Abre esta tarea en Home Keeper para añadir los detalles obligatorios."
+  "done.needsDetails": "Abre esta tarea en Home Keeper para añadir los detalles obligatorios.",
+  "companions.heading": "Complementos",
+  "companions.help": "Integraciones que funcionan con Home Keeper. Conecta un complemento para gestionarlo aquí, o instala un puente sugerido para enlazar una aplicación que ya usas.",
+  "companions.empty": "Aún no se han detectado integraciones complementarias.",
+  "companions.connected": "Conectado",
+  "companions.suggested": "Sugerido",
+  "companions.chip.connected": "Conectado",
+  "companions.chip.suggested": "Sugerido",
+  "companions.configure": "Configurar",
+  "companions.install": "Instalar",
+  "companions.dismiss": "Descartar",
+  "companions.docs": "Documentación"
 }
