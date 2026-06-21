@@ -107,15 +107,27 @@ def _step(dt: datetime, freq: str, interval: int) -> datetime:
 def _fast_forward(
     anchor: datetime, freq: str, interval: int, target: datetime
 ) -> datetime:
-    """An occurrence at or just before *target*, jumped to in O(1).
+    """An occurrence at or just before *target*, jumped to in O(1) where possible.
 
     A long-dormant fixed schedule can be thousands of steps past its anchor;
     stepping one occurrence at a time would be slow (and historically raised once
     it blew an iteration cap). We deliberately *under*-shoot (``- 1`` step) so the
     caller's short loop finishes on the exact occurrence using wall-clock stepping
     — correct across DST and month-length clamping. Day/week deltas are exact, so
-    the bulk jump is too; MONTHLY is left to the loop (it would need ~830 years to
-    approach the cap) to preserve its progressive day-clamping behavior.
+    the bulk jump is too.
+
+    MONTHLY is trickier: progressive day-clamping makes the grid path-dependent, so
+    we can't jump directly from the anchor for a day > 28 (``add_months(Jan 31, 2)``
+    is Mar 31, but stepping is Jan 31 -> Feb 28 -> Mar 28). We exploit the fact that
+    the clamped day is monotonically non-increasing toward 28 — once it bottoms out
+    at 28 (the global floor: every month has >= 28 days) it never changes again, so
+    from that occurrence we *can* jump in O(1). We therefore step until the day hits
+    28 (typically a handful of steps — interval-1 monthly reaches a non-leap
+    February within a few years) and then bulk-jump the remainder. Schedules whose
+    reachable months never include a short-enough month (e.g. an even interval that
+    skips February) keep a day > 28 forever; for those we simply step to the target,
+    bounded by the (finite) span between anchor and target — slower, but never the
+    old iteration-cap crash.
     """
     elapsed = (target - anchor).total_seconds()
     if elapsed <= 0:
@@ -126,7 +138,20 @@ def _fast_forward(
     if freq == FREQ_WEEKLY:
         steps = max(0, int(elapsed // (604_800 * interval)) - 1)
         return anchor + timedelta(weeks=interval * steps)
-    return anchor
+    # MONTHLY
+    occ = anchor
+    while occ.day > 28:
+        nxt = add_months(occ, interval)
+        if nxt > target:
+            # Reached the target before the day stabilized: hand the (exact) grid
+            # occurrence to the caller's loop. Bounded by the anchor→target span.
+            return occ
+        occ = nxt
+    # The day has bottomed out at 28 and is now stable for every further step, so
+    # the remaining whole steps can be jumped at once (under-shooting by one).
+    remaining = (target.year - occ.year) * 12 + (target.month - occ.month)
+    jump = max(0, remaining // interval - 1)
+    return add_months(occ, jump * interval)
 
 
 def next_fixed_occurrence(
