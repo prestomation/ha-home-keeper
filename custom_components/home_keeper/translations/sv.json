@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Synkronisera problemsensorer som uppgifter",
           "problem_sensor_exclude_entities": "Uteslutna sensorer",
           "problem_sensor_exclude_areas": "Uteslutna områden",
-          "problem_sensor_exclude_labels": "Uteslutna etiketter"
+          "problem_sensor_exclude_labels": "Uteslutna etiketter",
+          "one_off_retention_days": "Lagringstid för engångsuppgifter (dagar)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter att den slutförts. 0 behåller slutförda engångsuppgifter för alltid."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Typ av upprepning",
-          "description": "floating (mätt från slutförande) eller fixed (förankrat schema)."
+          "description": "floating (mätt från slutförande), fixed (förankrat schema) eller one-off (görs en gång, använder ett förfallodatum)."
         },
         "interval": {
           "name": "Intervall",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Ankare",
           "description": "För fixed-uppgifter: ISO-datum och -tid för första förekomsten (anger tid på dygnet)."
+        },
+        "due": {
+          "name": "Förfallodatum",
+          "description": "För engångsuppgifter: ISO-datum och -tid när uppgiften förfaller. Valfritt; standard är nu (förfaller i dag)."
         },
         "last_completed": {
           "name": "Senast utförd",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Typ av upprepning",
-          "description": "floating eller fixed."
+          "description": "floating, fixed eller one-off (görs en gång)."
         },
         "interval": {
           "name": "Intervall",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Ankare",
           "description": "ISO-datum och -tid för första förekomsten (fixed)."
+        },
+        "due": {
+          "name": "Förfallodatum",
+          "description": "ISO-datum och -tid när uppgiften förfaller (engångsuppgift)."
         },
         "device_id": {
           "name": "Enhet",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Uteslutna etiketter"
+        },
+        "one_off_retention_days": {
+          "name": "Lagringstid för engångsuppgifter (dagar)",
+          "description": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter slutförandet. 0 behåller dem för alltid."
         }
       }
     }

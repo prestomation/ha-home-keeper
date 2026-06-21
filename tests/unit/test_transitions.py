@@ -84,6 +84,18 @@ def test_dormant_and_disabled_never_fire():
     assert set(state) == {"d", "x"}
 
 
+def test_one_off_armed_fires_overdue_then_completed_goes_quiet():
+    # An armed one-off announces overdue once; once completed (next_due -> None) it
+    # is dormant and never fires again.
+    armed = _task("o", next_due=NOW - timedelta(days=1), recurrence_type="one-off")
+    fired, state = t.detect_transitions({}, {"o": armed}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_OVERDUE]
+
+    completed = _task("o", next_due=None, recurrence_type="one-off")
+    fired2, _state2 = t.detect_transitions(state, {"o": completed}, now=NOW)
+    assert fired2 == []
+
+
 def test_triggered_task_fires_overdue_on_arm():
     dormant = _task("d", next_due=None, recurrence_type="triggered")
     _, state = t.detect_transitions({}, {"d": dormant}, now=NOW)

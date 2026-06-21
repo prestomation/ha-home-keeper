@@ -20,14 +20,17 @@ add_task:
     recurrence_type:
       name: Recurrence type
       description: >-
-        floating (measured from completion), fixed (anchored schedule), or triggered
+        floating (measured from completion), fixed (anchored schedule), one-off
+        (do-once — uses "due", goes dormant when completed), or triggered
         (condition-driven — no schedule; an owning integration arms it via trigger_task
-        and clears it via complete_task). interval/unit/freq/anchor are N/A for triggered.
+        and clears it via complete_task). interval/unit/freq/anchor are N/A for one-off
+        and triggered.
       selector:
         select:
           options:
             - floating
             - fixed
+            - one-off
             - triggered
     interval:
       name: Interval
@@ -59,6 +62,14 @@ add_task:
       name: Anchor
       description: For fixed tasks - ISO datetime of the first occurrence (sets time-of-day).
       example: "2026-01-01T08:00:00"
+      selector:
+        text:
+    due:
+      name: Due date
+      description: >-
+        For one-off tasks - ISO datetime the task is due. Optional; defaults to now
+        (due today) when omitted.
+      example: "2026-07-01T08:00:00"
       selector:
         text:
     last_completed:
@@ -121,12 +132,14 @@ update_task:
           multiline: true
     recurrence_type:
       name: Recurrence type
-      description: floating, fixed, or triggered (condition-driven, no schedule).
+      description: >-
+        floating, fixed, one-off (do-once), or triggered (condition-driven, no schedule).
       selector:
         select:
           options:
             - floating
             - fixed
+            - one-off
             - triggered
     interval:
       name: Interval
@@ -156,6 +169,11 @@ update_task:
     anchor:
       name: Anchor
       description: ISO datetime of the first occurrence (fixed).
+      selector:
+        text:
+    due:
+      name: Due date
+      description: ISO datetime the task is due (one-off).
       selector:
         text:
     device_id:
@@ -527,15 +545,26 @@ set_options:
   name: Set options
   description: >-
     Update Home Keeper's integration options (the same settings as the panel's
-    Settings tab and the options flow). Only the fields you pass change. Currently
-    controls whether device_class "problem" binary sensors are synced as tasks, with
-    entity / area / label exclusions.
+    Settings tab and the options flow). Only the fields you pass change. Controls
+    whether device_class "problem" binary sensors are synced as tasks (with
+    entity / area / label exclusions) and how long completed one-off tasks are kept.
   fields:
     sync_problem_sensors:
       name: Sync problem sensors as tasks
       description: Mirror every device_class "problem" binary sensor as a task.
       selector:
         boolean:
+    one_off_retention_days:
+      name: One-off retention (days)
+      description: >-
+        Auto-delete a completed one-off task this many days after it is completed.
+        0 (the default) keeps completed one-offs forever.
+      selector:
+        number:
+          min: 0
+          max: 3650
+          step: 1
+          mode: box
     problem_sensor_exclude_entities:
       name: Excluded sensors
       description: Problem binary sensors to leave out of syncing.

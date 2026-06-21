@@ -11,9 +11,9 @@ changes, water filters, taking medicine, and anything else that recurs.
 
 ## Features at a glance
 
-- **Recurring tasks, three ways** — **floating** (every N units after last done),
-  **fixed** (anchored calendar schedule), and **triggered** (condition-driven, no
-  schedule — armed/cleared by another integration).
+- **Tasks, four ways** — **floating** (every N units after last done), **fixed**
+  (anchored calendar schedule), **one-off** (do-once, on a chosen due date), and
+  **triggered** (condition-driven, no schedule — armed/cleared by another integration).
 - **Used through native HA entities** — a `todo` list, an upcoming-tasks `calendar`,
   and per-device **button / next-due sensor / overdue binary_sensor** on a task's
   device page.
@@ -52,10 +52,34 @@ A **task** has a name, notes, an optional device it's attached to, and a recurre
   stays overdue rather than silently rolling forward.
 - **Fixed** — an anchored calendar schedule: *"take medicine every day at 8am"*,
   independent of when you actually complete it.
+- **One-off** — *do-once* (see [One-off tasks](#one-off-do-once-tasks) below).
 - **Triggered** — *condition-driven, no schedule* (see below).
 
 An **appliance** (asset) is the physical thing a task is about — a fridge, furnace,
 water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).
+
+## One-off (do-once) tasks
+
+Not everything repeats. **One-off** tasks are for things you do exactly once —
+*renew the passport*, *register the car*, *replace a single broken blind*. Pick
+**One-off** on the task form and choose a **due date** (it defaults to today, so a
+quick "remind me to do this" needs only a name).
+
+A one-off behaves like any other task until it's done — it appears on the to-do
+list, the upcoming-tasks calendar, and the overdue/next-due sensors, and you can log
+the usual completion details (note, cost, who, photo). The difference is what happens
+**after**: instead of rescheduling, it goes dormant and drops out of every active
+surface, landing in a collapsed **Completed** section in the panel that keeps its
+completion record. Undoing the completion brings it right back to its due date.
+
+![Creating a one-off task — no cadence, just a due date](docs/images/20-panel-create-one-off.png)
+
+![Completed one-off tasks collect in their own collapsed section](docs/images/19-panel-completed-section.png)
+
+**Tidy up automatically.** If you'd rather not let finished one-offs pile up, set
+**One-off retention (days)** in the panel's **Settings** tab (or via the
+`home_keeper.set_options` service): a completed one-off is deleted that many days
+after it's done. The default — `0` — keeps them forever.
 
 ## Logging completions (note, cost, photo, who)
 

@@ -21,6 +21,7 @@ from . import card, devices, inventory, options, panel, websocket_api
 from .assets import AssetValidationError
 from .const import (
     DOMAIN,
+    OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
@@ -49,6 +50,9 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("unit"): cv.string,
         vol.Optional("freq"): cv.string,
         vol.Optional("anchor"): cv.string,
+        # Due date for a one-off (do-once) task. Optional: defaults to "now" (due
+        # today) when omitted. Naive values are interpreted in HA's configured tz.
+        vol.Optional("due"): cv.string,
         # Optional "last done" seed: records an initial completion so a floating task
         # starts measured from this date instead of due-now. See docs/INTEGRATING.md.
         vol.Optional("last_completed"): cv.datetime,
@@ -76,6 +80,7 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("unit"): cv.string,
         vol.Optional("freq"): cv.string,
         vol.Optional("anchor"): cv.string,
+        vol.Optional("due"): cv.string,
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
         vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
@@ -198,6 +203,9 @@ EXPORT_INVENTORY_SCHEMA = vol.Schema({})
 SET_OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Optional(OPTION_SYNC_PROBLEM_SENSORS): cv.boolean,
+        vol.Optional(OPTION_ONE_OFF_RETENTION_DAYS): vol.All(
+            vol.Coerce(int), vol.Range(min=0)
+        ),
         vol.Optional(OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES): vol.All(
             cv.ensure_list, [cv.string]
         ),

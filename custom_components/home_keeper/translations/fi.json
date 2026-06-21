@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Synkronoi ongelma-anturit tehtäviksi",
           "problem_sensor_exclude_entities": "Poissuljetut anturit",
           "problem_sensor_exclude_areas": "Poissuljetut alueet",
-          "problem_sensor_exclude_labels": "Poissuljetut tunnisteet"
+          "problem_sensor_exclude_labels": "Poissuljetut tunnisteet",
+          "one_off_retention_days": "Kertaluonteisten säilytys (päivää)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää valmiit kertaluonteiset tehtävät pysyvästi."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Toistuvuuden tyyppi",
-          "description": "floating (mitataan valmistumisesta) tai fixed (ankkuroitu aikataulu)."
+          "description": "floating (mitataan valmistumisesta), fixed (ankkuroitu aikataulu) tai one-off (kerran tehtävä, käyttää eräpäivää)."
         },
         "interval": {
           "name": "Aikaväli",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Ankkuri",
           "description": "Kiinteille tehtäville: ensimmäisen esiintymän ISO-aikaleima (asettaa kellonajan)."
+        },
+        "due": {
+          "name": "Eräpäivä",
+          "description": "Kertaluonteisille tehtäville: ISO-aikaleima, jolloin tehtävä erääntyy. Valinnainen; oletuksena nykyhetki (erääntyy tänään)."
         },
         "last_completed": {
           "name": "Viimeksi suoritettu",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Toistuvuuden tyyppi",
-          "description": "floating tai fixed."
+          "description": "floating, fixed tai one-off (kerran tehtävä)."
         },
         "interval": {
           "name": "Aikaväli",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Ankkuri",
           "description": "Ensimmäisen esiintymän ISO-aikaleima (fixed)."
+        },
+        "due": {
+          "name": "Eräpäivä",
+          "description": "ISO-aikaleima, jolloin tehtävä erääntyy (one-off)."
         },
         "device_id": {
           "name": "Laite",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Poissuljetut tunnisteet"
+        },
+        "one_off_retention_days": {
+          "name": "Kertaluonteisten säilytys (päivää)",
+          "description": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää ne pysyvästi."
         }
       }
     }

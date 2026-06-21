@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Sincronitza els sensors de problema com a tasques",
           "problem_sensor_exclude_entities": "Sensors exclosos",
           "problem_sensor_exclude_areas": "Àrees excloses",
-          "problem_sensor_exclude_labels": "Etiquetes excloses"
+          "problem_sensor_exclude_labels": "Etiquetes excloses",
+          "one_off_retention_days": "Retenció de tasques úniques (dies)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 manté les tasques úniques completades per sempre."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Tipus de recurrència",
-          "description": "floating (mesurat des de la finalització) o fixed (horari ancorat)."
+          "description": "floating (mesurat des de la finalització), fixed (horari ancorat) o one-off (es fa un sol cop, utilitza una data de venciment)."
         },
         "interval": {
           "name": "Interval",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Àncora",
           "description": "Per a tasques fixes: data i hora ISO de la primera ocurrència (estableix l'hora del dia)."
+        },
+        "due": {
+          "name": "Data de venciment",
+          "description": "Per a tasques úniques: data i hora ISO en què venç la tasca. Opcional; per defecte, ara (venç avui)."
         },
         "last_completed": {
           "name": "Última realització",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Tipus de recurrència",
-          "description": "floating o fixed."
+          "description": "floating, fixed o one-off (es fa un sol cop)."
         },
         "interval": {
           "name": "Interval",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Àncora",
           "description": "Data i hora ISO de la primera ocurrència (fixed)."
+        },
+        "due": {
+          "name": "Data de venciment",
+          "description": "Data i hora ISO en què venç la tasca (one-off)."
         },
         "device_id": {
           "name": "Dispositiu",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Etiquetes excloses"
+        },
+        "one_off_retention_days": {
+          "name": "Retenció de tasques úniques (dies)",
+          "description": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 les manté per sempre."
         }
       }
     }

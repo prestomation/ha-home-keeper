@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Sincronizar sensores de problema como tarefas",
           "problem_sensor_exclude_entities": "Sensores excluídos",
           "problem_sensor_exclude_areas": "Áreas excluídas",
-          "problem_sensor_exclude_labels": "Etiquetas excluídas"
+          "problem_sensor_exclude_labels": "Etiquetas excluídas",
+          "one_off_retention_days": "Retenção de tarefas avulsas (dias)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Excluir automaticamente uma tarefa avulsa concluída este número de dias após sua conclusão. 0 mantém as tarefas avulsas concluídas para sempre."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Tipo de recorrência",
-          "description": "floating (medido a partir da conclusão) ou fixed (agenda ancorada)."
+          "description": "floating (medido a partir da conclusão), fixed (agenda ancorada) ou one-off (feita uma única vez, usa uma data de vencimento)."
         },
         "interval": {
           "name": "Intervalo",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Âncora",
           "description": "Para tarefas fixed: data e hora ISO da primeira ocorrência (define o horário do dia)."
+        },
+        "due": {
+          "name": "Data de vencimento",
+          "description": "Para tarefas one-off: data e hora ISO em que a tarefa vence. Opcional; o padrão é agora (vence hoje)."
         },
         "last_completed": {
           "name": "Última conclusão",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Tipo de recorrência",
-          "description": "floating ou fixed."
+          "description": "floating, fixed ou one-off (feita uma única vez)."
         },
         "interval": {
           "name": "Intervalo",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Âncora",
           "description": "Data e hora ISO da primeira ocorrência (fixed)."
+        },
+        "due": {
+          "name": "Data de vencimento",
+          "description": "Data e hora ISO em que a tarefa vence (one-off)."
         },
         "device_id": {
           "name": "Dispositivo",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Etiquetas excluídas"
+        },
+        "one_off_retention_days": {
+          "name": "Retenção de tarefas avulsas (dias)",
+          "description": "Excluir automaticamente uma tarefa avulsa concluída este número de dias após a conclusão. 0 as mantém para sempre."
         }
       }
     }

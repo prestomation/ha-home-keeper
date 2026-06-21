@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Synkroniser problemsensorer som oppgaver",
           "problem_sensor_exclude_entities": "Ekskluderte sensorer",
           "problem_sensor_exclude_areas": "Ekskluderte områder",
-          "problem_sensor_exclude_labels": "Ekskluderte etiketter"
+          "problem_sensor_exclude_labels": "Ekskluderte etiketter",
+          "one_off_retention_days": "Oppbevaring av engangsoppgaver (dager)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Slett automatisk en fullført engangsoppgave så mange dager etter at den er fullført. 0 beholder fullførte engangsoppgaver for alltid."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Gjentakelsestype",
-          "description": "floating (målt fra fullføring) eller fixed (forankret tidsplan)."
+          "description": "floating (målt fra fullføring), fixed (forankret tidsplan) eller one-off (utfør én gang, bruker en forfallsdato)."
         },
         "interval": {
           "name": "Intervall",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Anker",
           "description": "For fixed-oppgaver: ISO-dato og -tid for første forekomst (angir tid på dagen)."
+        },
+        "due": {
+          "name": "Forfallsdato",
+          "description": "For engangsoppgaver: ISO-dato og -tid når oppgaven forfaller. Valgfritt; standard er nå (forfaller i dag)."
         },
         "last_completed": {
           "name": "Sist utført",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Gjentakelsestype",
-          "description": "floating eller fixed."
+          "description": "floating, fixed eller one-off (utfør én gang)."
         },
         "interval": {
           "name": "Intervall",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Anker",
           "description": "ISO-dato og -tid for første forekomst (fixed)."
+        },
+        "due": {
+          "name": "Forfallsdato",
+          "description": "ISO-dato og -tid når oppgaven forfaller (one-off)."
         },
         "device_id": {
           "name": "Enhet",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Ekskluderte etiketter"
+        },
+        "one_off_retention_days": {
+          "name": "Oppbevaring av engangsoppgaver (dager)",
+          "description": "Slett automatisk en fullført engangsoppgave så mange dager etter fullføring. 0 beholder dem for alltid."
         }
       }
     }

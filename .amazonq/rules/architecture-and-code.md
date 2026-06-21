@@ -55,9 +55,19 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
 
 ## Task data model
 - Tasks are plain JSON-serializable dicts (never model objects in storage), with
-  keys: `id, name, notes, recurrence_type, interval, unit|freq, anchor,
+  keys: `id, name, notes, recurrence_type, interval, unit|freq, anchor, due,
   device_id, area_id, labels[], enabled, last_completed, next_due, completions[],
   created`.
+- **Recurrence types** (`const.REC_*`): `floating` (measured from last completion),
+  `fixed` (anchored calendar schedule via `freq`+`anchor`), `one-off` (do-once: a
+  user-scheduled `due` date; `compute_next_due` returns `due`, `apply_completion`
+  sets `next_due=None` permanently, and `remove_completion` re-arms to `due` only
+  when the final completion is undone), and `triggered` (condition-driven, no
+  schedule — owned by another integration). `one-off` and `triggered` both carry
+  **no cadence fields** (`normalize_fields` returns early for each); a completed
+  one-off and a dormant triggered task both have `next_due=None`, so they fall out of
+  every time surface (to-do/calendar/sensors/transitions) for free. Keep the
+  recurrence math in pure `recurrence.py` with an explicit `now`.
 - `labels[]` are **Home Assistant label-registry ids** (the same registry as device/
   area/entity labels), normalized in `models.normalize_labels` (de-duped, blank-
   stripped). `merge_update` only rewrites `labels` when the caller sends the key, so a
@@ -207,7 +217,13 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   `set_options` service is the canonical write path. The Settings tab is a top-level
   panel view (`_view === 'settings'`, deep-linked `/home-keeper/settings`) that
   autosaves each `ha-form` change; build its schema from the same selectors in
-  `forms.ts` (`settingsSchema`).
+  `forms.ts` (`settingsSchema`). Options so far: the problem-sensor sync toggle +
+  exclusions, and `one_off_retention_days` (int; `0` = keep forever) which the
+  **coordinator's periodic refresh** uses to auto-delete completed one-offs
+  (`recurrence.one_off_expired` collects expired ids; `_purge_expired_one_offs` deletes
+  via `store.delete_task`). Put a new option's default/coercion in `options.py` and add
+  it to all three surfaces (flow schema, `SET_OPTIONS_SCHEMA`, Settings `settingsSchema`)
+  with `strings.json`/`services.yaml` parity.
   - **The service / ws write path `await`s the reload so the change takes effect
     immediately.** `async_set_options` updates the entry and then awaits
     `async_reload` itself (flagging the entry via `caller_is_reloading` so the update

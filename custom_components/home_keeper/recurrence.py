@@ -34,6 +34,7 @@ from .const import (
     MAX_EXPAND_ITERATIONS,
     REC_FIXED,
     REC_FLOATING,
+    REC_ONE_OFF,
     REC_TRIGGERED,
     UNIT_DAYS,
     UNIT_MONTHS,
@@ -245,6 +246,13 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
         # dormant is the asymmetric job of ``apply_completion`` (next_due -> None);
         # this function is only ever called to (re)arm.
         return now
+    if rec_type == REC_ONE_OFF:
+        # A do-once task is due at its stored ``due`` date. Going dormant on
+        # completion is ``apply_completion``'s job (next_due -> None); this function
+        # only ever (re)arms it back to ``due`` (e.g. when a completion is undone).
+        due = _parse(task["due"])
+        assert due is not None
+        return due
     raise ValueError(f"unknown recurrence_type: {rec_type!r}")
 
 
@@ -296,7 +304,11 @@ def apply_completion(
         task["next_due"] = next_fixed_occurrence(
             anchor, task["freq"], int(task["interval"]), after=now
         ).isoformat()
-    elif rec_type == REC_TRIGGERED:
+    elif rec_type in (REC_TRIGGERED, REC_ONE_OFF):
+        # A one-off is permanently complete; a triggered task clears its condition.
+        # Both go dormant (every time surface drops them). Undoing the completion
+        # re-arms a one-off (see ``remove_completion``); a triggered task is
+        # re-armed only by its owning integration.
         task["next_due"] = None
     else:
         raise ValueError(f"unknown recurrence_type: {rec_type!r}")
@@ -325,7 +337,16 @@ def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
         task["last_completed"] = latest["ts"]
     else:
         task["last_completed"] = None
-    if task.get("recurrence_type") != REC_TRIGGERED:
+    rec_type = task.get("recurrence_type")
+    if rec_type == REC_ONE_OFF:
+        # Undoing the (final) completion of a do-once task re-arms it to its ``due``
+        # date so it returns to every time surface; if any completion remains it
+        # stays dormant. Unlike a triggered task, a one-off's armed/dormant state is
+        # history-driven, so editing the log *does* re-arm it.
+        task["next_due"] = (
+            compute_next_due(task, now=now).isoformat() if not history else None
+        )
+    elif rec_type != REC_TRIGGERED:
         task["next_due"] = compute_next_due(task, now=now).isoformat()
     return task
 
@@ -391,3 +412,24 @@ def is_due_soon(task: dict, window: timedelta, *, now: datetime) -> bool:
     if next_due is None:
         return False
     return now < next_due <= now + window
+
+
+def one_off_expired(task: dict, retention_days: int, *, now: datetime) -> bool:
+    """True when a completed one-off task is past its auto-delete retention window.
+
+    A do-once task goes dormant on completion (``next_due is None`` with a
+    ``last_completed`` stamp). With a positive *retention_days* it is eligible for
+    auto-deletion once ``last_completed + retention_days`` has passed. Returns
+    ``False`` for any other task kind, an uncompleted/re-armed one-off, or a
+    non-positive retention (the "keep forever" default). Pure — no HA imports.
+    """
+    if retention_days <= 0:
+        return False
+    if task.get("recurrence_type") != REC_ONE_OFF:
+        return False
+    if task.get("next_due") is not None:
+        return False
+    completed = _parse(task.get("last_completed"))
+    if completed is None:
+        return False
+    return now >= completed + timedelta(days=retention_days)

@@ -118,6 +118,10 @@ OPTION_SYNC_PROBLEM_SENSORS = "sync_problem_sensors"  # bool, default False
 OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES = "problem_sensor_exclude_entities"
 OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS = "problem_sensor_exclude_areas"
 OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS = "problem_sensor_exclude_labels"
+# Auto-delete a completed one-off task this many days after its completion. ``0``
+# (the default) keeps completed one-offs forever; ``N > 0`` purges them once
+# ``last_completed + N days`` has passed, via the coordinator's periodic refresh.
+OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
 
 
 # Recurrence types.
@@ -129,7 +133,13 @@ REC_FIXED = "fixed"
 # state: ``None`` = dormant (invisible to every time surface), a timestamp =
 # active/due-now. See docs/INTEGRATING.md "Condition-driven (triggered) tasks".
 REC_TRIGGERED = "triggered"
-RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED, REC_TRIGGERED]
+# A user-scheduled do-once task. It carries its own ``due`` datetime (the chosen
+# due date); ``compute_next_due`` reads it back, and completing the task sets
+# ``next_due = None`` permanently (no rescheduling) — it goes dormant like a
+# triggered task, but undoing the completion re-arms it to ``due`` (its state is
+# history-driven, not condition-driven). See docs/EVENTS.md / README.
+REC_ONE_OFF = "one-off"
+RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED, REC_TRIGGERED, REC_ONE_OFF]
 
 # Per-task capture mode for completion metadata (note / cost / photo / who).
 # ``none`` keeps the existing one-click "Done" (the default, so existing tasks and

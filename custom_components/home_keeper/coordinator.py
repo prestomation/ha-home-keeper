@@ -22,8 +22,9 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from . import transitions
-from .const import DOMAIN
+from . import models, recurrence, transitions
+from .const import DOMAIN, OPTION_ONE_OFF_RETENTION_DAYS
+from .options import current_options
 from .store import HomeKeeperStore
 
 if TYPE_CHECKING:
@@ -87,6 +88,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._events_enabled = True
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
+        await self._purge_expired_one_offs()
         tasks = self.store.get_tasks()
         fired, self._edge_state = transitions.detect_transitions(
             self._edge_state, tasks, now=dt_util.now()
@@ -95,6 +97,30 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             for event_name, payload in fired:
                 self.hass.bus.async_fire(event_name, payload)
         return tasks
+
+    async def _purge_expired_one_offs(self) -> None:
+        """Auto-delete completed one-off tasks past the configured retention window.
+
+        Runs on every periodic refresh (the single time-based chokepoint). The
+        retention is a config-entry option in days; ``0`` (the default) keeps
+        completed one-offs forever, so this is a no-op until the user opts in.
+        """
+        retention = int(
+            current_options(self.entry).get(OPTION_ONE_OFF_RETENTION_DAYS, 0)
+        )
+        if retention <= 0:
+            return
+        now = dt_util.now()
+        expired = [
+            tid
+            for tid, task in self.store.get_tasks().items()
+            if recurrence.one_off_expired(task, retention, now=now)
+        ]
+        for tid in expired:
+            try:
+                await self.store.delete_task(tid)
+            except models.TaskValidationError as err:  # pragma: no cover - defensive
+                _LOGGER.debug("Skipping auto-delete of one-off %s: %s", tid, err)
 
     def device_attached_task_ids(self) -> list[str]:
         """Enabled task ids attached to a device (so get per-task entities)."""

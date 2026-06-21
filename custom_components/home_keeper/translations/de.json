@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Problemsensoren als Aufgaben synchronisieren",
           "problem_sensor_exclude_entities": "Ausgeschlossene Sensoren",
           "problem_sensor_exclude_areas": "Ausgeschlossene Bereiche",
-          "problem_sensor_exclude_labels": "Ausgeschlossene Labels"
+          "problem_sensor_exclude_labels": "Ausgeschlossene Labels",
+          "one_off_retention_days": "Aufbewahrung einmaliger Aufgaben (Tage)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach ihrem Abschluss automatisch löschen. 0 behält abgeschlossene Einmalaufgaben dauerhaft."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Wiederholungstyp",
-          "description": "floating (ab Abschluss gemessen) oder fixed (verankerter Zeitplan)."
+          "description": "floating (ab Abschluss gemessen), fixed (verankerter Zeitplan) oder one-off (einmalig, verwendet ein Fälligkeitsdatum)."
         },
         "interval": {
           "name": "Intervall",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Anker",
           "description": "Für fixed-Aufgaben: ISO-Datum/Uhrzeit des ersten Auftretens (legt die Tageszeit fest)."
+        },
+        "due": {
+          "name": "Fälligkeitsdatum",
+          "description": "Für one-off-Aufgaben: ISO-Datum/Uhrzeit, zu der die Aufgabe fällig ist. Optional; Standard ist jetzt (heute fällig)."
         },
         "last_completed": {
           "name": "Zuletzt erledigt",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Wiederholungstyp",
-          "description": "floating oder fixed."
+          "description": "floating, fixed oder one-off (einmalig)."
         },
         "interval": {
           "name": "Intervall",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Anker",
           "description": "ISO-Datum/Uhrzeit des ersten Auftretens (fixed)."
+        },
+        "due": {
+          "name": "Fälligkeitsdatum",
+          "description": "ISO-Datum/Uhrzeit, zu der die Aufgabe fällig ist (one-off)."
         },
         "device_id": {
           "name": "Gerät",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Ausgeschlossene Labels"
+        },
+        "one_off_retention_days": {
+          "name": "Aufbewahrung einmaliger Aufgaben (Tage)",
+          "description": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach dem Abschluss automatisch löschen. 0 behält sie dauerhaft."
         }
       }
     }

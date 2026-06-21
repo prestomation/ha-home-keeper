@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Synchronizuj czujniki problemów jako zadania",
           "problem_sensor_exclude_entities": "Wykluczone czujniki",
           "problem_sensor_exclude_areas": "Wykluczone obszary",
-          "problem_sensor_exclude_labels": "Wykluczone etykiety"
+          "problem_sensor_exclude_labels": "Wykluczone etykiety",
+          "one_off_retention_days": "Przechowywanie jednorazowych (dni)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Automatycznie usuwaj ukończone zadanie jednorazowe po upływie tylu dni od jego ukończenia. Wartość 0 zachowuje ukończone zadania jednorazowe na zawsze."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Typ powtarzania",
-          "description": "floating (mierzone od ukończenia) lub fixed (harmonogram z kotwicą)."
+          "description": "floating (mierzone od ukończenia), fixed (harmonogram z kotwicą) lub one-off (jednorazowe, używa daty terminu)."
         },
         "interval": {
           "name": "Interwał",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Kotwica",
           "description": "Dla zadań fixed: data i czas ISO pierwszego wystąpienia (ustawia porę dnia)."
+        },
+        "due": {
+          "name": "Data terminu",
+          "description": "Dla zadań jednorazowych: data i czas ISO terminu zadania. Opcjonalne; domyślnie teraz (termin dzisiaj)."
         },
         "last_completed": {
           "name": "Ostatnio wykonano",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Typ powtarzania",
-          "description": "floating lub fixed."
+          "description": "floating, fixed lub one-off (jednorazowe)."
         },
         "interval": {
           "name": "Interwał",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Kotwica",
           "description": "Data i czas ISO pierwszego wystąpienia (fixed)."
+        },
+        "due": {
+          "name": "Data terminu",
+          "description": "Data i czas ISO terminu zadania (jednorazowe)."
         },
         "device_id": {
           "name": "Urządzenie",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Wykluczone etykiety"
+        },
+        "one_off_retention_days": {
+          "name": "Przechowywanie jednorazowych (dni)",
+          "description": "Automatycznie usuwaj ukończone zadanie jednorazowe po upływie tylu dni od jego ukończenia. Wartość 0 zachowuje je na zawsze."
         }
       }
     }

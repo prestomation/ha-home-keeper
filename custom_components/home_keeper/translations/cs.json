@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Synchronizovat senzory problémů jako úkoly",
           "problem_sensor_exclude_entities": "Vyloučené senzory",
           "problem_sensor_exclude_areas": "Vyloučené oblasti",
-          "problem_sensor_exclude_labels": "Vyloučené štítky"
+          "problem_sensor_exclude_labels": "Vyloučené štítky",
+          "one_off_retention_days": "Uchování jednorázových úkolů (dny)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Automaticky smazat dokončený jednorázový úkol tolik dní po jeho dokončení. Hodnota 0 ponechá dokončené jednorázové úkoly navždy."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Typ opakování",
-          "description": "floating (měřeno od dokončení) nebo fixed (ukotvený rozvrh)."
+          "description": "floating (měřeno od dokončení), fixed (ukotvený rozvrh) nebo one-off (jednorázový, použije datum splatnosti)."
         },
         "interval": {
           "name": "Interval",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Kotva",
           "description": "Pro pevné úkoly: ISO datum a čas prvního výskytu (nastaví denní čas)."
+        },
+        "due": {
+          "name": "Datum splatnosti",
+          "description": "Pro jednorázové úkoly: ISO datum a čas, kdy je úkol splatný. Volitelné; výchozí je nyní (splatné dnes)."
         },
         "last_completed": {
           "name": "Naposledy dokončeno",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Typ opakování",
-          "description": "floating nebo fixed."
+          "description": "floating, fixed nebo one-off (jednorázový)."
         },
         "interval": {
           "name": "Interval",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Kotva",
           "description": "ISO datum a čas prvního výskytu (fixed)."
+        },
+        "due": {
+          "name": "Datum splatnosti",
+          "description": "ISO datum a čas, kdy je úkol splatný (jednorázový)."
         },
         "device_id": {
           "name": "Zařízení",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Vyloučené štítky"
+        },
+        "one_off_retention_days": {
+          "name": "Uchování jednorázových úkolů (dny)",
+          "description": "Automaticky smazat dokončený jednorázový úkol tolik dní po dokončení. Hodnota 0 je ponechá navždy."
         }
       }
     }

@@ -102,8 +102,12 @@ export function taskSchema(task: Partial<Task>): FormField[] {
   }
 
   const isFixed = task.recurrence_type === 'fixed';
+  // A one-off (do-once) task has no cadence at all — just a single due date.
+  const isOneOff = task.recurrence_type === 'one-off';
 
-  const cadenceSubFields: FormField[] = isFixed
+  const cadenceSubFields: FormField[] = isOneOff
+    ? []
+    : isFixed
     ? [
         ...(!locked.has('interval') ? [{ name: 'interval', selector: selNumber(1) }] : []),
         ...(!locked.has('freq')
@@ -149,6 +153,7 @@ export function taskSchema(task: Partial<Task>): FormField[] {
             selector: selSelect([
               { value: 'floating', label: t('opt.recurrence.floating') },
               { value: 'fixed', label: t('opt.recurrence.fixed') },
+              { value: 'one-off', label: t('opt.recurrence.one-off') },
             ]),
           } as FormField,
         ]
@@ -157,7 +162,10 @@ export function taskSchema(task: Partial<Task>): FormField[] {
     ...(isFixed && !locked.has('anchor')
       ? [{ name: 'anchor', selector: selDateTime() } as FormField]
       : []),
-    ...(!task.id && !locked.has('last_completed')
+    ...(isOneOff && !locked.has('due')
+      ? [{ name: 'due', selector: selDateTime() } as FormField]
+      : []),
+    ...(!task.id && !isOneOff && !locked.has('last_completed')
       ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
       : []),
     ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
@@ -188,6 +196,8 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     unit: task.unit ?? 'months',
     freq: task.freq ?? 'DAILY',
     anchor: isoToHaDateTime(task.anchor) ?? '',
+    // A new one-off defaults its due date to now; an existing one shows its stored due.
+    due: isoToHaDateTime(task.due) ?? (task.id ? '' : isoToHaDateTime(new Date().toISOString())),
     last_completed: isoToHaDateTime(task.last_completed) ?? '',
     device_id: task.device_id ?? undefined,
     labels: task.labels ?? [],
@@ -219,6 +229,11 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     };
     if (task.recurrence_type === 'floating') {
       payload.unit = task.unit || 'months';
+    } else if (task.recurrence_type === 'one-off') {
+      // A one-off has no cadence — just a due date. Always send a due (falling back
+      // to now if the picker is blank, e.g. when converting an existing task to a
+      // one-off) so the backend never rejects the update for a missing due.
+      payload.due = haDateTimeToIso(task.due) || new Date().toISOString();
     } else {
       payload.freq = task.freq || 'DAILY';
       payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
@@ -251,5 +266,7 @@ export function settingsSchema(): FormField[] {
     },
     { name: 'problem_sensor_exclude_areas', selector: selArea(true) },
     { name: 'problem_sensor_exclude_labels', selector: selLabel(true) },
+    // Auto-delete completed one-off tasks after N days; 0 keeps them forever.
+    { name: 'one_off_retention_days', selector: selNumber(0) },
   ];
 }

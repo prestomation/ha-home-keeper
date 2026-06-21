@@ -328,6 +328,50 @@
           "deletion_protected": true,
           "config_entry_id": "home_keeper_test_entry"
         }
+      },
+      "task_passport": {
+        "id": "task_passport",
+        "name": "Renew passport",
+        "notes": "Expires before the spring trip \u2014 book the appointment",
+        "recurrence_type": "one-off",
+        "due": "2026-07-15T09:00:00-04:00",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2026-06-10T09:00:00-04:00",
+        "last_completed": null,
+        "next_due": "2026-07-15T09:00:00-04:00",
+        "completions": [],
+        "labels": [
+          "home"
+        ],
+        "completion_detail": "none",
+        "completion_required_fields": []
+      },
+      "task_car_registration": {
+        "id": "task_car_registration",
+        "name": "Renew car registration",
+        "notes": "DMV renewal \u2014 done for this year",
+        "recurrence_type": "one-off",
+        "due": "2026-06-15T09:00:00-04:00",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2026-05-20T09:00:00-04:00",
+        "last_completed": "2026-06-16T14:30:00-04:00",
+        "next_due": null,
+        "completions": [
+          {
+            "ts": "2026-06-16T14:30:00-04:00",
+            "cost": 92.0,
+            "note": "Renewed online; sticker mailed"
+          }
+        ],
+        "labels": [
+          "home"
+        ],
+        "completion_detail": "optional",
+        "completion_required_fields": []
       }
     },
     "assets": {

@@ -19,7 +19,11 @@
           "sync_problem_sensors": "Sincronizza i sensori di problema come attività",
           "problem_sensor_exclude_entities": "Sensori esclusi",
           "problem_sensor_exclude_areas": "Aree escluse",
-          "problem_sensor_exclude_labels": "Etichette escluse"
+          "problem_sensor_exclude_labels": "Etichette escluse",
+          "one_off_retention_days": "Conservazione delle attività singole (giorni)"
+        },
+        "data_description": {
+          "one_off_retention_days": "Elimina automaticamente un'attività singola completata dopo questo numero di giorni dal suo completamento. 0 conserva le attività singole completate per sempre."
         }
       }
     }
@@ -39,7 +43,7 @@
         },
         "recurrence_type": {
           "name": "Tipo di ricorrenza",
-          "description": "floating (misurato dal completamento) o fixed (pianificazione ancorata)."
+          "description": "floating (misurato dal completamento), fixed (pianificazione ancorata) o one-off (da eseguire una volta, usa una data di scadenza)."
         },
         "interval": {
           "name": "Intervallo",
@@ -56,6 +60,10 @@
         "anchor": {
           "name": "Ancora",
           "description": "Per le attività fixed: data/ora ISO della prima occorrenza (imposta l'ora del giorno)."
+        },
+        "due": {
+          "name": "Data di scadenza",
+          "description": "Per le attività one-off: data/ora ISO in cui l'attività è dovuta. Facoltativo; per impostazione predefinita adesso (in scadenza oggi)."
         },
         "last_completed": {
           "name": "Ultimo completamento",
@@ -89,7 +97,7 @@
         },
         "recurrence_type": {
           "name": "Tipo di ricorrenza",
-          "description": "floating o fixed."
+          "description": "floating, fixed o one-off (da eseguire una volta)."
         },
         "interval": {
           "name": "Intervallo",
@@ -106,6 +114,10 @@
         "anchor": {
           "name": "Ancora",
           "description": "Data/ora ISO della prima occorrenza (fixed)."
+        },
+        "due": {
+          "name": "Data di scadenza",
+          "description": "Data/ora ISO in cui l'attività è dovuta (one-off)."
         },
         "device_id": {
           "name": "Dispositivo",
@@ -340,6 +352,10 @@
         },
         "problem_sensor_exclude_labels": {
           "name": "Etichette escluse"
+        },
+        "one_off_retention_days": {
+          "name": "Conservazione delle attività singole (giorni)",
+          "description": "Elimina automaticamente un'attività singola completata dopo questo numero di giorni dal completamento. 0 le conserva per sempre."
         }
       }
     }

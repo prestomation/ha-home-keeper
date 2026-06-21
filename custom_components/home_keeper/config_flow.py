@@ -24,6 +24,7 @@ from homeassistant.helpers import selector
 
 from .const import (
     DOMAIN,
+    OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
@@ -91,6 +92,16 @@ class HomeKeeperOptionsFlow(OptionsFlow):
                     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
                     default=current.get(OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS, []),
                 ): selector.LabelSelector(selector.LabelSelectorConfig(multiple=True)),
+                # Auto-delete completed one-off tasks this many days after completion;
+                # 0 keeps them forever.
+                vol.Optional(
+                    OPTION_ONE_OFF_RETENTION_DAYS,
+                    default=current.get(OPTION_ONE_OFF_RETENTION_DAYS, 0),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0, max=3650, step=1, mode=selector.NumberSelectorMode.BOX
+                    )
+                ),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)
