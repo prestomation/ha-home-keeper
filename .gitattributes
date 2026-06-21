@@ -1,0 +1,4 @@
+# Mark machine-generated lockfiles so GitHub collapses them in diffs/PRs and
+# excludes them from language stats. They're still committed (npm ci needs them).
+website/package-lock.json linguist-generated=true
+package-lock.json linguist-generated=true
