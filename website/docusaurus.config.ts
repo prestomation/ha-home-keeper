@@ -100,7 +100,7 @@ const config: Config = {
           label: 'Developer Guide',
         },
         {
-          href: `${repoUrl}/blob/main/CHANGELOG.md`,
+          to: '/docs/release-notes',
           label: 'Release Notes',
           position: 'left',
         },

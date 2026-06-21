@@ -13,6 +13,7 @@
 
 # Generated from canonical Markdown at build/start time (see scripts/sync-docs.mjs)
 /docs/guide
+/docs/release-notes.md
 /developer
 
 # Misc
