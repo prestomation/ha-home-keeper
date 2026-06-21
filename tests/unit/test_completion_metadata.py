@@ -46,7 +46,12 @@ def test_normalize_metadata_rejects_bad_cost():
 
 def _floating_task():
     return m.build_task(
-        {"name": "Filter", "recurrence_type": "floating", "interval": 3, "unit": "months"},
+        {
+            "name": "Filter",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+        },
         now=NOW,
     )
 
