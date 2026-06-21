@@ -6,6 +6,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.4.0b1] - 2026-06-21
+
 ### Added
 
 - **Companion discovery (Settings → Companions).** Home Keeper now surfaces
