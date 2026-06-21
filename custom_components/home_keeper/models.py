@@ -123,25 +123,31 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
         result["attribute"] = attribute
 
     if mode == SENSOR_MODE_USAGE:
+        target_raw = data.get("target")
+        if target_raw is None or target_raw == "":
+            raise TaskValidationError("sensor.target must be a number")
         try:
-            target = float(data.get("target"))
+            target = float(target_raw)
         except (TypeError, ValueError) as err:
             raise TaskValidationError("sensor.target must be a number") from err
         if target <= 0:
             raise TaskValidationError("sensor.target must be > 0")
         result["target"] = target
-        baseline = data.get("baseline")
-        if baseline not in (None, ""):
+        baseline_raw = data.get("baseline")
+        if baseline_raw is not None and baseline_raw != "":
             try:
-                result["baseline"] = float(baseline)
+                result["baseline"] = float(baseline_raw)
             except (TypeError, ValueError) as err:
                 raise TaskValidationError("sensor.baseline must be a number") from err
     else:  # SENSOR_MODE_THRESHOLD
         comparison = data.get("comparison")
         if comparison not in SENSOR_COMPARISONS:
             raise TaskValidationError(f"invalid sensor comparison: {comparison!r}")
+        value_raw = data.get("value")
+        if value_raw is None or value_raw == "":
+            raise TaskValidationError("sensor.value must be a number")
         try:
-            value = float(data.get("value"))
+            value = float(value_raw)
         except (TypeError, ValueError) as err:
             raise TaskValidationError("sensor.value must be a number") from err
         result["comparison"] = comparison
