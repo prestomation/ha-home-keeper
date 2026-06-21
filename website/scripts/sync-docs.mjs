@@ -133,6 +133,7 @@ const USER_SECTIONS = [
   {h: 'Appliances & virtual devices', slug: 'appliances', title: 'Appliances', label: 'Appliances'},
   {h: 'Services', slug: 'services', title: 'Services'},
   {h: 'Events & automations', slug: 'events', title: 'Events & automations', label: 'Events'},
+  {h: 'Integrations', slug: 'integrations', title: 'Integrations'},
   {h: 'Localization', slug: 'localization', title: 'Localization'},
 ];
 
@@ -171,8 +172,9 @@ async function buildUserGuide() {
 
 const DEV_DOCS = [
   {file: 'docs/INTEGRATING.md', out: 'integrating.md', title: 'Integrating with Home Keeper', label: 'Integrating', pos: 1},
-  {file: 'docs/EVENTS.md', out: 'events.md', title: 'Events reference', label: 'Events', pos: 2},
-  {file: 'docs/DESIGN.md', out: 'architecture.md', title: 'Architecture', label: 'Architecture', pos: 3},
+  {file: 'docs/GLUE_INTEGRATIONS.md', out: 'glue-integrations.md', title: 'Glue integrations', label: 'Glue integrations', pos: 2},
+  {file: 'docs/EVENTS.md', out: 'events.md', title: 'Events reference', label: 'Events', pos: 3},
+  {file: 'docs/DESIGN.md', out: 'architecture.md', title: 'Architecture', label: 'Architecture', pos: 4},
 ];
 
 async function buildDeveloperGuide() {

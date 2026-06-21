@@ -84,8 +84,8 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   **Developer Guide** (the `docs/INTEGRATING.md` equivalent). **The content pages are
   generated, not authored** — `website/scripts/sync-docs.mjs` splits `README.md` into
   the User Guide (`website/docs/guide/`, gitignored) and copies `docs/INTEGRATING.md` /
-  `docs/EVENTS.md` / `docs/DESIGN.md` into the Developer Guide (`website/developer/`,
-  gitignored), rewriting links/images. **Edit the canonical sources (`README.md`,
+  `docs/GLUE_INTEGRATIONS.md` / `docs/EVENTS.md` / `docs/DESIGN.md` into the Developer
+  Guide (`website/developer/`, gitignored), rewriting links/images. **Edit the canonical sources (`README.md`,
   `docs/*.md`), never the generated trees.** `README.md` therefore stays the
   comprehensive user doc (it's the source) — don't "slim" it. Screenshots are likewise
   not duplicated: `website/scripts/sync-assets.mjs` mirrors `docs/images/` into the
