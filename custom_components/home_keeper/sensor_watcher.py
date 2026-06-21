@@ -65,7 +65,10 @@ class SensorTaskWatcher:
     """Evaluates sensor-based tasks against their bound entities."""
 
     def __init__(
-        self, hass: HomeAssistant, entry: ConfigEntry, coordinator: HomeKeeperCoordinator
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        coordinator: HomeKeeperCoordinator,
     ) -> None:
         self._hass = hass
         self._entry = entry

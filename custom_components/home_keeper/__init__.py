@@ -57,8 +57,8 @@ ADD_TASK_SCHEMA = vol.Schema(
         # today) when omitted. Naive values are interpreted in HA's configured tz.
         vol.Optional("due"): cv.string,
         # Sensor binding for a sensor-based task: a mapping with entity_id, mode
-        # (usage|threshold) and the mode's fields (target / comparison+value+for_seconds,
-        # optional attribute). Validated by models.normalize_sensor. See services.yaml.
+        # (usage|threshold) and the mode's fields (target / comparison+value+
+        # for_seconds, optional attribute). Validated by models.normalize_sensor.
         vol.Optional("sensor"): dict,
         # Optional "last done" seed: records an initial completion so a floating task
         # starts measured from this date instead of due-now. See docs/INTEGRATING.md.
