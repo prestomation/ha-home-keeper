@@ -25,6 +25,9 @@ if (!w.customCards.some((c) => c.type === 'home-keeper-card')) {
     preview: true,
     documentationURL: 'https://github.com/prestomation/ha-home-keeper',
   });
+  // Notify Lovelace to re-read window.customCards — needed when this module
+  // loads after the dashboard has already initialised (first cold load).
+  window.dispatchEvent(new CustomEvent('ll-custom-cards-update'));
 }
 
 export { HomeKeeperCard, HomeKeeperCardEditor };
