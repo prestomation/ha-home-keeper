@@ -2076,6 +2076,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const opts: HomeKeeperOptions = this._options ?? {
       sync_problem_sensors: false,
       problem_sensor_exclude_entities: [],
+      problem_sensor_exclude_devices: [],
       problem_sensor_exclude_areas: [],
       problem_sensor_exclude_labels: [],
       one_off_retention_days: 0,

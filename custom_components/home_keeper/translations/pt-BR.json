@@ -18,6 +18,7 @@
         "data": {
           "sync_problem_sensors": "Sincronizar sensores de problema como tarefas",
           "problem_sensor_exclude_entities": "Sensores excluídos",
+          "problem_sensor_exclude_devices": "Dispositivos excluídos",
           "problem_sensor_exclude_areas": "Áreas excluídas",
           "problem_sensor_exclude_labels": "Etiquetas excluídas",
           "one_off_retention_days": "Retenção de tarefas avulsas (dias)"
@@ -354,6 +355,9 @@
         },
         "problem_sensor_exclude_entities": {
           "name": "Sensores excluídos"
+        },
+        "problem_sensor_exclude_devices": {
+          "name": "Dispositivos excluídos"
         },
         "problem_sensor_exclude_areas": {
           "name": "Áreas excluídas"

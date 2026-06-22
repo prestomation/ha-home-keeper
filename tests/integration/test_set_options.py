@@ -116,3 +116,34 @@ def test_set_options_exclude_takes_effect_immediately(ha):
     assert _synced_present(ha), (
         "clearing the exclusion should recreate the synced task immediately (no wait)"
     )
+
+
+def test_device_exclusion_does_not_drop_deviceless_sensors(ha):
+    """A device exclusion must not affect a problem sensor that has no device.
+
+    The eligibility guard only skips a sensor when it *has* a device_id that is in
+    the excluded set (``entry.device_id and entry.device_id in exclude_devices``).
+    The seeded template sensor has no device, so excluding an arbitrary device must
+    leave its synced task in place — a regression guard for that null-device branch.
+    """
+    assert _wait_present(ha, True), "expected the synced task at start"
+
+    # Exclude an arbitrary device id; the service awaits the reconcile reload.
+    call_service(
+        ha,
+        "home_keeper",
+        "set_options",
+        {"problem_sensor_exclude_devices": ["some_other_device_id"]},
+    )
+    assert _synced_present(ha), (
+        "excluding an unrelated device must not drop a device-less problem sensor"
+    )
+
+    # Clear the exclusion to restore the starting config for following tests.
+    call_service(
+        ha,
+        "home_keeper",
+        "set_options",
+        {"problem_sensor_exclude_devices": []},
+    )
+    assert _synced_present(ha), "clearing the device exclusion should leave the task"

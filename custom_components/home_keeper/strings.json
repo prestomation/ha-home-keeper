@@ -14,10 +14,11 @@
     "step": {
       "init": {
         "title": "Home Keeper options",
-        "description": "Mirror binary sensors with the \"problem\" device class as tasks. A synced task stays active while its sensor reports a problem and clears automatically when the source integration resolves it; it can't be completed in Home Keeper. Exclude specific sensors, areas, or labels below.",
+        "description": "Mirror binary sensors with the \"problem\" device class as tasks. A synced task stays active while its sensor reports a problem and clears automatically when the source integration resolves it; it can't be completed in Home Keeper. Exclude specific sensors, devices, areas, or labels below.",
         "data": {
           "sync_problem_sensors": "Sync problem sensors as tasks",
           "problem_sensor_exclude_entities": "Excluded sensors",
+          "problem_sensor_exclude_devices": "Excluded devices",
           "problem_sensor_exclude_areas": "Excluded areas",
           "problem_sensor_exclude_labels": "Excluded labels",
           "one_off_retention_days": "One-off retention (days)"
@@ -354,6 +355,9 @@
         },
         "problem_sensor_exclude_entities": {
           "name": "Excluded sensors"
+        },
+        "problem_sensor_exclude_devices": {
+          "name": "Excluded devices"
         },
         "problem_sensor_exclude_areas": {
           "name": "Excluded areas"

@@ -260,6 +260,7 @@ export interface PanelInfo {
 export interface HomeKeeperOptions {
   sync_problem_sensors: boolean;
   problem_sensor_exclude_entities: string[];
+  problem_sensor_exclude_devices: string[];
   problem_sensor_exclude_areas: string[];
   problem_sensor_exclude_labels: string[];
   // Auto-delete a completed one-off this many days after completion; 0 = keep forever.

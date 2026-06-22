@@ -114,8 +114,10 @@ ORIGIN_PROBLEM_SENSOR_SYNC = f"{DOMAIN}_problem_sensor_sync"
 # Config-entry options keys (set via the options flow). Syncing is opt-in.
 OPTION_SYNC_PROBLEM_SENSORS = "sync_problem_sensors"  # bool, default False
 # Exclusion filters narrowing which ``device_class: problem`` binary sensors are
-# synced when the option is on. Lists of entity ids / area ids / label ids.
+# synced when the option is on. Lists of entity ids / device ids / area ids /
+# label ids.
 OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES = "problem_sensor_exclude_entities"
+OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES = "problem_sensor_exclude_devices"
 OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS = "problem_sensor_exclude_areas"
 OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS = "problem_sensor_exclude_labels"
 # Auto-delete a completed one-off task this many days after its completion. ``0``

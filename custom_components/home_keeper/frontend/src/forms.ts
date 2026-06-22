@@ -340,8 +340,8 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
 
 /**
  * The `ha-form` schema for the panel's Settings tab — a 1:1 mirror of the options
- * flow: the problem-sensor sync toggle plus entity / area / label exclusions. The
- * entity picker is filtered to `device_class: problem` binary sensors.
+ * flow: the problem-sensor sync toggle plus entity / device / area / label
+ * exclusions. The entity picker is filtered to `device_class: problem` binary sensors.
  */
 export function settingsSchema(): FormField[] {
   return [
@@ -350,6 +350,7 @@ export function settingsSchema(): FormField[] {
       name: 'problem_sensor_exclude_entities',
       selector: selEntity({ domain: 'binary_sensor', device_class: 'problem' }, true),
     },
+    { name: 'problem_sensor_exclude_devices', selector: selDevice(true) },
     { name: 'problem_sensor_exclude_areas', selector: selArea(true) },
     { name: 'problem_sensor_exclude_labels', selector: selLabel(true) },
     // Auto-delete completed one-off tasks after N days; 0 keeps them forever.

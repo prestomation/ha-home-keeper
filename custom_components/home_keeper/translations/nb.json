@@ -18,6 +18,7 @@
         "data": {
           "sync_problem_sensors": "Synkroniser problemsensorer som oppgaver",
           "problem_sensor_exclude_entities": "Ekskluderte sensorer",
+          "problem_sensor_exclude_devices": "Ekskluderte enheter",
           "problem_sensor_exclude_areas": "Ekskluderte områder",
           "problem_sensor_exclude_labels": "Ekskluderte etiketter",
           "one_off_retention_days": "Oppbevaring av engangsoppgaver (dager)"
@@ -354,6 +355,9 @@
         },
         "problem_sensor_exclude_entities": {
           "name": "Ekskluderte sensorer"
+        },
+        "problem_sensor_exclude_devices": {
+          "name": "Ekskluderte enheter"
         },
         "problem_sensor_exclude_areas": {
           "name": "Ekskluderte områder"

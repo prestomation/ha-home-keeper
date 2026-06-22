@@ -18,6 +18,7 @@
         "data": {
           "sync_problem_sensors": "Sincronitza els sensors de problema com a tasques",
           "problem_sensor_exclude_entities": "Sensors exclosos",
+          "problem_sensor_exclude_devices": "Dispositius exclosos",
           "problem_sensor_exclude_areas": "Àrees excloses",
           "problem_sensor_exclude_labels": "Etiquetes excloses",
           "one_off_retention_days": "Retenció de tasques úniques (dies)"
@@ -354,6 +355,9 @@
         },
         "problem_sensor_exclude_entities": {
           "name": "Sensors exclosos"
+        },
+        "problem_sensor_exclude_devices": {
+          "name": "Dispositius exclosos"
         },
         "problem_sensor_exclude_areas": {
           "name": "Àrees excloses"

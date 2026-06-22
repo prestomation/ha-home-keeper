@@ -6,6 +6,14 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Added
+
+- **Exclude devices from problem-sensor sync.** The problem-sensor sync feature
+  gains an **Excluded devices** picker (panel **Settings**, the options flow, and the
+  `home_keeper.set_options` service) alongside the existing entity / area / label
+  exclusions. Excluding a device leaves out every `device_class: problem` binary
+  sensor that belongs to it.
+
 ## [0.4.0b1] - 2026-06-21
 
 ### Added
