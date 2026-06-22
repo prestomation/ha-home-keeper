@@ -19,7 +19,7 @@
   },
   "homepage": "https://github.com/prestomation/ha-home-keeper#readme",
   "devDependencies": {
-    "@vitest/ui": "^4.1.2",
+    "@vitest/ui": "^4.1.9",
     "vitest": "^4.1.9"
   },
   "dependencies": {
