@@ -25,6 +25,7 @@ from .const import (
     OPTION_DISMISSED_COMPANIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
+    OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_SYNC_PROBLEM_SENSORS,
@@ -215,6 +216,9 @@ SET_OPTIONS_SCHEMA = vol.Schema(
             vol.Coerce(int), vol.Range(min=0)
         ),
         vol.Optional(OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
+        vol.Optional(OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES): vol.All(
             cv.ensure_list, [cv.string]
         ),
         vol.Optional(OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS): vol.All(
