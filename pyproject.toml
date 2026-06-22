@@ -4,7 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-cov>=4.0", "requests>=2.31"]
+dev = ["pytest>=9.1.0", "pytest-cov>=7.1.0", "requests>=2.34.2"]
 
 # Make the integration pip-installable straight from git (no PyPI publish needed),
 # so other integrations can depend on it in their test suite and import
@@ -12,7 +12,7 @@ dev = ["pytest>=8.0", "pytest-cov>=4.0", "requests>=2.31"]
 # ``custom_components/`` and ignores this packaging metadata.
 #   pip install "home-keeper @ git+https://github.com/prestomation/ha-home-keeper@main"
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=82.0.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
