@@ -5,12 +5,13 @@ import {
   selArea,
   selBool,
   selDate,
+  generalSchema,
+  problemSyncSchema,
   selDevice,
   selIcon,
   selNumber,
   selSelect,
   selText,
-  settingsSchema,
   taskFormData,
   taskSchema,
   type FormField,
@@ -184,7 +185,7 @@ const STYLES = `
     color: var(--secondary-text-color); font-size: 0.9rem;
     margin-bottom: 16px; line-height: 1.4;
   }
-  #hk-settings ha-form { display: block; }
+  #hk-settings ha-form, #hk-settings-general ha-form { display: block; }
   /* Companions section (Settings tab). */
   .hk-companion-group {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
@@ -2070,27 +2071,55 @@ export class HomeKeeperPanel extends HTMLElement {
     this._navigate({ view, detail: null }, true);
   }
 
-  /** Render the Settings tab — an `ha-form` mirror of the options flow that
-   *  autosaves each change (the backend reloads + re-runs the problem sync). */
+  /** Render the Settings tab — `ha-form` mirrors of the options flow that autosave
+   *  each change (the backend reloads + re-runs the problem sync). Two cards: the
+   *  problem-sensor sync feature, and a **General** card for settings (like one-off
+   *  retention) that aren't tied to any single feature. */
   private _renderSettingsForm(host: HTMLElement): void {
     const opts: HomeKeeperOptions = this._options ?? {
       sync_problem_sensors: false,
       problem_sensor_exclude_entities: [],
+      problem_sensor_exclude_devices: [],
       problem_sensor_exclude_areas: [],
       problem_sensor_exclude_labels: [],
       one_off_retention_days: 0,
     };
+    // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor).
+    host.appendChild(
+      this._settingsCard('hk-settings', 'settings.heading', 'settings.help', problemSyncSchema(), opts),
+    );
+    // General — settings independent of any single feature (e.g. one-off retention).
+    host.appendChild(
+      this._settingsCard(
+        'hk-settings-general',
+        'settings.general_heading',
+        'settings.general_help',
+        generalSchema(),
+        opts,
+      ),
+    );
+  }
+
+  /** Build one autosaving Settings card: a titled `ha-card` wrapping an `ha-form`
+   *  for *schema*, seeded with the full *opts* and saving on change. */
+  private _settingsCard(
+    id: string,
+    headingKey: string,
+    helpKey: string,
+    schema: FormField[],
+    opts: HomeKeeperOptions,
+  ): HTMLElement {
     const card = document.createElement('ha-card');
     card.className = 'hk-form-card';
-    card.id = 'hk-settings';
+    card.id = id;
     const inner = document.createElement('div');
     inner.className = 'hk-form-inner';
     inner.innerHTML = `
-      <div class="hk-form-title">${escapeHTML(t('settings.heading'))}</div>
-      <div class="hk-settings-intro">${escapeHTML(t('settings.help'))}</div>`;
+      <div class="hk-form-title">${escapeHTML(t(headingKey))}</div>
+      <div class="hk-settings-intro">${escapeHTML(t(helpKey))}</div>`;
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
-    form.schema = settingsSchema();
+    form.schema = schema;
     form.data = { ...opts };
     form.computeLabel = (s: { name: string }): string => (s.name ? t('settings.' + s.name) : '');
     form.addEventListener('value-changed', (e: Event) => {
@@ -2100,7 +2129,7 @@ export class HomeKeeperPanel extends HTMLElement {
     this._liveHassEls.push(form);
     inner.appendChild(form);
     card.appendChild(inner);
-    host.appendChild(card);
+    return card;
   }
 
   private async _saveOptions(value: Partial<HomeKeeperOptions>): Promise<void> {

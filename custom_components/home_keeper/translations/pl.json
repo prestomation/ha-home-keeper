@@ -18,6 +18,7 @@
         "data": {
           "sync_problem_sensors": "Synchronizuj czujniki problemów jako zadania",
           "problem_sensor_exclude_entities": "Wykluczone czujniki",
+          "problem_sensor_exclude_devices": "Wykluczone urządzenia",
           "problem_sensor_exclude_areas": "Wykluczone obszary",
           "problem_sensor_exclude_labels": "Wykluczone etykiety",
           "one_off_retention_days": "Przechowywanie jednorazowych (dni)"
@@ -354,6 +355,9 @@
         },
         "problem_sensor_exclude_entities": {
           "name": "Wykluczone czujniki"
+        },
+        "problem_sensor_exclude_devices": {
+          "name": "Wykluczone urządzenia"
         },
         "problem_sensor_exclude_areas": {
           "name": "Wykluczone obszary"

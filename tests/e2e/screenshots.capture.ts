@@ -247,8 +247,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(assetForm.locator('.hk-meta-seeds')).toBeVisible();
   await page.screenshot({ path: `${OUT}/6-panel-appliance-create.png`, fullPage: true });
 
-  // 17. The Settings tab — a friendly form mirroring the options flow (the
-  // problem-sensor sync toggle + entity / area / label exclusions), saved on change.
+  // 17. The Settings tab — friendly forms mirroring the options flow: a
+  // Problem sensor sync card (toggle + entity / device / area / label exclusions)
+  // and a General card (one-off retention), each saved on change.
   await openPanel(page);
   await panel.locator('#tab-settings').click();
   await expect(panel.locator('#hk-settings')).toBeVisible();

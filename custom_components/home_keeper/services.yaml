@@ -571,7 +571,8 @@ set_options:
     Update Home Keeper's integration options (the same settings as the panel's
     Settings tab and the options flow). Only the fields you pass change. Controls
     whether device_class "problem" binary sensors are synced as tasks (with
-    entity / area / label exclusions) and how long completed one-off tasks are kept.
+    entity / device / area / label exclusions) and how long completed one-off tasks
+    are kept.
   fields:
     sync_problem_sensors:
       name: Sync problem sensors as tasks
@@ -598,6 +599,12 @@ set_options:
           filter:
             domain: binary_sensor
             device_class: problem
+    problem_sensor_exclude_devices:
+      name: Excluded devices
+      description: Devices whose problem sensors should not be synced.
+      selector:
+        device:
+          multiple: true
     problem_sensor_exclude_areas:
       name: Excluded areas
       description: Areas whose problem sensors should not be synced.

@@ -18,6 +18,7 @@
         "data": {
           "sync_problem_sensors": "Synkronisér problemsensorer som opgaver",
           "problem_sensor_exclude_entities": "Udeladte sensorer",
+          "problem_sensor_exclude_devices": "Ekskluderede enheder",
           "problem_sensor_exclude_areas": "Udeladte områder",
           "problem_sensor_exclude_labels": "Udeladte etiketter",
           "one_off_retention_days": "Opbevaring af engangsopgaver (dage)"
@@ -354,6 +355,9 @@
         },
         "problem_sensor_exclude_entities": {
           "name": "Udeladte sensorer"
+        },
+        "problem_sensor_exclude_devices": {
+          "name": "Ekskluderede enheder"
         },
         "problem_sensor_exclude_areas": {
           "name": "Udeladte områder"

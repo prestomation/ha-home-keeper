@@ -189,7 +189,8 @@ problem becomes a visible, trackable to-do without writing an automation.
   tapping it pops up the reason (the detail page also explains how it clears). Each
   task inherits the sensor's **device and area**.
 - **Scope it:** syncing is **off by default**; once on, exclude specific **entities,
-  areas, or labels** — from the panel's **Settings** tab (below) or the options flow.
+  devices, areas, or labels** — from the panel's **Settings** tab (below) or the options
+  flow. Excluding a device leaves out every problem sensor that belongs to it.
 
 ![Synced problem-sensor task detail — armed and due-now, with a disabled Done button and the prompt explaining it clears when the source resolves it](docs/images/16-panel-problem-sensor-detail.png)
 

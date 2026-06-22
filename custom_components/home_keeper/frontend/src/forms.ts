@@ -339,20 +339,29 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
 }
 
 /**
- * The `ha-form` schema for the panel's Settings tab — a 1:1 mirror of the options
- * flow: the problem-sensor sync toggle plus entity / area / label exclusions. The
- * entity picker is filtered to `device_class: problem` binary sensors.
+ * The `ha-form` schema for the Settings tab's **Problem sensor sync** card — the
+ * sync toggle plus entity / device / area / label exclusions (a subset of the
+ * options flow). The entity picker is filtered to `device_class: problem` binary
+ * sensors.
  */
-export function settingsSchema(): FormField[] {
+export function problemSyncSchema(): FormField[] {
   return [
     { name: 'sync_problem_sensors', selector: selBool() },
     {
       name: 'problem_sensor_exclude_entities',
       selector: selEntity({ domain: 'binary_sensor', device_class: 'problem' }, true),
     },
+    { name: 'problem_sensor_exclude_devices', selector: selDevice(true) },
     { name: 'problem_sensor_exclude_areas', selector: selArea(true) },
     { name: 'problem_sensor_exclude_labels', selector: selLabel(true) },
-    // Auto-delete completed one-off tasks after N days; 0 keeps them forever.
-    { name: 'one_off_retention_days', selector: selNumber(0) },
   ];
+}
+
+/**
+ * The `ha-form` schema for the Settings tab's **General** card — settings that
+ * apply across Home Keeper, independent of any single feature. Currently just the
+ * completed one-off retention (auto-delete after N days; 0 keeps them forever).
+ */
+export function generalSchema(): FormField[] {
+  return [{ name: 'one_off_retention_days', selector: selNumber(0) }];
 }

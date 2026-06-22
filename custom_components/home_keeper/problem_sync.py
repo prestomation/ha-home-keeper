@@ -33,6 +33,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 from .const import (
     DOMAIN,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
+    OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_SYNC_PROBLEM_SENSORS,
@@ -111,6 +112,7 @@ class ProblemSensorSync:
             return {}
         opts = self._entry.options
         exclude_entities = set(opts.get(OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, []))
+        exclude_devices = set(opts.get(OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES, []))
         exclude_areas = set(opts.get(OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS, []))
         exclude_labels = set(opts.get(OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS, []))
 
@@ -128,6 +130,8 @@ class ProblemSensorSync:
             if device_class != BinarySensorDeviceClass.PROBLEM:
                 continue
             if entry.disabled or entry.entity_id in exclude_entities:
+                continue
+            if entry.device_id and entry.device_id in exclude_devices:
                 continue
             device = dev_reg.async_get(entry.device_id) if entry.device_id else None
             area_id = entry.area_id or (device.area_id if device else None)

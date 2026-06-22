@@ -26,6 +26,7 @@ from .const import (
     DOMAIN,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
+    OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_SYNC_PROBLEM_SENSORS,
@@ -83,6 +84,12 @@ class HomeKeeperOptionsFlow(OptionsFlow):
                         device_class=BinarySensorDeviceClass.PROBLEM,
                         multiple=True,
                     )
+                ),
+                vol.Optional(
+                    OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
+                    default=current.get(OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES, []),
+                ): selector.DeviceSelector(
+                    selector.DeviceSelectorConfig(multiple=True)
                 ),
                 vol.Optional(
                     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
