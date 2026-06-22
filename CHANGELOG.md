@@ -6,13 +6,49 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-22
+
+This release adds **companion discovery** so integrations that work with Home Keeper
+surface in the panel, **sensor-based tasks** driven by a numeric entity rather than the
+clock, and **device exclusions** for problem-sensor sync. Highlights, for anyone
+upgrading from 0.3.0:
+
 ### Added
 
-- **Exclude devices from problem-sensor sync.** The problem-sensor sync feature
-  gains an **Excluded devices** picker (panel **Settings**, the options flow, and the
+- **Companion discovery (Settings → Companions).** Home Keeper now surfaces
+  integrations that work with it, right in the panel. **Connected** companions
+  (integrations that announce themselves — e.g. Pawsistant, or the Battery Notes
+  bridge) get a **Configure** button that deep-links to their own settings.
+  **Suggested** rows point you at a bridge for a *popular* integration you already have
+  installed (e.g. **Battery Notes**) but haven't connected yet, with an **Install**
+  link and a **Dismiss** to silence it. Two paths feed this: an integration can
+  *register itself* via the new `home_keeper.register_companion` service (so Home
+  Keeper never hard-codes it), and Home Keeper *detects* a small curated set of popular
+  upstreams from a catalog. New `home_keeper_companion_connected` /
+  `home_keeper_companion_suggested` events let automations react. See the
+  [Companions](README.md#companions--discover-integrations-that-work-with-home-keeper)
+  README section and [docs/INTEGRATING.md](docs/INTEGRATING.md) §7.
+- **Sensor-based tasks.** A recurrence type whose due-state is derived from a bound
+  numeric Home Assistant entity rather than the clock, in two modes. **Usage / meter**
+  generalises floating recurrence from elapsed time to elapsed sensor *units* — *"service
+  every 500 running hours"*, *"oil every 15,000 km"* — arming once the reading advances
+  the chosen **target** since the last completion (which resets the meter; a meter reset
+  re-anchors automatically). **Threshold** arms when the reading crosses a comparison
+  against a value, with an optional hold and attribute read — *"replace the filter when
+  airflow drops below 60 %"* — and re-arms only on a fresh crossing. Armed sensor tasks
+  appear on the to-do list and fire `home_keeper_task_overdue` like any
+  other; the task detail shows live meter progress. Create them in the panel or via
+  `home_keeper.add_task` with a `sensor` mapping.
+- **Exclude devices from problem-sensor sync.** The problem-sensor sync feature gains
+  an **Excluded devices** picker (panel **Settings**, the options flow, and the
   `home_keeper.set_options` service) alongside the existing entity / area / label
-  exclusions. Excluding a device leaves out every `device_class: problem` binary
-  sensor that belongs to it.
+  exclusions. Excluding a device leaves out every `device_class: problem` binary sensor
+  that belongs to it.
+
+### Changed
+
+- **Settings tab layout.** The completed one-off retention setting now lives in its own
+  **General** card, separate from the **Problem sensor sync** card it's unrelated to.
 
 ## [0.4.0b1] - 2026-06-21
 
