@@ -195,6 +195,8 @@
   "tab.settings": "Configuració",
   "settings.heading": "Sincronització de sensors de problema",
   "settings.help": "Reflecteix els sensors binaris amb la classe de dispositiu «problema» com a tasques. Una tasca sincronitzada es manté activa mentre el sensor informa d'un problema i s'esborra automàticament quan la integració d'origen el resol; no es pot completar a Home Keeper. Exclou a sota sensors, dispositius, àrees o etiquetes concrets.",
+  "settings.general_heading": "General",
+  "settings.general_help": "Configuració general de Home Keeper.",
   "settings.saved": "Desat",
   "settings.sync_problem_sensors": "Sincronitza els sensors de problema com a tasques",
   "settings.problem_sensor_exclude_entities": "Sensors exclosos",

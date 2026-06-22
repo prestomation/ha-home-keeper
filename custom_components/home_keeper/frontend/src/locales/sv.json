@@ -183,6 +183,8 @@
   "tab.settings": "Inställningar",
   "settings.heading": "Synkronisering av problemsensorer",
   "settings.help": "Spegla binärsensorer med enhetsklassen ”problem” som uppgifter. En synkroniserad uppgift förblir aktiv så länge sensorn rapporterar ett problem och rensas automatiskt när källintegrationen löser det; den kan inte slutföras i Home Keeper. Uteslut specifika sensorer, enheter, områden eller etiketter nedan.",
+  "settings.general_heading": "Allmänt",
+  "settings.general_help": "Allmänna Home Keeper-inställningar.",
   "settings.saved": "Sparat",
   "settings.sync_problem_sensors": "Synkronisera problemsensorer som uppgifter",
   "settings.problem_sensor_exclude_entities": "Uteslutna sensorer",

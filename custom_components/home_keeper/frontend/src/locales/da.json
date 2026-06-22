@@ -183,6 +183,8 @@
   "tab.settings": "Indstillinger",
   "settings.heading": "Synkronisering af problemsensorer",
   "settings.help": "Afspejl binære sensorer med enhedsklassen \"problem\" som opgaver. En synkroniseret opgave forbliver aktiv, så længe sensoren melder et problem, og ryddes automatisk, når kildeintegrationen løser det; den kan ikke fuldføres i Home Keeper. Udeluk bestemte sensorer, enheder, områder eller etiketter nedenfor.",
+  "settings.general_heading": "Generelt",
+  "settings.general_help": "Generelle indstillinger for Home Keeper.",
   "settings.saved": "Gemt",
   "settings.sync_problem_sensors": "Synkronisér problemsensorer som opgaver",
   "settings.problem_sensor_exclude_entities": "Udeladte sensorer",

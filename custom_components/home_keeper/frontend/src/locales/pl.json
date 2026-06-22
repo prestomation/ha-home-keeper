@@ -207,6 +207,8 @@
   "tab.settings": "Ustawienia",
   "settings.heading": "Synchronizacja czujników problemów",
   "settings.help": "Odwzorowuj czujniki binarne o klasie urządzenia „problem” jako zadania. Zsynchronizowane zadanie pozostaje aktywne, dopóki czujnik zgłasza problem, i jest automatycznie czyszczone, gdy integracja źródłowa go rozwiąże; nie można go ukończyć w Home Keeper. Poniżej wyklucz wybrane czujniki, urządzenia, obszary lub etykiety.",
+  "settings.general_heading": "Ogólne",
+  "settings.general_help": "Ogólne ustawienia Home Keeper.",
   "settings.saved": "Zapisano",
   "settings.sync_problem_sensors": "Synchronizuj czujniki problemów jako zadania",
   "settings.problem_sensor_exclude_entities": "Wykluczone czujniki",

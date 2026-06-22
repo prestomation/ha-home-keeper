@@ -20,11 +20,11 @@ const INTENTIONALLY_IDENTICAL = new Set(['app.title', 'due.none', 'managed.compl
 // French "Stock"/"Date", Dutch "week"/"Label", universal "Model"/"Link"/"Type".
 // Locale-specific, so the guard stays strict for every other locale.
 const COGNATE_IDENTICAL = {
-  ca: ['field.cost', 'field.model', 'field.notes', 'field.sensor_entity_id', 'meta.seed.notes', 'opt.meta.text'],
+  ca: ['field.cost', 'field.model', 'field.notes', 'field.sensor_entity_id', 'meta.seed.notes', 'opt.meta.text', 'settings.general_heading'],
   cs: ['field.model', 'opt.meta.text'],
   da: ['chip.orphaned', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
   de: ['chip.orphaned', 'detail.about', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
-  es: ['field.sensor_entity_id'],
+  es: ['field.sensor_entity_id', 'settings.general_heading'],
   fr: ['completion.photo', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'opt.meta.date'],
   it: ['field.area_id', 'group.area', 'opt.meta.link'],
   nb: ['field.kind', 'field.sensor_entity_id', 'field.type', 'group.status'],

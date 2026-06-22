@@ -183,6 +183,8 @@
   "tab.settings": "Instellingen",
   "settings.heading": "Probleemsensor-synchronisatie",
   "settings.help": "Binaire sensoren met de apparaatklasse 'probleem' als taken spiegelen. Een gesynchroniseerde taak blijft actief zolang de sensor een probleem meldt en wordt automatisch gewist wanneer de bronintegratie het oplost; hij kan niet in Home Keeper worden voltooid. Sluit hieronder specifieke sensoren, apparaten, gebieden of labels uit.",
+  "settings.general_heading": "Algemeen",
+  "settings.general_help": "Algemene Home Keeper-instellingen.",
   "settings.saved": "Opgeslagen",
   "settings.sync_problem_sensors": "Probleemsensoren als taken synchroniseren",
   "settings.problem_sensor_exclude_entities": "Uitgesloten sensoren",

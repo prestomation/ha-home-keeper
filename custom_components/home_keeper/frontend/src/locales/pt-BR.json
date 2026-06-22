@@ -195,6 +195,8 @@
   "tab.settings": "Configurações",
   "settings.heading": "Sincronização de sensores de problema",
   "settings.help": "Espelhe sensores binários com a classe de dispositivo \"problema\" como tarefas. Uma tarefa sincronizada permanece ativa enquanto o sensor relata um problema e é limpa automaticamente quando a integração de origem o resolve; ela não pode ser concluída no Home Keeper. Exclua abaixo sensores, dispositivos, áreas ou etiquetas específicos.",
+  "settings.general_heading": "Geral",
+  "settings.general_help": "Configurações gerais do Home Keeper.",
   "settings.saved": "Salvo",
   "settings.sync_problem_sensors": "Sincronizar sensores de problema como tarefas",
   "settings.problem_sensor_exclude_entities": "Sensores excluídos",

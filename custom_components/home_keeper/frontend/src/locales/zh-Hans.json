@@ -183,6 +183,8 @@
   "tab.settings": "设置",
   "settings.heading": "问题传感器同步",
   "settings.help": "将设备类别为“问题”的二进制传感器镜像为任务。同步任务在其传感器报告问题期间保持活动，并在来源集成解决问题后自动清除；无法在 Home Keeper 中完成它。可在下方排除特定传感器、设备、区域或标签。",
+  "settings.general_heading": "常规",
+  "settings.general_help": "Home Keeper 常规设置。",
   "settings.saved": "已保存",
   "settings.sync_problem_sensors": "将问题传感器同步为任务",
   "settings.problem_sensor_exclude_entities": "排除的传感器",

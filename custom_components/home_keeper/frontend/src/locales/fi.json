@@ -183,6 +183,8 @@
   "tab.settings": "Asetukset",
   "settings.heading": "Ongelma-anturien synkronointi",
   "settings.help": "Peilaa laiteluokan ”ongelma” binäärianturit tehtäviksi. Synkronoitu tehtävä pysyy aktiivisena niin kauan kuin anturi ilmoittaa ongelmasta ja tyhjenee automaattisesti, kun lähdeintegraatio ratkaisee sen; sitä ei voi merkitä valmiiksi Home Keeperissä. Sulje alta pois tietyt anturit, laitteet, alueet tai tunnisteet.",
+  "settings.general_heading": "Yleiset",
+  "settings.general_help": "Home Keeperin yleiset asetukset.",
   "settings.saved": "Tallennettu",
   "settings.sync_problem_sensors": "Synkronoi ongelma-anturit tehtäviksi",
   "settings.problem_sensor_exclude_entities": "Poissuljetut anturit",
