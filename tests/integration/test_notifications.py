@@ -26,7 +26,9 @@ def _get_task(ha, task_id):
 
 
 def test_notify_service_and_action_completes(ha, ha_token):
-    # A brand-new floating task is due-now (overdue) immediately.
+    # A brand-new floating task is due-now (overdue) immediately. A unique label scopes
+    # the profile to *this* task so the seeded demo tasks don't crowd the queue.
+    label = "hk_notify_test"
     resp = call_service(
         ha,
         "home_keeper",
@@ -36,12 +38,13 @@ def test_notify_service_and_action_completes(ha, ha_token):
             "recurrence_type": "floating",
             "interval": 7,
             "unit": "days",
+            "labels": [label],
         },
         return_response=True,
     )
     task_id = resp.get("service_response", resp)["task_id"]
 
-    # A profile (explicit id so the test can reference it) that matches overdue tasks.
+    # A profile (explicit id so the test can reference it) scoped to our label.
     call_service(
         ha,
         "home_keeper",
@@ -52,7 +55,7 @@ def test_notify_service_and_action_completes(ha, ha_token):
                     "id": "testprofile",
                     "name": "Test",
                     "targets": [],
-                    "filter": {"status": "overdue"},
+                    "filter": {"status": "overdue", "labels": [label]},
                     "actions": ["complete", "snooze"],
                     "style": "walk",
                 }
@@ -60,12 +63,12 @@ def test_notify_service_and_action_completes(ha, ha_token):
         },
     )
 
-    # The notify service resolves the profile and reports what's due.
+    # The notify service resolves the profile and reports what's due (just our task).
     resp = call_service(
         ha, "home_keeper", "notify", {"profile": "testprofile"}, return_response=True
     )
     body = resp.get("service_response", resp)
-    assert body["matched"] >= 1
+    assert body["matched"] == 1
     assert body["sent"] == task_id
 
     # Tapping "Mark done" on the notification completes the task via the listener.

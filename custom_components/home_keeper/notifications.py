@@ -102,12 +102,10 @@ def normalize_profile(raw: Any) -> dict[str, Any]:
     missing key.
     """
     raw = raw if isinstance(raw, dict) else {}
-    seen: set[str] = set()
-    actions = [
-        a
-        for a in _str_list(raw.get("actions"))
-        if a in ACTIONS and not (a in seen or seen.add(a))
-    ]
+    actions: list[str] = []
+    for a in _str_list(raw.get("actions")):
+        if a in ACTIONS and a not in actions:
+            actions.append(a)
     auto = raw.get("auto") if isinstance(raw.get("auto"), dict) else {}
     try:
         snooze_hours = int(raw.get("snooze_hours", DEFAULT_SNOOZE_HOURS))
