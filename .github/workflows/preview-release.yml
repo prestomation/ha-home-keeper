@@ -1,69 +1,70 @@
 name: Preview release (PR build)
 
-# Opt-in, artifact-only "preview release" of the integration from a PR — a build a
-# maintainer can download and install manually to test the PR *without* merging to
-# main, bumping the version, or publishing anything HACS-visible. See RELEASE.md
-# ("Preview releases") and docs/PR_PREVIEW_RELEASE_PLAN.md.
+# Opt-in, HACS-installable "preview release" of the integration from a PR — an
+# ephemeral GitHub **pre-release** (zip attached) a maintainer/tester can install via
+# HACS (Show beta versions) to try the PR *without* merging to main or bumping the
+# real version. See RELEASE.md ("Preview releases") and
+# docs/PR_PREVIEW_RELEASE_PLAN.md.
 #
 # Trigger: add the `preview-release` label to the PR (only users with write access
-# can label, so the label itself is a maintainer gate). The job additionally runs in
-# the `preview-release` GitHub Environment, so the repo owner can require an explicit
+# can label, so the label is a maintainer gate). The publish job runs in the
+# `preview-release` GitHub Environment, so the repo owner can require an explicit
 # approval there (Settings → Environments → preview-release → Required reviewers).
+# The pre-release is re-published on each push and **deleted when the PR closes**.
 
 on:
   pull_request:
-    types: [labeled, synchronize, reopened]
+    types: [labeled, synchronize, reopened, closed]
 
 concurrency:
   group: preview-release-${{ github.event.number }}
   cancel-in-progress: true
 
 permissions:
-  contents: read
-  pull-requests: write
+  contents: write       # create/delete the ephemeral pre-release + tag
+  pull-requests: write  # sticky install comment
 
 jobs:
-  preview-release:
-    # Build only when opted in via the label, and only for same-repo PRs — a fork PR
-    # gets no write token, and we never build untrusted code with elevated scope
-    # (no `pull_request_target`). Forks should be reviewed/landed normally instead.
+  publish:
+    # Build + publish only when opted in via the label, on an open PR, and only for
+    # same-repo PRs — a fork gets no token, and we never build untrusted code with
+    # write scope (no `pull_request_target`).
     if: >-
+      github.event.action != 'closed' &&
       contains(github.event.pull_request.labels.*.name, 'preview-release') &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    # Owner-approval hook: configure Required reviewers on this environment to make
-    # each preview build wait for an explicit approval.
     environment: preview-release
     steps:
       - uses: actions/checkout@v4
         with:
-          # Build the PR's head exactly (what the tester expects to install), not the
-          # synthetic merge commit.
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Compute synthetic preview version
+      - name: Compute preview version + tag
         id: ver
         env:
           PR: ${{ github.event.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           BASE=$(python3 -c "import json;print(json.load(open('custom_components/home_keeper/manifest.json'))['version'])")
-          SHORT=${HEAD_SHA:0:7}
-          # PEP 440 local version: sorts BELOW any real release of BASE (so it can
-          # never look like "latest"), and encodes the PR + commit for traceability.
-          PREVIEW="${BASE}.dev${PR}+pr${PR}.g${SHORT}"
-          echo "preview=$PREVIEW" >> "$GITHUB_OUTPUT"
-          echo "Preview version: $PREVIEW"
+          # X.Y.Z core of the current manifest version (drop any pre/dev suffix).
+          CORE=$(python3 -c "import re;print(re.match(r'\d+\.\d+\.\d+', '$BASE').group())")
+          # PEP 440 dev release keyed by PR number: a valid version HACS parses as a
+          # beta, unique per PR, and sorting BELOW the X.Y.Z release so it never
+          # nags users as an "update" — it's selectable in HACS, not pushed.
+          VERSION="${CORE}.dev${PR}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Preview version: $VERSION"
 
       - name: Stamp the preview version into the manifest (zip only; never committed)
         env:
-          PREVIEW: ${{ steps.ver.outputs.preview }}
+          VERSION: ${{ steps.ver.outputs.version }}
         run: |
           python3 - <<'PY'
           import json, os
           path = "custom_components/home_keeper/manifest.json"
           data = json.load(open(path))
-          data["version"] = os.environ["PREVIEW"]
+          data["version"] = os.environ["VERSION"]
           json.dump(data, open(path, "w"), indent=2)
           open(path, "a").write("\n")
           PY
@@ -89,42 +90,93 @@ jobs:
           fi
           echo "home_keeper.zip exists ($(du -h home_keeper.zip | cut -f1))"
 
-      - name: Upload preview artifact
-        uses: actions/upload-artifact@v4
+      - name: Replace any previous preview release for this PR
+        uses: actions/github-script@v7
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
         with:
-          name: home_keeper-preview-pr${{ github.event.number }}
-          path: home_keeper.zip
-          retention-days: 5
+          script: |
+            const { owner, repo } = context.repo;
+            const tag = process.env.TAG;
+            // Delete the prior release (if any) and its tag so the new build's tag
+            // points at the current head commit.
+            try {
+              const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+              await github.rest.repos.deleteRelease({ owner, repo, release_id: rel.data.id });
+            } catch (e) { if (e.status !== 404) throw e; }
+            try {
+              await github.rest.git.deleteRef({ owner, repo, ref: `tags/${tag}` });
+            } catch (e) { if (e.status !== 404 && e.status !== 422) throw e; }
+
+      - name: Publish ephemeral pre-release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          target_commitish: ${{ github.event.pull_request.head.sha }}
+          name: "Preview · PR #${{ github.event.number }} (${{ steps.ver.outputs.version }})"
+          body: |
+            ⚠️ **Ephemeral preview build of #${{ github.event.number }}** — not a real release. It is **deleted when the PR closes**; do not depend on it.
+
+            Built from commit `${{ github.event.pull_request.head.sha }}`.
+
+            **Install via HACS:** open *Home Keeper* → ⋮ → **Redownload**, enable **Show beta versions**, and pick `${{ steps.ver.outputs.version }}`. Or download `home_keeper.zip` below and unzip into `config/custom_components/home_keeper/`.
+          prerelease: true
+          files: home_keeper.zip
 
       - name: Sticky comment with install instructions
         uses: actions/github-script@v7
         env:
-          PREVIEW: ${{ steps.ver.outputs.preview }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          ARTIFACT: home_keeper-preview-pr${{ github.event.number }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          TAG: ${{ steps.ver.outputs.tag }}
         with:
           script: |
             const marker = '<!-- preview-release -->';
+            const { owner, repo } = context.repo;
+            const version = process.env.VERSION;
+            const url = `${context.serverUrl}/${owner}/${repo}/releases/tag/${process.env.TAG}`;
             const body = [
               marker,
-              '### 📦 Preview build ready',
+              '### 📦 Preview release published',
               '',
-              '`' + process.env.PREVIEW + '` — an installable build of **this PR**, not a real release.',
+              '`' + version + '` — an installable **pre-release** of this PR, not a real release.',
               '',
-              '**Download:** the `' + process.env.ARTIFACT + '` artifact on [this workflow run](' + process.env.RUN_URL + ').',
+              '**Install via HACS:** open *Home Keeper* → ⋮ → **Redownload**, enable **Show beta versions**, and pick `' + version + '`. (HACS may need a refresh to see it.)',
               '',
-              '**Install (manual):**',
-              '1. Unzip into `config/custom_components/home_keeper/` (replace the existing folder).',
-              '2. Restart Home Assistant.',
+              'Or grab `home_keeper.zip` from the [release](' + url + ') and unzip into `config/custom_components/home_keeper/`.',
               '',
-              '> Ephemeral test build — do not depend on it. Re-download after each push (the artifact expires in 5 days).',
+              '> Ephemeral — this release is **deleted when the PR closes**, and re-published on each push.',
             ].join('\n');
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: context.issue.number });
             const existing = comments.find((c) => c.body && c.body.includes(marker));
             if (existing) {
               await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
             } else {
-              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+              await github.rest.issues.createComment({ owner, repo, issue_number: context.issue.number, body });
+            }
+
+  cleanup:
+    # When the PR closes (merged or not), delete its ephemeral pre-release + tag so
+    # nothing lingers in the Releases list or HACS' beta channel.
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete this PR's preview release + tag
+        uses: actions/github-script@v7
+        env:
+          PR: ${{ github.event.number }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const needle = `Preview · PR #${process.env.PR} (`;
+            const releases = await github.paginate(github.rest.repos.listReleases, { owner, repo, per_page: 100 });
+            for (const rel of releases) {
+              if (rel.name && rel.name.startsWith(needle)) {
+                await github.rest.repos.deleteRelease({ owner, repo, release_id: rel.id });
+                try {
+                  await github.rest.git.deleteRef({ owner, repo, ref: `tags/${rel.tag_name}` });
+                } catch (e) { if (e.status !== 404 && e.status !== 422) throw e; }
+                console.log(`Deleted preview release ${rel.tag_name}`);
+              }
             }
