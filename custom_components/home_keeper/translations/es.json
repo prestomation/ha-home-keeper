@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Posponer tarea",
+      "description": "Aplazar la fecha de vencimiento de una tarea sin registrar una finalización ni avanzar su recurrencia.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea que se va a posponer."
+        },
+        "hours": {
+          "name": "Horas",
+          "description": "Cuántas horas aplazar la tarea (24 por defecto)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Omitir tarea",
+      "description": "Avanzar una tarea a su próxima repetición sin registrar una finalización.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea que se va a omitir."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Listar tareas",
       "description": "Devolver todas las tareas como respuesta."
@@ -396,6 +420,8 @@
       "task_due_soon": "Tarea próxima a vencer",
       "task_created": "Tarea creada",
       "task_updated": "Tarea actualizada",
+      "task_snoozed": "Tarea pospuesta",
+      "task_skipped": "Tarea omitida",
       "part_low_stock": "Pieza de repuesto con stock bajo",
       "part_out_of_stock": "Pieza de repuesto agotada",
       "part_restocked": "Pieza de repuesto repuesta"

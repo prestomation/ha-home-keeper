@@ -41,6 +41,8 @@ from .const import (
     EVENT_TASK_CREATED,
     EVENT_TASK_DUE_SOON,
     EVENT_TASK_OVERDUE,
+    EVENT_TASK_SKIPPED,
+    EVENT_TASK_SNOOZED,
     EVENT_TASK_UPDATED,
 )
 from .coordinator import HomeKeeperCoordinator
@@ -53,6 +55,8 @@ TASK_TRIGGERS = {
     "task_due_soon": EVENT_TASK_DUE_SOON,
     "task_created": EVENT_TASK_CREATED,
     "task_updated": EVENT_TASK_UPDATED,
+    "task_snoozed": EVENT_TASK_SNOOZED,
+    "task_skipped": EVENT_TASK_SKIPPED,
 }
 ASSET_TRIGGERS = {
     "part_low_stock": EVENT_PART_LOW_STOCK,

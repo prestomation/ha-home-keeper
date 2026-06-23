@@ -57,6 +57,14 @@ EVENT_TASK_UPDATED = f"{DOMAIN}_task_updated"  # payload carries ``changed_field
 EVENT_TASK_DELETED = f"{DOMAIN}_task_deleted"
 EVENT_TASK_UNCOMPLETED = f"{DOMAIN}_task_uncompleted"  # a completion was undone
 EVENT_TASK_TRIGGERED = f"{DOMAIN}_task_triggered"  # a triggered task was armed
+# Snooze pushes a task's ``next_due`` forward without recording a completion or
+# advancing recurrence; the payload adds ``snoozed_until``. Skip advances a task to
+# its next occurrence without recording a completion. Both ride the task spine and,
+# because they change ``next_due``, re-arm the edge-triggered overdue/due-soon events
+# for the new date. Driven by the snooze_task / skip_task services (and the actionable
+# notification handler). See docs/EVENTS.md.
+EVENT_TASK_SNOOZED = f"{DOMAIN}_task_snoozed"  # + ``snoozed_until``
+EVENT_TASK_SKIPPED = f"{DOMAIN}_task_skipped"
 # Time-based transitions — fired (edge-triggered) from the coordinator. A task is
 # announced at most once per ``next_due`` value while HA is running; see
 # transitions.detect_transitions and coordinator._async_update_data.

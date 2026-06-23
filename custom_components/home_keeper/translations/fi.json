@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Lykkää tehtävää",
+      "description": "Lykkää tehtävän eräpäivää tallentamatta suoritusta tai siirtämättä sen toistoa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Lykättävän tehtävän tunnus."
+        },
+        "hours": {
+          "name": "Tunnit",
+          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Ohita tehtävä",
+      "description": "Siirrä tehtävä seuraavaan ajankohtaan tallentamatta suoritusta.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Ohitettavan tehtävän tunnus."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Luettele tehtävät",
       "description": "Palauta kaikki tehtävät vastauksena."
@@ -396,6 +420,8 @@
       "task_due_soon": "Tehtävä erääntyy pian",
       "task_created": "Tehtävä luotu",
       "task_updated": "Tehtävä päivitetty",
+      "task_snoozed": "Tehtävä lykätty",
+      "task_skipped": "Tehtävä ohitettu",
       "part_low_stock": "Varaosan varasto vähissä",
       "part_out_of_stock": "Varaosa loppu",
       "part_restocked": "Varaosa täydennetty"

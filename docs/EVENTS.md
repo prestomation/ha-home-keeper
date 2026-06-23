@@ -34,6 +34,8 @@ All event names follow `home_keeper_<noun>_<verb>`. Task events share a common
 | `home_keeper_task_uncompleted` | a completion is undone (`next_due` is re-derived) |
 | `home_keeper_task_completion_updated` | a recorded completion's metadata (`note`/`cost`/`photo`/`who`) is edited after the fact; payload adds the edited completion's `ts`. The schedule is untouched. |
 | `home_keeper_task_triggered` | a condition-driven (triggered) **or** sensor-based task is armed (dormant → due-now) |
+| `home_keeper_task_snoozed` | a task's due date is deferred without recording a completion (`snooze_task` service or an actionable-notification **Snooze**); payload adds `snoozed_until`. The schedule/recurrence is untouched — only `next_due` moves |
+| `home_keeper_task_skipped` | a task is advanced to its next occurrence without recording a completion (`skip_task` service or an actionable-notification **Skip**) — floating jumps an interval, fixed advances one occurrence, one-off/triggered/sensor go dormant |
 
 **Sensor-based tasks** reuse the triggered lifecycle: Home Keeper's watcher fires
 `home_keeper_task_triggered` when a bound numeric sensor meets the task's condition (a

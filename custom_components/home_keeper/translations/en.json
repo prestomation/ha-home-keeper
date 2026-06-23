@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Snooze task",
+      "description": "Defer a task's due date without recording a completion or advancing its recurrence.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task to snooze."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "How many hours to defer the task (defaults to 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Skip task",
+      "description": "Advance a task to its next occurrence without recording a completion.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task to skip."
+        }
+      }
+    },
     "list_tasks": {
       "name": "List tasks",
       "description": "Return all tasks as a response."
@@ -396,6 +420,8 @@
       "task_due_soon": "Task due soon",
       "task_created": "Task created",
       "task_updated": "Task updated",
+      "task_snoozed": "Task snoozed",
+      "task_skipped": "Task skipped",
       "part_low_stock": "Spare part low on stock",
       "part_out_of_stock": "Spare part out of stock",
       "part_restocked": "Spare part restocked"

@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Taak uitstellen",
+      "description": "De vervaldatum van een taak uitstellen zonder een voltooiing vast te leggen of de herhaling te laten doorlopen.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "Het id van de uit te stellen taak."
+        },
+        "hours": {
+          "name": "Uren",
+          "description": "Met hoeveel uur de taak wordt uitgesteld (standaard 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Taak overslaan",
+      "description": "Een taak naar de volgende keer laten doorgaan zonder een voltooiing vast te leggen.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "Het id van de over te slaan taak."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Taken weergeven",
       "description": "Geeft alle taken als antwoord terug."
@@ -396,6 +420,8 @@
       "task_due_soon": "Taak vervalt binnenkort",
       "task_created": "Taak aangemaakt",
       "task_updated": "Taak bijgewerkt",
+      "task_snoozed": "Taak uitgesteld",
+      "task_skipped": "Taak overgeslagen",
       "part_low_stock": "Reserveonderdeel bijna op",
       "part_out_of_stock": "Reserveonderdeel niet op voorraad",
       "part_restocked": "Reserveonderdeel aangevuld"

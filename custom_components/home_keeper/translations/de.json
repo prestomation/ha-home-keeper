@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Aufgabe zurückstellen",
+      "description": "Das Fälligkeitsdatum einer Aufgabe verschieben, ohne einen Abschluss zu erfassen oder die Wiederholung vorzurücken.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der zurückzustellenden Aufgabe."
+        },
+        "hours": {
+          "name": "Stunden",
+          "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard: 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Aufgabe überspringen",
+      "description": "Eine Aufgabe zum nächsten Termin vorrücken, ohne einen Abschluss zu erfassen.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der zu überspringenden Aufgabe."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Aufgaben auflisten",
       "description": "Gibt alle Aufgaben als Antwort zurück."
@@ -396,6 +420,8 @@
       "task_due_soon": "Aufgabe bald fällig",
       "task_created": "Aufgabe erstellt",
       "task_updated": "Aufgabe aktualisiert",
+      "task_snoozed": "Aufgabe zurückgestellt",
+      "task_skipped": "Aufgabe übersprungen",
       "part_low_stock": "Ersatzteil mit niedrigem Bestand",
       "part_out_of_stock": "Ersatzteil nicht vorrätig",
       "part_restocked": "Ersatzteil aufgefüllt"

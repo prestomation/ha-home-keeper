@@ -354,6 +354,43 @@ trigger_task:
       selector:
         text:
 
+snooze_task:
+  name: Snooze task
+  description: >-
+    Defer a task's due date by a number of hours without recording a completion or
+    advancing its recurrence — "remind me later". A fresh overdue/due-soon reminder
+    fires when the snooze lapses.
+  fields:
+    task_id:
+      name: Task ID
+      description: The id of the task to snooze.
+      required: true
+      selector:
+        text:
+    hours:
+      name: Hours
+      description: How many hours to defer the task (defaults to 24).
+      selector:
+        number:
+          min: 1
+          max: 8760
+          mode: box
+          unit_of_measurement: hours
+
+skip_task:
+  name: Skip task
+  description: >-
+    Advance a task to its next occurrence without recording a completion — "skip this
+    one". A floating task jumps a fresh interval, a fixed task advances one scheduled
+    occurrence, and a one-off/triggered/sensor task goes dormant.
+  fields:
+    task_id:
+      name: Task ID
+      description: The id of the task to skip.
+      required: true
+      selector:
+        text:
+
 list_tasks:
   name: List tasks
   description: Return all tasks as a response.

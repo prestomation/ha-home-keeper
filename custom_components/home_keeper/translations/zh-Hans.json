@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "推迟任务",
+      "description": "推迟任务的到期日期，但不记录完成，也不推进其重复周期。",
+      "fields": {
+        "task_id": {
+          "name": "任务 ID",
+          "description": "要推迟的任务的 id。"
+        },
+        "hours": {
+          "name": "小时",
+          "description": "将任务推迟多少小时（默认 24）。"
+        }
+      }
+    },
+    "skip_task": {
+      "name": "跳过任务",
+      "description": "将任务推进到下一次，但不记录完成。",
+      "fields": {
+        "task_id": {
+          "name": "任务 ID",
+          "description": "要跳过的任务的 id。"
+        }
+      }
+    },
     "list_tasks": {
       "name": "列出任务",
       "description": "以响应形式返回所有任务。"
@@ -396,6 +420,8 @@
       "task_due_soon": "任务即将到期",
       "task_created": "任务已创建",
       "task_updated": "任务已更新",
+      "task_snoozed": "任务已推迟",
+      "task_skipped": "任务已跳过",
       "part_low_stock": "备件库存不足",
       "part_out_of_stock": "备件缺货",
       "part_restocked": "备件已补货"

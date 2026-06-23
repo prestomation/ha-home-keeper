@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Reporter la tâche",
+      "description": "Reporter la date d'échéance d'une tâche sans enregistrer d'achèvement ni avancer sa récurrence.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'identifiant de la tâche à reporter."
+        },
+        "hours": {
+          "name": "Heures",
+          "description": "De combien d'heures reporter la tâche (24 par défaut)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Ignorer la tâche",
+      "description": "Avancer une tâche à sa prochaine occurrence sans enregistrer d'achèvement.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'identifiant de la tâche à ignorer."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Lister les tâches",
       "description": "Renvoyer toutes les tâches en réponse."
@@ -396,6 +420,8 @@
       "task_due_soon": "Tâche bientôt due",
       "task_created": "Tâche créée",
       "task_updated": "Tâche mise à jour",
+      "task_snoozed": "Tâche reportée",
+      "task_skipped": "Tâche ignorée",
       "part_low_stock": "Pièce de rechange en stock bas",
       "part_out_of_stock": "Pièce de rechange en rupture de stock",
       "part_restocked": "Pièce de rechange réapprovisionnée"

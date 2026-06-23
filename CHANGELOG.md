@@ -6,6 +6,17 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Added
+
+- **Snooze and skip a task.** Two new services — `home_keeper.snooze_task` (defer a
+  task's due date by a number of hours — "remind me later") and `home_keeper.skip_task`
+  (advance to the next occurrence — "skip this one") — that move a task's schedule
+  **without recording a completion**: the maintenance log and a floating task's clock
+  are left untouched, and a fresh overdue/due-soon reminder fires when a snooze lapses.
+  Each fires a `home_keeper_task_snoozed` / `home_keeper_task_skipped` event (also
+  available as device-automation triggers). These are the building blocks for the
+  upcoming actionable mobile notifications.
+
 ## [0.4.0] - 2026-06-22
 
 This release adds **companion discovery** so integrations that work with Home Keeper

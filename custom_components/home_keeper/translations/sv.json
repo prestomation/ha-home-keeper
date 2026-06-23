@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Skjut upp uppgift",
+      "description": "Skjut upp en uppgifts förfallodatum utan att registrera ett slutförande eller flytta fram dess upprepning.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID för uppgiften som ska skjutas upp."
+        },
+        "hours": {
+          "name": "Timmar",
+          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Hoppa över uppgift",
+      "description": "Flytta fram en uppgift till nästa tillfälle utan att registrera ett slutförande.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID för uppgiften som ska hoppas över."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Lista uppgifter",
       "description": "Returnera alla uppgifter som ett svar."
@@ -396,6 +420,8 @@
       "task_due_soon": "Uppgift förfaller snart",
       "task_created": "Uppgift skapad",
       "task_updated": "Uppgift uppdaterad",
+      "task_snoozed": "Uppgift uppskjuten",
+      "task_skipped": "Uppgift överhoppad",
       "part_low_stock": "Reservdel med lågt lagersaldo",
       "part_out_of_stock": "Reservdel slut i lager",
       "part_restocked": "Reservdel påfylld"

@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Odložit úkol",
+      "description": "Odložit datum splatnosti úkolu bez zaznamenání dokončení nebo posunutí jeho opakování.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu, který se má odložit."
+        },
+        "hours": {
+          "name": "Hodiny",
+          "description": "O kolik hodin úkol odložit (výchozí 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Přeskočit úkol",
+      "description": "Posunout úkol na jeho další výskyt bez zaznamenání dokončení.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu, který se má přeskočit."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vypsat úkoly",
       "description": "Vrátit všechny úkoly jako odpověď."
@@ -396,6 +420,8 @@
       "task_due_soon": "Úkol brzy splatný",
       "task_created": "Úkol vytvořen",
       "task_updated": "Úkol aktualizován",
+      "task_snoozed": "Úkol odložen",
+      "task_skipped": "Úkol přeskočen",
       "part_low_stock": "Náhradní díl s nízkou zásobou",
       "part_out_of_stock": "Náhradní díl není skladem",
       "part_restocked": "Náhradní díl doplněn"

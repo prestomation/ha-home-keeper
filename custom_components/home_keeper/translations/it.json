@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Posponi attività",
+      "description": "Rinvia la data di scadenza di un'attività senza registrare un completamento né far avanzare la ricorrenza.",
+      "fields": {
+        "task_id": {
+          "name": "ID attività",
+          "description": "L'id dell'attività da posporre."
+        },
+        "hours": {
+          "name": "Ore",
+          "description": "Di quante ore rinviare l'attività (24 di default)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Salta attività",
+      "description": "Fai avanzare un'attività alla sua prossima occorrenza senza registrare un completamento.",
+      "fields": {
+        "task_id": {
+          "name": "ID attività",
+          "description": "L'id dell'attività da saltare."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Elenca attività",
       "description": "Restituisce tutte le attività come risposta."
@@ -396,6 +420,8 @@
       "task_due_soon": "Attività in scadenza",
       "task_created": "Attività creata",
       "task_updated": "Attività aggiornata",
+      "task_snoozed": "Attività posposta",
+      "task_skipped": "Attività saltata",
       "part_low_stock": "Ricambio con scorte basse",
       "part_out_of_stock": "Ricambio esaurito",
       "part_restocked": "Ricambio rifornito"

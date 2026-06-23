@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Odłóż zadanie",
+      "description": "Odrocz termin zadania bez zapisywania ukończenia ani przesuwania jego powtarzania.",
+      "fields": {
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator zadania do odłożenia."
+        },
+        "hours": {
+          "name": "Godziny",
+          "description": "O ile godzin odroczyć zadanie (domyślnie 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Pomiń zadanie",
+      "description": "Przesuń zadanie do następnego wystąpienia bez zapisywania ukończenia.",
+      "fields": {
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator zadania do pominięcia."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Wyświetl zadania",
       "description": "Zwróć wszystkie zadania jako odpowiedź."
@@ -396,6 +420,8 @@
       "task_due_soon": "Termin zadania zbliża się",
       "task_created": "Zadanie utworzone",
       "task_updated": "Zadanie zaktualizowane",
+      "task_snoozed": "Zadanie odłożone",
+      "task_skipped": "Zadanie pominięte",
       "part_low_stock": "Niski stan części zapasowej",
       "part_out_of_stock": "Brak części zapasowej na stanie",
       "part_restocked": "Część zapasowa uzupełniona"

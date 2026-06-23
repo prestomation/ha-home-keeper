@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Udsæt opgave",
+      "description": "Udskyd en opgaves forfaldsdato uden at registrere en fuldførelse eller fremrykke dens gentagelse.",
+      "fields": {
+        "task_id": {
+          "name": "Opgave-ID",
+          "description": "Id'et på den opgave, der skal udsættes."
+        },
+        "hours": {
+          "name": "Timer",
+          "description": "Hvor mange timer opgaven skal udskydes (standard 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Spring opgave over",
+      "description": "Ryk en opgave frem til dens næste forekomst uden at registrere en fuldførelse.",
+      "fields": {
+        "task_id": {
+          "name": "Opgave-ID",
+          "description": "Id'et på den opgave, der skal springes over."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vis opgaver",
       "description": "Returner alle opgaver som et svar."
@@ -396,6 +420,8 @@
       "task_due_soon": "Opgave forfalder snart",
       "task_created": "Opgave oprettet",
       "task_updated": "Opgave opdateret",
+      "task_snoozed": "Opgave udsat",
+      "task_skipped": "Opgave sprunget over",
       "part_low_stock": "Lavt lager af reservedel",
       "part_out_of_stock": "Reservedel udsolgt",
       "part_restocked": "Reservedel genopfyldt"

@@ -190,6 +190,30 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Posposa la tasca",
+      "description": "Ajorna la data de venciment d'una tasca sense registrar una compleció ni avançar-ne la recurrència.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca a posposar."
+        },
+        "hours": {
+          "name": "Hores",
+          "description": "Quantes hores s'ha d'ajornar la tasca (24 per defecte)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Omet la tasca",
+      "description": "Avança una tasca a la seva propera ocurrència sense registrar una compleció.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca a ometre."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Llistar tasques",
       "description": "Retornar totes les tasques com a resposta."
@@ -396,6 +420,8 @@
       "task_due_soon": "La tasca venç aviat",
       "task_created": "Tasca creada",
       "task_updated": "Tasca actualitzada",
+      "task_snoozed": "Tasca posposada",
+      "task_skipped": "Tasca omesa",
       "part_low_stock": "Peça de recanvi amb estoc baix",
       "part_out_of_stock": "Peça de recanvi sense estoc",
       "part_restocked": "Peça de recanvi reabastida"

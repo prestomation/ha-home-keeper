@@ -8,6 +8,7 @@ panel; usage (viewing/completing tasks) is surfaced through native HA entities
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -104,6 +105,25 @@ TASK_ID_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
 # Arm a condition-driven (triggered) task so it reads as due-now. The owner-facing
 # counterpart to complete_task (which clears it back to dormant). See INTEGRATING.md.
 TRIGGER_TASK_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
+# Snooze: defer a task's next due date without recording a completion or advancing
+# recurrence. ``hours`` is the deferral (defaults to a day). ``origin`` is echoed in
+# the home_keeper_task_snoozed event for loop prevention (e.g. an actionable
+# notification action). Skip advances to the next occurrence, also without completing.
+SNOOZE_TASK_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Optional("hours", default=24): vol.All(
+            vol.Coerce(float), vol.Range(min=0, min_included=False)
+        ),
+        vol.Optional("origin"): cv.string,
+    }
+)
+SKIP_TASK_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Optional("origin"): cv.string,
+    }
+)
 # ``force`` bypasses managed-task deletion protection — the escape hatch for cleaning
 # up a task whose managing integration is gone or misbehaving. See docs/INTEGRATING.md.
 DELETE_TASK_SCHEMA = vol.Schema(
@@ -467,6 +487,49 @@ def _register_services(hass: HomeAssistant) -> None:
         # unchanged, so a refresh is enough — no entry reload (mirrors complete_task).
         await coord.async_request_refresh()
 
+    async def handle_snooze_task(call: ServiceCall) -> None:
+        coord = _coordinator()
+        until = dt_util.now() + timedelta(hours=call.data.get("hours", 24))
+        try:
+            await coord.store.snooze_task(
+                call.data["task_id"], until, origin=call.data.get("origin")
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        # Snooze only moves next_due (dormant <-> active timing); the per-task entity
+        # set is unchanged, so a refresh is enough — no entry reload.
+        await coord.async_request_refresh()
+
+    async def handle_skip_task(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.skip_task(
+                call.data["task_id"], origin=call.data.get("origin")
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await coord.async_request_refresh()
+
     async def handle_list_tasks(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
         return {"tasks": coord.store.list_tasks()}
@@ -560,6 +623,12 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, "trigger_task", handle_trigger_task, TRIGGER_TASK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "snooze_task", handle_snooze_task, SNOOZE_TASK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "skip_task", handle_skip_task, SKIP_TASK_SCHEMA
     )
     hass.services.async_register(
         DOMAIN,
@@ -657,6 +726,8 @@ _SERVICES = (
     "complete_task",
     "update_completion",
     "trigger_task",
+    "snooze_task",
+    "skip_task",
     "list_tasks",
     "add_asset",
     "update_asset",
