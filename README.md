@@ -268,6 +268,29 @@ together.
 
 ![The Companions section on the Settings tab — connected integrations with Configure buttons](docs/images/21-panel-companions.png)
 
+## Profiles — saved filters you reuse everywhere
+
+A **Profile** is a named, saved filter — a status (*overdue* / *due soon* / *all*) plus
+optional **label / area / device** filters — that you define once and reuse across Home
+Keeper. Create and manage them in **Settings → Profiles**.
+
+**Use cases.** *"'The dog', 'upstairs', 'my chores' — define each chore-set once and
+point every list at it."* *"My partner and I each save a Profile filtered to our own
+label, and reuse it on our phones and our dashboards."*
+
+The same Profile drives filtering in three places:
+
+- **Notifications** — a notification points at a Profile to decide which tasks it pushes
+  (see below). Two profiles with different labels = two people's lists.
+- **The admin task list** — the **Profile** dropdown on the **Tasks** tab narrows the
+  panel list to a saved Profile's tasks.
+- **The dashboard card** — the card editor's **Filter by profile** picker points a card
+  at a Profile instead of re-specifying the same filter inline.
+
+![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
+
+![The Tasks tab filtered to a saved Profile via the Profile dropdown](docs/images/23-panel-profile-filter.png)
+
 ## Notifications — actionable reminders on your phone
 
 Home Keeper can push a **mobile-app notification** for what's due, with tappable
@@ -283,23 +306,24 @@ Home Keeper what's on my list — it sends the first task, and as I tap **Done**
 one arrives."* *"My partner and I each get our **own** filtered chore list on our own
 phones."*
 
-**How it's used.** Configure **notification profiles** in **Settings → Notifications**.
-Each profile is a named config with:
+**How it's used.** Configure **notifications** in **Settings → Notifications**. Each
+notification is a named delivery config with:
 
+- **Profile** — the saved [Profile](#profiles--saved-filters-you-reuse-everywhere) whose
+  filter decides which tasks this notification covers (leave it unset to cover every due
+  task).
 - **Send to** — one or more `mobile_app_*` companion-app devices (picked from a live
   list).
-- **Filter** — which tasks belong to this list: a status (*overdue* / *due soon* / *all*)
-  plus optional **label / area / device** filters. Two profiles with different labels =
-  two people's lists.
 - **Buttons** — which of *Mark done / Snooze / Skip / Open* appear, and the snooze
   duration.
 - **Style** — a **walk** (sends the first due task, then the next each time you action
   one) or a single **digest** summary.
 - **Auto-send** — fire automatically when a matching task becomes overdue / due-soon.
 
-Trigger a profile on demand from any automation with the **`home_keeper.notify`**
-service (`profile:` a saved profile, or pass inline `target` / filters); it returns how
-many tasks matched and which was sent. The button taps and the standalone
+Trigger a notification on demand from any automation with the **`home_keeper.notify`**
+service (`notification:` a saved notification, `profile:` a saved Profile, or pass inline
+`target` / filters); it returns how many tasks matched and which was sent. The button
+taps and the standalone
 `home_keeper.snooze_task` / `home_keeper.skip_task` services all emit events
 (`home_keeper_task_completed` / `_snoozed` / `_skipped`) carrying
 `origin: home_keeper_notification_action`, so other automations can react.
@@ -312,7 +336,8 @@ The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizabl
 of your tasks with a one-tap **Done** button on each row; tapping a row opens an inline
 add/edit/delete form. It's auto-registered (no resource setup) and appears in the
 dashboard **"Add card"** picker. Its GUI editor lets you filter (by status, area,
-device, **label**, recurrence type, or a "due within N days" horizon), sort, group, cap
+device, **label**, recurrence type, a "due within N days" horizon, or a saved
+[Profile](#profiles--saved-filters-you-reuse-everywhere)), sort, group, cap
 rows, and toggle what each row shows. It's built from HA's own components and theme and
 reflects completions made anywhere else in real time.
 

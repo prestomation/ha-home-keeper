@@ -257,19 +257,32 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/17-panel-settings.png`, fullPage: true });
 
-  // 17a. Settings → Notifications — actionable-notification profiles. Seed one
-  // profile via the public set_options service so the editor renders populated.
+  // 17a. Settings → Profiles + Notifications. A Profile is a standalone saved filter;
+  // a Notification is a delivery binding that references one. Seed one of each via the
+  // public set_options service so both editors render populated.
   await page.evaluate(async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
     if (!hass) return;
     await hass.callService('home_keeper', 'set_options', {
-      notify_profiles: [
+      profiles: [
         {
           id: 'demo_me',
           name: 'My chores',
-          targets: [],
           filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+        },
+        {
+          id: 'demo_upstairs',
+          name: 'Upstairs',
+          filter: { status: 'due_soon', labels: [], areas: [], devices: [] },
+        },
+      ],
+      notifications: [
+        {
+          id: 'demo_walk',
+          name: 'Walk my chores',
+          profile_id: 'demo_me',
+          targets: [],
           actions: ['complete', 'snooze', 'open'],
           snooze_hours: 24,
           style: 'walk',
@@ -280,10 +293,23 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   });
   await openPanel(page);
   await panel.locator('#tab-settings').click();
-  await expect(panel.locator('#hk-notifications')).toBeVisible();
-  await expect(panel.locator('.hk-notify-profile ha-form')).toBeVisible();
+  // Settings → Profiles — the standalone saved-filter editor.
+  await expect(panel.locator('#hk-profiles')).toBeVisible();
+  await expect(panel.locator('#hk-profiles .hk-notify-profile ha-form').first()).toBeVisible();
   await page.waitForTimeout(700);
+  await panel.locator('#hk-profiles').screenshot({ path: `${OUT}/profiles-card.png` });
+  // Settings → Notifications — delivery bindings that each reference a Profile.
+  await expect(panel.locator('#hk-notifications')).toBeVisible();
+  await expect(panel.locator('#hk-notifications .hk-notify-profile ha-form').first()).toBeVisible();
+  await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/22-panel-notifications.png`, fullPage: true });
+
+  // 17a2. The Tasks tab Profile dropdown — pick a saved Profile to filter the admin list.
+  await openPanel(page);
+  await expect(panel.locator('select[data-profile-filter]')).toBeVisible();
+  await panel.locator('select[data-profile-filter]').selectOption('demo_me');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/23-panel-profile-filter.png`, fullPage: true });
 
   // 17b. Settings → Companions — integrations that work with Home Keeper. The e2e
   // container ships only Home Keeper, so seed a couple of connected companions via
