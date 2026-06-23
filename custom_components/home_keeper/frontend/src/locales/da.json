@@ -234,7 +234,7 @@
   "sensor.usageProgress": "{consumed} af {target} brugt ({entity})",
   "sensor.usageTarget": "Mål {target} ({entity})",
   "notify.heading": "Notifikationer",
-  "notify.help": "Send det forfaldne til din telefon. Hver profil sender til en eller flere mobilapps med eget filter, knapper og stil.",
+  "notify.help": "Send det forfaldne til en telefon. Hver notifikation vælger en profil og tilføjer mål, knapper og en stil.",
   "notify.no_targets": "Ingen mobile notifikationstjenester fundet — installer Home Assistant companion-appen for at sende til en enhed.",
   "notify.empty": "Endnu ingen notifikationsprofiler. Tilføj en for at komme i gang.",
   "notify.add": "Tilføj profil",
@@ -257,5 +257,12 @@
   "notify.opt.skip": "Spring over",
   "notify.opt.open": "Åbn",
   "notify.opt.walk": "En ad gangen",
-  "notify.opt.digest": "Oversigt"
+  "notify.opt.digest": "Oversigt",
+  "notify.profiles_heading": "Profiler",
+  "notify.profiles_help": "Gemte opgavefiltre, genbrugt af notifikationer, opgavelisten og dashboard-kortet.",
+  "notify.profiles_empty": "Endnu ingen profiler. Tilføj en for at filtrere opgaver.",
+  "notify.add_profile": "Tilføj profil",
+  "notify.new_profile": "Ny profil",
+  "notify.profile": "Profil",
+  "notify.need_profile": "Tilføj først en profil — en notifikation skal bruge en til at vælge, hvad der skal sendes."
 }

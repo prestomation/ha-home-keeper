@@ -246,7 +246,7 @@
   "sensor.usageProgress": "{consumed} di {target} utilizzati ({entity})",
   "sensor.usageTarget": "Obiettivo {target} ({entity})",
   "notify.heading": "Notifiche",
-  "notify.help": "Invia le attività in scadenza sul telefono. Ogni profilo invia a una o più app mobili con filtro, pulsanti e stile propri.",
+  "notify.help": "Invia ciò che è dovuto a un telefono. Ogni notifica sceglie un profilo e aggiunge destinazioni, pulsanti e uno stile.",
   "notify.no_targets": "Nessun servizio di notifica mobile trovato: installa l'app companion di Home Assistant per inviare a un dispositivo.",
   "notify.empty": "Ancora nessun profilo di notifica. Aggiungine uno per iniziare.",
   "notify.add": "Aggiungi profilo",
@@ -269,5 +269,12 @@
   "notify.opt.skip": "Salta",
   "notify.opt.open": "Apri",
   "notify.opt.walk": "Uno alla volta",
-  "notify.opt.digest": "Riepilogo"
+  "notify.opt.digest": "Riepilogo",
+  "notify.profiles_heading": "Profili",
+  "notify.profiles_help": "Filtri attività salvati, riutilizzati dalle notifiche, dall'elenco attività e dalla scheda della dashboard.",
+  "notify.profiles_empty": "Ancora nessun profilo. Aggiungine uno per filtrare le attività.",
+  "notify.add_profile": "Aggiungi profilo",
+  "notify.new_profile": "Nuovo profilo",
+  "notify.profile": "Profilo",
+  "notify.need_profile": "Aggiungi prima un profilo — una notifica ne ha bisogno per scegliere cosa inviare."
 }

@@ -258,7 +258,7 @@
   "sensor.usageProgress": "{consumed} z {target} wykorzystane ({entity})",
   "sensor.usageTarget": "Cel {target} ({entity})",
   "notify.heading": "Powiadomienia",
-  "notify.help": "Wysyłaj zadania do zrobienia na telefon. Każdy profil wysyła do jednej lub więcej aplikacji mobilnych z własnym filtrem, przyciskami i stylem.",
+  "notify.help": "Wysyłaj zadania do zrobienia na telefon. Każde powiadomienie wybiera profil i dodaje cele, przyciski i styl.",
   "notify.no_targets": "Nie znaleziono mobilnych usług powiadomień — zainstaluj aplikację Home Assistant companion, aby wysyłać na urządzenie.",
   "notify.empty": "Brak profili powiadomień. Dodaj jeden, aby rozpocząć.",
   "notify.add": "Dodaj profil",
@@ -281,5 +281,12 @@
   "notify.opt.skip": "Pomiń",
   "notify.opt.open": "Otwórz",
   "notify.opt.walk": "Pojedynczo",
-  "notify.opt.digest": "Podsumowanie"
+  "notify.opt.digest": "Podsumowanie",
+  "notify.profiles_heading": "Profile",
+  "notify.profiles_help": "Zapisane filtry zadań, używane przez powiadomienia, listę zadań i kartę pulpitu.",
+  "notify.profiles_empty": "Brak profili. Dodaj jeden, aby filtrować zadania.",
+  "notify.add_profile": "Dodaj profil",
+  "notify.new_profile": "Nowy profil",
+  "notify.profile": "Profil",
+  "notify.need_profile": "Najpierw dodaj profil — powiadomienie potrzebuje go, aby wybrać, co wysłać."
 }

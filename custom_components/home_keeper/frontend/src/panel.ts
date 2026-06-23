@@ -6,10 +6,13 @@ import {
   selBool,
   selDate,
   generalSchema,
-  notificationProfileSchema,
+  notificationSchema,
   notifyFormData,
-  notifyFormToProfile,
+  notifyFormToNotification,
   problemSyncSchema,
+  profileFormData,
+  profileFormToProfile,
+  profileSchema,
   selDevice,
   selIcon,
   selNumber,
@@ -32,9 +35,10 @@ import type {
   ManagedBy,
   MetadataEntry,
   MetadataType,
-  NotificationProfile,
+  Notification,
   PanelInfo,
   Part,
+  Profile,
   Task,
 } from './types';
 import {
@@ -951,7 +955,7 @@ export class HomeKeeperPanel extends HTMLElement {
         </div>
         ${this._detailView()}`;
     } else if (this._view === 'settings') {
-      inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-notifications-host"></div><div id="hk-companions-host"></div>`;
+      inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-profiles-host"></div><div id="hk-notifications-host"></div><div id="hk-companions-host"></div>`;
     } else {
       const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
       inner = `
@@ -1997,6 +2001,8 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     const settingsHost = root.getElementById('hk-settings-host');
     if (settingsHost) this._renderSettingsForm(settingsHost);
+    const profilesHost = root.getElementById('hk-profiles-host');
+    if (profilesHost) this._renderProfiles(profilesHost);
     const notificationsHost = root.getElementById('hk-notifications-host');
     if (notificationsHost) this._renderNotifications(notificationsHost);
     const companionsHost = root.getElementById('hk-companions-host');
@@ -2100,7 +2106,8 @@ export class HomeKeeperPanel extends HTMLElement {
       problem_sensor_exclude_areas: [],
       problem_sensor_exclude_labels: [],
       one_off_retention_days: 0,
-      notify_profiles: [],
+      profiles: [],
+      notifications: [],
     };
     // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor).
     host.appendChild(
@@ -2169,11 +2176,95 @@ export class HomeKeeperPanel extends HTMLElement {
     }
   }
 
-  /** Render the Settings → Notifications card: a list of actionable-notification
-   *  profiles (each an autosaving `ha-form`), plus Add/Delete. Profiles push what's
-   *  due to a phone — see the backend `notifications.py` / `notifier.py`. */
+  /** Render the Settings → Profiles card: reusable saved filters (status +
+   *  labels/areas/devices), each an autosaving `ha-form`. Profiles are consumed by
+   *  notifications, the admin task list, and the dashboard card. */
+  private _renderProfiles(host: HTMLElement): void {
+    const profiles = this._options?.profiles ?? [];
+    const card = document.createElement('ha-card');
+    card.className = 'hk-form-card';
+    card.id = 'hk-profiles';
+    const inner = document.createElement('div');
+    inner.className = 'hk-form-inner';
+    inner.innerHTML = `
+      <div class="hk-form-title">${escapeHTML(t('notify.profiles_heading'))}</div>
+      <div class="hk-settings-intro">${escapeHTML(t('notify.profiles_help'))}</div>`;
+    if (!profiles.length) {
+      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.profiles_empty'))}</ha-alert>`;
+    }
+    for (const profile of profiles) inner.appendChild(this._profileEditor(profile));
+    const add = document.createElement('ha-button');
+    add.id = 'hk-profile-add';
+    add.className = 'hk-notify-add';
+    add.textContent = t('notify.add_profile');
+    add.addEventListener('click', () => void this._addProfile());
+    inner.appendChild(add);
+    card.appendChild(inner);
+    host.appendChild(card);
+  }
+
+  private _profileEditor(profile: Profile): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'hk-notify-profile';
+    const form = document.createElement('ha-form') as HaFormElement;
+    form.hass = this._hass;
+    form.schema = profileSchema();
+    form.data = profileFormData(profile);
+    form.computeLabel = (s: { name: string }): string => {
+      if (s.name === 'name') return t('field.name');
+      if (s.name === 'labels') return t('field.labels');
+      return t('notify.' + s.name);
+    };
+    form.addEventListener('value-changed', (e: Event) => {
+      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      const next = (this._options?.profiles ?? []).map((p) =>
+        p.id === profile.id ? profileFormToProfile(profile.id, value) : p,
+      );
+      void this._persistProfiles(next, false);
+    });
+    this._liveHassEls.push(form);
+    wrap.appendChild(form);
+    const del = document.createElement('ha-button');
+    del.className = 'hk-notify-delete';
+    del.textContent = t('notify.delete');
+    del.addEventListener('click', () => void this._deleteProfile(profile.id));
+    wrap.appendChild(del);
+    return wrap;
+  }
+
+  private _addProfile(): Promise<void> {
+    const blank: Profile = {
+      id: '',
+      name: t('notify.new_profile'),
+      filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+    };
+    return this._persistProfiles([...(this._options?.profiles ?? []), blank], true);
+  }
+
+  private _deleteProfile(id: string): Promise<void> {
+    const next = (this._options?.profiles ?? []).filter((p) => p.id !== id);
+    return this._persistProfiles(next, true);
+  }
+
+  private async _persistProfiles(profiles: Profile[], render: boolean): Promise<void> {
+    if (!this._hass) return;
+    this._options = { ...(this._options as HomeKeeperOptions), profiles };
+    try {
+      this._options = await api.setOptions(this._hass, {
+        profiles,
+      } as Partial<HomeKeeperOptions>);
+      if (render) this._render();
+      this._toast(t('settings.saved'));
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
+    }
+  }
+
+  /** Render the Settings → Notifications card: delivery bindings that each reference
+   *  a profile and add targets/buttons/style — see the backend `notifier.py`. */
   private _renderNotifications(host: HTMLElement): void {
-    const profiles = this._options?.notify_profiles ?? [];
+    const profiles = this._options?.profiles ?? [];
+    const notifications = this._options?.notifications ?? [];
     const card = document.createElement('ha-card');
     card.className = 'hk-form-card';
     card.id = 'hk-notifications';
@@ -2186,84 +2277,85 @@ export class HomeKeeperPanel extends HTMLElement {
       inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.no_targets'))}</ha-alert>`;
     }
     if (!profiles.length) {
+      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.need_profile'))}</ha-alert>`;
+    }
+    if (!notifications.length) {
       inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.empty'))}</ha-alert>`;
     }
-    for (const profile of profiles) inner.appendChild(this._notifyProfileEditor(profile));
+    for (const notification of notifications) {
+      inner.appendChild(this._notificationEditor(notification, profiles));
+    }
     const add = document.createElement('ha-button');
     add.id = 'hk-notify-add';
     add.className = 'hk-notify-add';
     add.textContent = t('notify.add');
-    add.addEventListener('click', () => void this._addNotifyProfile());
+    if (!profiles.length) add.setAttribute('disabled', '');
+    add.addEventListener('click', () => void this._addNotification());
     inner.appendChild(add);
     card.appendChild(inner);
     host.appendChild(card);
   }
 
-  /** One profile's editor: an autosaving `ha-form` over the flat profile schema,
-   *  with a Delete button. Field edits save without re-rendering (so the form the
-   *  user is editing isn't torn down); Add/Delete re-render to add/remove the row. */
-  private _notifyProfileEditor(profile: NotificationProfile): HTMLElement {
+  private _notificationEditor(notification: Notification, profiles: Profile[]): HTMLElement {
     const wrap = document.createElement('div');
     wrap.className = 'hk-notify-profile';
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
-    form.schema = notificationProfileSchema(this._notifyTargets);
-    form.data = notifyFormData(profile);
+    form.schema = notificationSchema(this._notifyTargets, profiles);
+    form.data = notifyFormData(notification);
     form.computeLabel = (s: { name: string }): string => {
       if (s.name === 'name') return t('field.name');
-      if (s.name === 'labels') return t('field.labels');
+      if (s.name === 'profile_id') return t('notify.profile');
       return t('notify.' + s.name);
     };
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
-      const next = (this._options?.notify_profiles ?? []).map((p) =>
-        p.id === profile.id ? notifyFormToProfile(profile.id, value) : p,
+      const next = (this._options?.notifications ?? []).map((n) =>
+        n.id === notification.id ? notifyFormToNotification(notification.id, value) : n,
       );
-      void this._persistProfiles(next, false);
+      void this._persistNotifications(next, false);
     });
     this._liveHassEls.push(form);
     wrap.appendChild(form);
     const del = document.createElement('ha-button');
     del.className = 'hk-notify-delete';
     del.textContent = t('notify.delete');
-    del.addEventListener('click', () => void this._deleteNotifyProfile(profile.id));
+    del.addEventListener('click', () => void this._deleteNotification(notification.id));
     wrap.appendChild(del);
     return wrap;
   }
 
-  private _addNotifyProfile(): Promise<void> {
-    const blank: NotificationProfile = {
+  private _addNotification(): Promise<void> {
+    const profiles = this._options?.profiles ?? [];
+    if (!profiles.length) return Promise.resolve();
+    const blank: Notification = {
       id: '',
       name: t('notify.new_name'),
+      profile_id: profiles[0].id,
       targets: this._notifyTargets.length ? [this._notifyTargets[0]] : [],
-      filter: { status: 'overdue', labels: [], areas: [], devices: [] },
       actions: ['complete', 'snooze', 'open'],
       snooze_hours: 24,
       style: 'walk',
       auto: { overdue: false, due_soon: false },
     };
-    return this._persistProfiles([...(this._options?.notify_profiles ?? []), blank], true);
+    return this._persistNotifications([...(this._options?.notifications ?? []), blank], true);
   }
 
-  private _deleteNotifyProfile(id: string): Promise<void> {
-    const next = (this._options?.notify_profiles ?? []).filter((p) => p.id !== id);
-    return this._persistProfiles(next, true);
+  private _deleteNotification(id: string): Promise<void> {
+    const next = (this._options?.notifications ?? []).filter((n) => n.id !== id);
+    return this._persistNotifications(next, true);
   }
 
-  /** Persist the whole profile list (the backend normalizes it — assigning ids to
-   *  new profiles). *render* re-renders for structural changes (Add/Delete) but not
-   *  for an in-place field edit. */
-  private async _persistProfiles(
-    profiles: NotificationProfile[],
+  private async _persistNotifications(
+    notifications: Notification[],
     render: boolean,
   ): Promise<void> {
     if (!this._hass) return;
-    this._options = { ...(this._options as HomeKeeperOptions), notify_profiles: profiles };
+    this._options = { ...(this._options as HomeKeeperOptions), notifications };
     try {
-      const merged = await api.setOptions(this._hass, {
-        notify_profiles: profiles,
+      this._options = await api.setOptions(this._hass, {
+        notifications,
       } as Partial<HomeKeeperOptions>);
-      this._options = merged;
       if (render) this._render();
       this._toast(t('settings.saved'));
     } catch (err) {

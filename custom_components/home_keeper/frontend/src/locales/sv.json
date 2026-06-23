@@ -234,7 +234,7 @@
   "sensor.usageProgress": "{consumed} av {target} använt ({entity})",
   "sensor.usageTarget": "Mål {target} ({entity})",
   "notify.heading": "Aviseringar",
-  "notify.help": "Skicka det förfallna till telefonen. Varje profil skickar till en eller flera mobilappar med eget filter, knappar och stil.",
+  "notify.help": "Skicka det förfallna till en telefon. Varje avisering väljer en profil och lägger till mål, knappar och en stil.",
   "notify.no_targets": "Inga mobila aviseringstjänster hittades — installera Home Assistant companion-appen för att skicka till en enhet.",
   "notify.empty": "Inga aviseringsprofiler än. Lägg till en för att börja.",
   "notify.add": "Lägg till profil",
@@ -257,5 +257,12 @@
   "notify.opt.skip": "Hoppa över",
   "notify.opt.open": "Öppna",
   "notify.opt.walk": "En i taget",
-  "notify.opt.digest": "Sammanfattning"
+  "notify.opt.digest": "Sammanfattning",
+  "notify.profiles_heading": "Profiler",
+  "notify.profiles_help": "Sparade uppgiftsfilter, återanvända av aviseringar, uppgiftslistan och instrumentpanelskortet.",
+  "notify.profiles_empty": "Inga profiler än. Lägg till en för att filtrera uppgifter.",
+  "notify.add_profile": "Lägg till profil",
+  "notify.new_profile": "Ny profil",
+  "notify.profile": "Profil",
+  "notify.need_profile": "Lägg till en profil först — en avisering behöver en för att välja vad som ska skickas."
 }

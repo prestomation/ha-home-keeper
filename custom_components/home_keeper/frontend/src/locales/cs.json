@@ -258,7 +258,7 @@
   "sensor.usageProgress": "{consumed} z {target} využito ({entity})",
   "sensor.usageTarget": "Cíl {target} ({entity})",
   "notify.heading": "Oznámení",
-  "notify.help": "Posílejte úkoly k vyřízení do telefonu. Každý profil posílá do jedné nebo více mobilních aplikací s vlastním filtrem, tlačítky a stylem.",
+  "notify.help": "Posílejte úkoly k vyřízení do telefonu. Každé oznámení vybere profil a přidá cíle, tlačítka a styl.",
   "notify.no_targets": "Nebyly nalezeny žádné mobilní oznamovací služby — nainstalujte aplikaci Home Assistant companion, abyste mohli odesílat do zařízení.",
   "notify.empty": "Zatím žádné profily oznámení. Přidejte jeden a začněte.",
   "notify.add": "Přidat profil",
@@ -281,5 +281,12 @@
   "notify.opt.skip": "Přeskočit",
   "notify.opt.open": "Otevřít",
   "notify.opt.walk": "Po jednom",
-  "notify.opt.digest": "Souhrn"
+  "notify.opt.digest": "Souhrn",
+  "notify.profiles_heading": "Profily",
+  "notify.profiles_help": "Uložené filtry úkolů, používané oznámeními, seznamem úkolů a kartou na nástěnce.",
+  "notify.profiles_empty": "Zatím žádné profily. Přidejte jeden pro filtrování úkolů.",
+  "notify.add_profile": "Přidat profil",
+  "notify.new_profile": "Nový profil",
+  "notify.profile": "Profil",
+  "notify.need_profile": "Nejprve přidejte profil — oznámení jej potřebuje k výběru, co odeslat."
 }

@@ -246,7 +246,7 @@
   "sensor.usageProgress": "{consumed} de {target} usats ({entity})",
   "sensor.usageTarget": "Objectiu {target} ({entity})",
   "notify.heading": "Notificacions",
-  "notify.help": "Envia el que venç al teu telèfon. Cada perfil envia a una o més apps mòbils amb el seu propi filtre, botons i estil.",
+  "notify.help": "Envia el que venç a un telèfon. Cada notificació tria un perfil i hi afegeix destinacions, botons i un estil.",
   "notify.no_targets": "No s'ha trobat cap servei de notificació mòbil — instal·la l'app companion de Home Assistant per enviar a un dispositiu.",
   "notify.empty": "Encara no hi ha perfils de notificació. Afegeix-ne un per començar.",
   "notify.add": "Afegeix perfil",
@@ -269,5 +269,12 @@
   "notify.opt.skip": "Omet",
   "notify.opt.open": "Obre",
   "notify.opt.walk": "Un per un",
-  "notify.opt.digest": "Resum"
+  "notify.opt.digest": "Resum",
+  "notify.profiles_heading": "Perfils",
+  "notify.profiles_help": "Filtres de tasques desats, reutilitzats per les notificacions, la llista de tasques i la targeta del tauler.",
+  "notify.profiles_empty": "Encara no hi ha perfils. Afegeix-ne un per filtrar tasques.",
+  "notify.add_profile": "Afegeix perfil",
+  "notify.new_profile": "Perfil nou",
+  "notify.profile": "Perfil",
+  "notify.need_profile": "Afegeix primer un perfil — una notificació en necessita un per triar què enviar."
 }

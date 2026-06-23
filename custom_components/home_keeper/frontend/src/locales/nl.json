@@ -234,7 +234,7 @@
   "sensor.usageProgress": "{consumed} van {target} gebruikt ({entity})",
   "sensor.usageTarget": "Doel {target} ({entity})",
   "notify.heading": "Meldingen",
-  "notify.help": "Stuur wat openstaat naar je telefoon. Elk profiel stuurt naar een of meer mobiele apps met een eigen filter, knoppen en stijl.",
+  "notify.help": "Stuur wat openstaat naar een telefoon. Elke melding kiest een profiel en voegt doelen, knoppen en een stijl toe.",
   "notify.no_targets": "Geen mobiele meldingsdiensten gevonden — installeer de Home Assistant companion-app om naar een apparaat te sturen.",
   "notify.empty": "Nog geen meldingsprofielen. Voeg er een toe om te beginnen.",
   "notify.add": "Profiel toevoegen",
@@ -257,5 +257,12 @@
   "notify.opt.skip": "Overslaan",
   "notify.opt.open": "Openen",
   "notify.opt.walk": "Een voor een",
-  "notify.opt.digest": "Samenvatting"
+  "notify.opt.digest": "Samenvatting",
+  "notify.profiles_heading": "Profielen",
+  "notify.profiles_help": "Opgeslagen taakfilters, hergebruikt door meldingen, de takenlijst en de dashboardkaart.",
+  "notify.profiles_empty": "Nog geen profielen. Voeg er een toe om taken te filteren.",
+  "notify.add_profile": "Profiel toevoegen",
+  "notify.new_profile": "Nieuw profiel",
+  "notify.profile": "Profiel",
+  "notify.need_profile": "Voeg eerst een profiel toe — een melding heeft er een nodig om te kiezen wat te sturen."
 }

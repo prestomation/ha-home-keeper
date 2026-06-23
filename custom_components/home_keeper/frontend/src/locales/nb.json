@@ -234,7 +234,7 @@
   "sensor.usageProgress": "{consumed} av {target} brukt ({entity})",
   "sensor.usageTarget": "Mål {target} ({entity})",
   "notify.heading": "Varsler",
-  "notify.help": "Send det forfalte til telefonen. Hver profil sender til én eller flere mobilapper med eget filter, knapper og stil.",
+  "notify.help": "Send det forfalte til en telefon. Hvert varsel velger en profil og legger til mål, knapper og en stil.",
   "notify.no_targets": "Fant ingen mobile varslingstjenester — installer Home Assistant companion-appen for å sende til en enhet.",
   "notify.empty": "Ingen varslingsprofiler ennå. Legg til én for å begynne.",
   "notify.add": "Legg til profil",
@@ -257,5 +257,12 @@
   "notify.opt.skip": "Hopp over",
   "notify.opt.open": "Åpne",
   "notify.opt.walk": "Én om gangen",
-  "notify.opt.digest": "Oversikt"
+  "notify.opt.digest": "Oversikt",
+  "notify.profiles_heading": "Profiler",
+  "notify.profiles_help": "Lagrede oppgavefiltre, gjenbrukt av varsler, oppgavelisten og dashbordkortet.",
+  "notify.profiles_empty": "Ingen profiler ennå. Legg til én for å filtrere oppgaver.",
+  "notify.add_profile": "Legg til profil",
+  "notify.new_profile": "Ny profil",
+  "notify.profile": "Profil",
+  "notify.need_profile": "Legg til en profil først — et varsel trenger en for å velge hva som skal sendes."
 }

@@ -234,7 +234,7 @@
   "sensor.usageProgress": "已用 {consumed} / {target}（{entity}）",
   "sensor.usageTarget": "目标 {target}（{entity}）",
   "notify.heading": "通知",
-  "notify.help": "将到期事项推送到你的手机。每个配置文件可发送到一个或多个移动应用，并有各自的过滤器、按钮和样式。",
+  "notify.help": "将到期事项发送到手机。每条通知选择一个配置文件，并添加目标、按钮和样式。",
   "notify.no_targets": "未找到移动通知服务——请安装 Home Assistant 配套应用以发送到设备。",
   "notify.empty": "还没有通知配置文件。添加一个即可开始发送。",
   "notify.add": "添加配置文件",
@@ -257,5 +257,12 @@
   "notify.opt.skip": "跳过",
   "notify.opt.open": "打开",
   "notify.opt.walk": "逐个",
-  "notify.opt.digest": "摘要"
+  "notify.opt.digest": "摘要",
+  "notify.profiles_heading": "配置文件",
+  "notify.profiles_help": "已保存的任务过滤器，可供通知、任务列表和仪表板卡片重复使用。",
+  "notify.profiles_empty": "还没有配置文件。添加一个来过滤任务。",
+  "notify.add_profile": "添加配置文件",
+  "notify.new_profile": "新配置文件",
+  "notify.profile": "配置文件",
+  "notify.need_profile": "请先添加配置文件——通知需要它来选择要发送的内容。"
 }

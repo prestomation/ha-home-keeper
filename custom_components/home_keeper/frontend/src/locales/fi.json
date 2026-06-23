@@ -234,7 +234,7 @@
   "sensor.usageProgress": "{consumed}/{target} käytetty ({entity})",
   "sensor.usageTarget": "Tavoite {target} ({entity})",
   "notify.heading": "Ilmoitukset",
-  "notify.help": "Lähetä erääntyvät puhelimeesi. Jokainen profiili lähettää yhteen tai useampaan mobiilisovellukseen omalla suodattimella, painikkeilla ja tyylillä.",
+  "notify.help": "Lähetä erääntyvät puhelimeen. Jokainen ilmoitus valitsee profiilin ja lisää kohteet, painikkeet ja tyylin.",
   "notify.no_targets": "Mobiili-ilmoituspalveluita ei löytynyt — asenna Home Assistant companion -sovellus lähettääksesi laitteeseen.",
   "notify.empty": "Ei vielä ilmoitusprofiileja. Lisää profiili aloittaaksesi.",
   "notify.add": "Lisää profiili",
@@ -257,5 +257,12 @@
   "notify.opt.skip": "Ohita",
   "notify.opt.open": "Avaa",
   "notify.opt.walk": "Yksi kerrallaan",
-  "notify.opt.digest": "Yhteenveto"
+  "notify.opt.digest": "Yhteenveto",
+  "notify.profiles_heading": "Profiilit",
+  "notify.profiles_help": "Tallennetut tehtäväsuodattimet, joita käyttävät ilmoitukset, tehtäväluettelo ja kojelaudan kortti.",
+  "notify.profiles_empty": "Ei vielä profiileja. Lisää profiili suodattaaksesi tehtäviä.",
+  "notify.add_profile": "Lisää profiili",
+  "notify.new_profile": "Uusi profiili",
+  "notify.profile": "Profiili",
+  "notify.need_profile": "Lisää ensin profiili — ilmoitus tarvitsee sellaisen valitakseen, mitä lähetetään."
 }

@@ -259,7 +259,7 @@ export type NotifyStatus = 'all' | 'overdue' | 'due_soon';
 export type NotifyAction = 'complete' | 'snooze' | 'skip' | 'open';
 export type NotifyStyle = 'walk' | 'digest';
 
-/** Which tasks a notification profile surfaces. */
+/** Which tasks a profile surfaces (a saved filter). */
 export interface NotifyFilter {
   labels: string[];
   areas: string[];
@@ -267,12 +267,21 @@ export interface NotifyFilter {
   status: NotifyStatus;
 }
 
-/** A named, filtered actionable-notification config (see backend notifications.py). */
-export interface NotificationProfile {
+/** A named, reusable saved filter — consumed by notifications, the admin list, and
+ *  the dashboard card (see backend profiles.py). */
+export interface Profile {
   id: string;
   name: string;
-  targets: string[];
   filter: NotifyFilter;
+}
+
+/** A delivery binding that references a Profile and adds how to deliver it (see
+ *  backend notifications.py). */
+export interface Notification {
+  id: string;
+  name: string;
+  profile_id: string | null;
+  targets: string[];
   actions: NotifyAction[];
   snooze_hours: number;
   style: NotifyStyle;
@@ -291,8 +300,9 @@ export interface HomeKeeperOptions {
   one_off_retention_days: number;
   // Catalog glue domains dismissed from the Companions "Suggested" list.
   dismissed_companions?: string[];
-  // Actionable-notification profiles.
-  notify_profiles: NotificationProfile[];
+  // Saved filters and the notifications that consume them.
+  profiles: Profile[];
+  notifications: Notification[];
 }
 
 /**

@@ -234,7 +234,7 @@
   "sensor.usageProgress": "{consumed} von {target} verbraucht ({entity})",
   "sensor.usageTarget": "Ziel {target} ({entity})",
   "notify.heading": "Benachrichtigungen",
-  "notify.help": "Sende Fälliges an dein Telefon. Jedes Profil sendet an eine oder mehrere mobile Apps mit eigenem Filter, eigenen Schaltflächen und Stil.",
+  "notify.help": "Sende Fälliges an ein Telefon. Jede Benachrichtigung wählt ein Profil und ergänzt Ziele, Schaltflächen und einen Stil.",
   "notify.no_targets": "Keine mobilen Benachrichtigungsdienste gefunden – installiere die Home Assistant Companion-App, um an ein Gerät zu senden.",
   "notify.empty": "Noch keine Benachrichtigungsprofile. Füge eines hinzu, um zu starten.",
   "notify.add": "Profil hinzufügen",
@@ -257,5 +257,12 @@
   "notify.opt.skip": "Überspringen",
   "notify.opt.open": "Öffnen",
   "notify.opt.walk": "Nacheinander",
-  "notify.opt.digest": "Übersicht"
+  "notify.opt.digest": "Übersicht",
+  "notify.profiles_heading": "Profile",
+  "notify.profiles_help": "Gespeicherte Aufgabenfilter, wiederverwendet von Benachrichtigungen, der Aufgabenliste und der Dashboard-Karte.",
+  "notify.profiles_empty": "Noch keine Profile. Füge eines hinzu, um Aufgaben zu filtern.",
+  "notify.add_profile": "Profil hinzufügen",
+  "notify.new_profile": "Neues Profil",
+  "notify.profile": "Profil",
+  "notify.need_profile": "Füge zuerst ein Profil hinzu — eine Benachrichtigung braucht eines, um auszuwählen, was gesendet wird."
 }

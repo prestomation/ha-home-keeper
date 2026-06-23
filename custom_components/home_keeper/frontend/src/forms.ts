@@ -1,10 +1,11 @@
 import { t } from './i18n';
 import type {
   Hass,
-  NotificationProfile,
+  Notification,
   NotifyAction,
   NotifyStatus,
   NotifyStyle,
+  Profile,
   SensorBinding,
   SensorComparison,
   SensorMode,
@@ -376,7 +377,7 @@ export function generalSchema(): FormField[] {
   return [{ name: 'one_off_retention_days', selector: selNumber(0) }];
 }
 
-// ── notification profiles ───────────────────────────────────────────────────
+// ── profiles (saved filters) & notifications (delivery) ─────────────────────
 
 const NOTIFY_STATUSES: NotifyStatus[] = ['all', 'overdue', 'due_soon'];
 const NOTIFY_ACTIONS: NotifyAction[] = ['complete', 'snooze', 'skip', 'open'];
@@ -386,13 +387,56 @@ const NOTIFY_STYLES: NotifyStyle[] = ['walk', 'digest'];
 const notifyOptions = (values: string[]): { value: string; label: string }[] =>
   values.map((v) => ({ value: v, label: t('notify.opt.' + v) }));
 
-/**
- * The `ha-form` schema for one notification profile. *targets* is the live list of
- * `mobile_app_*` notify services (from `get_options`) offered as a checklist.
- */
-export function notificationProfileSchema(targets: string[]): FormField[] {
+const strList = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
+
+/** The `ha-form` schema for one **profile** (a named, reusable task filter). */
+export function profileSchema(): FormField[] {
   return [
     { name: 'name', required: true, selector: selText() },
+    { name: 'status', selector: selSelect(notifyOptions(NOTIFY_STATUSES)) },
+    { name: 'labels', selector: selLabel(true) },
+    { name: 'areas', selector: selArea(true) },
+    { name: 'devices', selector: selDevice(true) },
+  ];
+}
+
+/** Flatten a profile to the (flat) `ha-form` data the schema expects. */
+export function profileFormData(p: Profile): Record<string, unknown> {
+  return {
+    name: p.name,
+    status: p.filter.status,
+    labels: p.filter.labels,
+    areas: p.filter.areas,
+    devices: p.filter.devices,
+  };
+}
+
+/** Rebuild a profile (nested filter) from the flat form data, keeping *id*. */
+export function profileFormToProfile(id: string, data: Record<string, unknown>): Profile {
+  return {
+    id,
+    name: String(data.name ?? '').trim() || 'Tasks',
+    filter: {
+      status: (data.status as NotifyStatus) ?? 'overdue',
+      labels: strList(data.labels),
+      areas: strList(data.areas),
+      devices: strList(data.devices),
+    },
+  };
+}
+
+/**
+ * The `ha-form` schema for one **notification** (delivery). *targets* is the live
+ * `mobile_app_*` list; *profiles* populates the profile dropdown (what tasks to send).
+ */
+export function notificationSchema(targets: string[], profiles: Profile[]): FormField[] {
+  return [
+    { name: 'name', required: true, selector: selText() },
+    {
+      name: 'profile_id',
+      required: true,
+      selector: selSelect(profiles.map((p) => ({ value: p.id, label: p.name }))),
+    },
     {
       name: 'targets',
       selector: selSelect(
@@ -400,10 +444,6 @@ export function notificationProfileSchema(targets: string[]): FormField[] {
         true,
       ),
     },
-    { name: 'status', selector: selSelect(notifyOptions(NOTIFY_STATUSES)) },
-    { name: 'labels', selector: selLabel(true) },
-    { name: 'areas', selector: selArea(true) },
-    { name: 'devices', selector: selDevice(true) },
     { name: 'actions', selector: selSelect(notifyOptions(NOTIFY_ACTIONS), true) },
     { name: 'style', selector: selSelect(notifyOptions(NOTIFY_STYLES)) },
     { name: 'snooze_hours', selector: selNumber(1) },
@@ -412,40 +452,30 @@ export function notificationProfileSchema(targets: string[]): FormField[] {
   ];
 }
 
-/** Flatten a profile to the (flat) `ha-form` data the schema above expects. */
-export function notifyFormData(p: NotificationProfile): Record<string, unknown> {
+/** Flatten a notification to the flat `ha-form` data the schema expects. */
+export function notifyFormData(n: Notification): Record<string, unknown> {
   return {
-    name: p.name,
-    targets: p.targets,
-    status: p.filter.status,
-    labels: p.filter.labels,
-    areas: p.filter.areas,
-    devices: p.filter.devices,
-    actions: p.actions,
-    style: p.style,
-    snooze_hours: p.snooze_hours,
-    auto_overdue: p.auto.overdue,
-    auto_due_soon: p.auto.due_soon,
+    name: n.name,
+    profile_id: n.profile_id ?? '',
+    targets: n.targets,
+    actions: n.actions,
+    style: n.style,
+    snooze_hours: n.snooze_hours,
+    auto_overdue: n.auto.overdue,
+    auto_due_soon: n.auto.due_soon,
   };
 }
 
-const strList = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
-
-/** Rebuild a profile (nested filter/auto) from the flat form data, keeping *id*. */
-export function notifyFormToProfile(
+/** Rebuild a notification (nested auto) from the flat form data, keeping *id*. */
+export function notifyFormToNotification(
   id: string,
   data: Record<string, unknown>,
-): NotificationProfile {
+): Notification {
   return {
     id,
-    name: String(data.name ?? '').trim() || 'Notifications',
+    name: String(data.name ?? '').trim() || 'Notification',
+    profile_id: data.profile_id ? String(data.profile_id) : null,
     targets: strList(data.targets),
-    filter: {
-      status: (data.status as NotifyStatus) ?? 'overdue',
-      labels: strList(data.labels),
-      areas: strList(data.areas),
-      devices: strList(data.devices),
-    },
     actions: strList(data.actions) as NotifyAction[],
     style: (data.style as NotifyStyle) ?? 'walk',
     snooze_hours: Number(data.snooze_hours ?? 24) || 24,

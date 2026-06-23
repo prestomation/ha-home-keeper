@@ -246,7 +246,7 @@
   "sensor.usageProgress": "{consumed} de {target} usados ({entity})",
   "sensor.usageTarget": "Meta {target} ({entity})",
   "notify.heading": "Notificações",
-  "notify.help": "Envie o que está pendente para o seu telefone. Cada perfil envia para um ou mais apps móveis com filtro, botões e estilo próprios.",
+  "notify.help": "Envie o que está pendente para um telefone. Cada notificação escolhe um perfil e adiciona destinos, botões e um estilo.",
   "notify.no_targets": "Nenhum serviço de notificação móvel encontrado — instale o app companion do Home Assistant para enviar a um dispositivo.",
   "notify.empty": "Ainda não há perfis de notificação. Adicione um para começar.",
   "notify.add": "Adicionar perfil",
@@ -269,5 +269,12 @@
   "notify.opt.skip": "Pular",
   "notify.opt.open": "Abrir",
   "notify.opt.walk": "Um de cada vez",
-  "notify.opt.digest": "Resumo"
+  "notify.opt.digest": "Resumo",
+  "notify.profiles_heading": "Perfis",
+  "notify.profiles_help": "Filtros de tarefas salvos, reutilizados pelas notificações, pela lista de tarefas e pelo cartão do painel.",
+  "notify.profiles_empty": "Ainda não há perfis. Adicione um para filtrar tarefas.",
+  "notify.add_profile": "Adicionar perfil",
+  "notify.new_profile": "Novo perfil",
+  "notify.profile": "Perfil",
+  "notify.need_profile": "Adicione um perfil primeiro — uma notificação precisa de um para escolher o que enviar."
 }
