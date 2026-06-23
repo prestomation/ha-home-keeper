@@ -465,8 +465,8 @@ These requests appear independently across multiple integrations and standalone 
 ### 1. Floating recurrence (reset from completion, not calendar) — everywhere
 The most universally cited gap. Users everywhere describe workarounds: five helper entities per task, CalDAV hacks, blueprint automation chains. Every HA forum thread on maintenance eventually describes this pain. Home Keeper already solves this.
 
-### 2. Sensor / usage-based maintenance triggers
-"My pool pump runs 12 hrs/day in summer and 2 in winter — a calendar reminder is wrong for both." Runtime hours, cycle counts, threshold crossings, power-on counts. Maintenance Supporter is the only HA integration addressing this. No standalone app does it. Strong demand, high implementation complexity.
+### 2. ~~Sensor / usage-based maintenance triggers~~ **→ Shipped in Home Keeper**
+"My pool pump runs 12 hrs/day in summer and 2 in winter — a calendar reminder is wrong for both." Runtime hours, cycle counts, threshold crossings, power-on counts. Home Keeper now ships two sensor-task modes: usage/meter (baseline-reset on completion, rollover-safe) and threshold (numeric comparison with optional hold-time). Maintenance Supporter and Device Maintenance Monitor are the only other HA integrations addressing this; neither has an appliance model.
 
 ### 3. Appliance metadata: warranty, manuals, serial numbers, purchase dates
 Centriq's shutdown made this very loud (>100k displaced users). Users want: manual auto-retrieval, warranty-expiry alerts, purchase/install dates. All are already in Home Keeper's appliance model.
@@ -492,8 +492,8 @@ Fully addressed by ChoreOps (HA) and OurHome/Tody/ChoreMonster (standalone). Lar
 ### 10. Simple onboarding / template catalog
 Abandonment during setup is cited as the primary failure mode for HomeZada, Grocy, and HomeBinder. Users want "add a water heater" to pre-fill: anode rod replacement (12 mo), pressure-relief valve test (12 mo), etc. No competitor ships a proper starter template catalog.
 
-### 11. Completion metadata (notes, cost, who did it, photo)
-Users want to record what happened: "replaced with 3M filter #X, cost $18, spouse did it." HomeZada has cost tracking. No HA integration captures per-completion metadata beyond timestamp. Common in standalone maintenance logs.
+### 11. ~~Completion metadata (notes, cost, who did it, photo)~~ **→ Shipped in Home Keeper**
+Users want to record what happened: "replaced with 3M filter #X, cost $18, spouse did it." Home Keeper now captures `note`, `cost`, `photo`, and `who` (person entity id) on every completion via `complete_task` / `update_completion`, surfaces them as entity attributes, and shows them in the panel history with inline editing. HomeZada is the only standalone with cost tracking; no other HA integration has this.
 
 ### 12. Condition-based ("when dirty enough") vs. calendar scheduling
 Tody's core insight: visual progress bars showing how "dirty" each area is, without hard due dates. Users who are flexible about timing prefer this model. No HA integration offers it.
@@ -504,8 +504,8 @@ Tody's core insight: visual progress bars showing how "dirty" each area is, with
 ### 14. Home sale / handoff documentation
 Export full maintenance history + appliance docs + warranty info as a package for the next owner. Niche but clearly desired (Reddit threads, HomeZada feature). Home Keeper already has the appliance inventory CSV; a richer export is the gap.
 
-### 15. Repair log (one-off, distinct from recurring maintenance)
-"HVAC capacitor replaced, $180, ABC Heating, 2026-03" — a one-off event that doesn't repeat. Feeding repair-vs-replace analytics over the appliance's lifetime. No HA integration models this separately from recurring tasks.
+### 15. ~~Repair log (one-off, distinct from recurring maintenance)~~ **→ Shipped in Home Keeper**
+"HVAC capacitor replaced, $180, ABC Heating, 2026-03" — a one-off event that doesn't repeat. Home Keeper's `REC_ONE_OFF` task type covers this: pick a due date, complete with full metadata (note/cost/photo/who), task goes dormant and history is archived to the appliance on deletion. Still open: repair-vs-replace analytics (lifetime cost rollup per appliance).
 
 ### 16. Vacation / away-aware scheduling
 Tody's Vacation Mode pauses task indicators. Users leave for 2 weeks; they don't want 14 "overdue" items on return for things that could have waited. Home Keeper has no equivalent.
@@ -520,6 +520,9 @@ Tody's Vacation Mode pauses task indicators. Users leave for 2 weeks; they don't
 |---|---|---|
 | Triggered (condition-driven) tasks | None | None |
 | Problem-sensor sync (auto-arm from `binary_sensor.problem`) | None | None |
+| Sensor/usage-based tasks (meter, threshold, hold-time, baseline reset) | Maintenance Supporter (no appliance model) | None |
+| Per-completion metadata (note, cost, photo, who) | None | HomeZada, standalone apps |
+| One-off / repair-log tasks with full metadata | None | HomeZada |
 | Appliance virtual devices + metadata | None | Homer, Centriq (RIP), HomeZada |
 | Parts / wear items with inventory + low-stock events | None | None |
 | Subdevice & related-device relationships | None | None |
@@ -533,11 +536,9 @@ Tody's Vacation Mode pauses task indicators. Users leave for 2 weeks; they don't
 
 | Feature | Who has it | Demand signal |
 |---|---|---|
-| Sensor/usage-based triggers (runtime hours, cycle counts, threshold) | Maintenance Supporter, Device Maintenance Monitor | Very high — multiple HA threads |
 | Adaptive scheduling (learns from history) | Maintenance Supporter | Medium |
 | Chore assignment to household members | ChoreOps, Home Upkeep, Tody, OurHome | Very high |
 | Gamification (points, badges, streaks) | ChoreOps, KidsChores, OurHome, Tody | High (family segment) |
-| Per-completion metadata (notes, cost, photo, who) | HomeZada, standalone apps | High |
 | NFC scan-to-complete (working) | Maintenance Supporter, Donetick | Medium-high |
 | Snooze / skip one occurrence | Various standalone | Medium-high |
 | Vehicle / mileage-based maintenance | Vehicle Service Manager | Medium |
@@ -547,7 +548,6 @@ Tody's Vacation Mode pauses task indicators. Users leave for 2 weeks; they don't
 | Appliance barcode/nameplate scanning | Centriq (RIP), Homer, Dib | Medium |
 | Voice completion via Assist | Blueprint workarounds | High |
 | Actionable notifications (mark done from push) | Blueprint workarounds | High |
-| Repair log (one-off events, separate from recurring) | HomeZada | Medium |
 | Seasonal / weather-triggered arming | DIY YAML | Medium |
 
 ---
