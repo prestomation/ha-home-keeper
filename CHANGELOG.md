@@ -8,14 +8,25 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ### Added
 
-- **Snooze and skip a task.** Two new services — `home_keeper.snooze_task` (defer a
-  task's due date by a number of hours — "remind me later") and `home_keeper.skip_task`
-  (advance to the next occurrence — "skip this one") — that move a task's schedule
-  **without recording a completion**: the maintenance log and a floating task's clock
-  are left untouched, and a fresh overdue/due-soon reminder fires when a snooze lapses.
-  Each fires a `home_keeper_task_snoozed` / `home_keeper_task_skipped` event (also
-  available as device-automation triggers). These are the building blocks for the
-  upcoming actionable mobile notifications.
+- **Actionable notifications (per-person chore queues).** Home Keeper can now push a
+  mobile-app notification for what's due, with **Mark done / Snooze / Skip / Open**
+  buttons that route back into Home Keeper so the schedule is recalculated correctly
+  (completing advances recurrence; snoozing re-arms a fresh reminder). Configure
+  **notification profiles** in **Settings → Notifications**: each profile targets one
+  or more companion-app devices with its own **filter** (status + labels/areas/devices),
+  **button set**, snooze duration, and **style** (a *walk* that sends the first due task
+  and advances to the next as you action it, or a single *digest* summary). A profile
+  can **auto-send** when a task goes overdue/due-soon, or be triggered on demand with the
+  new **`home_keeper.notify`** service — e.g. from a "Chores" calendar event — so two
+  household members each get their own filtered list. Tapping an action emits a
+  `home_keeper_task_completed` / `_snoozed` / `_skipped` event with
+  `origin: home_keeper_notification_action`.
+- **Snooze and skip a task.** The notification buttons are also standalone services:
+  `home_keeper.snooze_task` (defer a task's due date by a number of hours — "remind me
+  later") and `home_keeper.skip_task` (advance to the next occurrence — "skip this one")
+  move a task's schedule **without recording a completion** (the maintenance log and a
+  floating task's clock are left untouched). Each fires a `home_keeper_task_snoozed` /
+  `home_keeper_task_skipped` event, also available as device-automation triggers.
 
 ## [0.4.0] - 2026-06-22
 
