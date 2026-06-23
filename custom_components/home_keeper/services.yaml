@@ -391,6 +391,29 @@ skip_task:
       selector:
         text:
 
+notify:
+  name: Notify what's due
+  description: >-
+    Send an actionable push notification for what's currently due, using a saved
+    notification profile or inline overrides. A "walk" profile sends the first due
+    task and advances to the next as you action it; a "digest" profile sends one
+    summary. Inline overrides (status, labels, areas, devices, actions, snooze_hours,
+    style) are also accepted. Returns how many tasks matched and which was sent.
+  fields:
+    profile:
+      name: Profile
+      description: Name or id of a saved notification profile to send.
+      selector:
+        text:
+    target:
+      name: Target
+      description: >-
+        Notify service name(s) to send to, overriding the profile's targets
+        (e.g. mobile_app_phone).
+      selector:
+        text:
+          multiple: true
+
 list_tasks:
   name: List tasks
   description: Return all tasks as a response.

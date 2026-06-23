@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Notificar lo que vence",
+      "description": "Envía una notificación push accionable de lo que vence ahora, usando un perfil guardado o sustituciones directas (destino, filtros, estado y estilo se aceptan).",
+      "fields": {
+        "profile": {
+          "name": "Perfil",
+          "description": "Nombre o id de un perfil de notificación guardado."
+        },
+        "target": {
+          "name": "Destino",
+          "description": "Servicios de notificación a los que enviar, sustituyendo el perfil (p. ej. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Listar tareas",
       "description": "Devolver todas las tareas como respuesta."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "No hay ningún perfil de notificación llamado {profile}."
     }
   }
 }

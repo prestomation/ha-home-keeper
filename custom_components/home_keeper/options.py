@@ -19,8 +19,10 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from . import notifications
 from .const import (
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_NOTIFY_PROFILES,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
@@ -63,6 +65,9 @@ def current_options(entry: ConfigEntry) -> dict[str, Any]:
         OPTION_ONE_OFF_RETENTION_DAYS: _coerce_days(
             opts.get(OPTION_ONE_OFF_RETENTION_DAYS, 0)
         ),
+        OPTION_NOTIFY_PROFILES: notifications.normalize_profiles(
+            opts.get(OPTION_NOTIFY_PROFILES, [])
+        ),
     }
     for key in _LIST_OPTIONS:
         result[key] = list(opts.get(key, []) or [])
@@ -86,6 +91,10 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
     if OPTION_ONE_OFF_RETENTION_DAYS in updates:
         merged[OPTION_ONE_OFF_RETENTION_DAYS] = _coerce_days(
             updates[OPTION_ONE_OFF_RETENTION_DAYS]
+        )
+    if OPTION_NOTIFY_PROFILES in updates:
+        merged[OPTION_NOTIFY_PROFILES] = notifications.normalize_profiles(
+            updates[OPTION_NOTIFY_PROFILES]
         )
     for key in _LIST_OPTIONS:
         if key in updates:

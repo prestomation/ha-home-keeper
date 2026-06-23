@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Notifica el que venç",
+      "description": "Envia una notificació push accionable del que venç ara, amb un perfil desat o substitucions directes (destinació, filtres, estat i estil s'accepten).",
+      "fields": {
+        "profile": {
+          "name": "Perfil",
+          "description": "Nom o id d'un perfil de notificació desat."
+        },
+        "target": {
+          "name": "Destinació",
+          "description": "Serveis de notificació on enviar, substituint el perfil (p. ex. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Llistar tasques",
       "description": "Retornar totes les tasques com a resposta."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "No hi ha cap perfil de notificació amb el nom {profile}."
     }
   }
 }

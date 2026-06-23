@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Notificar o que está pendente",
+      "description": "Envia uma notificação push acionável do que está pendente agora, usando um perfil salvo ou substituições diretas (destino, filtros, status e estilo são aceitos).",
+      "fields": {
+        "profile": {
+          "name": "Perfil",
+          "description": "Nome ou id de um perfil de notificação salvo."
+        },
+        "target": {
+          "name": "Destino",
+          "description": "Serviços de notificação para enviar, substituindo o perfil (ex.: mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Listar tarefas",
       "description": "Retornar todas as tarefas como resposta."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Nenhum perfil de notificação chamado {profile}."
     }
   }
 }

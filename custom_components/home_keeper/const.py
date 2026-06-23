@@ -136,6 +136,17 @@ OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
 # "Suggested" list. A list of domain strings; dismissing only silences a
 # *suggestion* (a connected pairing is always shown). See companions.py.
 OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
+# Actionable-notification profiles: a list of named, filtered push configs (targets,
+# label/area/device filter, button set, snooze duration, style, automatic triggers).
+# Edited from the panel's Settings → Notifications card and the set_options service;
+# consumed by the notify service, the action listener, and the coordinator's automatic
+# source. See notifications.py and docs/ACTIONABLE_NOTIFICATIONS_PLAN.md.
+OPTION_NOTIFY_PROFILES = "notify_profiles"
+
+# Opaque ``origin`` marker the actionable-notification action listener passes to
+# ``complete_task`` / ``snooze_task`` / ``skip_task`` so an automation can recognise
+# (and ignore) the completion/snooze it triggered from a notification tap.
+ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"
 
 
 # Recurrence types.

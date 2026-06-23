@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Notify what's due",
+      "description": "Send an actionable push notification for what's currently due, using a saved profile or inline overrides (target, filters, status, and style are all accepted).",
+      "fields": {
+        "profile": {
+          "name": "Profile",
+          "description": "Name or id of a saved notification profile to send."
+        },
+        "target": {
+          "name": "Target",
+          "description": "Notify services to send to, overriding the profile (e.g. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "List tasks",
       "description": "Return all tasks as a response."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "No notification profile named {profile}."
     }
   }
 }

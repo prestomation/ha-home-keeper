@@ -14,7 +14,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
-from . import companions, devices, inventory, options
+from . import companions, devices, inventory, notifier, options
 from .assets import AssetValidationError
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator, entity_set_key
@@ -432,12 +432,23 @@ async def ws_export_inventory(
 async def ws_get_options(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    """Return the config-entry options for the panel's Settings tab."""
+    """Return the config-entry options for the panel's Settings tab.
+
+    Also returns ``notify_targets`` — the ``mobile_app_*`` notify services available
+    right now — so the Notifications card can offer them as a checklist instead of
+    making the user type service names.
+    """
     coord = _coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
-    connection.send_result(msg["id"], {"options": options.current_options(coord.entry)})
+    connection.send_result(
+        msg["id"],
+        {
+            "options": options.current_options(coord.entry),
+            "notify_targets": notifier.available_targets(hass),
+        },
+    )
 
 
 @websocket_api.websocket_command(

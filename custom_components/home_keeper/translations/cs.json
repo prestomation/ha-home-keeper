@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Upozornit na úkoly k vyřízení",
+      "description": "Odešle akční push oznámení pro to, co je nyní k vyřízení, pomocí uloženého profilu nebo přímých změn (cíl, filtry, stav a styl jsou akceptovány).",
+      "fields": {
+        "profile": {
+          "name": "Profil",
+          "description": "Název nebo id uloženého profilu oznámení."
+        },
+        "target": {
+          "name": "Cíl",
+          "description": "Služby oznámení, na které se má odeslat, přepisující profil (např. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vypsat úkoly",
       "description": "Vrátit všechny úkoly jako odpověď."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Žádný profil oznámení s názvem {profile}."
     }
   }
 }

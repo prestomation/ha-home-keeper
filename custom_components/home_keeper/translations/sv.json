@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Avisera om förfallna uppgifter",
+      "description": "Skicka en åtgärdbar push-avisering för det som är förfallet nu, utifrån en sparad profil eller direkta åsidosättanden (mål, filter, status och stil accepteras).",
+      "fields": {
+        "profile": {
+          "name": "Profil",
+          "description": "Namn eller id för en sparad aviseringsprofil."
+        },
+        "target": {
+          "name": "Mål",
+          "description": "Aviseringstjänster att skicka till, som åsidosätter profilen (t.ex. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Lista uppgifter",
       "description": "Returnera alla uppgifter som ett svar."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Ingen aviseringsprofil med namnet {profile}."
     }
   }
 }

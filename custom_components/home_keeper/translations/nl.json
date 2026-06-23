@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Melden wat openstaat",
+      "description": "Stuur een uitvoerbare pushmelding voor wat nu verschuldigd is, met een opgeslagen profiel of directe overschrijvingen (doel, filters, status en stijl worden geaccepteerd).",
+      "fields": {
+        "profile": {
+          "name": "Profiel",
+          "description": "Naam of id van een opgeslagen meldingsprofiel."
+        },
+        "target": {
+          "name": "Doel",
+          "description": "Meldingsdiensten om naar te sturen, ter overschrijving van het profiel (bijv. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Taken weergeven",
       "description": "Geeft alle taken als antwoord terug."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Geen meldingsprofiel met de naam {profile}."
     }
   }
 }

@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Powiadom o zadaniach do zrobienia",
+      "description": "Wyślij interaktywne powiadomienie push o tym, co jest teraz do zrobienia, na podstawie zapisanego profilu lub bezpośrednich zmian (cel, filtry, status i styl są akceptowane).",
+      "fields": {
+        "profile": {
+          "name": "Profil",
+          "description": "Nazwa lub identyfikator zapisanego profilu powiadomień."
+        },
+        "target": {
+          "name": "Cel",
+          "description": "Usługi powiadomień, do których wysłać, zastępujące profil (np. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Wyświetl zadania",
       "description": "Zwróć wszystkie zadania jako odpowiedź."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Brak profilu powiadomień o nazwie {profile}."
     }
   }
 }

@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Notificér om forfaldne opgaver",
+      "description": "Send en handlingsrettet push-notifikation om det, der er forfaldent nu, ud fra en gemt profil eller direkte tilsidesættelser (mål, filtre, status og stil accepteres).",
+      "fields": {
+        "profile": {
+          "name": "Profil",
+          "description": "Navn eller id på en gemt notifikationsprofil."
+        },
+        "target": {
+          "name": "Mål",
+          "description": "Notifikationstjenester at sende til, der tilsidesætter profilen (f.eks. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vis opgaver",
       "description": "Returner alle opgaver som et svar."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Ingen notifikationsprofil med navnet {profile}."
     }
   }
 }

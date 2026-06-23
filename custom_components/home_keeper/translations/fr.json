@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Notifier les tâches dues",
+      "description": "Envoyer une notification push actionnable pour ce qui est dû maintenant, à partir d'un profil enregistré ou de remplacements directs (cible, filtres, statut et style sont acceptés).",
+      "fields": {
+        "profile": {
+          "name": "Profil",
+          "description": "Nom ou identifiant d'un profil de notification enregistré."
+        },
+        "target": {
+          "name": "Cible",
+          "description": "Services de notification à utiliser, remplaçant le profil (par ex. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Lister les tâches",
       "description": "Renvoyer toutes les tâches en réponse."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Aucun profil de notification nommé {profile}."
     }
   }
 }

@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Notifica le attività in scadenza",
+      "description": "Invia una notifica push interattiva per ciò che è dovuto ora, usando un profilo salvato o sostituzioni dirette (destinazione, filtri, stato e stile sono accettati).",
+      "fields": {
+        "profile": {
+          "name": "Profilo",
+          "description": "Nome o id di un profilo di notifica salvato."
+        },
+        "target": {
+          "name": "Destinazione",
+          "description": "Servizi di notifica a cui inviare, sostituendo il profilo (es. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Elenca attività",
       "description": "Restituisce tutte le attività come risposta."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Nessun profilo di notifica chiamato {profile}."
     }
   }
 }

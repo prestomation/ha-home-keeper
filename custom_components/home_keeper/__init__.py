@@ -19,11 +19,21 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
-from . import card, companions, devices, inventory, options, panel, websocket_api
+from . import (
+    card,
+    companions,
+    devices,
+    inventory,
+    notifier,
+    options,
+    panel,
+    websocket_api,
+)
 from .assets import AssetValidationError
 from .const import (
     DOMAIN,
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_NOTIFY_PROFILES,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
@@ -226,6 +236,23 @@ ADJUST_PART_STOCK_SCHEMA = vol.Schema(
 )
 EXPORT_INVENTORY_SCHEMA = vol.Schema({})
 
+# Send an actionable notification on demand for what's due now (the pull / "walk"
+# entry point). Either name a saved profile or pass inline overrides (target, filters,
+# action set, style). All optional so an automation can fire a bare profile name.
+NOTIFY_SCHEMA = vol.Schema(
+    {
+        vol.Optional("profile"): cv.string,
+        vol.Optional("target"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("areas"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("devices"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("status"): cv.string,
+        vol.Optional("actions"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("snooze_hours"): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Optional("style"): cv.string,
+    }
+)
+
 # Integration-wide options, also editable from the panel's Settings tab and the
 # options flow. Every field is optional so an automation can flip just one (e.g.
 # turn syncing off) without restating the exclusion lists. See options.py.
@@ -250,6 +277,9 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         # Catalog glue domains the user dismissed from the Companions "Suggested"
         # list. A list of domain strings.
         vol.Optional(OPTION_DISMISSED_COMPANIONS): vol.All(cv.ensure_list, [cv.string]),
+        # Actionable-notification profiles (the panel saves the whole list). Each is a
+        # dict; normalization/validation happens in notifications.normalize_profiles.
+        vol.Optional(OPTION_NOTIFY_PROFILES): list,
     }
 )
 
@@ -303,6 +333,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await sensor_watcher.async_baseline()
     coordinator.sensor_watcher = sensor_watcher
     sensor_watcher.async_start_listeners()
+    # Listen for actionable-notification taps (mobile_app_notification_action) so a
+    # Mark done / Snooze / Skip button routes back into the store and advances a walk.
+    entry.async_on_unload(notifier.async_setup_notifications(hass, entry, coordinator))
     # Setup is complete: the refreshes above have baselined current overdue/due-soon
     # state silently, so start firing those events only for transitions from here on.
     coordinator.enable_transition_events()
@@ -530,6 +563,17 @@ def _register_services(hass: HomeAssistant) -> None:
             ) from err
         await coord.async_request_refresh()
 
+    async def handle_notify(call: ServiceCall) -> dict[str, Any]:
+        coord = _coordinator()
+        response, error = await notifier.async_run_notify(hass, coord, dict(call.data))
+        if error is not None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key=error["key"],
+                translation_placeholders=error["placeholders"],
+            )
+        return response
+
     async def handle_list_tasks(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
         return {"tasks": coord.store.list_tasks()}
@@ -632,6 +676,13 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN,
+        "notify",
+        handle_notify,
+        NOTIFY_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
         "list_tasks",
         handle_list_tasks,
         schema=vol.Schema({}),
@@ -728,6 +779,7 @@ _SERVICES = (
     "trigger_task",
     "snooze_task",
     "skip_task",
+    "notify",
     "list_tasks",
     "add_asset",
     "update_asset",

@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "通知到期事项",
+      "description": "为当前到期的事项发送可操作的推送通知，使用已保存的配置文件或内联覆盖（目标、过滤器、状态和样式均可接受）。",
+      "fields": {
+        "profile": {
+          "name": "配置文件",
+          "description": "要发送的已保存通知配置文件的名称或 id。"
+        },
+        "target": {
+          "name": "目标",
+          "description": "要发送到的通知服务，覆盖配置文件（例如 mobile_app_phone）。"
+        }
+      }
+    },
     "list_tasks": {
       "name": "列出任务",
       "description": "以响应形式返回所有任务。"
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "没有名为 {profile} 的通知配置文件。"
     }
   }
 }

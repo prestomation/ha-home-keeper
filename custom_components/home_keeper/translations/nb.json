@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Varsle om forfalte oppgaver",
+      "description": "Send et handlingsrettet push-varsel om det som er forfalt nå, ut fra en lagret profil eller direkte overstyringer (mål, filtre, status og stil godtas).",
+      "fields": {
+        "profile": {
+          "name": "Profil",
+          "description": "Navn eller id på en lagret varslingsprofil."
+        },
+        "target": {
+          "name": "Mål",
+          "description": "Varslingstjenester å sende til, som overstyrer profilen (f.eks. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vis oppgaver",
       "description": "Returner alle oppgaver som et svar."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Ingen varslingsprofil med navnet {profile}."
     }
   }
 }

@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Ilmoita erääntyvistä",
+      "description": "Lähetä toiminnallinen push-ilmoitus nyt erääntyvistä tehtävistä tallennetun profiilin tai suorien korvausten avulla (kohde, suodattimet, tila ja tyyli hyväksytään).",
+      "fields": {
+        "profile": {
+          "name": "Profiili",
+          "description": "Tallennetun ilmoitusprofiilin nimi tai tunnus."
+        },
+        "target": {
+          "name": "Kohde",
+          "description": "Ilmoituspalvelut, joihin lähetetään, ohittaen profiilin (esim. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Luettele tehtävät",
       "description": "Palauta kaikki tehtävät vastauksena."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Ei ilmoitusprofiilia nimeltä {profile}."
     }
   }
 }

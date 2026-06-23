@@ -214,6 +214,20 @@
         }
       }
     },
+    "notify": {
+      "name": "Über Fälliges benachrichtigen",
+      "description": "Sende eine umsetzbare Push-Benachrichtigung für aktuell Fälliges, basierend auf einem gespeicherten Profil oder direkten Vorgaben (Ziel, Filter, Status und Stil werden alle akzeptiert).",
+      "fields": {
+        "profile": {
+          "name": "Profil",
+          "description": "Name oder ID eines gespeicherten Benachrichtigungsprofils."
+        },
+        "target": {
+          "name": "Ziel",
+          "description": "Benachrichtigungsdienste, an die gesendet wird, überschreibt das Profil (z. B. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Aufgaben auflisten",
       "description": "Gibt alle Aufgaben als Antwort zurück."
@@ -448,6 +462,9 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Kein Benachrichtigungsprofil mit dem Namen {profile}."
     }
   }
 }
