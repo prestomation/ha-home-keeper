@@ -170,12 +170,21 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
   people.
 - **Categories & areas.** First-class area assignment and category tags;
   area-scoped views in the panel and on area pages.
-- **Estimated effort / cost / parts.** Track filter model numbers, where to buy,
-  cost history — turns "replace fridge filter" into a useful record.
-- **Cost/usage-based recurrence.** Trigger maintenance off sensor data (e.g. run
-  hours, cycles) instead of (or in addition to) calendar time.
-- **Completion metadata.** Optional note/photo/cost on completion; surface history
-  on the device page and in the panel.
+- ~~**Estimated effort / cost / parts.** Track filter model numbers, where to buy,
+  cost history — turns "replace fridge filter" into a useful record.~~ **Shipped:**
+  wear parts carry part numbers, vendor, and reorder links; completion metadata
+  carries `cost`; the panel history shows cost per completion.
+- ~~**Cost/usage-based recurrence.** Trigger maintenance off sensor data (e.g. run
+  hours, cycles) instead of (or in addition to) calendar time.~~ **Shipped** as
+  sensor tasks (`REC_SENSOR`): usage/meter mode (arms when `current − baseline ≥
+  target`, resets baseline on completion, handles meter rollover) and threshold
+  mode (arms on a `false → true` crossing of a numeric comparison with optional
+  hold-time for debouncing). See `sensor_tasks.py`, `sensor_watcher.py`.
+- ~~**Completion metadata.** Optional note/photo/cost on completion; surface history
+  on the device page and in the panel.~~ **Shipped:** `complete_task` and the new
+  `update_completion` service accept `note`, `cost`, `photo`, and `who` (person
+  entity id); metadata is stored per-completion, surfaced as entity attributes, and
+  editable in the panel history view. See `docs/PER_COMPLETION_METADATA_PLAN.md`.
 - **Import/export & backup** of tasks (JSON), and migration tooling between
   versions.
 
@@ -194,9 +203,12 @@ ship rather than adding a parallel system.
   pure `inventory.py` (`build_inventory` + `inventory_to_csv`), a
   `home_keeper/export_inventory` websocket command, and an **Export inventory** button
   on the Appliances tab. Still open: JSON/PDF formats, photos, and depreciation.
-- **Repair / service log (distinct from routine maintenance).** A place to record
+- ~~**Repair / service log (distinct from routine maintenance).** A place to record
   one-off events ("HVAC capacitor replaced, $180, ABC Heating, 2026-03") separate from
-  recurring tasks, feeding **repair-vs-replace analytics** (lifetime cost per appliance).
+  recurring tasks, feeding **repair-vs-replace analytics** (lifetime cost per appliance).~~
+  **Shipped** as one-off tasks (`REC_ONE_OFF`): a due date, full completion metadata
+  (note/cost/photo/who), goes dormant after completion, history is archived to the
+  appliance on deletion. Repair-vs-replace analytics (lifetime cost rollup) remain open.
 - **Warranty-claim assist.** A human-facing view that answers "is it under warranty?"
   with provider, terms, manual link, and remaining days — on top of the existing
   warranty-expiry sensor.
