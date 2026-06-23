@@ -2,6 +2,7 @@ import * as api from './api';
 import {
   filterTasks,
   groupTasks,
+  profileMatches,
   sortTasks,
   type CardFilter,
   type CardGroupBy,
@@ -24,7 +25,7 @@ import {
   type HaFormElement,
 } from './forms';
 import { setLanguage, t, tn } from './i18n';
-import type { Hass, HassLabel, Task } from './types';
+import type { Hass, HassLabel, Profile, Task } from './types';
 import {
   areaName,
   deviceName,
@@ -71,6 +72,8 @@ const S: Record<string, string> = {
   loadError: "Couldn't load tasks. Is the Home Keeper integration set up?",
   // editor field labels (keyed by config field name for computeLabel)
   title: 'Title',
+  profile: 'Filter by profile (saved filter)',
+  profileNone: 'None',
   filter: 'Filter',
   sort: 'Sort by',
   group_by: 'Group by',
@@ -212,6 +215,7 @@ export class HomeKeeperCard extends HTMLElement {
   private _hass?: Hass;
   private _config: HomeKeeperCardConfig = { type: '' };
   private _tasks: Task[] = [];
+  private _profiles: Profile[] = [];
   // HA label registry (id -> entry), fetched once so label chips can show real
   // names rather than raw ids. Empty until loaded; lookups fall back to the id.
   private _labels: Record<string, HassLabel> = {};
@@ -374,6 +378,10 @@ export class HomeKeeperCard extends HTMLElement {
     this._refreshing = true;
     try {
       this._tasks = await api.getTasks(this._hass);
+      // Profiles are only needed when the card filters by one; fetch best-effort.
+      if (this._config.profile) {
+        this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
+      }
       this._error = false;
       this._signal = this._stateSignal(this._hass);
     } catch (err) {
@@ -395,7 +403,15 @@ export class HomeKeeperCard extends HTMLElement {
   private _shaped(now = Date.now()): Task[] {
     const devices = this._hass?.devices;
     const areas = this._hass?.areas;
-    const filtered = filterTasks(this._tasks, this._config, devices, now, areas);
+    // A configured profile defines the task set; otherwise use the card's own filters.
+    const profile = this._config.profile
+      ? this._profiles.find(
+          (p) => p.id === this._config.profile || p.name === this._config.profile,
+        )
+      : undefined;
+    const filtered = profile
+      ? this._tasks.filter((t) => profileMatches(t, profile.filter, devices, areas, now))
+      : filterTasks(this._tasks, this._config, devices, now, areas);
     return sortTasks(filtered, this._config.sort ?? 'due', areas, devices);
   }
 
@@ -763,6 +779,7 @@ export class HomeKeeperCardEditor extends HTMLElement {
   private _hass?: Hass;
   private _config: HomeKeeperCardConfig = { type: '' };
   private _form?: HaFormElement;
+  private _profiles: Profile[] = [];
 
   setConfig(config: HomeKeeperCardConfig): void {
     this._config = { ...config };
@@ -772,6 +789,13 @@ export class HomeKeeperCardEditor extends HTMLElement {
   set hass(hass: Hass) {
     this._hass = hass;
     if (this._form) this._form.hass = hass;
+    void this._maybeLoadProfiles();
+  }
+
+  private async _maybeLoadProfiles(): Promise<void> {
+    if (!this._hass || this._profiles.length) return;
+    this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
+    if (this._profiles.length && this._form) this._form.schema = this._schema() as unknown[];
   }
 
   connectedCallback(): void {
@@ -782,6 +806,13 @@ export class HomeKeeperCardEditor extends HTMLElement {
   private _schema(): FormField[] {
     return [
       { name: 'title', selector: selText() },
+      {
+        name: 'profile',
+        selector: selSelect([
+          { value: '', label: S.profileNone },
+          ...this._profiles.map((p) => ({ value: p.id, label: p.name })),
+        ]),
+      },
       {
         name: '',
         type: 'grid',

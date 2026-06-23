@@ -3,6 +3,7 @@ import { setLanguage } from '../src/i18n.ts';
 import {
   filterTasks,
   groupTasks,
+  profileMatches,
   sortTasks,
   statusBucket,
 } from '../src/card-filter.ts';
@@ -206,5 +207,35 @@ describe('groupTasks', () => {
     const groups = groupTasks([k, undated], 'area', areas, {}, NOW);
     expect(groups[0].label).toBe('Kitchen');
     expect(groups[groups.length - 1].key).toBe('area:none');
+  });
+});
+
+describe('profileMatches (saved-filter predicate)', () => {
+  const F = (over = {}) => ({ status: 'overdue', labels: [], areas: [], devices: [], ...over });
+
+  it('honors status: overdue / due_soon / all', () => {
+    expect(profileMatches(overdue, F({ status: 'overdue' }), {}, {}, NOW)).toBe(true);
+    expect(profileMatches(soon, F({ status: 'overdue' }), {}, {}, NOW)).toBe(false);
+    expect(profileMatches(soon, F({ status: 'due_soon' }), {}, {}, NOW)).toBe(true);
+    expect(profileMatches(overdue, F({ status: 'due_soon' }), {}, {}, NOW)).toBe(true);
+    expect(profileMatches(later, F({ status: 'due_soon' }), {}, {}, NOW)).toBe(false);
+    expect(profileMatches(later, F({ status: 'all' }), {}, {}, NOW)).toBe(true);
+  });
+
+  it('excludes disabled, dormant, and problem-sensor tasks', () => {
+    expect(profileMatches(task({ next_due: new Date(NOW - DAY).toISOString(), enabled: false }), F({ status: 'all' }), {}, {}, NOW)).toBe(false);
+    expect(profileMatches(task({ next_due: null }), F({ status: 'all' }), {}, {}, NOW)).toBe(false);
+    expect(profileMatches(task({ next_due: new Date(NOW - DAY).toISOString(), source: { problem_sensor: { entity_id: 'x' } } }), F({ status: 'all' }), {}, {}, NOW)).toBe(false);
+  });
+
+  it('matches own labels and inherited (device/area) labels', () => {
+    const own = task({ next_due: new Date(NOW - DAY).toISOString(), labels: ['dog'] });
+    expect(profileMatches(own, F({ status: 'all', labels: ['dog'] }), {}, {}, NOW)).toBe(true);
+    expect(profileMatches(own, F({ status: 'all', labels: ['cat'] }), {}, {}, NOW)).toBe(false);
+    // Inherited from the task's device label.
+    const viaDevice = task({ next_due: new Date(NOW - DAY).toISOString(), device_id: 'd1' });
+    const devices = { d1: { area_id: 'kitchen', labels: ['dog'] } };
+    expect(profileMatches(viaDevice, F({ status: 'all', labels: ['dog'] }), devices, {}, NOW)).toBe(true);
+    expect(profileMatches(viaDevice, F({ status: 'all', areas: ['kitchen'] }), devices, {}, NOW)).toBe(true);
   });
 });

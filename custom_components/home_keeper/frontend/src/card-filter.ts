@@ -28,6 +28,10 @@ export interface HomeKeeperCardConfig {
   areas?: string[];
   /** Restrict to tasks attached to these devices. */
   devices?: string[];
+  /** Show only tasks matching this saved **profile** (id or name). When set, the
+   *  profile's filter (status + labels/areas/devices) decides which tasks show; the
+   *  card's own labels/areas/devices/filter fields are ignored. See profileMatches. */
+  profile?: string;
   /** Restrict to tasks carrying these HA labels — on the task itself, its device,
    *  or its effective area. The backbone of per-subject cards (one per dog/car/kid). */
   labels?: string[];
@@ -113,6 +117,51 @@ export function taskLabelIds(
   const area = areaId ? areas?.[areaId] : undefined;
   for (const id of area?.labels ?? []) ids.add(id);
   return ids;
+}
+
+/** A saved profile's filter (mirrors the backend `profiles.py` shape). */
+export interface ProfileFilter {
+  status: 'all' | 'overdue' | 'due_soon';
+  labels: string[];
+  areas: string[];
+  devices: string[];
+}
+
+/**
+ * Whether *task* matches a saved profile's *filter*. Mirrors the backend
+ * `profiles.matches_filter` so a profile means the same on the card as in
+ * notifications — with one documented nuance: labels/areas here resolve a task's
+ * **effective** (inherited via device/area) ids, like the card's other filters,
+ * whereas the backend matches the task's own fields only.
+ */
+export function profileMatches(
+  task: Task,
+  filter: ProfileFilter,
+  devices?: Record<string, HassDevice>,
+  areas?: Record<string, HassArea>,
+  now = Date.now(),
+): boolean {
+  if (task.enabled === false) return false;
+  if (!task.next_due) return false;
+  const src = task.source as Record<string, unknown> | null | undefined;
+  if (src && typeof src === 'object' && 'problem_sensor' in src) return false;
+  const bucket = statusBucket(task, now);
+  const status = filter.status || 'overdue';
+  if (status === 'overdue' && bucket !== 'overdue') return false;
+  if (status === 'due_soon' && !['overdue', 'today', 'soon'].includes(bucket)) {
+    return false;
+  }
+  const labels = filter.labels ?? [];
+  if (labels.length) {
+    const tl = taskLabelIds(task, devices, areas);
+    if (!labels.some((id) => tl.has(id))) return false;
+  }
+  const wantAreas = filter.areas ?? [];
+  if (wantAreas.length && !wantAreas.includes(taskAreaId(task, devices) ?? '')) {
+    return false;
+  }
+  const wantDevices = filter.devices ?? [];
+  return !(wantDevices.length && !wantDevices.includes(task.device_id ?? ''));
 }
 
 function matchesLabels(
