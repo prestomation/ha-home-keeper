@@ -123,6 +123,59 @@ def test_task_lifecycle_events(ha, ha_token):
     assert events["home_keeper_task_deleted"][0]["task_id"] == created_id["id"]
 
 
+def test_snooze_and_skip_events(ha, ha_token):
+    """snooze_task / skip_task fire their events and defer without completing."""
+    created_id = {}
+
+    def setup_task():
+        resp = call_service(
+            ha,
+            "home_keeper",
+            "add_task",
+            {
+                "name": "Snooze/skip test task",
+                "recurrence_type": "floating",
+                "interval": 7,
+                "unit": "days",
+            },
+            return_response=True,
+        )
+        body = resp.get("service_response", resp)
+        created_id["id"] = body["task_id"]
+
+    setup_task()
+
+    def snooze():
+        call_service(
+            ha,
+            "home_keeper",
+            "snooze_task",
+            {"task_id": created_id["id"], "hours": 6},
+        )
+
+    snoozed = _by_type(_run(ha_token, ["home_keeper_task_snoozed"], snooze, expected=1))
+    assert "home_keeper_task_snoozed" in snoozed
+    payload = snoozed["home_keeper_task_snoozed"][0]
+    assert payload["task_id"] == created_id["id"]
+    # Snooze defers next_due to the snoozed_until instant (a fresh future date).
+    assert payload["snoozed_until"] == payload["next_due"]
+
+    def skip():
+        call_service(ha, "home_keeper", "skip_task", {"task_id": created_id["id"]})
+
+    skipped = _by_type(_run(ha_token, ["home_keeper_task_skipped"], skip, expected=1))
+    assert "home_keeper_task_skipped" in skipped
+    assert skipped["home_keeper_task_skipped"][0]["task_id"] == created_id["id"]
+
+    # Neither snooze nor skip recorded a completion — the task's history is empty.
+    tasks = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    body = tasks.get("service_response", tasks)
+    task = next(t for t in body["tasks"] if t["id"] == created_id["id"])
+    assert not task.get("completions")
+
+    call_service(ha, "home_keeper", "delete_task", {"task_id": created_id["id"]})
+
+
 def test_stock_transition_events(ha, ha_token):
     """A part driven low -> out -> restocked fires one event per crossing."""
     ids = {}

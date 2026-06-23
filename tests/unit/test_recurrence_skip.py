@@ -83,3 +83,16 @@ def test_skip_triggered_goes_dormant():
     }
     out = r.skip_occurrence(dict(task), now=dt(2026, 6, 13))
     assert out["next_due"] is None
+
+
+def test_skip_sensor_goes_dormant():
+    task = {"recurrence_type": "sensor", "next_due": "2026-06-10T08:00:00-04:00"}
+    out = r.skip_occurrence(dict(task), now=dt(2026, 6, 13))
+    assert out["next_due"] is None
+
+
+def test_skip_unknown_recurrence_type_raises():
+    import pytest
+
+    with pytest.raises(ValueError, match="unknown recurrence_type"):
+        r.skip_occurrence({"recurrence_type": "bogus"}, now=dt(2026, 6, 13))
