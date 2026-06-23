@@ -255,6 +255,30 @@ export interface PanelInfo {
   config?: Record<string, unknown>;
 }
 
+export type NotifyStatus = 'all' | 'overdue' | 'due_soon';
+export type NotifyAction = 'complete' | 'snooze' | 'skip' | 'open';
+export type NotifyStyle = 'walk' | 'digest';
+
+/** Which tasks a notification profile surfaces. */
+export interface NotifyFilter {
+  labels: string[];
+  areas: string[];
+  devices: string[];
+  status: NotifyStatus;
+}
+
+/** A named, filtered actionable-notification config (see backend notifications.py). */
+export interface NotificationProfile {
+  id: string;
+  name: string;
+  targets: string[];
+  filter: NotifyFilter;
+  actions: NotifyAction[];
+  snooze_hours: number;
+  style: NotifyStyle;
+  auto: { overdue: boolean; due_soon: boolean };
+}
+
 /** Integration-wide options, edited from the panel's Settings tab (and mirrored by
  *  the options flow + the `home_keeper.set_options` service). */
 export interface HomeKeeperOptions {
@@ -267,6 +291,8 @@ export interface HomeKeeperOptions {
   one_off_retention_days: number;
   // Catalog glue domains dismissed from the Companions "Suggested" list.
   dismissed_companions?: string[];
+  // Actionable-notification profiles.
+  notify_profiles: NotificationProfile[];
 }
 
 /**

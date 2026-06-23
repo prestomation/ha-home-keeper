@@ -25,7 +25,7 @@ const COGNATE_IDENTICAL = {
   da: ['chip.orphaned', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
   de: ['chip.orphaned', 'detail.about', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
   es: ['field.sensor_entity_id', 'settings.general_heading'],
-  fr: ['completion.photo', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'opt.meta.date'],
+  fr: ['completion.photo', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.heading', 'notify.style', 'opt.meta.date'],
   it: ['field.area_id', 'group.area', 'opt.meta.link'],
   nb: ['field.kind', 'field.sensor_entity_id', 'field.type', 'group.status'],
   nl: ['detail.about', 'field.kind', 'field.label', 'field.model', 'field.sensor_entity_id', 'field.type', 'group.status', 'opt.meta.link', 'recurrence.unit.week.one', 'section.later'],

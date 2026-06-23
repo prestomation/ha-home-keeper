@@ -6,6 +6,9 @@ import {
   selBool,
   selDate,
   generalSchema,
+  notificationProfileSchema,
+  notifyFormData,
+  notifyFormToProfile,
   problemSyncSchema,
   selDevice,
   selIcon,
@@ -29,6 +32,7 @@ import type {
   ManagedBy,
   MetadataEntry,
   MetadataType,
+  NotificationProfile,
   PanelInfo,
   Part,
   Task,
@@ -202,6 +206,14 @@ const STYLES = `
     color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4; margin-top: 2px;
   }
   .hk-companion-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; flex-wrap: wrap; }
+  /* Notifications section (Settings tab): one editor per profile. */
+  .hk-notify-profile {
+    border: 1px solid var(--divider-color); border-radius: 8px; padding: 12px;
+    margin-top: 12px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .hk-notify-profile ha-form { display: block; }
+  .hk-notify-delete { align-self: flex-end; --mdc-theme-primary: var(--error-color, #db4437); }
+  .hk-notify-add { margin-top: 12px; }
   ha-assist-chip.hk-comp-connected {
     --ha-assist-chip-container-color: var(--success-color, #43a047);
     --ha-assist-chip-filled-container-color: var(--success-color, #43a047);
@@ -456,6 +468,8 @@ export class HomeKeeperPanel extends HTMLElement {
   private _view: 'tasks' | 'appliances' | 'settings' = 'tasks';
   // Integration options for the Settings tab (loaded lazily with the rest).
   private _options: HomeKeeperOptions | null = null;
+  // Available mobile_app_* notify services (for the Notifications profile editor).
+  private _notifyTargets: string[] = [];
   // Companion integrations shown on the Settings tab (loaded with the rest).
   private _companions: Companion[] = [];
   // List controls (persisted in localStorage).
@@ -615,7 +629,8 @@ export class HomeKeeperPanel extends HTMLElement {
       this._assets = assets;
       this._entryDomains = entryDomains;
       this._loadedEntryIds = loadedEntryIds;
-      this._options = options;
+      this._options = options?.options ?? null;
+      this._notifyTargets = options?.notifyTargets ?? [];
       this._companions = companions ?? [];
       this._loaded = true;
     } catch (err) {
@@ -936,7 +951,7 @@ export class HomeKeeperPanel extends HTMLElement {
         </div>
         ${this._detailView()}`;
     } else if (this._view === 'settings') {
-      inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-companions-host"></div>`;
+      inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-notifications-host"></div><div id="hk-companions-host"></div>`;
     } else {
       const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
       inner = `
@@ -1982,6 +1997,8 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     const settingsHost = root.getElementById('hk-settings-host');
     if (settingsHost) this._renderSettingsForm(settingsHost);
+    const notificationsHost = root.getElementById('hk-notifications-host');
+    if (notificationsHost) this._renderNotifications(notificationsHost);
     const companionsHost = root.getElementById('hk-companions-host');
     if (companionsHost) this._renderCompanions(companionsHost);
 
@@ -2083,6 +2100,7 @@ export class HomeKeeperPanel extends HTMLElement {
       problem_sensor_exclude_areas: [],
       problem_sensor_exclude_labels: [],
       one_off_retention_days: 0,
+      notify_profiles: [],
     };
     // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor).
     host.appendChild(
@@ -2145,6 +2163,108 @@ export class HomeKeeperPanel extends HTMLElement {
       // still editing) so the change is reflected the moment they return to the
       // Tasks tab, rather than lingering until the next refresh.
       await this._reload();
+      this._toast(t('settings.saved'));
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
+    }
+  }
+
+  /** Render the Settings → Notifications card: a list of actionable-notification
+   *  profiles (each an autosaving `ha-form`), plus Add/Delete. Profiles push what's
+   *  due to a phone — see the backend `notifications.py` / `notifier.py`. */
+  private _renderNotifications(host: HTMLElement): void {
+    const profiles = this._options?.notify_profiles ?? [];
+    const card = document.createElement('ha-card');
+    card.className = 'hk-form-card';
+    card.id = 'hk-notifications';
+    const inner = document.createElement('div');
+    inner.className = 'hk-form-inner';
+    inner.innerHTML = `
+      <div class="hk-form-title">${escapeHTML(t('notify.heading'))}</div>
+      <div class="hk-settings-intro">${escapeHTML(t('notify.help'))}</div>`;
+    if (!this._notifyTargets.length) {
+      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.no_targets'))}</ha-alert>`;
+    }
+    if (!profiles.length) {
+      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.empty'))}</ha-alert>`;
+    }
+    for (const profile of profiles) inner.appendChild(this._notifyProfileEditor(profile));
+    const add = document.createElement('ha-button');
+    add.id = 'hk-notify-add';
+    add.className = 'hk-notify-add';
+    add.textContent = t('notify.add');
+    add.addEventListener('click', () => void this._addNotifyProfile());
+    inner.appendChild(add);
+    card.appendChild(inner);
+    host.appendChild(card);
+  }
+
+  /** One profile's editor: an autosaving `ha-form` over the flat profile schema,
+   *  with a Delete button. Field edits save without re-rendering (so the form the
+   *  user is editing isn't torn down); Add/Delete re-render to add/remove the row. */
+  private _notifyProfileEditor(profile: NotificationProfile): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'hk-notify-profile';
+    const form = document.createElement('ha-form') as HaFormElement;
+    form.hass = this._hass;
+    form.schema = notificationProfileSchema(this._notifyTargets);
+    form.data = notifyFormData(profile);
+    form.computeLabel = (s: { name: string }): string => {
+      if (s.name === 'name') return t('field.name');
+      if (s.name === 'labels') return t('field.labels');
+      return t('notify.' + s.name);
+    };
+    form.addEventListener('value-changed', (e: Event) => {
+      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      const next = (this._options?.notify_profiles ?? []).map((p) =>
+        p.id === profile.id ? notifyFormToProfile(profile.id, value) : p,
+      );
+      void this._persistProfiles(next, false);
+    });
+    this._liveHassEls.push(form);
+    wrap.appendChild(form);
+    const del = document.createElement('ha-button');
+    del.className = 'hk-notify-delete';
+    del.textContent = t('notify.delete');
+    del.addEventListener('click', () => void this._deleteNotifyProfile(profile.id));
+    wrap.appendChild(del);
+    return wrap;
+  }
+
+  private _addNotifyProfile(): Promise<void> {
+    const blank: NotificationProfile = {
+      id: '',
+      name: t('notify.new_name'),
+      targets: this._notifyTargets.length ? [this._notifyTargets[0]] : [],
+      filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+      actions: ['complete', 'snooze', 'open'],
+      snooze_hours: 24,
+      style: 'walk',
+      auto: { overdue: false, due_soon: false },
+    };
+    return this._persistProfiles([...(this._options?.notify_profiles ?? []), blank], true);
+  }
+
+  private _deleteNotifyProfile(id: string): Promise<void> {
+    const next = (this._options?.notify_profiles ?? []).filter((p) => p.id !== id);
+    return this._persistProfiles(next, true);
+  }
+
+  /** Persist the whole profile list (the backend normalizes it — assigning ids to
+   *  new profiles). *render* re-renders for structural changes (Add/Delete) but not
+   *  for an in-place field edit. */
+  private async _persistProfiles(
+    profiles: NotificationProfile[],
+    render: boolean,
+  ): Promise<void> {
+    if (!this._hass) return;
+    this._options = { ...(this._options as HomeKeeperOptions), notify_profiles: profiles };
+    try {
+      const merged = await api.setOptions(this._hass, {
+        notify_profiles: profiles,
+      } as Partial<HomeKeeperOptions>);
+      this._options = merged;
+      if (render) this._render();
       this._toast(t('settings.saved'));
     } catch (err) {
       this._toast(String((err as { message?: string })?.message || err));
