@@ -1,8 +1,7 @@
-# Actionable Notifications (mobile push with Mark-done / Snooze / Skip)
+# Actionable Notifications (per-person chore queues via mobile push)
 
-**Status: proposed.** This plan adds a **built-in notification sender** so Home
-Keeper can push a mobile-app **actionable notification** when a task becomes
-overdue (and, optionally, due-soon) — with tappable action buttons (**Mark done**,
+**Status: proposed.** This plan adds **built-in actionable notifications** so Home
+Keeper can push a mobile-app notification — with tappable buttons (**Mark done**,
 **Snooze**, **Skip occurrence**, **Open in Home Keeper**) that route straight back
 into the integration. Because the callback lands inside Home Keeper, the action
 **recalculates the schedule correctly** — completing advances recurrence, snoozing
@@ -11,10 +10,21 @@ re-arms a fresh reminder — which is precisely the gap the popular
 can't close (it knows nothing about intervals). See `IDEAS.md` →
 "Actionable (snoozable) notifications".
 
-The feature is **opt-in and configured two ways that share one options object**:
-the Home Assistant **options flow** and a new **Settings → Notifications** card in
-the panel (the same dual-surface pattern the problem-sensor sync already uses — see
-`options.py`). The **button set is user-configurable**.
+The design centres on two things:
+
+1. **Notification profiles** — named, filtered configs ("Me", "Wife"), each with its
+   own targets, **label/area filters**, button set, and snooze duration. Multiple
+   household members each get *their own* chore list.
+2. **A pull-based "walk"** — an automation calls a Home Keeper **service** (e.g. from
+   a "Chores" calendar event) to ask *"what's due for this profile right now?"* HK
+   sends the **first** matching task; when the user actions it, the **next** one
+   arrives — a guided sweep through the queue, one notification at a time.
+
+The automatic "send the moment a task goes overdue" sender is just **one trigger
+source** feeding the same profiles. The whole feature is **opt-in** (no profiles =
+nothing happens) and configured two ways that share one stored object: the Home
+Assistant **options flow** and a new **Settings → Notifications** card in the panel
+(the dual-surface pattern problem-sensor sync already uses — see `options.py`).
 
 ---
 
@@ -22,261 +32,280 @@ the panel (the same dual-surface pattern the problem-sensor sync already uses �
 
 - **Edge-triggered overdue / due-soon transitions.** `transitions.detect_transitions`
   (driven from `coordinator._async_update_data`) already fires
-  `home_keeper_task_overdue` / `home_keeper_task_due_soon` **once per `next_due`
-  value**, silently baselined on startup so a restart never replays a storm
-  (`docs/EVENTS.md` → "Time-based transitions"). The notification sender hooks the
-  **same chokepoint**: when a transition fires and notifications are enabled for that
-  kind, build and send the push. No new scheduling machinery.
-- **Completion chokepoint.** `store.complete_task()` is the single mutation that
-  advances recurrence, stamps history, resets sensor baselines, consumes spare
-  stock, and fires `home_keeper_task_completed` with an `origin` echo
-  (`custom_components/home_keeper/store.py`). The **Mark done** action just calls it
-  with `origin="home_keeper_notification_action"` (loop-safe, like the
-  problem-sensor sync's `ORIGIN_PROBLEM_SENSOR_SYNC`).
+  `home_keeper_task_overdue` / `_due_soon` **once per `next_due` value**, baselined
+  silently on startup (`docs/EVENTS.md`). The *automatic* trigger source hooks this
+  chokepoint; the *on-demand* service is independent of it.
+- **Completion chokepoint + origin echo.** `store.complete_task()` is the single
+  mutation that advances recurrence, stamps history, resets sensor baselines, consumes
+  stock, and fires `home_keeper_task_completed` with an `origin` echo. The **Mark
+  done** action calls it with `origin="home_keeper_notification_action"` — loop-safe,
+  like the problem-sensor sync's `ORIGIN_PROBLEM_SENSOR_SYNC`.
+- **Task filtering by label/area/device already exists in the panel.** The dashboard
+  card and list view filter tasks by HA label (the task spine carries `labels`), area,
+  and device. Profile filters reuse the **same predicate** — factor it into a pure
+  `tasks.matches_filter(task, filt)` so the panel, the card, and the notifier share
+  one definition of "this task belongs to this list".
 - **Shared options object + dual edit surfaces.** `options.py`
-  (`current_options` / `async_set_options`) is the single source of truth edited by
-  the **options flow** (`config_flow.HomeKeeperOptionsFlow`), the
-  **`home_keeper.set_options` service**, and the **panel** (over the
-  `home_keeper/get_options` + `home_keeper/set_options` websocket commands, rendered
-  as autosaving `ha-form` cards in `panel.ts` `_renderSettingsForm`). New
-  notification settings slot straight in — add keys/defaults/normalization in
-  `options.py`, a schema branch in `config_flow.py`, and a card in `panel.ts`.
-- **Service-first + event-for-every-state-change conventions.** Per `AGENTS.md` /
-  `.amazonq/rules/`, the new mutations (**snooze**, **skip**) ship as
-  `home_keeper.*` services (with `services.yaml` + `strings.json` parity) that the
-  notification-action handler *delegates to*, each firing a
-  `home_keeper_<noun>_<verb>` event documented in `docs/EVENTS.md` and surfaced in
-  `device_trigger.py`.
-- **Pure / HA-aware split.** Like `events.py` (pure payload builders) and
-  `recurrence.py` (pure engine taking explicit `now`), the notification **payload
-  builder** and the **action decoder** are pure and unit-testable; only the
-  sender/listener touch HA.
+  (`current_options` / `async_set_options`) is edited by the options flow, the
+  `set_options` service, and the panel (over `home_keeper/get_options` +
+  `home_keeper/set_options`, rendered as autosaving `ha-form` cards in `panel.ts`
+  `_renderSettingsForm`). The **profile list** lives here.
+- **List-shaped CRUD + service-first conventions.** Tasks/assets already model
+  list-shaped user data with CRUD services + websocket commands and a
+  `home_keeper_<noun>_<verb>` event per change. Profiles and the new **snooze/skip**
+  mutations follow the same mould.
+- **Pure / HA-aware split.** Payload **builder**, **action decoder**, **filter
+  predicate**, and **queue/next-due selection** are pure and unit-testable (like
+  `events.py` / `recurrence.py`); only the sender/listener touch HA.
 
 ---
 
 ## 2. Product shape
 
-### 2a. What the user gets
+### 2a. Use cases
 
-When a task crosses overdue (and/or enters the due-soon window), every configured
-mobile target receives a push like:
+- **"What's due when I want to know."** A calendar event *Chores* (or a time
+  trigger, or an NFC tag, or a dashboard button) → automation → `home_keeper.notify`
+  targeting my profile → my phone buzzes with the first due chore. I tap **Done**, the
+  next one appears. I sweep my list in a couple of taps, and the schedule advances
+  correctly behind each tap.
+- **Per-person lists.** Two profiles, "Me" (label `mine`) and "Wife" (label `hers`),
+  each targeting that person's phone. One shared automation fans out — each person
+  walks only *their* chores. (Pairs naturally with the future **assignees** feature:
+  swap the label filter for an assignee filter later.)
+- **Automatic nudge.** A profile can also fire **automatically** when a matching task
+  goes overdue/due-soon — the original "don't make me ask" behaviour — without an
+  automation.
 
-> **Home Keeper — Replace furnace filter**
-> Overdue by 2 days.
-> [ Mark done ] [ Snooze 1 day ] [ Open ]
+### 2b. Notification profiles
 
-- **Mark done** → completes the task (advances recurrence), clears the notification.
-- **Snooze** → pushes `next_due` forward by the configured amount **without**
-  recording a completion or advancing recurrence; a fresh reminder fires when the
-  snooze expires (the edge state re-arms because `next_due` changed).
-- **Skip occurrence** → advances to the next scheduled occurrence **without**
-  recording a completion (useful for a fixed schedule you're deliberately missing).
-- **Open in Home Keeper** → deep-links to the task's panel detail page
-  (`/home-keeper/...`); a client-side URI action, no backend callback.
+A profile is a dict stored in `options[OPTION_NOTIFY_PROFILES]` (a list). Defaults:
+**no profiles**, so existing installs are unchanged.
 
-### 2b. Configurability (the answer to "configurable button set")
-
-All settings live on the config entry's `options` (defaults keep the feature
-**off**, so existing installs are unchanged):
-
-| Option key (`const.py`) | Type | Default | Meaning |
-|---|---|---|---|
-| `OPTION_NOTIFY_ENABLED` | bool | `False` | Master switch for the built-in sender. |
-| `OPTION_NOTIFY_TARGETS` | `list[str]` | `[]` | `notify.mobile_app_*` service names to push to. |
-| `OPTION_NOTIFY_ON_OVERDUE` | bool | `True` | Send when a task becomes overdue. |
-| `OPTION_NOTIFY_ON_DUE_SOON` | bool | `False` | Send when a task enters the due-soon window. |
-| `OPTION_NOTIFY_ACTIONS` | `list[str]` | `["complete","snooze","open"]` | **Which buttons appear**, ordered. Members: `complete`, `snooze`, `skip`, `open`. |
-| `OPTION_NOTIFY_SNOOZE_HOURS` | int | `24` | Snooze duration for the **Snooze** button. |
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | str | Stable id (survives rename); action strings reference it. |
+| `name` | str | Display name ("Me", "Wife", "Kitchen"). |
+| `targets` | `list[str]` | `notify.mobile_app_*` services to push to. |
+| `filter` | dict | `{labels, areas, devices, status}` — which tasks belong to this list. `status` ∈ `all` / `overdue` / `due_soon` (default `overdue`). Empty filter = everything. |
+| `actions` | `list[str]` | **Ordered button set**: members of `complete` / `snooze` / `skip` / `open`. |
+| `snooze_hours` | int | Snooze duration for this profile's **Snooze** button (default 24). |
+| `style` | str | `walk` (one at a time, advances on action — default) / `digest` (single summary push) / `separate` (one push per task). |
+| `auto` | dict | Automatic triggering: `{overdue: bool, due_soon: bool}` (both default `false` — profile is on-demand unless opted in). |
+| `quiet_hours` | dict\|null | Optional `{start, end}`; suppress *automatic* sends in this window (on-demand always sends). |
 
 Notes:
-- The action list is clamped to the platform's button cap (iOS shows ~3–4; Android
-  more). Document the iOS limit; truncate gracefully.
-- **Targeting:** mobile actionable notifications require the legacy
-  `notify.mobile_app_<device>` service (the `data.actions` payload isn't supported by
-  the newer `notify.send_message` entity API), so we store **service names**. The
-  backend enumerates available targets via
-  `hass.services.async_services().get("notify", {})` filtered to `mobile_app_*` and
-  returns them from `get_options` so the panel can render a checklist; the options
-  flow builds a `SelectSelector` from the same live list.
+- **Targeting** uses the legacy `notify.mobile_app_<device>` service (the newer
+  `notify.send_message` entity API doesn't carry the `data.actions` payload
+  actionable notifications need), so we store **service names**. The backend
+  enumerates available `mobile_app_*` targets via `hass.services.async_services()`
+  and returns them from `get_options` so the panel renders a checklist; the options
+  flow builds its `SelectSelector` from the same live list.
+- **Button cap.** iOS shows ~3–4 actions, Android more — clamp `actions` gracefully
+  and document it.
 
-Per-task overrides (e.g. "never notify for this chore") are **out of scope for v1**
-— see §8.
+### 2c. The "walk" (pull, one-at-a-time) — and why it needs no stored cursor
+
+When `style: walk`, sending computes the profile's **due queue** — tasks matching
+`filter`, sorted **most-overdue-first** (then by `next_due`, then name) — and pushes a
+notification for **just the first**. The action buttons carry the profile id:
+`HOME_KEEPER::{verb}::{task_id}::{profile_id}`.
+
+On any action (`complete` / `snooze` / `skip`), the listener applies the mutation and
+then **re-sends the profile's first remaining due task**. This is **stateless**: all
+three actions remove the task from the *due* set —
+
+- `complete` → recurrence advances, `next_due` moves to the future,
+- `snooze` → `next_due` pushed out,
+- `skip` → advances to the next occurrence,
+
+— so simply "recompute the due queue and send its head" naturally advances the walk.
+No queue snapshot to persist or invalidate; concurrent edits, a task completed
+elsewhere, or a new overdue task all just fall out of the next recomputation. When the
+queue is empty, send a localized **"All caught up 🎉"** closing notification (or clear,
+per a profile flag).
+
+> Trade-off vs. a stored ordered cursor: the stateless walk can re-surface a task the
+> user *snoozed for 1h* if they keep walking within that hour only if the profile's
+> `status` is `all` — under the default `overdue`/`due_soon` status the snoozed task is
+> out of window and won't reappear. Documented; acceptable for v1.
+
+### 2d. The `notify` service
+
+`home_keeper.notify` — the on-demand entry point:
+
+| Field | Notes |
+|---|---|
+| `profile` | Name/id of a saved profile (uses its targets/filter/actions/style). |
+| *inline overrides* | `target`, `labels`, `areas`, `devices`, `status`, `actions`, `snooze_hours`, `style` — for ad-hoc sends without a saved profile, or to override one. |
+| `max` | Cap tasks considered (default unbounded; `walk` always sends 1 at a time regardless). |
+
+`supports_response: optional` → returns `{matched: N, sent: <task_id|null>}` so an
+automation can branch ("nothing due → say so on a speaker"). Calling with a `digest`
+profile sends one summary listing the matched tasks; `separate` sends one push each.
 
 ---
 
 ## 3. Backend changes
 
-### 3a. New store mutations — `snooze_task` and `skip_task`
+### 3a. New store mutations — `snooze_task` / `skip_task`
 
-In `store.py`, mirroring `complete_task`'s shape (validate → mutate dict → `_save`
-→ fire event), and **rejecting synced problem-sensor tasks** via the existing
-`_reject_synced_problem` guard:
+In `store.py`, mirroring `complete_task` (validate → mutate → `_save` → fire event),
+**rejecting synced problem-sensor tasks** via `_reject_synced_problem`:
 
 - **`snooze_task(task_id, *, by=None, until=None, origin=None)`** — sets
-  `next_due = until` or `now + by` (default `OPTION_NOTIFY_SNOOZE_HOURS`), leaving
-  `last_completed`, `completions`, `anchor`, and recurrence config untouched. Fires
-  `EVENT_TASK_SNOOZED` with the task spine plus `snoozed_until`. Because `next_due`
-  changed, the coordinator's edge state re-arms and a new overdue/due-soon fires when
-  the snooze lapses — no separate timer needed.
-- **`skip_task(task_id, *, origin=None)`** — advances to the **next** occurrence
-  without recording a completion. Add a pure `recurrence.skip_occurrence(task, now)`
-  next to `apply_completion`: for `fixed` it walks the schedule forward past `now`;
-  for `floating` it sets `next_due = now + interval·unit`; for `one-off` it goes
-  dormant (`next_due = None`). Fires `EVENT_TASK_SKIPPED`.
+  `next_due = until` or `now + by` (default the profile's `snooze_hours`), leaving
+  `last_completed`, `completions`, `anchor`, recurrence config untouched. Fires
+  `EVENT_TASK_SNOOZED` (spine + `snoozed_until`). The changed `next_due` re-arms the
+  coordinator edge state so a fresh overdue/due-soon fires when the snooze lapses.
+- **`skip_task(task_id, *, origin=None)`** — advances to the **next** occurrence with
+  no completion recorded, via a new pure `recurrence.skip_occurrence(task, now)`:
+  `fixed` walks the schedule forward past `now`; `floating` → `now + interval·unit`;
+  `one-off` → dormant; `triggered`/`sensor` → dormant (clears the arm). Fires
+  `EVENT_TASK_SKIPPED`.
 
-**Risk to verify during implementation:** confirm nothing recomputes/clobbers a
-fixed task's `next_due` on load/normalize (snooze writes a transient override that
-must survive until the next completion). Trace `recurrence.compute_next_due`
-call-sites in `models.normalize_*` / coordinator refresh and add a regression test.
+**Risk to verify:** confirm nothing recomputes/clobbers a fixed task's `next_due` on
+load/normalize/refresh (snooze writes a transient override that must survive until the
+next completion). Trace `recurrence.compute_next_due` call-sites; add a regression test.
 
-New constants in `const.py`:
-`EVENT_TASK_SNOOZED = f"{DOMAIN}_task_snoozed"`,
-`EVENT_TASK_SKIPPED = f"{DOMAIN}_task_skipped"`,
-`ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"`, and the six
-`OPTION_NOTIFY_*` keys.
+### 3b. New services
 
-### 3b. New services — `snooze_task`, `skip_task`
+- **`home_keeper.notify`** (§2d) — resolves a profile (or inline args), computes the
+  due queue via the pure filter+sort, and dispatches to the sender.
+- **`home_keeper.snooze_task` / `skip_task`** — schema + handler in `__init__.py`,
+  registered + added to `_SERVICES`; `services.yaml` + `strings.json` parity. The
+  notification-action listener delegates to these (and to `complete_task`).
+- **Profile CRUD.** v1 can edit the whole `OPTION_NOTIFY_PROFILES` list through the
+  existing `set_options` path (panel saves the list). A thin
+  `home_keeper.set_notification_profile` / `delete_notification_profile` pair
+  (delegating to an `options.py` helper that upserts/removes by `id`) is the
+  service-first nicety; add if cheap, otherwise document `set_options` as the API.
 
-Per the service-first convention: schemas + handlers in `__init__.py`, registered
-and added to `_SERVICES`; `services.yaml` + `strings.json` parity. Websocket
-commands are optional UI sugar and not required for v1 (the panel doesn't yet expose
-snooze/skip buttons — see §4), but if added they **delegate to the same store
-methods**.
+New constants in `const.py`: `EVENT_TASK_SNOOZED`, `EVENT_TASK_SKIPPED`,
+`ORIGIN_NOTIFICATION_ACTION`, `OPTION_NOTIFY_PROFILES`.
 
-### 3c. Notification payload builder — `notifications.py` (pure)
+### 3c. Pure helpers (unit-tested, HA-free)
 
-`build_notification(task, *, kind, actions, snooze_hours, now) -> dict` returns the
-`notify` service `data` payload:
+- `tasks.matches_filter(task, filter)` — the shared label/area/device/status predicate.
+- `notifications.due_queue(tasks, filter, *, now)` — filter + sort (most-overdue-first).
+- `notifications.build_notification(task, *, profile, snooze_hours, now)` — returns the
+  `notify` `data`: localized `title`/`message`; `tag = f"home_keeper_{profile_id}"`
+  (one rolling notification *per profile* so the walk replaces in place, not a pile);
+  `data.actions` from the profile's ordered `actions`, each id
+  `HOME_KEEPER::{verb}::{task_id}::{profile_id}`; the `open` action carries a `uri` to
+  the panel detail page.
+- `notifications.decode_action(action_str)` → `(verb, task_id, profile_id) | None`.
 
-- `title` / `message` from the task name + overdue/due-soon framing (localized).
-- `data.tag = f"home_keeper_{task_id}"` — a **stable tag** so a re-notification
-  replaces the prior one and so we can **clear** it on completion.
-- `data.actions` built from the configured, ordered `actions` list. Each action's
-  identifier **encodes the verb and task id**:
-  `f"HOME_KEEPER::{verb}::{task_id}"` (the action string is the only field reliably
-  echoed back in `mobile_app_notification_action`). The **open** action instead
-  carries a `uri` to the panel detail page.
-- `data.group` so a household's notifications stack sensibly.
+### 3d. Sender + listener (HA-aware)
 
-Pure and HA-free → unit-tested in `tests/unit`.
+- **Sender** (`notifications.py`): `async_send_for_profile(hass, profile, *, reason)` —
+  computes the queue, builds payload(s) per `style`, calls each target service.
+  Best-effort (`try/except`, debug log) so a renamed target never breaks anything.
+  - *Automatic* source: in `coordinator._async_update_data`, after the transition
+    events fire (and only when `_events_enabled`, preserving baselining), for each
+    profile whose `auto.overdue`/`auto.due_soon` matches the fired kind **and** whose
+    filter matches the task, send (respecting `quiet_hours`).
+  - *On-demand* source: the `home_keeper.notify` service.
+- **Listener** (`notification_actions.py`, wired in `async_setup_entry`, cleaned up via
+  `entry.async_on_unload`): subscribes to `mobile_app_notification_action`,
+  `decode_action`s, dispatches `complete`/`snooze`/`skip` (with
+  `origin=ORIGIN_NOTIFICATION_ACTION`), clears the just-shown notification by `tag`,
+  then for a `walk` profile **sends the next** due task (or the "all caught up" closer).
+  Foreign actions (no `HOME_KEEPER::` prefix) are ignored.
 
-### 3d. Sender — hooked into the coordinator
+### 3e. Events + device triggers
 
-Where `coordinator._async_update_data` fires the transition events (and only when
-`_events_enabled`, preserving startup baselining), also: if `OPTION_NOTIFY_ENABLED`
-and the kind is enabled, for each fired `overdue`/`due_soon` event call each
-configured `notify.mobile_app_*` target with `build_notification(...)`. Sends are
-best-effort (`try/except`, log at debug) so a missing/renamed target never breaks the
-refresh loop.
-
-### 3e. Action listener — `notification_actions.py`
-
-Registered in `async_setup_entry` (cleanup via `entry.async_on_unload`), subscribes
-to the `mobile_app_notification_action` event:
-
-1. Pure `decode_action(action_str) -> (verb, task_id) | None`.
-2. Dispatch on `verb`: `complete → store.complete_task`,
-   `snooze → store.snooze_task`, `skip → store.skip_task` — each with
-   `origin=ORIGIN_NOTIFICATION_ACTION`; `open` is handled client-side (no event).
-3. **Clear the notification**: call the originating target with
-   `{"message": "clear_notification", "data": {"tag": f"home_keeper_{task_id}"}}`.
-4. `await coordinator.async_request_refresh()` so entities/panel reflect the change.
-
-Unknown/foreign actions are ignored (the global event bus carries other
-integrations' actions too — the `HOME_KEEPER::` prefix scopes ours).
-
-### 3f. Device triggers + event docs
-
-Add `task_snoozed` / `task_skipped` to `device_trigger.py` `TASK_TRIGGERS` with
-translation-parity labels, and document both events in `docs/EVENTS.md` (catalog row
-+ note that they ride the task spine; `task_snoozed` adds `snoozed_until`). Per
-`AGENTS.md`, an event isn't done until it's in `EVENTS.md` and `device_trigger.py`.
+Add `task_snoozed` / `task_skipped` to `device_trigger.py` `TASK_TRIGGERS`
+(translation-parity labels) and to `docs/EVENTS.md` (catalog rows; `task_snoozed`
+adds `snoozed_until`). Per `AGENTS.md`, an event isn't done until it's in both.
 
 ---
 
 ## 4. Frontend — Settings → Notifications card
 
-In `panel.ts` `_renderSettingsForm`, add a third autosaving `_settingsCard`
-("Notifications") above/below the existing problem-sync and General cards, driven by
-a new `notificationsSchema()` in `forms.ts`:
+In `panel.ts` `_renderSettingsForm`, add a **Notifications** section that lists
+profiles (like the Companions section lists companions) with **Add profile** and
+per-row **Edit / Delete**. Each profile editor is an `ha-form` over a new
+`notificationProfileSchema()` (`forms.ts`): name, targets multi-select (populated from
+`get_options`' available targets), the `filter` group (label / area / device selectors
++ a `status` select), the ordered `actions` multi-select, `snooze_hours`, `style`,
+`auto.overdue` / `auto.due_soon`, and optional `quiet_hours`. Saving writes the whole
+profile list back through the existing autosave path (`_saveOptions → api.setOptions`);
+`HomeKeeperOptions` + `get_options` gain `notify_profiles` and
+`notify_available_targets`. i18n keys in `locales/*`.
 
-- A master **enabled** boolean.
-- A **targets** multi-select (`ha-form` select) populated from the available
-  `mobile_app_*` notify services returned by `get_options` (extend its websocket
-  response + `HomeKeeperOptions` type to carry `notify_available_targets`).
-- **On overdue** / **On due soon** booleans.
-- An **actions** multi-select (`complete` / `snooze` / `skip` / `open`).
-- A **snooze hours** number box.
-
-Reuses the existing autosave path (`_saveOptions → api.setOptions`), so no new
-client plumbing beyond the schema, the i18n keys (`locales/*`), and the type. The
-backend `options.py` (`current_options` / `_normalize` / `_LIST_OPTIONS`) and
-`config_flow.py` schema gain the same six keys with matching coercion (booleans,
-the int, and the two string lists).
-
-> **UI gate (AGENTS.md):** this adds a new panel surface, so the PR **must** embed a
-> current Playwright screenshot of the Settings → Notifications card
-> (`tests/e2e/screenshots.capture.ts` → `docs/images/`), and a capture step for it is
-> added in the same PR. README gets a feature section with use-cases + screenshot.
+> **UI gate (AGENTS.md):** new panel surface ⇒ the PR **must** embed a current
+> Playwright screenshot of the Settings → Notifications card (capture step added in the
+> same PR, PNG under `docs/images/`), and README gets a feature section + screenshot.
 
 ---
 
 ## 5. Testing
 
-- **Unit (`tests/unit`, pure):** `build_notification` (titles, tag, action encoding,
-  action-set ordering/clamping, open-URI); `decode_action` (valid / foreign /
-  malformed); `recurrence.skip_occurrence` (fixed walk-forward across `now`, floating,
-  one-off → dormant); `snooze_task`/`skip_task` recurrence math; the fixed-schedule
-  **no-clobber** regression from §3a.
-- **Integration (`tests/integration`):** firing a synthetic
-  `mobile_app_notification_action` drives `complete`/`snooze`/`skip` through the
-  store and emits the right events with the right `origin`; problem-sensor tasks
-  reject snooze/skip; sender calls the configured `notify` service when a transition
-  fires (and not when disabled).
-- **E2E (`tests/e2e`):** screenshot capture of the new Settings card.
+- **Unit (pure):** `matches_filter` (label/area/device/status combinations);
+  `due_queue` ordering (most-overdue-first, ties); `build_notification` (tag per
+  profile, action encoding incl. profile id, action-set ordering/clamp, open-URI,
+  digest vs separate); `decode_action` (valid / foreign / malformed);
+  `recurrence.skip_occurrence` (fixed walk-forward across `now` incl. DST, floating,
+  one-off/triggered → dormant); snooze/skip recurrence math; the fixed-schedule
+  **no-clobber** regression.
+- **Integration:** a synthetic `mobile_app_notification_action` drives
+  complete/snooze/skip through the store with the right events/origin **and** triggers
+  the **next** walk send; `home_keeper.notify` sends the first due task for a profile,
+  honours filters, and returns `{matched, sent}`; problem-sensor tasks reject
+  snooze/skip; automatic source respects `auto`/`quiet_hours`; "all caught up" closer
+  when the queue empties.
+- **E2E:** screenshot of the Notifications card (with a sample profile).
 
 ---
 
 ## 6. Docs & changelog
 
-- `docs/EVENTS.md` — `home_keeper_task_snoozed` / `_skipped` rows + payload notes.
-- `docs/INTEGRATING.md` — a short note that the actions reuse `complete_task` /
-  the new snooze/skip services with the `home_keeper_notification_action` origin.
-- `README.md` — a **Notifications** feature section (use-case + how to configure +
-  screenshot), since it's a headline feature (`AGENTS.md`).
-- `services.yaml` + `strings.json` — the two new services and the new options-flow
-  fields (localization parity).
+- `docs/EVENTS.md` — `home_keeper_task_snoozed` / `_skipped`.
+- `docs/INTEGRATING.md` — the `home_keeper.notify` service + the action/origin contract.
+- `README.md` — a **Notifications** feature section: the per-person-chore-queue and
+  calendar-driven use cases, how to configure profiles, screenshot.
+- `services.yaml` + `strings.json` — `notify`, `snooze_task`, `skip_task` (+ profile
+  CRUD if added) and any new options-flow fields, with localization parity.
 - `CHANGELOG.md` — user-facing **Added** entry.
-- `.amazonq/rules/` — if any new convention emerges (e.g. the action-string
-  encoding scheme), record it.
+- `.amazonq/rules/` — record the action-string encoding scheme + the
+  "one pure filter predicate shared by panel/card/notifier" convention.
 
 ---
 
-## 7. Implementation order (incremental, each independently testable)
+## 7. Implementation order (incremental, each independently shippable)
 
-1. **Snooze/skip core:** `const.py` events/origin, `recurrence.skip_occurrence`,
-   `store.snooze_task`/`skip_task`, services + YAML/strings, `EVENTS.md`,
-   `device_trigger.py`, unit/integration tests. *(No notifications yet — usable via
-   service/automation.)*
-2. **Options:** the six `OPTION_NOTIFY_*` keys in `const.py` / `options.py` /
-   `config_flow.py`, `get_options` target enumeration.
-3. **Sender + builder:** `notifications.py` + coordinator hook + unit tests.
-4. **Action listener:** `notification_actions.py` + setup wiring + integration tests.
-5. **Panel:** Settings → Notifications card, i18n, types; e2e screenshot; README.
-6. Amazon Q (Cue) review after each push per `AGENTS.md`.
+1. **Snooze/skip core** — events/origin, `recurrence.skip_occurrence`, store methods,
+   services, YAML/strings, `EVENTS.md`, `device_trigger.py`, tests. *(Usable via
+   service/automation with no notifications yet.)*
+2. **Filter predicate + due queue** — extract `matches_filter`, add `due_queue`, unit
+   tests. (Also lets the panel/card de-duplicate their filter logic onto it.)
+3. **Profiles in options** — `OPTION_NOTIFY_PROFILES` in `const.py` / `options.py` /
+   `config_flow.py`; `get_options` target + profile enumeration.
+4. **Sender + builder + the `notify` service** — `notifications.py`, on-demand path,
+   digest/separate styles, unit/integration tests.
+5. **Action listener + the walk** — `notification_actions.py`, advance-on-action,
+   "all caught up" closer, integration tests.
+6. **Automatic source** — coordinator hook honouring `auto`/`quiet_hours`.
+7. **Panel** — Settings → Notifications profile editor, i18n, types; e2e screenshot;
+   README.
+8. Amazon Q (Cue) review after each push per `AGENTS.md`.
 
 ---
 
 ## 8. Deferred / future
 
-- **Per-task notification overrides** (mute a chore, per-task targets/snooze).
-- **Repeat reminders / escalation** ("re-nudge every N hours until done", escalate to
-  another target). The edge model already gives one reminder per `next_due` and a
-  fresh one after snooze; recurring nags are a separate feature.
-- **Assignee-aware routing** (notify the person a chore is assigned to) — depends on
-  the not-yet-built assignees feature (`IDEAS.md`).
-- **A shipped blueprint** as a power-user alternative to the built-in sender (the
-  snooze/skip services + action listener built here are exactly what such a blueprint
-  would need, so it's purely additive later).
-- **Persistent (non-mobile) notifications** via `persistent_notification` for users
-  without the companion app.
+- **Built-in per-profile schedule** (send "my chores" every weekday 6pm) so users
+  needn't write the calendar/time automation. The on-demand service is the primitive;
+  a schedule is sugar on top.
+- **Assignee-aware routing** — once the assignees feature exists, a profile filters by
+  *who's responsible* instead of by label (`IDEAS.md`).
+- **Per-task notification overrides** (mute a chore; force a task into a profile).
+- **Repeat / escalation** ("re-nudge every N hours until done"; escalate to another
+  target). Today: one reminder per `next_due`, plus a fresh one after snooze.
+- **Multiple snooze buttons** (1h / tonight / tomorrow) instead of one duration.
+- **Non-mobile fallbacks** — `persistent_notification` and TTS/speaker targets for the
+  `digest` style (actionable buttons stay mobile-only; a spoken/visual summary works
+  anywhere).
+- **A shipped blueprint** as a power-user alternative — the snooze/skip services +
+  action listener built here are exactly what it would need, so it's purely additive.
