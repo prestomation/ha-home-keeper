@@ -1,0 +1,130 @@
+name: Preview release (PR build)
+
+# Opt-in, artifact-only "preview release" of the integration from a PR — a build a
+# maintainer can download and install manually to test the PR *without* merging to
+# main, bumping the version, or publishing anything HACS-visible. See RELEASE.md
+# ("Preview releases") and docs/PR_PREVIEW_RELEASE_PLAN.md.
+#
+# Trigger: add the `preview-release` label to the PR (only users with write access
+# can label, so the label itself is a maintainer gate). The job additionally runs in
+# the `preview-release` GitHub Environment, so the repo owner can require an explicit
+# approval there (Settings → Environments → preview-release → Required reviewers).
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+
+concurrency:
+  group: preview-release-${{ github.event.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview-release:
+    # Build only when opted in via the label, and only for same-repo PRs — a fork PR
+    # gets no write token, and we never build untrusted code with elevated scope
+    # (no `pull_request_target`). Forks should be reviewed/landed normally instead.
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'preview-release') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    # Owner-approval hook: configure Required reviewers on this environment to make
+    # each preview build wait for an explicit approval.
+    environment: preview-release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Build the PR's head exactly (what the tester expects to install), not the
+          # synthetic merge commit.
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Compute synthetic preview version
+        id: ver
+        env:
+          PR: ${{ github.event.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          BASE=$(python3 -c "import json;print(json.load(open('custom_components/home_keeper/manifest.json'))['version'])")
+          SHORT=${HEAD_SHA:0:7}
+          # PEP 440 local version: sorts BELOW any real release of BASE (so it can
+          # never look like "latest"), and encodes the PR + commit for traceability.
+          PREVIEW="${BASE}.dev${PR}+pr${PR}.g${SHORT}"
+          echo "preview=$PREVIEW" >> "$GITHUB_OUTPUT"
+          echo "Preview version: $PREVIEW"
+
+      - name: Stamp the preview version into the manifest (zip only; never committed)
+        env:
+          PREVIEW: ${{ steps.ver.outputs.preview }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          path = "custom_components/home_keeper/manifest.json"
+          data = json.load(open(path))
+          data["version"] = os.environ["PREVIEW"]
+          json.dump(data, open(path, "w"), indent=2)
+          open(path, "a").write("\n")
+          PY
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend deps
+        run: npm ci --prefix custom_components/home_keeper/frontend
+
+      - name: Build panel JS
+        run: bash ci/build-panel.sh
+
+      - name: Build release zip
+        run: bash ci/build-zip.sh
+
+      - name: Verify release zip
+        run: |
+          if [ ! -f home_keeper.zip ]; then
+            echo "::error::home_keeper.zip not found"
+            exit 1
+          fi
+          echo "home_keeper.zip exists ($(du -h home_keeper.zip | cut -f1))"
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: home_keeper-preview-pr${{ github.event.number }}
+          path: home_keeper.zip
+          retention-days: 5
+
+      - name: Sticky comment with install instructions
+        uses: actions/github-script@v7
+        env:
+          PREVIEW: ${{ steps.ver.outputs.preview }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ARTIFACT: home_keeper-preview-pr${{ github.event.number }}
+        with:
+          script: |
+            const marker = '<!-- preview-release -->';
+            const body = [
+              marker,
+              '### 📦 Preview build ready',
+              '',
+              '`' + process.env.PREVIEW + '` — an installable build of **this PR**, not a real release.',
+              '',
+              '**Download:** the `' + process.env.ARTIFACT + '` artifact on [this workflow run](' + process.env.RUN_URL + ').',
+              '',
+              '**Install (manual):**',
+              '1. Unzip into `config/custom_components/home_keeper/` (replace the existing folder).',
+              '2. Restart Home Assistant.',
+              '',
+              '> Ephemeral test build — do not depend on it. Re-download after each push (the artifact expires in 5 days).',
+            ].join('\n');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
