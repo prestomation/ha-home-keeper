@@ -2,6 +2,7 @@
   "domain": "pawsistant",
   "name": "Pawsistant",
   "version": "0.0.1",
+  "documentation": "https://github.com/prestomation/ha-home-keeper",
   "codeowners": [],
   "config_flow": true,
   "after_dependencies": ["home_keeper"],
