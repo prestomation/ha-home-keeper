@@ -135,6 +135,8 @@
   "filter.all": "Alle",
   "filter.overdue": "Überfällig",
   "filter.soon": "Bald fällig",
+  "filter.profile": "Profil",
+  "filter.profileNone": "Keine",
   "section.later": "Später",
   "section.monitored": "Überwacht",
   "section.noSchedule": "Kein Zeitplan",

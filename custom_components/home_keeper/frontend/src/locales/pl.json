@@ -155,6 +155,8 @@
   "filter.all": "Wszystkie",
   "filter.overdue": "Zaległe",
   "filter.soon": "Wkrótce",
+  "filter.profile": "Profil",
+  "filter.profileNone": "Brak",
   "section.later": "Później",
   "section.monitored": "Monitorowane",
   "section.noSchedule": "Bez harmonogramu",

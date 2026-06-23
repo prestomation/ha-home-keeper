@@ -154,6 +154,8 @@
   "filter.all": "All",
   "filter.overdue": "Overdue",
   "filter.soon": "Due soon",
+  "filter.profile": "Profile",
+  "filter.profileNone": "None",
   "section.later": "Later",
   "section.monitored": "Monitored",
   "section.noSchedule": "No schedule",

@@ -155,6 +155,8 @@
   "filter.all": "Все",
   "filter.overdue": "Просрочено",
   "filter.soon": "Скоро",
+  "filter.profile": "Профиль",
+  "filter.profileNone": "Нет",
   "section.later": "Позже",
   "section.monitored": "Отслеживается",
   "section.noSchedule": "Без расписания",

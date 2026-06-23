@@ -135,6 +135,8 @@
   "filter.all": "Tots",
   "filter.overdue": "Endarrerit",
   "filter.soon": "Aviat",
+  "filter.profile": "Perfil",
+  "filter.profileNone": "Cap",
   "section.later": "Més tard",
   "section.monitored": "Supervisat",
   "section.noSchedule": "Sense planificació",

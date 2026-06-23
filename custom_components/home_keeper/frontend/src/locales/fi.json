@@ -135,6 +135,8 @@
   "filter.all": "Kaikki",
   "filter.overdue": "Myöhässä",
   "filter.soon": "Pian",
+  "filter.profile": "Profiili",
+  "filter.profileNone": "Ei mitään",
   "section.later": "Myöhemmin",
   "section.monitored": "Valvotaan",
   "section.noSchedule": "Ei aikataulua",

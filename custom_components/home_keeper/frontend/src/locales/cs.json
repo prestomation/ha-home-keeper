@@ -155,6 +155,8 @@
   "filter.all": "Vše",
   "filter.overdue": "Po termínu",
   "filter.soon": "Brzy",
+  "filter.profile": "Profil",
+  "filter.profileNone": "Žádné",
   "section.later": "Později",
   "section.monitored": "Sledováno",
   "section.noSchedule": "Bez plánu",

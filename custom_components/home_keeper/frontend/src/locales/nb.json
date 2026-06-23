@@ -135,6 +135,8 @@
   "filter.all": "Alle",
   "filter.overdue": "Forfalt",
   "filter.soon": "Snart forfalt",
+  "filter.profile": "Profil",
+  "filter.profileNone": "Ingen",
   "section.later": "Senere",
   "section.monitored": "Overvåket",
   "section.noSchedule": "Ingen tidsplan",

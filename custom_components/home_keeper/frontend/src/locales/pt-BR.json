@@ -135,6 +135,8 @@
   "filter.all": "Todos",
   "filter.overdue": "Atrasado",
   "filter.soon": "Em breve",
+  "filter.profile": "Perfil",
+  "filter.profileNone": "Nenhum",
   "section.later": "Mais tarde",
   "section.monitored": "Monitorado",
   "section.noSchedule": "Sem agendamento",

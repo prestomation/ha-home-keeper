@@ -135,6 +135,8 @@
   "filter.all": "Alle",
   "filter.overdue": "Te laat",
   "filter.soon": "Binnenkort",
+  "filter.profile": "Profiel",
+  "filter.profileNone": "Geen",
   "section.later": "Later",
   "section.monitored": "Bewaakt",
   "section.noSchedule": "Geen planning",

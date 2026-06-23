@@ -135,6 +135,8 @@
   "filter.all": "Alla",
   "filter.overdue": "Försenad",
   "filter.soon": "Snart",
+  "filter.profile": "Profil",
+  "filter.profileNone": "Ingen",
   "section.later": "Senare",
   "section.monitored": "Övervakad",
   "section.noSchedule": "Inget schema",

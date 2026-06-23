@@ -1,5 +1,6 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
+import { profileMatches } from './card-filter';
 import {
   buildTaskPayload,
   selArea,
@@ -304,6 +305,12 @@ const STYLES = `
     border-left: 1px solid var(--divider-color);
   }
   .hk-seg-btn:first-child { border-left: 0; }
+  .hk-profile-select {
+    appearance: auto; font: inherit; font-size: 0.85rem; padding: 6px 10px;
+    border: 1px solid var(--divider-color); border-radius: 999px;
+    background: var(--card-background-color); color: var(--primary-text-color);
+    cursor: pointer; max-width: 240px;
+  }
   .hk-seg-btn:hover { background: var(--secondary-background-color); }
   .hk-seg-btn.active {
     background: var(--primary-color);
@@ -450,6 +457,7 @@ interface Group<T> {
 const SOON_DAYS = 7;
 const LS_GROUP = 'home-keeper.groupBy';
 const LS_FILTER = 'home-keeper.filter';
+const LS_PROFILE = 'home-keeper.profile';
 
 export class HomeKeeperPanel extends HTMLElement {
   private _hass?: Hass;
@@ -479,6 +487,8 @@ export class HomeKeeperPanel extends HTMLElement {
   // List controls (persisted in localStorage).
   private _groupBy: GroupBy = 'status';
   private _filter: TaskFilter = 'all';
+  // Selected saved Profile id to filter the task list by ('' = no profile).
+  private _profile = '';
   // Group sections collapsed by the user, keyed by "<group>:<bucket>".
   // Group sections the user collapsed this session (open is the default). The
   // "monitored" status bucket — dormant condition-driven tasks like healthy
@@ -564,6 +574,7 @@ export class HomeKeeperPanel extends HTMLElement {
         this._groupBy = g;
       const f = localStorage.getItem(LS_FILTER);
       if (f === 'all' || f === 'overdue' || f === 'soon') this._filter = f;
+      this._profile = localStorage.getItem(LS_PROFILE) ?? '';
     } catch {
       // localStorage unavailable (e.g. private mode) — fall back to defaults.
     }
@@ -585,6 +596,18 @@ export class HomeKeeperPanel extends HTMLElement {
     this._filter = value;
     try {
       localStorage.setItem(LS_FILTER, value);
+    } catch {
+      /* ignore */
+    }
+    this._render();
+  }
+
+  /** Pick a saved Profile to drive the task-list filter (''/none clears it). */
+  private _setProfile(value: string): void {
+    if (this._profile === value) return;
+    this._profile = value;
+    try {
+      localStorage.setItem(LS_PROFILE, value);
     } catch {
       /* ignore */
     }
@@ -1024,14 +1047,45 @@ export class HomeKeeperPanel extends HTMLElement {
         <span class="hk-seg-label">${escapeHTML(t('group.by'))}</span>
         ${this._seg('group', this._effectiveGroup(), groupOpts)}
       </div>`;
-    const filterControl = onTasks
-      ? `<div class="hk-control">${this._seg('filter', this._filter, [
-          { value: 'all', label: t('filter.all') },
-          { value: 'overdue', label: t('filter.overdue') },
-          { value: 'soon', label: t('filter.soon') },
-        ])}</div>`
-      : '';
-    return `<div class="hk-controls">${filterControl}${groupControl}</div>`;
+    // A saved Profile, when picked, drives the status/label/area/device filter, so
+    // the inline all/overdue/soon segment is hidden while one is active.
+    const profile = this._activeProfile();
+    const filterControl =
+      onTasks && !profile
+        ? `<div class="hk-control">${this._seg('filter', this._filter, [
+            { value: 'all', label: t('filter.all') },
+            { value: 'overdue', label: t('filter.overdue') },
+            { value: 'soon', label: t('filter.soon') },
+          ])}</div>`
+        : '';
+    return `<div class="hk-controls">${filterControl}${this._profileControl()}${groupControl}</div>`;
+  }
+
+  /** The saved Profile currently selected for the list filter, or null. */
+  private _activeProfile(): Profile | null {
+    if (this._view !== 'tasks' || !this._profile) return null;
+    const profiles = this._options?.profiles ?? [];
+    return profiles.find((p) => p.id === this._profile) ?? null;
+  }
+
+  /** A dropdown to filter the task list by a saved Profile (Tasks tab only). */
+  private _profileControl(): string {
+    if (this._view !== 'tasks') return '';
+    const profiles = this._options?.profiles ?? [];
+    if (!profiles.length) return '';
+    const opt = (value: string, label: string) =>
+      `<option value="${escapeHTML(value)}"${value === this._profile ? ' selected' : ''}>${escapeHTML(
+        label,
+      )}</option>`;
+    const options = [
+      opt('', t('filter.profileNone')),
+      ...profiles.map((p) => opt(p.id, p.name)),
+    ].join('');
+    return `
+      <div class="hk-control">
+        <span class="hk-seg-label">${escapeHTML(t('filter.profile'))}</span>
+        <select class="hk-profile-select" data-profile-filter>${options}</select>
+      </div>`;
   }
 
   /** A pill-style segmented toggle; the active option carries the `active` class. */
@@ -1204,7 +1258,13 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     const now = Date.now();
     let tasks = [...this._tasks];
-    if (this._filter === 'overdue') tasks = tasks.filter((task) => isOverdue(task));
+    const profile = this._activeProfile();
+    if (profile) {
+      // A saved Profile replaces the inline filter: status + labels/areas/devices.
+      tasks = tasks.filter((task) =>
+        profileMatches(task, profile.filter, this._hass?.devices, this._hass?.areas, now),
+      );
+    } else if (this._filter === 'overdue') tasks = tasks.filter((task) => isOverdue(task));
     else if (this._filter === 'soon')
       tasks = tasks.filter((task) => this._statusBucket(task, now) === 'soon');
     tasks.sort((a, b) => {
@@ -1984,6 +2044,12 @@ export class HomeKeeperPanel extends HTMLElement {
         else if (seg === 'filter') this._setFilter(val as TaskFilter);
       }),
     );
+    // Saved-Profile filter dropdown.
+    root
+      .querySelector<HTMLSelectElement>('select[data-profile-filter]')
+      ?.addEventListener('change', (e) =>
+        this._setProfile((e.target as HTMLSelectElement).value),
+      );
     // Remember which group sections the user collapsed (no re-render needed).
     root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
       d.addEventListener('toggle', () => {

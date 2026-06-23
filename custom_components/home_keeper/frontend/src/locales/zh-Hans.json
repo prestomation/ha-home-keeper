@@ -135,6 +135,8 @@
   "filter.all": "全部",
   "filter.overdue": "逾期",
   "filter.soon": "即将到期",
+  "filter.profile": "配置文件",
+  "filter.profileNone": "无",
   "section.later": "以后",
   "section.monitored": "监控中",
   "section.noSchedule": "无计划",
