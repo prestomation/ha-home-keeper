@@ -434,6 +434,12 @@ preserved.
 
 ### Actionable (snoozable) notifications
 
+> **Status: planned** — design written up in
+> [docs/ACTIONABLE_NOTIFICATIONS_PLAN.md](docs/ACTIONABLE_NOTIFICATIONS_PLAN.md)
+> (built-in sender configured via the options flow + a Settings → Notifications
+> panel card, with a configurable button set and new `snooze_task` / `skip_task`
+> services).
+
 - **"Mark done" or "snooze 1 day" directly from the mobile push notification.**
   ["Actionable Task Reminder" — Blueprints Exchange](https://community.home-assistant.io/t/actionable-task-reminder-a-powerful-task-reminder-automation/636946):
   a popular blueprint for snoozable reminders. Its key limitation: acknowledging or
