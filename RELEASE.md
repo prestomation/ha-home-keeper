@@ -39,21 +39,25 @@ Cut the final `0.2.0` (with its own `## [0.2.0]` changelog section) when ready.
 
 ## Preview releases (test a PR build without merging)
 
-Sometimes you want to **install and try a PR's build** before merging it — without
-bumping the version or publishing anything. Add the **`preview-release`** label to the
-PR and `preview-release.yml` builds the panel + `home_keeper.zip` from the PR head,
-stamps a synthetic version (`X.Y.Z.dev<pr>+pr<pr>.g<sha>`), uploads it as a **workflow
-artifact**, and posts a sticky comment with the download link and manual-install steps
-(unzip into `config/custom_components/home_keeper/`, restart HA).
+Sometimes you want to **install and try a PR's build via HACS** before merging it —
+without bumping the version or cutting a real release. Add the **`preview-release`**
+label to the PR and `preview-release.yml` builds the panel + `home_keeper.zip` from the
+PR head, stamps a synthetic version (`X.Y.Z.dev<pr>`) into the zip's manifest, and
+publishes an **ephemeral GitHub pre-release** with the zip attached. Install it from
+HACS: open *Home Keeper* → ⋮ → **Redownload**, enable **Show beta versions**, and pick
+`X.Y.Z.dev<pr>` (or download `home_keeper.zip` from the release and unzip into
+`config/custom_components/home_keeper/`).
 
 - **Opt-in only** — nothing happens without the label (and only users with write
   access can label).
 - **Same-repo PRs only** — fork PRs get no token and are not built this way.
-- **Owner approval** — the job runs in the `preview-release` GitHub Environment; add
-  **Required reviewers** to it (Settings → Environments) to make each build wait for an
-  explicit approval.
-- **No pollution** — no tag, no GitHub Release, nothing HACS-visible; the synthetic
-  `.devN` version sorts below any real release. Artifacts expire after 5 days.
+- **Owner approval** — the publish job runs in the `preview-release` GitHub
+  Environment; add **Required reviewers** to it (Settings → Environments) to make each
+  build wait for an explicit approval.
+- **Ephemeral & low-noise** — it's a **pre-release** (`prerelease: true`), so it's
+  offered only to users who enabled *Show beta versions*; the `.dev<pr>` version sorts
+  *below* the real `X.Y.Z` release so it never nags anyone as an update; it's
+  re-published on each push and **deleted automatically when the PR closes**.
 
 See [docs/PR_PREVIEW_RELEASE_PLAN.md](docs/PR_PREVIEW_RELEASE_PLAN.md) for the full
 design and rationale.
