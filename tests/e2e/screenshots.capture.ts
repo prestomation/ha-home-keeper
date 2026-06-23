@@ -312,62 +312,16 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/23-panel-profile-filter.png`, fullPage: true });
 
   // 17b. Settings → Companions — integrations that work with Home Keeper. The e2e
-  // container ships only Home Keeper, so seed a couple of connected companions via
-  // the public register_companion service to capture the section populated. The
-  // in-memory companion registry lives in `hass.data` and is rebuilt on a config-entry
-  // reload, so register *after* the panel (and thus the entry) is settled, and retry a
-  // couple of times in case an options reload from 17a is still landing.
-  const seedCompanions = async (): Promise<void> => {
-    await page.evaluate(async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hass = (document.querySelector('home-assistant') as any)?.hass;
-      if (!hass) return;
-      await hass.callService('home_keeper', 'register_companion', {
-        domain: 'pawsistant',
-        name: 'Pawsistant',
-        icon: 'mdi:paw',
-        description:
-          'Pet care tracker — logs walks, meals, meds and weight, and can schedule recurring pet-care chores as Home Keeper tasks.',
-        config_entry_id: 'demo_pawsistant',
-        docs_url: 'https://github.com/prestomation/Pawsistant',
-        capabilities: ['care_schedules'],
-      });
-      await hass.callService('home_keeper', 'register_companion', {
-        domain: 'home_keeper_battery_notes',
-        name: 'Battery Notes',
-        icon: 'mdi:battery-alert-variant-outline',
-        description:
-          'Turns Battery Notes low-battery alerts into Home Keeper “replace battery” tasks, kept in sync both ways.',
-        config_entry_id: 'demo_battery_notes',
-        capabilities: ['battery_replacement'],
-      });
-    });
-  };
-  // A self-registered companion only surfaces while its *domain* has a config entry
-  // (build_companion_list drops connected rows for uninstalled domains). The e2e
-  // container ships no entry for these demo domains, so the section can read empty
-  // here — best-effort: capture when it populates, otherwise warn and keep the
-  // committed image rather than overwrite it with an empty card.
-  await openPanel(page);
-  await seedCompanions();
+  // container ships two stub companion integrations (tests/integration/stubs) that
+  // are bind-mounted + installed via seeded config entries: Pawsistant self-registers
+  // on setup (push), and the Battery Notes glue is detected from the catalog (pull).
+  // So the section populates on its own — no in-test seeding needed.
   await openPanel(page);
   await panel.locator('#tab-settings').click();
   await expect(panel.locator('#hk-companions')).toBeVisible();
-  const companionsSeeded = await panel
-    .locator('.hk-comp-configure')
-    .first()
-    .isVisible({ timeout: 5000 })
-    .catch(() => false);
-  if (companionsSeeded) {
-    await page.waitForTimeout(700);
-    await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
-  } else {
-    // eslint-disable-next-line no-console
-    console.warn(
-      '[screenshots] companions did not populate (no config entry for the demo ' +
-        'domains in this env) — keeping the committed 21-panel-companions.png',
-    );
-  }
+  await expect(panel.locator('.hk-comp-configure').first()).toBeVisible();
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
 
   // 4. The usage surfaces — native to-do list + calendar on a dashboard.
   await openDashboard(page);

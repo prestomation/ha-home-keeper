@@ -119,6 +119,31 @@ def ha_token():
     return _complete_onboarding()
 
 
+def _wait_for_running(session):
+    """Block until HA finishes starting (CoreState RUNNING).
+
+    The `ha` fixture otherwise only waits for Home Keeper's own entity to appear,
+    which can happen *before* HA finishes booting the rest of the config —
+    notably the configuration.yaml automations that capture Home Keeper events
+    into input_text sentinels. A slow startup (extra integrations, a loaded CI
+    box) would then let an early test fire an event before its capture automation
+    is listening, dropping the event and failing the test intermittently. Gating
+    on RUNNING removes that race for the whole suite.
+    """
+    deadline = time.monotonic() + HA_STARTUP_TIMEOUT
+    while time.monotonic() < deadline:
+        try:
+            r = session.get(f"{HA_URL}/api/config", timeout=5)
+            if r.status_code == 200 and r.json().get("state") == "RUNNING":
+                return
+        except requests.RequestException:
+            pass
+        time.sleep(2)
+    raise TimeoutError(
+        f"Home Assistant did not reach RUNNING within {HA_STARTUP_TIMEOUT}s"
+    )
+
+
 @pytest.fixture(scope="session")
 def ha(ha_token):
     session = requests.Session()
@@ -127,7 +152,9 @@ def ha(ha_token):
     )
     session.base_url = HA_URL
 
-    # Wait for the Home Keeper to-do entity to appear (integration loaded).
+    # Gate on HA fully started so event-capture automations are listening, then
+    # wait for the Home Keeper to-do entity to appear (integration loaded).
+    _wait_for_running(session)
     deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
         try:
