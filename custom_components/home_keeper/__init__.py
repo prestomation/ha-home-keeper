@@ -33,12 +33,13 @@ from .assets import AssetValidationError
 from .const import (
     DOMAIN,
     OPTION_DISMISSED_COMPANIONS,
-    OPTION_NOTIFY_PROFILES,
+    OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
+    OPTION_PROFILES,
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
 )
@@ -237,10 +238,11 @@ ADJUST_PART_STOCK_SCHEMA = vol.Schema(
 EXPORT_INVENTORY_SCHEMA = vol.Schema({})
 
 # Send an actionable notification on demand for what's due now (the pull / "walk"
-# entry point). Either name a saved profile or pass inline overrides (target, filters,
-# action set, style). All optional so an automation can fire a bare profile name.
+# entry point). Name a saved notification, or a profile (filter) plus inline delivery,
+# or pure inline overrides. All optional so an automation can fire a bare name.
 NOTIFY_SCHEMA = vol.Schema(
     {
+        vol.Optional("notification"): cv.string,
         vol.Optional("profile"): cv.string,
         vol.Optional("target"): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
@@ -277,9 +279,10 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         # Catalog glue domains the user dismissed from the Companions "Suggested"
         # list. A list of domain strings.
         vol.Optional(OPTION_DISMISSED_COMPANIONS): vol.All(cv.ensure_list, [cv.string]),
-        # Actionable-notification profiles (the panel saves the whole list). Each is a
-        # dict; normalization/validation happens in notifications.normalize_profiles.
-        vol.Optional(OPTION_NOTIFY_PROFILES): list,
+        # Profiles (saved filters) and notifications (delivery) — the panel saves each
+        # whole list; normalization happens in profiles/notifications.normalize_*.
+        vol.Optional(OPTION_PROFILES): list,
+        vol.Optional(OPTION_NOTIFICATIONS): list,
     }
 )
 
@@ -578,6 +581,12 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         return {"tasks": coord.store.list_tasks()}
 
+    async def handle_list_profiles(call: ServiceCall) -> dict[str, Any]:
+        coord = _coordinator()
+        return {
+            "profiles": options.current_options(coord.entry).get(OPTION_PROFILES, [])
+        }
+
     async def handle_add_asset(call: ServiceCall) -> None:
         coord = _coordinator()
         _check_area(call.data)
@@ -689,6 +698,13 @@ def _register_services(hass: HomeAssistant) -> None:
         supports_response=SupportsResponse.ONLY,
     )
     hass.services.async_register(
+        DOMAIN,
+        "list_profiles",
+        handle_list_profiles,
+        schema=vol.Schema({}),
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
         DOMAIN, "add_asset", handle_add_asset, ADD_ASSET_SCHEMA
     )
     hass.services.async_register(
@@ -781,6 +797,7 @@ _SERVICES = (
     "skip_task",
     "notify",
     "list_tasks",
+    "list_profiles",
     "add_asset",
     "update_asset",
     "delete_asset",

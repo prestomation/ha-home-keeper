@@ -218,6 +218,10 @@
       "name": "Powiadom o zadaniach do zrobienia",
       "description": "Wyślij interaktywne powiadomienie push o tym, co jest teraz do zrobienia, na podstawie zapisanego profilu lub bezpośrednich zmian (cel, filtry, status i styl są akceptowane).",
       "fields": {
+        "notification": {
+          "name": "Powiadomienie",
+          "description": "Nazwa lub identyfikator zapisanego powiadomienia (używa jego profilu + dostarczania)."
+        },
         "profile": {
           "name": "Profil",
           "description": "Nazwa lub identyfikator zapisanego profilu powiadomień."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Wyświetl zadania",
       "description": "Zwróć wszystkie zadania jako odpowiedź."
+    },
+    "list_profiles": {
+      "name": "Lista profili",
+      "description": "Zwraca zapisane profile (nazwane filtry zadań) jako odpowiedź."
     },
     "add_asset": {
       "name": "Dodaj urządzenie",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "Brak profilu powiadomień o nazwie {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Brak powiadomienia o nazwie {notification}."
     }
   }
 }

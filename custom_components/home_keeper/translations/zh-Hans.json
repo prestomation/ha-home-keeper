@@ -218,6 +218,10 @@
       "name": "通知到期事项",
       "description": "为当前到期的事项发送可操作的推送通知，使用已保存的配置文件或内联覆盖（目标、过滤器、状态和样式均可接受）。",
       "fields": {
+        "notification": {
+          "name": "通知",
+          "description": "已保存通知的名称或 id（使用其配置文件和投递方式）。"
+        },
         "profile": {
           "name": "配置文件",
           "description": "要发送的已保存通知配置文件的名称或 id。"
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "列出任务",
       "description": "以响应形式返回所有任务。"
+    },
+    "list_profiles": {
+      "name": "列出配置文件",
+      "description": "以响应形式返回已保存的配置文件（命名的任务过滤器）。"
     },
     "add_asset": {
       "name": "添加电器",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "没有名为 {profile} 的通知配置文件。"
+    },
+    "notify_notification_not_found": {
+      "message": "没有名为 {notification} 的通知。"
     }
   }
 }

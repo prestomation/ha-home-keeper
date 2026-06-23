@@ -218,6 +218,10 @@
       "name": "Notificér om forfaldne opgaver",
       "description": "Send en handlingsrettet push-notifikation om det, der er forfaldent nu, ud fra en gemt profil eller direkte tilsidesættelser (mål, filtre, status og stil accepteres).",
       "fields": {
+        "notification": {
+          "name": "Notifikation",
+          "description": "Navn eller id på en gemt notifikation (bruger dens profil + levering)."
+        },
         "profile": {
           "name": "Profil",
           "description": "Navn eller id på en gemt notifikationsprofil."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Vis opgaver",
       "description": "Returner alle opgaver som et svar."
+    },
+    "list_profiles": {
+      "name": "Vis profiler",
+      "description": "Returnerer de gemte profiler (navngivne opgavefiltre) som svar."
     },
     "add_asset": {
       "name": "Tilføj apparat",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "Ingen notifikationsprofil med navnet {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Ingen notifikation med navnet {notification}."
     }
   }
 }

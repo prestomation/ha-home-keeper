@@ -218,6 +218,10 @@
       "name": "Notificar lo que vence",
       "description": "Envía una notificación push accionable de lo que vence ahora, usando un perfil guardado o sustituciones directas (destino, filtros, estado y estilo se aceptan).",
       "fields": {
+        "notification": {
+          "name": "Notificación",
+          "description": "Nombre o id de una notificación guardada (usa su perfil + envío)."
+        },
         "profile": {
           "name": "Perfil",
           "description": "Nombre o id de un perfil de notificación guardado."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Listar tareas",
       "description": "Devolver todas las tareas como respuesta."
+    },
+    "list_profiles": {
+      "name": "Listar perfiles",
+      "description": "Devuelve los perfiles guardados (filtros de tareas con nombre) como respuesta."
     },
     "add_asset": {
       "name": "Añadir electrodoméstico",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "No hay ningún perfil de notificación llamado {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "No hay ninguna notificación llamada {notification}."
     }
   }
 }

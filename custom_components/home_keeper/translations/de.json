@@ -218,6 +218,10 @@
       "name": "Über Fälliges benachrichtigen",
       "description": "Sende eine umsetzbare Push-Benachrichtigung für aktuell Fälliges, basierend auf einem gespeicherten Profil oder direkten Vorgaben (Ziel, Filter, Status und Stil werden alle akzeptiert).",
       "fields": {
+        "notification": {
+          "name": "Benachrichtigung",
+          "description": "Name oder ID einer gespeicherten Benachrichtigung (nutzt deren Profil + Zustellung)."
+        },
         "profile": {
           "name": "Profil",
           "description": "Name oder ID eines gespeicherten Benachrichtigungsprofils."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Aufgaben auflisten",
       "description": "Gibt alle Aufgaben als Antwort zurück."
+    },
+    "list_profiles": {
+      "name": "Profile auflisten",
+      "description": "Gibt die gespeicherten Profile (benannte Aufgabenfilter) als Antwort zurück."
     },
     "add_asset": {
       "name": "Gerät hinzufügen",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "Kein Benachrichtigungsprofil mit dem Namen {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Keine Benachrichtigung mit dem Namen {notification}."
     }
   }
 }

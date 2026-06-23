@@ -136,12 +136,16 @@ OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
 # "Suggested" list. A list of domain strings; dismissing only silences a
 # *suggestion* (a connected pairing is always shown). See companions.py.
 OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
-# Actionable-notification profiles: a list of named, filtered push configs (targets,
-# label/area/device filter, button set, snooze duration, style, automatic triggers).
+# Profiles: named, reusable task filters (status + label/area/device). Standalone and
+# notification-agnostic — consumed by notifications, the panel's admin list filter, and
+# the Lovelace card. A list of ``{id, name, filter}``. See profiles.py.
+OPTION_PROFILES = "profiles"
+# Notifications: delivery bindings that reference a profile by ``profile_id`` and add
+# how to deliver (targets, button set, snooze duration, style, automatic triggers).
 # Edited from the panel's Settings → Notifications card and the set_options service;
 # consumed by the notify service, the action listener, and the coordinator's automatic
-# source. See notifications.py and docs/ACTIONABLE_NOTIFICATIONS_PLAN.md.
-OPTION_NOTIFY_PROFILES = "notify_profiles"
+# source. See notifications.py and docs/PROFILES_REFACTOR_PLAN.md.
+OPTION_NOTIFICATIONS = "notifications"
 
 # Opaque ``origin`` marker the actionable-notification action listener passes to
 # ``complete_task`` / ``snooze_task`` / ``skip_task`` so an automation can recognise

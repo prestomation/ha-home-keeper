@@ -44,35 +44,53 @@ def test_notify_service_and_action_completes(ha, ha_token):
     )
     task_id = resp.get("service_response", resp)["task_id"]
 
-    # A profile (explicit id so the test can reference it) scoped to our label.
+    # A standalone Profile (saved filter) scoped to our label, plus a Notification
+    # that references it. Explicit ids so the test can reference them.
     call_service(
         ha,
         "home_keeper",
         "set_options",
         {
-            "notify_profiles": [
+            "profiles": [
                 {
                     "id": "testprofile",
                     "name": "Test",
-                    "targets": [],
                     "filter": {"status": "overdue", "labels": [label]},
+                }
+            ],
+            "notifications": [
+                {
+                    "id": "testnotif",
+                    "name": "Test notif",
+                    "profile_id": "testprofile",
+                    "targets": [],
                     "actions": ["complete", "snooze"],
                     "style": "walk",
                 }
-            ]
+            ],
         },
     )
 
-    # The notify service resolves the profile and reports what's due (just our task).
+    # notify a saved notification → resolves its profile and reports what's due.
     resp = call_service(
-        ha, "home_keeper", "notify", {"profile": "testprofile"}, return_response=True
+        ha,
+        "home_keeper",
+        "notify",
+        {"notification": "testnotif"},
+        return_response=True,
     )
     body = resp.get("service_response", resp)
     assert body["matched"] == 1
     assert body["sent"] == task_id
 
-    # Tapping "Mark done" on the notification completes the task via the listener.
-    _fire_action(ha, f"home_keeper::complete::{task_id}::testprofile")
+    # notify a bare profile + inline delivery also works (ad-hoc).
+    resp = call_service(
+        ha, "home_keeper", "notify", {"profile": "testprofile"}, return_response=True
+    )
+    assert resp.get("service_response", resp)["matched"] == 1
+
+    # Tapping "Mark done" routes via the notification id and completes the task.
+    _fire_action(ha, f"home_keeper::complete::{task_id}::testnotif")
 
     deadline = time.monotonic() + 20
     completed = False
@@ -88,5 +106,7 @@ def test_notify_service_and_action_completes(ha, ha_token):
     _fire_action(ha, "some_other_app::complete::whatever::x")
 
     call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
-    # Clear the profile so other tests start clean.
-    call_service(ha, "home_keeper", "set_options", {"notify_profiles": []})
+    # Clear profiles/notifications so other tests start clean.
+    call_service(
+        ha, "home_keeper", "set_options", {"profiles": [], "notifications": []}
+    )

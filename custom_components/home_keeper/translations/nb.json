@@ -218,6 +218,10 @@
       "name": "Varsle om forfalte oppgaver",
       "description": "Send et handlingsrettet push-varsel om det som er forfalt nå, ut fra en lagret profil eller direkte overstyringer (mål, filtre, status og stil godtas).",
       "fields": {
+        "notification": {
+          "name": "Varsel",
+          "description": "Navn eller id på et lagret varsel (bruker profilen + leveringen)."
+        },
         "profile": {
           "name": "Profil",
           "description": "Navn eller id på en lagret varslingsprofil."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Vis oppgaver",
       "description": "Returner alle oppgaver som et svar."
+    },
+    "list_profiles": {
+      "name": "List opp profiler",
+      "description": "Returnerer de lagrede profilene (navngitte oppgavefiltre) som svar."
     },
     "add_asset": {
       "name": "Legg til apparat",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "Ingen varslingsprofil med navnet {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Ingen varsel med navnet {notification}."
     }
   }
 }

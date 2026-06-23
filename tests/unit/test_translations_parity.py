@@ -94,6 +94,7 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     "fr": frozenset(
         {
             "services.add_task.fields.notes.name",
+            "services.notify.fields.notification.name",  # "Notification" — FR cognate
             "services.update_task.fields.notes.name",
         }
     ),

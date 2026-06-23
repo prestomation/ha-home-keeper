@@ -218,9 +218,13 @@
       "name": "Notify what's due",
       "description": "Send an actionable push notification for what's currently due, using a saved profile or inline overrides (target, filters, status, and style are all accepted).",
       "fields": {
+        "notification": {
+          "name": "Notification",
+          "description": "Name or id of a saved notification (uses its profile + delivery)."
+        },
         "profile": {
           "name": "Profile",
-          "description": "Name or id of a saved notification profile to send."
+          "description": "Name or id of a saved profile (filter) to send."
         },
         "target": {
           "name": "Target",
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "List tasks",
       "description": "Return all tasks as a response."
+    },
+    "list_profiles": {
+      "name": "List profiles",
+      "description": "Return the saved profiles (named task filters) as a response."
     },
     "add_asset": {
       "name": "Add appliance",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "No notification profile named {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "No notification named {notification}."
     }
   }
 }

@@ -218,6 +218,10 @@
       "name": "Notifica le attività in scadenza",
       "description": "Invia una notifica push interattiva per ciò che è dovuto ora, usando un profilo salvato o sostituzioni dirette (destinazione, filtri, stato e stile sono accettati).",
       "fields": {
+        "notification": {
+          "name": "Notifica",
+          "description": "Nome o id di una notifica salvata (usa il suo profilo + consegna)."
+        },
         "profile": {
           "name": "Profilo",
           "description": "Nome o id di un profilo di notifica salvato."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Elenca attività",
       "description": "Restituisce tutte le attività come risposta."
+    },
+    "list_profiles": {
+      "name": "Elenca profili",
+      "description": "Restituisce i profili salvati (filtri attività con nome) come risposta."
     },
     "add_asset": {
       "name": "Aggiungi elettrodomestico",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "Nessun profilo di notifica chiamato {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Nessuna notifica chiamata {notification}."
     }
   }
 }

@@ -218,6 +218,10 @@
       "name": "Melden wat openstaat",
       "description": "Stuur een uitvoerbare pushmelding voor wat nu verschuldigd is, met een opgeslagen profiel of directe overschrijvingen (doel, filters, status en stijl worden geaccepteerd).",
       "fields": {
+        "notification": {
+          "name": "Melding",
+          "description": "Naam of id van een opgeslagen melding (gebruikt het profiel + de bezorging)."
+        },
         "profile": {
           "name": "Profiel",
           "description": "Naam of id van een opgeslagen meldingsprofiel."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Taken weergeven",
       "description": "Geeft alle taken als antwoord terug."
+    },
+    "list_profiles": {
+      "name": "Profielen weergeven",
+      "description": "Geeft de opgeslagen profielen (benoemde taakfilters) als antwoord terug."
     },
     "add_asset": {
       "name": "Apparaat toevoegen",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "Geen meldingsprofiel met de naam {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Geen melding met de naam {notification}."
     }
   }
 }

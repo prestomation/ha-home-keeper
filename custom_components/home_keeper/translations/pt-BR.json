@@ -218,6 +218,10 @@
       "name": "Notificar o que está pendente",
       "description": "Envia uma notificação push acionável do que está pendente agora, usando um perfil salvo ou substituições diretas (destino, filtros, status e estilo são aceitos).",
       "fields": {
+        "notification": {
+          "name": "Notificação",
+          "description": "Nome ou id de uma notificação salva (usa o perfil + entrega dela)."
+        },
         "profile": {
           "name": "Perfil",
           "description": "Nome ou id de um perfil de notificação salvo."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Listar tarefas",
       "description": "Retornar todas as tarefas como resposta."
+    },
+    "list_profiles": {
+      "name": "Listar perfis",
+      "description": "Retorna os perfis salvos (filtros de tarefas nomeados) como resposta."
     },
     "add_asset": {
       "name": "Adicionar eletrodoméstico",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "Nenhum perfil de notificação chamado {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Nenhuma notificação chamada {notification}."
     }
   }
 }

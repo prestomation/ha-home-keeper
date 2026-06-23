@@ -218,6 +218,10 @@
       "name": "Notifica el que venç",
       "description": "Envia una notificació push accionable del que venç ara, amb un perfil desat o substitucions directes (destinació, filtres, estat i estil s'accepten).",
       "fields": {
+        "notification": {
+          "name": "Notificació",
+          "description": "Nom o id d'una notificació desada (usa el seu perfil + lliurament)."
+        },
         "profile": {
           "name": "Perfil",
           "description": "Nom o id d'un perfil de notificació desat."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Llistar tasques",
       "description": "Retornar totes les tasques com a resposta."
+    },
+    "list_profiles": {
+      "name": "Llista els perfils",
+      "description": "Retorna els perfils desats (filtres de tasques amb nom) com a resposta."
     },
     "add_asset": {
       "name": "Afegir electrodomèstic",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "No hi ha cap perfil de notificació amb el nom {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "No hi ha cap notificació amb el nom {notification}."
     }
   }
 }

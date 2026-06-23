@@ -218,6 +218,10 @@
       "name": "Notifier les tâches dues",
       "description": "Envoyer une notification push actionnable pour ce qui est dû maintenant, à partir d'un profil enregistré ou de remplacements directs (cible, filtres, statut et style sont acceptés).",
       "fields": {
+        "notification": {
+          "name": "Notification",
+          "description": "Nom ou identifiant d'une notification enregistrée (utilise son profil + sa diffusion)."
+        },
         "profile": {
           "name": "Profil",
           "description": "Nom ou identifiant d'un profil de notification enregistré."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Lister les tâches",
       "description": "Renvoyer toutes les tâches en réponse."
+    },
+    "list_profiles": {
+      "name": "Lister les profils",
+      "description": "Renvoie les profils enregistrés (filtres de tâches nommés) en réponse."
     },
     "add_asset": {
       "name": "Ajouter un appareil",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "Aucun profil de notification nommé {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Aucune notification nommée {notification}."
     }
   }
 }

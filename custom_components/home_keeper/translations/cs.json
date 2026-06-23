@@ -218,6 +218,10 @@
       "name": "Upozornit na úkoly k vyřízení",
       "description": "Odešle akční push oznámení pro to, co je nyní k vyřízení, pomocí uloženého profilu nebo přímých změn (cíl, filtry, stav a styl jsou akceptovány).",
       "fields": {
+        "notification": {
+          "name": "Oznámení",
+          "description": "Název nebo id uloženého oznámení (použije jeho profil + doručení)."
+        },
         "profile": {
           "name": "Profil",
           "description": "Název nebo id uloženého profilu oznámení."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Vypsat úkoly",
       "description": "Vrátit všechny úkoly jako odpověď."
+    },
+    "list_profiles": {
+      "name": "Vypsat profily",
+      "description": "Vrátí uložené profily (pojmenované filtry úkolů) jako odpověď."
     },
     "add_asset": {
       "name": "Přidat spotřebič",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "Žádný profil oznámení s názvem {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Žádné oznámení s názvem {notification}."
     }
   }
 }

@@ -42,6 +42,7 @@ def _load_pure_modules() -> None:
         "sensor_tasks",
         "inventory",
         "companions_catalog",
+        "profiles",
         "notifications",
     ):
         spec = importlib.util.spec_from_file_location(
@@ -63,6 +64,7 @@ def _load_pure_modules() -> None:
     sys.modules["hk_sensor_tasks"] = sys.modules["hk.sensor_tasks"]
     sys.modules["hk_inventory"] = sys.modules["hk.inventory"]
     sys.modules["hk_companions_catalog"] = sys.modules["hk.companions_catalog"]
+    sys.modules["hk_profiles"] = sys.modules["hk.profiles"]
     sys.modules["hk_notifications"] = sys.modules["hk.notifications"]
 
 

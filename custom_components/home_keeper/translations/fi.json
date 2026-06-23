@@ -218,6 +218,10 @@
       "name": "Ilmoita erääntyvistä",
       "description": "Lähetä toiminnallinen push-ilmoitus nyt erääntyvistä tehtävistä tallennetun profiilin tai suorien korvausten avulla (kohde, suodattimet, tila ja tyyli hyväksytään).",
       "fields": {
+        "notification": {
+          "name": "Ilmoitus",
+          "description": "Tallennetun ilmoituksen nimi tai tunnus (käyttää sen profiilia + toimitusta)."
+        },
         "profile": {
           "name": "Profiili",
           "description": "Tallennetun ilmoitusprofiilin nimi tai tunnus."
@@ -231,6 +235,10 @@
     "list_tasks": {
       "name": "Luettele tehtävät",
       "description": "Palauta kaikki tehtävät vastauksena."
+    },
+    "list_profiles": {
+      "name": "Luettele profiilit",
+      "description": "Palauttaa tallennetut profiilit (nimetyt tehtäväsuodattimet) vastauksena."
     },
     "add_asset": {
       "name": "Lisää laite",
@@ -465,6 +473,9 @@
     },
     "notify_profile_not_found": {
       "message": "Ei ilmoitusprofiilia nimeltä {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Ei ilmoitusta nimeltä {notification}."
     }
   }
 }
