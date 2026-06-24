@@ -115,3 +115,27 @@ def test_due_queue_orders_most_overdue_first():
     ]
     q = p.due_queue(tasks, {"status": "overdue"}, now=now)
     assert [t["name"] for t in q] == ["Earliest", "Middle", "Later"]
+
+
+def test_conformance_fixture_matches_filter():
+    """Run the shared cross-language conformance cases through the Python matcher.
+
+    The same fixture drives the TypeScript ``profileMatches`` test (see
+    ``frontend/test/card-filter.test.js``), so a Profile selects the same tasks in a
+    notification, the admin list, and the card. If you add a case here, both sides must
+    still agree.
+    """
+    import json
+    from pathlib import Path
+
+    fixture = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "profile_filter_cases.json"
+    )
+    data = json.loads(fixture.read_text())
+    default_now = datetime.fromisoformat(data["now"].replace("Z", "+00:00"))
+    for case in data["cases"]:
+        now = default_now
+        if "now" in case:
+            now = datetime.fromisoformat(case["now"].replace("Z", "+00:00"))
+        got = p.matches_filter(case["task"], case["filter"], now=now)
+        assert got is case["expected"], f"{case['name']}: expected {case['expected']}, got {got}"

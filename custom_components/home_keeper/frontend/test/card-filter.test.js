@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { setLanguage } from '../src/i18n.ts';
 import {
@@ -9,6 +10,15 @@ import {
 } from '../src/card-filter.ts';
 
 afterEach(() => setLanguage('en'));
+
+// Shared cross-language conformance fixture (also run by the Python matcher in
+// tests/unit/test_profiles.py) — a Profile must select the same tasks here as it does
+// server-side in a notification.
+// vitest runs from the repo root (see CI + the project vitest config), so resolve the
+// shared fixture from there.
+const CONFORMANCE = JSON.parse(
+  readFileSync('tests/fixtures/profile_filter_cases.json', 'utf8'),
+);
 
 // A fixed "now" so relative date math is deterministic.
 const NOW = new Date('2026-06-16T12:00:00Z').getTime();
@@ -238,4 +248,16 @@ describe('profileMatches (saved-filter predicate)', () => {
     expect(profileMatches(viaDevice, F({ status: 'all', labels: ['dog'] }), devices, {}, NOW)).toBe(true);
     expect(profileMatches(viaDevice, F({ status: 'all', areas: ['kitchen'] }), devices, {}, NOW)).toBe(true);
   });
+});
+
+describe('profileMatches conformance (shared backend/frontend fixture)', () => {
+  const defaultNow = new Date(CONFORMANCE.now).getTime();
+  for (const c of CONFORMANCE.cases) {
+    it(c.name, () => {
+      const now = c.now ? new Date(c.now).getTime() : defaultNow;
+      // Empty registries: tasks carry their effective ids directly, matching how the
+      // backend enriches before calling the pure matcher.
+      expect(profileMatches(c.task, c.filter, {}, {}, now)).toBe(c.expected);
+    });
+  }
 });

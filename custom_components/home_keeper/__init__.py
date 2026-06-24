@@ -525,7 +525,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_snooze_task(call: ServiceCall) -> None:
         coord = _coordinator()
-        until = dt_util.now() + timedelta(hours=call.data.get("hours", 24))
+        until = dt_util.now() + timedelta(hours=call.data["hours"])
         try:
             await coord.store.snooze_task(
                 call.data["task_id"], until, origin=call.data.get("origin")

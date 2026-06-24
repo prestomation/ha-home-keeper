@@ -1,0 +1,120 @@
+{
+  "_comment": "Cross-language conformance cases for the Profile filter. Both the Python pure matcher (profiles.matches_filter) and the TypeScript pure matcher (card-filter.profileMatches) must agree on every case, so a saved Profile selects the same tasks in a notification (server-side), the admin task list, and the dashboard card. Tasks here carry their EFFECTIVE label/area ids directly (own + any inherited from device/area), since each side resolves inheritance before/inside matching; these cases pin the shared matcher logic with empty registries. now is a fixed instant so date math is deterministic.",
+  "now": "2026-06-16T12:00:00Z",
+  "cases": [
+    {
+      "name": "overdue task, status overdue",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [] },
+      "filter": { "status": "overdue", "labels": [], "areas": [], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "task due in 1 day, status overdue -> excluded",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-17T12:00:00Z", "labels": [] },
+      "filter": { "status": "overdue", "labels": [], "areas": [], "devices": [] },
+      "expected": false
+    },
+    {
+      "name": "task due in 1 day, status due_soon",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-17T12:00:00Z", "labels": [] },
+      "filter": { "status": "due_soon", "labels": [], "areas": [], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "task due in 3 days (window boundary), status due_soon",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-19T12:00:00Z", "labels": [] },
+      "filter": { "status": "due_soon", "labels": [], "areas": [], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "task due in 5 days, status due_soon -> excluded (3-day window, NOT the 7-day soon bucket)",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-21T12:00:00Z", "labels": [] },
+      "filter": { "status": "due_soon", "labels": [], "areas": [], "devices": [] },
+      "expected": false
+    },
+    {
+      "name": "overdue task, status due_soon (overdue counts as due-soon)",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [] },
+      "filter": { "status": "due_soon", "labels": [], "areas": [], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "task due in 30 days, status all",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-07-16T12:00:00Z", "labels": [] },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "disabled overdue task, status all -> excluded",
+      "task": { "id": "t", "enabled": false, "next_due": "2026-06-13T12:00:00Z", "labels": [] },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
+      "expected": false
+    },
+    {
+      "name": "dormant task (no next_due), status all -> excluded",
+      "task": { "id": "t", "enabled": true, "next_due": null, "labels": [] },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
+      "expected": false
+    },
+    {
+      "name": "synced problem-sensor task, status all -> excluded",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": { "problem_sensor": { "entity_id": "binary_sensor.x" } } },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
+      "expected": false
+    },
+    {
+      "name": "label ANY: effective label matches",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"] },
+      "filter": { "status": "all", "labels": ["dog"], "areas": [], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "label miss",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["cat"] },
+      "filter": { "status": "all", "labels": ["dog"], "areas": [], "devices": [] },
+      "expected": false
+    },
+    {
+      "name": "label ANY across several configured labels",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["car"] },
+      "filter": { "status": "all", "labels": ["dog", "car"], "areas": [], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "area match (effective area)",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "area_id": "kitchen" },
+      "filter": { "status": "all", "labels": [], "areas": ["kitchen"], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "area miss",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "area_id": "garage" },
+      "filter": { "status": "all", "labels": [], "areas": ["kitchen"], "devices": [] },
+      "expected": false
+    },
+    {
+      "name": "device match (own device)",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "device_id": "d1" },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": ["d1"] },
+      "expected": true
+    },
+    {
+      "name": "device miss",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "device_id": "d2" },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": ["d1"] },
+      "expected": false
+    },
+    {
+      "name": "AND across lists: label AND area both required, both present",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"], "area_id": "kitchen" },
+      "filter": { "status": "all", "labels": ["dog"], "areas": ["kitchen"], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "AND across lists: label present but area missing -> excluded",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"], "area_id": "garage" },
+      "filter": { "status": "all", "labels": ["dog"], "areas": ["kitchen"], "devices": [] },
+      "expected": false
+    }
+  ]
+}

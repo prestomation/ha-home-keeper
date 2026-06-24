@@ -659,6 +659,16 @@ export class HomeKeeperPanel extends HTMLElement {
       this._options = options?.options ?? null;
       this._notifyTargets = options?.notifyTargets ?? [];
       this._companions = companions ?? [];
+      // Drop a remembered Profile filter that no longer exists (deleted since), so the
+      // Tasks-tab dropdown and the stored id can't disagree.
+      if (this._profile && !(this._options?.profiles ?? []).some((p) => p.id === this._profile)) {
+        this._profile = '';
+        try {
+          localStorage.removeItem(LS_PROFILE);
+        } catch {
+          /* ignore */
+        }
+      }
       this._loaded = true;
     } catch (err) {
       // eslint-disable-next-line no-console

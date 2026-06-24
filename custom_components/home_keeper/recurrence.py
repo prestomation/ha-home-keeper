@@ -330,9 +330,10 @@ def skip_occurrence(task: dict, *, now: datetime) -> dict:
 
     * floating  -> ``now + interval·unit`` (a fresh interval from now; the next
       completion still measures from *its* ``completed_at``).
-    * fixed     -> the next scheduled occurrence strictly after the one being skipped
-      (``max(now, next_due)``), so a single skip advances exactly one occurrence
-      whether the task is overdue or merely upcoming.
+    * fixed     -> the next scheduled occurrence strictly after ``max(now, next_due)``.
+      An upcoming task advances exactly one occurrence; an overdue task jumps to the
+      next occurrence after *now*, collapsing any already-missed occurrences rather than
+      taking one skip per missed period.
     * one-off / triggered / sensor -> dormant (``next_due = None``): there is no "next"
       occurrence to advance to, so skipping clears it from every time surface (a
       triggered/sensor task is re-armed only by its owner/the watcher; a one-off stays

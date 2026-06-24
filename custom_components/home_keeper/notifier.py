@@ -18,6 +18,8 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import device_registry as dr
 from homeassistant.util import dt as dt_util
 
 from . import notifications, profiles
@@ -65,6 +67,64 @@ def _notifications(entry: ConfigEntry) -> list[dict[str, Any]]:
     return value if isinstance(value, list) else []
 
 
+def _effective_filter_tasks(
+    hass: HomeAssistant, tasks: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Return *tasks* with **effective** label/area ids resolved for filtering.
+
+    A profile filter matches a task's labels/area, but a task inherits both from its
+    attached device and (transitively) its area — exactly as the panel and card resolve
+    them (``card-filter.ts`` ``taskLabelIds``/``taskAreaId``). The pure
+    ``profiles.matches_filter`` only sees a task's *own* fields, so we enrich here, in
+    the HA-aware layer that has the registries, before handing tasks to ``due_queue``.
+    This keeps the same Profile meaning the same thing in a notification as it does in
+    the admin list and the dashboard card ("label = dog" picks up a task on a device or
+    area labelled ``dog``). ``device_id`` is unchanged — a device filter matches the
+    task's own device, like the frontend.
+    """
+    dev_reg = dr.async_get(hass)
+    area_reg = ar.async_get(hass)
+    enriched: list[dict[str, Any]] = []
+    for task in tasks:
+        labels = set(task.get("labels") or [])
+        area_id = task.get("area_id")
+        device = (
+            dev_reg.async_get(task["device_id"]) if task.get("device_id") else None
+        )
+        if device is not None:
+            labels |= set(device.labels)
+            if not area_id:
+                area_id = device.area_id
+        if area_id:
+            area = area_reg.async_get_area(area_id)
+            if area is not None:
+                labels |= set(area.labels)
+        enriched.append({**task, "labels": sorted(labels), "area_id": area_id})
+    return enriched
+
+
+def _notification_profile(
+    entry: ConfigEntry, notification: dict[str, Any]
+) -> tuple[dict[str, Any] | None, bool]:
+    """Resolve a saved notification's effective filter profile.
+
+    Returns ``(profile, misconfigured)``:
+      - ``profile_id`` resolves → ``(that profile, False)``;
+      - ``profile_id`` unset → ``(the all-due profile, False)`` (a notification with no
+        profile covers every due task, as documented);
+      - ``profile_id`` set but missing (e.g. the profile was deleted) →
+        ``(None, True)`` so callers skip/raise rather than silently fall back to "all
+        overdue tasks" and blast every task to the targets.
+    """
+    pid = notification.get("profile_id")
+    profile = profiles.resolve_profile(_profiles(entry), pid)
+    if profile is not None:
+        return profile, False
+    if pid:
+        return None, True
+    return profiles.normalize_profile({"name": "all"}), False
+
+
 async def _send_payload(
     hass: HomeAssistant, targets: list[str], payload: dict[str, Any]
 ) -> None:
@@ -90,9 +150,8 @@ async def _send(
     surfaced in a *walk* (``None`` for an empty queue or a digest).
     """
     now = dt_util.now()
-    queue = profiles.due_queue(
-        list(coord.store.get_tasks().values()), profile["filter"], now=now
-    )
+    tasks = _effective_filter_tasks(hass, list(coord.store.get_tasks().values()))
+    queue = profiles.due_queue(tasks, profile["filter"], now=now)
     if not queue:
         return 0, None
     if notification["style"] == notifications.STYLE_DIGEST:
@@ -122,17 +181,20 @@ async def async_send_for_notification(
     *,
     reason: str = "manual",
 ) -> tuple[int, str | None]:
-    """Resolve *notification*'s profile and send what's due. No-op if it has none."""
-    profile = profiles.resolve_profile(
-        _profiles(coord.entry), notification.get("profile_id")
-    )
-    if profile is None:
+    """Resolve *notification*'s profile and send what's due.
+
+    No-op if its ``profile_id`` is set but no longer resolves (a deleted profile) —
+    sending "all overdue tasks" in that case would be a surprising blast.
+    """
+    profile, misconfigured = _notification_profile(coord.entry, notification)
+    if misconfigured:
         _LOGGER.debug(
-            "Home Keeper notification %r has no resolvable profile (%s)",
+            "Home Keeper notification %r references a missing profile (%s); skipping",
             notification.get("name"),
             notification.get("profile_id"),
         )
         return 0, None
+    assert profile is not None  # not misconfigured => resolved or the all-due profile
     return await _send(hass, coord, notification, profile, reason=reason)
 
 
@@ -178,9 +240,14 @@ async def async_run_notify(
                 "key": "notify_notification_not_found",
                 "placeholders": {"notification": str(data["notification"])},
             }
-        base_profile = profiles.resolve_profile(
-            _profiles(coord.entry), base_notif.get("profile_id")
-        )
+        base_profile, misconfigured = _notification_profile(coord.entry, base_notif)
+        if misconfigured:
+            # A saved notification that points at a deleted profile is a config error,
+            # not a request to notify every overdue task — surface it.
+            return {}, {
+                "key": "notify_profile_not_found",
+                "placeholders": {"profile": str(base_notif.get("profile_id"))},
+            }
     if data.get("profile"):
         base_profile = profiles.resolve_profile(_profiles(coord.entry), data["profile"])
         if base_profile is None:

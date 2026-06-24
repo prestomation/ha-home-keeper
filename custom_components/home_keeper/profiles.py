@@ -104,9 +104,12 @@ def matches_filter(
     ``next_due``), and not a synced ``problem`` sensor (those can't be completed from
     Home Keeper). On top of that it must clear the label/area/device filters (each is
     an OR within the list, AND across the lists; an empty list means "any") and the
-    ``status`` due-state. Filtering is on the task's **own** ``labels``/``area_id``/
-    ``device_id`` (the TS ``card-filter`` profile path matches this; see the
-    conformance fixture).
+    ``status`` due-state. This pure matcher reads the ``labels``/``area_id``/
+    ``device_id`` on the task dict; the HA-aware caller
+    (``notifier._effective_filter_tasks``) enriches those with **effective**
+    (device/area-inherited) ids before calling, so a Profile selects the same tasks here
+    as it does on the panel/card, which resolve inheritance inline. The shared
+    ``tests/fixtures/profile_filter_cases.json`` pins this agreement.
     """
     if not task.get("enabled", True):
         return False

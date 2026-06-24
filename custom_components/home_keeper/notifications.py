@@ -161,7 +161,7 @@ def _open_uri(task: dict[str, Any]) -> str:
 
 def _action_button(
     verb: str, task: dict[str, Any], notification: dict[str, Any]
-) -> dict:
+) -> dict[str, Any]:
     """Build one mobile-app action button for *verb* on *task*."""
     action_id = encode_action(verb, task["id"], notification["id"])
     if verb == ACTION_COMPLETE:
