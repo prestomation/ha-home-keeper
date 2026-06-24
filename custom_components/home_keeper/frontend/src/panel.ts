@@ -219,6 +219,24 @@ const STYLES = `
   .hk-editor-row ha-form { display: block; }
   .hk-notify-delete { align-self: flex-end; --mdc-theme-primary: var(--error-color, #db4437); }
   .hk-notify-add { margin-top: 12px; }
+  /* Collapsible settings section headers (Profiles, Notifications). */
+  .hk-section-header {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    background: none; border: none; padding: 0; width: 100%;
+    color: inherit; font: inherit; text-align: left; margin-bottom: 8px;
+  }
+  .hk-section-header:hover { opacity: 0.8; }
+  .hk-section-title { flex: 1; margin-bottom: 0; }
+  .hk-section-count {
+    font-size: 0.8rem; color: var(--secondary-text-color);
+    background: var(--secondary-background-color);
+    border-radius: 999px; padding: 1px 8px; flex: 0 0 auto;
+  }
+  .hk-section-chevron {
+    color: var(--secondary-text-color); flex: 0 0 auto;
+    transition: transform 0.2s ease; transform: rotate(-90deg);
+  }
+  .hk-section-chevron.open { transform: rotate(0deg); }
   ha-assist-chip.hk-comp-connected {
     --ha-assist-chip-container-color: var(--success-color, #43a047);
     --ha-assist-chip-filled-container-color: var(--success-color, #43a047);
@@ -494,6 +512,8 @@ export class HomeKeeperPanel extends HTMLElement {
   // "monitored" status bucket — dormant condition-driven tasks like healthy
   // batteries — starts collapsed so it stays out of the way but one click to browse.
   private _collapsed = new Set<string>(['status:monitored', 'status:completed']);
+  // Settings sections (profiles, notifications) the user has collapsed this session.
+  private _settingsSectionCollapsed = new Set<string>();
   // The object whose full detail page is open, or null for the list view.
   private _detail: { kind: 'task' | 'asset'; id: string } | null = null;
   // The panel's URL prefix (e.g. `/home-keeper`), supplied by HA via `route`.
@@ -2185,10 +2205,6 @@ export class HomeKeeperPanel extends HTMLElement {
       profiles: [],
       notifications: [],
     };
-    // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor).
-    host.appendChild(
-      this._settingsCard('hk-settings', 'settings.heading', 'settings.help', problemSyncSchema(), opts),
-    );
     // General — settings independent of any single feature (e.g. one-off retention).
     host.appendChild(
       this._settingsCard(
@@ -2198,6 +2214,10 @@ export class HomeKeeperPanel extends HTMLElement {
         generalSchema(),
         opts,
       ),
+    );
+    // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor).
+    host.appendChild(
+      this._settingsCard('hk-settings', 'settings.heading', 'settings.help', problemSyncSchema(), opts),
     );
   }
 
@@ -2257,25 +2277,63 @@ export class HomeKeeperPanel extends HTMLElement {
    *  notifications, the admin task list, and the dashboard card. */
   private _renderProfiles(host: HTMLElement): void {
     const profiles = this._options?.profiles ?? [];
+    const isCollapsed = this._settingsSectionCollapsed.has('profiles');
+
     const card = document.createElement('ha-card');
     card.className = 'hk-form-card';
     card.id = 'hk-profiles';
     const inner = document.createElement('div');
     inner.className = 'hk-form-inner';
-    inner.innerHTML = `
-      <div class="hk-form-title">${escapeHTML(t('notify.profiles_heading'))}</div>
-      <div class="hk-settings-intro">${escapeHTML(t('notify.profiles_help'))}</div>`;
+
+    // Clickable header (always visible)
+    const header = document.createElement('button');
+    header.className = 'hk-section-header';
+    header.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    header.innerHTML = `
+      <span class="hk-form-title hk-section-title">${escapeHTML(t('notify.profiles_heading'))}</span>
+      ${profiles.length ? `<span class="hk-section-count">${profiles.length}</span>` : ''}
+      <ha-icon icon="mdi:chevron-down" class="hk-section-chevron${isCollapsed ? '' : ' open'}"></ha-icon>`;
+    inner.appendChild(header);
+
+    // Collapsible body
+    const body = document.createElement('div');
+    if (isCollapsed) body.style.display = 'none';
+    const intro = document.createElement('div');
+    intro.className = 'hk-settings-intro';
+    intro.textContent = t('notify.profiles_help');
+    body.appendChild(intro);
     if (!profiles.length) {
-      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.profiles_empty'))}</ha-alert>`;
+      const alert = document.createElement('ha-alert');
+      alert.setAttribute('alert-type', 'info');
+      alert.textContent = t('notify.profiles_empty');
+      body.appendChild(alert);
     }
-    for (const profile of profiles) inner.appendChild(this._profileEditor(profile));
+    for (const profile of profiles) body.appendChild(this._profileEditor(profile));
     const add = document.createElement('ha-button');
     add.id = 'hk-profile-add';
     add.className = 'hk-notify-add';
     add.textContent = t('notify.add_profile');
     add.addEventListener('click', () => void this._addProfile());
-    inner.appendChild(add);
+    body.appendChild(add);
+    inner.appendChild(body);
     card.appendChild(inner);
+
+    header.addEventListener('click', () => {
+      const collapsed = this._settingsSectionCollapsed.has('profiles');
+      const chevron = header.querySelector<HTMLElement>('.hk-section-chevron');
+      if (collapsed) {
+        this._settingsSectionCollapsed.delete('profiles');
+        body.style.display = '';
+        header.setAttribute('aria-expanded', 'true');
+        chevron?.classList.add('open');
+      } else {
+        this._settingsSectionCollapsed.add('profiles');
+        body.style.display = 'none';
+        header.setAttribute('aria-expanded', 'false');
+        chevron?.classList.remove('open');
+      }
+    });
+
     host.appendChild(card);
   }
 
@@ -2341,25 +2399,51 @@ export class HomeKeeperPanel extends HTMLElement {
   private _renderNotifications(host: HTMLElement): void {
     const profiles = this._options?.profiles ?? [];
     const notifications = this._options?.notifications ?? [];
+    const isCollapsed = this._settingsSectionCollapsed.has('notifications');
+
     const card = document.createElement('ha-card');
     card.className = 'hk-form-card';
     card.id = 'hk-notifications';
     const inner = document.createElement('div');
     inner.className = 'hk-form-inner';
-    inner.innerHTML = `
-      <div class="hk-form-title">${escapeHTML(t('notify.heading'))}</div>
-      <div class="hk-settings-intro">${escapeHTML(t('notify.help'))}</div>`;
+
+    // Clickable header (always visible)
+    const header = document.createElement('button');
+    header.className = 'hk-section-header';
+    header.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    header.innerHTML = `
+      <span class="hk-form-title hk-section-title">${escapeHTML(t('notify.heading'))}</span>
+      ${notifications.length ? `<span class="hk-section-count">${notifications.length}</span>` : ''}
+      <ha-icon icon="mdi:chevron-down" class="hk-section-chevron${isCollapsed ? '' : ' open'}"></ha-icon>`;
+    inner.appendChild(header);
+
+    // Collapsible body
+    const body = document.createElement('div');
+    if (isCollapsed) body.style.display = 'none';
+    const intro = document.createElement('div');
+    intro.className = 'hk-settings-intro';
+    intro.textContent = t('notify.help');
+    body.appendChild(intro);
     if (!this._notifyTargets.length) {
-      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.no_targets'))}</ha-alert>`;
+      const alert = document.createElement('ha-alert');
+      alert.setAttribute('alert-type', 'info');
+      alert.textContent = t('notify.no_targets');
+      body.appendChild(alert);
     }
     if (!profiles.length) {
-      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.need_profile'))}</ha-alert>`;
+      const alert = document.createElement('ha-alert');
+      alert.setAttribute('alert-type', 'info');
+      alert.textContent = t('notify.need_profile');
+      body.appendChild(alert);
     }
     if (!notifications.length) {
-      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.empty'))}</ha-alert>`;
+      const alert = document.createElement('ha-alert');
+      alert.setAttribute('alert-type', 'info');
+      alert.textContent = t('notify.empty');
+      body.appendChild(alert);
     }
     for (const notification of notifications) {
-      inner.appendChild(this._notificationEditor(notification, profiles));
+      body.appendChild(this._notificationEditor(notification, profiles));
     }
     const add = document.createElement('ha-button');
     add.id = 'hk-notify-add';
@@ -2367,8 +2451,26 @@ export class HomeKeeperPanel extends HTMLElement {
     add.textContent = t('notify.add');
     if (!profiles.length) add.setAttribute('disabled', '');
     add.addEventListener('click', () => void this._addNotification());
-    inner.appendChild(add);
+    body.appendChild(add);
+    inner.appendChild(body);
     card.appendChild(inner);
+
+    header.addEventListener('click', () => {
+      const collapsed = this._settingsSectionCollapsed.has('notifications');
+      const chevron = header.querySelector<HTMLElement>('.hk-section-chevron');
+      if (collapsed) {
+        this._settingsSectionCollapsed.delete('notifications');
+        body.style.display = '';
+        header.setAttribute('aria-expanded', 'true');
+        chevron?.classList.add('open');
+      } else {
+        this._settingsSectionCollapsed.add('notifications');
+        body.style.display = 'none';
+        header.setAttribute('aria-expanded', 'false');
+        chevron?.classList.remove('open');
+      }
+    });
+
     host.appendChild(card);
   }
 
