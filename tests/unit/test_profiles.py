@@ -138,4 +138,6 @@ def test_conformance_fixture_matches_filter():
         if "now" in case:
             now = datetime.fromisoformat(case["now"].replace("Z", "+00:00"))
         got = p.matches_filter(case["task"], case["filter"], now=now)
-        assert got is case["expected"], f"{case['name']}: expected {case['expected']}, got {got}"
+        assert got is case["expected"], (
+            f"{case['name']}: expected {case['expected']}, got {got}"
+        )

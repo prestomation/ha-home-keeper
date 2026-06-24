@@ -88,9 +88,7 @@ def _effective_filter_tasks(
     for task in tasks:
         labels = set(task.get("labels") or [])
         area_id = task.get("area_id")
-        device = (
-            dev_reg.async_get(task["device_id"]) if task.get("device_id") else None
-        )
+        device = dev_reg.async_get(task["device_id"]) if task.get("device_id") else None
         if device is not None:
             labels |= set(device.labels)
             if not area_id:
