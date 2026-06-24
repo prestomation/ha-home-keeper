@@ -7,6 +7,11 @@ import {themes as prismThemes} from 'prism-react-renderer';
 // DOCS_BASE_URL to keep asset paths correct for each deploy target.
 const baseUrl = process.env.DOCS_BASE_URL ?? '/ha-home-keeper/';
 
+// DOCS_VERSION is injected by docs-deploy.yml from manifest.json so the navbar
+// shows the release the site was built from. Falls back to 'dev' locally and in
+// PR previews.
+const docsVersion = process.env.DOCS_VERSION ?? 'dev';
+
 const organizationName = 'prestomation';
 const projectName = 'ha-home-keeper';
 const repoUrl = `https://github.com/${organizationName}/${projectName}`;
@@ -108,6 +113,13 @@ const config: Config = {
           to: '/docs/release-notes',
           label: 'Release Notes',
           position: 'left',
+        },
+        {
+          label: docsVersion !== 'dev' ? `v${docsVersion}` : 'dev',
+          href: docsVersion !== 'dev'
+            ? `${repoUrl}/releases/tag/v${docsVersion}`
+            : `${repoUrl}/commits/main`,
+          position: 'right',
         },
         {
           href: repoUrl,

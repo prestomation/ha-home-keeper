@@ -49,8 +49,12 @@ harness.
 
 ## Deployment
 
-- **`docs-deploy.yml`** — on push to `main` (touching `website/**` or
-  `docs/images/**`), builds and publishes to the root of the `gh-pages` branch.
+- **`docs-deploy.yml`** — fires when a stable GitHub Release is published (not
+  pre-releases). Checks out the release tag commit, injects `DOCS_VERSION` from
+  `manifest.json`, and publishes to the root of the `gh-pages` branch. The live site
+  is therefore always pinned to the latest stable release — users never see docs for
+  unreleased features. A `workflow_dispatch` trigger is available for emergency manual
+  deploys (e.g. an urgent typo fix that can't wait for the next release).
 - **`docs-preview.yml`** — on pull requests, builds a preview and publishes it under
   `pr-preview/pr-<n>/` on the `gh-pages` branch, posting a sticky comment with the
   preview URL. Previews are torn down when the PR closes.
