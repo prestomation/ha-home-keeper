@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Notificar lo que vence",
-      "description": "Envía una notificación push accionable de lo que vence ahora, usando un perfil guardado o sustituciones directas (destino, filtros, estado y estilo se aceptan).",
+      "description": "Envía una notificación push accionable de lo que vence ahora: indica una notificación o un perfil guardado, opcionalmente sustituyendo el destino.",
       "fields": {
         "notification": {
           "name": "Notificación",

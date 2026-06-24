@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Notify what's due",
-      "description": "Send an actionable push notification for what's currently due, using a saved profile or inline overrides (target, filters, status, and style are all accepted).",
+      "description": "Send an actionable push notification for what's currently due — name a saved notification or profile, optionally overriding the notify target.",
       "fields": {
         "notification": {
           "name": "Notification",

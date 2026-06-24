@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Upozornit na úkoly k vyřízení",
-      "description": "Odešle akční push oznámení pro to, co je nyní k vyřízení, pomocí uloženého profilu nebo přímých změn (cíl, filtry, stav a styl jsou akceptovány).",
+      "description": "Odešle akční push oznámení o tom, co je právě splatné – zadejte uložené oznámení nebo profil a volitelně přepište cíl.",
       "fields": {
         "notification": {
           "name": "Oznámení",

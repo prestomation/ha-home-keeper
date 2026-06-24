@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Notifica el que venç",
-      "description": "Envia una notificació push accionable del que venç ara, amb un perfil desat o substitucions directes (destinació, filtres, estat i estil s'accepten).",
+      "description": "Envia una notificació push accionable del que venç ara: indica una notificació o un perfil desat, opcionalment substituint el destinatari.",
       "fields": {
         "notification": {
           "name": "Notificació",

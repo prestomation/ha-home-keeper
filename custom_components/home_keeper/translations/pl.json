@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Powiadom o zadaniach do zrobienia",
-      "description": "Wyślij interaktywne powiadomienie push o tym, co jest teraz do zrobienia, na podstawie zapisanego profilu lub bezpośrednich zmian (cel, filtry, status i styl są akceptowane).",
+      "description": "Wyślij interaktywne powiadomienie push o tym, co jest teraz wymagane – podaj zapisane powiadomienie lub profil, opcjonalnie zastępując cel.",
       "fields": {
         "notification": {
           "name": "Powiadomienie",

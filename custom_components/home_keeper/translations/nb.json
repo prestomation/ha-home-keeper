@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Varsle om forfalte oppgaver",
-      "description": "Send et handlingsrettet push-varsel om det som er forfalt nå, ut fra en lagret profil eller direkte overstyringer (mål, filtre, status og stil godtas).",
+      "description": "Send et handlingsbart push-varsel om det som forfaller nå – angi et lagret varsel eller en profil, og overstyr eventuelt målet.",
       "fields": {
         "notification": {
           "name": "Varsel",

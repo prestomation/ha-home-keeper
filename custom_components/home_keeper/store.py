@@ -225,12 +225,22 @@ class HomeKeeperStore:
         overdue/due-soon events for the new date (a fresh reminder fires when the
         snooze lapses). *until* is a timezone-aware datetime (the caller computes it
         from the requested duration). Rejects a synced problem-sensor task like every
-        other user mutation. Fires ``home_keeper_task_snoozed``.
+        other user mutation, and a **dormant** task (``next_due is None``) — there's no
+        due date to defer. Fires ``home_keeper_task_snoozed``.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
         _reject_synced_problem(existing, origin)
+        if existing.get("next_due") is None:
+            # A dormant task (a completed one-off, or a condition/sensor task not yet
+            # armed) has no due date to defer; snoozing it would silently re-arm
+            # something that was intentionally off every time surface.
+            raise models.TaskValidationError(
+                "This task is dormant (no due date) — snooze only defers a task that "
+                "is currently scheduled. Re-arm it instead (undo a completion, or wait "
+                "for its condition/sensor)."
+            )
         existing["next_due"] = until.isoformat()
         await self._save()
         _LOGGER.debug("Snoozed task %s until %s", task_id, existing["next_due"])

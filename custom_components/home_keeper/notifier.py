@@ -219,12 +219,14 @@ async def async_run_notify(
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """Resolve the ``home_keeper.notify`` call and send it.
 
-    Accepts a saved ``notification`` (id/name → its profile + delivery), or a
-    ``profile`` (id/name) plus inline delivery, or pure inline overrides for an ad-hoc
-    send. Returns ``(response, error)`` — on success ``response`` is
-    ``{"matched", "sent"}``; when a named notification/profile can't be found ``error``
-    is a ``{"key", "placeholders"}`` mapping the handler turns into a localized
-    ``ServiceValidationError`` (keeping this module HA-exception-free).
+    Accepts a saved ``notification`` (id/name → its profile + delivery), or a saved
+    ``profile`` (id/name) to send with default delivery, either optionally with a
+    ``target`` override. A bare/target-only call covers every due task. Returns
+    ``(response, error)`` — on success ``response`` is ``{"matched", "sent"}``; when a
+    named notification/profile can't be found ``error`` is a ``{"key", "placeholders"}``
+    mapping the handler turns into a localized ``ServiceValidationError`` (keeping this
+    module HA-exception-free). Custom filters/delivery come from saved Profiles and
+    Notifications — the whole point of making them reusable — not inline on every call.
     """
     base_notif: dict[str, Any] | None = None
     base_profile: dict[str, Any] | None = None
@@ -254,29 +256,13 @@ async def async_run_notify(
                 "placeholders": {"profile": str(data["profile"])},
             }
 
-    # Effective profile (filter) = base profile + inline filter overrides.
-    filt_over = {
-        out: data[in_]
-        for in_, out in (
-            ("labels", "labels"),
-            ("areas", "areas"),
-            ("devices", "devices"),
-            ("status", "status"),
-        )
-        if in_ in data
-    }
-    profile_raw: dict[str, Any] = {"name": "ad-hoc", **(base_profile or {})}
-    if filt_over:
-        profile_raw["filter"] = {**(base_profile or {}).get("filter", {}), **filt_over}
-    profile = profiles.normalize_profile(profile_raw)
+    # Filter = the saved profile, or the all-due default for a bare/target-only call.
+    profile = profiles.normalize_profile({"name": "ad-hoc", **(base_profile or {})})
 
-    # Effective notification (delivery) = base notification + inline overrides.
+    # Delivery = the saved notification's, with an optional per-call target override.
     notif_raw: dict[str, Any] = {"name": "ad-hoc", **(base_notif or {})}
     if "target" in data:
         notif_raw["targets"] = data["target"]
-    for key in ("actions", "snooze_hours", "style"):
-        if key in data:
-            notif_raw[key] = data[key]
     notif_raw["profile_id"] = profile["id"]
     notification = notifications.normalize_notification(notif_raw)
 

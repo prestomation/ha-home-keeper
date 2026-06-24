@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Ilmoita erääntyvistä",
-      "description": "Lähetä toiminnallinen push-ilmoitus nyt erääntyvistä tehtävistä tallennetun profiilin tai suorien korvausten avulla (kohde, suodattimet, tila ja tyyli hyväksytään).",
+      "description": "Lähetä toiminnallinen push-ilmoitus nyt erääntyvästä – nimeä tallennettu ilmoitus tai profiili ja korvaa halutessasi kohde.",
       "fields": {
         "notification": {
           "name": "Ilmoitus",

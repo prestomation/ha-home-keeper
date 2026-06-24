@@ -321,9 +321,9 @@ notification is a named delivery config with:
 - **Auto-send** — fire automatically when a matching task becomes overdue / due-soon.
 
 Trigger a notification on demand from any automation with the **`home_keeper.notify`**
-service (`notification:` a saved notification, `profile:` a saved Profile, or pass inline
-`target` / filters); it returns how many tasks matched and which was sent. The button
-taps and the standalone
+service (`notification:` a saved notification, or `profile:` a saved Profile, optionally
+with a `target:` override); it returns how many tasks matched and which was sent. The
+button taps and the standalone
 `home_keeper.snooze_task` / `home_keeper.skip_task` services all emit events
 (`home_keeper_task_completed` / `_snoozed` / `_skipped`) carrying
 `origin: home_keeper_notification_action`, so other automations can react.
@@ -436,7 +436,7 @@ scripts, and voice:
   (defer the due date by `hours` without completing), `skip_task` (advance to the next
   occurrence without completing), and `list_tasks` (returns a response).
 - **Notifications** — `home_keeper.notify` sends an actionable notification for what's
-  due, using a saved profile or inline overrides (returns `{matched, sent}`). See
+  due from a saved notification or profile (returns `{matched, sent}`). See
   [Notifications](#notifications--actionable-reminders-on-your-phone).
 - **Appliances** — `home_keeper.add_asset`, `update_asset`, `delete_asset`,
   `adjust_part_stock`, `list_assets`, and `export_inventory` (the last two return a

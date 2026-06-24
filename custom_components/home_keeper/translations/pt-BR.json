@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Notificar o que está pendente",
-      "description": "Envia uma notificação push acionável do que está pendente agora, usando um perfil salvo ou substituições diretas (destino, filtros, status e estilo são aceitos).",
+      "description": "Envia uma notificação push acionável do que está vencido agora — informe uma notificação ou perfil salvo, opcionalmente substituindo o destino.",
       "fields": {
         "notification": {
           "name": "Notificação",

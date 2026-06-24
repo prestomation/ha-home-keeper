@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Notifica le attività in scadenza",
-      "description": "Invia una notifica push interattiva per ciò che è dovuto ora, usando un profilo salvato o sostituzioni dirette (destinazione, filtri, stato e stile sono accettati).",
+      "description": "Invia una notifica push interattiva per ciò che è in scadenza ora: indica una notifica o un profilo salvato, sovrascrivendo facoltativamente la destinazione.",
       "fields": {
         "notification": {
           "name": "Notifica",

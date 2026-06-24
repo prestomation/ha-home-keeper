@@ -295,12 +295,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#tab-settings').click();
   // Settings → Profiles — the standalone saved-filter editor.
   await expect(panel.locator('#hk-profiles')).toBeVisible();
-  await expect(panel.locator('#hk-profiles .hk-notify-profile ha-form').first()).toBeVisible();
+  await expect(panel.locator('#hk-profiles .hk-editor-row ha-form').first()).toBeVisible();
   await page.waitForTimeout(700);
   await panel.locator('#hk-profiles').screenshot({ path: `${OUT}/profiles-card.png` });
   // Settings → Notifications — delivery bindings that each reference a Profile.
   await expect(panel.locator('#hk-notifications')).toBeVisible();
-  await expect(panel.locator('#hk-notifications .hk-notify-profile ha-form').first()).toBeVisible();
+  await expect(panel.locator('#hk-notifications .hk-editor-row ha-form').first()).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/22-panel-notifications.png`, fullPage: true });
 

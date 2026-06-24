@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Notifier les tâches dues",
-      "description": "Envoyer une notification push actionnable pour ce qui est dû maintenant, à partir d'un profil enregistré ou de remplacements directs (cible, filtres, statut et style sont acceptés).",
+      "description": "Envoyer une notification push actionnable pour ce qui est dû maintenant – indiquez une notification ou un profil enregistré, en remplaçant éventuellement la cible.",
       "fields": {
         "notification": {
           "name": "Notification",

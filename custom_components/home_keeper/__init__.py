@@ -123,9 +123,9 @@ TRIGGER_TASK_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
 SNOOZE_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
-        vol.Optional("hours", default=24): vol.All(
-            vol.Coerce(float), vol.Range(min=0, min_included=False)
-        ),
+        # Whole hours ≥ 1, matching services.yaml's number selector and the
+        # notification snooze_hours contract (normalize_notification / the panel).
+        vol.Optional("hours", default=24): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Optional("origin"): cv.string,
     }
 )
@@ -238,20 +238,14 @@ ADJUST_PART_STOCK_SCHEMA = vol.Schema(
 EXPORT_INVENTORY_SCHEMA = vol.Schema({})
 
 # Send an actionable notification on demand for what's due now (the pull / "walk"
-# entry point). Name a saved notification, or a profile (filter) plus inline delivery,
-# or pure inline overrides. All optional so an automation can fire a bare name.
+# entry point). Name a saved notification, or a profile (filter), optionally with a
+# target override. Custom filters/delivery live on saved Profiles/Notifications (the
+# point of making them reusable), not inline here. All optional so a bare name fires.
 NOTIFY_SCHEMA = vol.Schema(
     {
         vol.Optional("notification"): cv.string,
         vol.Optional("profile"): cv.string,
         vol.Optional("target"): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional("areas"): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional("devices"): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional("status"): cv.string,
-        vol.Optional("actions"): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional("snooze_hours"): vol.All(vol.Coerce(int), vol.Range(min=1)),
-        vol.Optional("style"): cv.string,
     }
 )
 

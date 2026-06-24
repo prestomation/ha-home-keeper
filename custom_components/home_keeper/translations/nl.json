@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Melden wat openstaat",
-      "description": "Stuur een uitvoerbare pushmelding voor wat nu verschuldigd is, met een opgeslagen profiel of directe overschrijvingen (doel, filters, status en stijl worden geaccepteerd).",
+      "description": "Stuur een uitvoerbare pushmelding voor wat nu verschuldigd is – noem een opgeslagen melding of profiel en overschrijf optioneel het doel.",
       "fields": {
         "notification": {
           "name": "Melding",

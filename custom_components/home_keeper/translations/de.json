@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Über Fälliges benachrichtigen",
-      "description": "Sende eine umsetzbare Push-Benachrichtigung für aktuell Fälliges, basierend auf einem gespeicherten Profil oder direkten Vorgaben (Ziel, Filter, Status und Stil werden alle akzeptiert).",
+      "description": "Sende eine umsetzbare Push-Benachrichtigung für aktuell Fälliges – nenne eine gespeicherte Benachrichtigung oder ein Profil und überschreibe optional das Ziel.",
       "fields": {
         "notification": {
           "name": "Benachrichtigung",

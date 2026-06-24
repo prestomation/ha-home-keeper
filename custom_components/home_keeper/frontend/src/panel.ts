@@ -212,11 +212,11 @@ const STYLES = `
   }
   .hk-companion-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; flex-wrap: wrap; }
   /* Notifications section (Settings tab): one editor per profile. */
-  .hk-notify-profile {
+  .hk-editor-row {
     border: 1px solid var(--divider-color); border-radius: 8px; padding: 12px;
     margin-top: 12px; display: flex; flex-direction: column; gap: 8px;
   }
-  .hk-notify-profile ha-form { display: block; }
+  .hk-editor-row ha-form { display: block; }
   .hk-notify-delete { align-self: flex-end; --mdc-theme-primary: var(--error-color, #db4437); }
   .hk-notify-add { margin-top: 12px; }
   ha-assist-chip.hk-comp-connected {
@@ -2281,7 +2281,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _profileEditor(profile: Profile): HTMLElement {
     const wrap = document.createElement('div');
-    wrap.className = 'hk-notify-profile';
+    wrap.className = 'hk-editor-row';
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
     form.schema = profileSchema();
@@ -2374,7 +2374,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _notificationEditor(notification: Notification, profiles: Profile[]): HTMLElement {
     const wrap = document.createElement('div');
-    wrap.className = 'hk-notify-profile';
+    wrap.className = 'hk-editor-row';
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
     form.schema = notificationSchema(this._notifyTargets, profiles);

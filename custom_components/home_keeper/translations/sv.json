@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Avisera om förfallna uppgifter",
-      "description": "Skicka en åtgärdbar push-avisering för det som är förfallet nu, utifrån en sparad profil eller direkta åsidosättanden (mål, filter, status och stil accepteras).",
+      "description": "Skicka en åtgärdbar push-avisering om det som förfaller nu – ange en sparad avisering eller profil och åsidosätt valfritt målet.",
       "fields": {
         "notification": {
           "name": "Avisering",

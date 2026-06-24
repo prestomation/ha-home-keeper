@@ -216,7 +216,7 @@
     },
     "notify": {
       "name": "Notificér om forfaldne opgaver",
-      "description": "Send en handlingsrettet push-notifikation om det, der er forfaldent nu, ud fra en gemt profil eller direkte tilsidesættelser (mål, filtre, status og stil accepteres).",
+      "description": "Send en handlingsbar push-notifikation om det, der er forfaldent nu – angiv en gemt notifikation eller profil, og tilsidesæt eventuelt målet.",
       "fields": {
         "notification": {
           "name": "Notifikation",

@@ -374,6 +374,7 @@ snooze_task:
         number:
           min: 1
           max: 8760
+          step: 1
           mode: box
           unit_of_measurement: hours
 
@@ -395,11 +396,10 @@ notify:
   name: Notify what's due
   description: >-
     Send an actionable push notification for what's currently due. Name a saved
-    notification, or a profile (saved filter) plus inline delivery, or pure inline
-    overrides. A "walk" sends the first due task and advances as you action it; a
-    "digest" sends one summary. Inline overrides (status, labels, areas, devices,
-    actions, snooze_hours, style) are accepted. Returns how many tasks matched and
-    which was sent.
+    notification, or a profile (saved filter), optionally overriding the notify
+    target. A "walk" sends the first due task and advances as you action it; a
+    "digest" sends one summary. Custom filters and delivery live on saved Profiles and
+    Notifications. Returns how many tasks matched and which was sent.
   fields:
     notification:
       name: Notification
