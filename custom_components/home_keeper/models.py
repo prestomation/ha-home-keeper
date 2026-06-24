@@ -519,9 +519,7 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     }
     new_type = merged.get("recurrence_type")
     old_type = existing.get("recurrence_type")
-    if new_type not in (REC_TRIGGERED, REC_SENSOR) and (
-        recurrence_keys & set(updates)
-    ):
+    if new_type not in (REC_TRIGGERED, REC_SENSOR) and (recurrence_keys & set(updates)):
         merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
     elif new_type == REC_SENSOR and old_type != REC_SENSOR:
         # Converting an existing (e.g. floating, due-now) task into a sensor task: it
