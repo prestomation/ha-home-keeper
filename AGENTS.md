@@ -91,7 +91,9 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   not duplicated: `website/scripts/sync-assets.mjs` mirrors `docs/images/` into the
   static tree, so `docs/images/` stays the single home for screenshots and the
   UI-screenshots gate is unchanged. Both run via `npm run sync` (wired into
-  prestart/prebuild/pretypecheck). Production deploys on push to `main`; **every PR
+  prestart/prebuild/pretypecheck). **Production deploys on stable GitHub Release
+  publication** (not on push to `main`) — the live site is always pinned to the
+  latest stable release so users never see docs for unreleased features; **every PR
   gets a live preview** at `pr-preview/pr-<n>/` (see `website/README.md`).
 
 ## Conventions
