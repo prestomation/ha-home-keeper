@@ -211,12 +211,23 @@ const STYLES = `
     color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4; margin-top: 2px;
   }
   .hk-companion-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; flex-wrap: wrap; }
-  /* Notifications section (Settings tab): one editor per profile. */
-  .hk-editor-row {
-    border: 1px solid var(--divider-color); border-radius: 8px; padding: 12px;
-    margin-top: 12px; display: flex; flex-direction: column; gap: 8px;
+  /* Individual collapsible profile/notification items. */
+  .hk-item-card {
+    border: 1px solid var(--divider-color); border-radius: 8px;
+    margin-top: 12px; overflow: hidden;
   }
-  .hk-editor-row ha-form { display: block; }
+  .hk-item-header {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    background: none; border: none; padding: 10px 12px; width: 100%;
+    color: inherit; font: inherit; text-align: left;
+  }
+  .hk-item-header:hover { background: var(--secondary-background-color); }
+  .hk-item-name { flex: 1; font-weight: 500; }
+  .hk-item-body {
+    padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px;
+    border-top: 1px solid var(--divider-color);
+  }
+  .hk-item-body ha-form { display: block; }
   .hk-notify-delete { align-self: flex-end; --mdc-theme-primary: var(--error-color, #db4437); }
   .hk-notify-add { margin-top: 12px; }
   /* Collapsible settings section headers (Profiles, Notifications). */
@@ -514,6 +525,8 @@ export class HomeKeeperPanel extends HTMLElement {
   private _collapsed = new Set<string>(['status:monitored', 'status:completed']);
   // Settings sections (profiles, notifications) the user has collapsed this session.
   private _settingsSectionCollapsed = new Set<string>();
+  // Individual profile/notification items the user has expanded (default: collapsed).
+  private _itemExpanded = new Set<string>();
   // The object whose full detail page is open, or null for the list view.
   private _detail: { kind: 'task' | 'asset'; id: string } | null = null;
   // The panel's URL prefix (e.g. `/home-keeper`), supplied by HA via `route`.
@@ -2338,8 +2351,30 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _profileEditor(profile: Profile): HTMLElement {
-    const wrap = document.createElement('div');
-    wrap.className = 'hk-editor-row';
+    const isExpanded = this._itemExpanded.has(profile.id);
+
+    const card = document.createElement('div');
+    card.className = 'hk-item-card';
+
+    // Clickable header showing the profile name
+    const header = document.createElement('button');
+    header.className = 'hk-item-header';
+    header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'hk-item-name';
+    nameSpan.textContent = profile.name;
+    header.appendChild(nameSpan);
+    const chevron = document.createElement('ha-icon');
+    (chevron as unknown as Record<string, string>).icon = 'mdi:chevron-down';
+    chevron.className = 'hk-section-chevron' + (isExpanded ? ' open' : '');
+    header.appendChild(chevron);
+    card.appendChild(header);
+
+    // Collapsible body
+    const body = document.createElement('div');
+    body.className = 'hk-item-body';
+    if (!isExpanded) body.style.display = 'none';
+
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
     form.schema = profileSchema();
@@ -2351,19 +2386,39 @@ export class HomeKeeperPanel extends HTMLElement {
     };
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      if (typeof value.name === 'string') nameSpan.textContent = value.name;
       const next = (this._options?.profiles ?? []).map((p) =>
         p.id === profile.id ? profileFormToProfile(profile.id, value) : p,
       );
       void this._persistProfiles(next, false);
     });
     this._liveHassEls.push(form);
-    wrap.appendChild(form);
+    body.appendChild(form);
+
     const del = document.createElement('ha-button');
     del.className = 'hk-notify-delete';
     del.textContent = t('notify.delete');
     del.addEventListener('click', () => void this._deleteProfile(profile.id));
-    wrap.appendChild(del);
-    return wrap;
+    body.appendChild(del);
+    card.appendChild(body);
+
+    header.addEventListener('click', () => {
+      const expanded = this._itemExpanded.has(profile.id);
+      const chev = header.querySelector<HTMLElement>('.hk-section-chevron');
+      if (expanded) {
+        this._itemExpanded.delete(profile.id);
+        body.style.display = 'none';
+        header.setAttribute('aria-expanded', 'false');
+        chev?.classList.remove('open');
+      } else {
+        this._itemExpanded.add(profile.id);
+        body.style.display = '';
+        header.setAttribute('aria-expanded', 'true');
+        chev?.classList.add('open');
+      }
+    });
+
+    return card;
   }
 
   private _addProfile(): Promise<void> {
@@ -2372,21 +2427,30 @@ export class HomeKeeperPanel extends HTMLElement {
       name: t('notify.new_profile'),
       filter: { status: 'overdue', labels: [], areas: [], devices: [] },
     };
-    return this._persistProfiles([...(this._options?.profiles ?? []), blank], true);
+    return this._persistProfiles([...(this._options?.profiles ?? []), blank], true, true);
   }
 
   private _deleteProfile(id: string): Promise<void> {
+    this._itemExpanded.delete(id);
     const next = (this._options?.profiles ?? []).filter((p) => p.id !== id);
     return this._persistProfiles(next, true);
   }
 
-  private async _persistProfiles(profiles: Profile[], render: boolean): Promise<void> {
+  private async _persistProfiles(
+    profiles: Profile[],
+    render: boolean,
+    expandLast = false,
+  ): Promise<void> {
     if (!this._hass) return;
     this._options = { ...(this._options as HomeKeeperOptions), profiles };
     try {
       this._options = await api.setOptions(this._hass, {
         profiles,
       } as Partial<HomeKeeperOptions>);
+      if (expandLast) {
+        const saved = this._options?.profiles ?? [];
+        if (saved.length) this._itemExpanded.add(saved[saved.length - 1].id);
+      }
       if (render) this._render();
       this._toast(t('settings.saved'));
     } catch (err) {
@@ -2475,8 +2539,30 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _notificationEditor(notification: Notification, profiles: Profile[]): HTMLElement {
-    const wrap = document.createElement('div');
-    wrap.className = 'hk-editor-row';
+    const isExpanded = this._itemExpanded.has(notification.id);
+
+    const card = document.createElement('div');
+    card.className = 'hk-item-card';
+
+    // Clickable header showing the notification name
+    const header = document.createElement('button');
+    header.className = 'hk-item-header';
+    header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'hk-item-name';
+    nameSpan.textContent = notification.name;
+    header.appendChild(nameSpan);
+    const chevron = document.createElement('ha-icon');
+    (chevron as unknown as Record<string, string>).icon = 'mdi:chevron-down';
+    chevron.className = 'hk-section-chevron' + (isExpanded ? ' open' : '');
+    header.appendChild(chevron);
+    card.appendChild(header);
+
+    // Collapsible body
+    const body = document.createElement('div');
+    body.className = 'hk-item-body';
+    if (!isExpanded) body.style.display = 'none';
+
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
     form.schema = notificationSchema(this._notifyTargets, profiles);
@@ -2488,19 +2574,39 @@ export class HomeKeeperPanel extends HTMLElement {
     };
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      if (typeof value.name === 'string') nameSpan.textContent = value.name;
       const next = (this._options?.notifications ?? []).map((n) =>
         n.id === notification.id ? notifyFormToNotification(notification.id, value) : n,
       );
       void this._persistNotifications(next, false);
     });
     this._liveHassEls.push(form);
-    wrap.appendChild(form);
+    body.appendChild(form);
+
     const del = document.createElement('ha-button');
     del.className = 'hk-notify-delete';
     del.textContent = t('notify.delete');
     del.addEventListener('click', () => void this._deleteNotification(notification.id));
-    wrap.appendChild(del);
-    return wrap;
+    body.appendChild(del);
+    card.appendChild(body);
+
+    header.addEventListener('click', () => {
+      const expanded = this._itemExpanded.has(notification.id);
+      const chev = header.querySelector<HTMLElement>('.hk-section-chevron');
+      if (expanded) {
+        this._itemExpanded.delete(notification.id);
+        body.style.display = 'none';
+        header.setAttribute('aria-expanded', 'false');
+        chev?.classList.remove('open');
+      } else {
+        this._itemExpanded.add(notification.id);
+        body.style.display = '';
+        header.setAttribute('aria-expanded', 'true');
+        chev?.classList.add('open');
+      }
+    });
+
+    return card;
   }
 
   private _addNotification(): Promise<void> {
@@ -2516,10 +2622,11 @@ export class HomeKeeperPanel extends HTMLElement {
       style: 'walk',
       auto: { overdue: false, due_soon: false },
     };
-    return this._persistNotifications([...(this._options?.notifications ?? []), blank], true);
+    return this._persistNotifications([...(this._options?.notifications ?? []), blank], true, true);
   }
 
   private _deleteNotification(id: string): Promise<void> {
+    this._itemExpanded.delete(id);
     const next = (this._options?.notifications ?? []).filter((n) => n.id !== id);
     return this._persistNotifications(next, true);
   }
@@ -2527,6 +2634,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _persistNotifications(
     notifications: Notification[],
     render: boolean,
+    expandLast = false,
   ): Promise<void> {
     if (!this._hass) return;
     this._options = { ...(this._options as HomeKeeperOptions), notifications };
@@ -2534,6 +2642,10 @@ export class HomeKeeperPanel extends HTMLElement {
       this._options = await api.setOptions(this._hass, {
         notifications,
       } as Partial<HomeKeeperOptions>);
+      if (expandLast) {
+        const saved = this._options?.notifications ?? [];
+        if (saved.length) this._itemExpanded.add(saved[saved.length - 1].id);
+      }
       if (render) this._render();
       this._toast(t('settings.saved'));
     } catch (err) {
