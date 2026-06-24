@@ -268,13 +268,76 @@ together.
 
 ![The Companions section on the Settings tab — connected integrations with Configure buttons](docs/images/21-panel-companions.png)
 
+## Profiles — saved filters you reuse everywhere
+
+A **Profile** is a named, saved filter — a status (*overdue* / *due soon* / *all*) plus
+optional **label / area / device** filters — that you define once and reuse across Home
+Keeper. Create and manage them in **Settings → Profiles**.
+
+**Use cases.** *"'The dog', 'upstairs', 'my chores' — define each chore-set once and
+point every list at it."* *"My partner and I each save a Profile filtered to our own
+label, and reuse it on our phones and our dashboards."*
+
+The same Profile drives filtering in three places:
+
+- **Notifications** — a notification points at a Profile to decide which tasks it pushes
+  (see below). Two profiles with different labels = two people's lists.
+- **The admin task list** — the **Profile** dropdown on the **Tasks** tab narrows the
+  panel list to a saved Profile's tasks.
+- **The dashboard card** — the card editor's **Filter by profile** picker points a card
+  at a Profile instead of re-specifying the same filter inline.
+
+![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
+
+![The Tasks tab filtered to a saved Profile via the Profile dropdown](docs/images/23-panel-profile-filter.png)
+
+## Notifications — actionable reminders on your phone
+
+Home Keeper can push a **mobile-app notification** for what's due, with tappable
+buttons — **Mark done**, **Snooze**, **Skip**, **Open** — that route straight back into
+Home Keeper. Because the action lands inside the integration, it **recalculates the
+schedule correctly**: completing advances the recurrence, snoozing defers the due date
+and re-arms a fresh reminder, skipping moves to the next occurrence — none of which a
+generic reminder automation can do, because it doesn't know your intervals.
+
+**Use cases.** *"Nudge me the moment a chore goes overdue, and let me clear it from the
+lock screen."* *"Every evening my **Chores** calendar event fires an automation that asks
+Home Keeper what's on my list — it sends the first task, and as I tap **Done** the next
+one arrives."* *"My partner and I each get our **own** filtered chore list on our own
+phones."*
+
+**How it's used.** Configure **notifications** in **Settings → Notifications**. Each
+notification is a named delivery config with:
+
+- **Profile** — the saved [Profile](#profiles--saved-filters-you-reuse-everywhere) whose
+  filter decides which tasks this notification covers (leave it unset to cover every due
+  task).
+- **Send to** — one or more `mobile_app_*` companion-app devices (picked from a live
+  list).
+- **Buttons** — which of *Mark done / Snooze / Skip / Open* appear, and the snooze
+  duration.
+- **Style** — a **walk** (sends the first due task, then the next each time you action
+  one) or a single **digest** summary.
+- **Auto-send** — fire automatically when a matching task becomes overdue / due-soon.
+
+Trigger a notification on demand from any automation with the **`home_keeper.notify`**
+service (`notification:` a saved notification, or `profile:` a saved Profile, optionally
+with a `target:` override); it returns how many tasks matched and which was sent. The
+button taps and the standalone
+`home_keeper.snooze_task` / `home_keeper.skip_task` services all emit events
+(`home_keeper_task_completed` / `_snoozed` / `_skipped`) carrying
+`origin: home_keeper_notification_action`, so other automations can react.
+
+![The Settings → Notifications card with a "My chores" profile — targets, filter, buttons, style, snooze and auto-send toggles](docs/images/22-panel-notifications.png)
+
 ## Dashboard task card
 
 The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizable list
 of your tasks with a one-tap **Done** button on each row; tapping a row opens an inline
 add/edit/delete form. It's auto-registered (no resource setup) and appears in the
 dashboard **"Add card"** picker. Its GUI editor lets you filter (by status, area,
-device, **label**, recurrence type, or a "due within N days" horizon), sort, group, cap
+device, **label**, recurrence type, a "due within N days" horizon, or a saved
+[Profile](#profiles--saved-filters-you-reuse-everywhere)), sort, group, cap
 rows, and toggle what each row shows. It's built from HA's own components and theme and
 reflects completions made anywhere else in real time.
 
@@ -369,8 +432,12 @@ scripts, and voice:
 
 - **Tasks** — `home_keeper.add_task`, `update_task`, `delete_task`, `complete_task`
   (with optional `note`/`cost`/`photo`/`who`), `update_completion` (amend a recorded
-  completion's metadata), `trigger_task` (arm a condition-driven task), and
-  `list_tasks` (returns a response).
+  completion's metadata), `trigger_task` (arm a condition-driven task), `snooze_task`
+  (defer the due date by `hours` without completing), `skip_task` (advance to the next
+  occurrence without completing), and `list_tasks` (returns a response).
+- **Notifications** — `home_keeper.notify` sends an actionable notification for what's
+  due from a saved notification or profile (returns `{matched, sent}`). See
+  [Notifications](#notifications--actionable-reminders-on-your-phone).
 - **Appliances** — `home_keeper.add_asset`, `update_asset`, `delete_asset`,
   `adjust_part_stock`, `list_assets`, and `export_inventory` (the last two return a
   response).

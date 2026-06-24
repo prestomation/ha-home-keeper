@@ -1,12 +1,19 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
+import { profileMatches } from './card-filter';
 import {
   buildTaskPayload,
   selArea,
   selBool,
   selDate,
   generalSchema,
+  notificationSchema,
+  notifyFormData,
+  notifyFormToNotification,
   problemSyncSchema,
+  profileFormData,
+  profileFormToProfile,
+  profileSchema,
   selDevice,
   selIcon,
   selNumber,
@@ -29,8 +36,10 @@ import type {
   ManagedBy,
   MetadataEntry,
   MetadataType,
+  Notification,
   PanelInfo,
   Part,
+  Profile,
   Task,
 } from './types';
 import {
@@ -202,6 +211,14 @@ const STYLES = `
     color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4; margin-top: 2px;
   }
   .hk-companion-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; flex-wrap: wrap; }
+  /* Notifications section (Settings tab): one editor per profile. */
+  .hk-editor-row {
+    border: 1px solid var(--divider-color); border-radius: 8px; padding: 12px;
+    margin-top: 12px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .hk-editor-row ha-form { display: block; }
+  .hk-notify-delete { align-self: flex-end; --mdc-theme-primary: var(--error-color, #db4437); }
+  .hk-notify-add { margin-top: 12px; }
   ha-assist-chip.hk-comp-connected {
     --ha-assist-chip-container-color: var(--success-color, #43a047);
     --ha-assist-chip-filled-container-color: var(--success-color, #43a047);
@@ -288,6 +305,12 @@ const STYLES = `
     border-left: 1px solid var(--divider-color);
   }
   .hk-seg-btn:first-child { border-left: 0; }
+  .hk-profile-select {
+    appearance: auto; font: inherit; font-size: 0.85rem; padding: 6px 10px;
+    border: 1px solid var(--divider-color); border-radius: 999px;
+    background: var(--card-background-color); color: var(--primary-text-color);
+    cursor: pointer; max-width: 240px;
+  }
   .hk-seg-btn:hover { background: var(--secondary-background-color); }
   .hk-seg-btn.active {
     background: var(--primary-color);
@@ -434,6 +457,7 @@ interface Group<T> {
 const SOON_DAYS = 7;
 const LS_GROUP = 'home-keeper.groupBy';
 const LS_FILTER = 'home-keeper.filter';
+const LS_PROFILE = 'home-keeper.profile';
 
 export class HomeKeeperPanel extends HTMLElement {
   private _hass?: Hass;
@@ -456,11 +480,15 @@ export class HomeKeeperPanel extends HTMLElement {
   private _view: 'tasks' | 'appliances' | 'settings' = 'tasks';
   // Integration options for the Settings tab (loaded lazily with the rest).
   private _options: HomeKeeperOptions | null = null;
+  // Available mobile_app_* notify services (for the Notifications profile editor).
+  private _notifyTargets: string[] = [];
   // Companion integrations shown on the Settings tab (loaded with the rest).
   private _companions: Companion[] = [];
   // List controls (persisted in localStorage).
   private _groupBy: GroupBy = 'status';
   private _filter: TaskFilter = 'all';
+  // Selected saved Profile id to filter the task list by ('' = no profile).
+  private _profile = '';
   // Group sections collapsed by the user, keyed by "<group>:<bucket>".
   // Group sections the user collapsed this session (open is the default). The
   // "monitored" status bucket — dormant condition-driven tasks like healthy
@@ -546,6 +574,7 @@ export class HomeKeeperPanel extends HTMLElement {
         this._groupBy = g;
       const f = localStorage.getItem(LS_FILTER);
       if (f === 'all' || f === 'overdue' || f === 'soon') this._filter = f;
+      this._profile = localStorage.getItem(LS_PROFILE) ?? '';
     } catch {
       // localStorage unavailable (e.g. private mode) — fall back to defaults.
     }
@@ -567,6 +596,18 @@ export class HomeKeeperPanel extends HTMLElement {
     this._filter = value;
     try {
       localStorage.setItem(LS_FILTER, value);
+    } catch {
+      /* ignore */
+    }
+    this._render();
+  }
+
+  /** Pick a saved Profile to drive the task-list filter (''/none clears it). */
+  private _setProfile(value: string): void {
+    if (this._profile === value) return;
+    this._profile = value;
+    try {
+      localStorage.setItem(LS_PROFILE, value);
     } catch {
       /* ignore */
     }
@@ -615,8 +656,19 @@ export class HomeKeeperPanel extends HTMLElement {
       this._assets = assets;
       this._entryDomains = entryDomains;
       this._loadedEntryIds = loadedEntryIds;
-      this._options = options;
+      this._options = options?.options ?? null;
+      this._notifyTargets = options?.notifyTargets ?? [];
       this._companions = companions ?? [];
+      // Drop a remembered Profile filter that no longer exists (deleted since), so the
+      // Tasks-tab dropdown and the stored id can't disagree.
+      if (this._profile && !(this._options?.profiles ?? []).some((p) => p.id === this._profile)) {
+        this._profile = '';
+        try {
+          localStorage.removeItem(LS_PROFILE);
+        } catch {
+          /* ignore */
+        }
+      }
       this._loaded = true;
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -936,7 +988,7 @@ export class HomeKeeperPanel extends HTMLElement {
         </div>
         ${this._detailView()}`;
     } else if (this._view === 'settings') {
-      inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-companions-host"></div>`;
+      inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-profiles-host"></div><div id="hk-notifications-host"></div><div id="hk-companions-host"></div>`;
     } else {
       const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
       inner = `
@@ -1005,14 +1057,45 @@ export class HomeKeeperPanel extends HTMLElement {
         <span class="hk-seg-label">${escapeHTML(t('group.by'))}</span>
         ${this._seg('group', this._effectiveGroup(), groupOpts)}
       </div>`;
-    const filterControl = onTasks
-      ? `<div class="hk-control">${this._seg('filter', this._filter, [
-          { value: 'all', label: t('filter.all') },
-          { value: 'overdue', label: t('filter.overdue') },
-          { value: 'soon', label: t('filter.soon') },
-        ])}</div>`
-      : '';
-    return `<div class="hk-controls">${filterControl}${groupControl}</div>`;
+    // A saved Profile, when picked, drives the status/label/area/device filter, so
+    // the inline all/overdue/soon segment is hidden while one is active.
+    const profile = this._activeProfile();
+    const filterControl =
+      onTasks && !profile
+        ? `<div class="hk-control">${this._seg('filter', this._filter, [
+            { value: 'all', label: t('filter.all') },
+            { value: 'overdue', label: t('filter.overdue') },
+            { value: 'soon', label: t('filter.soon') },
+          ])}</div>`
+        : '';
+    return `<div class="hk-controls">${filterControl}${this._profileControl()}${groupControl}</div>`;
+  }
+
+  /** The saved Profile currently selected for the list filter, or null. */
+  private _activeProfile(): Profile | null {
+    if (this._view !== 'tasks' || !this._profile) return null;
+    const profiles = this._options?.profiles ?? [];
+    return profiles.find((p) => p.id === this._profile) ?? null;
+  }
+
+  /** A dropdown to filter the task list by a saved Profile (Tasks tab only). */
+  private _profileControl(): string {
+    if (this._view !== 'tasks') return '';
+    const profiles = this._options?.profiles ?? [];
+    if (!profiles.length) return '';
+    const opt = (value: string, label: string) =>
+      `<option value="${escapeHTML(value)}"${value === this._profile ? ' selected' : ''}>${escapeHTML(
+        label,
+      )}</option>`;
+    const options = [
+      opt('', t('filter.profileNone')),
+      ...profiles.map((p) => opt(p.id, p.name)),
+    ].join('');
+    return `
+      <div class="hk-control">
+        <span class="hk-seg-label">${escapeHTML(t('filter.profile'))}</span>
+        <select class="hk-profile-select" data-profile-filter>${options}</select>
+      </div>`;
   }
 
   /** A pill-style segmented toggle; the active option carries the `active` class. */
@@ -1185,7 +1268,13 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     const now = Date.now();
     let tasks = [...this._tasks];
-    if (this._filter === 'overdue') tasks = tasks.filter((task) => isOverdue(task));
+    const profile = this._activeProfile();
+    if (profile) {
+      // A saved Profile replaces the inline filter: status + labels/areas/devices.
+      tasks = tasks.filter((task) =>
+        profileMatches(task, profile.filter, this._hass?.devices, this._hass?.areas, now),
+      );
+    } else if (this._filter === 'overdue') tasks = tasks.filter((task) => isOverdue(task));
     else if (this._filter === 'soon')
       tasks = tasks.filter((task) => this._statusBucket(task, now) === 'soon');
     tasks.sort((a, b) => {
@@ -1965,6 +2054,12 @@ export class HomeKeeperPanel extends HTMLElement {
         else if (seg === 'filter') this._setFilter(val as TaskFilter);
       }),
     );
+    // Saved-Profile filter dropdown.
+    root
+      .querySelector<HTMLSelectElement>('select[data-profile-filter]')
+      ?.addEventListener('change', (e) =>
+        this._setProfile((e.target as HTMLSelectElement).value),
+      );
     // Remember which group sections the user collapsed (no re-render needed).
     root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
       d.addEventListener('toggle', () => {
@@ -1982,6 +2077,10 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     const settingsHost = root.getElementById('hk-settings-host');
     if (settingsHost) this._renderSettingsForm(settingsHost);
+    const profilesHost = root.getElementById('hk-profiles-host');
+    if (profilesHost) this._renderProfiles(profilesHost);
+    const notificationsHost = root.getElementById('hk-notifications-host');
+    if (notificationsHost) this._renderNotifications(notificationsHost);
     const companionsHost = root.getElementById('hk-companions-host');
     if (companionsHost) this._renderCompanions(companionsHost);
 
@@ -2083,6 +2182,8 @@ export class HomeKeeperPanel extends HTMLElement {
       problem_sensor_exclude_areas: [],
       problem_sensor_exclude_labels: [],
       one_off_retention_days: 0,
+      profiles: [],
+      notifications: [],
     };
     // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor).
     host.appendChild(
@@ -2145,6 +2246,193 @@ export class HomeKeeperPanel extends HTMLElement {
       // still editing) so the change is reflected the moment they return to the
       // Tasks tab, rather than lingering until the next refresh.
       await this._reload();
+      this._toast(t('settings.saved'));
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
+    }
+  }
+
+  /** Render the Settings → Profiles card: reusable saved filters (status +
+   *  labels/areas/devices), each an autosaving `ha-form`. Profiles are consumed by
+   *  notifications, the admin task list, and the dashboard card. */
+  private _renderProfiles(host: HTMLElement): void {
+    const profiles = this._options?.profiles ?? [];
+    const card = document.createElement('ha-card');
+    card.className = 'hk-form-card';
+    card.id = 'hk-profiles';
+    const inner = document.createElement('div');
+    inner.className = 'hk-form-inner';
+    inner.innerHTML = `
+      <div class="hk-form-title">${escapeHTML(t('notify.profiles_heading'))}</div>
+      <div class="hk-settings-intro">${escapeHTML(t('notify.profiles_help'))}</div>`;
+    if (!profiles.length) {
+      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.profiles_empty'))}</ha-alert>`;
+    }
+    for (const profile of profiles) inner.appendChild(this._profileEditor(profile));
+    const add = document.createElement('ha-button');
+    add.id = 'hk-profile-add';
+    add.className = 'hk-notify-add';
+    add.textContent = t('notify.add_profile');
+    add.addEventListener('click', () => void this._addProfile());
+    inner.appendChild(add);
+    card.appendChild(inner);
+    host.appendChild(card);
+  }
+
+  private _profileEditor(profile: Profile): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'hk-editor-row';
+    const form = document.createElement('ha-form') as HaFormElement;
+    form.hass = this._hass;
+    form.schema = profileSchema();
+    form.data = profileFormData(profile);
+    form.computeLabel = (s: { name: string }): string => {
+      if (s.name === 'name') return t('field.name');
+      if (s.name === 'labels') return t('field.labels');
+      return t('notify.' + s.name);
+    };
+    form.addEventListener('value-changed', (e: Event) => {
+      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      const next = (this._options?.profiles ?? []).map((p) =>
+        p.id === profile.id ? profileFormToProfile(profile.id, value) : p,
+      );
+      void this._persistProfiles(next, false);
+    });
+    this._liveHassEls.push(form);
+    wrap.appendChild(form);
+    const del = document.createElement('ha-button');
+    del.className = 'hk-notify-delete';
+    del.textContent = t('notify.delete');
+    del.addEventListener('click', () => void this._deleteProfile(profile.id));
+    wrap.appendChild(del);
+    return wrap;
+  }
+
+  private _addProfile(): Promise<void> {
+    const blank: Profile = {
+      id: '',
+      name: t('notify.new_profile'),
+      filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+    };
+    return this._persistProfiles([...(this._options?.profiles ?? []), blank], true);
+  }
+
+  private _deleteProfile(id: string): Promise<void> {
+    const next = (this._options?.profiles ?? []).filter((p) => p.id !== id);
+    return this._persistProfiles(next, true);
+  }
+
+  private async _persistProfiles(profiles: Profile[], render: boolean): Promise<void> {
+    if (!this._hass) return;
+    this._options = { ...(this._options as HomeKeeperOptions), profiles };
+    try {
+      this._options = await api.setOptions(this._hass, {
+        profiles,
+      } as Partial<HomeKeeperOptions>);
+      if (render) this._render();
+      this._toast(t('settings.saved'));
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
+    }
+  }
+
+  /** Render the Settings → Notifications card: delivery bindings that each reference
+   *  a profile and add targets/buttons/style — see the backend `notifier.py`. */
+  private _renderNotifications(host: HTMLElement): void {
+    const profiles = this._options?.profiles ?? [];
+    const notifications = this._options?.notifications ?? [];
+    const card = document.createElement('ha-card');
+    card.className = 'hk-form-card';
+    card.id = 'hk-notifications';
+    const inner = document.createElement('div');
+    inner.className = 'hk-form-inner';
+    inner.innerHTML = `
+      <div class="hk-form-title">${escapeHTML(t('notify.heading'))}</div>
+      <div class="hk-settings-intro">${escapeHTML(t('notify.help'))}</div>`;
+    if (!this._notifyTargets.length) {
+      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.no_targets'))}</ha-alert>`;
+    }
+    if (!profiles.length) {
+      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.need_profile'))}</ha-alert>`;
+    }
+    if (!notifications.length) {
+      inner.innerHTML += `<ha-alert alert-type="info">${escapeHTML(t('notify.empty'))}</ha-alert>`;
+    }
+    for (const notification of notifications) {
+      inner.appendChild(this._notificationEditor(notification, profiles));
+    }
+    const add = document.createElement('ha-button');
+    add.id = 'hk-notify-add';
+    add.className = 'hk-notify-add';
+    add.textContent = t('notify.add');
+    if (!profiles.length) add.setAttribute('disabled', '');
+    add.addEventListener('click', () => void this._addNotification());
+    inner.appendChild(add);
+    card.appendChild(inner);
+    host.appendChild(card);
+  }
+
+  private _notificationEditor(notification: Notification, profiles: Profile[]): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'hk-editor-row';
+    const form = document.createElement('ha-form') as HaFormElement;
+    form.hass = this._hass;
+    form.schema = notificationSchema(this._notifyTargets, profiles);
+    form.data = notifyFormData(notification);
+    form.computeLabel = (s: { name: string }): string => {
+      if (s.name === 'name') return t('field.name');
+      if (s.name === 'profile_id') return t('notify.profile');
+      return t('notify.' + s.name);
+    };
+    form.addEventListener('value-changed', (e: Event) => {
+      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      const next = (this._options?.notifications ?? []).map((n) =>
+        n.id === notification.id ? notifyFormToNotification(notification.id, value) : n,
+      );
+      void this._persistNotifications(next, false);
+    });
+    this._liveHassEls.push(form);
+    wrap.appendChild(form);
+    const del = document.createElement('ha-button');
+    del.className = 'hk-notify-delete';
+    del.textContent = t('notify.delete');
+    del.addEventListener('click', () => void this._deleteNotification(notification.id));
+    wrap.appendChild(del);
+    return wrap;
+  }
+
+  private _addNotification(): Promise<void> {
+    const profiles = this._options?.profiles ?? [];
+    if (!profiles.length) return Promise.resolve();
+    const blank: Notification = {
+      id: '',
+      name: t('notify.new_name'),
+      profile_id: profiles[0].id,
+      targets: this._notifyTargets.length ? [this._notifyTargets[0]] : [],
+      actions: ['complete', 'snooze', 'open'],
+      snooze_hours: 24,
+      style: 'walk',
+      auto: { overdue: false, due_soon: false },
+    };
+    return this._persistNotifications([...(this._options?.notifications ?? []), blank], true);
+  }
+
+  private _deleteNotification(id: string): Promise<void> {
+    const next = (this._options?.notifications ?? []).filter((n) => n.id !== id);
+    return this._persistNotifications(next, true);
+  }
+
+  private async _persistNotifications(
+    notifications: Notification[],
+    render: boolean,
+  ): Promise<void> {
+    if (!this._hass) return;
+    this._options = { ...(this._options as HomeKeeperOptions), notifications };
+    try {
+      this._options = await api.setOptions(this._hass, {
+        notifications,
+      } as Partial<HomeKeeperOptions>);
+      if (render) this._render();
       this._toast(t('settings.saved'));
     } catch (err) {
       this._toast(String((err as { message?: string })?.message || err));

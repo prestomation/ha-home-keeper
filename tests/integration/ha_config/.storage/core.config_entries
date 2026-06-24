@@ -19,6 +19,34 @@
         "source": "user",
         "unique_id": "home_keeper_local",
         "disabled_by": null
+      },
+      {
+        "entry_id": "demo_pawsistant",
+        "version": 1,
+        "minor_version": 1,
+        "domain": "pawsistant",
+        "title": "Pawsistant",
+        "data": {},
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "unique_id": "demo_pawsistant",
+        "disabled_by": null
+      },
+      {
+        "entry_id": "demo_battery_notes",
+        "version": 1,
+        "minor_version": 1,
+        "domain": "home_keeper_battery_notes",
+        "title": "Battery Notes",
+        "data": {},
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "unique_id": "demo_battery_notes",
+        "disabled_by": null
       }
     ]
   }

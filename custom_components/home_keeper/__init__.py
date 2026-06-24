@@ -8,6 +8,7 @@ panel; usage (viewing/completing tasks) is surfaced through native HA entities
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -18,16 +19,27 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
-from . import card, companions, devices, inventory, options, panel, websocket_api
+from . import (
+    card,
+    companions,
+    devices,
+    inventory,
+    notifier,
+    options,
+    panel,
+    websocket_api,
+)
 from .assets import AssetValidationError
 from .const import (
     DOMAIN,
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
+    OPTION_PROFILES,
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
 )
@@ -104,6 +116,25 @@ TASK_ID_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
 # Arm a condition-driven (triggered) task so it reads as due-now. The owner-facing
 # counterpart to complete_task (which clears it back to dormant). See INTEGRATING.md.
 TRIGGER_TASK_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
+# Snooze: defer a task's next due date without recording a completion or advancing
+# recurrence. ``hours`` is the deferral (defaults to a day). ``origin`` is echoed in
+# the home_keeper_task_snoozed event for loop prevention (e.g. an actionable
+# notification action). Skip advances to the next occurrence, also without completing.
+SNOOZE_TASK_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        # Whole hours ≥ 1, matching services.yaml's number selector and the
+        # notification snooze_hours contract (normalize_notification / the panel).
+        vol.Optional("hours", default=24): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Optional("origin"): cv.string,
+    }
+)
+SKIP_TASK_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Optional("origin"): cv.string,
+    }
+)
 # ``force`` bypasses managed-task deletion protection — the escape hatch for cleaning
 # up a task whose managing integration is gone or misbehaving. See docs/INTEGRATING.md.
 DELETE_TASK_SCHEMA = vol.Schema(
@@ -206,6 +237,18 @@ ADJUST_PART_STOCK_SCHEMA = vol.Schema(
 )
 EXPORT_INVENTORY_SCHEMA = vol.Schema({})
 
+# Send an actionable notification on demand for what's due now (the pull / "walk"
+# entry point). Name a saved notification, or a profile (filter), optionally with a
+# target override. Custom filters/delivery live on saved Profiles/Notifications (the
+# point of making them reusable), not inline here. All optional so a bare name fires.
+NOTIFY_SCHEMA = vol.Schema(
+    {
+        vol.Optional("notification"): cv.string,
+        vol.Optional("profile"): cv.string,
+        vol.Optional("target"): vol.All(cv.ensure_list, [cv.string]),
+    }
+)
+
 # Integration-wide options, also editable from the panel's Settings tab and the
 # options flow. Every field is optional so an automation can flip just one (e.g.
 # turn syncing off) without restating the exclusion lists. See options.py.
@@ -230,6 +273,10 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         # Catalog glue domains the user dismissed from the Companions "Suggested"
         # list. A list of domain strings.
         vol.Optional(OPTION_DISMISSED_COMPANIONS): vol.All(cv.ensure_list, [cv.string]),
+        # Profiles (saved filters) and notifications (delivery) — the panel saves each
+        # whole list; normalization happens in profiles/notifications.normalize_*.
+        vol.Optional(OPTION_PROFILES): list,
+        vol.Optional(OPTION_NOTIFICATIONS): list,
     }
 )
 
@@ -283,6 +330,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await sensor_watcher.async_baseline()
     coordinator.sensor_watcher = sensor_watcher
     sensor_watcher.async_start_listeners()
+    # Listen for actionable-notification taps (mobile_app_notification_action) so a
+    # Mark done / Snooze / Skip button routes back into the store and advances a walk.
+    entry.async_on_unload(notifier.async_setup_notifications(hass, entry, coordinator))
     # Setup is complete: the refreshes above have baselined current overdue/due-soon
     # state silently, so start firing those events only for transitions from here on.
     coordinator.enable_transition_events()
@@ -467,9 +517,69 @@ def _register_services(hass: HomeAssistant) -> None:
         # unchanged, so a refresh is enough — no entry reload (mirrors complete_task).
         await coord.async_request_refresh()
 
+    async def handle_snooze_task(call: ServiceCall) -> None:
+        coord = _coordinator()
+        until = dt_util.now() + timedelta(hours=call.data["hours"])
+        try:
+            await coord.store.snooze_task(
+                call.data["task_id"], until, origin=call.data.get("origin")
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        # Snooze only moves next_due (dormant <-> active timing); the per-task entity
+        # set is unchanged, so a refresh is enough — no entry reload.
+        await coord.async_request_refresh()
+
+    async def handle_skip_task(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.skip_task(
+                call.data["task_id"], origin=call.data.get("origin")
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await coord.async_request_refresh()
+
+    async def handle_notify(call: ServiceCall) -> dict[str, Any]:
+        coord = _coordinator()
+        response, error = await notifier.async_run_notify(hass, coord, dict(call.data))
+        if error is not None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key=error["key"],
+                translation_placeholders=error["placeholders"],
+            )
+        return response
+
     async def handle_list_tasks(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
         return {"tasks": coord.store.list_tasks()}
+
+    async def handle_list_profiles(call: ServiceCall) -> dict[str, Any]:
+        coord = _coordinator()
+        return {
+            "profiles": options.current_options(coord.entry).get(OPTION_PROFILES, [])
+        }
 
     async def handle_add_asset(call: ServiceCall) -> None:
         coord = _coordinator()
@@ -562,9 +672,29 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN, "trigger_task", handle_trigger_task, TRIGGER_TASK_SCHEMA
     )
     hass.services.async_register(
+        DOMAIN, "snooze_task", handle_snooze_task, SNOOZE_TASK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "skip_task", handle_skip_task, SKIP_TASK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "notify",
+        handle_notify,
+        NOTIFY_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
         DOMAIN,
         "list_tasks",
         handle_list_tasks,
+        schema=vol.Schema({}),
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "list_profiles",
+        handle_list_profiles,
         schema=vol.Schema({}),
         supports_response=SupportsResponse.ONLY,
     )
@@ -657,7 +787,11 @@ _SERVICES = (
     "complete_task",
     "update_completion",
     "trigger_task",
+    "snooze_task",
+    "skip_task",
+    "notify",
     "list_tasks",
+    "list_profiles",
     "add_asset",
     "update_asset",
     "delete_asset",

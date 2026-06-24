@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Posponi attività",
+      "description": "Rinvia la data di scadenza di un'attività senza registrare un completamento né far avanzare la ricorrenza.",
+      "fields": {
+        "task_id": {
+          "name": "ID attività",
+          "description": "L'id dell'attività da posporre."
+        },
+        "hours": {
+          "name": "Ore",
+          "description": "Di quante ore rinviare l'attività (24 di default)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Salta attività",
+      "description": "Fai avanzare un'attività alla sua prossima occorrenza senza registrare un completamento.",
+      "fields": {
+        "task_id": {
+          "name": "ID attività",
+          "description": "L'id dell'attività da saltare."
+        }
+      }
+    },
+    "notify": {
+      "name": "Notifica le attività in scadenza",
+      "description": "Invia una notifica push interattiva per ciò che è in scadenza ora: indica una notifica o un profilo salvato, sovrascrivendo facoltativamente la destinazione.",
+      "fields": {
+        "notification": {
+          "name": "Notifica",
+          "description": "Nome o id di una notifica salvata (usa il suo profilo + consegna)."
+        },
+        "profile": {
+          "name": "Profilo",
+          "description": "Nome o id di un profilo di notifica salvato."
+        },
+        "target": {
+          "name": "Destinazione",
+          "description": "Servizi di notifica a cui inviare, sostituendo il profilo (es. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Elenca attività",
       "description": "Restituisce tutte le attività come risposta."
+    },
+    "list_profiles": {
+      "name": "Elenca profili",
+      "description": "Restituisce i profili salvati (filtri attività con nome) come risposta."
     },
     "add_asset": {
       "name": "Aggiungi elettrodomestico",
@@ -396,6 +442,8 @@
       "task_due_soon": "Attività in scadenza",
       "task_created": "Attività creata",
       "task_updated": "Attività aggiornata",
+      "task_snoozed": "Attività posposta",
+      "task_skipped": "Attività saltata",
       "part_low_stock": "Ricambio con scorte basse",
       "part_out_of_stock": "Ricambio esaurito",
       "part_restocked": "Ricambio rifornito"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Nessun profilo di notifica chiamato {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Nessuna notifica chiamata {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Questa notifica non ha una destinazione: aggiungi un dispositivo \"Invia a\" in Impostazioni → Notifiche, oppure passa target: nella chiamata."
     }
   }
 }

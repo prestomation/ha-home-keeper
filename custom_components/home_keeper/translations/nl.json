@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Taak uitstellen",
+      "description": "De vervaldatum van een taak uitstellen zonder een voltooiing vast te leggen of de herhaling te laten doorlopen.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "Het id van de uit te stellen taak."
+        },
+        "hours": {
+          "name": "Uren",
+          "description": "Met hoeveel uur de taak wordt uitgesteld (standaard 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Taak overslaan",
+      "description": "Een taak naar de volgende keer laten doorgaan zonder een voltooiing vast te leggen.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "Het id van de over te slaan taak."
+        }
+      }
+    },
+    "notify": {
+      "name": "Melden wat openstaat",
+      "description": "Stuur een uitvoerbare pushmelding voor wat nu verschuldigd is – noem een opgeslagen melding of profiel en overschrijf optioneel het doel.",
+      "fields": {
+        "notification": {
+          "name": "Melding",
+          "description": "Naam of id van een opgeslagen melding (gebruikt het profiel + de bezorging)."
+        },
+        "profile": {
+          "name": "Profiel",
+          "description": "Naam of id van een opgeslagen meldingsprofiel."
+        },
+        "target": {
+          "name": "Doel",
+          "description": "Meldingsdiensten om naar te sturen, ter overschrijving van het profiel (bijv. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Taken weergeven",
       "description": "Geeft alle taken als antwoord terug."
+    },
+    "list_profiles": {
+      "name": "Profielen weergeven",
+      "description": "Geeft de opgeslagen profielen (benoemde taakfilters) als antwoord terug."
     },
     "add_asset": {
       "name": "Apparaat toevoegen",
@@ -396,6 +442,8 @@
       "task_due_soon": "Taak vervalt binnenkort",
       "task_created": "Taak aangemaakt",
       "task_updated": "Taak bijgewerkt",
+      "task_snoozed": "Taak uitgesteld",
+      "task_skipped": "Taak overgeslagen",
       "part_low_stock": "Reserveonderdeel bijna op",
       "part_out_of_stock": "Reserveonderdeel niet op voorraad",
       "part_restocked": "Reserveonderdeel aangevuld"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Geen meldingsprofiel met de naam {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Geen melding met de naam {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Deze melding heeft geen doel om naar te sturen — voeg een 'Versturen naar'-apparaat toe in Instellingen → Meldingen, of geef target: mee bij de aanroep."
     }
   }
 }

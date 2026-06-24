@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Posponer tarea",
+      "description": "Aplazar la fecha de vencimiento de una tarea sin registrar una finalización ni avanzar su recurrencia.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea que se va a posponer."
+        },
+        "hours": {
+          "name": "Horas",
+          "description": "Cuántas horas aplazar la tarea (24 por defecto)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Omitir tarea",
+      "description": "Avanzar una tarea a su próxima repetición sin registrar una finalización.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea que se va a omitir."
+        }
+      }
+    },
+    "notify": {
+      "name": "Notificar lo que vence",
+      "description": "Envía una notificación push accionable de lo que vence ahora: indica una notificación o un perfil guardado, opcionalmente sustituyendo el destino.",
+      "fields": {
+        "notification": {
+          "name": "Notificación",
+          "description": "Nombre o id de una notificación guardada (usa su perfil + envío)."
+        },
+        "profile": {
+          "name": "Perfil",
+          "description": "Nombre o id de un perfil de notificación guardado."
+        },
+        "target": {
+          "name": "Destino",
+          "description": "Servicios de notificación a los que enviar, sustituyendo el perfil (p. ej. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Listar tareas",
       "description": "Devolver todas las tareas como respuesta."
+    },
+    "list_profiles": {
+      "name": "Listar perfiles",
+      "description": "Devuelve los perfiles guardados (filtros de tareas con nombre) como respuesta."
     },
     "add_asset": {
       "name": "Añadir electrodoméstico",
@@ -396,6 +442,8 @@
       "task_due_soon": "Tarea próxima a vencer",
       "task_created": "Tarea creada",
       "task_updated": "Tarea actualizada",
+      "task_snoozed": "Tarea pospuesta",
+      "task_skipped": "Tarea omitida",
       "part_low_stock": "Pieza de repuesto con stock bajo",
       "part_out_of_stock": "Pieza de repuesto agotada",
       "part_restocked": "Pieza de repuesto repuesta"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "No hay ningún perfil de notificación llamado {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "No hay ninguna notificación llamada {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Esta notificación no tiene destino al que enviar: añade un dispositivo «Enviar a» en Ajustes → Notificaciones, o pasa target: al llamarla."
     }
   }
 }

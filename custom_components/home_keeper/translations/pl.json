@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Odłóż zadanie",
+      "description": "Odrocz termin zadania bez zapisywania ukończenia ani przesuwania jego powtarzania.",
+      "fields": {
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator zadania do odłożenia."
+        },
+        "hours": {
+          "name": "Godziny",
+          "description": "O ile godzin odroczyć zadanie (domyślnie 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Pomiń zadanie",
+      "description": "Przesuń zadanie do następnego wystąpienia bez zapisywania ukończenia.",
+      "fields": {
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator zadania do pominięcia."
+        }
+      }
+    },
+    "notify": {
+      "name": "Powiadom o zadaniach do zrobienia",
+      "description": "Wyślij interaktywne powiadomienie push o tym, co jest teraz wymagane – podaj zapisane powiadomienie lub profil, opcjonalnie zastępując cel.",
+      "fields": {
+        "notification": {
+          "name": "Powiadomienie",
+          "description": "Nazwa lub identyfikator zapisanego powiadomienia (używa jego profilu + dostarczania)."
+        },
+        "profile": {
+          "name": "Profil",
+          "description": "Nazwa lub identyfikator zapisanego profilu powiadomień."
+        },
+        "target": {
+          "name": "Cel",
+          "description": "Usługi powiadomień, do których wysłać, zastępujące profil (np. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Wyświetl zadania",
       "description": "Zwróć wszystkie zadania jako odpowiedź."
+    },
+    "list_profiles": {
+      "name": "Lista profili",
+      "description": "Zwraca zapisane profile (nazwane filtry zadań) jako odpowiedź."
     },
     "add_asset": {
       "name": "Dodaj urządzenie",
@@ -396,6 +442,8 @@
       "task_due_soon": "Termin zadania zbliża się",
       "task_created": "Zadanie utworzone",
       "task_updated": "Zadanie zaktualizowane",
+      "task_snoozed": "Zadanie odłożone",
+      "task_skipped": "Zadanie pominięte",
       "part_low_stock": "Niski stan części zapasowej",
       "part_out_of_stock": "Brak części zapasowej na stanie",
       "part_restocked": "Część zapasowa uzupełniona"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Brak profilu powiadomień o nazwie {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Brak powiadomienia o nazwie {notification}."
+    },
+    "notify_no_targets": {
+      "message": "To powiadomienie nie ma celu wysyłki – dodaj urządzenie „Wyślij do“ w Ustawienia → Powiadomienia lub przekaż target: w wywołaniu."
     }
   }
 }

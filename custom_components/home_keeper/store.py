@@ -29,6 +29,8 @@ from .const import (
     EVENT_TASK_COMPLETION_UPDATED,
     EVENT_TASK_CREATED,
     EVENT_TASK_DELETED,
+    EVENT_TASK_SKIPPED,
+    EVENT_TASK_SNOOZED,
     EVENT_TASK_TRIGGERED,
     EVENT_TASK_UNCOMPLETED,
     EVENT_TASK_UPDATED,
@@ -210,6 +212,67 @@ class HomeKeeperStore:
             EVENT_TASK_TRIGGERED, events.task_event_data(existing)
         )
         return existing
+
+    async def snooze_task(
+        self, task_id: str, until: Any, *, origin: str | None = None
+    ) -> dict[str, Any]:
+        """Push a task's ``next_due`` to *until* without recording a completion.
+
+        "Remind me later": unlike :meth:`complete_task` this advances *only*
+        ``next_due`` — recurrence, ``last_completed`` and the completion history are
+        untouched — so the schedule isn't advanced, just deferred. Because
+        ``next_due`` changes, the coordinator re-arms the edge-triggered
+        overdue/due-soon events for the new date (a fresh reminder fires when the
+        snooze lapses). *until* is a timezone-aware datetime (the caller computes it
+        from the requested duration). Rejects a synced problem-sensor task like every
+        other user mutation, and a **dormant** task (``next_due is None``) — there's no
+        due date to defer. Fires ``home_keeper_task_snoozed``.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        _reject_synced_problem(existing, origin)
+        if existing.get("next_due") is None:
+            # A dormant task (a completed one-off, or a condition/sensor task not yet
+            # armed) has no due date to defer; snoozing it would silently re-arm
+            # something that was intentionally off every time surface.
+            raise models.TaskValidationError(
+                "This task is dormant (no due date) — snooze only defers a task that "
+                "is currently scheduled. Re-arm it instead (undo a completion, or wait "
+                "for its condition/sensor)."
+            )
+        existing["next_due"] = until.isoformat()
+        await self._save()
+        _LOGGER.debug("Snoozed task %s until %s", task_id, existing["next_due"])
+        self._hass.bus.async_fire(
+            EVENT_TASK_SNOOZED,
+            events.task_event_data(
+                existing, extra={"snoozed_until": existing["next_due"]}
+            ),
+        )
+        return existing
+
+    async def skip_task(
+        self, task_id: str, *, origin: str | None = None
+    ) -> dict[str, Any]:
+        """Advance a task to its next occurrence with **no** completion recorded.
+
+        "Skip this one": delegates the (pure) recurrence math to
+        :func:`recurrence.skip_occurrence` — floating jumps a fresh interval, fixed
+        advances one scheduled occurrence, and one-off/triggered/sensor go dormant —
+        without stamping history or ``last_completed``. Rejects a synced
+        problem-sensor task. Fires ``home_keeper_task_skipped``.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        _reject_synced_problem(existing, origin)
+        updated = recurrence.skip_occurrence(dict(existing), now=dt_util.now())
+        self._tasks[task_id] = updated
+        await self._save()
+        _LOGGER.debug("Skipped task %s; next due %s", task_id, updated.get("next_due"))
+        self._hass.bus.async_fire(EVENT_TASK_SKIPPED, events.task_event_data(updated))
+        return updated
 
     async def set_sensor_baseline(
         self, task_id: str, baseline: float

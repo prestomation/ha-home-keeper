@@ -6,6 +6,34 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Added
+
+- **Profiles (reusable saved filters).** A **Profile** is a named, saved filter —
+  status (overdue / due soon / all) plus optional labels/areas/devices — that you define
+  once in **Settings → Profiles** and reuse everywhere tasks are filtered: in a
+  notification, in the **Profile** dropdown on the panel's **Tasks** tab, and in the
+  dashboard card editor's **Filter by profile** picker. New `home_keeper.list_profiles`
+  service and `home_keeper/get_profiles` websocket command read them.
+- **Actionable notifications (per-person chore queues).** Home Keeper can now push a
+  mobile-app notification for what's due, with **Mark done / Snooze / Skip / Open**
+  buttons that route back into Home Keeper so the schedule is recalculated correctly
+  (completing advances recurrence; snoozing re-arms a fresh reminder). Configure
+  **notifications** in **Settings → Notifications**: each notification references a
+  **Profile** (which tasks it covers) and targets one or more companion-app devices with
+  its own **button set**, snooze duration, and **style** (a *walk* that sends the first
+  due task and advances to the next as you action it, or a single *digest* summary). A
+  notification can **auto-send** when a task goes overdue/due-soon, or be triggered on
+  demand with the new **`home_keeper.notify`** service — e.g. from a "Chores" calendar
+  event — so two household members each get their own filtered list. Tapping an action
+  emits a `home_keeper_task_completed` / `_snoozed` / `_skipped` event with
+  `origin: home_keeper_notification_action`.
+- **Snooze and skip a task.** The notification buttons are also standalone services:
+  `home_keeper.snooze_task` (defer a task's due date by a number of hours — "remind me
+  later") and `home_keeper.skip_task` (advance to the next occurrence — "skip this one")
+  move a task's schedule **without recording a completion** (the maintenance log and a
+  floating task's clock are left untouched). Each fires a `home_keeper_task_snoozed` /
+  `home_keeper_task_skipped` event, also available as device-automation triggers.
+
 ## [0.4.0] - 2026-06-22
 
 This release adds **companion discovery** so integrations that work with Home Keeper

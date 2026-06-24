@@ -319,6 +319,46 @@ def apply_completion(
     return task
 
 
+def skip_occurrence(task: dict, *, now: datetime) -> dict:
+    """Return *task* advanced past its current occurrence with **no** completion.
+
+    "Skip this one" — move the task forward off every time surface without recording
+    that it was done (so the maintenance log and ``last_completed`` are untouched, and
+    a floating task's clock is *not* reset from a completion). Mutates only
+    ``next_due``; because that changes, the coordinator's edge detection re-arms the
+    overdue/due-soon announcements for the new date.
+
+    * floating  -> ``now + interval·unit`` (a fresh interval from now; the next
+      completion still measures from *its* ``completed_at``).
+    * fixed     -> the next scheduled occurrence strictly after ``max(now, next_due)``.
+      An upcoming task advances exactly one occurrence; an overdue task jumps to the
+      next occurrence after *now*, collapsing any already-missed occurrences rather than
+      taking one skip per missed period.
+    * one-off / triggered / sensor -> dormant (``next_due = None``): there is no "next"
+      occurrence to advance to, so skipping clears it from every time surface (a
+      triggered/sensor task is re-armed only by its owner/the watcher; a one-off stays
+      done unless its completion is undone).
+    """
+    rec_type = task.get("recurrence_type", REC_FLOATING)
+    if rec_type == REC_FLOATING:
+        task["next_due"] = add_interval(
+            now, int(task["interval"]), task["unit"]
+        ).isoformat()
+    elif rec_type == REC_FIXED:
+        anchor = _parse(task["anchor"])
+        assert anchor is not None
+        current = _parse(task.get("next_due"))
+        after = max(now, current) if current is not None else now
+        task["next_due"] = next_fixed_occurrence(
+            anchor, task["freq"], int(task["interval"]), after=after
+        ).isoformat()
+    elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR):
+        task["next_due"] = None
+    else:
+        raise ValueError(f"unknown recurrence_type: {rec_type!r}")
+    return task
+
+
 def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
     """Return *task* with the completion at ISO timestamp *ts* removed.
 

@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Adiar tarefa",
+      "description": "Adiar a data de vencimento de uma tarefa sem registrar uma conclusão ou avançar sua recorrência.",
+      "fields": {
+        "task_id": {
+          "name": "ID da tarefa",
+          "description": "O id da tarefa a adiar."
+        },
+        "hours": {
+          "name": "Horas",
+          "description": "Em quantas horas adiar a tarefa (padrão de 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Pular tarefa",
+      "description": "Avançar uma tarefa para a próxima ocorrência sem registrar uma conclusão.",
+      "fields": {
+        "task_id": {
+          "name": "ID da tarefa",
+          "description": "O id da tarefa a pular."
+        }
+      }
+    },
+    "notify": {
+      "name": "Notificar o que está pendente",
+      "description": "Envia uma notificação push acionável do que está vencido agora — informe uma notificação ou perfil salvo, opcionalmente substituindo o destino.",
+      "fields": {
+        "notification": {
+          "name": "Notificação",
+          "description": "Nome ou id de uma notificação salva (usa o perfil + entrega dela)."
+        },
+        "profile": {
+          "name": "Perfil",
+          "description": "Nome ou id de um perfil de notificação salvo."
+        },
+        "target": {
+          "name": "Destino",
+          "description": "Serviços de notificação para enviar, substituindo o perfil (ex.: mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Listar tarefas",
       "description": "Retornar todas as tarefas como resposta."
+    },
+    "list_profiles": {
+      "name": "Listar perfis",
+      "description": "Retorna os perfis salvos (filtros de tarefas nomeados) como resposta."
     },
     "add_asset": {
       "name": "Adicionar eletrodoméstico",
@@ -396,6 +442,8 @@
       "task_due_soon": "Tarefa vence em breve",
       "task_created": "Tarefa criada",
       "task_updated": "Tarefa atualizada",
+      "task_snoozed": "Tarefa adiada",
+      "task_skipped": "Tarefa pulada",
       "part_low_stock": "Peça sobressalente com estoque baixo",
       "part_out_of_stock": "Peça sobressalente sem estoque",
       "part_restocked": "Peça sobressalente reposta"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Nenhum perfil de notificação chamado {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Nenhuma notificação chamada {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Esta notificação não tem destino para envio — adicione um dispositivo \"Enviar para\" em Configurações → Notificações, ou passe target: na chamada."
     }
   }
 }

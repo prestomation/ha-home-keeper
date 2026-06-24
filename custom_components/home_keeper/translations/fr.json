@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Reporter la tâche",
+      "description": "Reporter la date d'échéance d'une tâche sans enregistrer d'achèvement ni avancer sa récurrence.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'identifiant de la tâche à reporter."
+        },
+        "hours": {
+          "name": "Heures",
+          "description": "De combien d'heures reporter la tâche (24 par défaut)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Ignorer la tâche",
+      "description": "Avancer une tâche à sa prochaine occurrence sans enregistrer d'achèvement.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'identifiant de la tâche à ignorer."
+        }
+      }
+    },
+    "notify": {
+      "name": "Notifier les tâches dues",
+      "description": "Envoyer une notification push actionnable pour ce qui est dû maintenant – indiquez une notification ou un profil enregistré, en remplaçant éventuellement la cible.",
+      "fields": {
+        "notification": {
+          "name": "Notification",
+          "description": "Nom ou identifiant d'une notification enregistrée (utilise son profil + sa diffusion)."
+        },
+        "profile": {
+          "name": "Profil",
+          "description": "Nom ou identifiant d'un profil de notification enregistré."
+        },
+        "target": {
+          "name": "Cible",
+          "description": "Services de notification à utiliser, remplaçant le profil (par ex. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Lister les tâches",
       "description": "Renvoyer toutes les tâches en réponse."
+    },
+    "list_profiles": {
+      "name": "Lister les profils",
+      "description": "Renvoie les profils enregistrés (filtres de tâches nommés) en réponse."
     },
     "add_asset": {
       "name": "Ajouter un appareil",
@@ -396,6 +442,8 @@
       "task_due_soon": "Tâche bientôt due",
       "task_created": "Tâche créée",
       "task_updated": "Tâche mise à jour",
+      "task_snoozed": "Tâche reportée",
+      "task_skipped": "Tâche ignorée",
       "part_low_stock": "Pièce de rechange en stock bas",
       "part_out_of_stock": "Pièce de rechange en rupture de stock",
       "part_restocked": "Pièce de rechange réapprovisionnée"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Aucun profil de notification nommé {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Aucune notification nommée {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Cette notification n'a aucune cible d'envoi : ajoutez un appareil « Envoyer à » dans Paramètres → Notifications, ou passez target: lors de l'appel."
     }
   }
 }

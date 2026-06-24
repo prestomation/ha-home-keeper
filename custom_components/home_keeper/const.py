@@ -57,6 +57,14 @@ EVENT_TASK_UPDATED = f"{DOMAIN}_task_updated"  # payload carries ``changed_field
 EVENT_TASK_DELETED = f"{DOMAIN}_task_deleted"
 EVENT_TASK_UNCOMPLETED = f"{DOMAIN}_task_uncompleted"  # a completion was undone
 EVENT_TASK_TRIGGERED = f"{DOMAIN}_task_triggered"  # a triggered task was armed
+# Snooze pushes a task's ``next_due`` forward without recording a completion or
+# advancing recurrence; the payload adds ``snoozed_until``. Skip advances a task to
+# its next occurrence without recording a completion. Both ride the task spine and,
+# because they change ``next_due``, re-arm the edge-triggered overdue/due-soon events
+# for the new date. Driven by the snooze_task / skip_task services (and the actionable
+# notification handler). See docs/EVENTS.md.
+EVENT_TASK_SNOOZED = f"{DOMAIN}_task_snoozed"  # + ``snoozed_until``
+EVENT_TASK_SKIPPED = f"{DOMAIN}_task_skipped"
 # Time-based transitions — fired (edge-triggered) from the coordinator. A task is
 # announced at most once per ``next_due`` value while HA is running; see
 # transitions.detect_transitions and coordinator._async_update_data.
@@ -128,6 +136,21 @@ OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
 # "Suggested" list. A list of domain strings; dismissing only silences a
 # *suggestion* (a connected pairing is always shown). See companions.py.
 OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
+# Profiles: named, reusable task filters (status + label/area/device). Standalone and
+# notification-agnostic — consumed by notifications, the panel's admin list filter, and
+# the Lovelace card. A list of ``{id, name, filter}``. See profiles.py.
+OPTION_PROFILES = "profiles"
+# Notifications: delivery bindings that reference a profile by ``profile_id`` and add
+# how to deliver (targets, button set, snooze duration, style, automatic triggers).
+# Edited from the panel's Settings → Notifications card and the set_options service;
+# consumed by the notify service, the action listener, and the coordinator's automatic
+# source. See notifications.py and docs/PROFILES_REFACTOR_PLAN.md.
+OPTION_NOTIFICATIONS = "notifications"
+
+# Opaque ``origin`` marker the actionable-notification action listener passes to
+# ``complete_task`` / ``snooze_task`` / ``skip_task`` so an automation can recognise
+# (and ignore) the completion/snooze it triggered from a notification tap.
+ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"
 
 
 # Recurrence types.

@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Udsæt opgave",
+      "description": "Udskyd en opgaves forfaldsdato uden at registrere en fuldførelse eller fremrykke dens gentagelse.",
+      "fields": {
+        "task_id": {
+          "name": "Opgave-ID",
+          "description": "Id'et på den opgave, der skal udsættes."
+        },
+        "hours": {
+          "name": "Timer",
+          "description": "Hvor mange timer opgaven skal udskydes (standard 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Spring opgave over",
+      "description": "Ryk en opgave frem til dens næste forekomst uden at registrere en fuldførelse.",
+      "fields": {
+        "task_id": {
+          "name": "Opgave-ID",
+          "description": "Id'et på den opgave, der skal springes over."
+        }
+      }
+    },
+    "notify": {
+      "name": "Notificér om forfaldne opgaver",
+      "description": "Send en handlingsbar push-notifikation om det, der er forfaldent nu – angiv en gemt notifikation eller profil, og tilsidesæt eventuelt målet.",
+      "fields": {
+        "notification": {
+          "name": "Notifikation",
+          "description": "Navn eller id på en gemt notifikation (bruger dens profil + levering)."
+        },
+        "profile": {
+          "name": "Profil",
+          "description": "Navn eller id på en gemt notifikationsprofil."
+        },
+        "target": {
+          "name": "Mål",
+          "description": "Notifikationstjenester at sende til, der tilsidesætter profilen (f.eks. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vis opgaver",
       "description": "Returner alle opgaver som et svar."
+    },
+    "list_profiles": {
+      "name": "Vis profiler",
+      "description": "Returnerer de gemte profiler (navngivne opgavefiltre) som svar."
     },
     "add_asset": {
       "name": "Tilføj apparat",
@@ -396,6 +442,8 @@
       "task_due_soon": "Opgave forfalder snart",
       "task_created": "Opgave oprettet",
       "task_updated": "Opgave opdateret",
+      "task_snoozed": "Opgave udsat",
+      "task_skipped": "Opgave sprunget over",
       "part_low_stock": "Lavt lager af reservedel",
       "part_out_of_stock": "Reservedel udsolgt",
       "part_restocked": "Reservedel genopfyldt"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Ingen notifikationsprofil med navnet {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Ingen notifikation med navnet {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Denne notifikation har ingen modtager – tilføj en \"Send til\"-enhed under Indstillinger → Notifikationer, eller angiv target: ved kaldet."
     }
   }
 }

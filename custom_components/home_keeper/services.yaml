@@ -354,9 +354,79 @@ trigger_task:
       selector:
         text:
 
+snooze_task:
+  name: Snooze task
+  description: >-
+    Defer a task's due date by a number of hours without recording a completion or
+    advancing its recurrence — "remind me later". A fresh overdue/due-soon reminder
+    fires when the snooze lapses.
+  fields:
+    task_id:
+      name: Task ID
+      description: The id of the task to snooze.
+      required: true
+      selector:
+        text:
+    hours:
+      name: Hours
+      description: How many hours to defer the task (defaults to 24).
+      selector:
+        number:
+          min: 1
+          max: 8760
+          step: 1
+          mode: box
+          unit_of_measurement: hours
+
+skip_task:
+  name: Skip task
+  description: >-
+    Advance a task to its next occurrence without recording a completion — "skip this
+    one". A floating task jumps a fresh interval, a fixed task advances one scheduled
+    occurrence, and a one-off/triggered/sensor task goes dormant.
+  fields:
+    task_id:
+      name: Task ID
+      description: The id of the task to skip.
+      required: true
+      selector:
+        text:
+
+notify:
+  name: Notify what's due
+  description: >-
+    Send an actionable push notification for what's currently due. Name a saved
+    notification, or a profile (saved filter), optionally overriding the notify
+    target. A "walk" sends the first due task and advances as you action it; a
+    "digest" sends one summary. Custom filters and delivery live on saved Profiles and
+    Notifications. Returns how many tasks matched and which was sent.
+  fields:
+    notification:
+      name: Notification
+      description: Name or id of a saved notification (uses its profile + delivery).
+      selector:
+        text:
+    profile:
+      name: Profile
+      description: Name or id of a saved profile (filter) to send.
+      selector:
+        text:
+    target:
+      name: Target
+      description: >-
+        Notify service name(s) to send to, overriding the profile's targets
+        (e.g. mobile_app_phone).
+      selector:
+        text:
+          multiple: true
+
 list_tasks:
   name: List tasks
   description: Return all tasks as a response.
+
+list_profiles:
+  name: List profiles
+  description: Return the saved profiles (named task filters) as a response.
 
 add_asset:
   name: Add appliance

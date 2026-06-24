@@ -14,9 +14,9 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
-from . import companions, devices, inventory, options
+from . import companions, devices, inventory, notifier, options
 from .assets import AssetValidationError
-from .const import DOMAIN
+from .const import DOMAIN, OPTION_PROFILES
 from .coordinator import HomeKeeperCoordinator, entity_set_key
 from .models import TaskValidationError
 
@@ -63,6 +63,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_get_options)
     websocket_api.async_register_command(hass, ws_set_options)
     websocket_api.async_register_command(hass, ws_get_companions)
+    websocket_api.async_register_command(hass, ws_get_profiles)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_tasks"})
@@ -432,12 +433,23 @@ async def ws_export_inventory(
 async def ws_get_options(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    """Return the config-entry options for the panel's Settings tab."""
+    """Return the config-entry options for the panel's Settings tab.
+
+    Also returns ``notify_targets`` — the ``mobile_app_*`` notify services available
+    right now — so the Notifications card can offer them as a checklist instead of
+    making the user type service names.
+    """
     coord = _coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
-    connection.send_result(msg["id"], {"options": options.current_options(coord.entry)})
+    connection.send_result(
+        msg["id"],
+        {
+            "options": options.current_options(coord.entry),
+            "notify_targets": notifier.available_targets(hass),
+        },
+    )
 
 
 @websocket_api.websocket_command(
@@ -479,4 +491,25 @@ async def ws_get_companions(
         return
     connection.send_result(
         msg["id"], {"companions": companions.async_list_companions(hass)}
+    )
+
+
+@websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_profiles"})
+@websocket_api.async_response
+async def ws_get_profiles(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Return the saved profiles (filters) for the dashboard card's profile picker.
+
+    A lightweight read so the Lovelace card can resolve a selected profile without
+    pulling the whole options object. The panel itself reads profiles from
+    ``get_options``.
+    """
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    connection.send_result(
+        msg["id"],
+        {"profiles": options.current_options(coord.entry).get(OPTION_PROFILES, [])},
     )

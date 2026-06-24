@@ -17,3 +17,7 @@ htmlcov/
 tests/e2e/.auth/
 tests/e2e/playwright-report/
 tests/e2e/test-results/
+
+# e2e: Docker creates this dir as the bind-mount target for the integration under
+# test and the stub companion integrations (see tests/integration/docker-compose.yml).
+tests/integration/ha_config/custom_components/

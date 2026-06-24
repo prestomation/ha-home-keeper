@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Lykkää tehtävää",
+      "description": "Lykkää tehtävän eräpäivää tallentamatta suoritusta tai siirtämättä sen toistoa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Lykättävän tehtävän tunnus."
+        },
+        "hours": {
+          "name": "Tunnit",
+          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Ohita tehtävä",
+      "description": "Siirrä tehtävä seuraavaan ajankohtaan tallentamatta suoritusta.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Ohitettavan tehtävän tunnus."
+        }
+      }
+    },
+    "notify": {
+      "name": "Ilmoita erääntyvistä",
+      "description": "Lähetä toiminnallinen push-ilmoitus nyt erääntyvästä – nimeä tallennettu ilmoitus tai profiili ja korvaa halutessasi kohde.",
+      "fields": {
+        "notification": {
+          "name": "Ilmoitus",
+          "description": "Tallennetun ilmoituksen nimi tai tunnus (käyttää sen profiilia + toimitusta)."
+        },
+        "profile": {
+          "name": "Profiili",
+          "description": "Tallennetun ilmoitusprofiilin nimi tai tunnus."
+        },
+        "target": {
+          "name": "Kohde",
+          "description": "Ilmoituspalvelut, joihin lähetetään, ohittaen profiilin (esim. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Luettele tehtävät",
       "description": "Palauta kaikki tehtävät vastauksena."
+    },
+    "list_profiles": {
+      "name": "Luettele profiilit",
+      "description": "Palauttaa tallennetut profiilit (nimetyt tehtäväsuodattimet) vastauksena."
     },
     "add_asset": {
       "name": "Lisää laite",
@@ -396,6 +442,8 @@
       "task_due_soon": "Tehtävä erääntyy pian",
       "task_created": "Tehtävä luotu",
       "task_updated": "Tehtävä päivitetty",
+      "task_snoozed": "Tehtävä lykätty",
+      "task_skipped": "Tehtävä ohitettu",
       "part_low_stock": "Varaosan varasto vähissä",
       "part_out_of_stock": "Varaosa loppu",
       "part_restocked": "Varaosa täydennetty"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Ei ilmoitusprofiilia nimeltä {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Ei ilmoitusta nimeltä {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Tällä ilmoituksella ei ole lähetyskohdetta – lisää \"Lähetä laitteelle\" -laite kohdassa Asetukset → Ilmoitukset tai anna target: kutsussa."
     }
   }
 }

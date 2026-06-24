@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Posposa la tasca",
+      "description": "Ajorna la data de venciment d'una tasca sense registrar una compleció ni avançar-ne la recurrència.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca a posposar."
+        },
+        "hours": {
+          "name": "Hores",
+          "description": "Quantes hores s'ha d'ajornar la tasca (24 per defecte)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Omet la tasca",
+      "description": "Avança una tasca a la seva propera ocurrència sense registrar una compleció.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca a ometre."
+        }
+      }
+    },
+    "notify": {
+      "name": "Notifica el que venç",
+      "description": "Envia una notificació push accionable del que venç ara: indica una notificació o un perfil desat, opcionalment substituint el destinatari.",
+      "fields": {
+        "notification": {
+          "name": "Notificació",
+          "description": "Nom o id d'una notificació desada (usa el seu perfil + lliurament)."
+        },
+        "profile": {
+          "name": "Perfil",
+          "description": "Nom o id d'un perfil de notificació desat."
+        },
+        "target": {
+          "name": "Destinació",
+          "description": "Serveis de notificació on enviar, substituint el perfil (p. ex. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Llistar tasques",
       "description": "Retornar totes les tasques com a resposta."
+    },
+    "list_profiles": {
+      "name": "Llista els perfils",
+      "description": "Retorna els perfils desats (filtres de tasques amb nom) com a resposta."
     },
     "add_asset": {
       "name": "Afegir electrodomèstic",
@@ -396,6 +442,8 @@
       "task_due_soon": "La tasca venç aviat",
       "task_created": "Tasca creada",
       "task_updated": "Tasca actualitzada",
+      "task_snoozed": "Tasca posposada",
+      "task_skipped": "Tasca omesa",
       "part_low_stock": "Peça de recanvi amb estoc baix",
       "part_out_of_stock": "Peça de recanvi sense estoc",
       "part_restocked": "Peça de recanvi reabastida"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "No hi ha cap perfil de notificació amb el nom {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "No hi ha cap notificació amb el nom {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Aquesta notificació no té cap destinatari: afegeix un dispositiu «Envia a» a Configuració → Notificacions, o passa target: en cridar-la."
     }
   }
 }

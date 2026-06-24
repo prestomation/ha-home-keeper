@@ -5,6 +5,7 @@ import type {
   HassLabel,
   HomeKeeperOptions,
   Inventory,
+  Profile,
   Task,
 } from './types';
 
@@ -36,11 +37,21 @@ export async function getLabels(hass: Hass): Promise<Record<string, HassLabel>> 
 }
 
 /** Read the integration options (for the Settings tab). */
-export async function getOptions(hass: Hass): Promise<HomeKeeperOptions> {
-  const res = await hass.callWS<{ options: HomeKeeperOptions }>({
+export async function getOptions(
+  hass: Hass,
+): Promise<{ options: HomeKeeperOptions; notifyTargets: string[] }> {
+  const res = await hass.callWS<{ options: HomeKeeperOptions; notify_targets?: string[] }>({
     type: 'home_keeper/get_options',
   });
-  return res.options;
+  return { options: res.options, notifyTargets: res.notify_targets ?? [] };
+}
+
+/** Saved profiles (filters) — used by the dashboard card's profile picker. */
+export async function getProfiles(hass: Hass): Promise<Profile[]> {
+  const res = await hass.callWS<{ profiles: Profile[] }>({
+    type: 'home_keeper/get_profiles',
+  });
+  return res.profiles ?? [];
 }
 
 /** Persist a partial options change (the backend reloads + re-syncs). */

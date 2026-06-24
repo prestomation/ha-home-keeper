@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Snooze task",
+      "description": "Defer a task's due date without recording a completion or advancing its recurrence.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task to snooze."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "How many hours to defer the task (defaults to 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Skip task",
+      "description": "Advance a task to its next occurrence without recording a completion.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task to skip."
+        }
+      }
+    },
+    "notify": {
+      "name": "Notify what's due",
+      "description": "Send an actionable push notification for what's currently due — name a saved notification or profile, optionally overriding the notify target.",
+      "fields": {
+        "notification": {
+          "name": "Notification",
+          "description": "Name or id of a saved notification (uses its profile + delivery)."
+        },
+        "profile": {
+          "name": "Profile",
+          "description": "Name or id of a saved profile (filter) to send."
+        },
+        "target": {
+          "name": "Target",
+          "description": "Notify services to send to, overriding the profile (e.g. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "List tasks",
       "description": "Return all tasks as a response."
+    },
+    "list_profiles": {
+      "name": "List profiles",
+      "description": "Return the saved profiles (named task filters) as a response."
     },
     "add_asset": {
       "name": "Add appliance",
@@ -396,6 +442,8 @@
       "task_due_soon": "Task due soon",
       "task_created": "Task created",
       "task_updated": "Task updated",
+      "task_snoozed": "Task snoozed",
+      "task_skipped": "Task skipped",
       "part_low_stock": "Spare part low on stock",
       "part_out_of_stock": "Spare part out of stock",
       "part_restocked": "Spare part restocked"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "No notification profile named {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "No notification named {notification}."
+    },
+    "notify_no_targets": {
+      "message": "This notification has no target to send to — add a \"Send to\" device in Settings → Notifications, or pass target: when calling the service."
     }
   }
 }

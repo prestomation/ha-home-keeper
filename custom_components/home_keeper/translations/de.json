@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Aufgabe zurückstellen",
+      "description": "Das Fälligkeitsdatum einer Aufgabe verschieben, ohne einen Abschluss zu erfassen oder die Wiederholung vorzurücken.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der zurückzustellenden Aufgabe."
+        },
+        "hours": {
+          "name": "Stunden",
+          "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard: 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Aufgabe überspringen",
+      "description": "Eine Aufgabe zum nächsten Termin vorrücken, ohne einen Abschluss zu erfassen.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der zu überspringenden Aufgabe."
+        }
+      }
+    },
+    "notify": {
+      "name": "Über Fälliges benachrichtigen",
+      "description": "Sende eine umsetzbare Push-Benachrichtigung für aktuell Fälliges – nenne eine gespeicherte Benachrichtigung oder ein Profil und überschreibe optional das Ziel.",
+      "fields": {
+        "notification": {
+          "name": "Benachrichtigung",
+          "description": "Name oder ID einer gespeicherten Benachrichtigung (nutzt deren Profil + Zustellung)."
+        },
+        "profile": {
+          "name": "Profil",
+          "description": "Name oder ID eines gespeicherten Benachrichtigungsprofils."
+        },
+        "target": {
+          "name": "Ziel",
+          "description": "Benachrichtigungsdienste, an die gesendet wird, überschreibt das Profil (z. B. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Aufgaben auflisten",
       "description": "Gibt alle Aufgaben als Antwort zurück."
+    },
+    "list_profiles": {
+      "name": "Profile auflisten",
+      "description": "Gibt die gespeicherten Profile (benannte Aufgabenfilter) als Antwort zurück."
     },
     "add_asset": {
       "name": "Gerät hinzufügen",
@@ -396,6 +442,8 @@
       "task_due_soon": "Aufgabe bald fällig",
       "task_created": "Aufgabe erstellt",
       "task_updated": "Aufgabe aktualisiert",
+      "task_snoozed": "Aufgabe zurückgestellt",
+      "task_skipped": "Aufgabe übersprungen",
       "part_low_stock": "Ersatzteil mit niedrigem Bestand",
       "part_out_of_stock": "Ersatzteil nicht vorrätig",
       "part_restocked": "Ersatzteil aufgefüllt"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Kein Benachrichtigungsprofil mit dem Namen {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Keine Benachrichtigung mit dem Namen {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Diese Benachrichtigung hat kein Ziel zum Senden – füge unter Einstellungen → Benachrichtigungen ein „Senden an“-Gerät hinzu oder übergib beim Aufruf target:."
     }
   }
 }

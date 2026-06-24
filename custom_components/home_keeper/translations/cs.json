@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Odložit úkol",
+      "description": "Odložit datum splatnosti úkolu bez zaznamenání dokončení nebo posunutí jeho opakování.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu, který se má odložit."
+        },
+        "hours": {
+          "name": "Hodiny",
+          "description": "O kolik hodin úkol odložit (výchozí 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Přeskočit úkol",
+      "description": "Posunout úkol na jeho další výskyt bez zaznamenání dokončení.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu, který se má přeskočit."
+        }
+      }
+    },
+    "notify": {
+      "name": "Upozornit na úkoly k vyřízení",
+      "description": "Odešle akční push oznámení o tom, co je právě splatné – zadejte uložené oznámení nebo profil a volitelně přepište cíl.",
+      "fields": {
+        "notification": {
+          "name": "Oznámení",
+          "description": "Název nebo id uloženého oznámení (použije jeho profil + doručení)."
+        },
+        "profile": {
+          "name": "Profil",
+          "description": "Název nebo id uloženého profilu oznámení."
+        },
+        "target": {
+          "name": "Cíl",
+          "description": "Služby oznámení, na které se má odeslat, přepisující profil (např. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vypsat úkoly",
       "description": "Vrátit všechny úkoly jako odpověď."
+    },
+    "list_profiles": {
+      "name": "Vypsat profily",
+      "description": "Vrátí uložené profily (pojmenované filtry úkolů) jako odpověď."
     },
     "add_asset": {
       "name": "Přidat spotřebič",
@@ -396,6 +442,8 @@
       "task_due_soon": "Úkol brzy splatný",
       "task_created": "Úkol vytvořen",
       "task_updated": "Úkol aktualizován",
+      "task_snoozed": "Úkol odložen",
+      "task_skipped": "Úkol přeskočen",
       "part_low_stock": "Náhradní díl s nízkou zásobou",
       "part_out_of_stock": "Náhradní díl není skladem",
       "part_restocked": "Náhradní díl doplněn"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Žádný profil oznámení s názvem {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Žádné oznámení s názvem {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Toto oznámení nemá žádný cíl pro odeslání – přidejte zařízení „Odeslat na“ v Nastavení → Oznámení nebo při volání předejte target:."
     }
   }
 }

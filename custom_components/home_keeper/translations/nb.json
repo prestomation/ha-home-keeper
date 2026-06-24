@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Utsett oppgave",
+      "description": "Utsett en oppgaves forfallsdato uten å registrere en fullføring eller flytte gjentakelsen fremover.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til oppgaven som skal utsettes."
+        },
+        "hours": {
+          "name": "Timer",
+          "description": "Hvor mange timer oppgaven skal utsettes (standard 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Hopp over oppgave",
+      "description": "Flytt en oppgave frem til neste forekomst uten å registrere en fullføring.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til oppgaven som skal hoppes over."
+        }
+      }
+    },
+    "notify": {
+      "name": "Varsle om forfalte oppgaver",
+      "description": "Send et handlingsbart push-varsel om det som forfaller nå – angi et lagret varsel eller en profil, og overstyr eventuelt målet.",
+      "fields": {
+        "notification": {
+          "name": "Varsel",
+          "description": "Navn eller id på et lagret varsel (bruker profilen + leveringen)."
+        },
+        "profile": {
+          "name": "Profil",
+          "description": "Navn eller id på en lagret varslingsprofil."
+        },
+        "target": {
+          "name": "Mål",
+          "description": "Varslingstjenester å sende til, som overstyrer profilen (f.eks. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Vis oppgaver",
       "description": "Returner alle oppgaver som et svar."
+    },
+    "list_profiles": {
+      "name": "List opp profiler",
+      "description": "Returnerer de lagrede profilene (navngitte oppgavefiltre) som svar."
     },
     "add_asset": {
       "name": "Legg til apparat",
@@ -396,6 +442,8 @@
       "task_due_soon": "Oppgave forfaller snart",
       "task_created": "Oppgave opprettet",
       "task_updated": "Oppgave oppdatert",
+      "task_snoozed": "Oppgave utsatt",
+      "task_skipped": "Oppgave hoppet over",
       "part_low_stock": "Lavt lager av reservedel",
       "part_out_of_stock": "Reservedel utsolgt",
       "part_restocked": "Reservedel fylt på"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Ingen varslingsprofil med navnet {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Ingen varsel med navnet {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Dette varselet har ingen mottaker – legg til en «Send til»-enhet under Innstillinger → Varsler, eller angi target: i kallet."
     }
   }
 }

@@ -257,33 +257,65 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/17-panel-settings.png`, fullPage: true });
 
-  // 17b. Settings → Companions — integrations that work with Home Keeper. The e2e
-  // container ships only Home Keeper, so seed a couple of connected companions via
-  // the public register_companion service to capture the section populated.
+  // 17a. Settings → Profiles + Notifications. A Profile is a standalone saved filter;
+  // a Notification is a delivery binding that references one. Seed one of each via the
+  // public set_options service so both editors render populated.
   await page.evaluate(async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
     if (!hass) return;
-    await hass.callService('home_keeper', 'register_companion', {
-      domain: 'pawsistant',
-      name: 'Pawsistant',
-      icon: 'mdi:paw',
-      description:
-        'Pet care tracker — logs walks, meals, meds and weight, and can schedule recurring pet-care chores as Home Keeper tasks.',
-      config_entry_id: 'demo_pawsistant',
-      docs_url: 'https://github.com/prestomation/Pawsistant',
-      capabilities: ['care_schedules'],
-    });
-    await hass.callService('home_keeper', 'register_companion', {
-      domain: 'home_keeper_battery_notes',
-      name: 'Battery Notes',
-      icon: 'mdi:battery-alert-variant-outline',
-      description:
-        'Turns Battery Notes low-battery alerts into Home Keeper “replace battery” tasks, kept in sync both ways.',
-      config_entry_id: 'demo_battery_notes',
-      capabilities: ['battery_replacement'],
+    await hass.callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: 'demo_me',
+          name: 'My chores',
+          filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+        },
+        {
+          id: 'demo_upstairs',
+          name: 'Upstairs',
+          filter: { status: 'due_soon', labels: [], areas: [], devices: [] },
+        },
+      ],
+      notifications: [
+        {
+          id: 'demo_walk',
+          name: 'Walk my chores',
+          profile_id: 'demo_me',
+          targets: [],
+          actions: ['complete', 'snooze', 'open'],
+          snooze_hours: 24,
+          style: 'walk',
+          auto: { overdue: true, due_soon: false },
+        },
+      ],
     });
   });
+  await openPanel(page);
+  await panel.locator('#tab-settings').click();
+  // Settings → Profiles — the standalone saved-filter editor.
+  await expect(panel.locator('#hk-profiles')).toBeVisible();
+  await expect(panel.locator('#hk-profiles .hk-editor-row ha-form').first()).toBeVisible();
+  await page.waitForTimeout(700);
+  await panel.locator('#hk-profiles').screenshot({ path: `${OUT}/profiles-card.png` });
+  // Settings → Notifications — delivery bindings that each reference a Profile.
+  await expect(panel.locator('#hk-notifications')).toBeVisible();
+  await expect(panel.locator('#hk-notifications .hk-editor-row ha-form').first()).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/22-panel-notifications.png`, fullPage: true });
+
+  // 17a2. The Tasks tab Profile dropdown — pick a saved Profile to filter the admin list.
+  await openPanel(page);
+  await expect(panel.locator('select[data-profile-filter]')).toBeVisible();
+  await panel.locator('select[data-profile-filter]').selectOption('demo_me');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/23-panel-profile-filter.png`, fullPage: true });
+
+  // 17b. Settings → Companions — integrations that work with Home Keeper. The e2e
+  // container ships two stub companion integrations (tests/integration/stubs) that
+  // are bind-mounted + installed via seeded config entries: Pawsistant self-registers
+  // on setup (push), and the Battery Notes glue is detected from the catalog (pull).
+  // So the section populates on its own — no in-test seeding needed.
   await openPanel(page);
   await panel.locator('#tab-settings').click();
   await expect(panel.locator('#hk-companions')).toBeVisible();

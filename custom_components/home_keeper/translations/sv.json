@@ -190,9 +190,55 @@
         }
       }
     },
+    "snooze_task": {
+      "name": "Skjut upp uppgift",
+      "description": "Skjut upp en uppgifts förfallodatum utan att registrera ett slutförande eller flytta fram dess upprepning.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID för uppgiften som ska skjutas upp."
+        },
+        "hours": {
+          "name": "Timmar",
+          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24)."
+        }
+      }
+    },
+    "skip_task": {
+      "name": "Hoppa över uppgift",
+      "description": "Flytta fram en uppgift till nästa tillfälle utan att registrera ett slutförande.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID för uppgiften som ska hoppas över."
+        }
+      }
+    },
+    "notify": {
+      "name": "Avisera om förfallna uppgifter",
+      "description": "Skicka en åtgärdbar push-avisering om det som förfaller nu – ange en sparad avisering eller profil och åsidosätt valfritt målet.",
+      "fields": {
+        "notification": {
+          "name": "Avisering",
+          "description": "Namn eller id för en sparad avisering (använder dess profil + leverans)."
+        },
+        "profile": {
+          "name": "Profil",
+          "description": "Namn eller id för en sparad aviseringsprofil."
+        },
+        "target": {
+          "name": "Mål",
+          "description": "Aviseringstjänster att skicka till, som åsidosätter profilen (t.ex. mobile_app_phone)."
+        }
+      }
+    },
     "list_tasks": {
       "name": "Lista uppgifter",
       "description": "Returnera alla uppgifter som ett svar."
+    },
+    "list_profiles": {
+      "name": "Lista profiler",
+      "description": "Returnerar de sparade profilerna (namngivna uppgiftsfilter) som svar."
     },
     "add_asset": {
       "name": "Lägg till apparat",
@@ -396,6 +442,8 @@
       "task_due_soon": "Uppgift förfaller snart",
       "task_created": "Uppgift skapad",
       "task_updated": "Uppgift uppdaterad",
+      "task_snoozed": "Uppgift uppskjuten",
+      "task_skipped": "Uppgift överhoppad",
       "part_low_stock": "Reservdel med lågt lagersaldo",
       "part_out_of_stock": "Reservdel slut i lager",
       "part_restocked": "Reservdel påfylld"
@@ -422,6 +470,15 @@
     },
     "complete_failed": {
       "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Ingen aviseringsprofil med namnet {profile}."
+    },
+    "notify_notification_not_found": {
+      "message": "Ingen avisering med namnet {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Den här aviseringen har ingen mottagare – lägg till en \"Skicka till\"-enhet under Inställningar → Aviseringar, eller ange target: i anropet."
     }
   }
 }

@@ -19,13 +19,16 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from . import notifications, profiles
 from .const import (
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
+    OPTION_PROFILES,
     OPTION_SYNC_PROBLEM_SENSORS,
 )
 
@@ -63,6 +66,10 @@ def current_options(entry: ConfigEntry) -> dict[str, Any]:
         OPTION_ONE_OFF_RETENTION_DAYS: _coerce_days(
             opts.get(OPTION_ONE_OFF_RETENTION_DAYS, 0)
         ),
+        OPTION_PROFILES: profiles.normalize_profiles(opts.get(OPTION_PROFILES, [])),
+        OPTION_NOTIFICATIONS: notifications.normalize_notifications(
+            opts.get(OPTION_NOTIFICATIONS, [])
+        ),
     }
     for key in _LIST_OPTIONS:
         result[key] = list(opts.get(key, []) or [])
@@ -86,6 +93,12 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
     if OPTION_ONE_OFF_RETENTION_DAYS in updates:
         merged[OPTION_ONE_OFF_RETENTION_DAYS] = _coerce_days(
             updates[OPTION_ONE_OFF_RETENTION_DAYS]
+        )
+    if OPTION_PROFILES in updates:
+        merged[OPTION_PROFILES] = profiles.normalize_profiles(updates[OPTION_PROFILES])
+    if OPTION_NOTIFICATIONS in updates:
+        merged[OPTION_NOTIFICATIONS] = notifications.normalize_notifications(
+            updates[OPTION_NOTIFICATIONS]
         )
     for key in _LIST_OPTIONS:
         if key in updates:

@@ -28,6 +28,10 @@ export interface HomeKeeperCardConfig {
   areas?: string[];
   /** Restrict to tasks attached to these devices. */
   devices?: string[];
+  /** Show only tasks matching this saved **profile** (id or name). When set, the
+   *  profile's filter (status + labels/areas/devices) decides which tasks show; the
+   *  card's own labels/areas/devices/filter fields are ignored. See profileMatches. */
+  profile?: string;
   /** Restrict to tasks carrying these HA labels — on the task itself, its device,
    *  or its effective area. The backbone of per-subject cards (one per dog/car/kid). */
   labels?: string[];
@@ -58,6 +62,14 @@ export interface HomeKeeperCardConfig {
 
 /** Tasks due within this many days (and not overdue) count as "due soon". */
 export const SOON_DAYS = 7;
+
+/**
+ * A saved Profile's `due_soon` window, in days. This deliberately differs from the
+ * card's 7-day `soon` status bucket: it mirrors the backend `transitions.DUE_SOON_WINDOW`
+ * (3 days) so a Profile with `status: due_soon` selects the SAME tasks here as a
+ * notification using that Profile does server-side. Keep the two in lockstep.
+ */
+export const DUE_SOON_DAYS = 3;
 const DAY_MS = 86_400_000;
 
 /** End of the local calendar day containing `now` (23:59:59.999). */
@@ -113,6 +125,54 @@ export function taskLabelIds(
   const area = areaId ? areas?.[areaId] : undefined;
   for (const id of area?.labels ?? []) ids.add(id);
   return ids;
+}
+
+/** A saved profile's filter (mirrors the backend `profiles.py` shape). */
+export interface ProfileFilter {
+  status: 'all' | 'overdue' | 'due_soon';
+  labels: string[];
+  areas: string[];
+  devices: string[];
+}
+
+/**
+ * Whether *task* matches a saved profile's *filter*. Mirrors the backend
+ * `profiles.matches_filter` so a Profile selects the same tasks here (card / admin
+ * list) as a notification using it does server-side: the same 3-day `due_soon` window
+ * (`DUE_SOON_DAYS` ↔ `transitions.DUE_SOON_WINDOW`) and the same **effective**
+ * label/area resolution — own ids plus those inherited via the task's device and area.
+ * The backend reaches parity by enriching tasks with their effective ids before
+ * matching (`notifier._effective_filter_tasks`); here we resolve them inline via
+ * `taskLabelIds`/`taskAreaId`.
+ */
+export function profileMatches(
+  task: Task,
+  filter: ProfileFilter,
+  devices?: Record<string, HassDevice>,
+  areas?: Record<string, HassArea>,
+  now = Date.now(),
+): boolean {
+  if (task.enabled === false) return false;
+  if (!task.next_due) return false;
+  const src = task.source as Record<string, unknown> | null | undefined;
+  if (src && typeof src === 'object' && 'problem_sensor' in src) return false;
+  // Status windows match the backend exactly: overdue = due at/before now; due_soon =
+  // overdue or due within DUE_SOON_DAYS; all = any dated, enabled task.
+  const due = new Date(task.next_due).getTime();
+  const status = filter.status || 'overdue';
+  if (status === 'overdue' && due > now) return false;
+  if (status === 'due_soon' && due > now + DUE_SOON_DAYS * DAY_MS) return false;
+  const labels = filter.labels ?? [];
+  if (labels.length) {
+    const tl = taskLabelIds(task, devices, areas);
+    if (!labels.some((id) => tl.has(id))) return false;
+  }
+  const wantAreas = filter.areas ?? [];
+  if (wantAreas.length && !wantAreas.includes(taskAreaId(task, devices) ?? '')) {
+    return false;
+  }
+  const wantDevices = filter.devices ?? [];
+  return !(wantDevices.length && !wantDevices.includes(task.device_id ?? ''));
 }
 
 function matchesLabels(

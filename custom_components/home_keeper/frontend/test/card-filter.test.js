@@ -1,13 +1,24 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { setLanguage } from '../src/i18n.ts';
 import {
   filterTasks,
   groupTasks,
+  profileMatches,
   sortTasks,
   statusBucket,
 } from '../src/card-filter.ts';
 
 afterEach(() => setLanguage('en'));
+
+// Shared cross-language conformance fixture (also run by the Python matcher in
+// tests/unit/test_profiles.py) — a Profile must select the same tasks here as it does
+// server-side in a notification.
+// vitest runs from the repo root (see CI + the project vitest config), so resolve the
+// shared fixture from there.
+const CONFORMANCE = JSON.parse(
+  readFileSync('tests/fixtures/profile_filter_cases.json', 'utf8'),
+);
 
 // A fixed "now" so relative date math is deterministic.
 const NOW = new Date('2026-06-16T12:00:00Z').getTime();
@@ -207,4 +218,46 @@ describe('groupTasks', () => {
     expect(groups[0].label).toBe('Kitchen');
     expect(groups[groups.length - 1].key).toBe('area:none');
   });
+});
+
+describe('profileMatches (saved-filter predicate)', () => {
+  const F = (over = {}) => ({ status: 'overdue', labels: [], areas: [], devices: [], ...over });
+
+  it('honors status: overdue / due_soon / all', () => {
+    expect(profileMatches(overdue, F({ status: 'overdue' }), {}, {}, NOW)).toBe(true);
+    expect(profileMatches(soon, F({ status: 'overdue' }), {}, {}, NOW)).toBe(false);
+    expect(profileMatches(soon, F({ status: 'due_soon' }), {}, {}, NOW)).toBe(true);
+    expect(profileMatches(overdue, F({ status: 'due_soon' }), {}, {}, NOW)).toBe(true);
+    expect(profileMatches(later, F({ status: 'due_soon' }), {}, {}, NOW)).toBe(false);
+    expect(profileMatches(later, F({ status: 'all' }), {}, {}, NOW)).toBe(true);
+  });
+
+  it('excludes disabled, dormant, and problem-sensor tasks', () => {
+    expect(profileMatches(task({ next_due: new Date(NOW - DAY).toISOString(), enabled: false }), F({ status: 'all' }), {}, {}, NOW)).toBe(false);
+    expect(profileMatches(task({ next_due: null }), F({ status: 'all' }), {}, {}, NOW)).toBe(false);
+    expect(profileMatches(task({ next_due: new Date(NOW - DAY).toISOString(), source: { problem_sensor: { entity_id: 'x' } } }), F({ status: 'all' }), {}, {}, NOW)).toBe(false);
+  });
+
+  it('matches own labels and inherited (device/area) labels', () => {
+    const own = task({ next_due: new Date(NOW - DAY).toISOString(), labels: ['dog'] });
+    expect(profileMatches(own, F({ status: 'all', labels: ['dog'] }), {}, {}, NOW)).toBe(true);
+    expect(profileMatches(own, F({ status: 'all', labels: ['cat'] }), {}, {}, NOW)).toBe(false);
+    // Inherited from the task's device label.
+    const viaDevice = task({ next_due: new Date(NOW - DAY).toISOString(), device_id: 'd1' });
+    const devices = { d1: { area_id: 'kitchen', labels: ['dog'] } };
+    expect(profileMatches(viaDevice, F({ status: 'all', labels: ['dog'] }), devices, {}, NOW)).toBe(true);
+    expect(profileMatches(viaDevice, F({ status: 'all', areas: ['kitchen'] }), devices, {}, NOW)).toBe(true);
+  });
+});
+
+describe('profileMatches conformance (shared backend/frontend fixture)', () => {
+  const defaultNow = new Date(CONFORMANCE.now).getTime();
+  for (const c of CONFORMANCE.cases) {
+    it(c.name, () => {
+      const now = c.now ? new Date(c.now).getTime() : defaultNow;
+      // Empty registries: tasks carry their effective ids directly, matching how the
+      // backend enriches before calling the pure matcher.
+      expect(profileMatches(c.task, c.filter, {}, {}, now)).toBe(c.expected);
+    });
+  }
 });

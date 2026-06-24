@@ -39,6 +39,8 @@ const ANCHOR_ROUTES = {
   // The "Companions" subsection lives under the Settings section (→ settings page).
   '#companions--discover-integrations-that-work-with-home-keeper':
     '/docs/guide/settings#companions--discover-integrations-that-work-with-home-keeper',
+  '#notifications--actionable-reminders-on-your-phone': '/docs/guide/notifications',
+  '#profiles--saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
 };
 
 // Rewrite every Markdown link/image target. `sourceDir` is the canonical file's
@@ -135,6 +137,8 @@ const USER_SECTIONS = [
   {h: 'Condition-driven (triggered) tasks', slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks'},
   {h: 'Sensor-based tasks (usage meters & thresholds)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks'},
   {h: 'Settings', slug: 'settings', title: 'Settings'},
+  {h: 'Profiles — saved filters you reuse everywhere', slug: 'profiles', title: 'Profiles', label: 'Profiles'},
+  {h: 'Notifications — actionable reminders on your phone', slug: 'notifications', title: 'Notifications', label: 'Notifications'},
   {h: 'Dashboard task card', slug: 'dashboard-card', title: 'Dashboard card', label: 'Dashboard card'},
   {h: 'Appliances & virtual devices', slug: 'appliances', title: 'Appliances', label: 'Appliances'},
   {h: 'Services', slug: 'services', title: 'Services'},
