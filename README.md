@@ -21,7 +21,7 @@
 | custom\_components/home\_keeper/entity.py              |       18 |       18 |        2 |        0 |      0% |     16-43 |
 | custom\_components/home\_keeper/events.py              |       22 |        1 |        6 |        1 |     93% |42-\>44, 129 |
 | custom\_components/home\_keeper/inventory.py           |       64 |        0 |       14 |        0 |    100% |           |
-| custom\_components/home\_keeper/models.py              |      229 |       13 |      118 |        5 |     95% |67, 140-141, 151-152, 158-159, 186, 212, 216, 298, 302-303 |
+| custom\_components/home\_keeper/models.py              |      233 |       13 |      120 |        5 |     95% |67, 140-141, 151-152, 158-159, 186, 212, 216, 298, 302-303 |
 | custom\_components/home\_keeper/notifications.py       |       96 |        6 |       38 |        3 |     92% |115-117, 155, 172, 201-\>203, 216 |
 | custom\_components/home\_keeper/notifier.py            |      139 |      139 |       54 |        0 |      0% |    14-353 |
 | custom\_components/home\_keeper/options.py             |       47 |       47 |       16 |        0 |      0% |    15-135 |
@@ -38,7 +38,7 @@
 | custom\_components/home\_keeper/todo.py                |       42 |       42 |        8 |        0 |      0% |     10-99 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py      |      282 |      282 |       56 |        0 |      0% |     8-512 |
-| **TOTAL**                                              | **3311** | **2031** | **1112** |   **32** | **41%** |           |
+| **TOTAL**                                              | **3315** | **2031** | **1114** |   **32** | **41%** |           |
 
 
 ## Setup coverage badge
