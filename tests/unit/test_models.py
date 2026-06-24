@@ -580,6 +580,42 @@ def test_merge_update_converts_triggered_to_floating_with_explicit_interval():
     assert merged["unit"] == "months"
 
 
+def test_merge_update_converts_fixed_to_triggered_arms_now_not_stale_date():
+    # Regression: converting a scheduled task to ``triggered`` left ``next_due`` at the
+    # old schedule date. A triggered task's next_due is an armed-now timestamp (or None
+    # when dormant), so a stale future/past date made it render as "armed" at a
+    # meaningless instant. It must reset to the fresh-build state (armed == now), like
+    # ``build_task`` creates a triggered task. The ``-> sensor`` direction already did
+    # this (resetting to None); the ``-> triggered`` direction was missed.
+    task = m.build_task(
+        {
+            "name": "Service boiler",
+            "recurrence_type": "fixed",
+            "freq": "MONTHLY",
+            "interval": 1,
+            "anchor": "2026-12-30T08:00:00",
+        },
+        now=NOW,
+    )
+    assert task["next_due"] != NOW.isoformat()  # a real future schedule date
+    merged = m.merge_update(task, {"recurrence_type": "triggered"}, now=NOW)
+    assert merged["recurrence_type"] == "triggered"
+    assert merged["next_due"] == NOW.isoformat()  # armed now, not the stale Dec date
+
+
+def test_merge_update_converts_floating_to_triggered_arms_now():
+    task = m.build_task(
+        {"name": "Replace filter", "recurrence_type": "floating", "unit": "months"},
+        now=NOW,
+    )
+    # Pretend it was completed so next_due sits a real interval in the future.
+    future = datetime(2026, 9, 24, 12, tzinfo=TZ).isoformat()
+    task["next_due"] = future
+    merged = m.merge_update(task, {"recurrence_type": "triggered"}, now=NOW)
+    assert merged["recurrence_type"] == "triggered"
+    assert merged["next_due"] == NOW.isoformat()
+
+
 def test_build_one_off_task_uses_due_date_and_no_schedule_fields():
     due = datetime(2026, 7, 1, 8, tzinfo=TZ)
     task = m.build_task(

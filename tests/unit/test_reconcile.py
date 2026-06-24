@@ -165,6 +165,29 @@ def test_changing_replace_unit_updates_task():
     assert changed is True and _only(tasks)["unit"] == "weeks"
 
 
+def test_updating_one_of_several_part_tasks_writes_to_the_right_task():
+    # Regression: the update branch wrote ``result[tid]`` using a stale loop variable
+    # left over from the orphan/index loops instead of ``existing_tid``. With two or
+    # more part-tasks present, renaming a non-last one corrupted a *different* task's
+    # slot (the rename landed on the wrong id, dropping a task entirely).
+    a1 = _asset(aid="a1", name="Heater", parts=[_wear_part(pid="p1")])
+    a2 = _asset(aid="a2", name="Boiler", parts=[_wear_part(pid="p2")])
+    created, _ = _reconcile({"a1": a1, "a2": a2})
+    assert len(created) == 2
+
+    # Rename only the first asset; the second is untouched.
+    a1_renamed = _asset(aid="a1", name="HeaterRENAMED", parts=[_wear_part(pid="p1")])
+    tasks, changed = _reconcile({"a1": a1_renamed, "a2": a2}, created)
+
+    assert changed is True
+    # Both tasks survive, each still keyed to its own part, with names applied to the
+    # correct task (no cross-contamination).
+    by_asset = {t["source"]["part"]["asset_id"]: t for t in tasks.values()}
+    assert set(by_asset) == {"a1", "a2"}
+    assert by_asset["a1"]["name"] == "Replace Anode (HeaterRENAMED)"
+    assert by_asset["a2"]["name"] == "Replace Anode (Boiler)"
+
+
 # ── timezone healing vs. real completions ─────────────────────────────────────
 def test_heals_legacy_naive_last_completed():
     # Simulate a task persisted by an older build: naive last_completed/next_due.

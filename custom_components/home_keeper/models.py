@@ -517,16 +517,23 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "due",
         "sensor",
     }
-    if merged.get("recurrence_type") not in (REC_TRIGGERED, REC_SENSOR) and (
+    new_type = merged.get("recurrence_type")
+    old_type = existing.get("recurrence_type")
+    if new_type not in (REC_TRIGGERED, REC_SENSOR) and (
         recurrence_keys & set(updates)
     ):
         merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
-    elif (
-        merged.get("recurrence_type") == REC_SENSOR
-        and existing.get("recurrence_type") != REC_SENSOR
-    ):
+    elif new_type == REC_SENSOR and old_type != REC_SENSOR:
         # Converting an existing (e.g. floating, due-now) task into a sensor task: it
         # starts dormant like a freshly-built one, so the watcher arms it only when the
         # bound reading meets the condition (rather than inheriting a stale due date).
         merged["next_due"] = None
+    elif new_type == REC_TRIGGERED and old_type != REC_TRIGGERED:
+        # Converting a scheduled (floating/fixed/one-off) or sensor task into a
+        # condition-driven one: the old next_due is a stale schedule date that has no
+        # meaning for a triggered task — carried verbatim it would render as "armed" at
+        # an arbitrary past/future instant. Reset to the fresh-build state — armed now,
+        # exactly like ``build_task`` creates a triggered task — so the owner can
+        # complete it to dormancy or let it re-arm on the next condition.
+        merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
     return merged
