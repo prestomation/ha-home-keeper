@@ -150,7 +150,7 @@ def reconcile_part_tasks(
                     merged, now=now
                 ).isoformat()
             if merged is not before:
-                result[tid] = merged
+                result[existing_tid] = merged
                 changed = True
 
     return result, changed
