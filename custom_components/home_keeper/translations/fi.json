@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "Ei ilmoitusta nimeltä {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Tällä ilmoituksella ei ole lähetyskohdetta – lisää \"Lähetä laitteelle\" -laite kohdassa Asetukset → Ilmoitukset tai anna target: kutsussa."
     }
   }
 }

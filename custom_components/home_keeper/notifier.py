@@ -152,6 +152,18 @@ async def _send(
     queue = profiles.due_queue(tasks, profile["filter"], now=now)
     if not queue:
         return 0, None
+    if not notification["targets"]:
+        # Matched tasks but nowhere to send them — a profile is only a filter; the
+        # delivery target lives on a Notification. Warn rather than silently no-op so a
+        # misconfigured auto/walk notification is diagnosable. (The notify *service*
+        # rejects this loudly before reaching here — see async_run_notify.)
+        _LOGGER.warning(
+            "Home Keeper notification %r matched %d task(s) but has no notify target, "
+            "so nothing was sent. Add a 'Send to' device in Settings → Notifications.",
+            notification["name"],
+            len(queue),
+        )
+        return len(queue), None
     if notification["style"] == notifications.STYLE_DIGEST:
         payload = notifications.build_digest(queue, notification=notification, now=now)
         sent_id: str | None = None
@@ -265,6 +277,11 @@ async def async_run_notify(
         notif_raw["targets"] = data["target"]
     notif_raw["profile_id"] = profile["id"]
     notification = notifications.normalize_notification(notif_raw)
+    if not notification["targets"]:
+        # A profile is only a filter — it carries no delivery target. Sending a bare
+        # profile (or a saved notification with no 'Send to') would match tasks but push
+        # nowhere, which reads as "the service did nothing". Fail loudly instead.
+        return {}, {"key": "notify_no_targets", "placeholders": {}}
 
     matched, sent = await _send(hass, coord, notification, profile, reason="service")
     return {"matched": matched, "sent": sent}, None

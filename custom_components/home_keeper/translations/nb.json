@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "Ingen varsel med navnet {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Dette varselet har ingen mottaker – legg til en «Send til»-enhet under Innstillinger → Varsler, eller angi target: i kallet."
     }
   }
 }

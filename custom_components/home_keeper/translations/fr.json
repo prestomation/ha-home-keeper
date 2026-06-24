@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "Aucune notification nommée {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Cette notification n'a aucune cible d'envoi : ajoutez un appareil « Envoyer à » dans Paramètres → Notifications, ou passez target: lors de l'appel."
     }
   }
 }

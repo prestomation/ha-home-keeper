@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "No hay ninguna notificación llamada {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Esta notificación no tiene destino al que enviar: añade un dispositivo «Enviar a» en Ajustes → Notificaciones, o pasa target: al llamarla."
     }
   }
 }

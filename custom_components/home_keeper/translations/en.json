@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "No notification named {notification}."
+    },
+    "notify_no_targets": {
+      "message": "This notification has no target to send to — add a \"Send to\" device in Settings → Notifications, or pass target: when calling the service."
     }
   }
 }

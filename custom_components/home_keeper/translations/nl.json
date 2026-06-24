@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "Geen melding met de naam {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Deze melding heeft geen doel om naar te sturen — voeg een 'Versturen naar'-apparaat toe in Instellingen → Meldingen, of geef target: mee bij de aanroep."
     }
   }
 }

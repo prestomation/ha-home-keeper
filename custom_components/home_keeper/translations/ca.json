@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "No hi ha cap notificació amb el nom {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Aquesta notificació no té cap destinatari: afegeix un dispositiu «Envia a» a Configuració → Notificacions, o passa target: en cridar-la."
     }
   }
 }

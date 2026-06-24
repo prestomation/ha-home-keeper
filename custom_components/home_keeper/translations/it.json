@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "Nessuna notifica chiamata {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Questa notifica non ha una destinazione: aggiungi un dispositivo \"Invia a\" in Impostazioni → Notifiche, oppure passa target: nella chiamata."
     }
   }
 }

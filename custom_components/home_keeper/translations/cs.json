@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "Žádné oznámení s názvem {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Toto oznámení nemá žádný cíl pro odeslání – přidejte zařízení „Odeslat na“ v Nastavení → Oznámení nebo při volání předejte target:."
     }
   }
 }

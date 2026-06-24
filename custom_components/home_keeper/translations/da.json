@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "Ingen notifikation med navnet {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Denne notifikation har ingen modtager – tilføj en \"Send til\"-enhed under Indstillinger → Notifikationer, eller angiv target: ved kaldet."
     }
   }
 }

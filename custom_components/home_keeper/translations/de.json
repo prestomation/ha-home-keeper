@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "Keine Benachrichtigung mit dem Namen {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Diese Benachrichtigung hat kein Ziel zum Senden – füge unter Einstellungen → Benachrichtigungen ein „Senden an“-Gerät hinzu oder übergib beim Aufruf target:."
     }
   }
 }

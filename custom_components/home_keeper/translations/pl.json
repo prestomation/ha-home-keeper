@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "Brak powiadomienia o nazwie {notification}."
+    },
+    "notify_no_targets": {
+      "message": "To powiadomienie nie ma celu wysyłki – dodaj urządzenie „Wyślij do“ w Ustawienia → Powiadomienia lub przekaż target: w wywołaniu."
     }
   }
 }

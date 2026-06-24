@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "没有名为 {notification} 的通知。"
+    },
+    "notify_no_targets": {
+      "message": "此通知没有发送目标——请在设置 → 通知中添加“发送至”设备，或在调用时传入 target:。"
     }
   }
 }

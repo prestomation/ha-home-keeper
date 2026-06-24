@@ -476,6 +476,9 @@
     },
     "notify_notification_not_found": {
       "message": "Ingen avisering med namnet {notification}."
+    },
+    "notify_no_targets": {
+      "message": "Den här aviseringen har ingen mottagare – lägg till en \"Skicka till\"-enhet under Inställningar → Aviseringar, eller ange target: i anropet."
     }
   }
 }
