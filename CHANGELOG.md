@@ -34,17 +34,6 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   floating task's clock are left untouched). Each fires a `home_keeper_task_snoozed` /
   `home_keeper_task_skipped` event, also available as device-automation triggers.
 
-### Fixed
-
-- **Appliance with multiple wear parts could corrupt a derived task on edit.** When
-  two or more wear-part maintenance tasks existed, renaming (or otherwise editing) one
-  appliance wrote the update to the wrong task's record — dropping a task and leaving a
-  duplicate. The reconciler now updates the correct task.
-- **Converting a scheduled task to a *triggered* (condition-driven) task left a stale
-  due date.** The converted task kept its old schedule date and rendered as "armed" at
-  an arbitrary past/future instant; it now arms immediately like a freshly-created
-  triggered task (matching the existing behaviour when converting to a sensor task).
-
 ## [0.4.0] - 2026-06-22
 
 This release adds **companion discovery** so integrations that work with Home Keeper
