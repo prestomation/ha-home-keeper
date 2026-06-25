@@ -163,7 +163,10 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   served from disk). Even so the **metadata still funnels through the store**: the view
   calls `store.add_asset_document`, so the `home_keeper_asset_updated` event still fires
   and the service-first rule holds for the link side (`add_asset_document` /
-  `remove_asset_document` services). Blobs live under the **config dir**
+  `update_asset_document` / `remove_asset_document` services). Editing is the same
+  upload-only split: `update_asset_document` renames any document and changes a **link's**
+  URL, but a **file** is rename-only (its blob/filename/type are immutable — replace it by
+  removing and re-uploading). Blobs live under the **config dir**
   (`home_keeper/documents/<asset_id>/…`, one dir per asset → asset-delete is a single
   `rmtree`), not in `.storage`. The browser opens a file via a short-lived
   `async_sign_path` URL minted by the `sign_document_url` websocket command. Keep the

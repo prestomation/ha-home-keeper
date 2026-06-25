@@ -244,13 +244,16 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // one-click seed buttons for the common fields.
   await assetForm.locator('ha-button', { hasText: 'Serial number' }).click();
   await assetForm.locator('ha-button', { hasText: 'Warranty expiry' }).click();
-  await expect(assetForm.locator('.hk-meta-seeds')).toBeVisible();
+  // The metadata seeds and the documents "add a document" area both use .hk-meta-seeds;
+  // assert on the metadata one specifically (it carries the seed buttons we just used).
+  await expect(assetForm.locator('.hk-meta-seeds').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/6-panel-appliance-create.png`, fullPage: true });
 
   // 21. Appliance documents (offline manuals) — editing a saved appliance shows the
-  // "Manuals & documents" editor: existing documents (here a manual link migrated
-  // from the legacy manual_url) each with a remove button, plus controls to add
-  // another link or upload a local PDF/image stored on the HA instance.
+  // "Manuals & documents" editor: each existing document is a card (name + details)
+  // with Open / Edit / Remove actions (here a manual link migrated from the legacy
+  // manual_url), separated from a clearly labelled "Add a document" area with add-link
+  // and upload-file controls for attaching another link or a local PDF/image.
   await openPanel(page);
   await panel.locator('#tab-appliances').click();
   await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
@@ -259,6 +262,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   const docForm = panel.locator('#hk-asset-form');
   await expect(docForm).toBeVisible();
   await expect(docForm.getByText('Manuals & documents')).toBeVisible();
+  await expect(docForm.locator('.hk-doc-card').first()).toBeVisible();
+  await expect(docForm.getByText('Add a document')).toBeVisible();
   await expect(docForm.locator('ha-button', { hasText: 'Upload file' })).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({

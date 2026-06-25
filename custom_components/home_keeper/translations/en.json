@@ -444,6 +444,24 @@
           "description": "The id of the document to remove."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Update appliance document",
+      "description": "Edit an existing document on an appliance — rename it, or (for link documents) change its URL. Uploaded file documents can only be renamed.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the document belongs to."
+        },
+        "document_id": {
+          "name": "Document ID",
+          "description": "The id of the document to edit."
+        },
+        "changes": {
+          "name": "Changes",
+          "description": "The fields to change: an object with an optional name and (for link documents) an optional url."
+        }
+      }
     }
   },
   "entity": {

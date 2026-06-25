@@ -65,6 +65,93 @@ def test_add_and_remove_link_document(ha):
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
+def test_update_link_document_renames_and_changes_url(ha):
+    name = f"Doc edit link {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset_document",
+        {
+            "asset_id": asset["id"],
+            "document": {"name": "Manual", "url": "https://example.com/old.pdf"},
+        },
+    )
+    doc_id = next(a for a in _assets(ha) if a["id"] == asset["id"])["documents"][0][
+        "id"
+    ]
+
+    call_service(
+        ha,
+        "home_keeper",
+        "update_asset_document",
+        {
+            "asset_id": asset["id"],
+            "document_id": doc_id,
+            "changes": {"name": "Owner's manual", "url": "https://example.com/new.pdf"},
+        },
+    )
+    doc = next(a for a in _assets(ha) if a["id"] == asset["id"])["documents"][0]
+    assert doc["id"] == doc_id  # id is stable across the edit
+    assert doc["name"] == "Owner's manual"
+    assert doc["url"] == "https://example.com/new.pdf"
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_update_file_document_renames_but_keeps_blob(ha):
+    name = f"Doc edit file {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    doc_id = uuid.uuid4().hex
+    up = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc_id}",
+        files={"file": ("manual.pdf", PDF_BYTES, "application/pdf")},
+        data={"name": "Manual"},
+        headers=_bearer(ha),
+        timeout=30,
+    )
+    assert up.status_code == 200, up.text
+    file_id = up.json()["document"]["id"]
+
+    # A file is upload-only: only its display name is editable; its blob stays put.
+    call_service(
+        ha,
+        "home_keeper",
+        "update_asset_document",
+        {
+            "asset_id": asset["id"],
+            "document_id": file_id,
+            "changes": {"name": "Warranty card"},
+        },
+    )
+    doc = next(
+        d
+        for d in next(a for a in _assets(ha) if a["id"] == asset["id"])["documents"]
+        if d["id"] == file_id
+    )
+    assert doc["name"] == "Warranty card"
+    assert doc["filename"] == "manual.pdf"
+    assert doc["kind"] == "file"
+    # The blob is untouched and still downloadable.
+    dl = ha.get(f"{HA_URL}/api/home_keeper/document/{asset['id']}/{file_id}")
+    assert dl.status_code == 200 and dl.content == PDF_BYTES
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_update_asset_document_unknown_id_errors(ha):
+    name = f"Doc edit missing {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/update_asset_document",
+        json={
+            "asset_id": asset["id"],
+            "document_id": "does-not-exist",
+            "changes": {"name": "x"},
+        },
+    )
+    assert r.status_code >= 400, "editing an unknown document must fail"
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
 def test_add_asset_document_rejects_file_kind(ha):
     name = f"Doc file-guard {uuid.uuid4().hex[:8]}"
     asset = _provision(ha, name)

@@ -444,6 +444,24 @@
           "description": "ID dokumentu k odebrání."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Upravit dokument spotřebiče",
+      "description": "Upraví existující dokument spotřebiče – přejmenuje jej nebo (u dokumentů s odkazem) změní jeho URL. Nahrané soubory lze pouze přejmenovat.",
+      "fields": {
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "ID spotřebiče, ke kterému dokument patří."
+        },
+        "document_id": {
+          "name": "ID dokumentu",
+          "description": "ID dokumentu k úpravě."
+        },
+        "changes": {
+          "name": "Změny",
+          "description": "Pole, která se mají změnit: objekt s volitelným názvem a (u dokumentů s odkazem) volitelnou url."
+        }
+      }
     }
   },
   "entity": {

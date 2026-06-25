@@ -444,6 +444,24 @@
           "description": "Id för dokumentet som ska tas bort."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Uppdatera apparatdokument",
+      "description": "Redigera ett befintligt dokument på en apparat – byt namn på det eller (för länkdokument) ändra dess URL. Uppladdade filer kan bara byta namn.",
+      "fields": {
+        "asset_id": {
+          "name": "Tillgångs-ID",
+          "description": "Id för apparaten som dokumentet tillhör."
+        },
+        "document_id": {
+          "name": "Dokument-id",
+          "description": "Id för dokumentet som ska redigeras."
+        },
+        "changes": {
+          "name": "Ändringar",
+          "description": "Fälten som ska ändras: ett objekt med ett valfritt namn och (för länkdokument) en valfri url."
+        }
+      }
     }
   },
   "entity": {

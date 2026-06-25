@@ -444,6 +444,24 @@
           "description": "El id del documento a eliminar."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Actualizar documento de electrodoméstico",
+      "description": "Edita un documento existente de un electrodoméstico: cámbiale el nombre o (para documentos de enlace) cambia su URL. Los archivos subidos solo se pueden renombrar.",
+      "fields": {
+        "asset_id": {
+          "name": "ID del activo",
+          "description": "El id del electrodoméstico al que pertenece el documento."
+        },
+        "document_id": {
+          "name": "ID del documento",
+          "description": "El id del documento a editar."
+        },
+        "changes": {
+          "name": "Cambios",
+          "description": "Los campos a cambiar: un objeto con un nombre opcional y (para documentos de enlace) una url opcional."
+        }
+      }
     }
   },
   "entity": {

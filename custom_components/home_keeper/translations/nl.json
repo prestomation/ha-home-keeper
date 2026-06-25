@@ -444,6 +444,24 @@
           "description": "De id van het te verwijderen document."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Apparaatdocument bijwerken",
+      "description": "Bewerk een bestaand document van een apparaat – hernoem het, of (voor linkdocumenten) wijzig de URL. Geüploade bestanden kunnen alleen worden hernoemd.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "De id van het apparaat waartoe het document behoort."
+        },
+        "document_id": {
+          "name": "Document-id",
+          "description": "De id van het te bewerken document."
+        },
+        "changes": {
+          "name": "Wijzigingen",
+          "description": "De te wijzigen velden: een object met een optionele naam en (voor linkdocumenten) een optionele url."
+        }
+      }
     }
   },
   "entity": {

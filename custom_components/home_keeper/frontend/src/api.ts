@@ -248,6 +248,23 @@ export async function removeAssetDocument(
   return res.asset;
 }
 
+/** Edit an existing document: rename it, or (for a link) change its URL. A file's
+ *  blob is immutable here, so only its display name is editable. */
+export async function updateAssetDocument(
+  hass: Hass,
+  assetId: string,
+  documentId: string,
+  changes: { name?: string; url?: string },
+): Promise<Asset> {
+  const res = await hass.callWS<{ asset: Asset }>({
+    type: 'home_keeper/update_asset_document',
+    asset_id: assetId,
+    document_id: documentId,
+    changes,
+  });
+  return res.asset;
+}
+
 /** Mint a short-lived signed URL the browser can open for a file document. */
 export async function signDocumentUrl(
   hass: Hass,
