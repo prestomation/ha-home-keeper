@@ -247,6 +247,25 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(assetForm.locator('.hk-meta-seeds')).toBeVisible();
   await page.screenshot({ path: `${OUT}/6-panel-appliance-create.png`, fullPage: true });
 
+  // 21. Appliance documents (offline manuals) — editing a saved appliance shows the
+  // "Manuals & documents" editor: existing documents (here a manual link migrated
+  // from the legacy manual_url) each with a remove button, plus controls to add
+  // another link or upload a local PDF/image stored on the HA instance.
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  await expect(panel.locator('.d-edit')).toBeVisible();
+  await panel.locator('.d-edit').click();
+  const docForm = panel.locator('#hk-asset-form');
+  await expect(docForm).toBeVisible();
+  await expect(docForm.getByText('Manuals & documents')).toBeVisible();
+  await expect(docForm.locator('ha-button', { hasText: 'Upload file' })).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: `${OUT}/32-panel-appliance-documents.png`,
+    fullPage: true,
+  });
+
   // 17. The Settings tab — friendly forms mirroring the options flow: a
   // Problem sensor sync card (toggle + entity / device / area / label exclusions)
   // and a General card (one-off retention), each saved on change.

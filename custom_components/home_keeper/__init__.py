@@ -24,6 +24,7 @@ from . import (
     companions,
     devices,
     inventory,
+    manuals,
     notifier,
     options,
     panel,
@@ -204,10 +205,27 @@ _METADATA_SCHEMA = vol.Schema(
     }
 )
 
+# A single document (manual / warranty / receipt) for the add/update asset schema. A
+# ``link`` carries a ``url``; a ``file`` is uploaded via the document HTTP view, which
+# fills in ``filename``/``content_type``/``size`` — services only add ``link`` docs.
+_DOCUMENT_SCHEMA = vol.Schema(
+    {
+        vol.Optional("id"): cv.string,
+        vol.Optional("kind"): cv.string,
+        vol.Optional("name"): cv.string,
+        vol.Optional("url"): cv.string,
+        vol.Optional("filename"): cv.string,
+        vol.Optional("content_type"): cv.string,
+        vol.Optional("size"): vol.Coerce(int),
+        vol.Optional("created"): cv.string,
+    }
+)
+
 # Asset (appliance) fields shared by add/update. Descriptive/temporal details live
 # in the free-form ``metadata`` list; only the fields that wire into Home Assistant
-# stay structured — ``manufacturer``/``model`` (device card), ``manual_url`` (device
-# configuration_url) and ``cost`` (inventory value rollup). Cost is coerced to float.
+# stay structured — ``manufacturer``/``model`` (device card) and ``cost`` (inventory
+# value rollup). ``documents`` is the per-asset list of manuals/links. Cost is coerced
+# to float.
 _ASSET_FIELDS: dict[Any, Any] = {
     vol.Optional("name"): cv.string,
     vol.Optional("kind"): cv.string,
@@ -217,7 +235,7 @@ _ASSET_FIELDS: dict[Any, Any] = {
     vol.Optional("manufacturer"): cv.string,
     vol.Optional("model"): cv.string,
     vol.Optional("cost"): vol.Coerce(float),
-    vol.Optional("manual_url"): cv.string,
+    vol.Optional("documents"): [_DOCUMENT_SCHEMA],
     vol.Optional("metadata"): [_METADATA_SCHEMA],
     vol.Optional("parts"): [_PART_SCHEMA],
     vol.Optional("parent_asset_id"): cv.string,
@@ -226,6 +244,20 @@ _ASSET_FIELDS: dict[Any, Any] = {
 ADD_ASSET_SCHEMA = vol.Schema(_ASSET_FIELDS)
 UPDATE_ASSET_SCHEMA = vol.Schema({vol.Required("asset_id"): cv.string, **_ASSET_FIELDS})
 ASSET_ID_SCHEMA = vol.Schema({vol.Required("asset_id"): cv.string})
+
+# Add a link document to an existing asset (file uploads go through the HTTP view).
+ADD_ASSET_DOCUMENT_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("document"): _DOCUMENT_SCHEMA,
+    }
+)
+REMOVE_ASSET_DOCUMENT_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("document_id"): cv.string,
+    }
+)
 
 # Adjust a part's on-hand spare count by a (signed) delta; clamped at zero.
 ADJUST_PART_STOCK_SCHEMA = vol.Schema(
@@ -308,6 +340,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await panel.async_register_panel(hass)
     card.async_register_card(hass)
+    manuals.async_register_http(hass)
     websocket_api.async_register(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -640,6 +673,50 @@ def _register_services(hass: HomeAssistant) -> None:
             ) from None
         await coord.async_request_refresh()
 
+    async def handle_add_asset_document(call: ServiceCall) -> None:
+        coord = _coordinator()
+        document = dict(call.data["document"])
+        # Files are uploaded through the HTTP view; the service only adds links.
+        if document.get("kind", "link") != "link":
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_asset",
+                translation_placeholders={
+                    "error": "only link documents can be added via this service; "
+                    "upload files from the panel"
+                },
+            )
+        document["kind"] = "link"
+        try:
+            await coord.store.add_asset_document(call.data["asset_id"], document)
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="asset_not_found",
+                translation_placeholders={"asset_id": call.data["asset_id"]},
+            ) from None
+        except AssetValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_asset",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await devices.async_apply_asset_change(hass, coord.entry, coord.store)
+
+    async def handle_remove_asset_document(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.remove_asset_document(
+                call.data["asset_id"], call.data["document_id"]
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="asset_not_found",
+                translation_placeholders={"asset_id": call.data["asset_id"]},
+            ) from None
+        await devices.async_apply_asset_change(hass, coord.entry, coord.store)
+
     async def handle_export_inventory(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
         report = inventory.build_inventory(
@@ -716,6 +793,18 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, "adjust_part_stock", handle_adjust_part_stock, ADJUST_PART_STOCK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "add_asset_document",
+        handle_add_asset_document,
+        ADD_ASSET_DOCUMENT_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "remove_asset_document",
+        handle_remove_asset_document,
+        REMOVE_ASSET_DOCUMENT_SCHEMA,
     )
 
     async def handle_set_options(call: ServiceCall) -> None:
@@ -797,6 +886,8 @@ _SERVICES = (
     "delete_asset",
     "list_assets",
     "adjust_part_stock",
+    "add_asset_document",
+    "remove_asset_document",
     "export_inventory",
     "set_options",
     "register_companion",

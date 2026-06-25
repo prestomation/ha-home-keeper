@@ -272,10 +272,6 @@
           "name": "Kostnad",
           "description": "Kjøpspris."
         },
-        "manual_url": {
-          "name": "URL til håndbok",
-          "description": "Lenke til håndboken eller dokumentasjonen."
-        },
         "icon": {
           "name": "Ikon",
           "description": "Valgfritt mdi-ikon (f.eks. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Relaterte enheter",
           "description": "Andre enheter fra enhetsregisteret å knytte til dette apparatet."
+        },
+        "documents": {
+          "name": "Dokumenter",
+          "description": "Håndbøker/garantier/kvitteringer: en liste over lenker eller opplastede filer. Denne tjenesten legger til lenkedokumenter (navn + url); last opp filer fra panelet."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Kostnad",
           "description": "Kjøpspris."
         },
-        "manual_url": {
-          "name": "URL til håndbok",
-          "description": "Lenke til håndboken eller dokumentasjonen."
-        },
         "icon": {
           "name": "Ikon",
           "description": "Valgfritt mdi-ikon (f.eks. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Relaterte enheter",
           "description": "Andre enheter fra enhetsregisteret å knytte til dette apparatet."
+        },
+        "documents": {
+          "name": "Dokumenter",
+          "description": "Dokumenter (lenker/filer) på apparatet (se add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Oppbevaring av engangsoppgaver (dager)",
           "description": "Slett automatisk en fullført engangsoppgave så mange dager etter fullføring. 0 beholder dem for alltid."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Legg til apparatdokument",
+      "description": "Fester et lenkedokument (håndbok/garanti/kvittering) til et apparat. Last opp filer fra panelet; denne tjenesten håndterer kun lenker.",
+      "fields": {
+        "asset_id": {
+          "name": "Eiendels-ID",
+          "description": "Id-en til apparatet dokumentet skal festes til."
+        },
+        "document": {
+          "name": "Dokument",
+          "description": "Dokumentet som skal legges til: et objekt med navn og url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Fjern apparatdokument",
+      "description": "Kobler et dokument fra et apparat. For en opplastet fil slettes den lagrede kopien også fra disken.",
+      "fields": {
+        "asset_id": {
+          "name": "Eiendels-ID",
+          "description": "Id-en til apparatet dokumentet tilhører."
+        },
+        "document_id": {
+          "name": "Dokument-id",
+          "description": "Id-en til dokumentet som skal fjernes."
         }
       }
     }

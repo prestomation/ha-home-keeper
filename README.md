@@ -34,7 +34,8 @@ changes, water filters, taking medicine, and anything else that recurs.
   one-tap **Done**, inline add/edit, and rich filtering/grouping.
 - **Appliances & virtual devices** — give "dumb" appliances a real device page,
   structured metadata (with optional tracked-date sensors), **parts & wear items**,
-  **spare-part inventory**, and a CSV **home-inventory export** for insurance.
+  **spare-part inventory**, **offline manuals & documents** (link or upload a PDF), and a
+  CSV **home-inventory export** for insurance.
 - **Events & automation triggers** — a bus event for every meaningful change, plus
   visual-editor **device triggers** like *"Task became overdue."*
 - **Services for everything** — every data action is a `home_keeper.*` service for
@@ -413,6 +414,23 @@ threshold. Completing a wear-item replacement consumes one spare, and when stock
 to (or below) the threshold Home Keeper fires a `home_keeper_part_low_stock` event you
 can automate on (add to a shopping list, notify, reorder).
 
+### Offline manuals & documents
+
+Every appliance keeps a list of **documents** — manuals, warranties, receipts. Each is
+either an external **link** (a URL) or an **uploaded file** (a PDF or image) stored
+**locally on your Home Assistant instance**, so the manual is still there when the
+manufacturer's website isn't (or has moved on to the next model). Open the appliance's
+**Manuals & documents** editor to paste a link or **Upload file**; uploaded files are
+written under your config directory and served back through an authenticated endpoint,
+opened from the appliance detail page via a short-lived signed URL. Removing a document
+(or deleting the appliance) deletes the stored file too.
+
+Every data action is also a service — `home_keeper.add_asset_document` and
+`home_keeper.remove_asset_document` (links; files upload from the panel) — so automations
+can attach a receipt or manual link too.
+
+![The appliance Manuals & documents editor — existing documents with remove buttons, plus add-link and upload-file controls](docs/images/32-panel-appliance-documents.png)
+
 ### Relationships: subdevices & related devices
 
 Real things nest. An appliance can be a **subdevice of** another appliance (wired
@@ -439,8 +457,9 @@ scripts, and voice:
   due from a saved notification or profile (returns `{matched, sent}`). See
   [Notifications](#notifications--actionable-reminders-on-your-phone).
 - **Appliances** — `home_keeper.add_asset`, `update_asset`, `delete_asset`,
-  `adjust_part_stock`, `list_assets`, and `export_inventory` (the last two return a
-  response).
+  `adjust_part_stock`, `add_asset_document` / `remove_asset_document` (attach or detach a
+  manual/warranty/receipt — links here, files upload from the panel), `list_assets`, and
+  `export_inventory` (the last two return a response).
 
 ## Events & automations
 

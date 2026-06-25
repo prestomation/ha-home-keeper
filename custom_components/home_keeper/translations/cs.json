@@ -272,10 +272,6 @@
           "name": "Cena",
           "description": "Pořizovací cena."
         },
-        "manual_url": {
-          "name": "URL manuálu",
-          "description": "Odkaz na manuál nebo dokumentaci."
-        },
         "icon": {
           "name": "Ikona",
           "description": "Volitelná mdi ikona (např. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Související zařízení",
           "description": "Další zařízení z registru, která se přiřadí k tomuto spotřebiči."
+        },
+        "documents": {
+          "name": "Dokumenty",
+          "description": "Manuály/záruky/účtenky: seznam odkazů nebo nahraných souborů. Tato služba přidává dokumenty typu odkaz (název + url); soubory nahrajte z panelu."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Cena",
           "description": "Pořizovací cena."
         },
-        "manual_url": {
-          "name": "URL manuálu",
-          "description": "Odkaz na manuál nebo dokumentaci."
-        },
         "icon": {
           "name": "Ikona",
           "description": "Volitelná mdi ikona (např. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Související zařízení",
           "description": "Další zařízení z registru, která se přiřadí k tomuto spotřebiči."
+        },
+        "documents": {
+          "name": "Dokumenty",
+          "description": "Dokumenty (odkazy/soubory) spotřebiče (viz add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Uchování jednorázových úkolů (dny)",
           "description": "Automaticky smazat dokončený jednorázový úkol tolik dní po dokončení. Hodnota 0 je ponechá navždy."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Přidat dokument spotřebiče",
+      "description": "Připojí dokument typu odkaz (manuál/záruka/účtenka) ke spotřebiči. Soubory nahrajte z panelu; tato služba zpracovává pouze odkazy.",
+      "fields": {
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "ID spotřebiče, ke kterému se dokument připojí."
+        },
+        "document": {
+          "name": "Dokument",
+          "description": "Dokument k přidání: objekt s názvem a url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Odebrat dokument spotřebiče",
+      "description": "Odpojí dokument od spotřebiče. U nahraného souboru se uložená kopie smaže i z disku.",
+      "fields": {
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "ID spotřebiče, ke kterému dokument patří."
+        },
+        "document_id": {
+          "name": "ID dokumentu",
+          "description": "ID dokumentu k odebrání."
         }
       }
     }

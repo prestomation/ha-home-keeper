@@ -272,10 +272,6 @@
           "name": "Cost",
           "description": "Preu de compra."
         },
-        "manual_url": {
-          "name": "URL del manual",
-          "description": "Enllaç al manual o a la documentació."
-        },
         "icon": {
           "name": "Icona",
           "description": "Icona mdi opcional (p. ex. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Dispositius relacionats",
           "description": "Altres dispositius del registre per associar amb aquest electrodomèstic."
+        },
+        "documents": {
+          "name": "Documents",
+          "description": "Manuals/garanties/rebuts: una llista d'enllaços o fitxers pujats. Aquest servei afegeix documents d'enllaç (nom + url); puja els fitxers des del tauler."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Cost",
           "description": "Preu de compra."
         },
-        "manual_url": {
-          "name": "URL del manual",
-          "description": "Enllaç al manual o a la documentació."
-        },
         "icon": {
           "name": "Icona",
           "description": "Icona mdi opcional (p. ex. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Dispositius relacionats",
           "description": "Altres dispositius del registre per associar amb aquest electrodomèstic."
+        },
+        "documents": {
+          "name": "Documents",
+          "description": "Documents (enllaços/fitxers) de l'electrodomèstic (vegeu add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Retenció de tasques úniques (dies)",
           "description": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 les manté per sempre."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Afegeix un document a l'electrodomèstic",
+      "description": "Adjunta un document d'enllaç (manual/garantia/rebut) a un electrodomèstic. Puja els fitxers des del tauler; aquest servei només gestiona enllaços.",
+      "fields": {
+        "asset_id": {
+          "name": "ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual adjuntar el document."
+        },
+        "document": {
+          "name": "Document",
+          "description": "El document a afegir: un objecte amb nom i url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Elimina un document de l'electrodomèstic",
+      "description": "Desvincula un document d'un electrodomèstic. Si era un fitxer pujat, també se n'elimina la còpia desada del disc.",
+      "fields": {
+        "asset_id": {
+          "name": "ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany el document."
+        },
+        "document_id": {
+          "name": "ID del document",
+          "description": "L'id del document a eliminar."
         }
       }
     }

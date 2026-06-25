@@ -54,8 +54,8 @@ class AssetValidationError(ValueError):
 # Structured text fields kept verbatim. These two are special: they sync into the
 # Home Assistant device registry (they title/brand the device card), so they stay
 # first-class rather than folding into the free-form ``metadata`` list below.
-# ``manual_url`` (-> device ``configuration_url``), ``icon`` and ``cost`` (-> the
-# inventory value rollup) are likewise structured but validated separately.
+# ``icon`` and ``cost`` (-> the inventory value rollup) are likewise structured but
+# validated separately, as is the ``documents`` list below.
 _TEXT_FIELDS = (
     "manufacturer",
     "model",
@@ -69,8 +69,25 @@ _TEXT_FIELDS = (
 # 30 days -> notify" still works natively, but only for dates you opt in to track).
 METADATA_TYPES = ("text", "link", "date")
 
+# Per-asset documents: an ordered list of manuals / warranties / receipts. Each entry
+# is EITHER an external ``link`` (an http(s) ``url``) OR an uploaded ``file`` stored on
+# disk and served back through the document HTTP view. For a ``file`` entry the binary
+# lives under the config dir (see ``manuals.py``); the record only carries the metadata
+# (``filename``/``content_type``/``size``) needed to locate and serve it. Each entry is
+# ``{id, kind, name, created[, url | filename, content_type, size]}``.
+DOCUMENT_KINDS = ("link", "file")
+_ALLOWED_DOC_CONTENT_TYPES = frozenset(
+    {"application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"}
+)
+_MAX_DOC_NAME_LEN = 200
+
 _MAX_URL_LEN = 2048
 _ICON_RE = re.compile(r"^[a-z0-9-]+:[a-z0-9-]+$")
+
+
+def _is_safe_basename(name: str) -> bool:
+    """True when *name* is a plain filename (no path separators or traversal)."""
+    return bool(name) and name not in (".", "..") and not re.search(r"[/\\]", name)
 
 
 def _require(data: dict, key: str) -> Any:
@@ -129,11 +146,6 @@ def _normalize_http_url(value: Any, field: str) -> str:
     return text
 
 
-def _normalize_url(value: Any) -> str:
-    """Validate the structured manual/docs URL (-> device ``configuration_url``)."""
-    return _normalize_http_url(value, "manual_url")
-
-
 def _normalize_metadata(value: Any) -> list[dict]:
     """Validate and normalize the free-form ``metadata`` list.
 
@@ -178,6 +190,110 @@ def _normalize_metadata_entry(raw: Any) -> dict:
     else:
         entry["value"] = str(raw.get("value", "")).strip()
     return entry
+
+
+def _normalize_documents(value: Any) -> list[dict]:
+    """Validate and normalize the per-asset ``documents`` list.
+
+    Each entry is ``{id, kind, name, created[, url | filename, content_type, size]}``.
+    A ``link`` carries an http(s) ``url``; a ``file`` carries backend-managed
+    ``filename``/``content_type``/``size`` for the on-disk blob. Entry ids are unique
+    — collisions from a misbehaving caller are regenerated.
+    """
+    if value in (None, ""):
+        return []
+    if not isinstance(value, list):
+        raise AssetValidationError("documents must be a list")
+    entries = [_normalize_document_entry(entry) for entry in value]
+    seen: set[str] = set()
+    for entry in entries:
+        if entry["id"] in seen:
+            entry["id"] = str(uuid.uuid4())
+        seen.add(entry["id"])
+    return entries
+
+
+def _normalize_document_entry(raw: Any) -> dict:
+    """Validate a single document entry (a link or an uploaded file).
+
+    ``created`` is backend-managed (stamped by the store on add) and preserved
+    verbatim when present. ``filename``/``content_type``/``size`` are likewise
+    backend-managed — the binary itself is validated by ``manuals.validate_upload``
+    at upload time; here we only enforce a safe basename and the type allowlist so a
+    crafted ``file`` entry can't escape the storage root.
+    """
+    if not isinstance(raw, dict):
+        raise AssetValidationError("each document must be an object")
+    kind = raw.get("kind", "link")
+    if kind not in DOCUMENT_KINDS:
+        raise AssetValidationError(f"invalid document kind: {kind!r}")
+    name = str(raw.get("name", "")).strip()
+    if len(name) > _MAX_DOC_NAME_LEN:
+        raise AssetValidationError("document name is too long")
+    entry: dict[str, Any] = {
+        "id": str(raw.get("id") or uuid.uuid4()),
+        "kind": kind,
+        "created": str(raw.get("created") or ""),
+    }
+    if kind == "link":
+        entry["url"] = _normalize_http_url(raw.get("url"), "document url")
+        # A link with no name falls back to its host so the panel never renders blank.
+        entry["name"] = name or _url_host(entry["url"])
+    else:  # file
+        filename = str(raw.get("filename", "")).strip()
+        if not _is_safe_basename(filename):
+            raise AssetValidationError("document filename is invalid")
+        content_type = str(raw.get("content_type", "")).strip().lower()
+        if content_type not in _ALLOWED_DOC_CONTENT_TYPES:
+            raise AssetValidationError(f"unsupported document type: {content_type!r}")
+        size = raw.get("size")
+        try:
+            entry["size"] = max(0, int(size)) if size not in (None, "") else 0
+        except (TypeError, ValueError) as err:
+            raise AssetValidationError("document size must be an integer") from err
+        entry["filename"] = filename
+        entry["content_type"] = content_type
+        entry["name"] = name or filename
+    return entry
+
+
+def _url_host(url: str) -> str:
+    """Best-effort host of an http(s) URL for a fallback document name."""
+    rest = url.split("://", 1)[-1]
+    return rest.split("/", 1)[0] or url
+
+
+def append_document(asset: dict, raw: Any, *, created: str) -> dict:
+    """Validate *raw* as a new document and append it to *asset* (in place).
+
+    *created* is the ISO timestamp the store stamps on add (this module is HA-free
+    and has no clock). Returns the appended entry. A colliding id is regenerated so
+    the documents list stays uniquely keyed.
+    """
+    documents = asset.get("documents")
+    if not isinstance(documents, list):
+        documents = []
+    entry = _normalize_document_entry({**raw, "created": created})
+    if entry["id"] in {d.get("id") for d in documents}:
+        entry["id"] = str(uuid.uuid4())
+    documents.append(entry)
+    asset["documents"] = documents
+    return entry
+
+
+def remove_document(asset: dict, document_id: str) -> dict | None:
+    """Remove the document with *document_id* from *asset* (in place).
+
+    Returns the removed entry (so the caller can delete its on-disk blob), or
+    ``None`` when no such document exists.
+    """
+    documents = asset.get("documents") or []
+    for index, document in enumerate(documents):
+        if document.get("id") == document_id:
+            removed = documents.pop(index)
+            asset["documents"] = documents
+            return removed
+    return None
 
 
 def _normalize_icon(value: Any) -> str:
@@ -404,7 +520,7 @@ def normalize_fields(data: dict) -> dict:
         value = data.get(key)
         fields[key] = str(value).strip() if value not in (None, "") else ""
 
-    fields["manual_url"] = _normalize_url(data.get("manual_url"))
+    fields["documents"] = _normalize_documents(data.get("documents"))
     fields["icon"] = _normalize_icon(data.get("icon"))
     fields["metadata"] = _normalize_metadata(data.get("metadata"))
     fields["cost"] = _normalize_cost(data.get("cost"))
@@ -456,11 +572,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         ),
         "parts": updates.get("parts", existing.get("parts", [])),
         "metadata": updates.get("metadata", existing.get("metadata", [])),
+        "documents": updates.get("documents", existing.get("documents", [])),
         "related_device_ids": updates.get(
             "related_device_ids", existing.get("related_device_ids", [])
         ),
     }
-    for key in (*_TEXT_FIELDS, "manual_url"):
+    for key in _TEXT_FIELDS:
         candidate[key] = updates.get(key, existing.get(key))
 
     fields = normalize_fields(candidate)
@@ -492,6 +609,43 @@ def migrate_legacy_part_numbers(asset: dict) -> bool:
     legacy = asset.pop("part_numbers", None)
     asset["parts"] = [_legacy_part(legacy)] if legacy else []
     return True
+
+
+def migrate_documents_from_manual_url(asset: dict) -> bool:
+    """Fold a legacy ``manual_url`` into the ``documents`` list.
+
+    Returns ``True`` if the asset was changed (so the caller persists it). The old
+    single manual link becomes one ``link`` document; ``manual_url`` is dropped. Keeps
+    the storage document backward-compatible without a version bump, and guarantees
+    every asset carries a ``documents`` list afterwards.
+    """
+    legacy = asset.pop("manual_url", None)
+    changed = legacy is not None
+    documents = asset.get("documents")
+    if not isinstance(documents, list):
+        documents = []
+        changed = True
+    if legacy:
+        try:
+            url = _normalize_http_url(legacy, "manual_url")
+        except AssetValidationError:
+            url = ""
+        # Idempotent: only add when no existing document already points at this url.
+        if url and not any(
+            d.get("kind") == "link" and d.get("url") == url for d in documents
+        ):
+            documents = [
+                *documents,
+                {
+                    "id": str(uuid.uuid4()),
+                    "kind": "link",
+                    "name": _url_host(url),
+                    "url": url,
+                    "created": "",
+                },
+            ]
+    asset["documents"] = documents
+    return changed
 
 
 def _legacy_part(text: str) -> dict:

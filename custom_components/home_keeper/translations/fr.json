@@ -272,10 +272,6 @@
           "name": "Coût",
           "description": "Prix d'achat."
         },
-        "manual_url": {
-          "name": "URL du manuel",
-          "description": "Lien vers le manuel ou la documentation."
-        },
         "icon": {
           "name": "Icône",
           "description": "Icône mdi facultative (p. ex. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Appareils associés",
           "description": "Autres appareils du registre à associer à cet appareil."
+        },
+        "documents": {
+          "name": "Documents",
+          "description": "Manuels/garanties/reçus : une liste de liens ou de fichiers téléversés. Ce service ajoute des documents de type lien (nom + url) ; téléversez les fichiers depuis le panneau."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Coût",
           "description": "Prix d'achat."
         },
-        "manual_url": {
-          "name": "URL du manuel",
-          "description": "Lien vers le manuel ou la documentation."
-        },
         "icon": {
           "name": "Icône",
           "description": "Icône mdi facultative (p. ex. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Appareils associés",
           "description": "Autres appareils du registre à associer à cet appareil."
+        },
+        "documents": {
+          "name": "Documents",
+          "description": "Documents (liens/fichiers) de l'appareil (voir add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Conservation des tâches ponctuelles (jours)",
           "description": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 les conserve indéfiniment."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Ajouter un document d'appareil",
+      "description": "Joint un document de type lien (manuel/garantie/reçu) à un appareil. Téléversez les fichiers depuis le panneau ; ce service ne gère que les liens.",
+      "fields": {
+        "asset_id": {
+          "name": "ID de l'actif",
+          "description": "L'id de l'appareil auquel joindre le document."
+        },
+        "document": {
+          "name": "Document",
+          "description": "Le document à ajouter : un objet avec nom et url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Supprimer un document d'appareil",
+      "description": "Détache un document d'un appareil. Pour un fichier téléversé, la copie stockée est aussi supprimée du disque.",
+      "fields": {
+        "asset_id": {
+          "name": "ID de l'actif",
+          "description": "L'id de l'appareil auquel appartient le document."
+        },
+        "document_id": {
+          "name": "ID du document",
+          "description": "L'id du document à supprimer."
         }
       }
     }

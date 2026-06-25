@@ -272,10 +272,6 @@
           "name": "Kosten",
           "description": "Aankoopprijs."
         },
-        "manual_url": {
-          "name": "Handleiding-URL",
-          "description": "Link naar de handleiding of documentatie."
-        },
         "icon": {
           "name": "Pictogram",
           "description": "Optioneel mdi-pictogram (bijv. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Gerelateerde apparaten",
           "description": "Andere registerapparaten om aan dit apparaat te koppelen."
+        },
+        "documents": {
+          "name": "Documenten",
+          "description": "Handleidingen/garanties/bonnen: een lijst met links of geüploade bestanden. Deze service voegt link-documenten toe (naam + url); upload bestanden vanuit het paneel."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Kosten",
           "description": "Aankoopprijs."
         },
-        "manual_url": {
-          "name": "Handleiding-URL",
-          "description": "Link naar de handleiding of documentatie."
-        },
         "icon": {
           "name": "Pictogram",
           "description": "Optioneel mdi-pictogram (bijv. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Gerelateerde apparaten",
           "description": "Andere registerapparaten om aan dit apparaat te koppelen."
+        },
+        "documents": {
+          "name": "Documenten",
+          "description": "Documenten (links/bestanden) van het apparaat (zie add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Bewaartermijn eenmalige taken (dagen)",
           "description": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden ze voor altijd bewaard."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Apparaatdocument toevoegen",
+      "description": "Voegt een link-document (handleiding/garantie/bon) toe aan een apparaat. Upload bestanden vanuit het paneel; deze service verwerkt alleen links.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "De id van het apparaat waaraan het document wordt gekoppeld."
+        },
+        "document": {
+          "name": "Document",
+          "description": "Het toe te voegen document: een object met naam en url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Apparaatdocument verwijderen",
+      "description": "Koppelt een document los van een apparaat. Voor een geüpload bestand wordt de opgeslagen kopie ook van de schijf verwijderd.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "De id van het apparaat waartoe het document behoort."
+        },
+        "document_id": {
+          "name": "Document-id",
+          "description": "De id van het te verwijderen document."
         }
       }
     }

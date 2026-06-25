@@ -156,6 +156,19 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   delegates to the same `HomeKeeperStore` method — never a divergent code path.
 - Read-only/report actions use `SupportsResponse.ONLY`; data mutations reload the
   entry or refresh the coordinator exactly as the equivalent CRUD service does.
+- **Uploaded document blobs are the one non-service mutation surface.** Asset documents
+  (`manuals.py`) can be a link *or* an uploaded file; a binary can't ride a YAML service
+  or the websocket, so file uploads go through the integration's single
+  `HomeAssistantView` (`HomeKeeperDocumentView`, auth-gated, `POST` multipart / `GET`
+  served from disk). Even so the **metadata still funnels through the store**: the view
+  calls `store.add_asset_document`, so the `home_keeper_asset_updated` event still fires
+  and the service-first rule holds for the link side (`add_asset_document` /
+  `remove_asset_document` services). Blobs live under the **config dir**
+  (`home_keeper/documents/<asset_id>/…`, one dir per asset → asset-delete is a single
+  `rmtree`), not in `.storage`. The browser opens a file via a short-lived
+  `async_sign_path` URL minted by the `sign_document_url` websocket command. Keep the
+  pure, HA-free validation (magic-byte sniff, allowlist, size cap, filename sanitization,
+  path-traversal guard) in `documents.py` so it stays unit-testable without an HA runtime.
 
 ## Events are the observation surface — fire one for every state change
 - **Every observable state change fires a documented `home_keeper_<noun>_<verb>` bus

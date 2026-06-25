@@ -81,7 +81,9 @@ commands; all mutations funnel through `HomeKeeperStore` alongside tasks in the 
   point at *any* device. `kind == "existing"` attaches metadata to a device another
   integration owns (we never mutate that device); `kind == "virtual"` is one we
   provision. Only the fields that wire into HA stay structured — `manufacturer`/`model`
-  (the device card), `manual_url`, `cost` (the inventory value rollup), `icon`, `area`.
+  (the device card), `cost` (the inventory value rollup), `icon`, `area`. Manuals,
+  warranties and receipts live in a **`documents`** list (each a `link` URL or an
+  uploaded `file` served from disk via the document HTTP view).
   Everything else is a free-form **`metadata`** list: ordered `{id, type, label, value}`
   entries where `type` is `text`, `link`, or `date`. A `date` entry with `track: true`
   becomes a `date` sensor (`HomeKeeperAssetDateSensor`, named from its label) merged

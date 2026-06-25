@@ -272,10 +272,6 @@
           "name": "费用",
           "description": "购买价格。"
         },
-        "manual_url": {
-          "name": "手册 URL",
-          "description": "指向手册或文档的链接。"
-        },
         "icon": {
           "name": "图标",
           "description": "可选的 mdi 图标（例如 mdi:piano）。"
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "相关设备",
           "description": "要与此电器关联的其他注册表设备。"
+        },
+        "documents": {
+          "name": "文档",
+          "description": "手册/保修/收据：链接或上传文件的列表。此服务添加链接文档（名称 + url）；请从面板上传文件。"
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "费用",
           "description": "购买价格。"
         },
-        "manual_url": {
-          "name": "手册 URL",
-          "description": "指向手册或文档的链接。"
-        },
         "icon": {
           "name": "图标",
           "description": "可选的 mdi 图标（例如 mdi:piano）。"
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "相关设备",
           "description": "要与此电器关联的其他注册表设备。"
+        },
+        "documents": {
+          "name": "文档",
+          "description": "设备的文档（链接/文件）（参见 add_asset）。"
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "一次性任务保留天数",
           "description": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留。"
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "添加设备文档",
+      "description": "将链接文档（手册/保修/收据）附加到设备。请从面板上传文件；此服务仅处理链接。",
+      "fields": {
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "要附加文档的设备的 id。"
+        },
+        "document": {
+          "name": "文档",
+          "description": "要添加的文档：包含名称和 url 的对象。"
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "删除设备文档",
+      "description": "从设备分离文档。对于上传的文件，存储的副本也会从磁盘中删除。",
+      "fields": {
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "文档所属设备的 id。"
+        },
+        "document_id": {
+          "name": "文档 ID",
+          "description": "要删除的文档的 id。"
         }
       }
     }

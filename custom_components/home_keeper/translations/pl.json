@@ -272,10 +272,6 @@
           "name": "Koszt",
           "description": "Cena zakupu."
         },
-        "manual_url": {
-          "name": "URL instrukcji",
-          "description": "Link do instrukcji lub dokumentacji."
-        },
         "icon": {
           "name": "Ikona",
           "description": "Opcjonalna ikona mdi (np. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Powiązane urządzenia",
           "description": "Inne urządzenia z rejestru do powiązania z tym urządzeniem."
+        },
+        "documents": {
+          "name": "Dokumenty",
+          "description": "Instrukcje/gwarancje/paragony: lista linków lub przesłanych plików. Ta usługa dodaje dokumenty typu link (nazwa + url); pliki prześlij z panelu."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Koszt",
           "description": "Cena zakupu."
         },
-        "manual_url": {
-          "name": "URL instrukcji",
-          "description": "Link do instrukcji lub dokumentacji."
-        },
         "icon": {
           "name": "Ikona",
           "description": "Opcjonalna ikona mdi (np. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Powiązane urządzenia",
           "description": "Inne urządzenia z rejestru do powiązania z tym urządzeniem."
+        },
+        "documents": {
+          "name": "Dokumenty",
+          "description": "Dokumenty (linki/pliki) urządzenia (zobacz add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Przechowywanie jednorazowych (dni)",
           "description": "Automatycznie usuwaj ukończone zadanie jednorazowe po upływie tylu dni od jego ukończenia. Wartość 0 zachowuje je na zawsze."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Dodaj dokument urządzenia",
+      "description": "Dołącza dokument typu link (instrukcja/gwarancja/paragon) do urządzenia. Pliki prześlij z panelu; ta usługa obsługuje tylko linki.",
+      "fields": {
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego dołączyć dokument."
+        },
+        "document": {
+          "name": "Dokument",
+          "description": "Dokument do dodania: obiekt z nazwą i url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Usuń dokument urządzenia",
+      "description": "Odłącza dokument od urządzenia. W przypadku przesłanego pliku zapisana kopia jest również usuwana z dysku.",
+      "fields": {
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy dokument."
+        },
+        "document_id": {
+          "name": "Identyfikator dokumentu",
+          "description": "Identyfikator dokumentu do usunięcia."
         }
       }
     }

@@ -272,10 +272,6 @@
           "name": "Pris",
           "description": "Købspris."
         },
-        "manual_url": {
-          "name": "URL til manual",
-          "description": "Link til manualen eller dokumentationen."
-        },
         "icon": {
           "name": "Ikon",
           "description": "Valgfrit mdi-ikon (f.eks. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Relaterede enheder",
           "description": "Andre registerenheder at knytte til dette apparat."
+        },
+        "documents": {
+          "name": "Dokumenter",
+          "description": "Manualer/garantier/kvitteringer: en liste over links eller uploadede filer. Denne tjeneste tilføjer link-dokumenter (navn + url); upload filer fra panelet."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Pris",
           "description": "Købspris."
         },
-        "manual_url": {
-          "name": "URL til manual",
-          "description": "Link til manualen eller dokumentationen."
-        },
         "icon": {
           "name": "Ikon",
           "description": "Valgfrit mdi-ikon (f.eks. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Relaterede enheder",
           "description": "Andre registerenheder at knytte til dette apparat."
+        },
+        "documents": {
+          "name": "Dokumenter",
+          "description": "Dokumenter (links/filer) på apparatet (se add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Opbevaring af engangsopgaver (dage)",
           "description": "Slet automatisk en fuldført engangsopgave så mange dage efter fuldførelsen. 0 beholder dem for evigt."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Tilføj apparatdokument",
+      "description": "Vedhæfter et link-dokument (manual/garanti/kvittering) til et apparat. Upload filer fra panelet; denne tjeneste håndterer kun links.",
+      "fields": {
+        "asset_id": {
+          "name": "Aktiv-ID",
+          "description": "Id'et på apparatet, dokumentet skal vedhæftes."
+        },
+        "document": {
+          "name": "Dokument",
+          "description": "Dokumentet der skal tilføjes: et objekt med navn og url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Fjern apparatdokument",
+      "description": "Frakobler et dokument fra et apparat. For en uploadet fil slettes den gemte kopi også fra disken.",
+      "fields": {
+        "asset_id": {
+          "name": "Aktiv-ID",
+          "description": "Id'et på apparatet, dokumentet tilhører."
+        },
+        "document_id": {
+          "name": "Dokument-id",
+          "description": "Id'et på dokumentet, der skal fjernes."
         }
       }
     }

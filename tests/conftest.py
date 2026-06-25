@@ -35,6 +35,7 @@ def _load_pure_modules() -> None:
         "recurrence",
         "models",
         "assets",
+        "documents",
         "events",
         "transitions",
         "reconcile",
@@ -57,6 +58,7 @@ def _load_pure_modules() -> None:
     sys.modules["hk_recurrence"] = sys.modules["hk.recurrence"]
     sys.modules["hk_models"] = sys.modules["hk.models"]
     sys.modules["hk_assets"] = sys.modules["hk.assets"]
+    sys.modules["hk_documents"] = sys.modules["hk.documents"]
     sys.modules["hk_events"] = sys.modules["hk.events"]
     sys.modules["hk_transitions"] = sys.modules["hk.transitions"]
     sys.modules["hk_reconcile"] = sys.modules["hk.reconcile"]

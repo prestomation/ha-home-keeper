@@ -24,6 +24,18 @@ CARD_JS_FILENAME = "home-keeper-card.js"
 # Storage.
 STORAGE_KEY = "home_keeper"
 STORAGE_VERSION = 1
+
+# Offline document storage. Uploaded asset documents (manuals / warranties / receipts)
+# are stored as files on disk under the HA config dir — they are too large for the JSON
+# store and are streamed back through an authenticated HTTP view, not the websocket.
+#   • MANUALS_SUBDIR     — per-asset blob tree under ``<config>/`` (one dir per asset,
+#     so deleting an asset is a single ``rmtree``).
+#   • DOCUMENT_URL_PREFIX — the HomeKeeperDocumentView route; the panel uploads via a
+#     multipart POST and opens files via an ``async_sign_path`` signed GET URL.
+#   • MAX_DOCUMENT_BYTES  — hard per-file upload ceiling.
+MANUALS_SUBDIR = "home_keeper/documents"
+DOCUMENT_URL_PREFIX = "/api/home_keeper/document"
+MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
 # How many completion timestamps to retain per task. Generous so the panel's task
 # history shows years of cadence (e.g. 500 monthly completions ≈ 40 years) while
 # still bounding the stored list. When a task that belongs to an appliance is
