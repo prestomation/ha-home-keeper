@@ -2244,7 +2244,13 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _openFileDocument(assetId: string, documentId: string): Promise<void> {
     if (!this._hass) return;
     try {
-      const url = await api.signDocumentUrl(this._hass, assetId, documentId);
+      const path = await api.signDocumentUrl(this._hass, assetId, documentId);
+      // `signDocumentUrl` returns a host-less, signed path (e.g. `/api/.../?authSig=`).
+      // Resolve it against the origin the panel is *actually* loaded from rather than
+      // letting the browser resolve the relative path against the document base — the
+      // latter can yield Home Assistant's internal/LAN URL when you're browsing through
+      // a remote/external address, opening the file on the wrong (unreachable) host.
+      const url = new URL(path, window.location.origin).href;
       window.open(url, '_blank', 'noopener');
     } catch {
       // Best-effort: a failed signing (e.g. deleted file) simply doesn't open.
