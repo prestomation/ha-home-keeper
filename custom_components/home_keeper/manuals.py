@@ -165,6 +165,12 @@ class HomeKeeperDocumentView(HomeAssistantView):
         self, request: web.Request, asset_id: str, document_id: str
     ) -> web.Response:
         hass = request.app[KEY_HASS]
+        # Raise this request's body cap to our document ceiling. HA's global app limit
+        # (`MAX_CLIENT_SIZE`, 16 MB) is *smaller* than MAX_DOCUMENT_BYTES, so without
+        # this aiohttp rejects a larger upload with a bare 413 before our handler runs.
+        # Mirrors homeassistant.components.image_upload. We still enforce the real
+        # ceiling (with a clear message) while streaming below.
+        request._client_max_size = MAX_DOCUMENT_BYTES
         coord = _coordinator(hass)
         if coord is None:
             return self.json_message("Home Keeper is not loaded", HTTPStatus.NOT_FOUND)
@@ -175,35 +181,41 @@ class HomeKeeperDocumentView(HomeAssistantView):
         filename: str | None = None
         declared_type: str | None = None
         data = b""
+        too_large = self.json_message(
+            f"File exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)} MB limit",
+            HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+        )
         try:
             reader = await request.multipart()
         except (ValueError, AssertionError):
             return self.json_message(
                 "Expected a multipart upload", HTTPStatus.BAD_REQUEST
             )
-        while True:
-            part = await reader.next()
-            if part is None:
-                break
-            # A nested multipart body isn't expected here; only flat parts carry the
-            # file/name fields (and narrows the type for the attribute access below).
-            if not isinstance(part, BodyPartReader):
-                continue
-            if part.name == "name":
-                display_name = (await part.text()).strip()
-                continue
-            if not part.filename:
-                continue
-            filename = part.filename
-            declared_type = part.headers.get(hdrs.CONTENT_TYPE)
-            buffer = bytearray()
-            while chunk := await part.read_chunk():
-                buffer += chunk
-                if len(buffer) > MAX_DOCUMENT_BYTES:
-                    return self.json_message(
-                        "File is too large", HTTPStatus.REQUEST_ENTITY_TOO_LARGE
-                    )
-            data = bytes(buffer)
+        try:
+            while True:
+                part = await reader.next()
+                if part is None:
+                    break
+                # A nested multipart body isn't expected here; only flat parts carry
+                # the file/name fields (and narrows the type for the access below).
+                if not isinstance(part, BodyPartReader):
+                    continue
+                if part.name == "name":
+                    display_name = (await part.text()).strip()
+                    continue
+                if not part.filename:
+                    continue
+                filename = part.filename
+                declared_type = part.headers.get(hdrs.CONTENT_TYPE)
+                buffer = bytearray()
+                while chunk := await part.read_chunk():
+                    buffer += chunk
+                    if len(buffer) > MAX_DOCUMENT_BYTES:
+                        return too_large
+                data = bytes(buffer)
+        except web.HTTPRequestEntityTooLarge:
+            # Backstop: aiohttp enforces the (raised) per-request cap too.
+            return too_large
 
         if filename is None:
             return self.json_message("No file part in upload", HTTPStatus.BAD_REQUEST)

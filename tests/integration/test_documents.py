@@ -186,6 +186,29 @@ def test_update_asset_preserves_uploaded_file_document(ha):
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
+def test_upload_larger_than_ha_app_limit_succeeds(ha):
+    # Regression: HA's global aiohttp body cap (MAX_CLIENT_SIZE, 16 MB) is below our
+    # 25 MB document ceiling, so the view must raise the per-request cap — otherwise a
+    # 16-25 MB manual is rejected with a bare 413 before our handler runs.
+    name = f"Doc big probe {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    big = b"%PDF-1.7\n" + b"0" * (17 * 1024 * 1024) + b"\n%%EOF"
+    r = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{uuid.uuid4().hex}",
+        files={"file": ("big-manual.pdf", big, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=60,
+    )
+    assert r.status_code == 200, (
+        f"17 MB upload rejected: {r.status_code} {r.text[:200]}"
+    )
+    doc = r.json()["document"]
+    assert doc["size"] == len(big)
+    dl = ha.get(f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc['id']}")
+    assert dl.status_code == 200 and len(dl.content) == len(big)
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
 def test_document_view_requires_auth(ha):
     # The view is auth-gated: an unauthenticated GET is rejected.
     r = requests.get(f"{HA_URL}/api/home_keeper/document/whatever/whatever", timeout=10)
