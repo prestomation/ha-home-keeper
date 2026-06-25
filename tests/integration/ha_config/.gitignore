@@ -9,6 +9,8 @@
 blueprints/
 tts/
 deps/
+# Uploaded asset-document blobs the integration writes under the config dir at runtime.
+home_keeper/
 
 # Ignore all generated .storage entries except the seeded fixtures.
 .storage/*

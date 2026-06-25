@@ -7,18 +7,23 @@ reloads the entry on add/delete so per-task entities appear/disappear).
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
+from homeassistant.components.http.auth import async_sign_path
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
-from . import companions, devices, inventory, notifier, options
+from . import companions, devices, inventory, manuals, notifier, options
 from .assets import AssetValidationError
 from .const import DOMAIN, OPTION_PROFILES
 from .coordinator import HomeKeeperCoordinator, entity_set_key
 from .models import TaskValidationError
+
+# How long a signed document URL stays valid — long enough to open in a new tab.
+_DOCUMENT_URL_TTL = timedelta(minutes=5)
 
 
 def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
@@ -59,6 +64,9 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_update_asset)
     websocket_api.async_register_command(hass, ws_delete_asset)
     websocket_api.async_register_command(hass, ws_adjust_part_stock)
+    websocket_api.async_register_command(hass, ws_add_asset_document)
+    websocket_api.async_register_command(hass, ws_remove_asset_document)
+    websocket_api.async_register_command(hass, ws_sign_document_url)
     websocket_api.async_register_command(hass, ws_export_inventory)
     websocket_api.async_register_command(hass, ws_get_options)
     websocket_api.async_register_command(hass, ws_set_options)
@@ -405,6 +413,106 @@ async def ws_adjust_part_stock(
         return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"asset": asset})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/add_asset_document",
+        vol.Required("asset_id"): str,
+        vol.Required("document"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_add_asset_document(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    document = dict(msg["document"])
+    # Files are uploaded through the HTTP view; this command only adds links.
+    if document.get("kind", "link") != "link":
+        connection.send_error(
+            msg["id"], "invalid_asset", "only link documents can be added here"
+        )
+        return
+    document["kind"] = "link"
+    try:
+        await coord.store.add_asset_document(msg["asset_id"], document)
+    except KeyError:
+        connection.send_error(msg["id"], "not_found", "Unknown asset_id")
+        return
+    except AssetValidationError as err:
+        connection.send_error(msg["id"], "invalid_asset", str(err))
+        return
+    # Documents touch no device/entity/task; the store already saved and fired the
+    # event, so no device reconcile or entry reload is needed.
+    connection.send_result(msg["id"], {"asset": coord.store.get_asset(msg["asset_id"])})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/remove_asset_document",
+        vol.Required("asset_id"): str,
+        vol.Required("document_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_remove_asset_document(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    try:
+        asset = await coord.store.remove_asset_document(
+            msg["asset_id"], msg["document_id"]
+        )
+    except KeyError:
+        connection.send_error(msg["id"], "not_found", "Unknown asset_id or document_id")
+        return
+    # Documents touch no device/entity/task; no device reconcile or entry reload needed.
+    connection.send_result(msg["id"], {"asset": asset})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/sign_document_url",
+        vol.Required("asset_id"): str,
+        vol.Required("document_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_sign_document_url(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Mint a short-lived signed URL the browser can open for a file document."""
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    asset = coord.store.get_asset(msg["asset_id"])
+    document = next(
+        (
+            d
+            for d in (asset or {}).get("documents", [])
+            if d.get("id") == msg["document_id"] and d.get("kind") == "file"
+        ),
+        None,
+    )
+    if document is None:
+        connection.send_error(msg["id"], "not_found", "Unknown file document")
+        return
+    path = manuals.document_path(msg["asset_id"], msg["document_id"])
+    signed = async_sign_path(
+        hass,
+        path,
+        _DOCUMENT_URL_TTL,
+        refresh_token_id=connection.refresh_token_id,
+    )
+    connection.send_result(msg["id"], {"url": signed})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/export_inventory"})

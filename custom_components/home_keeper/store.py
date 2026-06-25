@@ -120,6 +120,8 @@ class HomeKeeperStore:
         for asset in self._assets.values():
             if assets.migrate_legacy_part_numbers(asset):
                 changed = True
+            if assets.migrate_documents_from_manual_url(asset):
+                changed = True
         if self._clean_relationship_links():
             changed = True
         if changed:
@@ -426,6 +428,56 @@ class HomeKeeperStore:
             )
         return merged
 
+    async def add_asset_document(
+        self, asset_id: str, document: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Attach a document (link or uploaded file) to an asset; return the entry.
+
+        Stamps ``created`` (this is the clock-aware chokepoint; ``assets`` is HA-free)
+        and fires ``home_keeper_asset_updated`` with ``changed_fields=["documents"]``.
+        Raises ``KeyError`` for an unknown asset and ``AssetValidationError`` for an
+        invalid document.
+        """
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise KeyError(asset_id)
+        entry = assets.append_document(
+            asset, document, created=dt_util.now().isoformat()
+        )
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_ASSET_UPDATED,
+            events.asset_event_data(asset, extra={"changed_fields": ["documents"]}),
+        )
+        return entry
+
+    async def remove_asset_document(
+        self, asset_id: str, document_id: str
+    ) -> dict[str, Any]:
+        """Detach a document from an asset; delete its on-disk blob if it was a file.
+
+        Returns the updated asset. Raises ``KeyError`` for an unknown asset or
+        document. Fires ``home_keeper_asset_updated`` with documents in changed_fields.
+        """
+        from . import manuals  # lazy: manuals -> devices imports would cycle at load
+
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise KeyError(asset_id)
+        removed = assets.remove_document(asset, document_id)
+        if removed is None:
+            raise KeyError(document_id)
+        if removed.get("kind") == "file" and removed.get("filename"):
+            await manuals.async_delete_document(
+                self._hass, asset_id, document_id, removed["filename"]
+            )
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_ASSET_UPDATED,
+            events.asset_event_data(asset, extra={"changed_fields": ["documents"]}),
+        )
+        return asset
+
     def _validate_parent(
         self, asset_id: str | None, parent_asset_id: str | None
     ) -> None:
@@ -482,6 +534,10 @@ class HomeKeeperStore:
             if child.get("parent_asset_id") == asset_id:
                 child["parent_asset_id"] = None
         await self._save()
+        # Drop any uploaded-document blobs the appliance owned (best-effort cleanup).
+        from . import manuals  # lazy import: avoids a load-time import cycle
+
+        await manuals.async_delete_asset_documents(self._hass, asset_id)
         # The appliance and the wear-part tasks it owned are both gone — announce each.
         for task in dropped:
             self._hass.bus.async_fire(EVENT_TASK_DELETED, events.task_event_data(task))

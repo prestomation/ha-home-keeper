@@ -272,10 +272,6 @@
           "name": "Cost",
           "description": "Replacement cost (feeds the insurance inventory value rollup)."
         },
-        "manual_url": {
-          "name": "Manual URL",
-          "description": "Link to the manual or docs."
-        },
         "icon": {
           "name": "Icon",
           "description": "Optional mdi icon (e.g. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Related devices",
           "description": "Other registry devices to associate with this appliance."
+        },
+        "documents": {
+          "name": "Documents",
+          "description": "Manuals/warranties/receipts: a list of links or uploaded files. This service adds link documents (name + url); upload files from the panel."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Cost",
           "description": "Replacement cost (feeds the insurance inventory value rollup)."
         },
-        "manual_url": {
-          "name": "Manual URL",
-          "description": "Link to the manual or docs."
-        },
         "icon": {
           "name": "Icon",
           "description": "Optional mdi icon (e.g. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Related devices",
           "description": "Other registry devices to associate with this appliance."
+        },
+        "documents": {
+          "name": "Documents",
+          "description": "Documents (links/files) on the appliance (see add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "One-off retention (days)",
           "description": "Auto-delete a completed one-off task this many days after completion. 0 keeps them forever."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Add appliance document",
+      "description": "Attach a link document (manual/warranty/receipt) to an appliance. Upload files from the panel; this service handles links only.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance to attach the document to."
+        },
+        "document": {
+          "name": "Document",
+          "description": "The document to add: an object with name and url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Remove appliance document",
+      "description": "Detach a document from an appliance. An uploaded file's stored copy is deleted from disk too.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the document belongs to."
+        },
+        "document_id": {
+          "name": "Document ID",
+          "description": "The id of the document to remove."
         }
       }
     }

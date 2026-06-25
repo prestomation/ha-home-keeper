@@ -272,10 +272,6 @@
           "name": "Kosten",
           "description": "Kaufpreis."
         },
-        "manual_url": {
-          "name": "Handbuch-URL",
-          "description": "Link zum Handbuch oder zur Dokumentation."
-        },
         "icon": {
           "name": "Symbol",
           "description": "Optionales mdi-Symbol (z. B. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Verknüpfte Geräte",
           "description": "Weitere Registry-Geräte, die mit diesem Gerät verknüpft werden."
+        },
+        "documents": {
+          "name": "Dokumente",
+          "description": "Handbücher/Garantien/Belege: eine Liste von Links oder hochgeladenen Dateien. Dieser Dienst fügt Link-Dokumente hinzu (Name + URL); Dateien lädst du im Panel hoch."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Kosten",
           "description": "Kaufpreis."
         },
-        "manual_url": {
-          "name": "Handbuch-URL",
-          "description": "Link zum Handbuch oder zur Dokumentation."
-        },
         "icon": {
           "name": "Symbol",
           "description": "Optionales mdi-Symbol (z. B. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Verknüpfte Geräte",
           "description": "Weitere Registry-Geräte, die mit diesem Gerät verknüpft werden."
+        },
+        "documents": {
+          "name": "Dokumente",
+          "description": "Dokumente (Links/Dateien) des Geräts (siehe add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Aufbewahrung einmaliger Aufgaben (Tage)",
           "description": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach dem Abschluss automatisch löschen. 0 behält sie dauerhaft."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Gerätedokument hinzufügen",
+      "description": "Hängt ein Link-Dokument (Handbuch/Garantie/Beleg) an ein Gerät an. Dateien lädst du im Panel hoch; dieser Dienst verarbeitet nur Links.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "Die ID des Geräts, an das das Dokument angehängt wird."
+        },
+        "document": {
+          "name": "Dokument",
+          "description": "Das hinzuzufügende Dokument: ein Objekt mit Name und URL."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Gerätedokument entfernen",
+      "description": "Entfernt ein Dokument von einem Gerät. Bei einer hochgeladenen Datei wird die gespeicherte Kopie ebenfalls von der Festplatte gelöscht.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "Die ID des Geräts, zu dem das Dokument gehört."
+        },
+        "document_id": {
+          "name": "Dokument-ID",
+          "description": "Die ID des zu entfernenden Dokuments."
         }
       }
     }

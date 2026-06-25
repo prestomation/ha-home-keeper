@@ -475,10 +475,14 @@ add_asset:
           min: 0
           mode: box
           step: 0.01
-    manual_url:
-      name: Manual URL
+    documents:
+      name: Documents
+      description: >-
+        Manuals / warranties / receipts: a list of entries, each either a link
+        (kind: link, with a url) or an uploaded file. Add file documents from the
+        panel — this service handles link documents only.
       selector:
-        text:
+        object:
     icon:
       name: Icon
       description: Optional mdi icon for the appliance (e.g. mdi:piano).
@@ -552,10 +556,11 @@ update_asset:
           min: 0
           mode: box
           step: 0.01
-    manual_url:
-      name: Manual URL
+    documents:
+      name: Documents
+      description: Documents (links/files) on the appliance (see add_asset).
       selector:
-        text:
+        object:
     icon:
       name: Icon
       description: Optional mdi icon for the appliance (e.g. mdi:piano).
@@ -627,6 +632,46 @@ adjust_part_stock:
       selector:
         number:
           mode: box
+
+add_asset_document:
+  name: Add appliance document
+  description: >-
+    Attach a link document (manual / warranty / receipt) to an appliance. Upload
+    file documents from the panel; this service handles links only.
+  fields:
+    asset_id:
+      name: Asset ID
+      description: The id of the appliance to attach the document to.
+      required: true
+      selector:
+        text:
+    document:
+      name: Document
+      description: >-
+        The document to add: an object with name and url (kind defaults to link).
+      required: true
+      example: '{"name": "Manual", "url": "https://example.com/manual.pdf"}'
+      selector:
+        object:
+
+remove_asset_document:
+  name: Remove appliance document
+  description: >-
+    Detach a document from an appliance. If it was an uploaded file, its stored
+    copy is deleted from disk too.
+  fields:
+    asset_id:
+      name: Asset ID
+      description: The id of the appliance the document belongs to.
+      required: true
+      selector:
+        text:
+    document_id:
+      name: Document ID
+      description: The id of the document to remove.
+      required: true
+      selector:
+        text:
 
 export_inventory:
   name: Export inventory

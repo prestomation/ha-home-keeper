@@ -272,10 +272,6 @@
           "name": "Kostnad",
           "description": "Inköpspris."
         },
-        "manual_url": {
-          "name": "URL till manual",
-          "description": "Länk till manualen eller dokumentationen."
-        },
         "icon": {
           "name": "Ikon",
           "description": "Valfri mdi-ikon (t.ex. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Relaterade enheter",
           "description": "Andra registerenheter att associera med denna apparat."
+        },
+        "documents": {
+          "name": "Dokument",
+          "description": "Manualer/garantier/kvitton: en lista med länkar eller uppladdade filer. Den här tjänsten lägger till länkdokument (namn + url); ladda upp filer från panelen."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Kostnad",
           "description": "Inköpspris."
         },
-        "manual_url": {
-          "name": "URL till manual",
-          "description": "Länk till manualen eller dokumentationen."
-        },
         "icon": {
           "name": "Ikon",
           "description": "Valfri mdi-ikon (t.ex. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Relaterade enheter",
           "description": "Andra registerenheter att associera med denna apparat."
+        },
+        "documents": {
+          "name": "Dokument",
+          "description": "Dokument (länkar/filer) på apparaten (se add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Lagringstid för engångsuppgifter (dagar)",
           "description": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter slutförandet. 0 behåller dem för alltid."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Lägg till apparatdokument",
+      "description": "Bifogar ett länkdokument (manual/garanti/kvitto) till en apparat. Ladda upp filer från panelen; den här tjänsten hanterar endast länkar.",
+      "fields": {
+        "asset_id": {
+          "name": "Tillgångs-ID",
+          "description": "Id för apparaten som dokumentet ska bifogas till."
+        },
+        "document": {
+          "name": "Dokument",
+          "description": "Dokumentet som ska läggas till: ett objekt med namn och url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Ta bort apparatdokument",
+      "description": "Kopplar bort ett dokument från en apparat. För en uppladdad fil tas den sparade kopian också bort från disken.",
+      "fields": {
+        "asset_id": {
+          "name": "Tillgångs-ID",
+          "description": "Id för apparaten som dokumentet tillhör."
+        },
+        "document_id": {
+          "name": "Dokument-id",
+          "description": "Id för dokumentet som ska tas bort."
         }
       }
     }

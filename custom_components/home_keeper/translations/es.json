@@ -272,10 +272,6 @@
           "name": "Coste",
           "description": "Precio de compra."
         },
-        "manual_url": {
-          "name": "URL del manual",
-          "description": "Enlace al manual o la documentación."
-        },
         "icon": {
           "name": "Icono",
           "description": "Icono mdi opcional (p. ej. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Dispositivos relacionados",
           "description": "Otros dispositivos del registro a asociar con este electrodoméstico."
+        },
+        "documents": {
+          "name": "Documentos",
+          "description": "Manuales/garantías/recibos: una lista de enlaces o archivos subidos. Este servicio añade documentos de enlace (nombre + url); sube los archivos desde el panel."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Coste",
           "description": "Precio de compra."
         },
-        "manual_url": {
-          "name": "URL del manual",
-          "description": "Enlace al manual o la documentación."
-        },
         "icon": {
           "name": "Icono",
           "description": "Icono mdi opcional (p. ej. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Dispositivos relacionados",
           "description": "Otros dispositivos del registro a asociar con este electrodoméstico."
+        },
+        "documents": {
+          "name": "Documentos",
+          "description": "Documentos (enlaces/archivos) del electrodoméstico (consulta add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Conservación de tareas únicas (días)",
           "description": "Eliminar automáticamente una tarea única completada transcurridos estos días desde su finalización. El valor 0 las conserva para siempre."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Añadir documento de electrodoméstico",
+      "description": "Adjunta un documento de enlace (manual/garantía/recibo) a un electrodoméstico. Sube los archivos desde el panel; este servicio solo gestiona enlaces.",
+      "fields": {
+        "asset_id": {
+          "name": "ID del activo",
+          "description": "El id del electrodoméstico al que adjuntar el documento."
+        },
+        "document": {
+          "name": "Documento",
+          "description": "El documento a añadir: un objeto con nombre y url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Eliminar documento de electrodoméstico",
+      "description": "Desvincula un documento de un electrodoméstico. Si era un archivo subido, también se elimina su copia almacenada del disco.",
+      "fields": {
+        "asset_id": {
+          "name": "ID del activo",
+          "description": "El id del electrodoméstico al que pertenece el documento."
+        },
+        "document_id": {
+          "name": "ID del documento",
+          "description": "El id del documento a eliminar."
         }
       }
     }

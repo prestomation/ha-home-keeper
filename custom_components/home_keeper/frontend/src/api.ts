@@ -1,5 +1,6 @@
 import type {
   Asset,
+  AssetDocument,
   Companion,
   Hass,
   HassLabel,
@@ -217,6 +218,94 @@ export async function adjustPartStock(
     delta,
   });
   return res.asset;
+}
+
+/** Attach an external link document (manual/warranty/receipt) to an appliance. */
+export async function addAssetDocument(
+  hass: Hass,
+  assetId: string,
+  document: Partial<AssetDocument>,
+): Promise<Asset> {
+  const res = await hass.callWS<{ asset: Asset }>({
+    type: 'home_keeper/add_asset_document',
+    asset_id: assetId,
+    document: { ...document, kind: 'link' },
+  });
+  return res.asset;
+}
+
+/** Detach a document (link or file) from an appliance; the file blob is deleted. */
+export async function removeAssetDocument(
+  hass: Hass,
+  assetId: string,
+  documentId: string,
+): Promise<Asset> {
+  const res = await hass.callWS<{ asset: Asset }>({
+    type: 'home_keeper/remove_asset_document',
+    asset_id: assetId,
+    document_id: documentId,
+  });
+  return res.asset;
+}
+
+/** Mint a short-lived signed URL the browser can open for a file document. */
+export async function signDocumentUrl(
+  hass: Hass,
+  assetId: string,
+  documentId: string,
+): Promise<string> {
+  const res = await hass.callWS<{ url: string }>({
+    type: 'home_keeper/sign_document_url',
+    asset_id: assetId,
+    document_id: documentId,
+  });
+  return res.url;
+}
+
+/**
+ * Upload a file document to an appliance via the Home Keeper HTTP view. The binary
+ * can't ride the websocket, so this POSTs multipart with the auth token. `documentId`
+ * is a client-minted uuid that becomes the document's id. Returns the updated asset.
+ */
+export async function uploadAssetDocument(
+  hass: Hass,
+  assetId: string,
+  documentId: string,
+  file: File,
+  name?: string,
+): Promise<Asset> {
+  const body = new FormData();
+  body.append('file', file, file.name);
+  if (name) body.append('name', name);
+  const token = hass.auth?.data?.access_token;
+  const res = await fetch(`/api/home_keeper/document/${assetId}/${documentId}`, {
+    method: 'POST',
+    body,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) {
+    // Only a JSON {message} is a real Home Keeper error. A non-JSON body (e.g. an
+    // nginx HTML "413 Request Entity Too Large") means something *in front of* HA
+    // rejected the upload — surface that distinctly so the panel can guide the user.
+    let detail = '';
+    try {
+      detail = ((await res.json()) as { message?: string }).message ?? '';
+    } catch {
+      /* non-JSON body (a proxy's error page) — leave detail empty */
+    }
+    const error = new Error(detail || `Upload failed (${res.status})`) as UploadError;
+    error.status = res.status;
+    error.serverMessage = !!detail;
+    throw error;
+  }
+  return ((await res.json()) as { asset: Asset }).asset;
+}
+
+/** An upload failure, tagged with the HTTP status and whether Home Keeper (vs a proxy
+ *  in front of HA) produced the message. */
+export interface UploadError extends Error {
+  status?: number;
+  serverMessage?: boolean;
 }
 
 /** Fetch the home-inventory report (for insurance) plus a ready-to-save CSV. */

@@ -272,10 +272,6 @@
           "name": "Hinta",
           "description": "Ostohinta."
         },
-        "manual_url": {
-          "name": "Käyttöohjeen URL",
-          "description": "Linkki käyttöohjeeseen tai dokumentteihin."
-        },
         "icon": {
           "name": "Kuvake",
           "description": "Valinnainen mdi-kuvake (esim. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Liittyvät laitteet",
           "description": "Muut rekisterin laitteet, jotka liitetään tähän laitteeseen."
+        },
+        "documents": {
+          "name": "Asiakirjat",
+          "description": "Oppaat/takuut/kuitit: luettelo linkeistä tai ladatuista tiedostoista. Tämä palvelu lisää linkkiasiakirjoja (nimi + url); lataa tiedostot paneelista."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Hinta",
           "description": "Ostohinta."
         },
-        "manual_url": {
-          "name": "Käyttöohjeen URL",
-          "description": "Linkki käyttöohjeeseen tai dokumentteihin."
-        },
         "icon": {
           "name": "Kuvake",
           "description": "Valinnainen mdi-kuvake (esim. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Liittyvät laitteet",
           "description": "Muut rekisterin laitteet, jotka liitetään tähän laitteeseen."
+        },
+        "documents": {
+          "name": "Asiakirjat",
+          "description": "Laitteen asiakirjat (linkit/tiedostot) (katso add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Kertaluonteisten säilytys (päivää)",
           "description": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää ne pysyvästi."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Lisää laitteen asiakirja",
+      "description": "Liittää linkkiasiakirjan (opas/takuu/kuitti) laitteeseen. Lataa tiedostot paneelista; tämä palvelu käsittelee vain linkkejä.",
+      "fields": {
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Sen laitteen tunnus, johon asiakirja liitetään."
+        },
+        "document": {
+          "name": "Asiakirja",
+          "description": "Lisättävä asiakirja: objekti, jossa on nimi ja url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Poista laitteen asiakirja",
+      "description": "Irrottaa asiakirjan laitteesta. Ladatun tiedoston tallennettu kopio poistetaan myös levyltä.",
+      "fields": {
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Sen laitteen tunnus, johon asiakirja kuuluu."
+        },
+        "document_id": {
+          "name": "Asiakirjan tunnus",
+          "description": "Poistettavan asiakirjan tunnus."
         }
       }
     }

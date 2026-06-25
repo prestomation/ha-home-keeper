@@ -87,6 +87,10 @@ specific event), not `low_stock`.
 | `home_keeper_asset_updated` | an appliance changes; payload adds `changed_fields` |
 | `home_keeper_asset_deleted` | an appliance is removed |
 
+Attaching or removing an appliance **document** (a manual/warranty/receipt link, or an
+uploaded file) is an appliance change, so it surfaces as `home_keeper_asset_updated`
+with `changed_fields: ["documents"]` — there is no separate document event.
+
 ### Companion discovery (edge-triggered, baselined on startup)
 
 Home Keeper surfaces integrations that work with it (see the panel's **Settings →

@@ -28,6 +28,7 @@ import { selEntity } from './forms';
 import { setLanguage, t, tn } from './i18n';
 import type {
   Asset,
+  AssetDocument,
   AssetKind,
   Companion,
   Completion,
@@ -445,7 +446,14 @@ interface AssetEditState {
   open: boolean;
   asset: Partial<Asset> | null;
   error?: string;
+  // Optional "Learn more" link shown beside the error (e.g. the docs for a proxy 413).
+  errorLink?: string;
 }
+
+// Docs section explaining a 413 from a reverse proxy in front of HA (see README
+// "Large uploads (413)"). Linked from the upload error so users can self-serve the fix.
+const DOCS_UPLOAD_413_URL =
+  'https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#large-uploads-413';
 /**
  * The completion-details dialog state. Open either to *log* a new completion
  * (`ts` absent) or to *edit* a recorded one (`ts` set). `data` holds the in-progress
@@ -880,26 +888,29 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!this._hass || !this._assetEdit.asset) return;
     const a = this._assetEdit.asset;
     if (a.kind === 'virtual' && !String(a.name || '').trim()) {
-      this._assetEdit.error = t('error.nameRequiredAppliance');
+      this._setAssetError(t('error.nameRequiredAppliance'));
       this._render();
       return;
     }
     if (a.kind === 'existing' && !a.device_id) {
-      this._assetEdit.error = t('error.pickDevice');
+      this._setAssetError(t('error.pickDevice'));
       this._render();
       return;
     }
     const parts = (a.parts || []).filter((p) => p.name && p.name.trim());
     // Drop half-finished metadata rows (no label) so they don't fail validation.
     const metadata = (a.metadata || []).filter((m) => m.label && m.label.trim());
-    const payload: Partial<Asset> = { ...a, parts, metadata };
+    // Documents are managed live (their own backend calls), so they're excluded from
+    // the batch save — omitting them preserves the server's list (merge_update).
+    const { documents: _documents, ...rest } = a;
+    const payload: Partial<Asset> = { ...rest, parts, metadata };
     try {
       if (a.id) await api.updateAsset(this._hass, a.id, payload);
       else await api.addAsset(this._hass, payload);
       this._closeAssetForm();
       await this._refresh();
     } catch (err) {
-      this._assetEdit.error = String((err as { message?: string })?.message || err);
+      this._setAssetError(String((err as { message?: string })?.message || err));
       this._render();
     }
   }
@@ -1612,7 +1623,6 @@ export class HomeKeeperPanel extends HTMLElement {
       : '';
     const title =
       asset.name || deviceName(this._hass?.devices, asset.device_id) || t('appliance.fallbackName');
-    const manual = asset.manual_url ? this._link(asset.manual_url) : '';
     const cost = asset.cost != null ? String(asset.cost) : '';
     // Structured (HA-wired) fields first, then the free-form metadata entries.
     const meta = (asset.metadata || [])
@@ -1627,7 +1637,6 @@ export class HomeKeeperPanel extends HTMLElement {
       this._row(t('field.model'), asset.model),
       this._row(t('field.area_id'), areaName(this._hass?.areas, asset.area_id)),
       this._row(t('field.cost'), cost),
-      this._row(t('field.manual_url'), manual, true),
       meta,
     ].join('');
     const detailsCard = details
@@ -1644,10 +1653,35 @@ export class HomeKeeperPanel extends HTMLElement {
         </div>
       </div></ha-card>
       ${detailsCard}
+      ${this._documentsSection(asset)}
       ${this._partsSection(asset)}
       ${this._relatedTasksSection(asset)}
       ${this._subdevicesSection(asset)}
       ${this._historySection('asset', asset.id)}`;
+  }
+
+  /** The appliance's documents (manuals/warranties/receipts): external links open
+   *  directly; uploaded files open via a signed URL wired in `_wireDetailActions`. */
+  private _documentsSection(asset: Asset): string {
+    const docs = asset.documents || [];
+    if (!docs.length) return '';
+    const icon = (kind: string): string =>
+      kind === 'file' ? 'mdi:file-document-outline' : 'mdi:link-variant';
+    const rows = docs
+      .map((d) => {
+        const name = escapeHTML(d.name || d.filename || d.url || '');
+        const inner =
+          d.kind === 'file'
+            ? `<a class="hk-doc-file" role="button" tabindex="0" data-doc="${escapeHTML(
+                d.id || '',
+              )}">${name}</a>`
+            : `<a href="${escapeHTML(d.url || '')}" target="_blank" rel="noopener">${name}</a>`;
+        return `<div class="hk-detail-row"><span class="k"><ha-icon
+          icon="${icon(d.kind)}"></ha-icon></span><span class="v">${inner}</span></div>`;
+      })
+      .join('');
+    return `<div class="hk-section">${escapeHTML(t('section.documents'))}</div>
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
   }
 
   private _partsSection(asset: Asset): string {
@@ -1925,12 +1959,9 @@ export class HomeKeeperPanel extends HTMLElement {
     return fields;
   }
 
-  /** Structured fields that wire into HA: the manual link and replacement cost. */
+  /** Structured field that wires into HA: the asset's value (for the inventory). */
   private _structuredDetailsSchema(): FormField[] {
-    return [
-      { name: 'manual_url', selector: selText() },
-      { name: 'cost', selector: selNumber(0) },
-    ];
+    return [{ name: 'cost', selector: selNumber(0) }];
   }
 
   /** Schema for one free-form metadata entry. The value control swaps by type, and
@@ -2194,6 +2225,30 @@ export class HomeKeeperPanel extends HTMLElement {
       this._navigate({ view: 'appliances', detail: null }, true);
       void this._deleteAsset(asset);
     });
+    // File documents open via a short-lived signed URL (no auth header on a tab open).
+    root.querySelectorAll<HTMLElement>('.hk-doc-file').forEach((el) => {
+      const open = (): void => {
+        const docId = el.dataset.doc;
+        if (docId) void this._openFileDocument(asset.id, docId);
+      };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => {
+        if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') {
+          e.preventDefault();
+          open();
+        }
+      });
+    });
+  }
+
+  private async _openFileDocument(assetId: string, documentId: string): Promise<void> {
+    if (!this._hass) return;
+    try {
+      const url = await api.signDocumentUrl(this._hass, assetId, documentId);
+      window.open(url, '_blank', 'noopener');
+    } catch {
+      // Best-effort: a failed signing (e.g. deleted file) simply doesn't open.
+    }
   }
 
   private _switchView(view: 'tasks' | 'appliances' | 'settings'): void {
@@ -2965,7 +3020,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
     const mergeAsset = (value: Record<string, unknown>): void => {
       this._assetEdit.asset = { ...this._assetEdit.asset, ...value } as Partial<Asset>;
-      this._assetEdit.error = undefined;
+      this._setAssetError(undefined);
     };
 
     // Identity (kind toggle re-renders since the schema changes).
@@ -2993,10 +3048,12 @@ export class HomeKeeperPanel extends HTMLElement {
     inner.appendChild(
       this._makeForm(
         this._structuredDetailsSchema(),
-        { manual_url: x.manual_url ?? '', cost: x.cost ?? undefined },
+        { cost: x.cost ?? undefined },
         mergeAsset,
       ),
     );
+
+    this._renderDocumentsEditor(inner);
 
     this._renderMetadataEditor(inner);
 
@@ -3015,6 +3072,15 @@ export class HomeKeeperPanel extends HTMLElement {
       const err = document.createElement('ha-alert');
       err.setAttribute('alert-type', 'error');
       err.textContent = this._assetEdit.error;
+      if (this._assetEdit.errorLink) {
+        const link = document.createElement('a');
+        link.href = this._assetEdit.errorLink;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = t('btn.learnMore');
+        link.style.marginInlineStart = '8px';
+        err.appendChild(link);
+      }
       inner.appendChild(err);
     }
 
@@ -3034,6 +3100,142 @@ export class HomeKeeperPanel extends HTMLElement {
 
     card.appendChild(inner);
     host.appendChild(card);
+  }
+
+  /** Documents editor: list existing docs with a remove button, plus controls to add
+   *  a link or upload a file. Documents are managed live (each its own backend call),
+   *  so a file upload needs an already-saved appliance (it must have an id). */
+  private _renderDocumentsEditor(inner: HTMLElement): void {
+    inner.appendChild(this._section(t('section.documents')));
+    const assetId = this._assetEdit.asset?.id;
+    const docs = this._assetEdit.asset?.documents || [];
+
+    docs.forEach((d) => {
+      const box = document.createElement('div');
+      box.className = 'hk-part';
+      const head = document.createElement('div');
+      head.className = 'hk-part-head';
+      const kind = d.kind === 'file' ? t('doc.file') : t('doc.link');
+      const name = d.name || d.filename || d.url || '';
+      head.innerHTML = `<span class="label">${escapeHTML(`${kind}: ${name}`)}</span>`;
+      const del = document.createElement('ha-icon-button');
+      del.className = 'part-del';
+      del.setAttribute('label', t('btn.removeDocument'));
+      del.addEventListener('click', () => void this._removeDocument(d));
+      head.appendChild(del);
+      box.appendChild(head);
+      inner.appendChild(box);
+    });
+
+    // A file can only be attached once the appliance exists (its id keys the blob).
+    if (!assetId) {
+      const hint = document.createElement('div');
+      hint.className = 'hk-meta';
+      hint.textContent = t('doc.saveFirstHint');
+      inner.appendChild(hint);
+      return;
+    }
+
+    // Add a link: name + URL.
+    const draft: { name: string; url: string } = { name: '', url: '' };
+    inner.appendChild(
+      this._makeForm(
+        [
+          {
+            name: '',
+            type: 'grid',
+            schema: [
+              { name: 'doc_name', selector: selText() },
+              { name: 'doc_url', selector: selText() },
+            ],
+          },
+        ],
+        { doc_name: '', doc_url: '' },
+        (value) => {
+          draft.name = String(value.doc_name ?? '');
+          draft.url = String(value.doc_url ?? '');
+        },
+      ),
+    );
+
+    const seedRow = document.createElement('div');
+    seedRow.className = 'hk-meta-seeds';
+    const addLink = document.createElement('ha-button');
+    addLink.textContent = t('btn.addLink');
+    addLink.addEventListener('click', () => void this._addLinkDocument(draft.name, draft.url));
+    seedRow.appendChild(addLink);
+
+    // Upload a file (PDF or image) via the document HTTP view.
+    const upload = document.createElement('ha-button');
+    upload.textContent = t('btn.uploadFile');
+    const picker = document.createElement('input');
+    picker.type = 'file';
+    picker.accept = 'application/pdf,image/png,image/jpeg,image/webp,image/gif';
+    picker.style.display = 'none';
+    picker.addEventListener('change', () => {
+      const file = picker.files?.[0];
+      if (file) void this._uploadDocument(file);
+      picker.value = '';
+    });
+    upload.addEventListener('click', () => picker.click());
+    seedRow.append(upload, picker);
+    inner.appendChild(seedRow);
+  }
+
+  /** Append the live document list onto the in-progress edit copy and re-render. */
+  private _setEditDocuments(asset: Asset): void {
+    if (this._assetEdit.asset) this._assetEdit.asset.documents = asset.documents || [];
+    this._render();
+  }
+
+  /** Set (or clear) the appliance-form error, plus an optional "Learn more" link. */
+  private _setAssetError(message?: string, link?: string): void {
+    this._assetEdit.error = message;
+    this._assetEdit.errorLink = link;
+  }
+
+  private async _addLinkDocument(name: string, url: string): Promise<void> {
+    const assetId = this._assetEdit.asset?.id;
+    if (!this._hass || !assetId || !url.trim()) return;
+    try {
+      const asset = await api.addAssetDocument(this._hass, assetId, { name, url });
+      this._setEditDocuments(asset);
+    } catch (err) {
+      this._setAssetError(String((err as { message?: string })?.message || err));
+      this._render();
+    }
+  }
+
+  private async _removeDocument(doc: AssetDocument): Promise<void> {
+    const assetId = this._assetEdit.asset?.id;
+    if (!this._hass || !assetId || !doc.id) return;
+    try {
+      const asset = await api.removeAssetDocument(this._hass, assetId, doc.id);
+      this._setEditDocuments(asset);
+    } catch (err) {
+      this._setAssetError(String((err as { message?: string })?.message || err));
+      this._render();
+    }
+  }
+
+  private async _uploadDocument(file: File): Promise<void> {
+    const assetId = this._assetEdit.asset?.id;
+    if (!this._hass || !assetId) return;
+    const documentId = crypto.randomUUID();
+    try {
+      const asset = await api.uploadAssetDocument(this._hass, assetId, documentId, file);
+      this._setEditDocuments(asset);
+    } catch (err) {
+      const e = err as api.UploadError;
+      // A 413 with no Home Keeper message body means a reverse proxy in front of HA
+      // rejected the upload (its request-body limit) — guide the user to the fix.
+      if (e?.status === 413 && !e.serverMessage) {
+        this._setAssetError(t('doc.uploadTooLargeProxy'), DOCS_UPLOAD_413_URL);
+      } else {
+        this._setAssetError(String(e?.message || err));
+      }
+      this._render();
+    }
   }
 
   private _renderMetadataEditor(inner: HTMLElement): void {

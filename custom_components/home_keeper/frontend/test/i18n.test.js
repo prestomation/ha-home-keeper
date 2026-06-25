@@ -19,19 +19,24 @@ const INTENTIONALLY_IDENTICAL = new Set(['app.title', 'due.none', 'managed.compl
 // English in that language (reviewed individually): German "Name"/"Status",
 // French "Stock"/"Date", Dutch "week"/"Label", universal "Model"/"Link"/"Type".
 // Locale-specific, so the guard stays strict for every other locale.
+// `field.doc_url` is "URL" in every language (a universal token); `doc.link`/`doc.file`/
+// `field.doc_name` are cognates ("Link"/"File"/"Name") in the languages noted below.
 const COGNATE_IDENTICAL = {
-  ca: ['field.cost', 'field.model', 'field.notes', 'field.sensor_entity_id', 'meta.seed.notes', 'opt.meta.text', 'settings.general_heading'],
-  cs: ['field.model', 'opt.meta.text'],
-  da: ['chip.orphaned', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
-  de: ['chip.orphaned', 'detail.about', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
-  es: ['field.sensor_entity_id', 'settings.general_heading'],
-  fr: ['completion.photo', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.heading', 'notify.style', 'opt.meta.date'],
-  it: ['field.area_id', 'group.area', 'opt.meta.link'],
-  nb: ['field.kind', 'field.sensor_entity_id', 'field.type', 'group.status'],
-  nl: ['detail.about', 'field.kind', 'field.label', 'field.model', 'field.sensor_entity_id', 'field.type', 'group.status', 'opt.meta.link', 'recurrence.unit.week.one', 'section.later'],
-  pl: ['field.model', 'group.status', 'opt.meta.link'],
-  'pt-BR': ['field.sensor_entity_id', 'group.status', 'opt.meta.link'],
-  sv: ['chip.orphaned', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.text'],
+  ca: ['field.cost', 'field.doc_url', 'field.model', 'field.notes', 'field.sensor_entity_id', 'meta.seed.notes', 'opt.meta.text', 'settings.general_heading'],
+  cs: ['field.doc_url', 'field.model', 'opt.meta.text'],
+  da: ['chip.orphaned', 'doc.link', 'field.doc_url', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
+  de: ['chip.orphaned', 'detail.about', 'doc.link', 'field.doc_name', 'field.doc_url', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
+  es: ['field.doc_url', 'field.sensor_entity_id', 'settings.general_heading'],
+  fi: ['field.doc_url'],
+  fr: ['completion.photo', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.heading', 'notify.style', 'opt.meta.date'],
+  it: ['doc.file', 'doc.link', 'field.area_id', 'field.doc_url', 'group.area', 'opt.meta.link'],
+  nb: ['field.doc_url', 'field.kind', 'field.sensor_entity_id', 'field.type', 'group.status'],
+  nl: ['detail.about', 'doc.link', 'field.doc_url', 'field.kind', 'field.label', 'field.model', 'field.sensor_entity_id', 'field.type', 'group.status', 'opt.meta.link', 'recurrence.unit.week.one', 'section.later'],
+  pl: ['doc.link', 'field.doc_url', 'field.model', 'group.status', 'opt.meta.link'],
+  'pt-BR': ['doc.link', 'field.doc_url', 'field.sensor_entity_id', 'group.status', 'opt.meta.link'],
+  ru: ['field.doc_url'],
+  sv: ['chip.orphaned', 'field.doc_url', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.text'],
+  'zh-Hans': ['field.doc_url'],
 };
 
 // Concatenate all panel TypeScript sources once for static key analysis.

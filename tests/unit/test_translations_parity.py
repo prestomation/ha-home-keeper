@@ -51,11 +51,14 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     "ca": frozenset(
         {
             "services.add_asset.fields.cost.name",
+            "services.add_asset.fields.documents.name",
             "services.add_asset.fields.model.name",
+            "services.add_asset_document.fields.document.name",
             "services.add_task.fields.interval.name",
             "services.add_task.fields.notes.name",
             "services.adjust_part_stock.fields.delta.name",
             "services.update_asset.fields.cost.name",
+            "services.update_asset.fields.documents.name",  # "Documents" — CA cognate
             "services.update_asset.fields.model.name",
             "services.update_task.fields.interval.name",
             "services.update_task.fields.notes.name",
@@ -93,8 +96,11 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     "es": frozenset({"services.adjust_part_stock.fields.delta.name"}),
     "fr": frozenset(
         {
+            "services.add_asset.fields.documents.name",  # "Documents" — FR cognate
+            "services.add_asset_document.fields.document.name",
             "services.add_task.fields.notes.name",
             "services.notify.fields.notification.name",  # "Notification" — FR cognate
+            "services.update_asset.fields.documents.name",  # "Documents" — FR cognate
             "services.update_task.fields.notes.name",
         }
     ),
@@ -117,6 +123,7 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
         {
             "services.add_asset.fields.metadata.name",
             "services.add_asset.fields.model.name",
+            "services.add_asset_document.fields.document.name",
             "services.add_task.fields.interval.name",
             "services.update_asset.fields.metadata.name",
             "services.update_asset.fields.model.name",

@@ -272,10 +272,6 @@
           "name": "Custo",
           "description": "Preço de compra."
         },
-        "manual_url": {
-          "name": "URL do manual",
-          "description": "Link para o manual ou documentação."
-        },
         "icon": {
           "name": "Ícone",
           "description": "Ícone mdi opcional (ex.: mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Dispositivos relacionados",
           "description": "Outros dispositivos do registro a associar a este eletrodoméstico."
+        },
+        "documents": {
+          "name": "Documentos",
+          "description": "Manuais/garantias/recibos: uma lista de links ou arquivos enviados. Este serviço adiciona documentos de link (nome + url); envie arquivos pelo painel."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Custo",
           "description": "Preço de compra."
         },
-        "manual_url": {
-          "name": "URL do manual",
-          "description": "Link para o manual ou documentação."
-        },
         "icon": {
           "name": "Ícone",
           "description": "Ícone mdi opcional (ex.: mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Dispositivos relacionados",
           "description": "Outros dispositivos do registro a associar a este eletrodoméstico."
+        },
+        "documents": {
+          "name": "Documentos",
+          "description": "Documentos (links/arquivos) do eletrodoméstico (veja add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Retenção de tarefas avulsas (dias)",
           "description": "Excluir automaticamente uma tarefa avulsa concluída este número de dias após a conclusão. 0 as mantém para sempre."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Adicionar documento do eletrodoméstico",
+      "description": "Anexa um documento de link (manual/garantia/recibo) a um eletrodoméstico. Envie arquivos pelo painel; este serviço lida apenas com links.",
+      "fields": {
+        "asset_id": {
+          "name": "ID do ativo",
+          "description": "O id do eletrodoméstico ao qual anexar o documento."
+        },
+        "document": {
+          "name": "Documento",
+          "description": "O documento a adicionar: um objeto com nome e url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Remover documento do eletrodoméstico",
+      "description": "Desvincula um documento de um eletrodoméstico. Para um arquivo enviado, a cópia armazenada também é excluída do disco.",
+      "fields": {
+        "asset_id": {
+          "name": "ID do ativo",
+          "description": "O id do eletrodoméstico ao qual o documento pertence."
+        },
+        "document_id": {
+          "name": "ID do documento",
+          "description": "O id do documento a remover."
         }
       }
     }

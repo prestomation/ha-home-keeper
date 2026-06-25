@@ -158,15 +158,20 @@ def test_existing_device_asset_persists_identifier_snapshot(ha):
     assert asset["identifiers"], "device identifiers snapshot was not persisted"
 
 
-def test_add_asset_rejects_bad_url(ha):
-    # Backend validation surfaces a service error for a non-http(s) manual_url.
+def test_add_asset_rejects_bad_document_url(ha):
+    # Backend validation surfaces a service error for a non-http(s) document link.
     from conftest import HA_URL
 
     r = ha.post(
         f"{HA_URL}/api/services/home_keeper/add_asset",
-        json={"name": "Bad url asset", "manual_url": "javascript:alert(1)"},
+        json={
+            "name": "Bad url asset",
+            "documents": [{"kind": "link", "url": "javascript:alert(1)"}],
+        },
     )
-    assert r.status_code >= 400, "expected validation error for malicious manual_url"
+    assert r.status_code >= 400, (
+        "expected validation error for a malicious document url"
+    )
 
 
 def test_wear_part_creates_maintenance_task_with_device_entities(ha):

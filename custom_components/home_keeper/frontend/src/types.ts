@@ -146,6 +146,9 @@ export interface Hass {
   language?: string;
   // The instance's configured currency, used to format a completion's cost.
   config?: { currency?: string };
+  // Auth token, used to POST a document upload to the Home Keeper HTTP view with an
+  // Authorization header (the real `hass` object exposes this; we under-declare it).
+  auth?: { data?: { access_token?: string } };
   // The live websocket connection; used by the card to subscribe to the
   // `home_keeper_task_completed` event so it refreshes when a task is completed
   // from another surface (the panel, a device button, or an automation).
@@ -160,6 +163,22 @@ export interface Hass {
 export type AssetKind = 'virtual' | 'existing';
 export type PartType = 'consumable' | 'wear';
 export type MetadataType = 'text' | 'link' | 'date';
+export type DocumentKind = 'link' | 'file';
+
+/** A document attached to an appliance: an external `link` (a URL) or an uploaded
+ *  `file` (PDF/image) stored locally and served back through the document HTTP view.
+ *  For a `file`, `filename`/`content_type`/`size` are backend-managed and the bytes
+ *  are opened via a short-lived signed URL (see api.signDocumentUrl). */
+export interface AssetDocument {
+  id?: string;
+  kind: DocumentKind;
+  name: string;
+  created?: string;
+  url?: string;
+  filename?: string;
+  content_type?: string;
+  size?: number;
+}
 
 /** A free-form metadata entry on an appliance: a typed label/value pair. A `date`
  *  entry with `track` set also becomes a date sensor on the device (opt-in). */
@@ -231,8 +250,9 @@ export interface TaskHistoryEntry {
 
 /** An appliance/asset: a virtual device we own, or metadata on an existing one.
  *  Only the fields that wire into Home Assistant stay structured (manufacturer /
- *  model -> device card, manual_url -> configuration_url, cost -> inventory value);
- *  all other descriptive/temporal facts live in the free-form `metadata` list. */
+ *  model -> device card, cost -> inventory value); all other descriptive/temporal
+ *  facts live in the free-form `metadata` list, and manuals/warranties/receipts in
+ *  the `documents` list. */
 export interface Asset {
   id: string;
   kind: AssetKind;
@@ -243,7 +263,7 @@ export interface Asset {
   manufacturer?: string;
   model?: string;
   cost?: number | null;
-  manual_url?: string;
+  documents?: AssetDocument[];
   metadata?: MetadataEntry[];
   parts?: Part[];
   parent_asset_id?: string | null;

@@ -272,10 +272,6 @@
           "name": "Costo",
           "description": "Prezzo di acquisto."
         },
-        "manual_url": {
-          "name": "URL manuale",
-          "description": "Link al manuale o alla documentazione."
-        },
         "icon": {
           "name": "Icona",
           "description": "Icona mdi facoltativa (es. mdi:piano)."
@@ -295,6 +291,10 @@
         "related_device_ids": {
           "name": "Dispositivi correlati",
           "description": "Altri dispositivi del registro da associare a questo elettrodomestico."
+        },
+        "documents": {
+          "name": "Documenti",
+          "description": "Manuali/garanzie/ricevute: un elenco di link o file caricati. Questo servizio aggiunge documenti di tipo link (nome + url); carica i file dal pannello."
         }
       }
     },
@@ -330,10 +330,6 @@
           "name": "Costo",
           "description": "Prezzo di acquisto."
         },
-        "manual_url": {
-          "name": "URL manuale",
-          "description": "Link al manuale o alla documentazione."
-        },
         "icon": {
           "name": "Icona",
           "description": "Icona mdi facoltativa (es. mdi:piano)."
@@ -353,6 +349,10 @@
         "related_device_ids": {
           "name": "Dispositivi correlati",
           "description": "Altri dispositivi del registro da associare a questo elettrodomestico."
+        },
+        "documents": {
+          "name": "Documenti",
+          "description": "Documenti (link/file) dell'elettrodomestico (vedi add_asset)."
         }
       }
     },
@@ -414,6 +414,34 @@
         "one_off_retention_days": {
           "name": "Conservazione delle attività singole (giorni)",
           "description": "Elimina automaticamente un'attività singola completata dopo questo numero di giorni dal completamento. 0 le conserva per sempre."
+        }
+      }
+    },
+    "add_asset_document": {
+      "name": "Aggiungi documento dell'elettrodomestico",
+      "description": "Allega un documento di tipo link (manuale/garanzia/ricevuta) a un elettrodomestico. Carica i file dal pannello; questo servizio gestisce solo i link.",
+      "fields": {
+        "asset_id": {
+          "name": "ID asset",
+          "description": "L'id dell'elettrodomestico a cui allegare il documento."
+        },
+        "document": {
+          "name": "Documento",
+          "description": "Il documento da aggiungere: un oggetto con nome e url."
+        }
+      }
+    },
+    "remove_asset_document": {
+      "name": "Rimuovi documento dell'elettrodomestico",
+      "description": "Scollega un documento da un elettrodomestico. Per un file caricato, anche la copia salvata viene eliminata dal disco.",
+      "fields": {
+        "asset_id": {
+          "name": "ID asset",
+          "description": "L'id dell'elettrodomestico a cui appartiene il documento."
+        },
+        "document_id": {
+          "name": "ID documento",
+          "description": "L'id del documento da rimuovere."
         }
       }
     }

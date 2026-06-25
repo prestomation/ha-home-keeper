@@ -171,40 +171,207 @@ def test_negative_cost_raises():
         a.build_asset({"name": "Furnace", "cost": "-5"}, now=NOW)
 
 
-def test_manual_url_accepts_http_and_https():
+def test_documents_default_empty_and_link_normalized():
+    # No documents -> empty list (every asset carries the key).
+    assert a.build_asset({"name": "Furnace"}, now=NOW)["documents"] == []
     asset = a.build_asset(
-        {"name": "Furnace", "manual_url": "https://example.com/manual.pdf"}, now=NOW
+        {
+            "name": "Furnace",
+            "documents": [
+                {"kind": "link", "name": "Manual", "url": "https://ex.com/m.pdf"}
+            ],
+        },
+        now=NOW,
     )
-    assert asset["manual_url"] == "https://example.com/manual.pdf"
-    # Empty is allowed and normalizes to "".
-    assert a.build_asset({"name": "Furnace"}, now=NOW)["manual_url"] == ""
+    doc = asset["documents"][0]
+    assert doc["kind"] == "link"
+    assert doc["name"] == "Manual"
+    assert doc["url"] == "https://ex.com/m.pdf"
+    assert doc["id"]  # an id is assigned
 
 
-def test_manual_url_rejects_non_http_scheme():
+def test_document_link_name_falls_back_to_host():
+    asset = a.build_asset(
+        {"name": "Furnace", "documents": [{"kind": "link", "url": "https://ex.com/m"}]},
+        now=NOW,
+    )
+    assert asset["documents"][0]["name"] == "ex.com"
+
+
+def test_document_link_rejects_non_http_scheme():
+    for bad in ("javascript:alert(1)", "ftp://example.com", "/relative"):
+        with pytest.raises(a.AssetValidationError):
+            a.build_asset(
+                {"name": "Furnace", "documents": [{"kind": "link", "url": bad}]},
+                now=NOW,
+            )
+
+
+def test_document_file_validated_and_unsafe_filename_rejected():
+    # File documents arrive via the upload path (append_document), not a generic write.
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    doc = a.append_document(
+        asset,
+        {
+            "kind": "file",
+            "filename": "manual.pdf",
+            "content_type": "application/pdf",
+            "size": 1234,
+        },
+        created="2026-06-13T10:00:00",
+    )
+    assert doc["kind"] == "file"
+    assert doc["filename"] == "manual.pdf"
+    assert doc["content_type"] == "application/pdf"
+    assert doc["size"] == 1234
+    assert doc["name"] == "manual.pdf"  # name falls back to filename
+    # Path-traversal / unsafe filenames and disallowed content types are rejected.
     for bad in (
-        "javascript:alert(1)",
-        "ftp://example.com",
-        "data:text/html,x",
-        "/relative",
+        {
+            "kind": "file",
+            "filename": "../escape.pdf",
+            "content_type": "application/pdf",
+        },
+        {
+            "kind": "file",
+            "filename": "ok.exe",
+            "content_type": "application/x-msdownload",
+        },
     ):
         with pytest.raises(a.AssetValidationError):
-            a.build_asset({"name": "Furnace", "manual_url": bad}, now=NOW)
+            a.append_document(asset, bad, created="")
 
 
-def test_manual_url_rejects_overlong():
-    long_url = "https://example.com/" + "a" * 3000
+def test_build_asset_strips_file_documents():
+    # A create payload can only seed link documents (a brand-new asset has no blobs);
+    # any file entry is dropped rather than becoming a phantom (blob-less) document.
+    asset = a.build_asset(
+        {
+            "name": "Furnace",
+            "documents": [
+                {"kind": "link", "url": "https://ex.com/m"},
+                {
+                    "kind": "file",
+                    "filename": "ghost.pdf",
+                    "content_type": "application/pdf",
+                },
+            ],
+        },
+        now=NOW,
+    )
+    kinds = [d["kind"] for d in asset["documents"]]
+    assert kinds == ["link"]
+
+
+def test_merge_update_documents_are_upload_only_for_files():
+    # Seed an asset with one link and one (uploaded) file document.
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    a.append_document(asset, {"kind": "link", "url": "https://ex.com/a"}, created="")
+    file_doc = a.append_document(
+        asset,
+        {"kind": "file", "filename": "m.pdf", "content_type": "application/pdf"},
+        created="",
+    )
+    # A generic update that resends only a link must preserve the file document
+    # (no orphaned blob) and cannot inject a phantom file entry.
+    merged = a.merge_update(
+        asset,
+        {
+            "documents": [
+                {"kind": "link", "url": "https://ex.com/b"},
+                {
+                    "kind": "file",
+                    "filename": "phantom.pdf",
+                    "content_type": "application/pdf",
+                },
+            ]
+        },
+        now=NOW,
+    )
+    files = [d for d in merged["documents"] if d["kind"] == "file"]
+    links = [d for d in merged["documents"] if d["kind"] == "link"]
+    assert [d["id"] for d in files] == [
+        file_doc["id"]
+    ]  # original file kept, phantom dropped
+    assert [d["url"] for d in links] == ["https://ex.com/b"]  # link replaced
+    # Omitting documents entirely preserves the whole list unchanged.
+    untouched = a.merge_update(asset, {"name": "Boiler"}, now=NOW)
+    assert untouched["documents"] == asset["documents"]
+
+
+def test_documents_count_is_capped():
+    too_many = [{"kind": "link", "url": f"https://ex.com/{i}"} for i in range(51)]
     with pytest.raises(a.AssetValidationError):
-        a.build_asset({"name": "Furnace", "manual_url": long_url}, now=NOW)
+        a.build_asset({"name": "Furnace", "documents": too_many}, now=NOW)
 
 
-def test_merge_update_validates_url_and_cost():
+def test_duplicate_document_ids_are_regenerated():
+    asset = a.build_asset(
+        {
+            "name": "Furnace",
+            "documents": [
+                {"id": "dup", "kind": "link", "url": "https://ex.com/1"},
+                {"id": "dup", "kind": "link", "url": "https://ex.com/2"},
+            ],
+        },
+        now=NOW,
+    )
+    ids = [d["id"] for d in asset["documents"]]
+    assert len(set(ids)) == 2
+
+
+def test_merge_update_validates_documents_and_cost():
     asset = a.build_asset({"name": "Furnace"}, now=NOW)
     with pytest.raises(a.AssetValidationError):
-        a.merge_update(asset, {"manual_url": "javascript:bad"}, now=NOW)
+        a.merge_update(
+            asset, {"documents": [{"kind": "link", "url": "javascript:bad"}]}, now=NOW
+        )
     with pytest.raises(a.AssetValidationError):
         a.merge_update(asset, {"cost": -1}, now=NOW)
-    ok = a.merge_update(asset, {"manual_url": "http://ok.example"}, now=NOW)
-    assert ok["manual_url"] == "http://ok.example"
+    ok = a.merge_update(
+        asset, {"documents": [{"kind": "link", "url": "http://ok.example"}]}, now=NOW
+    )
+    assert ok["documents"][0]["url"] == "http://ok.example"
+    # Omitting documents on an update preserves the existing list.
+    preserved = a.merge_update(ok, {"name": "Boiler"}, now=NOW)
+    assert preserved["documents"] == ok["documents"]
+
+
+def test_append_and_remove_document():
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    entry = a.append_document(
+        asset,
+        {"kind": "link", "url": "https://ex.com/m"},
+        created="2026-06-13T10:00:00",
+    )
+    assert entry["created"] == "2026-06-13T10:00:00"
+    assert asset["documents"] == [entry]
+    removed = a.remove_document(asset, entry["id"])
+    assert removed == entry
+    assert asset["documents"] == []
+    assert a.remove_document(asset, "missing") is None
+
+
+def test_migrate_documents_from_manual_url():
+    # Legacy manual_url folds into a single link document and is dropped.
+    asset = {"name": "Furnace", "manual_url": "https://ex.com/old.pdf"}
+    assert a.migrate_documents_from_manual_url(asset) is True
+    assert "manual_url" not in asset
+    assert asset["documents"] == [
+        {
+            "id": asset["documents"][0]["id"],
+            "kind": "link",
+            "name": "ex.com",
+            "url": "https://ex.com/old.pdf",
+            "created": "",
+        }
+    ]
+    # Idempotent: a second pass with no manual_url leaves it unchanged.
+    assert a.migrate_documents_from_manual_url(asset) is False
+    # An asset that never had manual_url still gains an empty documents list once.
+    bare: dict = {"name": "Boiler"}
+    assert a.migrate_documents_from_manual_url(bare) is True
+    assert bare["documents"] == []
 
 
 def test_merge_update_changes_metadata_preserves_anchors():
