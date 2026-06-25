@@ -57,6 +57,12 @@ gate); CI publishes it to the job summary.
   bumps `const.py` `PANEL_VERSION` to match, and adds a `## [X.Y.Z]`
   `CHANGELOG.md` section. PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) ship as
   GitHub pre-releases → HACS beta channel.
+- **Beta versioning — always use the next release number.** After every stable
+  `X.Y.0` ships, immediately bump `manifest.json` and `const.py` to `X.(Y+1).0b1`
+  on `main`, and rename the `## [Unreleased]` CHANGELOG section to
+  `## [X.(Y+1).0b1]`. Beta iterations go `b1 → b2 → …`. Never cut `X.Y.0bN`
+  betas after `X.Y.0` has shipped — PEP 440 sorts them below stable, causing HACS
+  to offer the stable as an "upgrade" to beta users.
 - The built `home-keeper-panel.js` is gitignored; CI builds it.
 
 ## Typing (strict-typing gate — Platinum)
