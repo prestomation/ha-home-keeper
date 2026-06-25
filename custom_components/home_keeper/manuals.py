@@ -26,7 +26,7 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
-from aiohttp import hdrs, web
+from aiohttp import BodyPartReader, hdrs, web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.http import KEY_HASS
@@ -185,6 +185,10 @@ class HomeKeeperDocumentView(HomeAssistantView):
             part = await reader.next()
             if part is None:
                 break
+            # A nested multipart body isn't expected here; only flat parts carry the
+            # file/name fields (and narrows the type for the attribute access below).
+            if not isinstance(part, BodyPartReader):
+                continue
             if part.name == "name":
                 display_name = (await part.text()).strip()
                 continue

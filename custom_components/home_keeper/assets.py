@@ -247,10 +247,13 @@ def _normalize_document_entry(raw: Any) -> dict:
         if content_type not in _ALLOWED_DOC_CONTENT_TYPES:
             raise AssetValidationError(f"unsupported document type: {content_type!r}")
         size = raw.get("size")
-        try:
-            entry["size"] = max(0, int(size)) if size not in (None, "") else 0
-        except (TypeError, ValueError) as err:
-            raise AssetValidationError("document size must be an integer") from err
+        if size is None or size == "":
+            entry["size"] = 0
+        else:
+            try:
+                entry["size"] = max(0, int(size))
+            except (TypeError, ValueError) as err:
+                raise AssetValidationError("document size must be an integer") from err
         entry["filename"] = filename
         entry["content_type"] = content_type
         entry["name"] = name or filename
