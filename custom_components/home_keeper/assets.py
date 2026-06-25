@@ -80,6 +80,9 @@ _ALLOWED_DOC_CONTENT_TYPES = frozenset(
     {"application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"}
 )
 _MAX_DOC_NAME_LEN = 200
+# Bound the per-asset documents list (the whole asset map is one JSON document that's
+# rewritten on every save, and each file can be up to MAX_DOCUMENT_BYTES on disk).
+_MAX_DOCUMENTS = 50
 
 _MAX_URL_LEN = 2048
 _ICON_RE = re.compile(r"^[a-z0-9-]+:[a-z0-9-]+$")
@@ -204,6 +207,10 @@ def _normalize_documents(value: Any) -> list[dict]:
         return []
     if not isinstance(value, list):
         raise AssetValidationError("documents must be a list")
+    if len(value) > _MAX_DOCUMENTS:
+        raise AssetValidationError(
+            f"an appliance can have at most {_MAX_DOCUMENTS} documents"
+        )
     entries = [_normalize_document_entry(entry) for entry in value]
     seen: set[str] = set()
     for entry in entries:
@@ -266,6 +273,21 @@ def _url_host(url: str) -> str:
     return rest.split("/", 1)[0] or url
 
 
+def _merge_documents(existing: list[dict], incoming: list[dict]) -> list[dict]:
+    """Reconcile a generic asset write's ``documents`` against the stored list.
+
+    ``file`` documents own an on-disk blob, so they are **upload-only**: managed solely
+    by the upload view and the ``*_asset_document`` services, never by the generic
+    ``add_asset`` / ``update_asset`` write. This keeps the two in sync — a generic
+    write can't inject a phantom ``file`` entry (no blob behind it) and, by always
+    carrying the stored ``file`` entries through, can't orphan a blob by omitting one.
+    The generic write therefore controls only the ``link`` documents.
+    """
+    files = [d for d in existing if d.get("kind") == "file"]
+    links = [d for d in incoming if d.get("kind") == "link"]
+    return [*files, *links]
+
+
 def append_document(asset: dict, raw: Any, *, created: str) -> dict:
     """Validate *raw* as a new document and append it to *asset* (in place).
 
@@ -276,6 +298,10 @@ def append_document(asset: dict, raw: Any, *, created: str) -> dict:
     documents = asset.get("documents")
     if not isinstance(documents, list):
         documents = []
+    if len(documents) >= _MAX_DOCUMENTS:
+        raise AssetValidationError(
+            f"an appliance can have at most {_MAX_DOCUMENTS} documents"
+        )
     entry = _normalize_document_entry({**raw, "created": created})
     if entry["id"] in {d.get("id") for d in documents}:
         entry["id"] = str(uuid.uuid4())
@@ -539,6 +565,9 @@ def normalize_fields(data: dict) -> dict:
 def build_asset(data: dict, *, now: datetime) -> dict:
     """Create a brand-new asset dict (with id, created, and provisioning anchors)."""
     fields = normalize_fields(data)
+    # Files are upload-only (they own an on-disk blob, which a brand-new asset can't
+    # have yet), so a create payload can only seed link documents.
+    fields["documents"] = [d for d in fields["documents"] if d.get("kind") == "link"]
     asset_id = str(uuid.uuid4())
     asset: dict[str, Any] = {
         "id": asset_id,
@@ -587,6 +616,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # Preserve backend-managed part fields across the edit.
     if "parts" in updates:
         fields["parts"] = _merge_parts(existing.get("parts", []), fields["parts"])
+    # File documents are upload-only: a generic write controls only links, and always
+    # carries the stored file documents through (see _merge_documents).
+    if "documents" in updates:
+        fields["documents"] = _merge_documents(
+            existing.get("documents", []), fields["documents"]
+        )
 
     merged = dict(existing)
     # For a virtual asset, normalize_fields omits device_id, so the provisioned

@@ -143,6 +143,49 @@ def test_upload_rejects_non_allowlisted_type(ha):
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
+def test_update_asset_preserves_uploaded_file_document(ha):
+    # A generic update_asset that resends a documents list (links only) must NOT drop
+    # an uploaded file document or orphan its blob — files are upload-only.
+    name = f"Doc preserve probe {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    doc_id = uuid.uuid4().hex
+    up = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc_id}",
+        files={"file": ("manual.pdf", PDF_BYTES, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=30,
+    )
+    assert up.status_code == 200, up.text
+    file_id = up.json()["document"]["id"]
+
+    # A generic edit that also carries a documents array (a link + a phantom file).
+    call_service(
+        ha,
+        "home_keeper",
+        "update_asset",
+        {
+            "asset_id": asset["id"],
+            "manufacturer": "Acme",
+            "documents": [
+                {"kind": "link", "url": "https://example.com/x"},
+                {
+                    "kind": "file",
+                    "filename": "phantom.pdf",
+                    "content_type": "application/pdf",
+                },
+            ],
+        },
+    )
+    after = next(a for a in _assets(ha) if a["id"] == asset["id"])
+    files = [d for d in after["documents"] if d["kind"] == "file"]
+    # The original uploaded file survives; the phantom file entry was not injected.
+    assert [d["id"] for d in files] == [file_id]
+    # ...and its blob is still downloadable.
+    dl = ha.get(f"{HA_URL}/api/home_keeper/document/{asset['id']}/{file_id}")
+    assert dl.status_code == 200 and dl.content == PDF_BYTES
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
 def test_document_view_requires_auth(ha):
     # The view is auth-gated: an unauthenticated GET is rejected.
     r = requests.get(f"{HA_URL}/api/home_keeper/document/whatever/whatever", timeout=10)

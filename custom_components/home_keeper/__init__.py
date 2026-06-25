@@ -701,7 +701,8 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_key="invalid_asset",
                 translation_placeholders={"error": str(err)},
             ) from err
-        await devices.async_apply_asset_change(hass, coord.entry, coord.store)
+        # Documents touch no device/entity/task; the store already saved and fired the
+        # event, so no device reconcile or entry reload is needed.
 
     async def handle_remove_asset_document(call: ServiceCall) -> None:
         coord = _coordinator()
@@ -715,7 +716,6 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_key="asset_not_found",
                 translation_placeholders={"asset_id": call.data["asset_id"]},
             ) from None
-        await devices.async_apply_asset_change(hass, coord.entry, coord.store)
 
     async def handle_export_inventory(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()

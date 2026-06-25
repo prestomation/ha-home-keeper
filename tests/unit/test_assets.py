@@ -208,21 +208,18 @@ def test_document_link_rejects_non_http_scheme():
 
 
 def test_document_file_validated_and_unsafe_filename_rejected():
-    asset = a.build_asset(
+    # File documents arrive via the upload path (append_document), not a generic write.
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    doc = a.append_document(
+        asset,
         {
-            "name": "Furnace",
-            "documents": [
-                {
-                    "kind": "file",
-                    "filename": "manual.pdf",
-                    "content_type": "application/pdf",
-                    "size": 1234,
-                }
-            ],
+            "kind": "file",
+            "filename": "manual.pdf",
+            "content_type": "application/pdf",
+            "size": 1234,
         },
-        now=NOW,
+        created="2026-06-13T10:00:00",
     )
-    doc = asset["documents"][0]
     assert doc["kind"] == "file"
     assert doc["filename"] == "manual.pdf"
     assert doc["content_type"] == "application/pdf"
@@ -242,7 +239,70 @@ def test_document_file_validated_and_unsafe_filename_rejected():
         },
     ):
         with pytest.raises(a.AssetValidationError):
-            a.build_asset({"name": "Furnace", "documents": [bad]}, now=NOW)
+            a.append_document(asset, bad, created="")
+
+
+def test_build_asset_strips_file_documents():
+    # A create payload can only seed link documents (a brand-new asset has no blobs);
+    # any file entry is dropped rather than becoming a phantom (blob-less) document.
+    asset = a.build_asset(
+        {
+            "name": "Furnace",
+            "documents": [
+                {"kind": "link", "url": "https://ex.com/m"},
+                {
+                    "kind": "file",
+                    "filename": "ghost.pdf",
+                    "content_type": "application/pdf",
+                },
+            ],
+        },
+        now=NOW,
+    )
+    kinds = [d["kind"] for d in asset["documents"]]
+    assert kinds == ["link"]
+
+
+def test_merge_update_documents_are_upload_only_for_files():
+    # Seed an asset with one link and one (uploaded) file document.
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    a.append_document(asset, {"kind": "link", "url": "https://ex.com/a"}, created="")
+    file_doc = a.append_document(
+        asset,
+        {"kind": "file", "filename": "m.pdf", "content_type": "application/pdf"},
+        created="",
+    )
+    # A generic update that resends only a link must preserve the file document
+    # (no orphaned blob) and cannot inject a phantom file entry.
+    merged = a.merge_update(
+        asset,
+        {
+            "documents": [
+                {"kind": "link", "url": "https://ex.com/b"},
+                {
+                    "kind": "file",
+                    "filename": "phantom.pdf",
+                    "content_type": "application/pdf",
+                },
+            ]
+        },
+        now=NOW,
+    )
+    files = [d for d in merged["documents"] if d["kind"] == "file"]
+    links = [d for d in merged["documents"] if d["kind"] == "link"]
+    assert [d["id"] for d in files] == [
+        file_doc["id"]
+    ]  # original file kept, phantom dropped
+    assert [d["url"] for d in links] == ["https://ex.com/b"]  # link replaced
+    # Omitting documents entirely preserves the whole list unchanged.
+    untouched = a.merge_update(asset, {"name": "Boiler"}, now=NOW)
+    assert untouched["documents"] == asset["documents"]
+
+
+def test_documents_count_is_capped():
+    too_many = [{"kind": "link", "url": f"https://ex.com/{i}"} for i in range(51)]
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset({"name": "Furnace", "documents": too_many}, now=NOW)
 
 
 def test_duplicate_document_ids_are_regenerated():

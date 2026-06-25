@@ -446,7 +446,8 @@ async def ws_add_asset_document(
     except AssetValidationError as err:
         connection.send_error(msg["id"], "invalid_asset", str(err))
         return
-    await devices.async_apply_asset_change(hass, coord.entry, coord.store)
+    # Documents touch no device/entity/task; the store already saved and fired the
+    # event, so no device reconcile or entry reload is needed.
     connection.send_result(msg["id"], {"asset": coord.store.get_asset(msg["asset_id"])})
 
 
@@ -472,7 +473,7 @@ async def ws_remove_asset_document(
     except KeyError:
         connection.send_error(msg["id"], "not_found", "Unknown asset_id or document_id")
         return
-    await devices.async_apply_asset_change(hass, coord.entry, coord.store)
+    # Documents touch no device/entity/task; no device reconcile or entry reload needed.
     connection.send_result(msg["id"], {"asset": asset})
 
 

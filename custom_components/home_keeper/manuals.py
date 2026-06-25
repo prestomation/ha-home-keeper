@@ -31,7 +31,7 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.http import KEY_HASS
 
-from . import devices, documents
+from . import documents
 from .assets import AssetValidationError
 from .const import (
     DOCUMENT_URL_PREFIX,
@@ -234,7 +234,9 @@ class HomeKeeperDocumentView(HomeAssistantView):
             return self.json_message(
                 "Failed to store the file", HTTPStatus.INTERNAL_SERVER_ERROR
             )
-        await devices.async_apply_asset_change(hass, coord.entry, coord.store)
+        # Documents touch neither the device registry nor any entity/task, so there's
+        # no device reconcile or entry reload to do — the store already persisted and
+        # fired ``home_keeper_asset_updated``.
         return self.json({"asset": coord.store.get_asset(asset_id), "document": entry})
 
 
