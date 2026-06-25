@@ -429,6 +429,14 @@ Every data action is also a service — `home_keeper.add_asset_document` and
 `home_keeper.remove_asset_document` (links; files upload from the panel) — so automations
 can attach a receipt or manual link too.
 
+> **Uploading through a reverse proxy?** Uploads up to **25 MB** are supported. If you
+> reach Home Assistant through a reverse proxy (nginx, Caddy, Traefik, Nginx Proxy
+> Manager, the NGINX SSL proxy add-on…), raise its request-body limit above your largest
+> manual — otherwise the proxy rejects the upload with a bare **413** before it reaches
+> HA. For nginx that's `client_max_body_size 30M;` (its default is only 1 MB) in the
+> `server`/`location` block, then reload. Nabu Casa / HA Cloud Remote UI has its own
+> limit; upload from your local network if you hit it.
+
 ![The appliance Manuals & documents editor — existing documents with remove buttons, plus add-link and upload-file controls](docs/images/32-panel-appliance-documents.png)
 
 ### Relationships: subdevices & related devices
