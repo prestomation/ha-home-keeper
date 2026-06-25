@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Appliances | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-87/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-87/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-87/docs/guide/appliances"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Appliances | Home Keeper"><meta data-rh="true" name="description" content="Most appliances you actually maintain — a &quot;dumb&quot; fridge, furnace, or water heater —"><meta data-rh="true" property="og:description" content="Most appliances you actually maintain — a &quot;dumb&quot; fridge, furnace, or water heater —"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-87/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-87/docs/guide/appliances"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-87/docs/guide/appliances" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-87/docs/guide/appliances" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Appliances","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-87/docs/guide/appliances"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-87/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-87/assets/js/runtime~main.868cc78e.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-87/assets/js/runtime~main.a9a9228b.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-87/assets/js/main.4ec04569.js" defer="defer"></script>
 </head>
 <body>
@@ -59,16 +59,28 @@ opened from the appliance detail page via a short-lived signed URL. Removing a d
 <p>Every data action is also a service — <code>home_keeper.add_asset_document</code> and
 <code>home_keeper.remove_asset_document</code> (links; files upload from the panel) — so automations
 can attach a receipt or manual link too.</p>
-<blockquote>
-<p><strong>Uploading through a reverse proxy?</strong> Uploads up to <strong>25 MB</strong> are supported. If you
-reach Home Assistant through a reverse proxy (nginx, Caddy, Traefik, Nginx Proxy
-Manager, the NGINX SSL proxy add-on…), raise its request-body limit above your largest
-manual — otherwise the proxy rejects the upload with a bare <strong>413</strong> before it reaches
-HA. For nginx that&#x27;s <code>client_max_body_size 30M;</code> (its default is only 1 MB) in the
-<code>server</code>/<code>location</code> block, then reload. Nabu Casa / HA Cloud Remote UI has its own
-limit; upload from your local network if you hit it.</p>
-</blockquote>
 <p><img decoding="async" loading="lazy" alt="The appliance Manuals &amp;amp; documents editor — existing documents with remove buttons, plus add-link and upload-file controls" src="/ha-home-keeper/pr-preview/pr-87/assets/images/32-panel-appliance-documents-62f6b10b322ddd8a9f73ced9b886a5f3.png" width="1280" height="4972" class="img_ev3q"></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="large-uploads-413">Large uploads (413)<a href="#large-uploads-413" class="hash-link" aria-label="Direct link to Large uploads (413)" title="Direct link to Large uploads (413)" translate="no">​</a></h4>
+<p>Home Keeper accepts uploads up to <strong>25 MB</strong>. If an upload fails with <strong>HTTP 413</strong> —
+especially the panel showing <em>&quot;Upload too large…&quot;</em> — the file was almost certainly
+rejected by a <strong>reverse proxy in front of Home Assistant</strong>, before it ever reached the
+integration. The usual cause is the proxy&#x27;s request-body limit (nginx defaults
+<code>client_max_body_size</code> to just <strong>1 MB</strong>). Raise it above your largest manual:</p>
+<ul>
+<li class=""><strong>nginx</strong> (manual config): add <code>client_max_body_size 30M;</code> to the <code>server</code> (or
+<code>location /</code>) block, then <code>nginx -t &amp;&amp; nginx -s reload</code>.</li>
+<li class=""><strong>Nginx Proxy Manager</strong>: Proxy Host → <strong>Advanced</strong> → <em>Custom Nginx Configuration</em> →
+add <code>client_max_body_size 30M;</code> → Save.</li>
+<li class=""><strong>&quot;NGINX Home Assistant SSL proxy&quot; add-on</strong>: create <code>/share/nginx_proxy_default.conf</code>
+containing <code>client_max_body_size 30M;</code>, set <code>customize.active: true</code> in the add-on
+options, and restart the add-on.</li>
+<li class=""><strong>Caddy</strong>: <code>request_body { max_size 30MB }</code>. <strong>Traefik</strong>: a <code>buffering</code> middleware with
+<code>maxRequestBodyBytes</code>.</li>
+<li class=""><strong>Nabu Casa / HA Cloud Remote UI</strong> has its own limit — if you hit it, upload from your
+<strong>local network</strong> instead.</li>
+</ul>
+<p>A quick way to confirm it&#x27;s the proxy: upload once via the direct LAN URL
+(<code>http://&lt;ha-ip&gt;:8123</code>), bypassing the proxy — it&#x27;ll succeed there.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="relationships-subdevices--related-devices">Relationships: subdevices &amp; related devices<a href="#relationships-subdevices--related-devices" class="hash-link" aria-label="Direct link to Relationships: subdevices &amp; related devices" title="Direct link to Relationships: subdevices &amp; related devices" translate="no">​</a></h3>
 <p>Real things nest. An appliance can be a <strong>subdevice of</strong> another appliance (wired
 through HA&#x27;s native <code>via_device</code> hierarchy, so it nests under its parent on the device
