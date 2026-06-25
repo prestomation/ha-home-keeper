@@ -1,4 +1,6 @@
 {
+  "btn.learnMore": "Zjistit více",
+  "doc.uploadTooLargeProxy": "Nahrávaný soubor je příliš velký — reverzní proxy před Home Assistantem omezuje velikost požadavku.",
   "btn.removeDocument": "Odebrat dokument",
   "btn.addLink": "+ Přidat odkaz",
   "btn.uploadFile": "Nahrát soubor",

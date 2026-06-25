@@ -284,15 +284,28 @@ export async function uploadAssetDocument(
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (!res.ok) {
+    // Only a JSON {message} is a real Home Keeper error. A non-JSON body (e.g. an
+    // nginx HTML "413 Request Entity Too Large") means something *in front of* HA
+    // rejected the upload — surface that distinctly so the panel can guide the user.
     let detail = '';
     try {
       detail = ((await res.json()) as { message?: string }).message ?? '';
     } catch {
-      detail = await res.text().catch(() => '');
+      /* non-JSON body (a proxy's error page) — leave detail empty */
     }
-    throw new Error(detail || `Upload failed (${res.status})`);
+    const error = new Error(detail || `Upload failed (${res.status})`) as UploadError;
+    error.status = res.status;
+    error.serverMessage = !!detail;
+    throw error;
   }
   return ((await res.json()) as { asset: Asset }).asset;
+}
+
+/** An upload failure, tagged with the HTTP status and whether Home Keeper (vs a proxy
+ *  in front of HA) produced the message. */
+export interface UploadError extends Error {
+  status?: number;
+  serverMessage?: boolean;
 }
 
 /** Fetch the home-inventory report (for insurance) plus a ready-to-save CSV. */

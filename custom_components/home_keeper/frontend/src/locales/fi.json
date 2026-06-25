@@ -1,4 +1,6 @@
 {
+  "btn.learnMore": "Lue lisää",
+  "doc.uploadTooLargeProxy": "Lähetys on liian suuri — Home Assistantin edessä oleva käänteinen välityspalvelin rajoittaa pyynnön kokoa.",
   "btn.removeDocument": "Poista asiakirja",
   "btn.addLink": "+ Lisää linkki",
   "btn.uploadFile": "Lataa tiedosto",

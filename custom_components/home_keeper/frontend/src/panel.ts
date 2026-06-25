@@ -446,7 +446,14 @@ interface AssetEditState {
   open: boolean;
   asset: Partial<Asset> | null;
   error?: string;
+  // Optional "Learn more" link shown beside the error (e.g. the docs for a proxy 413).
+  errorLink?: string;
 }
+
+// Docs section explaining a 413 from a reverse proxy in front of HA (see README
+// "Large uploads (413)"). Linked from the upload error so users can self-serve the fix.
+const DOCS_UPLOAD_413_URL =
+  'https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#large-uploads-413';
 /**
  * The completion-details dialog state. Open either to *log* a new completion
  * (`ts` absent) or to *edit* a recorded one (`ts` set). `data` holds the in-progress
@@ -881,12 +888,12 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!this._hass || !this._assetEdit.asset) return;
     const a = this._assetEdit.asset;
     if (a.kind === 'virtual' && !String(a.name || '').trim()) {
-      this._assetEdit.error = t('error.nameRequiredAppliance');
+      this._setAssetError(t('error.nameRequiredAppliance'));
       this._render();
       return;
     }
     if (a.kind === 'existing' && !a.device_id) {
-      this._assetEdit.error = t('error.pickDevice');
+      this._setAssetError(t('error.pickDevice'));
       this._render();
       return;
     }
@@ -903,7 +910,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._closeAssetForm();
       await this._refresh();
     } catch (err) {
-      this._assetEdit.error = String((err as { message?: string })?.message || err);
+      this._setAssetError(String((err as { message?: string })?.message || err));
       this._render();
     }
   }
@@ -3013,7 +3020,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
     const mergeAsset = (value: Record<string, unknown>): void => {
       this._assetEdit.asset = { ...this._assetEdit.asset, ...value } as Partial<Asset>;
-      this._assetEdit.error = undefined;
+      this._setAssetError(undefined);
     };
 
     // Identity (kind toggle re-renders since the schema changes).
@@ -3065,6 +3072,15 @@ export class HomeKeeperPanel extends HTMLElement {
       const err = document.createElement('ha-alert');
       err.setAttribute('alert-type', 'error');
       err.textContent = this._assetEdit.error;
+      if (this._assetEdit.errorLink) {
+        const link = document.createElement('a');
+        link.href = this._assetEdit.errorLink;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = t('btn.learnMore');
+        link.style.marginInlineStart = '8px';
+        err.appendChild(link);
+      }
       inner.appendChild(err);
     }
 
@@ -3172,6 +3188,12 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
 
+  /** Set (or clear) the appliance-form error, plus an optional "Learn more" link. */
+  private _setAssetError(message?: string, link?: string): void {
+    this._assetEdit.error = message;
+    this._assetEdit.errorLink = link;
+  }
+
   private async _addLinkDocument(name: string, url: string): Promise<void> {
     const assetId = this._assetEdit.asset?.id;
     if (!this._hass || !assetId || !url.trim()) return;
@@ -3179,7 +3201,7 @@ export class HomeKeeperPanel extends HTMLElement {
       const asset = await api.addAssetDocument(this._hass, assetId, { name, url });
       this._setEditDocuments(asset);
     } catch (err) {
-      this._assetEdit.error = String((err as { message?: string })?.message || err);
+      this._setAssetError(String((err as { message?: string })?.message || err));
       this._render();
     }
   }
@@ -3191,7 +3213,7 @@ export class HomeKeeperPanel extends HTMLElement {
       const asset = await api.removeAssetDocument(this._hass, assetId, doc.id);
       this._setEditDocuments(asset);
     } catch (err) {
-      this._assetEdit.error = String((err as { message?: string })?.message || err);
+      this._setAssetError(String((err as { message?: string })?.message || err));
       this._render();
     }
   }
@@ -3204,7 +3226,14 @@ export class HomeKeeperPanel extends HTMLElement {
       const asset = await api.uploadAssetDocument(this._hass, assetId, documentId, file);
       this._setEditDocuments(asset);
     } catch (err) {
-      this._assetEdit.error = String((err as { message?: string })?.message || err);
+      const e = err as api.UploadError;
+      // A 413 with no Home Keeper message body means a reverse proxy in front of HA
+      // rejected the upload (its request-body limit) — guide the user to the fix.
+      if (e?.status === 413 && !e.serverMessage) {
+        this._setAssetError(t('doc.uploadTooLargeProxy'), DOCS_UPLOAD_413_URL);
+      } else {
+        this._setAssetError(String(e?.message || err));
+      }
       this._render();
     }
   }

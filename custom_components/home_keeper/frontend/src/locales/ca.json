@@ -1,4 +1,6 @@
 {
+  "btn.learnMore": "Més informació",
+  "doc.uploadTooLargeProxy": "La pujada és massa gran — un proxy invers davant de Home Assistant limita la mida de la sol·licitud.",
   "btn.removeDocument": "Suprimeix el document",
   "btn.addLink": "+ Afegeix un enllaç",
   "btn.uploadFile": "Puja un fitxer",

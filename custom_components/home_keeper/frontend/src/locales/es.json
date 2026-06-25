@@ -1,4 +1,6 @@
 {
+  "btn.learnMore": "Más información",
+  "doc.uploadTooLargeProxy": "Subida demasiado grande — un proxy inverso delante de Home Assistant limita el tamaño de la solicitud.",
   "btn.removeDocument": "Eliminar documento",
   "btn.addLink": "+ Añadir enlace",
   "btn.uploadFile": "Subir archivo",

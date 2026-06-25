@@ -429,15 +429,30 @@ Every data action is also a service — `home_keeper.add_asset_document` and
 `home_keeper.remove_asset_document` (links; files upload from the panel) — so automations
 can attach a receipt or manual link too.
 
-> **Uploading through a reverse proxy?** Uploads up to **25 MB** are supported. If you
-> reach Home Assistant through a reverse proxy (nginx, Caddy, Traefik, Nginx Proxy
-> Manager, the NGINX SSL proxy add-on…), raise its request-body limit above your largest
-> manual — otherwise the proxy rejects the upload with a bare **413** before it reaches
-> HA. For nginx that's `client_max_body_size 30M;` (its default is only 1 MB) in the
-> `server`/`location` block, then reload. Nabu Casa / HA Cloud Remote UI has its own
-> limit; upload from your local network if you hit it.
-
 ![The appliance Manuals & documents editor — existing documents with remove buttons, plus add-link and upload-file controls](docs/images/32-panel-appliance-documents.png)
+
+#### Large uploads (413)
+
+Home Keeper accepts uploads up to **25 MB**. If an upload fails with **HTTP 413** —
+especially the panel showing *"Upload too large…"* — the file was almost certainly
+rejected by a **reverse proxy in front of Home Assistant**, before it ever reached the
+integration. The usual cause is the proxy's request-body limit (nginx defaults
+`client_max_body_size` to just **1 MB**). Raise it above your largest manual:
+
+- **nginx** (manual config): add `client_max_body_size 30M;` to the `server` (or
+  `location /`) block, then `nginx -t && nginx -s reload`.
+- **Nginx Proxy Manager**: Proxy Host → **Advanced** → *Custom Nginx Configuration* →
+  add `client_max_body_size 30M;` → Save.
+- **"NGINX Home Assistant SSL proxy" add-on**: create `/share/nginx_proxy_default.conf`
+  containing `client_max_body_size 30M;`, set `customize.active: true` in the add-on
+  options, and restart the add-on.
+- **Caddy**: `request_body { max_size 30MB }`. **Traefik**: a `buffering` middleware with
+  `maxRequestBodyBytes`.
+- **Nabu Casa / HA Cloud Remote UI** has its own limit — if you hit it, upload from your
+  **local network** instead.
+
+A quick way to confirm it's the proxy: upload once via the direct LAN URL
+(`http://<ha-ip>:8123`), bypassing the proxy — it'll succeed there.
 
 ### Relationships: subdevices & related devices
 

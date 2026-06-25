@@ -1,4 +1,6 @@
 {
+  "btn.learnMore": "Læs mere",
+  "doc.uploadTooLargeProxy": "Upload for stor — en omvendt proxy foran Home Assistant begrænser anmodningens størrelse.",
   "btn.removeDocument": "Fjern dokument",
   "btn.addLink": "+ Tilføj link",
   "btn.uploadFile": "Upload fil",

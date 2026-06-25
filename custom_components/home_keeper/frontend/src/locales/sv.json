@@ -1,4 +1,6 @@
 {
+  "btn.learnMore": "Läs mer",
+  "doc.uploadTooLargeProxy": "Uppladdningen är för stor — en omvänd proxy framför Home Assistant begränsar förfrågans storlek.",
   "btn.removeDocument": "Ta bort dokument",
   "btn.addLink": "+ Lägg till länk",
   "btn.uploadFile": "Ladda upp fil",

@@ -1,4 +1,6 @@
 {
+  "btn.learnMore": "了解更多",
+  "doc.uploadTooLargeProxy": "上传内容过大——Home Assistant 前面的反向代理限制了请求大小。",
   "btn.removeDocument": "删除文档",
   "btn.addLink": "+ 添加链接",
   "btn.uploadFile": "上传文件",
