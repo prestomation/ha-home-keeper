@@ -91,7 +91,7 @@ jobs:
           echo "home_keeper.zip exists ($(du -h home_keeper.zip | cut -f1))"
 
       - name: Replace any previous preview release for this PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           TAG: ${{ steps.ver.outputs.tag }}
         with:
@@ -124,7 +124,7 @@ jobs:
           files: home_keeper.zip
 
       - name: Sticky comment with install instructions
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           VERSION: ${{ steps.ver.outputs.version }}
           TAG: ${{ steps.ver.outputs.tag }}
@@ -163,7 +163,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete this PR's preview release + tag
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           PR: ${{ github.event.number }}
         with:
