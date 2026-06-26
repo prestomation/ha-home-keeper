@@ -444,6 +444,24 @@
           "description": "要删除的文档的 id。"
         }
       }
+    },
+    "update_asset_document": {
+      "name": "更新设备文档",
+      "description": "编辑设备上的现有文档——重命名它，或（对于链接文档）更改其 URL。上传的文件只能重命名。",
+      "fields": {
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "文档所属设备的 id。"
+        },
+        "document_id": {
+          "name": "文档 ID",
+          "description": "要编辑的文档的 id。"
+        },
+        "changes": {
+          "name": "更改",
+          "description": "要更改的字段：一个包含可选 name 和（对于链接文档）可选 url 的对象。"
+        }
+      }
     }
   },
   "entity": {

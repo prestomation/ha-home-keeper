@@ -444,6 +444,24 @@
           "description": "Die ID des zu entfernenden Dokuments."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Gerätedokument aktualisieren",
+      "description": "Bearbeitet ein vorhandenes Dokument eines Geräts – benennt es um oder ändert (bei Link-Dokumenten) dessen URL. Hochgeladene Dateien können nur umbenannt werden.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "Die ID des Geräts, zu dem das Dokument gehört."
+        },
+        "document_id": {
+          "name": "Dokument-ID",
+          "description": "Die ID des zu bearbeitenden Dokuments."
+        },
+        "changes": {
+          "name": "Änderungen",
+          "description": "Die zu ändernden Felder: ein Objekt mit einem optionalen Namen und (bei Link-Dokumenten) einer optionalen URL."
+        }
+      }
     }
   },
   "entity": {

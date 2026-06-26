@@ -478,6 +478,28 @@ class HomeKeeperStore:
         )
         return asset
 
+    async def update_asset_document(
+        self, asset_id: str, document_id: str, changes: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Edit a document (link name/url, or a file's display name); return the entry.
+
+        Raises ``KeyError`` for an unknown asset or document, and
+        ``AssetValidationError`` for invalid changes. Fires
+        ``home_keeper_asset_updated`` (changed_fields: ``["documents"]``).
+        """
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise KeyError(asset_id)
+        entry = assets.update_document(asset, document_id, changes)
+        if entry is None:
+            raise KeyError(document_id)
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_ASSET_UPDATED,
+            events.asset_event_data(asset, extra={"changed_fields": ["documents"]}),
+        )
+        return entry
+
     def _validate_parent(
         self, asset_id: str | None, parent_asset_id: str | None
     ) -> None:

@@ -444,6 +444,24 @@
           "description": "Id'et på dokumentet, der skal fjernes."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Opdater apparatdokument",
+      "description": "Rediger et eksisterende dokument på et apparat – omdøb det, eller (for linkdokumenter) skift dets URL. Uploadede filer kan kun omdøbes.",
+      "fields": {
+        "asset_id": {
+          "name": "Aktiv-ID",
+          "description": "Id'et på apparatet, dokumentet tilhører."
+        },
+        "document_id": {
+          "name": "Dokument-id",
+          "description": "Id'et på dokumentet, der skal redigeres."
+        },
+        "changes": {
+          "name": "Ændringer",
+          "description": "Felterne, der skal ændres: et objekt med et valgfrit navn og (for linkdokumenter) en valgfri url."
+        }
+      }
     }
   },
   "entity": {

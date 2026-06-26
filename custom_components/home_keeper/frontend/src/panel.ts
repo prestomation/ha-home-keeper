@@ -55,6 +55,7 @@ import {
   escapeHTML,
   isOverdue,
   parseRoute,
+  randomId,
   recurrenceSummary,
   tasksForAsset,
   type PanelLocation,
@@ -109,6 +110,11 @@ const MDI_DELETE =
 const MDI_EDIT =
   'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,' +
   '3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z';
+
+// mdi:open-in-new — open a document (link or signed file URL) in a new tab.
+const MDI_OPEN_IN_NEW =
+  'M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,' +
+  '3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z';
 
 // mdi:autorenew — a wear item (replaced on a recurring schedule).
 const MDI_WEAR =
@@ -269,6 +275,36 @@ const STYLES = `
   .hk-part-head .label { font-size: 0.85rem; color: var(--secondary-text-color); }
   .hk-meta-seeds { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
   .hk-meta-seeds ha-button { --mdc-typography-button-font-size: 0.8rem; }
+
+  /* Documents editor — existing documents as clear cards, separated from the add area */
+  .hk-doc-card {
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid var(--divider-color); border-radius: 8px;
+    padding: 8px 8px 8px 12px; margin-bottom: 10px;
+  }
+  .hk-doc-ic {
+    flex: none; width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--secondary-background-color);
+    color: var(--secondary-text-color); --mdc-icon-size: 20px;
+  }
+  .hk-doc-main { flex: 1; min-width: 0; }
+  .hk-doc-name { font-weight: 500; word-break: break-word; }
+  .hk-doc-sub {
+    color: var(--secondary-text-color); font-size: 0.82rem; margin-top: 2px;
+    word-break: break-word;
+  }
+  .hk-doc-actions { flex: none; display: flex; align-items: center; gap: 2px; }
+  .hk-doc-edit { padding: 8px 12px 12px; }
+  .hk-doc-edit-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .hk-doc-add {
+    border: 1px dashed var(--divider-color); border-radius: 8px;
+    padding: 4px 12px 12px; margin-top: 4px;
+  }
+  .hk-doc-add-title {
+    font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
+    margin: 10px 0 2px;
+  }
 
   /* Parts list on the appliance detail page */
   .hk-parts { display: flex; flex-direction: column; }
@@ -448,6 +484,8 @@ interface AssetEditState {
   error?: string;
   // Optional "Learn more" link shown beside the error (e.g. the docs for a proxy 413).
   errorLink?: string;
+  // Id of the document currently being edited inline (its card shows a name/url form).
+  editingDocId?: string;
 }
 
 // Docs section explaining a 413 from a reverse proxy in front of HA (see README
@@ -900,10 +938,13 @@ export class HomeKeeperPanel extends HTMLElement {
     const parts = (a.parts || []).filter((p) => p.name && p.name.trim());
     // Drop half-finished metadata rows (no label) so they don't fail validation.
     const metadata = (a.metadata || []).filter((m) => m.label && m.label.trim());
-    // Documents are managed live (their own backend calls), so they're excluded from
-    // the batch save — omitting them preserves the server's list (merge_update).
-    const { documents: _documents, ...rest } = a;
+    // For a saved appliance, documents are managed live (their own backend calls), so
+    // they're excluded from the batch save — omitting them preserves the server's list
+    // (merge_update). A brand-new appliance has no live id yet, so its collected link
+    // documents ride along in the create payload (the backend seeds links on create).
+    const { documents, ...rest } = a;
     const payload: Partial<Asset> = { ...rest, parts, metadata };
+    if (!a.id) payload.documents = (documents || []).filter((d) => d.kind === 'link' && d.url);
     try {
       if (a.id) await api.updateAsset(this._hass, a.id, payload);
       else await api.addAsset(this._hass, payload);
@@ -3107,38 +3148,132 @@ export class HomeKeeperPanel extends HTMLElement {
    *  so a file upload needs an already-saved appliance (it must have an id). */
   private _renderDocumentsEditor(inner: HTMLElement): void {
     inner.appendChild(this._section(t('section.documents')));
-    const assetId = this._assetEdit.asset?.id;
     const docs = this._assetEdit.asset?.documents || [];
 
+    // Existing documents: each is a clear card (icon + name + details) with Open /
+    // Edit / Remove actions — except the one being edited, which shows its form.
     docs.forEach((d) => {
-      const box = document.createElement('div');
-      box.className = 'hk-part';
-      const head = document.createElement('div');
-      head.className = 'hk-part-head';
-      const kind = d.kind === 'file' ? t('doc.file') : t('doc.link');
-      const name = d.name || d.filename || d.url || '';
-      head.innerHTML = `<span class="label">${escapeHTML(`${kind}: ${name}`)}</span>`;
-      const del = document.createElement('ha-icon-button');
-      del.className = 'part-del';
-      del.setAttribute('label', t('btn.removeDocument'));
-      del.addEventListener('click', () => void this._removeDocument(d));
-      head.appendChild(del);
-      box.appendChild(head);
-      inner.appendChild(box);
+      if (d.id && this._assetEdit.editingDocId === d.id) this._renderDocumentEdit(inner, d);
+      else this._renderDocumentCard(inner, d);
     });
 
-    // A file can only be attached once the appliance exists (its id keys the blob).
-    if (!assetId) {
-      const hint = document.createElement('div');
-      hint.className = 'hk-meta';
-      hint.textContent = t('doc.saveFirstHint');
-      inner.appendChild(hint);
-      return;
+    this._renderDocumentAdd(inner);
+  }
+
+  /** One existing document as a read row: icon, name, a details subtitle, and the
+   *  Open (link/signed-file URL) / Edit / Remove actions. */
+  private _renderDocumentCard(inner: HTMLElement, d: AssetDocument): void {
+    const card = document.createElement('div');
+    card.className = 'hk-doc-card';
+
+    const ic = document.createElement('div');
+    ic.className = 'hk-doc-ic';
+    const icon = document.createElement('ha-icon');
+    icon.setAttribute('icon', d.kind === 'file' ? 'mdi:file-document-outline' : 'mdi:link-variant');
+    ic.appendChild(icon);
+
+    const main = document.createElement('div');
+    main.className = 'hk-doc-main';
+    const name = document.createElement('div');
+    name.className = 'hk-doc-name';
+    name.textContent = d.name || d.filename || d.url || '';
+    main.appendChild(name);
+    const subText = this._documentSubtitle(d);
+    if (subText) {
+      const sub = document.createElement('div');
+      sub.className = 'hk-doc-sub';
+      sub.textContent = subText;
+      main.appendChild(sub);
     }
 
-    // Add a link: name + URL.
+    const actions = document.createElement('div');
+    actions.className = 'hk-doc-actions';
+    // Open is only meaningful for a link with a URL, or a file already saved (it owns
+    // a blob keyed by its id — a brand-new asset's links have no file to open).
+    const canOpen = d.kind === 'file' ? Boolean(d.id) : Boolean(d.url);
+    if (canOpen) {
+      const open = document.createElement('ha-icon-button');
+      open.setAttribute('label', t('btn.openDocument'));
+      this._setIcon(open, MDI_OPEN_IN_NEW);
+      open.addEventListener('click', () => this._openDocument(d));
+      actions.appendChild(open);
+    }
+    const edit = document.createElement('ha-icon-button');
+    edit.setAttribute('label', t('btn.edit'));
+    this._setIcon(edit, MDI_EDIT);
+    edit.addEventListener('click', () => {
+      this._assetEdit.editingDocId = d.id;
+      this._render();
+    });
+    const del = document.createElement('ha-icon-button');
+    del.setAttribute('label', t('btn.removeDocument'));
+    this._setIcon(del, MDI_DELETE);
+    del.addEventListener('click', () => void this._removeDocument(d));
+    actions.append(edit, del);
+
+    card.append(ic, main, actions);
+    inner.appendChild(card);
+  }
+
+  /** Inline editor for one document: a link edits name + URL; a file (upload-only) edits
+   *  only its display name. Save commits, Cancel discards. */
+  private _renderDocumentEdit(inner: HTMLElement, d: AssetDocument): void {
+    const box = document.createElement('div');
+    box.className = 'hk-part hk-doc-edit';
+    const draft = { name: d.name || '', url: d.url || '' };
+    const isLink = d.kind === 'link';
+    const schema: FormField[] = isLink
+      ? [
+          {
+            name: '',
+            type: 'grid',
+            schema: [
+              { name: 'doc_name', selector: selText() },
+              { name: 'doc_url', selector: selText() },
+            ],
+          },
+        ]
+      : [{ name: 'doc_name', selector: selText() }];
+    const data = isLink ? { doc_name: draft.name, doc_url: draft.url } : { doc_name: draft.name };
+    box.appendChild(
+      this._makeForm(schema, data, (value) => {
+        if ('doc_name' in value) draft.name = String(value.doc_name ?? '');
+        if ('doc_url' in value) draft.url = String(value.doc_url ?? '');
+      }),
+    );
+
+    const row = document.createElement('div');
+    row.className = 'hk-doc-edit-actions';
+    const save = document.createElement('ha-button');
+    save.setAttribute('raised', '');
+    save.textContent = t('btn.save');
+    save.addEventListener('click', () =>
+      void this._updateDocument(d, isLink ? { name: draft.name, url: draft.url } : { name: draft.name }),
+    );
+    const cancel = document.createElement('ha-button');
+    cancel.textContent = t('btn.cancel');
+    cancel.addEventListener('click', () => {
+      this._assetEdit.editingDocId = undefined;
+      this._render();
+    });
+    row.append(save, cancel);
+    box.appendChild(row);
+    inner.appendChild(box);
+  }
+
+  /** The "add a document" area: a name + URL link form (always available, even before
+   *  the appliance is saved) and — once saved — a file upload control. */
+  private _renderDocumentAdd(inner: HTMLElement): void {
+    const assetId = this._assetEdit.asset?.id;
+    const add = document.createElement('div');
+    add.className = 'hk-doc-add';
+    const title = document.createElement('div');
+    title.className = 'hk-doc-add-title';
+    title.textContent = t('doc.addHeading');
+    add.appendChild(title);
+
     const draft: { name: string; url: string } = { name: '', url: '' };
-    inner.appendChild(
+    add.appendChild(
       this._makeForm(
         [
           {
@@ -3165,21 +3300,75 @@ export class HomeKeeperPanel extends HTMLElement {
     addLink.addEventListener('click', () => void this._addLinkDocument(draft.name, draft.url));
     seedRow.appendChild(addLink);
 
-    // Upload a file (PDF or image) via the document HTTP view.
-    const upload = document.createElement('ha-button');
-    upload.textContent = t('btn.uploadFile');
-    const picker = document.createElement('input');
-    picker.type = 'file';
-    picker.accept = 'application/pdf,image/png,image/jpeg,image/webp,image/gif';
-    picker.style.display = 'none';
-    picker.addEventListener('change', () => {
-      const file = picker.files?.[0];
-      if (file) void this._uploadDocument(file);
-      picker.value = '';
-    });
-    upload.addEventListener('click', () => picker.click());
-    seedRow.append(upload, picker);
-    inner.appendChild(seedRow);
+    // A file can only be uploaded once the appliance exists (its id keys the blob).
+    if (assetId) {
+      const upload = document.createElement('ha-button');
+      upload.textContent = t('btn.uploadFile');
+      const picker = document.createElement('input');
+      picker.type = 'file';
+      picker.accept = 'application/pdf,image/png,image/jpeg,image/webp,image/gif';
+      picker.style.display = 'none';
+      picker.addEventListener('change', () => {
+        const file = picker.files?.[0];
+        if (file) void this._uploadDocument(file);
+        picker.value = '';
+      });
+      upload.addEventListener('click', () => picker.click());
+      seedRow.append(upload, picker);
+    }
+    add.appendChild(seedRow);
+
+    if (!assetId) {
+      const hint = document.createElement('div');
+      hint.className = 'hk-meta';
+      hint.textContent = t('doc.saveFirstHint');
+      add.appendChild(hint);
+    }
+    inner.appendChild(add);
+  }
+
+  /** Human-readable details line for a document card: a link shows its URL; a file shows
+   *  filename · size · type (e.g. "manual.pdf · 1.2 MB · PDF"). */
+  private _documentSubtitle(d: AssetDocument): string {
+    if (d.kind === 'link') return d.url || '';
+    const parts: string[] = [];
+    if (d.filename) parts.push(d.filename);
+    const size = this._formatBytes(d.size);
+    if (size) parts.push(size);
+    const type = this._documentTypeLabel(d.content_type);
+    if (type) parts.push(type);
+    return parts.join(' · ');
+  }
+
+  /** Format a byte count as a short human size ("950 B", "1.2 MB"). */
+  private _formatBytes(bytes?: number): string {
+    if (!bytes || bytes <= 0) return '';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let value = bytes;
+    let i = 0;
+    while (value >= 1024 && i < units.length - 1) {
+      value /= 1024;
+      i += 1;
+    }
+    const rounded = i === 0 || value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
+    return `${rounded} ${units[i]}`;
+  }
+
+  /** A short type badge from a MIME type ("application/pdf" → "PDF", "image/jpeg" → "JPEG"). */
+  private _documentTypeLabel(contentType?: string): string {
+    if (!contentType) return '';
+    const subtype = contentType.split('/')[1] || '';
+    return subtype.split(';')[0].trim().toUpperCase();
+  }
+
+  /** Open a document from the editor: a link opens its URL; a file opens via a signed URL. */
+  private _openDocument(d: AssetDocument): void {
+    if (d.kind === 'file') {
+      const assetId = this._assetEdit.asset?.id;
+      if (assetId && d.id) void this._openFileDocument(assetId, d.id);
+    } else if (d.url) {
+      window.open(d.url, '_blank', 'noopener');
+    }
   }
 
   /** Append the live document list onto the in-progress edit copy and re-render. */
@@ -3195,8 +3384,18 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private async _addLinkDocument(name: string, url: string): Promise<void> {
+    if (!url.trim()) return;
     const assetId = this._assetEdit.asset?.id;
-    if (!this._hass || !assetId || !url.trim()) return;
+    // A saved appliance persists links through the service; a brand-new one collects
+    // them on the working copy so they ride along in the create payload.
+    if (!assetId) {
+      const list = [...(this._assetEdit.asset?.documents || [])];
+      list.push({ id: randomId(), kind: 'link', name, url });
+      this._assetEdit.asset!.documents = list;
+      this._render();
+      return;
+    }
+    if (!this._hass) return;
     try {
       const asset = await api.addAssetDocument(this._hass, assetId, { name, url });
       this._setEditDocuments(asset);
@@ -3206,9 +3405,48 @@ export class HomeKeeperPanel extends HTMLElement {
     }
   }
 
-  private async _removeDocument(doc: AssetDocument): Promise<void> {
+  private async _updateDocument(
+    doc: AssetDocument,
+    changes: { name: string; url?: string },
+  ): Promise<void> {
+    if (!doc.id) return;
     const assetId = this._assetEdit.asset?.id;
-    if (!this._hass || !assetId || !doc.id) return;
+    if (!assetId) {
+      const list = [...(this._assetEdit.asset?.documents || [])];
+      const idx = list.findIndex((d) => d.id === doc.id);
+      if (idx >= 0) {
+        const merged: AssetDocument = { ...list[idx], name: changes.name };
+        if (merged.kind === 'link' && changes.url !== undefined) merged.url = changes.url;
+        list[idx] = merged;
+        this._assetEdit.asset!.documents = list;
+      }
+      this._assetEdit.editingDocId = undefined;
+      this._render();
+      return;
+    }
+    if (!this._hass) return;
+    try {
+      const asset = await api.updateAssetDocument(this._hass, assetId, doc.id, changes);
+      this._assetEdit.editingDocId = undefined;
+      this._setEditDocuments(asset);
+    } catch (err) {
+      this._setAssetError(String((err as { message?: string })?.message || err));
+      this._render();
+    }
+  }
+
+  private async _removeDocument(doc: AssetDocument): Promise<void> {
+    if (!doc.id) return;
+    const assetId = this._assetEdit.asset?.id;
+    if (this._assetEdit.editingDocId === doc.id) this._assetEdit.editingDocId = undefined;
+    if (!assetId) {
+      this._assetEdit.asset!.documents = (this._assetEdit.asset?.documents || []).filter(
+        (d) => d.id !== doc.id,
+      );
+      this._render();
+      return;
+    }
+    if (!this._hass) return;
     try {
       const asset = await api.removeAssetDocument(this._hass, assetId, doc.id);
       this._setEditDocuments(asset);
@@ -3221,7 +3459,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _uploadDocument(file: File): Promise<void> {
     const assetId = this._assetEdit.asset?.id;
     if (!this._hass || !assetId) return;
-    const documentId = crypto.randomUUID();
+    const documentId = randomId();
     try {
       const asset = await api.uploadAssetDocument(this._hass, assetId, documentId, file);
       this._setEditDocuments(asset);

@@ -325,6 +325,32 @@ def remove_document(asset: dict, document_id: str) -> dict | None:
     return None
 
 
+def update_document(asset: dict, document_id: str, changes: Any) -> dict | None:
+    """Edit an existing document in place; return the updated entry or ``None``.
+
+    A ``link`` can change its ``name`` and ``url``; a ``file`` is upload-only so only
+    its display ``name`` is editable (its blob/filename/type are immutable here — to
+    replace the file, remove it and upload again). The entry is re-validated, its
+    ``id``/``kind``/``created`` preserved. ``None`` when no such document exists.
+    """
+    if not isinstance(changes, dict):
+        raise AssetValidationError("document changes must be an object")
+    documents = asset.get("documents") or []
+    for index, document in enumerate(documents):
+        if document.get("id") != document_id:
+            continue
+        merged = dict(document)
+        if "name" in changes:
+            merged["name"] = changes["name"]
+        if document.get("kind") == "link" and "url" in changes:
+            merged["url"] = changes["url"]
+        updated = _normalize_document_entry(merged)
+        documents[index] = updated
+        asset["documents"] = documents
+        return updated
+    return None
+
+
 def _normalize_icon(value: Any) -> str:
     """Validate an optional MDI-style icon (e.g. ``mdi:piano``); empty allowed."""
     if value in (None, ""):

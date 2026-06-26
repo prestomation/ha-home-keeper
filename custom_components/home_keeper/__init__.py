@@ -258,6 +258,15 @@ REMOVE_ASSET_DOCUMENT_SCHEMA = vol.Schema(
         vol.Required("document_id"): cv.string,
     }
 )
+UPDATE_ASSET_DOCUMENT_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("document_id"): cv.string,
+        vol.Required("changes"): vol.Schema(
+            {vol.Optional("name"): cv.string, vol.Optional("url"): cv.string}
+        ),
+    }
+)
 
 # Adjust a part's on-hand spare count by a (signed) delta; clamped at zero.
 ADJUST_PART_STOCK_SCHEMA = vol.Schema(
@@ -717,6 +726,28 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_placeholders={"asset_id": call.data["asset_id"]},
             ) from None
 
+    async def handle_update_asset_document(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.update_asset_document(
+                call.data["asset_id"],
+                call.data["document_id"],
+                dict(call.data["changes"]),
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="asset_not_found",
+                translation_placeholders={"asset_id": call.data["asset_id"]},
+            ) from None
+        except AssetValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_asset",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        # Documents touch no device/entity/task; the store save + event is the job.
+
     async def handle_export_inventory(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
         report = inventory.build_inventory(
@@ -806,6 +837,12 @@ def _register_services(hass: HomeAssistant) -> None:
         handle_remove_asset_document,
         REMOVE_ASSET_DOCUMENT_SCHEMA,
     )
+    hass.services.async_register(
+        DOMAIN,
+        "update_asset_document",
+        handle_update_asset_document,
+        UPDATE_ASSET_DOCUMENT_SCHEMA,
+    )
 
     async def handle_set_options(call: ServiceCall) -> None:
         coord = _coordinator()
@@ -888,6 +925,7 @@ _SERVICES = (
     "adjust_part_stock",
     "add_asset_document",
     "remove_asset_document",
+    "update_asset_document",
     "export_inventory",
     "set_options",
     "register_companion",

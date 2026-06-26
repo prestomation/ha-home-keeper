@@ -66,6 +66,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_adjust_part_stock)
     websocket_api.async_register_command(hass, ws_add_asset_document)
     websocket_api.async_register_command(hass, ws_remove_asset_document)
+    websocket_api.async_register_command(hass, ws_update_asset_document)
     websocket_api.async_register_command(hass, ws_sign_document_url)
     websocket_api.async_register_command(hass, ws_export_inventory)
     websocket_api.async_register_command(hass, ws_get_options)
@@ -475,6 +476,35 @@ async def ws_remove_asset_document(
         return
     # Documents touch no device/entity/task; no device reconcile or entry reload needed.
     connection.send_result(msg["id"], {"asset": asset})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/update_asset_document",
+        vol.Required("asset_id"): str,
+        vol.Required("document_id"): str,
+        vol.Required("changes"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_update_asset_document(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    try:
+        await coord.store.update_asset_document(
+            msg["asset_id"], msg["document_id"], msg["changes"]
+        )
+    except KeyError:
+        connection.send_error(msg["id"], "not_found", "Unknown asset_id or document_id")
+        return
+    except AssetValidationError as err:
+        connection.send_error(msg["id"], "invalid_asset", str(err))
+        return
+    connection.send_result(msg["id"], {"asset": coord.store.get_asset(msg["asset_id"])})
 
 
 @websocket_api.websocket_command(

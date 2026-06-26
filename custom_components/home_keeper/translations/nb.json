@@ -444,6 +444,24 @@
           "description": "Id-en til dokumentet som skal fjernes."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Oppdater apparatdokument",
+      "description": "Rediger et eksisterende dokument på et apparat – gi det nytt navn, eller (for lenkedokumenter) endre URL-en. Opplastede filer kan bare få nytt navn.",
+      "fields": {
+        "asset_id": {
+          "name": "Eiendels-ID",
+          "description": "Id-en til apparatet dokumentet tilhører."
+        },
+        "document_id": {
+          "name": "Dokument-id",
+          "description": "Id-en til dokumentet som skal redigeres."
+        },
+        "changes": {
+          "name": "Endringer",
+          "description": "Feltene som skal endres: et objekt med et valgfritt navn og (for lenkedokumenter) en valgfri url."
+        }
+      }
     }
   },
   "entity": {

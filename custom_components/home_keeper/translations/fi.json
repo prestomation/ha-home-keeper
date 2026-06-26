@@ -444,6 +444,24 @@
           "description": "Poistettavan asiakirjan tunnus."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Päivitä laitteen asiakirja",
+      "description": "Muokkaa laitteen olemassa olevaa asiakirjaa – nimeä se uudelleen tai (linkkiasiakirjoille) vaihda sen URL-osoite. Ladatut tiedostot voi vain nimetä uudelleen.",
+      "fields": {
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Sen laitteen tunnus, johon asiakirja kuuluu."
+        },
+        "document_id": {
+          "name": "Asiakirjan tunnus",
+          "description": "Muokattavan asiakirjan tunnus."
+        },
+        "changes": {
+          "name": "Muutokset",
+          "description": "Muutettavat kentät: objekti, jossa on valinnainen nimi ja (linkkiasiakirjoille) valinnainen url."
+        }
+      }
     }
   },
   "entity": {

@@ -444,6 +444,24 @@
           "description": "Identyfikator dokumentu do usunięcia."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Zaktualizuj dokument urządzenia",
+      "description": "Edytuje istniejący dokument urządzenia – zmienia jego nazwę lub (w przypadku dokumentów z odnośnikiem) zmienia jego URL. Przesłanym plikom można tylko zmienić nazwę.",
+      "fields": {
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy dokument."
+        },
+        "document_id": {
+          "name": "Identyfikator dokumentu",
+          "description": "Identyfikator dokumentu do edycji."
+        },
+        "changes": {
+          "name": "Zmiany",
+          "description": "Pola do zmiany: obiekt z opcjonalną nazwą i (w przypadku dokumentów z odnośnikiem) opcjonalnym url."
+        }
+      }
     }
   },
   "entity": {

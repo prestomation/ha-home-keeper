@@ -422,14 +422,22 @@ either an external **link** (a URL) or an **uploaded file** (a PDF or image) sto
 manufacturer's website isn't (or has moved on to the next model). Open the appliance's
 **Manuals & documents** editor to paste a link or **Upload file**; uploaded files are
 written under your config directory and served back through an authenticated endpoint,
-opened from the appliance detail page via a short-lived signed URL. Removing a document
-(or deleting the appliance) deletes the stored file too.
+opened via a short-lived signed URL. Removing a document (or deleting the appliance)
+deletes the stored file too.
 
-Every data action is also a service — `home_keeper.add_asset_document` and
-`home_keeper.remove_asset_document` (links; files upload from the panel) — so automations
-can attach a receipt or manual link too.
+Each existing document shows as a card with its name and details — a link's URL, or an
+uploaded file's filename, size and type — and **Open**, **Edit** and **Remove** actions
+right there in the editor. **Open** previews the document in a new tab; **Edit** renames a
+document (and, for a link, changes its URL — uploaded files are rename-only, since the
+stored file itself is immutable). You can add link documents while first creating an
+appliance; uploading a file waits until the appliance is saved (the file is keyed to it).
 
-![The appliance Manuals & documents editor — existing documents with remove buttons, plus add-link and upload-file controls](docs/images/32-panel-appliance-documents.png)
+Every data action is also a service — `home_keeper.add_asset_document`,
+`home_keeper.update_asset_document` and `home_keeper.remove_asset_document` (links; files
+upload from the panel) — so automations can attach, rename or detach a receipt or manual
+link too.
+
+![The appliance Manuals & documents editor — existing documents as cards with Open / Edit / Remove actions, plus an add-a-document area with add-link and upload-file controls](docs/images/32-panel-appliance-documents.png)
 
 #### Large uploads (413)
 
@@ -480,9 +488,10 @@ scripts, and voice:
   due from a saved notification or profile (returns `{matched, sent}`). See
   [Notifications](#notifications--actionable-reminders-on-your-phone).
 - **Appliances** — `home_keeper.add_asset`, `update_asset`, `delete_asset`,
-  `adjust_part_stock`, `add_asset_document` / `remove_asset_document` (attach or detach a
-  manual/warranty/receipt — links here, files upload from the panel), `list_assets`, and
-  `export_inventory` (the last two return a response).
+  `adjust_part_stock`, `add_asset_document` / `update_asset_document` /
+  `remove_asset_document` (attach, rename or detach a manual/warranty/receipt — links
+  here, files upload from the panel), `list_assets`, and `export_inventory` (the last two
+  return a response).
 
 ## Events & automations
 

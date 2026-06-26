@@ -352,6 +352,63 @@ def test_append_and_remove_document():
     assert a.remove_document(asset, "missing") is None
 
 
+def test_update_document_link_changes_name_and_url():
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    entry = a.append_document(
+        asset,
+        {"kind": "link", "name": "Manual", "url": "https://ex.com/m"},
+        created="2026-06-13T10:00:00",
+    )
+    updated = a.update_document(
+        asset, entry["id"], {"name": "Owner's manual", "url": "https://ex.com/new.pdf"}
+    )
+    assert updated is not None
+    assert updated["name"] == "Owner's manual"
+    assert updated["url"] == "https://ex.com/new.pdf"
+    # id/kind/created are preserved; the stored list reflects the edit.
+    assert updated["id"] == entry["id"]
+    assert updated["kind"] == "link"
+    assert updated["created"] == "2026-06-13T10:00:00"
+    assert asset["documents"] == [updated]
+
+
+def test_update_document_file_renames_but_keeps_blob_fields():
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    doc = a.append_document(
+        asset,
+        {
+            "kind": "file",
+            "filename": "manual.pdf",
+            "content_type": "application/pdf",
+            "size": 1234,
+        },
+        created="2026-06-13T10:00:00",
+    )
+    # A file is upload-only: only its display name is editable; a url change is ignored.
+    updated = a.update_document(
+        asset, doc["id"], {"name": "Warranty", "url": "https://evil.example/x"}
+    )
+    assert updated is not None
+    assert updated["name"] == "Warranty"
+    assert updated["filename"] == "manual.pdf"
+    assert updated["content_type"] == "application/pdf"
+    assert updated["size"] == 1234
+    assert "url" not in updated
+
+
+def test_update_document_rejects_bad_url_and_missing_id():
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    entry = a.append_document(
+        asset, {"kind": "link", "url": "https://ex.com/m"}, created=""
+    )
+    with pytest.raises(a.AssetValidationError):
+        a.update_document(asset, entry["id"], {"url": "javascript:alert(1)"})
+    # A non-dict change set is rejected; an unknown document id returns None.
+    with pytest.raises(a.AssetValidationError):
+        a.update_document(asset, entry["id"], "nope")
+    assert a.update_document(asset, "missing", {"name": "x"}) is None
+
+
 def test_migrate_documents_from_manual_url():
     # Legacy manual_url folds into a single link document and is dropped.
     asset = {"name": "Furnace", "manual_url": "https://ex.com/old.pdf"}

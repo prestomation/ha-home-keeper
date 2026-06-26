@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   escapeHTML,
+  randomId,
   recurrenceSummary,
   isArmedTriggered,
   isOverdue,
@@ -17,6 +18,36 @@ import {
   parseRoute,
   buildPath,
 } from '../src/utils.ts';
+
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+describe('randomId', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('uses crypto.randomUUID when available (secure context)', () => {
+    const fake = '11111111-2222-4333-8444-555555555555';
+    vi.stubGlobal('crypto', { randomUUID: () => fake });
+    expect(randomId()).toBe(fake);
+  });
+
+  it('falls back to a v4 uuid when randomUUID is absent (plain-HTTP LAN)', () => {
+    // Over a non-secure origin (http://192.168.x.x) crypto.randomUUID is undefined;
+    // getRandomValues still exists, so we build a valid v4 instead of throwing.
+    vi.stubGlobal('crypto', {
+      getRandomValues: (arr) => {
+        for (let i = 0; i < arr.length; i += 1) arr[i] = (i * 37 + 11) & 0xff;
+        return arr;
+      },
+    });
+    const id = randomId();
+    expect(id).toMatch(UUID_V4);
+  });
+
+  it('falls back to Math.random when crypto is entirely absent', () => {
+    vi.stubGlobal('crypto', undefined);
+    expect(randomId()).toMatch(UUID_V4);
+  });
+});
 
 describe('escapeHTML', () => {
   it('escapes HTML-significant characters', () => {

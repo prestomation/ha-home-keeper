@@ -444,6 +444,24 @@
           "description": "L'id du document à supprimer."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Mettre à jour un document d'appareil",
+      "description": "Modifie un document existant d'un appareil : renommez-le ou (pour les documents de type lien) changez son URL. Les fichiers téléversés ne peuvent être que renommés.",
+      "fields": {
+        "asset_id": {
+          "name": "ID de l'actif",
+          "description": "L'id de l'appareil auquel appartient le document."
+        },
+        "document_id": {
+          "name": "ID du document",
+          "description": "L'id du document à modifier."
+        },
+        "changes": {
+          "name": "Modifications",
+          "description": "Les champs à modifier : un objet avec un nom facultatif et (pour les documents de type lien) une url facultative."
+        }
+      }
     }
   },
   "entity": {

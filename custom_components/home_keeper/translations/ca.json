@@ -444,6 +444,24 @@
           "description": "L'id del document a eliminar."
         }
       }
+    },
+    "update_asset_document": {
+      "name": "Actualitza un document de l'electrodomèstic",
+      "description": "Edita un document existent d'un electrodomèstic: canvia'n el nom o (per als documents d'enllaç) l'URL. Els documents de fitxers pujats només es poden reanomenar.",
+      "fields": {
+        "asset_id": {
+          "name": "ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany el document."
+        },
+        "document_id": {
+          "name": "ID del document",
+          "description": "L'id del document a editar."
+        },
+        "changes": {
+          "name": "Canvis",
+          "description": "Els camps a canviar: un objecte amb un nom opcional i (per als documents d'enllaç) un url opcional."
+        }
+      }
     }
   },
   "entity": {

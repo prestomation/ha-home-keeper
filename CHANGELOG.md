@@ -12,13 +12,19 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   manuals, warranties, receipts — each either an external **link** or an **uploaded
   file** (PDF or image) stored locally on your Home Assistant instance, so the manual
   is there even when the manufacturer's site isn't. Manage them in the appliance's
-  **Manuals & documents** editor (add a link, or **Upload file**); the appliance detail
-  page lists them, opening a file through a short-lived signed URL. Uploaded files are
-  served by an authenticated endpoint and removed from disk when you delete the document
-  or the appliance. New `home_keeper.add_asset_document` / `home_keeper.remove_asset_document`
-  services (for links — files upload from the panel) and matching websocket commands.
-  This replaces the single appliance `manual_url` field; your existing manual link is
-  migrated automatically into a document on upgrade — no action needed.
+  **Manuals & documents** editor: each existing document shows as a card with its name
+  and details (a link's URL, or an uploaded file's filename, size and type) and **Open**,
+  **Edit** and **Remove** actions — open previews it in a new tab, edit renames it (and
+  changes a link's URL; uploaded files are rename-only). A separate **Add a document**
+  area adds another link or **uploads a file**; you can attach link documents while first
+  creating an appliance, before it's saved. The appliance detail page lists them, opening
+  a file through a short-lived signed URL. Uploaded files are served by an authenticated
+  endpoint and removed from disk when you delete the document or the appliance. New
+  `home_keeper.add_asset_document` / `home_keeper.update_asset_document` /
+  `home_keeper.remove_asset_document` services (for links — files upload from the panel)
+  and matching websocket commands. This replaces the single appliance `manual_url` field;
+  your existing manual link is migrated automatically into a document on upgrade — no
+  action needed.
 - **Profiles (reusable saved filters).** A **Profile** is a named, saved filter —
   status (overdue / due soon / all) plus optional labels/areas/devices — that you define
   once in **Settings → Profiles** and reuse everywhere tasks are filtered: in a
