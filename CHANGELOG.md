@@ -4,7 +4,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
-## [0.5.0b1]
+## [0.6.0b1]
+
+## [0.5.0] - 2026-06-26
+
+This release adds **offline manuals & documents** so appliance files are available
+even when a manufacturer's site isn't, **profiles** as named, reusable task filters
+you define once and use everywhere, **actionable mobile notifications** so each
+household member can complete, snooze, or skip tasks right from their phone, and
+standalone **snooze** and **skip** services for any automation. Highlights, for
+anyone upgrading from 0.4.0:
 
 ### Added
 
