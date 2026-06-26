@@ -4,8 +4,8 @@
 
 | Name                                                   |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |------------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
-| custom\_components/home\_keeper/\_\_init\_\_.py        |      290 |      290 |       22 |        0 |      0% |     8-917 |
-| custom\_components/home\_keeper/assets.py              |      398 |       25 |      184 |       22 |     92% |116, 142, 145, 164, 169, 176, 209, 233, 236, 239, 262-263, 300, 302, 307, 321-\>320, 343-344, 346, 375, 421, 449-\>451, 538, 644-645, 669-670, 672-\>685, 718-\>720 |
+| custom\_components/home\_keeper/\_\_init\_\_.py        |      300 |      300 |       22 |        0 |      0% |     8-955 |
+| custom\_components/home\_keeper/assets.py              |      415 |       25 |      194 |       22 |     92% |116, 142, 145, 164, 169, 176, 209, 233, 236, 239, 262-263, 300, 302, 307, 321-\>320, 369-370, 372, 401, 447, 475-\>477, 564, 670-671, 695-696, 698-\>711, 744-\>746 |
 | custom\_components/home\_keeper/binary\_sensor.py      |       28 |       28 |        0 |        0 |      0% |      3-54 |
 | custom\_components/home\_keeper/button.py              |       22 |       22 |        0 |        0 |      0% |      8-55 |
 | custom\_components/home\_keeper/calendar.py            |       72 |       72 |       32 |        0 |      0% |     9-132 |
@@ -36,11 +36,11 @@
 | custom\_components/home\_keeper/sensor.py              |       77 |       77 |       18 |        0 |      0% |    13-154 |
 | custom\_components/home\_keeper/sensor\_tasks.py       |       65 |        1 |       28 |        1 |     98% |        88 |
 | custom\_components/home\_keeper/sensor\_watcher.py     |      107 |      107 |       42 |        0 |      0% |    18-217 |
-| custom\_components/home\_keeper/store.py               |      375 |      375 |      146 |        0 |      0% |     9-823 |
+| custom\_components/home\_keeper/store.py               |      385 |      385 |      150 |        0 |      0% |     9-845 |
 | custom\_components/home\_keeper/todo.py                |       42 |       42 |        8 |        0 |      0% |     10-99 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
-| custom\_components/home\_keeper/websocket\_api.py      |      337 |      337 |       66 |        0 |      0% |     8-620 |
-| **TOTAL**                                              | **3695** | **2281** | **1228** |   **44** | **41%** |           |
+| custom\_components/home\_keeper/websocket\_api.py      |      354 |      354 |       68 |        0 |      0% |     8-650 |
+| **TOTAL**                                              | **3749** | **2318** | **1244** |   **44** | **40%** |           |
 
 
 ## Setup coverage badge
