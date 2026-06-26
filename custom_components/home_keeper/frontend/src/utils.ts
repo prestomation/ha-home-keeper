@@ -11,6 +11,29 @@ export function escapeHTML(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * A random UUID-v4 string for client-minted ids (document ids, working-copy entries).
+ *
+ * `crypto.randomUUID()` only exists in a **secure context** — HTTPS or `localhost`. Over
+ * a plain-HTTP LAN address (e.g. `http://192.168.1.x:8123`) it is `undefined`, so calling
+ * it directly throws and silently breaks file uploads / link-adds for users on their LAN.
+ * Prefer it when present, otherwise build a v4 from `crypto.getRandomValues` (always
+ * available), falling back to `Math.random` only if even that is missing.
+ */
+export function randomId(): string {
+  const c: Crypto | undefined = globalThis.crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (c?.getRandomValues) c.getRandomValues(bytes);
+  else for (let i = 0; i < 16; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC 4122 variant
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0'));
+  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex
+    .slice(6, 8)
+    .join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
+}
+
 /** True when a triggered task is currently armed (due-now) vs dormant. */
 export function isArmedTriggered(task: Task): boolean {
   return task.recurrence_type === 'triggered' && !!task.next_due;

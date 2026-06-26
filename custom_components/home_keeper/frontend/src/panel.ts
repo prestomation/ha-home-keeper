@@ -55,6 +55,7 @@ import {
   escapeHTML,
   isOverdue,
   parseRoute,
+  randomId,
   recurrenceSummary,
   tasksForAsset,
   type PanelLocation,
@@ -3389,7 +3390,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // them on the working copy so they ride along in the create payload.
     if (!assetId) {
       const list = [...(this._assetEdit.asset?.documents || [])];
-      list.push({ id: crypto.randomUUID(), kind: 'link', name, url });
+      list.push({ id: randomId(), kind: 'link', name, url });
       this._assetEdit.asset!.documents = list;
       this._render();
       return;
@@ -3458,7 +3459,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _uploadDocument(file: File): Promise<void> {
     const assetId = this._assetEdit.asset?.id;
     if (!this._hass || !assetId) return;
-    const documentId = crypto.randomUUID();
+    const documentId = randomId();
     try {
       const asset = await api.uploadAssetDocument(this._hass, assetId, documentId, file);
       this._setEditDocuments(asset);
