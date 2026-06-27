@@ -254,7 +254,10 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   migration** — existing reconciler-derived tasks lack it and stay owned. Setting a link
   is rejected on a reconciler-derived part task (already bound) and a synced problem
   sensor. The panel's `sourceOwned` gate treats `part.manual` as user-owned, so a linked
-  task stays editable/deletable.
+  task stays editable/deletable. The panel's **Linked consumable** picker is **scoped to
+  the appliance the task is attached to** (its `device_id` / related devices) — you link
+  a task to its own appliance's consumable, not an unrelated one — and re-scopes (clearing
+  a now-out-of-scope link) when the attached device changes.
 - **Problem-sensor sync.** When the `sync_problem_sensors` option is on, every
   `binary_sensor` with `device_class: problem` is mirrored as a **triggered** task by
   the pure `problem_tasks.reconcile_problem_tasks` (wrapped by

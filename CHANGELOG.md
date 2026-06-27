@@ -15,7 +15,8 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   **sensor-based** task to cover the *"there's no schedule — my fridge tells me when the
   water filter is spent"* case: the sensor arms the task, and completing it (when you
   swap the filter) draws down inventory and signals **buy more**. Link from the task
-  form's new **Linked consumable** picker, or with the new
+  form's new **Linked consumable** picker — scoped to the consumables of the appliance
+  the task is attached to — or with the new
   **`home_keeper.set_task_consumable`** service (omit the ids to unlink). The link is
   independent of the auto-generated wear-part tasks, so it's never reconciled away and
   the task stays fully editable.

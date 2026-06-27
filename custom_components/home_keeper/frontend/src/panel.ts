@@ -2920,18 +2920,32 @@ export class HomeKeeperPanel extends HTMLElement {
     return form;
   }
 
+  /** Appliances associated with a task's attached device (its own or related). */
+  private _assetsForDevice(deviceId?: string | null): Asset[] {
+    if (!deviceId) return [];
+    return this._assets.filter(
+      (a) =>
+        a.device_id === deviceId || (a.related_device_ids ?? []).includes(deviceId),
+    );
+  }
+
   /**
-   * `asset_id:part_id` options for the task form's "Linked consumable" picker —
-   * every consumable part across all appliances, labelled "Appliance · Part".
+   * `asset_id:part_id` options for the task form's "Linked consumable" picker,
+   * scoped to the consumables of the appliance the task is **attached to** (its
+   * device). You link a task to its own appliance's consumable, not some unrelated
+   * appliance's — so the list stays short and unambiguous. Empty when the task has no
+   * device, or its appliance has no consumables (the picker then hides).
    */
-  private _consumableOptions(): { value: string; label: string }[] {
+  private _consumableOptions(task: Partial<Task>): { value: string; label: string }[] {
+    const assets = this._assetsForDevice(task.device_id);
+    const multi = assets.length > 1; // disambiguate by appliance only when needed
     const options: { value: string; label: string }[] = [];
-    for (const asset of this._assets) {
+    for (const asset of assets) {
       for (const part of asset.parts ?? []) {
         if (part.type !== 'consumable' || !part.id) continue;
         options.push({
           value: `${asset.id}:${part.id}`,
-          label: `${asset.name} · ${part.name}`,
+          label: multi ? `${asset.name} · ${part.name}` : part.name,
         });
       }
     }
@@ -2967,21 +2981,36 @@ export class HomeKeeperPanel extends HTMLElement {
     )}</div>`;
 
     const form = this._makeForm(
-      taskSchema(task, this._consumableOptions()),
+      taskSchema(task, this._consumableOptions(task)),
       taskFormData(task),
       (value) => {
         const prevType = this._edit.task?.recurrence_type;
         const prevSensorMode = (this._edit.task as Record<string, unknown> | undefined)
           ?.sensor_mode;
+        const prevDevice = this._edit.task?.device_id;
         this._edit.task = {
           ...this._edit.task,
           ...value,
           interval: Number(value.interval) || 1,
         } as Partial<Task>;
         this._edit.error = undefined;
-        // The recurrence type (which cadence/sensor fields show) and the sensor mode
-        // (usage vs. threshold fields) each toggle the visible schema -> re-render.
-        if (value.recurrence_type !== prevType || value.sensor_mode !== prevSensorMode) {
+        // Changing the attached device re-scopes the consumable picker; drop a link
+        // that no longer belongs to the newly-attached appliance.
+        if (value.device_id !== prevDevice) {
+          const opts = this._consumableOptions(this._edit.task);
+          const cur = (this._edit.task as Record<string, unknown>).consumable_link;
+          if (cur && !opts.some((o) => o.value === cur)) {
+            (this._edit.task as Record<string, unknown>).consumable_link = '';
+          }
+        }
+        // The recurrence type (cadence/sensor fields), the sensor mode (usage vs.
+        // threshold), and the attached device (which scopes the consumable picker)
+        // each toggle the visible schema -> re-render.
+        if (
+          value.recurrence_type !== prevType ||
+          value.sensor_mode !== prevSensorMode ||
+          value.device_id !== prevDevice
+        ) {
           this._render();
         }
       },

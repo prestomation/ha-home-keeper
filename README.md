@@ -250,10 +250,12 @@ task bound to the fridge's filter-life (or water-usage) entity, then **link it t
 filter consumable**. The fridge arms the task; when you swap the filter and mark it done,
 Home Keeper subtracts a spare and tells you to **buy more** once you're low.
 
-Pick the consumable from the **Linked consumable** dropdown on the task form (it appears
-once you have at least one consumable defined), or use the `home_keeper.set_task_consumable`
-service (omit the ids to unlink). The task detail then shows the linked part and its
-current stock.
+Pick the consumable from the **Linked consumable** dropdown on the task form. It's
+**scoped to the appliance the task is attached to** (via *Attach to device*) — so you
+only see that appliance's spares, not every consumable in the house. (Attach the task to
+the appliance first; if the appliance has no consumables, the picker doesn't appear.) Or
+use the `home_keeper.set_task_consumable` service (omit the ids to unlink). The task
+detail then shows the linked part and its current stock.
 
 ![The task form's Linked consumable picker — link a task to a stocked consumable](docs/images/34-panel-create-linked-consumable.png)
 

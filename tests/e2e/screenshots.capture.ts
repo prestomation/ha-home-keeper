@@ -202,22 +202,38 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/31-panel-create-sensor-threshold.png`, fullPage: true });
 
-  // 33 + 34. Linked consumable (sensor-driven reorder). Link a plain task to an
-  // appliance consumable so completing it draws down one spare from stock — and fires
-  // a low-stock event for a reorder. Done at runtime via the public service.
+  // 33 + 34. Linked consumable (sensor-driven reorder). Attach a task to an appliance,
+  // then its "Linked consumable" picker is scoped to that appliance's consumables;
+  // completing the task draws down a spare and fires a low-stock event for a reorder.
   await openPanel(page);
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.evaluate(async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
     if (!hass) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { assets } = await hass.callWS({ type: 'home_keeper/get_assets' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wh = assets.find((a: any) => a.name === 'Garage water heater');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const part = (wh.parts || []).find((p: any) => p.type === 'consumable');
+    // Attach the demo task to the appliance (so the picker scopes to it), then link it
+    // to that appliance's spare.
+    // The update_task *service* takes flat fields (task_id + device_id), unlike the
+    // websocket's {task_id, updates}. Attaching a device reloads the entry, so settle
+    // it before linking.
+    await hass.callService('home_keeper', 'update_task', {
+      task_id: 'task_water_filter',
+      device_id: wh.device_id,
+    });
+    await new Promise((r) => setTimeout(r, 1500));
     await hass.callService('home_keeper', 'set_task_consumable', {
       task_id: 'task_water_filter',
-      asset_id: 'asset_water_heater',
-      part_id: 'part_sediment_filter',
+      asset_id: wh.id,
+      part_id: part.id,
     });
   });
-  // Reload so the panel re-reads the now-linked task.
+  // Reload so the panel re-reads the now-attached, linked task.
   await openPanel(page);
   await expect(panel.locator('#add-btn')).toBeVisible();
   // 33. The task detail shows the linked consumable and its current stock.
@@ -230,14 +246,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     path: `${OUT}/33-panel-linked-consumable-detail.png`,
     fullPage: true,
   });
-  await panel.locator('#back-btn').click();
-  await expect(panel.locator('#add-btn')).toBeVisible();
 
-  // 34. The task create form's "Linked consumable" picker — offered whenever at least
-  // one consumable exists, so a new task can draw down a spare when completed.
-  await panel.locator('#add-btn').click();
-  await expect(panel.locator('#hk-form')).toBeVisible();
-  await fillText(panel.locator('#hk-task-form'), 0, 'Replace fridge water filter');
+  // 34. Editing the task: the "Linked consumable" picker is scoped to the consumables
+  // of the appliance the task is attached to (not every appliance's spares).
+  await panel.locator('.d-edit').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
   await expect(panel.locator('#hk-task-form').getByText('Linked consumable')).toBeVisible();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
