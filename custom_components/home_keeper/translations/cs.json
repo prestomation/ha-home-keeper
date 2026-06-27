@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Propojit úkol se spotřebním materiálem",
+      "description": "Propojí úkol se spotřebním materiálem/dílem spotřebiče, takže jeho dokončení spotřebuje jeden náhradní kus ze zásob a při objednací hranici vyvolá událost nízkého stavu zásob. Vynechte asset_id a part_id pro zrušení propojení.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID spouštěného úkolu, který se má aktivovat."
+        },
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "Id spotřebiče, ke kterému díl patří."
+        },
+        "part_id": {
+          "name": "ID dílu",
+          "description": "Id dílu, jehož zásobu chcete upravit."
+        }
+      }
+    },
     "notify": {
       "name": "Upozornit na úkoly k vyřízení",
       "description": "Odešle akční push oznámení o tom, co je právě splatné – zadejte uložené oznámení nebo profil a volitelně přepište cíl.",

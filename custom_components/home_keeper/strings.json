@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Link task to a consumable",
+      "description": "Link a task to an appliance consumable/part so completing it consumes one spare from the part's stock and fires a low-stock event at the reorder threshold. Omit asset_id and part_id to clear the link.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task to link (or unlink)."
+        },
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the consumable belongs to. Omit to unlink."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the consumable/part to link. Omit to unlink."
+        }
+      }
+    },
     "notify": {
       "name": "Notify what's due",
       "description": "Send an actionable push notification for what's currently due — name a saved notification or profile, optionally overriding the notify target.",

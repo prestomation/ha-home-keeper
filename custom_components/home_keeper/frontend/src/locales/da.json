@@ -276,5 +276,7 @@
   "notify.add_profile": "Tilføj profil",
   "notify.new_profile": "Ny profil",
   "notify.profile": "Profil",
-  "notify.need_profile": "Tilføj først en profil — en notifikation skal bruge en til at vælge, hvad der skal sendes."
+  "notify.need_profile": "Tilføj først en profil — en notifikation skal bruge en til at vælge, hvad der skal sendes.",
+  "field.consumable_link": "Tilknyttet forbrugsvare",
+  "opt.consumable.none": "Ikke tilknyttet"
 }

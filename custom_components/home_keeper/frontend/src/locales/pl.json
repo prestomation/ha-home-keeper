@@ -300,5 +300,7 @@
   "notify.add_profile": "Dodaj profil",
   "notify.new_profile": "Nowy profil",
   "notify.profile": "Profil",
-  "notify.need_profile": "Najpierw dodaj profil — powiadomienie potrzebuje go, aby wybrać, co wysłać."
+  "notify.need_profile": "Najpierw dodaj profil — powiadomienie potrzebuje go, aby wybrać, co wysłać.",
+  "field.consumable_link": "Powiązany materiał eksploatacyjny",
+  "opt.consumable.none": "Niepowiązane"
 }

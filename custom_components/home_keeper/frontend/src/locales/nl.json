@@ -276,5 +276,7 @@
   "notify.add_profile": "Profiel toevoegen",
   "notify.new_profile": "Nieuw profiel",
   "notify.profile": "Profiel",
-  "notify.need_profile": "Voeg eerst een profiel toe — een melding heeft er een nodig om te kiezen wat te sturen."
+  "notify.need_profile": "Voeg eerst een profiel toe — een melding heeft er een nodig om te kiezen wat te sturen.",
+  "field.consumable_link": "Gekoppeld verbruiksartikel",
+  "opt.consumable.none": "Niet gekoppeld"
 }

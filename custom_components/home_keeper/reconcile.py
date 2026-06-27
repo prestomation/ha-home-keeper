@@ -21,11 +21,34 @@ from .const import PART_WEAR, TASK_SOURCE_PART
 
 
 def part_source(task: dict[str, Any]) -> dict[str, Any] | None:
-    """Return a task's ``{asset_id, part_id}`` part provenance, or None."""
+    """Return a task's ``{asset_id, part_id}`` part provenance, or None.
+
+    Covers both reconciler-derived tasks (auto-generated from a wear part's
+    ``replace_interval``) and tasks a user *manually linked* to a consumable — both
+    carry ``source = {"part": {"asset_id", "part_id", ...}}`` so completion consumes
+    one spare from the part's stock. A manual link additionally carries
+    ``"manual": True`` inside the part dict; use :func:`is_manual_part_link` to tell
+    them apart where ownership matters (the reconciler must not own manual links).
+    """
     source = task.get("source")
     if isinstance(source, dict) and isinstance(source.get(TASK_SOURCE_PART), dict):
         return source[TASK_SOURCE_PART]
     return None
+
+
+def is_manual_part_link(task: dict[str, Any]) -> bool:
+    """True when a task's part link was set by the user, not the reconciler.
+
+    The reconciler exclusively owns the wear-part tasks it generates (it creates,
+    updates, and *deletes* them as parts change). A manual link reuses the same
+    ``source.part`` shape so it consumes stock on completion, but must be invisible
+    to the reconciler — otherwise the next reconcile pass would delete it as an
+    "orphan" (its part has no ``replace_interval``). The ``manual`` flag is the
+    discriminator that keeps the two apart with no storage migration: existing
+    derived tasks lack it and stay reconciler-owned.
+    """
+    src = part_source(task)
+    return bool(src and src.get("manual"))
 
 
 def qualify_iso(value: str | None, tz: tzinfo | None) -> str | None:
@@ -69,7 +92,10 @@ def reconcile_part_tasks(
     existing_by_key: dict[tuple[str, str], str] = {}
     for tid, task in result.items():
         src = part_source(task)
-        if src:
+        # Skip manually-linked tasks: they reuse the part-source shape (to consume
+        # stock on completion) but are user-owned, so the reconciler must never
+        # update or orphan-delete them.
+        if src and not src.get("manual"):
             existing_by_key[(src["asset_id"], src["part_id"])] = tid
 
     changed = False
@@ -152,5 +178,23 @@ def reconcile_part_tasks(
             if merged is not before:
                 result[existing_tid] = merged
                 changed = True
+
+    # Clear a manual consumable link whose target part no longer exists (the part was
+    # removed while the appliance remains). Left dangling, the link silently no-ops on
+    # completion — the user would think they're drawing down stock but aren't. The task
+    # itself survives as a plain standalone task; only its source is cleared.
+    existing_parts = {
+        (asset.get("id"), part.get("id"))
+        for asset in assets.values()
+        for part in asset.get("parts", [])
+        if part.get("id")
+    }
+    for tid, task in list(result.items()):
+        src = part_source(task)
+        if src is None or not src.get("manual"):
+            continue
+        if (src["asset_id"], src["part_id"]) not in existing_parts:
+            result[tid] = {**task, "source": None}
+            changed = True
 
     return result, changed

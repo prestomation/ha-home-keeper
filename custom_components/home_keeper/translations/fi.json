@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Linkitä tehtävä kulutustarvikkeeseen",
+      "description": "Linkittää tehtävän laitteen kulutustarvikkeeseen/osaan niin, että sen valmiiksi merkitseminen kuluttaa yhden varaosan varastosta ja laukaisee vähäisen varaston tapahtuman tilausrajalla. Jätä asset_id ja part_id pois poistaaksesi linkin.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Viritettävän laukaistavan tehtävän tunnus."
+        },
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu."
+        },
+        "part_id": {
+          "name": "Varaosan tunnus",
+          "description": "Sen varaosan tunnus, jonka varastoa säädetään."
+        }
+      }
+    },
     "notify": {
       "name": "Ilmoita erääntyvistä",
       "description": "Lähetä toiminnallinen push-ilmoitus nyt erääntyvästä – nimeä tallennettu ilmoitus tai profiili ja korvaa halutessasi kohde.",

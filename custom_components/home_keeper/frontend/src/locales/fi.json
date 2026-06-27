@@ -276,5 +276,7 @@
   "notify.add_profile": "Lisää profiili",
   "notify.new_profile": "Uusi profiili",
   "notify.profile": "Profiili",
-  "notify.need_profile": "Lisää ensin profiili — ilmoitus tarvitsee sellaisen valitakseen, mitä lähetetään."
+  "notify.need_profile": "Lisää ensin profiili — ilmoitus tarvitsee sellaisen valitakseen, mitä lähetetään.",
+  "field.consumable_link": "Linkitetty kulutustarvike",
+  "opt.consumable.none": "Ei linkitetty"
 }

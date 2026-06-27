@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Powiąż zadanie z materiałem eksploatacyjnym",
+      "description": "Wiąże zadanie z materiałem eksploatacyjnym/częścią urządzenia, tak aby jego ukończenie zużywało jedną zapasową sztukę ze stanu i wyzwalało zdarzenie niskiego stanu przy progu ponownego zamówienia. Pomiń asset_id i part_id, aby usunąć powiązanie.",
+      "fields": {
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator wyzwalanego zadania do uzbrojenia."
+        },
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy część."
+        },
+        "part_id": {
+          "name": "Identyfikator części",
+          "description": "Identyfikator części, której zapas ma zostać dostosowany."
+        }
+      }
+    },
     "notify": {
       "name": "Powiadom o zadaniach do zrobienia",
       "description": "Wyślij interaktywne powiadomienie push o tym, co jest teraz wymagane – podaj zapisane powiadomienie lub profil, opcjonalnie zastępując cel.",

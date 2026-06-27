@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "将任务关联到耗材",
+      "description": "将任务关联到设备的耗材/部件，这样完成任务时会从库存中消耗一个备件，并在补货阈值时触发低库存事件。省略 asset_id 和 part_id 可清除关联。",
+      "fields": {
+        "task_id": {
+          "name": "任务 ID",
+          "description": "要置为待办的触发式任务的 id。"
+        },
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "该零件所属设备的 ID。"
+        },
+        "part_id": {
+          "name": "零件 ID",
+          "description": "要调整库存的零件的 ID。"
+        }
+      }
+    },
     "notify": {
       "name": "通知到期事项",
       "description": "发送可操作的推送通知，告知当前到期的内容——指定已保存的通知或配置文件，并可选择覆盖通知目标。",

@@ -136,6 +136,16 @@ SKIP_TASK_SCHEMA = vol.Schema(
         vol.Optional("origin"): cv.string,
     }
 )
+# Link a task to an appliance consumable/part (or clear the link). Completing a
+# linked task consumes one spare from the part's stock and fires the edge-triggered
+# low/out-of-stock events. Omit asset_id/part_id (or pass them empty) to unlink.
+SET_TASK_CONSUMABLE_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Optional("asset_id"): vol.Any(cv.string, None),
+        vol.Optional("part_id"): vol.Any(cv.string, None),
+    }
+)
 # ``force`` bypasses managed-task deletion protection — the escape hatch for cleaning
 # up a task whose managing integration is gone or misbehaving. See docs/INTEGRATING.md.
 DELETE_TASK_SCHEMA = vol.Schema(
@@ -559,6 +569,30 @@ def _register_services(hass: HomeAssistant) -> None:
         # unchanged, so a refresh is enough — no entry reload (mirrors complete_task).
         await coord.async_request_refresh()
 
+    async def handle_set_task_consumable(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.set_task_consumable(
+                call.data["task_id"],
+                call.data.get("asset_id") or None,
+                call.data.get("part_id") or None,
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        # Linking only rewrites the task's source; the per-task entity set is
+        # unchanged, so a refresh is enough — no entry reload.
+        await coord.async_request_refresh()
+
     async def handle_snooze_task(call: ServiceCall) -> None:
         coord = _coordinator()
         until = dt_util.now() + timedelta(hours=call.data["hours"])
@@ -787,6 +821,12 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN,
+        "set_task_consumable",
+        handle_set_task_consumable,
+        SET_TASK_CONSUMABLE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
         "notify",
         handle_notify,
         NOTIFY_SCHEMA,
@@ -915,6 +955,7 @@ _SERVICES = (
     "trigger_task",
     "snooze_task",
     "skip_task",
+    "set_task_consumable",
     "notify",
     "list_tasks",
     "list_profiles",

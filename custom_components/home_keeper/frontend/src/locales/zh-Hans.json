@@ -276,5 +276,7 @@
   "notify.add_profile": "添加配置文件",
   "notify.new_profile": "新配置文件",
   "notify.profile": "配置文件",
-  "notify.need_profile": "请先添加配置文件——通知需要它来选择要发送的内容。"
+  "notify.need_profile": "请先添加配置文件——通知需要它来选择要发送的内容。",
+  "field.consumable_link": "关联的耗材",
+  "opt.consumable.none": "未关联"
 }

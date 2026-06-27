@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Koble oppgave til en forbruksvare",
+      "description": "Knytter en oppgave til en forbruksvare/del på et apparat, slik at fullføring forbruker én reservedel fra lageret og utløser en hendelse om lavt lager ved bestillingsgrensen. Utelat asset_id og part_id for å fjerne koblingen.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til den utløste oppgaven som skal aktiveres."
+        },
+        "asset_id": {
+          "name": "Eiendels-ID",
+          "description": "ID-en til apparatet som reservedelen tilhører."
+        },
+        "part_id": {
+          "name": "Reservedels-ID",
+          "description": "ID-en til reservedelen hvis lager skal justeres."
+        }
+      }
+    },
     "notify": {
       "name": "Varsle om forfalte oppgaver",
       "description": "Send et handlingsbart push-varsel om det som forfaller nå – angi et lagret varsel eller en profil, og overstyr eventuelt målet.",

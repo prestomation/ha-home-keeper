@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Vincula la tasca a un consumible",
+      "description": "Vincula una tasca a un consumible/peça d'un electrodomèstic perquè en completar-la es consumeixi un recanvi de l'estoc i es dispari un esdeveniment d'estoc baix al llindar de reposició. Omet asset_id i part_id per esborrar el vincle.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca activada a armar."
+        },
+        "asset_id": {
+          "name": "ID de l'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany la peça."
+        },
+        "part_id": {
+          "name": "ID de la peça",
+          "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc."
+        }
+      }
+    },
     "notify": {
       "name": "Notifica el que venç",
       "description": "Envia una notificació push accionable del que venç ara: indica una notificació o un perfil desat, opcionalment substituint el destinatari.",

@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Collega l'attività a un consumabile",
+      "description": "Collega un'attività a un consumabile/componente di un elettrodomestico così che completandola si consumi un ricambio dalle scorte e si attivi un evento di scorte basse alla soglia di riordino. Ometti asset_id e part_id per rimuovere il collegamento.",
+      "fields": {
+        "task_id": {
+          "name": "ID attività",
+          "description": "L'id dell'attività attivata da armare."
+        },
+        "asset_id": {
+          "name": "ID risorsa",
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio."
+        },
+        "part_id": {
+          "name": "ID ricambio",
+          "description": "L'id del ricambio di cui regolare le scorte."
+        }
+      }
+    },
     "notify": {
       "name": "Notifica le attività in scadenza",
       "description": "Invia una notifica push interattiva per ciò che è in scadenza ora: indica una notifica o un profilo salvato, sovrascrivendo facoltativamente la destinazione.",

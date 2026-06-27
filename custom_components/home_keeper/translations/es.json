@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Vincular tarea a un consumible",
+      "description": "Vincula una tarea a un consumible/pieza de un electrodoméstico para que al completarla se consuma un repuesto del stock y se dispare un evento de stock bajo en el umbral de reposición. Omite asset_id y part_id para quitar el vínculo.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea activada a armar."
+        },
+        "asset_id": {
+          "name": "ID del activo",
+          "description": "El id del electrodoméstico al que pertenece la pieza."
+        },
+        "part_id": {
+          "name": "ID de la pieza",
+          "description": "El id de la pieza cuyo stock se va a ajustar."
+        }
+      }
+    },
     "notify": {
       "name": "Notificar lo que vence",
       "description": "Envía una notificación push accionable de lo que vence ahora: indica una notificación o un perfil guardado, opcionalmente sustituyendo el destino.",

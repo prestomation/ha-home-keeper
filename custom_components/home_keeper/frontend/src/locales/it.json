@@ -288,5 +288,7 @@
   "notify.add_profile": "Aggiungi profilo",
   "notify.new_profile": "Nuovo profilo",
   "notify.profile": "Profilo",
-  "notify.need_profile": "Aggiungi prima un profilo — una notifica ne ha bisogno per scegliere cosa inviare."
+  "notify.need_profile": "Aggiungi prima un profilo — una notifica ne ha bisogno per scegliere cosa inviare.",
+  "field.consumable_link": "Consumabile collegato",
+  "opt.consumable.none": "Non collegato"
 }

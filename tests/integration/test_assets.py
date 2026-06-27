@@ -626,3 +626,190 @@ def test_low_stock_event_fires_on_crossing_not_on_restock(ha):
     )
     time.sleep(2)
     assert _captured() == "none", "a restock must not fire a low-stock event"
+
+
+def _add_consumable_appliance(ha, name, *, stock, reorder_at):
+    """Create a virtual appliance with one stocked consumable; return (asset, part)."""
+    import time
+
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": name,
+            "parts": [
+                {
+                    "name": "Water filter",
+                    "type": "consumable",
+                    "stock": stock,
+                    "reorder_at": reorder_at,
+                }
+            ],
+        },
+    )
+    for _ in range(20):
+        asset = next((a for a in _assets(ha) if a["name"] == name), None)
+        if asset and asset.get("parts"):
+            return asset, asset["parts"][0]
+        time.sleep(1)
+    raise AssertionError(f"appliance {name!r} was not provisioned with its part")
+
+
+def _add_floating_task(ha, name):
+    add = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {"name": name, "recurrence_type": "floating", "interval": 6, "unit": "months"},
+        return_response=True,
+    )
+    return add.get("service_response", add)["task_id"]
+
+
+def test_manual_consumable_link_consumes_stock_on_completion(ha):
+    # The headline flow: link an arbitrary task to a consumable, then completing it
+    # draws down one spare and crosses the reorder threshold -> a low-stock event.
+    import time
+    import uuid
+
+    from conftest import get_state
+
+    name = f"Fridge {uuid.uuid4().hex[:8]}"
+    asset, part = _add_consumable_appliance(ha, name, stock=2, reorder_at=1)
+    task_id = _add_floating_task(ha, f"Replace filter {name}")
+
+    # Link the task to the consumable.
+    call_service(
+        ha,
+        "home_keeper",
+        "set_task_consumable",
+        {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
+    )
+    linked = next(t for t in _all_tasks(ha) if t["id"] == task_id)
+    assert linked["source"]["part"] == {
+        "asset_id": asset["id"],
+        "part_id": part["id"],
+        "manual": True,
+    }
+
+    # Arm the low-stock sentinel automation, then complete the task: stock 2 -> 1,
+    # which lands at reorder_at (==1) and fires home_keeper_part_low_stock.
+    sentinel = "input_text.hk_last_low_stock_part"
+    call_service(
+        ha, "input_text", "set_value", {"entity_id": sentinel, "value": "none"}
+    )
+    call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+
+    fresh_part = next(p for p in _assets_part(ha, asset["id"]))
+    assert fresh_part["stock"] == 1, "completing a linked task must consume one spare"
+
+    deadline = time.monotonic() + 10
+    captured = None
+    while time.monotonic() < deadline:
+        st = get_state(ha, sentinel)
+        captured = st["state"] if st else None
+        if captured and captured != "none":
+            break
+        time.sleep(0.5)
+    assert captured == f"{part['id']}@1", (
+        f"expected a low-stock event for {part['id']}, got {captured!r}"
+    )
+
+
+def _assets_part(ha, asset_id):
+    asset = next(a for a in _assets(ha) if a["id"] == asset_id)
+    return list(asset.get("parts", []))
+
+
+def test_manual_link_survives_reconcile_and_can_be_cleared(ha):
+    # A manually-linked task must NOT be orphan-deleted by a reconcile (the part has
+    # no wear cadence), and clearing the link drops the part source.
+    import time
+    import uuid
+
+    name = f"Fridge {uuid.uuid4().hex[:8]}"
+    asset, part = _add_consumable_appliance(ha, name, stock=5, reorder_at=1)
+    task_id = _add_floating_task(ha, f"Replace filter {name}")
+    call_service(
+        ha,
+        "home_keeper",
+        "set_task_consumable",
+        {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
+    )
+
+    # Editing the asset triggers a part-task reconcile.
+    call_service(
+        ha, "home_keeper", "update_asset", {"asset_id": asset["id"], "model": "X"}
+    )
+    time.sleep(1)
+    assert any(t["id"] == task_id for t in _all_tasks(ha)), (
+        "a manually-linked task must survive reconcile"
+    )
+
+    # Clearing the link (no asset/part) drops the source.
+    call_service(ha, "home_keeper", "set_task_consumable", {"task_id": task_id})
+    cleared = next(t for t in _all_tasks(ha) if t["id"] == task_id)
+    assert not (cleared.get("source") or {}).get("part"), "link should be cleared"
+
+
+def test_set_task_consumable_rejects_derived_task(ha):
+    # A reconciler-derived wear-part task is already bound to its part; re-linking it
+    # by hand must be rejected.
+    from conftest import HA_URL
+
+    anode = _anode_task(ha)
+    asset_id = anode["source"]["part"]["asset_id"]
+    part_id = anode["source"]["part"]["part_id"]
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/set_task_consumable",
+        json={"task_id": anode["id"], "asset_id": asset_id, "part_id": part_id},
+    )
+    assert r.status_code >= 400, (
+        f"linking a derived task should be rejected, got {r.status_code}"
+    )
+
+
+def test_manual_link_task_is_deletable(ha):
+    # Regression: a manually-linked task is user-owned and must be freely deletable —
+    # the wear-part delete guard must not block it (unlike a reconciler-derived task).
+    import uuid
+
+    name = f"Fridge {uuid.uuid4().hex[:8]}"
+    asset, part = _add_consumable_appliance(ha, name, stock=3, reorder_at=1)
+    task_id = _add_floating_task(ha, f"Replace filter {name}")
+    call_service(
+        ha,
+        "home_keeper",
+        "set_task_consumable",
+        {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
+    )
+    # Deleting it must succeed (no "managed by an appliance wear part" rejection).
+    call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+    assert all(t["id"] != task_id for t in _all_tasks(ha)), (
+        "a manually-linked task must be deletable"
+    )
+
+
+def test_deleting_asset_unlinks_manual_link_task(ha):
+    # Regression: deleting the appliance must NOT delete a user's manually-linked task —
+    # it only clears the (now-dangling) link, keeping the task as a standalone task.
+    import uuid
+
+    name = f"Fridge {uuid.uuid4().hex[:8]}"
+    asset, part = _add_consumable_appliance(ha, name, stock=3, reorder_at=1)
+    task_id = _add_floating_task(ha, f"Replace filter {name}")
+    call_service(
+        ha,
+        "home_keeper",
+        "set_task_consumable",
+        {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
+    )
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+    survivor = next((t for t in _all_tasks(ha) if t["id"] == task_id), None)
+    assert survivor is not None, (
+        "deleting the appliance must not delete the user's task"
+    )
+    assert not (survivor.get("source") or {}).get("part"), (
+        "the dangling consumable link should be cleared"
+    )

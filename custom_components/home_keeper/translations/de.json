@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Aufgabe mit Verbrauchsmaterial verknüpfen",
+      "description": "Verknüpft eine Aufgabe mit einem Verbrauchsmaterial/Teil eines Geräts, sodass beim Abschließen ein Ersatzteil aus dem Bestand verbraucht wird und beim Nachbestellschwellenwert ein Ereignis bei niedrigem Bestand ausgelöst wird. Lasse asset_id und part_id weg, um die Verknüpfung zu entfernen.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe."
+        },
+        "asset_id": {
+          "name": "Objekt-ID",
+          "description": "Die ID des Geräts, zu dem das Teil gehört."
+        },
+        "part_id": {
+          "name": "Teile-ID",
+          "description": "Die ID des Teils, dessen Bestand angepasst werden soll."
+        }
+      }
+    },
     "notify": {
       "name": "Über Fälliges benachrichtigen",
       "description": "Sende eine umsetzbare Push-Benachrichtigung für aktuell Fälliges – nenne eine gespeicherte Benachrichtigung oder ein Profil und überschreibe optional das Ziel.",
