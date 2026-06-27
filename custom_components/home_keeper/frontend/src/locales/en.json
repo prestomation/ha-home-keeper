@@ -23,6 +23,8 @@
   "btn.removePart": "Remove part",
   "btn.addPart": "+ Add part",
   "btn.removeField": "Remove field",
+  "confirm.removePart": "Remove Part {n}?",
+  "confirm.removeField": "Remove Field {n}?",
   "btn.addField": "+ Custom field",
   "btn.removeDocument": "Remove document",
   "btn.openDocument": "Open",

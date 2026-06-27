@@ -176,6 +176,8 @@
   "managed.orphanBanner.one": "{n} uppgift hanteras av en integration som inte längre är installerad.",
   "managed.orphanBanner.other": "{n} uppgifter hanteras av integrationer som inte längre är installerade.",
   "btn.removeField": "Ta bort fält",
+  "confirm.removePart": "Remove Part {n}?",
+  "confirm.removeField": "Remove Field {n}?",
   "btn.addField": "+ Anpassat fält",
   "section.metadata": "Anpassade fält",
   "section.meta_n": "Fält {n}",

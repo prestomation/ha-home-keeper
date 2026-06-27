@@ -582,6 +582,11 @@ export class HomeKeeperPanel extends HTMLElement {
     data: {},
     required: [],
   };
+  private _confirmDelete: { open: boolean; label: string; onConfirm: (() => void) | null } = {
+    open: false,
+    label: '',
+    onConfirm: null,
+  };
   // config entry id -> integration domain, for resolving device brand logos.
   private _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.
@@ -897,6 +902,45 @@ export class HomeKeeperPanel extends HTMLElement {
   private _closeCompletionDialog(): void {
     this._completion = { open: false, task: null, data: {}, required: [] };
     this._render();
+  }
+
+  private _openConfirmDialog(label: string, onConfirm: () => void): void {
+    this._confirmDelete = { open: true, label, onConfirm };
+    this._render();
+  }
+
+  private _closeConfirmDialog(): void {
+    this._confirmDelete = { open: false, label: '', onConfirm: null };
+    this._render();
+  }
+
+  private _renderConfirmDeleteDialog(host: HTMLElement): void {
+    const { label, onConfirm } = this._confirmDelete;
+    const dialog = document.createElement('ha-dialog') as HTMLElement & { heading?: string };
+    dialog.setAttribute('open', '');
+    dialog.setAttribute('heading', label);
+    dialog.addEventListener('closed', () => {
+      if (this._confirmDelete.open) this._closeConfirmDialog();
+    });
+
+    const primary = document.createElement('ha-button');
+    primary.setAttribute('slot', 'primaryAction');
+    primary.setAttribute('raised', '');
+    primary.setAttribute('destructive', '');
+    primary.textContent = t('btn.delete');
+    primary.addEventListener('click', () => {
+      onConfirm?.();
+      this._closeConfirmDialog();
+    });
+    dialog.appendChild(primary);
+
+    const cancel = document.createElement('ha-button');
+    cancel.setAttribute('slot', 'secondaryAction');
+    cancel.textContent = t('btn.cancel');
+    cancel.addEventListener('click', () => this._closeConfirmDialog());
+    dialog.appendChild(cancel);
+
+    host.appendChild(dialog);
   }
 
   /** True when every required field of the in-progress completion is filled. */
@@ -2217,6 +2261,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // The completion-details dialog overlays any view, so build it first.
     const dialogHost = root.getElementById('hk-dialog-host');
     if (dialogHost && this._completion.open) this._renderCompletionDialog(dialogHost);
+    if (dialogHost && this._confirmDelete.open) this._renderConfirmDeleteDialog(dialogHost);
 
     // Header sidebar toggle.
     const menuHost = root.getElementById('menu-host');
@@ -3688,10 +3733,12 @@ export class HomeKeeperPanel extends HTMLElement {
       const del = document.createElement('ha-icon-button');
       del.className = 'part-del';
       del.setAttribute('label', t('btn.removeField'));
+      this._setIcon(del, MDI_DELETE);
       del.addEventListener('click', () => {
-        const list = this._assetEdit.asset?.metadata || [];
-        this._assetEdit.asset!.metadata = list.filter((_, j) => j !== i);
-        this._render();
+        this._openConfirmDialog(t('confirm.removeField', { n: i + 1 }), () => {
+          const list = this._assetEdit.asset?.metadata || [];
+          this._assetEdit.asset!.metadata = list.filter((_, j) => j !== i);
+        });
       });
       head.appendChild(del);
       box.appendChild(head);
@@ -3781,10 +3828,12 @@ export class HomeKeeperPanel extends HTMLElement {
       const del = document.createElement('ha-icon-button');
       del.className = 'part-del';
       del.setAttribute('label', t('btn.removePart'));
+      this._setIcon(del, MDI_DELETE);
       del.addEventListener('click', () => {
-        const list = this._assetEdit.asset?.parts || [];
-        this._assetEdit.asset!.parts = list.filter((_, j) => j !== i);
-        this._render();
+        this._openConfirmDialog(t('confirm.removePart', { n: i + 1 }), () => {
+          const list = this._assetEdit.asset?.parts || [];
+          this._assetEdit.asset!.parts = list.filter((_, j) => j !== i);
+        });
       });
       head.appendChild(del);
       box.appendChild(head);

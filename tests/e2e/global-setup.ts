@@ -129,7 +129,9 @@ export default async function globalSetup(): Promise<void> {
   const token = await ensureOnboarded();
   await waitForTasks(token);
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    executablePath: process.env.CHROMIUM_EXEC || undefined,
+  });
   const context = await browser.newContext();
   const page = await context.newPage();
   try {

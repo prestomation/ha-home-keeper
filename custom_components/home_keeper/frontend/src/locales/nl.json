@@ -176,6 +176,8 @@
   "managed.orphanBanner.one": "{n} taak wordt beheerd door een integratie die niet meer geïnstalleerd is.",
   "managed.orphanBanner.other": "{n} taken worden beheerd door integraties die niet meer geïnstalleerd zijn.",
   "btn.removeField": "Veld verwijderen",
+  "confirm.removePart": "Remove Part {n}?",
+  "confirm.removeField": "Remove Field {n}?",
   "btn.addField": "+ Aangepast veld",
   "section.metadata": "Aangepaste velden",
   "section.meta_n": "Veld {n}",

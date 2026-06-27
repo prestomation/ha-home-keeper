@@ -198,6 +198,8 @@
   "managed.orphanBanner.one": "{n} zadanie jest zarządzane przez integrację, która nie jest już zainstalowana.",
   "managed.orphanBanner.other": "{n} zadań jest zarządzanych przez integracje, które nie są już zainstalowane.",
   "btn.removeField": "Usuń pole",
+  "confirm.removePart": "Remove Part {n}?",
+  "confirm.removeField": "Remove Field {n}?",
   "btn.addField": "+ Pole niestandardowe",
   "section.metadata": "Pola niestandardowe",
   "section.meta_n": "Pole {n}",

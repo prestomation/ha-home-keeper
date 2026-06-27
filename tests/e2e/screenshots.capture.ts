@@ -354,6 +354,37 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     fullPage: true,
   });
 
+  // 35. Part delete confirmation dialog — clicking the trash icon on a part now
+  // shows a confirmation dialog before removing it (previously the icon was
+  // invisible and deletion was immediate). Navigate to the water heater edit form,
+  // expand the Parts section, and click the delete button on the first part to
+  // show the dialog.
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  await expect(panel.locator('.d-edit')).toBeVisible();
+  await panel.locator('.d-edit').click();
+  const partEditForm = panel.locator('#hk-asset-form');
+  await expect(partEditForm).toBeVisible();
+  // Expand Parts section if collapsed.
+  const partsDetails = partEditForm.locator('details').filter({ hasText: 'Parts & wear items' });
+  if (await partsDetails.count() > 0) {
+    const open = await partsDetails.first().evaluate((d: HTMLDetailsElement) => d.open);
+    if (!open) await partsDetails.first().locator('summary').click();
+  }
+  await expect(partEditForm.locator('.hk-part').first()).toBeVisible();
+  // Click the delete (trash) icon-button on the first part.
+  await partEditForm.locator('.hk-part').first().locator('ha-icon-button.part-del').click();
+  // ha-dialog portals its surface, so wait on the primary-action button slot.
+  await expect(
+    panel.locator('ha-dialog[open] ha-button[slot="primaryAction"]'),
+  ).toBeAttached({ timeout: 5_000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/35-panel-part-delete-confirm.png`, fullPage: true });
+  // Dismiss via Escape (closes ha-dialog) — slot buttons are inside shadow DOM.
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 5_000 });
+
   // 17. The Settings tab — friendly forms mirroring the options flow: a
   // Problem sensor sync card (toggle + entity / device / area / label exclusions)
   // and a General card (one-off retention), each saved on change.

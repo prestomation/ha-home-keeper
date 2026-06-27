@@ -176,6 +176,8 @@
   "managed.orphanBanner.one": "{n} tehtävää hallinnoi integraatio, jota ei ole enää asennettu.",
   "managed.orphanBanner.other": "{n} tehtävää hallinnoivat integraatiot, joita ei ole enää asennettu.",
   "btn.removeField": "Poista kenttä",
+  "confirm.removePart": "Remove Part {n}?",
+  "confirm.removeField": "Remove Field {n}?",
   "btn.addField": "+ Mukautettu kenttä",
   "section.metadata": "Mukautetut kentät",
   "section.meta_n": "Kenttä {n}",
