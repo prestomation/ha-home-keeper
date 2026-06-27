@@ -41,6 +41,11 @@ const ANCHOR_ROUTES = {
     '/docs/guide/settings#companions--discover-integrations-that-work-with-home-keeper',
   '#notifications--actionable-reminders-on-your-phone': '/docs/guide/notifications',
   '#profiles--saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
+  // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
+  // section (→ sensor-tasks page); "Parts & wear items" under Appliances.
+  '#link-a-task-to-a-consumable-auto-reorder':
+    '/docs/guide/sensor-tasks#link-a-task-to-a-consumable-auto-reorder',
+  '#parts--wear-items': '/docs/guide/appliances#parts--wear-items',
 };
 
 // Rewrite every Markdown link/image target. `sourceDir` is the canonical file's
