@@ -25,6 +25,7 @@
   "btn.removeField": "Remove field",
   "confirm.removePart": "Remove Part {n}?",
   "confirm.removeField": "Remove Field {n}?",
+  "confirm.removeNamed": "Remove \"{name}\"?",
   "confirm.cannotUndo": "This cannot be undone.",
   "btn.addField": "+ Custom field",
   "btn.removeDocument": "Remove document",

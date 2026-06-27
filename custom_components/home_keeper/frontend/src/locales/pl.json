@@ -200,6 +200,7 @@
   "btn.removeField": "Usuń pole",
   "confirm.removePart": "Usunąć część {n}?",
   "confirm.removeField": "Usunąć pole {n}?",
+  "confirm.removeNamed": "Usuń \"{name}\"?",
   "confirm.cannotUndo": "Tej czynności nie można cofnąć.",
   "btn.addField": "+ Pole niestandardowe",
   "section.metadata": "Pola niestandardowe",

@@ -178,6 +178,7 @@
   "btn.removeField": "Fjern felt",
   "confirm.removePart": "Fjern del {n}?",
   "confirm.removeField": "Fjern felt {n}?",
+  "confirm.removeNamed": "Fjern \"{name}\"?",
   "confirm.cannotUndo": "Dette kan ikke fortrydes.",
   "btn.addField": "+ Brugerdefineret felt",
   "section.metadata": "Brugerdefinerede felter",

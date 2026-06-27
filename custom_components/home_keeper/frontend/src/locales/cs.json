@@ -200,6 +200,7 @@
   "btn.removeField": "Odebrat pole",
   "confirm.removePart": "Odebrat díl {n}?",
   "confirm.removeField": "Odebrat pole {n}?",
+  "confirm.removeNamed": "Odebrat \"{name}\"?",
   "confirm.cannotUndo": "Tuto akci nelze vrátit zpět.",
   "btn.addField": "+ Vlastní pole",
   "section.metadata": "Vlastní pole",

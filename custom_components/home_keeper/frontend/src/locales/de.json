@@ -178,6 +178,7 @@
   "btn.removeField": "Feld entfernen",
   "confirm.removePart": "Teil {n} entfernen?",
   "confirm.removeField": "Feld {n} entfernen?",
+  "confirm.removeNamed": "\"{name}\" entfernen?",
   "confirm.cannotUndo": "Diese Aktion kann nicht rückgängig gemacht werden.",
   "btn.addField": "+ Eigenes Feld",
   "section.metadata": "Eigene Felder",

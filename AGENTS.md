@@ -42,6 +42,13 @@
     confirm the URLs weren't mangled and verify each returns HTTP 200. (In-repo
     README/docs markdown with relative `docs/images/…` paths is fine — this only bites
     PR/issue bodies set through the API.)
+  - **Always visually inspect every captured screenshot before committing it.** Read
+    the PNG file with the Read tool and look at the rendered image. Confirm the
+    changed surface is visible and correct — dialogs show their heading and buttons,
+    lists are populated, no blank or clipped content. If a screenshot looks wrong
+    (empty dialog, missing elements, `position:fixed` overlay not visible in a
+    fullPage capture), diagnose the root cause and fix it before committing. Do not
+    commit screenshots that don't clearly show the intended UI state.
 - **Always document new major features in `README.md` in the same change.** Add a
   brief section with the **use cases** (what problem it solves) and a little about
   **how it's used**, and include **screenshot(s)** (same Playwright capture, committed

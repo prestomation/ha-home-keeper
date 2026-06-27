@@ -178,6 +178,7 @@
   "btn.removeField": "Poista kenttä",
   "confirm.removePart": "Poistetaanko osa {n}?",
   "confirm.removeField": "Poistetaanko kenttä {n}?",
+  "confirm.removeNamed": "Poista \"{name}\"?",
   "confirm.cannotUndo": "Tätä toimintoa ei voi kumota.",
   "btn.addField": "+ Mukautettu kenttä",
   "section.metadata": "Mukautetut kentät",

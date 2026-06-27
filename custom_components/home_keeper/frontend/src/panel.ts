@@ -3782,7 +3782,10 @@ export class HomeKeeperPanel extends HTMLElement {
       del.setAttribute('label', t('btn.removeField'));
       this._setIcon(del, MDI_DELETE);
       del.addEventListener('click', () => {
-        this._openConfirmDialog(t('confirm.removeField', { n: i + 1 }), () => {
+        const dlabel = m.label
+          ? t('confirm.removeNamed', { name: m.label })
+          : t('confirm.removeField', { n: i + 1 });
+        this._openConfirmDialog(dlabel, () => {
           const list = this._assetEdit.asset?.metadata || [];
           this._assetEdit.asset!.metadata = list.filter((_, j) => j !== i);
         });
@@ -3877,7 +3880,10 @@ export class HomeKeeperPanel extends HTMLElement {
       del.setAttribute('label', t('btn.removePart'));
       this._setIcon(del, MDI_DELETE);
       del.addEventListener('click', () => {
-        this._openConfirmDialog(t('confirm.removePart', { n: i + 1 }), () => {
+        const dlabel = p.name
+          ? t('confirm.removeNamed', { name: p.name })
+          : t('confirm.removePart', { n: i + 1 });
+        this._openConfirmDialog(dlabel, () => {
           const list = this._assetEdit.asset?.parts || [];
           this._assetEdit.asset!.parts = list.filter((_, j) => j !== i);
         });

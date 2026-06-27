@@ -178,6 +178,7 @@
   "btn.removeField": "Veld verwijderen",
   "confirm.removePart": "Onderdeel {n} verwijderen?",
   "confirm.removeField": "Veld {n} verwijderen?",
+  "confirm.removeNamed": "\"{name}\" verwijderen?",
   "confirm.cannotUndo": "Dit kan niet ongedaan worden gemaakt.",
   "btn.addField": "+ Aangepast veld",
   "section.metadata": "Aangepaste velden",
