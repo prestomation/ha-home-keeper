@@ -21,6 +21,29 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   independent of the auto-generated wear-part tasks, so it's never reconciled away and
   the task stays fully editable.
 
+### Changed
+
+- **Panel clarity pass for first-time users.** Several refinements make the task list
+  easier to read at a glance:
+  - A dismissible **"Welcome to Home Keeper"** banner on the Tasks tab explains the
+    kinds of tasks you'll see mixed together (recurring, monitored, and companion-
+    contributed). Dismiss it with **Got it** and it stays gone.
+  - The recurrence picker uses **plain language** — "Repeats after each completion",
+    "Repeats on a fixed schedule", "Just once", "Based on a sensor" — instead of the
+    "Floating / Fixed / Sensor-based" jargon.
+  - Overdue cards now show **how overdue** they are (e.g. "3 days overdue") next to the
+    due date, so urgency reads at a glance.
+  - Monitored tasks are labelled simply **"Monitored"** (the "(condition-driven)"
+    parenthetical is gone), and a completion-blocked task shows a muted
+    **"Clears automatically"** caption instead of a dead, greyed-out Done button.
+  - Sensor-synced tasks owned by Home Keeper itself now show an **"Auto-synced"** chip
+    rather than the redundant "Managed by Home Keeper", and companion **"Managed by …"**
+    chips carry the integration's icon so owner/device/status chips read distinctly.
+  - The appliance **"Virtual device"** chip has an explanatory tooltip, and the
+    appliance editor's advanced **Custom fields** and **Parts & wear items** sections
+    **collapse by default** on an empty appliance (and remember your choice while
+    editing), so adding a first appliance isn't a wall of fields.
+
 ## [0.6.0b1]
 
 ## [0.5.0] - 2026-06-26

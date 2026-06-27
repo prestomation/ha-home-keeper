@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { openPanel, trackPanelErrors } from './helpers';
 
 test.describe('Home Keeper panel — synced problem task', () => {
-  test('the Tasks-list Done is disabled and explains (not completes) on click', async ({
+  test('the Tasks-list Done is replaced by a caption and explains (not completes) on click', async ({
     page,
   }) => {
     const errors = trackPanelErrors(page);
@@ -14,10 +14,10 @@ test.describe('Home Keeper panel — synced problem task', () => {
     const card = panel.locator('.hk-card', { hasText: 'Sump pump problem' });
     await expect(card).toBeVisible();
 
-    // Its Done is a *disabled* (greyed) button, not a working complete action.
-    const blocked = card.locator('.done-blocked-wrap');
+    // Instead of a working Done, it shows a muted "Clears automatically" caption.
+    const blocked = card.locator('.hk-auto-clear');
     await expect(blocked).toBeVisible();
-    await expect(blocked.locator('ha-button[disabled]')).toHaveCount(1);
+    await expect(blocked).toContainText(/clears automatically/i);
 
     // Clicking it surfaces the explanation toast …
     await blocked.click();

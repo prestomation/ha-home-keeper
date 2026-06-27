@@ -61,16 +61,19 @@ locally in a single JSON document (`.storage/home_keeper`).
 
 A **task** has a name, notes, an optional device it's attached to, and a recurrence:
 
-- **Floating** — measured from the last completion: *"replace the fridge filter every
-  1 month after I last did it."* Completing the task resets the clock; a missed task
-  stays overdue rather than silently rolling forward.
-- **Fixed** — an anchored calendar schedule: *"take medicine every day at 8am"*,
-  independent of when you actually complete it.
-- **One-off** — *do-once* (see [One-off tasks](#one-off-do-once-tasks) below).
-- **Triggered** — *condition-driven, no schedule* (see below).
-- **Sensor-based** — driven by a numeric sensor instead of the clock: *"service the
-  generator every 500 running hours"* or *"replace the filter when airflow drops below
-  60%"* (see [Sensor-based tasks](#sensor-based-tasks-usage-meters--thresholds) below).
+- **Floating** (form: *Repeats after each completion*) — measured from the last
+  completion: *"replace the fridge filter every 1 month after I last did it."*
+  Completing the task resets the clock; a missed task stays overdue rather than
+  silently rolling forward.
+- **Fixed** (form: *Repeats on a fixed schedule*) — an anchored calendar schedule:
+  *"take medicine every day at 8am"*, independent of when you actually complete it.
+- **One-off** (form: *Just once*) — *do-once* (see
+  [One-off tasks](#one-off-do-once-tasks) below).
+- **Triggered** — *monitored, no schedule* (see below).
+- **Sensor-based** (form: *Based on a sensor*) — driven by a numeric sensor instead of
+  the clock: *"service the generator every 500 running hours"* or *"replace the filter
+  when airflow drops below 60%"* (see
+  [Sensor-based tasks](#sensor-based-tasks-usage-meters--thresholds) below).
 
 An **appliance** (asset) is the physical thing a task is about — a fridge, furnace,
 water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).
@@ -79,7 +82,7 @@ water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).
 
 Not everything repeats. **One-off** tasks are for things you do exactly once —
 *renew the passport*, *register the car*, *replace a single broken blind*. Pick
-**One-off** on the task form and choose a **due date** (it defaults to today, so a
+**Just once** on the task form and choose a **due date** (it defaults to today, so a
 quick "remind me to do this" needs only a name).
 
 A one-off behaves like any other task until it's done — it appears on the to-do
@@ -208,7 +211,7 @@ check coolant when temperature climbs **above 90 °C**. A **sensor-based** task 
 task to an existing numeric Home Assistant entity and lets Home Keeper arm it for you —
 no automation to wire up.
 
-Pick **Sensor-based** on the task form, choose the **sensor**, and pick a **mode**:
+Pick **Based on a sensor** on the task form, choose the **sensor**, and pick a **mode**:
 
 - **Usage / meter** — set a **target**. Home Keeper records the reading when you create
   the task (and again each time you complete it), and the task becomes **due** once the

@@ -30,6 +30,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   const panel = page.locator('home-keeper-panel').first();
   await expect(panel.locator('.hk-name').first()).toBeVisible();
   await page.waitForTimeout(1200); // let the HA sidebar/layout settle (avoid ghosting)
+
+  // 0. First-run orientation banner — shown above the list until dismissed. Capture
+  // it, then dismiss so the remaining task-list shots keep their established framing.
+  await expect(panel.locator('.hk-intro')).toBeVisible();
+  await page.screenshot({ path: `${OUT}/0-panel-first-run-intro.png`, fullPage: true });
+  await panel.locator('ha-button.hk-intro-dismiss').click();
+  await expect(panel.locator('.hk-intro')).toHaveCount(0);
+
   await page.screenshot({ path: `${OUT}/1-panel-task-list.png`, fullPage: true });
 
   // 1a2. Completion-details dialog — a task whose capture mode is "optional" or
@@ -136,11 +144,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
-  // 18. The same blocked Done on a Tasks-*list* card row — greyed/disabled (not a
-  // working complete action); clicking it pops the same reason as the detail page.
+  // 18. A completion-blocked task on a Tasks-*list* card row shows a muted "Clears
+  // automatically" caption instead of a dead Done button; tapping it pops the same
+  // reason as the detail page.
   const sumpCard = panel.locator('.hk-card', { hasText: 'Sump pump problem' });
-  await expect(sumpCard.locator('.done-blocked-wrap ha-button[disabled]')).toHaveCount(1);
-  await sumpCard.locator('.done-blocked-wrap').click();
+  await expect(sumpCard.locator('.hk-auto-clear')).toHaveCount(1);
+  await sumpCard.locator('.hk-auto-clear').click();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/18-panel-tasks-blocked-done.png`, fullPage: true });
   // (healthy batteries) — collapsed by default to stay out of the way, one click
@@ -167,13 +176,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/2-panel-create-floating.png`, fullPage: true });
 
   // 3. Create form switched to a fixed (anchored) schedule.
-  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Fixed/);
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /fixed schedule/i);
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/3-panel-create-fixed.png`, fullPage: true });
 
   // 20. Create form switched to a one-off (do-once) task — no cadence, just a single
   // Due date picker. Completing it later sends it to the Completed section.
-  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /One-off/);
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Just once/);
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/20-panel-create-one-off.png`, fullPage: true });
 
@@ -187,7 +196,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#add-btn').click();
   await expect(panel.locator('#hk-form')).toBeVisible();
   await fillText(panel.locator('#hk-task-form'), 0, 'Service generator (runtime hours)');
-  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Sensor-based/);
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Based on a sensor/);
   await expect(panel.locator('#hk-task-form ha-selector-entity').first()).toBeVisible();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
@@ -282,6 +291,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   const assetForm = panel.locator('#hk-asset-form');
   await fillText(assetForm, 0, 'Garage water heater'); // name
   await fillText(assetForm, 1, 'Rheem'); // manufacturer
+  // The advanced "Custom fields" and "Parts & wear items" sections collapse by
+  // default on a fresh appliance — expand them before filling them in.
+  const expandSection = async (title: string): Promise<void> => {
+    const summary = assetForm
+      .locator('details.hk-collapsible > summary')
+      .filter({ hasText: title })
+      .first();
+    const details = assetForm
+      .locator('details.hk-collapsible')
+      .filter({ hasText: title })
+      .first();
+    if (!(await details.evaluate((d: HTMLDetailsElement) => d.open))) await summary.click();
+  };
+  await expandSection('Parts & wear items');
+  await expandSection('Custom fields');
   // Add a wear part to show the parts editor + replacement interval.
   await panel.locator('#a-add-part').click();
   const part = panel.locator('.hk-part').first();
@@ -376,14 +400,17 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   });
   await openPanel(page);
   await panel.locator('#tab-settings').click();
-  // Settings → Profiles — the standalone saved-filter editor.
+  // Settings → Profiles — the standalone saved-filter editor. Rows collapse by
+  // default; expand each so its editor form shows in the shot.
   await expect(panel.locator('#hk-profiles')).toBeVisible();
-  await expect(panel.locator('#hk-profiles .hk-editor-row ha-form').first()).toBeVisible();
+  for (const h of await panel.locator('#hk-profiles .hk-item-header').all()) await h.click();
+  await expect(panel.locator('#hk-profiles .hk-item-body ha-form').first()).toBeVisible();
   await page.waitForTimeout(700);
   await panel.locator('#hk-profiles').screenshot({ path: `${OUT}/profiles-card.png` });
   // Settings → Notifications — delivery bindings that each reference a Profile.
   await expect(panel.locator('#hk-notifications')).toBeVisible();
-  await expect(panel.locator('#hk-notifications .hk-editor-row ha-form').first()).toBeVisible();
+  for (const h of await panel.locator('#hk-notifications .hk-item-header').all()) await h.click();
+  await expect(panel.locator('#hk-notifications .hk-item-body ha-form').first()).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/22-panel-notifications.png`, fullPage: true });
 

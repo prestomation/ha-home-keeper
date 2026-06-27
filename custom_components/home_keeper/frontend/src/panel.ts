@@ -195,6 +195,35 @@ const STYLES = `
     width: 18px; height: 18px; object-fit: contain; border-radius: 3px;
     --mdc-icon-size: 18px;
   }
+  /* Small inline glyph carried in an assist-chip's icon slot / inline labels. */
+  .hk-chip-ic { width: 16px; height: 16px; --mdc-icon-size: 16px; color: inherit; }
+  /* A completion-blocked task shows a muted "Clears automatically" caption in the
+     card's action slot instead of a dead greyed-out button. */
+  .hk-auto-clear {
+    display: inline-flex; align-items: center; gap: 4px; padding: 0 8px;
+    font-size: 0.85rem; font-style: italic; color: var(--secondary-text-color);
+    cursor: help;
+  }
+  /* First-run orientation banner above the task list (dismissible, persisted). */
+  .hk-intro {
+    border: 1px solid var(--divider-color);
+    border-radius: 12px; padding: 16px; margin-bottom: 16px;
+    background: var(--card-background-color);
+  }
+  .hk-intro-head { display: flex; align-items: center; gap: 8px; }
+  .hk-intro-head .hk-form-title { flex: 1; margin-bottom: 0; }
+  .hk-intro-body { color: var(--secondary-text-color); font-size: 0.9rem; margin: 8px 0; }
+  .hk-intro ul { margin: 8px 0 12px; padding-inline-start: 20px; }
+  .hk-intro li { color: var(--secondary-text-color); font-size: 0.9rem; margin: 4px 0; line-height: 1.4; }
+  /* Collapsible advanced sections in the appliance editor (native <details>). */
+  details.hk-collapsible { margin: 0; }
+  details.hk-collapsible > summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  details.hk-collapsible > summary::-webkit-details-marker { display: none; }
+  details.hk-collapsible > summary .hk-section { margin-bottom: 0; flex: 1; }
+  details.hk-collapsible > summary .hk-section-chevron { transition: transform 0.15s; }
+  details.hk-collapsible[open] > summary .hk-section-chevron { transform: rotate(180deg); }
   .hk-form-card { margin-bottom: 16px; }
   .hk-form-inner { padding: 16px; }
   .hk-form-title { font-size: 1.1rem; font-weight: 500; margin-bottom: 8px; }
@@ -487,6 +516,10 @@ interface AssetEditState {
   errorLink?: string;
   // Id of the document currently being edited inline (its card shows a name/url form).
   editingDocId?: string;
+  // Per-section expand state for the collapsible advanced editors (keyed "metadata"/
+  // "parts"), preserved across re-renders so an expanded section doesn't snap shut
+  // when an unrelated edit re-renders the form. Unset → defaults to "open if non-empty".
+  openSections?: Record<string, boolean>;
 }
 
 // Docs section explaining a 413 from a reverse proxy in front of HA (see README
@@ -534,6 +567,8 @@ const SOON_DAYS = 7;
 const LS_GROUP = 'home-keeper.groupBy';
 const LS_FILTER = 'home-keeper.filter';
 const LS_PROFILE = 'home-keeper.profile';
+// Set once the user dismisses the first-run orientation banner on the Tasks tab.
+const LS_INTRO = 'home-keeper.introDismissed';
 
 export class HomeKeeperPanel extends HTMLElement {
   private _hass?: Hass;
@@ -909,6 +944,16 @@ export class HomeKeeperPanel extends HTMLElement {
   private _blockedDone(wrapClass: string, task: Task, raised = false): string {
     const reason = task.managed_by?.completion_prompt || t('done.blocked');
     return `<span class="${wrapClass} done-blocked-wrap" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-button ${raised ? 'raised ' : ''}disabled>${escapeHTML(t('btn.done'))}</ha-button></span>`;
+  }
+  /** A muted "Clears automatically" caption for a completion-blocked task in the list
+   *  card — self-explanatory inline (no hover needed), unlike a dead greyed button. It's
+   *  a *status*, not an action, so it carries no button role: the visible label conveys
+   *  the gist, `aria-label` gives assistive tech the full reason, `title` shows it on
+   *  hover, and a pointer tap still surfaces it as a toast (via `.done-blocked-wrap`). */
+  private _blockedDoneInline(task: Task): string {
+    const reason = task.managed_by?.completion_prompt || t('done.blocked');
+    const label = t('done.autoClears');
+    return `<span class="hk-auto-clear done-blocked-wrap" data-id="${escapeHTML(task.id)}" title="${escapeHTML(reason)}" aria-label="${escapeHTML(`${label}: ${reason}`)}"><ha-icon icon="mdi:autorenew" class="hk-chip-ic"></ha-icon>${escapeHTML(label)}</span>`;
   }
   private async _delete(task: Task): Promise<void> {
     if (!this._hass) return;
@@ -1369,10 +1414,39 @@ export class HomeKeeperPanel extends HTMLElement {
       .join('');
   }
 
+  /** One-time orientation banner that explains the kinds of tasks a newcomer will see
+   *  mixed in the list. Dismissed permanently via localStorage. Empty once dismissed. */
+  private _introCard(): string {
+    let dismissed = false;
+    try {
+      dismissed = localStorage.getItem(LS_INTRO) === '1';
+    } catch {
+      // localStorage unavailable (e.g. private mode) — just show the banner.
+    }
+    if (dismissed) return '';
+    return `
+      <div class="hk-intro">
+        <div class="hk-intro-head">
+          <div class="hk-form-title">${escapeHTML(t('tasks.intro.title'))}</div>
+          <ha-icon-button class="hk-intro-dismiss" label="${escapeHTML(
+            t('tasks.intro.dismiss'),
+          )}"><ha-icon icon="mdi:close"></ha-icon></ha-icon-button>
+        </div>
+        <div class="hk-intro-body">${escapeHTML(t('tasks.intro.body'))}</div>
+        <ul>
+          <li>${t('tasks.intro.recurring')}</li>
+          <li>${t('tasks.intro.monitored')}</li>
+          <li>${t('tasks.intro.companion')}</li>
+        </ul>
+        <ha-button class="hk-intro-dismiss">${escapeHTML(t('tasks.intro.dismiss'))}</ha-button>
+      </div>`;
+  }
+
   private _tasksList(): string {
+    const intro = this._introCard();
     if (!this._tasks.length) {
       const addTask = `<b>${escapeHTML(t('btn.addTask'))}</b>`;
-      return `<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;
+      return `${intro}<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;
     }
     const now = Date.now();
     let tasks = [...this._tasks];
@@ -1391,9 +1465,9 @@ export class HomeKeeperPanel extends HTMLElement {
       return ad - bd;
     });
     if (!tasks.length) {
-      return `<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}</ha-alert>`;
+      return `${intro}<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}</ha-alert>`;
     }
-    return `${this._orphanBanner()}${this._renderGroups(
+    return `${intro}${this._orphanBanner()}${this._renderGroups(
       this._groupTasks(tasks, now),
       (task) => this._taskCard(task),
     )}`;
@@ -1454,6 +1528,15 @@ export class HomeKeeperPanel extends HTMLElement {
       : completedOneOff
         ? ` · ${escapeHTML(t('form.task.completedOn', { date: new Date(task.last_completed as string).toLocaleDateString() }))}`
         : '';
+    // For an overdue task, append *how* overdue it is — a bare date hides urgency. Use
+    // whole elapsed days (floor), and only once at least one full day has passed: a
+    // task overdue by mere hours reads as "Overdue" alone rather than an inflated
+    // "1 day overdue".
+    const overdueDays = task.next_due
+      ? Math.floor((Date.now() - new Date(task.next_due).getTime()) / 86_400_000)
+      : 0;
+    const overdueText =
+      overdue && overdueDays >= 1 ? ` · ${escapeHTML(tn('due.overdue_by', overdueDays))}` : '';
     const n = task.completions?.length ?? 0;
     // A dormant triggered task (monitored, not due) has nothing to mark done — its
     // owning integration arms it when the condition fires; hide the action. A
@@ -1464,7 +1547,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const doneAction = dormantTriggered || completedOneOff
       ? ''
       : task.managed_by?.completion_blocked
-        ? this._blockedDone('done-blocked-wrap', task)
+        ? this._blockedDoneInline(task)
         : `<ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
     // The row opens the task's detail page; "Done" stays as a quick action.
     return `
@@ -1472,7 +1555,7 @@ export class HomeKeeperPanel extends HTMLElement {
         <div class="hk-card-row">
           <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(task.name)}</div>
-            <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
+            <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${overdueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
             <div class="hk-chips">${statusChip}${dev}${managedChip}</div>
           </div>
           <div class="hk-card-actions">
@@ -1485,7 +1568,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private _assetCard(x: Asset): string {
     const kindChip =
       x.kind === 'virtual'
-        ? `<ha-assist-chip label="${escapeHTML(t('chip.virtualDevice'))}"></ha-assist-chip>`
+        ? `<ha-assist-chip label="${escapeHTML(t('chip.virtualDevice'))}" title="${escapeHTML(t('chip.virtualDevice.tip'))}"></ha-assist-chip>`
         : x.device_id
           ? this._deviceChip(x.device_id)
           : `<ha-assist-chip label="${escapeHTML(deviceName(this._hass?.devices, x.device_id))}"></ha-assist-chip>`;
@@ -1889,7 +1972,17 @@ export class HomeKeeperPanel extends HTMLElement {
     if (this._isManagedOrphan(task)) {
       return `<ha-assist-chip class="hk-orphaned" label="${escapeHTML(t('chip.orphaned'))}"></ha-assist-chip>`;
     }
-    return `<ha-assist-chip class="hk-managed" label="${escapeHTML(t('chip.managed', { name: mb.display_name }))}"></ha-assist-chip>`;
+    // A task Home Keeper synced from a sensor is "owned" by Home Keeper itself, so
+    // "Managed by Home Keeper" reads as redundant — call it what it is: auto-synced.
+    const selfOwned = mb.integration === 'home_keeper';
+    const label = selfOwned ? t('chip.autoSynced') : t('chip.managed', { name: mb.display_name });
+    const tip = selfOwned ? t('chip.autoSynced.tip') : label;
+    // A leading glyph gives the owner chip the same icon grammar as the device chip:
+    // the companion's own mdi icon when known, a generic integration glyph otherwise,
+    // and an autorenew mark for self-synced tasks.
+    const iconName = selfOwned ? 'mdi:autorenew' : mb.icon || 'mdi:puzzle';
+    const icon = `<ha-icon slot="icon" icon="${escapeHTML(iconName)}" class="hk-chip-ic"></ha-icon>`;
+    return `<ha-assist-chip class="hk-managed" label="${escapeHTML(label)}" title="${escapeHTML(tip)}">${icon}</ha-assist-chip>`;
   }
 
   /**
@@ -2223,6 +2316,16 @@ export class HomeKeeperPanel extends HTMLElement {
         b.addEventListener('click', () => {
           const task = this._tasks.find((x) => x.id === b.dataset.id);
           if (task) void this._complete(task);
+        }),
+      );
+      root.querySelectorAll<HTMLElement>('.hk-intro-dismiss').forEach((b) =>
+        b.addEventListener('click', () => {
+          try {
+            localStorage.setItem(LS_INTRO, '1');
+          } catch {
+            // localStorage unavailable — the banner simply reappears next load.
+          }
+          this._render();
         }),
       );
     }
@@ -3572,8 +3675,9 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _renderMetadataEditor(inner: HTMLElement): void {
-    inner.appendChild(this._section(t('section.metadata')));
     const entries = this._assetEdit.asset?.metadata || [];
+    const { details, body } = this._collapsibleSection(t('section.metadata'), 'metadata', entries.length);
+    inner.appendChild(details);
     entries.forEach((m, i) => {
       const box = document.createElement('div');
       box.className = 'hk-part';
@@ -3628,7 +3732,7 @@ export class HomeKeeperPanel extends HTMLElement {
         note.textContent = t('meta.trackHint');
         box.appendChild(note);
       }
-      inner.appendChild(box);
+      body.appendChild(box);
     });
 
     // Quick-add seeds for the common fields (each prelabeled, right type), plus a
@@ -3660,12 +3764,13 @@ export class HomeKeeperPanel extends HTMLElement {
     custom.textContent = t('btn.addField');
     custom.addEventListener('click', () => addEntry({ type: 'text', label: '', value: '' }));
     seedRow.appendChild(custom);
-    inner.appendChild(seedRow);
+    body.appendChild(seedRow);
   }
 
   private _renderPartsEditor(inner: HTMLElement): void {
-    inner.appendChild(this._section(t('section.parts')));
     const parts = this._assetEdit.asset?.parts || [];
+    const { details, body } = this._collapsibleSection(t('section.parts'), 'parts', parts.length);
+    inner.appendChild(details);
     parts.forEach((p, i) => {
       const box = document.createElement('div');
       box.className = 'hk-part';
@@ -3743,7 +3848,7 @@ export class HomeKeeperPanel extends HTMLElement {
         note.textContent = t('part.wearHint');
         box.appendChild(note);
       }
-      inner.appendChild(box);
+      body.appendChild(box);
     });
 
     const add = document.createElement('ha-button');
@@ -3755,7 +3860,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._assetEdit.asset!.parts = list;
       this._render();
     });
-    inner.appendChild(add);
+    body.appendChild(add);
   }
 
   private _section(title: string): HTMLElement {
@@ -3763,6 +3868,33 @@ export class HomeKeeperPanel extends HTMLElement {
     el.className = 'hk-section';
     el.textContent = title;
     return el;
+  }
+
+  /** A collapsible `<details>` section for the advanced parts of the appliance editor,
+   *  so a first appliance isn't a wall of fields. Defaults open when it already holds
+   *  entries (editing existing data) and collapsed when empty. Returns the body to
+   *  fill; the caller appends the returned `details` to its container. */
+  private _collapsibleSection(
+    title: string,
+    key: string,
+    count: number,
+  ): { details: HTMLDetailsElement; body: HTMLElement } {
+    const details = document.createElement('details');
+    details.className = 'hk-collapsible';
+    // Respect a remembered choice; otherwise open when the section already has content.
+    details.open = this._assetEdit.openSections?.[key] ?? count > 0;
+    details.addEventListener('toggle', () => {
+      (this._assetEdit.openSections ??= {})[key] = details.open;
+    });
+    const summary = document.createElement('summary');
+    summary.innerHTML =
+      `<span class="hk-section">${escapeHTML(title)}</span>` +
+      (count ? `<span class="hk-section-count">${count}</span>` : '') +
+      `<ha-icon icon="mdi:chevron-down" class="hk-section-chevron"></ha-icon>`;
+    details.appendChild(summary);
+    const body = document.createElement('div');
+    details.appendChild(body);
+    return { details, body };
   }
 
   /** Give an ha-icon-button its mdi icon via the native `path` property. */
