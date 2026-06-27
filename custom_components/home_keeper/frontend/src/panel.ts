@@ -202,7 +202,7 @@ const STYLES = `
   .hk-auto-clear {
     display: inline-flex; align-items: center; gap: 4px; padding: 0 8px;
     font-size: 0.85rem; font-style: italic; color: var(--secondary-text-color);
-    cursor: default;
+    cursor: help;
   }
   /* First-run orientation banner above the task list (dismissible, persisted). */
   .hk-intro {
@@ -946,11 +946,14 @@ export class HomeKeeperPanel extends HTMLElement {
     return `<span class="${wrapClass} done-blocked-wrap" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-button ${raised ? 'raised ' : ''}disabled>${escapeHTML(t('btn.done'))}</ha-button></span>`;
   }
   /** A muted "Clears automatically" caption for a completion-blocked task in the list
-   *  card — self-explanatory inline (no hover needed), unlike a dead greyed button. The
-   *  full reason stays available as a tooltip and on tap (via `.done-blocked-wrap`). */
+   *  card — self-explanatory inline (no hover needed), unlike a dead greyed button. It's
+   *  a *status*, not an action, so it carries no button role: the visible label conveys
+   *  the gist, `aria-label` gives assistive tech the full reason, `title` shows it on
+   *  hover, and a pointer tap still surfaces it as a toast (via `.done-blocked-wrap`). */
   private _blockedDoneInline(task: Task): string {
     const reason = task.managed_by?.completion_prompt || t('done.blocked');
-    return `<span class="hk-auto-clear done-blocked-wrap" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-icon icon="mdi:autorenew" class="hk-chip-ic"></ha-icon>${escapeHTML(t('done.autoClears'))}</span>`;
+    const label = t('done.autoClears');
+    return `<span class="hk-auto-clear done-blocked-wrap" data-id="${escapeHTML(task.id)}" title="${escapeHTML(reason)}" aria-label="${escapeHTML(`${label}: ${reason}`)}"><ha-icon icon="mdi:autorenew" class="hk-chip-ic"></ha-icon>${escapeHTML(label)}</span>`;
   }
   private async _delete(task: Task): Promise<void> {
     if (!this._hass) return;
@@ -1525,16 +1528,15 @@ export class HomeKeeperPanel extends HTMLElement {
       : completedOneOff
         ? ` · ${escapeHTML(t('form.task.completedOn', { date: new Date(task.last_completed as string).toLocaleDateString() }))}`
         : '';
-    // For an overdue task, append how overdue it is — a bare date hides urgency.
+    // For an overdue task, append *how* overdue it is — a bare date hides urgency. Use
+    // whole elapsed days (floor), and only once at least one full day has passed: a
+    // task overdue by mere hours reads as "Overdue" alone rather than an inflated
+    // "1 day overdue".
+    const overdueDays = task.next_due
+      ? Math.floor((Date.now() - new Date(task.next_due).getTime()) / 86_400_000)
+      : 0;
     const overdueText =
-      overdue && task.next_due
-        ? ` · ${escapeHTML(
-            tn(
-              'due.overdue_by',
-              Math.max(1, Math.round((Date.now() - new Date(task.next_due).getTime()) / 86_400_000)),
-            ),
-          )}`
-        : '';
+      overdue && overdueDays >= 1 ? ` · ${escapeHTML(tn('due.overdue_by', overdueDays))}` : '';
     const n = task.completions?.length ?? 0;
     // A dormant triggered task (monitored, not due) has nothing to mark done — its
     // owning integration arms it when the condition fires; hide the action. A
