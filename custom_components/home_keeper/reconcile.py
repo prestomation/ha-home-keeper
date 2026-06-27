@@ -190,9 +190,9 @@ def reconcile_part_tasks(
         if part.get("id")
     }
     for tid, task in list(result.items()):
-        if not is_manual_part_link(task):
-            continue
         src = part_source(task)
+        if src is None or not src.get("manual"):
+            continue
         if (src["asset_id"], src["part_id"]) not in existing_parts:
             result[tid] = {**task, "source": None}
             changed = True
