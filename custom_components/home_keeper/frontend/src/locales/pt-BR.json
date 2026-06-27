@@ -176,6 +176,7 @@
   "btn.removeField": "Remover campo",
   "confirm.removePart": "Remover peça {n}?",
   "confirm.removeField": "Remover campo {n}?",
+  "confirm.cannotUndo": "Esta ação não pode ser desfeita.",
   "btn.addField": "+ Campo personalizado",
   "section.metadata": "Campos personalizados",
   "section.meta_n": "Campo {n}",

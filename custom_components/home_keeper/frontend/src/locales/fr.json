@@ -176,6 +176,7 @@
   "btn.removeField": "Supprimer le champ",
   "confirm.removePart": "Supprimer la pièce {n} ?",
   "confirm.removeField": "Supprimer le champ {n} ?",
+  "confirm.cannotUndo": "Cette action est irréversible.",
   "btn.addField": "+ Champ personnalisé",
   "section.metadata": "Champs personnalisés",
   "section.meta_n": "Champ {n}",

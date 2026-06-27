@@ -200,6 +200,7 @@
   "btn.removeField": "Удалить поле",
   "confirm.removePart": "Удалить деталь {n}?",
   "confirm.removeField": "Удалить поле {n}?",
+  "confirm.cannotUndo": "Это действие нельзя отменить.",
   "btn.addField": "+ Своё поле",
   "section.metadata": "Свои поля",
   "section.meta_n": "Поле {n}",

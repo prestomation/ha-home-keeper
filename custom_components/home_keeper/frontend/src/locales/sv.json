@@ -178,6 +178,7 @@
   "btn.removeField": "Ta bort fält",
   "confirm.removePart": "Ta bort del {n}?",
   "confirm.removeField": "Ta bort fält {n}?",
+  "confirm.cannotUndo": "Det går inte att ångra.",
   "btn.addField": "+ Anpassat fält",
   "section.metadata": "Anpassade fält",
   "section.meta_n": "Fält {n}",

@@ -916,12 +916,22 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _renderConfirmDeleteDialog(host: HTMLElement): void {
     const { label, onConfirm } = this._confirmDelete;
-    const dialog = document.createElement('ha-dialog') as HTMLElement & { heading?: string };
+    const dialog = document.createElement('ha-dialog');
     dialog.setAttribute('open', '');
-    dialog.setAttribute('heading', label);
     dialog.addEventListener('closed', () => {
       if (this._confirmDelete.open) this._closeConfirmDialog();
     });
+
+    // Use slot="heading" — more reliable across HA versions than the heading attribute.
+    const heading = document.createElement('span');
+    heading.setAttribute('slot', 'heading');
+    heading.textContent = label;
+    dialog.appendChild(heading);
+
+    // Body text so the dialog renders at a legible size.
+    const body = document.createElement('p');
+    body.textContent = t('confirm.cannotUndo');
+    dialog.appendChild(body);
 
     const primary = document.createElement('ha-button');
     primary.setAttribute('slot', 'primaryAction');

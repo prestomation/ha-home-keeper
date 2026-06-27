@@ -178,6 +178,7 @@
   "btn.removeField": "Fjern felt",
   "confirm.removePart": "Fjerne del {n}?",
   "confirm.removeField": "Fjerne felt {n}?",
+  "confirm.cannotUndo": "Dette kan ikke angres.",
   "btn.addField": "+ Egendefinert felt",
   "section.metadata": "Egendefinerte felter",
   "section.meta_n": "Felt {n}",

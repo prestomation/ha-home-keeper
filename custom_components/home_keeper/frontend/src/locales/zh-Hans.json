@@ -178,6 +178,7 @@
   "btn.removeField": "移除字段",
   "confirm.removePart": "删除零件 {n}？",
   "confirm.removeField": "删除字段 {n}？",
+  "confirm.cannotUndo": "此操作无法撤销。",
   "btn.addField": "+ 自定义字段",
   "section.metadata": "自定义字段",
   "section.meta_n": "字段 {n}",

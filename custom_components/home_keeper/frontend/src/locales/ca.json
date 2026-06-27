@@ -176,6 +176,7 @@
   "btn.removeField": "Elimina el camp",
   "confirm.removePart": "Voleu eliminar la peça {n}?",
   "confirm.removeField": "Voleu eliminar el camp {n}?",
+  "confirm.cannotUndo": "No es pot desfer.",
   "btn.addField": "+ Camp personalitzat",
   "section.metadata": "Camps personalitzats",
   "section.meta_n": "Camp {n}",
