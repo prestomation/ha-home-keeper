@@ -388,6 +388,31 @@ baseline so the next interval is measured from the reading at completion. You do
 arm/clear it yourself; this is internal to Home Keeper, so no contribution API is
 involved.
 
+### Linking a task to a consumable (draw down stock on completion)
+
+Any task — sensor-armed or not — can be **linked to an appliance consumable/part** so
+that completing it consumes one spare from the part's `stock` and fires the
+edge-triggered `home_keeper_part_low_stock` / `_out_of_stock` events at the reorder
+threshold (see [docs/EVENTS.md](EVENTS.md)). Use the `home_keeper.set_task_consumable`
+service:
+
+```yaml
+service: home_keeper.set_task_consumable
+data:
+  task_id: "<task id>"
+  asset_id: "<appliance id>"
+  part_id: "<consumable part id>"   # omit asset_id/part_id to clear the link
+```
+
+This is the end-to-end recipe for *"my fridge tells me when the water filter is spent,
+auto-subtract a spare and tell me to buy more"*: create a `sensor` task bound to the
+filter's life/usage entity, link it to the filter consumable, and an automation on
+`home_keeper_part_low_stock` adds it to your shopping list. The link is recorded on the
+task's `source` (`{"part": {asset_id, part_id, manual: true}}`); the `manual` flag keeps
+it independent of the wear-part reconciler, so it is never auto-deleted and stays fully
+editable. A reconciler-derived wear-part task is already bound to its part and cannot be
+re-linked by hand.
+
 ## 7. Discovery: announce yourself so users can find you (optional)
 
 Everything above works without Home Keeper knowing your integration exists. But users

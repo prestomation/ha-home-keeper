@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Vincular tarefa a um consumível",
+      "description": "Vincula uma tarefa a um consumível/peça de um aparelho para que concluí-la consuma uma reserva do estoque e dispare um evento de estoque baixo no limite de reposição. Omita asset_id e part_id para remover o vínculo.",
+      "fields": {
+        "task_id": {
+          "name": "ID da tarefa",
+          "description": "O id da tarefa acionada a armar."
+        },
+        "asset_id": {
+          "name": "ID do ativo",
+          "description": "O id do eletrodoméstico ao qual a peça pertence."
+        },
+        "part_id": {
+          "name": "ID da peça",
+          "description": "O id da peça cujo estoque deve ser ajustado."
+        }
+      }
+    },
     "notify": {
       "name": "Notificar o que está pendente",
       "description": "Envia uma notificação push acionável do que está vencido agora — informe uma notificação ou perfil salvo, opcionalmente substituindo o destino.",

@@ -276,5 +276,7 @@
   "notify.add_profile": "Profil hinzufügen",
   "notify.new_profile": "Neues Profil",
   "notify.profile": "Profil",
-  "notify.need_profile": "Füge zuerst ein Profil hinzu — eine Benachrichtigung braucht eines, um auszuwählen, was gesendet wird."
+  "notify.need_profile": "Füge zuerst ein Profil hinzu — eine Benachrichtigung braucht eines, um auszuwählen, was gesendet wird.",
+  "field.consumable_link": "Verknüpftes Verbrauchsmaterial",
+  "opt.consumable.none": "Nicht verknüpft"
 }

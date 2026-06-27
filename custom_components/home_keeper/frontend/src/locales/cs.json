@@ -300,5 +300,7 @@
   "notify.add_profile": "Přidat profil",
   "notify.new_profile": "Nový profil",
   "notify.profile": "Profil",
-  "notify.need_profile": "Nejprve přidejte profil — oznámení jej potřebuje k výběru, co odeslat."
+  "notify.need_profile": "Nejprve přidejte profil — oznámení jej potřebuje k výběru, co odeslat.",
+  "field.consumable_link": "Propojený spotřební materiál",
+  "opt.consumable.none": "Nepropojeno"
 }

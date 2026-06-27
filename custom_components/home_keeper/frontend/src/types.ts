@@ -91,9 +91,11 @@ export interface Task {
   labels?: string[];
   // Provenance for tasks derived/owned by another source (e.g. an appliance wear
   // part, or a synced `device_class: problem` binary sensor). Such tasks are managed
-  // by their source, so the panel hides edit/delete.
+  // by their source, so the panel hides edit/delete — EXCEPT a manual consumable
+  // link (`part.manual`), which the user owns: completing it consumes a spare, but it
+  // stays fully editable/deletable like any user task.
   source?: {
-    part?: { asset_id: string; part_id: string };
+    part?: { asset_id: string; part_id: string; manual?: boolean };
     problem_sensor?: { entity_id: string };
   } | null;
   // Well-known ownership block that Home Keeper inspects. See docs/INTEGRATING.md §6.

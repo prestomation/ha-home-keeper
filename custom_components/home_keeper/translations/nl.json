@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Taak aan verbruiksartikel koppelen",
+      "description": "Koppelt een taak aan een verbruiksartikel/onderdeel van een apparaat, zodat het voltooien ervan één reserve uit de voorraad verbruikt en bij de besteldrempel een gebeurtenis voor lage voorraad activeert. Laat asset_id en part_id weg om de koppeling te wissen.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "De id van de te activeren geactiveerde taak."
+        },
+        "asset_id": {
+          "name": "Object-ID",
+          "description": "De id van het apparaat waartoe het onderdeel behoort."
+        },
+        "part_id": {
+          "name": "Onderdeel-ID",
+          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast."
+        }
+      }
+    },
     "notify": {
       "name": "Melden wat openstaat",
       "description": "Stuur een uitvoerbare pushmelding voor wat nu verschuldigd is – noem een opgeslagen melding of profiel en overschrijf optioneel het doel.",

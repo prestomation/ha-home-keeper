@@ -242,6 +242,19 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   `models.build_task`/`recurrence.py` + the existing per-task entities — do NOT build
   a parallel "part sensor". A load-time shim migrates the legacy `part_numbers` string
   (no storage-version bump).
+- **Manual consumable links.** A user can link *any* task (e.g. a sensor task) to a
+  consumable via `store.set_task_consumable` (the `home_keeper.set_task_consumable`
+  service + `home_keeper/set_task_consumable` websocket command). It reuses the same
+  `source={"part":{asset_id,part_id}}` shape — so completing it consumes a spare at the
+  existing `_stamp_part_replacement` chokepoint (which keys only on the part source, not
+  recurrence type) — but adds a **`manual: true`** discriminator inside the part dict.
+  `reconcile.is_manual_part_link` reads it, and `reconcile_part_tasks` **skips** manual
+  links entirely: it must never update or orphan-delete them (they have no wear cadence,
+  so the reconciler would otherwise delete them as orphans). The flag needs **no storage
+  migration** — existing reconciler-derived tasks lack it and stay owned. Setting a link
+  is rejected on a reconciler-derived part task (already bound) and a synced problem
+  sensor. The panel's `sourceOwned` gate treats `part.manual` as user-owned, so a linked
+  task stays editable/deletable.
 - **Problem-sensor sync.** When the `sync_problem_sensors` option is on, every
   `binary_sensor` with `device_class: problem` is mirrored as a **triggered** task by
   the pure `problem_tasks.reconcile_problem_tasks` (wrapped by

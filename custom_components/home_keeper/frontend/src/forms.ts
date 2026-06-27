@@ -91,7 +91,10 @@ export function haDateTimeToIso(value?: string | null): string | undefined {
  * triggered (condition-driven) task offers only its descriptive fields (it has
  * no schedule to edit).
  */
-export function taskSchema(task: Partial<Task>): FormField[] {
+export function taskSchema(
+  task: Partial<Task>,
+  consumables: { value: string; label: string }[] = [],
+): FormField[] {
   const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
 
   // A triggered (condition-driven) task has no schedule to edit — its state is
@@ -223,6 +226,20 @@ export function taskSchema(task: Partial<Task>): FormField[] {
       ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
       : []),
     ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
+    // Link the task to an appliance consumable so completing it draws down stock
+    // (and fires the low-stock reorder event). Only offered when the user has at
+    // least one consumable defined; the leading blank option clears the link.
+    ...(consumables.length && !locked.has('consumable_link')
+      ? [
+          {
+            name: 'consumable_link',
+            selector: selSelect([
+              { value: '', label: t('opt.consumable.none') },
+              ...consumables,
+            ]),
+          } as FormField,
+        ]
+      : []),
     ...(!locked.has('labels') ? [{ name: 'labels', selector: selLabel(true) } as FormField] : []),
     ...(!locked.has('completion_detail')
       ? [
@@ -268,9 +285,19 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
     sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
     device_id: task.device_id ?? undefined,
+    // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
+    // edit state holds the flat value once the user changes it; fall back to the
+    // task's current part source.
+    consumable_link: sd.consumable_link ?? consumableLinkToken(task),
     labels: task.labels ?? [],
     completion_detail: task.completion_detail ?? 'none',
   };
+}
+
+/** The `asset_id:part_id` token for a task's current part link (empty if none). */
+export function consumableLinkToken(task: Partial<Task>): string {
+  const part = task.source?.part;
+  return part ? `${part.asset_id}:${part.part_id}` : '';
 }
 
 /**

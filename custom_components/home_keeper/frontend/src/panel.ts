@@ -3,6 +3,7 @@ import * as api from './api';
 import { profileMatches } from './card-filter';
 import {
   buildTaskPayload,
+  consumableLinkToken,
   selArea,
   selBool,
   selDate,
@@ -764,7 +765,12 @@ export class HomeKeeperPanel extends HTMLElement {
   private _openCreate(): void {
     this._edit = {
       open: true,
-      task: { recurrence_type: 'floating', interval: 1, unit: 'months' },
+      task: {
+        recurrence_type: 'floating',
+        interval: 1,
+        unit: 'months',
+        consumable_link: '',
+      } as Partial<Task>,
     };
     this._render();
   }
@@ -772,7 +778,12 @@ export class HomeKeeperPanel extends HTMLElement {
     // Editing happens in the list view's form host; leave any open detail page.
     this._detail = null;
     this._view = 'tasks';
-    this._edit = { open: true, task: { ...task } };
+    // Seed the flat consumable_link so the picker reflects the current link and a
+    // plain save (no edit) round-trips it unchanged.
+    this._edit = {
+      open: true,
+      task: { ...task, consumable_link: consumableLinkToken(task) } as Partial<Task>,
+    };
     this._render();
   }
   private _closeForm(): void {
@@ -790,8 +801,17 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     const payload = buildTaskPayload(task);
     try {
-      if (task.id) await api.updateTask(this._hass, task.id, payload);
-      else await api.addTask(this._hass, payload);
+      const saved = task.id
+        ? await api.updateTask(this._hass, task.id, payload)
+        : await api.addTask(this._hass, payload);
+      // The consumable link rides its own service (it sets the task's source, which
+      // update_task doesn't touch). Only call when it actually changed: the desired
+      // token vs. the saved task's current link.
+      const desired = String((task as Record<string, unknown>).consumable_link ?? '');
+      if (desired !== consumableLinkToken(saved)) {
+        const [assetId, partId] = desired ? desired.split(':') : ['', ''];
+        await api.setTaskConsumable(this._hass, saved.id, assetId || null, partId || null);
+      }
       this._closeForm();
       await this._refresh();
     } catch (err) {
@@ -1575,9 +1595,12 @@ export class HomeKeeperPanel extends HTMLElement {
     const managedChip = this._managedChip(task);
     const mb = task.managed_by;
 
-    // Source-owned tasks (wear parts, synced problem sensors) are managed by their
-    // source; the panel offers no edit/delete for them.
-    const sourceOwned = Boolean(task.source?.part) || Boolean(task.source?.problem_sensor);
+    // Source-owned tasks (reconciler-derived wear parts, synced problem sensors) are
+    // managed by their source; the panel offers no edit/delete for them. A *manual*
+    // consumable link (part.manual) is user-owned, so it stays editable/deletable.
+    const sourceOwned =
+      (Boolean(task.source?.part) && !task.source?.part?.manual) ||
+      Boolean(task.source?.problem_sensor);
     const orphaned = this._isManagedOrphan(task);
     let manage = '';
     if (!sourceOwned) {
@@ -1644,6 +1667,7 @@ export class HomeKeeperPanel extends HTMLElement {
         ${this._row(t('field.recurrence_type'), recurrenceSummary(task))}
         ${task.recurrence_type === 'sensor' ? this._row(t('field.sensor_entity_id'), this._sensorProgress(task)) : ''}
         ${this._row(t('detail.nextDue'), due)}
+        ${this._row(t('field.consumable_link'), this._consumableLinkLabel(task))}
       </div></ha-card>
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>
@@ -2893,6 +2917,41 @@ export class HomeKeeperPanel extends HTMLElement {
     return form;
   }
 
+  /**
+   * `asset_id:part_id` options for the task form's "Linked consumable" picker —
+   * every consumable part across all appliances, labelled "Appliance · Part".
+   */
+  private _consumableOptions(): { value: string; label: string }[] {
+    const options: { value: string; label: string }[] = [];
+    for (const asset of this._assets) {
+      for (const part of asset.parts ?? []) {
+        if (part.type !== 'consumable' || !part.id) continue;
+        options.push({
+          value: `${asset.id}:${part.id}`,
+          label: `${asset.name} · ${part.name}`,
+        });
+      }
+    }
+    return options.sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  /** Resolve a task's part link to a "Appliance · Part · In stock: N" detail line. */
+  private _consumableLinkLabel(task: Task): string {
+    const part = task.source?.part;
+    if (!part) return '';
+    const asset = this._assets.find((a) => a.id === part.asset_id);
+    const p = asset?.parts?.find((x) => x.id === part.part_id);
+    if (!asset || !p) return '';
+    const stock =
+      p.stock != null
+        ? ` · ${t(
+            p.reorder_at != null && p.stock <= p.reorder_at ? 'part.lowStock' : 'part.inStock',
+            { n: p.stock },
+          )}`
+        : '';
+    return `${asset.name} · ${p.name}${stock}`;
+  }
+
   private _renderTaskForm(host: HTMLElement): void {
     const task = this._edit.task || {};
     const card = document.createElement('ha-card');
@@ -2904,22 +2963,26 @@ export class HomeKeeperPanel extends HTMLElement {
       task.id ? t('form.task.edit') : t('form.task.new'),
     )}</div>`;
 
-    const form = this._makeForm(taskSchema(task), taskFormData(task), (value) => {
-      const prevType = this._edit.task?.recurrence_type;
-      const prevSensorMode = (this._edit.task as Record<string, unknown> | undefined)
-        ?.sensor_mode;
-      this._edit.task = {
-        ...this._edit.task,
-        ...value,
-        interval: Number(value.interval) || 1,
-      } as Partial<Task>;
-      this._edit.error = undefined;
-      // The recurrence type (which cadence/sensor fields show) and the sensor mode
-      // (usage vs. threshold fields) each toggle the visible schema -> re-render.
-      if (value.recurrence_type !== prevType || value.sensor_mode !== prevSensorMode) {
-        this._render();
-      }
-    });
+    const form = this._makeForm(
+      taskSchema(task, this._consumableOptions()),
+      taskFormData(task),
+      (value) => {
+        const prevType = this._edit.task?.recurrence_type;
+        const prevSensorMode = (this._edit.task as Record<string, unknown> | undefined)
+          ?.sensor_mode;
+        this._edit.task = {
+          ...this._edit.task,
+          ...value,
+          interval: Number(value.interval) || 1,
+        } as Partial<Task>;
+        this._edit.error = undefined;
+        // The recurrence type (which cadence/sensor fields show) and the sensor mode
+        // (usage vs. threshold fields) each toggle the visible schema -> re-render.
+        if (value.recurrence_type !== prevType || value.sensor_mode !== prevSensorMode) {
+          this._render();
+        }
+      },
+    );
     form.id = 'hk-task-form';
     inner.appendChild(form);
 

@@ -392,6 +392,33 @@ skip_task:
       selector:
         text:
 
+set_task_consumable:
+  name: Link task to a consumable
+  description: >-
+    Link a task to an appliance consumable/part so completing the task consumes one
+    spare from the part's stock — and fires a home_keeper_part_low_stock event when
+    the count crosses the part's reorder threshold, so you can automate a
+    shopping-list add or reorder. Use it to wire any task (for example a sensor task
+    armed by a fridge's filter-life entity) to the consumable it depletes. Omit both
+    asset_id and part_id to clear the link.
+  fields:
+    task_id:
+      name: Task ID
+      description: The id of the task to link (or unlink).
+      required: true
+      selector:
+        text:
+    asset_id:
+      name: Asset ID
+      description: The id of the appliance the consumable belongs to. Omit to unlink.
+      selector:
+        text:
+    part_id:
+      name: Part ID
+      description: The id of the consumable/part to link. Omit to unlink.
+      selector:
+        text:
+
 notify:
   name: Notify what's due
   description: >-

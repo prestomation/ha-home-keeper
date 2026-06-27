@@ -276,5 +276,7 @@
   "notify.add_profile": "Add profile",
   "notify.new_profile": "New profile",
   "notify.profile": "Profile",
-  "notify.need_profile": "Add a profile first — a notification needs one to choose what to send."
+  "notify.need_profile": "Add a profile first — a notification needs one to choose what to send.",
+  "field.consumable_link": "Linked consumable",
+  "opt.consumable.none": "Not linked"
 }

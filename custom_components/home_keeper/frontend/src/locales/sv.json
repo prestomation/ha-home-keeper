@@ -276,5 +276,7 @@
   "notify.add_profile": "Lägg till profil",
   "notify.new_profile": "Ny profil",
   "notify.profile": "Profil",
-  "notify.need_profile": "Lägg till en profil först — en avisering behöver en för att välja vad som ska skickas."
+  "notify.need_profile": "Lägg till en profil först — en avisering behöver en för att välja vad som ska skickas.",
+  "field.consumable_link": "Länkad förbrukningsvara",
+  "opt.consumable.none": "Inte länkad"
 }

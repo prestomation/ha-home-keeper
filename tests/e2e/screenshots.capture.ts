@@ -202,6 +202,52 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/31-panel-create-sensor-threshold.png`, fullPage: true });
 
+  // 33 + 34. Linked consumable (sensor-driven reorder). Link a plain task to an
+  // appliance consumable so completing it draws down one spare from stock — and fires
+  // a low-stock event for a reorder. Done at runtime via the public service.
+  await openPanel(page);
+  await expect(panel.locator('#add-btn')).toBeVisible();
+  await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'set_task_consumable', {
+      task_id: 'task_water_filter',
+      asset_id: 'asset_water_heater',
+      part_id: 'part_sediment_filter',
+    });
+  });
+  // Reload so the panel re-reads the now-linked task.
+  await openPanel(page);
+  await expect(panel.locator('#add-btn')).toBeVisible();
+  // 33. The task detail shows the linked consumable and its current stock.
+  await panel.locator('.detail-open[data-detail-id="task_water_filter"]').click();
+  await expect(
+    panel.locator('.hk-detail-row', { hasText: 'Sediment pre-filter' }),
+  ).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: `${OUT}/33-panel-linked-consumable-detail.png`,
+    fullPage: true,
+  });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
+  // 34. The task create form's "Linked consumable" picker — offered whenever at least
+  // one consumable exists, so a new task can draw down a spare when completed.
+  await panel.locator('#add-btn').click();
+  await expect(panel.locator('#hk-form')).toBeVisible();
+  await fillText(panel.locator('#hk-task-form'), 0, 'Replace fridge water filter');
+  await expect(panel.locator('#hk-task-form').getByText('Linked consumable')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: `${OUT}/34-panel-create-linked-consumable.png`,
+    fullPage: true,
+  });
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
   // 5. Appliances tab — the asset list with the seeded virtual device.
   await panel.locator('#tab-appliances').click();
   await expect(panel.locator('.hk-name').first()).toBeVisible();

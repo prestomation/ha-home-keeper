@@ -234,6 +234,31 @@ passing a `sensor` mapping.
 
 ![The same form in threshold mode — a comparison, a value, and an optional hold](docs/images/31-panel-create-sensor-threshold.png)
 
+### Link a task to a consumable (auto-reorder)
+
+A maintenance task often **uses up a spare you keep on hand** — a fridge water filter,
+an HVAC filter, a brita cartridge. Home Keeper lets you **link any task to an appliance
+consumable** so that marking the task done **draws down one spare** from that part's
+[stock](#parts--wear-items), and — when stock crosses the **reorder-at** threshold —
+fires a `home_keeper_part_low_stock` event so an automation can add it to your shopping
+list. The link is independent of the auto-generated wear-part tasks, so the task stays a
+normal, fully-editable task.
+
+This is what makes the *"there's no schedule — my fridge tells me when the filter is
+spent"* case work end to end: create a **[sensor-based](#sensor-based-tasks-usage-meters--thresholds)**
+task bound to the fridge's filter-life (or water-usage) entity, then **link it to the
+filter consumable**. The fridge arms the task; when you swap the filter and mark it done,
+Home Keeper subtracts a spare and tells you to **buy more** once you're low.
+
+Pick the consumable from the **Linked consumable** dropdown on the task form (it appears
+once you have at least one consumable defined), or use the `home_keeper.set_task_consumable`
+service (omit the ids to unlink). The task detail then shows the linked part and its
+current stock.
+
+![The task form's Linked consumable picker — link a task to a stocked consumable](docs/images/34-panel-create-linked-consumable.png)
+
+![A task detail showing its linked consumable and current spare stock](docs/images/33-panel-linked-consumable-detail.png)
+
 ## Settings
 
 Home Keeper's integration options are editable right in the panel — a **Settings**
@@ -412,7 +437,9 @@ starts from the real date.
 Any part can also track **spare inventory** — a *stock* count and a *reorder-at*
 threshold. Completing a wear-item replacement consumes one spare, and when stock drops
 to (or below) the threshold Home Keeper fires a `home_keeper_part_low_stock` event you
-can automate on (add to a shopping list, notify, reorder).
+can automate on (add to a shopping list, notify, reorder). A *consumable* part isn't
+limited to its own wear cadence: you can **[link any task to it](#link-a-task-to-a-consumable-auto-reorder)**
+— including a sensor-driven one — so completing that task draws down the same stock.
 
 ### Offline manuals & documents
 
@@ -483,7 +510,9 @@ scripts, and voice:
   (with optional `note`/`cost`/`photo`/`who`), `update_completion` (amend a recorded
   completion's metadata), `trigger_task` (arm a condition-driven task), `snooze_task`
   (defer the due date by `hours` without completing), `skip_task` (advance to the next
-  occurrence without completing), and `list_tasks` (returns a response).
+  occurrence without completing), `set_task_consumable` (link a task to an appliance
+  consumable so completing it draws down stock — omit the ids to unlink), and
+  `list_tasks` (returns a response).
 - **Notifications** — `home_keeper.notify` sends an actionable notification for what's
   due from a saved notification or profile (returns `{matched, sent}`). See
   [Notifications](#notifications--actionable-reminders-on-your-phone).

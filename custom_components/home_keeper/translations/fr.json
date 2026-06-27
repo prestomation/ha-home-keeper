@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Lier la tâche à un consommable",
+      "description": "Lie une tâche à un consommable/pièce d'un appareil afin que sa réalisation consomme une pièce de rechange du stock et déclenche un événement de stock bas au seuil de réapprovisionnement. Omettez asset_id et part_id pour supprimer le lien.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'id de la tâche déclenchée à armer."
+        },
+        "asset_id": {
+          "name": "ID du bien",
+          "description": "L'identifiant de l'appareil auquel la pièce appartient."
+        },
+        "part_id": {
+          "name": "ID de la pièce",
+          "description": "L'identifiant de la pièce dont le stock doit être ajusté."
+        }
+      }
+    },
     "notify": {
       "name": "Notifier les tâches dues",
       "description": "Envoyer une notification push actionnable pour ce qui est dû maintenant – indiquez une notification ou un profil enregistré, en remplaçant éventuellement la cible.",

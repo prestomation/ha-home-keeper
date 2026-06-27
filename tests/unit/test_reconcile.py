@@ -235,6 +235,51 @@ def test_part_source_extracts_provenance():
     assert rc.part_source({"source": {"part": "notadict"}}) is None
 
 
+# ── manual consumable links ───────────────────────────────────────────────────
+def _manual_link_task(tid="m1", aid="a1", pid="p1"):
+    """A user-owned task manually linked to a consumable (note ``manual: True``)."""
+    return {
+        "id": tid,
+        "name": "Replace fridge filter",
+        "recurrence_type": "sensor",
+        "source": {"part": {"asset_id": aid, "part_id": pid, "manual": True}},
+    }
+
+
+def test_is_manual_part_link_discriminates():
+    assert rc.is_manual_part_link(_manual_link_task()) is True
+    # A reconciler-derived task (no manual flag) is not a manual link.
+    derived = {"source": {"part": {"asset_id": "a1", "part_id": "p1"}}}
+    assert rc.is_manual_part_link(derived) is False
+    assert rc.is_manual_part_link({"source": None}) is False
+
+
+def test_manual_link_is_not_orphan_deleted():
+    # A manual link to a *consumable* (no wear cadence -> not in ``desired``) must
+    # survive reconcile; the pre-fix bug deleted it as an orphan.
+    asset = _asset(parts=[{"id": "p1", "name": "Filter", "type": "consumable"}])
+    link = _manual_link_task()
+    tasks, changed = _reconcile({"a1": asset}, {"m1": link})
+    assert changed is False
+    assert tasks["m1"] is link
+
+
+def test_manual_link_is_not_updated_by_reconcile():
+    # Even when the linked part IS a wear part with a cadence, the manual link is
+    # left untouched (the reconciler owns only its own derived task, if any).
+    asset = _asset(
+        device_id="dev1", parts=[_wear_part(pid="p1", name="Anode")]
+    )
+    link = _manual_link_task(pid="p1")
+    tasks, changed = _reconcile({"a1": asset}, {"m1": dict(link)})
+    # The manual link is carried through verbatim...
+    assert tasks["m1"] == link
+    # ...and a separate reconciler-derived task is created for the wear part.
+    derived = [t for t in tasks.values() if rc.part_source(t) and not rc.is_manual_part_link(t)]
+    assert len(derived) == 1
+    assert changed is True
+
+
 def test_qualify_iso():
     assert rc.qualify_iso("2025-05-01", TZ) == "2025-05-01T00:00:00-04:00"
     # Already-aware values are returned unchanged.

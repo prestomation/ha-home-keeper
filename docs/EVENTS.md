@@ -79,6 +79,12 @@ low. A part must track **both** `stock` and `reorder_at` to fire anything. A sin
 change that drops an already-low part to zero fires **`out_of_stock`** (the more
 specific event), not `low_stock`.
 
+A spare is consumed (and these events fire) whenever a task **linked to that part** is
+completed — both an auto-generated wear-part replacement task and a task you **manually
+linked** to a consumable (via `home_keeper.set_task_consumable`). This is how a
+sensor-armed "replace the fridge filter" task draws down inventory and signals a reorder
+when you mark it done.
+
 ### Asset (appliance) lifecycle
 
 | Event | Fires when |

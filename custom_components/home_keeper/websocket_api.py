@@ -55,6 +55,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_add_task)
     websocket_api.async_register_command(hass, ws_update_task)
     websocket_api.async_register_command(hass, ws_delete_task)
+    websocket_api.async_register_command(hass, ws_set_task_consumable)
     websocket_api.async_register_command(hass, ws_complete_task)
     websocket_api.async_register_command(hass, ws_update_completion)
     websocket_api.async_register_command(hass, ws_delete_completion)
@@ -169,6 +170,39 @@ async def ws_delete_task(
         return
     await hass.config_entries.async_reload(coord.entry.entry_id)
     connection.send_result(msg["id"], {"ok": True})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/set_task_consumable",
+        vol.Required("task_id"): str,
+        # Both null clears the link; both set links the task to that part.
+        vol.Required("asset_id"): vol.Any(str, None),
+        vol.Required("part_id"): vol.Any(str, None),
+    }
+)
+@websocket_api.async_response
+async def ws_set_task_consumable(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    try:
+        task = await coord.store.set_task_consumable(
+            msg["task_id"], msg["asset_id"], msg["part_id"]
+        )
+    except KeyError:
+        connection.send_error(msg["id"], "not_found", "Unknown task_id")
+        return
+    except TaskValidationError as err:
+        connection.send_error(msg["id"], "invalid_task", str(err))
+        return
+    # Linking only rewrites the task's source; the per-task entity set is unchanged,
+    # so a refresh is enough (no entry reload).
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
 
 
 def _ws_metadata(msg: dict[str, Any]) -> dict[str, Any]:

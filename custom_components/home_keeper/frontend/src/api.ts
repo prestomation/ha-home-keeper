@@ -92,6 +92,25 @@ export async function deleteTask(hass: Hass, taskId: string): Promise<void> {
   await hass.callWS({ type: 'home_keeper/delete_task', task_id: taskId });
 }
 
+/**
+ * Link a task to an appliance consumable/part (so completing it draws down stock
+ * and fires the low-stock reorder event), or clear the link by passing nulls.
+ */
+export async function setTaskConsumable(
+  hass: Hass,
+  taskId: string,
+  assetId: string | null,
+  partId: string | null,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/set_task_consumable',
+    task_id: taskId,
+    asset_id: assetId,
+    part_id: partId,
+  });
+  return res.task;
+}
+
 /** Optional per-completion metadata sent with a completion or an edit. */
 export interface CompletionMetadata {
   note?: string;

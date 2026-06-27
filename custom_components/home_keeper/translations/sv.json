@@ -214,6 +214,24 @@
         }
       }
     },
+    "set_task_consumable": {
+      "name": "Länka uppgift till en förbrukningsvara",
+      "description": "Länkar en uppgift till en förbrukningsvara/del på en apparat så att slutförandet förbrukar en reservdel från lagret och utlöser en händelse om lågt lager vid beställningsgränsen. Utelämna asset_id och part_id för att ta bort länken.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID:t för den utlösta uppgiften som ska aktiveras."
+        },
+        "asset_id": {
+          "name": "Objekt-ID",
+          "description": "ID för den apparat som delen tillhör."
+        },
+        "part_id": {
+          "name": "Del-ID",
+          "description": "ID för den del vars lager ska justeras."
+        }
+      }
+    },
     "notify": {
       "name": "Avisera om förfallna uppgifter",
       "description": "Skicka en åtgärdbar push-avisering om det som förfaller nu – ange en sparad avisering eller profil och åsidosätt valfritt målet.",

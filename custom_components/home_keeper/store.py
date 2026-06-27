@@ -40,6 +40,7 @@ from .const import (
     SENSOR_MODE_USAGE,
     STORAGE_KEY,
     STORAGE_VERSION,
+    TASK_SOURCE_PART,
 )
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
 from .problem_tasks import problem_source as _problem_source
@@ -184,6 +185,71 @@ class HomeKeeperStore:
                 events.task_event_data(merged, extra={"changed_fields": changed}),
             )
         return merged
+
+    async def set_task_consumable(
+        self, task_id: str, asset_id: str | None, part_id: str | None
+    ) -> dict[str, Any]:
+        """Link a task to an asset consumable/part, or clear the link.
+
+        A manual link sets the task's ``source`` to a part reference (flagged
+        ``manual`` so the part-task reconciler leaves it alone — see
+        ``reconcile.is_manual_part_link``) so that *completing* the task consumes one
+        spare from the part's ``stock``, firing the edge-triggered low/out-of-stock
+        events when the reorder threshold is crossed — exactly like a wear-part
+        replacement. This is how a user wires an arbitrary task (e.g. a sensor task
+        armed by a fridge's filter-life entity) to the consumable it depletes.
+
+        Pass both ``asset_id`` and ``part_id`` to link; pass both as ``None`` to clear.
+        Raises ``KeyError`` for an unknown task; ``TaskValidationError`` for an unknown
+        asset/part, a half-specified link, or a task already owned by another source (a
+        reconciler-derived wear-part task, or a synced ``problem`` sensor).
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        _reject_synced_problem(existing, None)
+        # A reconciler-derived part task is already bound to its part; re-pointing it by
+        # hand would just be undone on the next reconcile. Only a user-owned task (no
+        # part source) or an existing manual link may be (re)linked or cleared.
+        src = _part_source(existing)
+        if src is not None and not src.get("manual"):
+            raise models.TaskValidationError(
+                "This task is auto-generated from an appliance wear part and is "
+                "already linked to it — manage its part in the appliance editor."
+            )
+
+        if asset_id is None and part_id is None:
+            if existing.get("source") is None:
+                return existing  # already unlinked — no-op, no event
+            existing["source"] = None
+        else:
+            if not asset_id or not part_id:
+                raise models.TaskValidationError(
+                    "linking a consumable needs both asset_id and part_id"
+                )
+            asset = self._assets.get(asset_id)
+            if asset is None:
+                raise models.TaskValidationError(f"unknown asset: {asset_id!r}")
+            if not any(p.get("id") == part_id for p in asset.get("parts", [])):
+                raise models.TaskValidationError(
+                    f"asset {asset_id!r} has no part {part_id!r}"
+                )
+            existing["source"] = {
+                TASK_SOURCE_PART: {
+                    "asset_id": asset_id,
+                    "part_id": part_id,
+                    "manual": True,
+                }
+            }
+        await self._save()
+        _LOGGER.debug(
+            "Set consumable link for task %s -> %s", task_id, existing.get("source")
+        )
+        self._hass.bus.async_fire(
+            EVENT_TASK_UPDATED,
+            events.task_event_data(existing, extra={"changed_fields": ["source"]}),
+        )
+        return existing
 
     async def trigger_task(
         self, task_id: str, *, origin: str | None = None
