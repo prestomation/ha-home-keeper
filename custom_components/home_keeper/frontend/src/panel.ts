@@ -804,6 +804,9 @@ export class HomeKeeperPanel extends HTMLElement {
       const saved = task.id
         ? await api.updateTask(this._hass, task.id, payload)
         : await api.addTask(this._hass, payload);
+      // Record the id immediately: if the link step below throws, the form stays open
+      // and a retry must *update* this task, not create a second one.
+      this._edit.task = { ...this._edit.task, id: saved.id };
       // The consumable link rides its own service (it sets the task's source, which
       // update_task doesn't touch). Only call when it actually changed: the desired
       // token vs. the saved task's current link.

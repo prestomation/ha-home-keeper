@@ -280,6 +280,30 @@ def test_manual_link_is_not_updated_by_reconcile():
     assert changed is True
 
 
+def test_manual_link_cleared_when_part_removed():
+    # The consumable the task is linked to is removed while the appliance survives →
+    # the manual link is cleared (task lives on as a standalone task) rather than left
+    # dangling to silently no-op on completion.
+    asset = _asset(parts=[{"id": "p1", "name": "Filter", "type": "consumable"}])
+    link = _manual_link_task(pid="p1")
+    _reconcile({"a1": asset}, {"m1": dict(link)})  # part present → kept (sanity)
+    empty = _asset(parts=[])
+    tasks, changed = _reconcile({"a1": empty}, {"m1": link})
+    assert changed is True
+    assert tasks["m1"]["source"] is None
+    # Idempotent: a second pass over the now-cleared task changes nothing.
+    _again, changed2 = _reconcile({"a1": empty}, tasks)
+    assert changed2 is False
+
+
+def test_manual_link_cleared_when_whole_asset_gone():
+    # The linked asset no longer exists at all (e.g. mid-reconcile) → link cleared.
+    link = _manual_link_task(aid="ghost", pid="p1")
+    tasks, changed = _reconcile({}, {"m1": link})
+    assert changed is True
+    assert tasks["m1"]["source"] is None
+
+
 def test_qualify_iso():
     assert rc.qualify_iso("2025-05-01", TZ) == "2025-05-01T00:00:00-04:00"
     # Already-aware values are returned unchanged.

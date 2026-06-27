@@ -45,6 +45,7 @@ from .const import (
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
 from .problem_tasks import problem_source as _problem_source
 from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks
+from .reconcile import is_manual_part_link as _is_manual_part_link
 from .reconcile import part_source as _part_source
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 
@@ -234,13 +235,16 @@ class HomeKeeperStore:
                 raise models.TaskValidationError(
                     f"asset {asset_id!r} has no part {part_id!r}"
                 )
-            existing["source"] = {
+            new_source = {
                 TASK_SOURCE_PART: {
                     "asset_id": asset_id,
                     "part_id": part_id,
                     "manual": True,
                 }
             }
+            if existing.get("source") == new_source:
+                return existing  # already linked to this part — no-op, no event
+            existing["source"] = new_source
         await self._save()
         _LOGGER.debug(
             "Set consumable link for task %s -> %s", task_id, existing.get("source")
@@ -366,9 +370,11 @@ class HomeKeeperStore:
 
     async def delete_task(self, task_id: str, *, force: bool = False) -> None:
         task = self._tasks.get(task_id)
-        if task is not None and _part_source(task):
+        if task is not None and _part_source(task) and not _is_manual_part_link(task):
             # Derived from a wear part; deleting it here would just be recreated by
-            # the next reconcile. Direct the user to manage the part instead.
+            # the next reconcile. Direct the user to manage the part instead. A *manual*
+            # consumable link is user-owned, so it is freely deletable (the link is just
+            # dropped along with the task).
             raise models.TaskValidationError(
                 "This task is managed by an appliance wear part; remove or change "
                 "the part to delete it."
@@ -603,16 +609,26 @@ class HomeKeeperStore:
     async def delete_asset(self, asset_id: str) -> dict[str, Any] | None:
         """Remove an asset; returns the removed asset (for device cleanup) or None.
 
-        Also drops tasks derived from this asset's wear parts and detaches any
+        Drops the tasks **derived** from this asset's wear parts, but only **unlinks**
+        a user-owned task that was *manually* linked to one of its consumables (clearing
+        the dangling part source, keeping the task and its history). Also detaches any
         child asset that named it as a parent (so the child becomes standalone).
         """
         asset = self._assets.pop(asset_id, None)
         if asset is None:
             return None
         dropped_ids = set()
+        unlinked = []
         for tid, t in self._tasks.items():
             src = _part_source(t)
-            if src is not None and src.get("asset_id") == asset_id:
+            if src is None or src.get("asset_id") != asset_id:
+                continue
+            if _is_manual_part_link(t):
+                # A user-owned manual link: keep the task, just clear the now-dangling
+                # link (its consumable is gone with the appliance).
+                t["source"] = None
+                unlinked.append(t)
+            else:
                 dropped_ids.add(tid)
         dropped = [self._tasks[tid] for tid in dropped_ids]
         self._tasks = {
@@ -629,6 +645,12 @@ class HomeKeeperStore:
         # The appliance and the wear-part tasks it owned are both gone — announce each.
         for task in dropped:
             self._hass.bus.async_fire(EVENT_TASK_DELETED, events.task_event_data(task))
+        # A surviving manual-link task lost its consumable — announce the source change.
+        for task in unlinked:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": ["source"]}),
+            )
         self._hass.bus.async_fire(EVENT_ASSET_DELETED, events.asset_event_data(asset))
         return asset
 
@@ -666,6 +688,17 @@ class HomeKeeperStore:
                 if tid not in old_tasks:
                     self._hass.bus.async_fire(
                         EVENT_TASK_CREATED, events.task_event_data(task)
+                    )
+            # A manual consumable link whose part was removed has its source cleared by
+            # the reconcile (the task survives standalone); announce the source change.
+            for tid, task in new_tasks.items():
+                old = old_tasks.get(tid)
+                if old is not None and old.get("source") != task.get("source"):
+                    self._hass.bus.async_fire(
+                        EVENT_TASK_UPDATED,
+                        events.task_event_data(
+                            task, extra={"changed_fields": ["source"]}
+                        ),
                     )
         return changed
 

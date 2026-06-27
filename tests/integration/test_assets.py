@@ -768,3 +768,48 @@ def test_set_task_consumable_rejects_derived_task(ha):
     assert r.status_code >= 400, (
         f"linking a derived task should be rejected, got {r.status_code}"
     )
+
+
+def test_manual_link_task_is_deletable(ha):
+    # Regression: a manually-linked task is user-owned and must be freely deletable —
+    # the wear-part delete guard must not block it (unlike a reconciler-derived task).
+    import uuid
+
+    name = f"Fridge {uuid.uuid4().hex[:8]}"
+    asset, part = _add_consumable_appliance(ha, name, stock=3, reorder_at=1)
+    task_id = _add_floating_task(ha, f"Replace filter {name}")
+    call_service(
+        ha,
+        "home_keeper",
+        "set_task_consumable",
+        {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
+    )
+    # Deleting it must succeed (no "managed by an appliance wear part" rejection).
+    call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+    assert all(t["id"] != task_id for t in _all_tasks(ha)), (
+        "a manually-linked task must be deletable"
+    )
+
+
+def test_deleting_asset_unlinks_manual_link_task(ha):
+    # Regression: deleting the appliance must NOT delete a user's manually-linked task —
+    # it only clears the (now-dangling) link, keeping the task as a standalone task.
+    import uuid
+
+    name = f"Fridge {uuid.uuid4().hex[:8]}"
+    asset, part = _add_consumable_appliance(ha, name, stock=3, reorder_at=1)
+    task_id = _add_floating_task(ha, f"Replace filter {name}")
+    call_service(
+        ha,
+        "home_keeper",
+        "set_task_consumable",
+        {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
+    )
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+    survivor = next((t for t in _all_tasks(ha) if t["id"] == task_id), None)
+    assert survivor is not None, (
+        "deleting the appliance must not delete the user's task"
+    )
+    assert not (survivor.get("source") or {}).get("part"), (
+        "the dangling consumable link should be cleared"
+    )

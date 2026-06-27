@@ -179,4 +179,22 @@ def reconcile_part_tasks(
                 result[existing_tid] = merged
                 changed = True
 
+    # Clear a manual consumable link whose target part no longer exists (the part was
+    # removed while the appliance remains). Left dangling, the link silently no-ops on
+    # completion — the user would think they're drawing down stock but aren't. The task
+    # itself survives as a plain standalone task; only its source is cleared.
+    existing_parts = {
+        (asset.get("id"), part.get("id"))
+        for asset in assets.values()
+        for part in asset.get("parts", [])
+        if part.get("id")
+    }
+    for tid, task in list(result.items()):
+        if not is_manual_part_link(task):
+            continue
+        src = part_source(task)
+        if (src["asset_id"], src["part_id"]) not in existing_parts:
+            result[tid] = {**task, "source": None}
+            changed = True
+
     return result, changed
