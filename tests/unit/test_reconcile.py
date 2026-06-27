@@ -267,15 +267,15 @@ def test_manual_link_is_not_orphan_deleted():
 def test_manual_link_is_not_updated_by_reconcile():
     # Even when the linked part IS a wear part with a cadence, the manual link is
     # left untouched (the reconciler owns only its own derived task, if any).
-    asset = _asset(
-        device_id="dev1", parts=[_wear_part(pid="p1", name="Anode")]
-    )
+    asset = _asset(device_id="dev1", parts=[_wear_part(pid="p1", name="Anode")])
     link = _manual_link_task(pid="p1")
     tasks, changed = _reconcile({"a1": asset}, {"m1": dict(link)})
     # The manual link is carried through verbatim...
     assert tasks["m1"] == link
     # ...and a separate reconciler-derived task is created for the wear part.
-    derived = [t for t in tasks.values() if rc.part_source(t) and not rc.is_manual_part_link(t)]
+    derived = [
+        t for t in tasks.values() if rc.part_source(t) and not rc.is_manual_part_link(t)
+    ]
     assert len(derived) == 1
     assert changed is True
 
