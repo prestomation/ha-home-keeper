@@ -49,7 +49,7 @@ test.describe('Home Keeper panel — triggered / battery tasks', () => {
     await panel.locator('.detail-open[data-detail-id="task_door_battery"]').click();
     await expect(panel.locator('#back-btn')).toBeVisible();
     // Schedule row reads "Monitored", not a recurrence rule.
-    await expect(panel).toContainText('Monitored (condition-driven)');
+    await expect(panel).toContainText('Monitored');
     // The replacement history (cadence) is listed.
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
     // Editing a managed triggered task offers no recurrence/cadence editor.

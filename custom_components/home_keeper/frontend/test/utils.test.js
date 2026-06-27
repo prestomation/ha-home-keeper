@@ -81,12 +81,10 @@ describe('recurrenceSummary', () => {
   it('describes triggered tasks as monitored (no schedule)', () => {
     // Both armed and dormant triggered tasks summarize the same way — they have
     // no recurrence rule, only a monitored condition.
-    expect(recurrenceSummary({ recurrence_type: 'triggered' })).toBe(
-      'Monitored (condition-driven)',
-    );
+    expect(recurrenceSummary({ recurrence_type: 'triggered' })).toBe('Monitored');
     expect(
       recurrenceSummary({ recurrence_type: 'triggered', next_due: '2026-06-01T00:00:00Z' }),
-    ).toBe('Monitored (condition-driven)');
+    ).toBe('Monitored');
   });
 });
 

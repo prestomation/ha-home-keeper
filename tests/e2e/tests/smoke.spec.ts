@@ -59,7 +59,7 @@ test.describe('Home Keeper panel — smoke', () => {
     const form = panel.locator('#hk-task-form');
     await expect(form).toBeVisible();
     // The recurrence select is the first ha-select in the task form.
-    await chooseHaSelect(form.locator('ha-select').first(), /Fixed/);
+    await chooseHaSelect(form.locator('ha-select').first(), /fixed schedule/i);
     // Fixed schedule reveals the anchor datetime field; last_completed also adds
     // a second datetime selector, so use .first() to avoid strict-mode violation.
     await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
@@ -78,6 +78,8 @@ test.describe('Home Keeper panel — smoke', () => {
     const form = panel.locator('#hk-asset-form');
     await expect(form).toBeVisible();
     await expect(form.locator('ha-selector-text').first()).toBeVisible();
+    // The "Custom fields" section collapses by default on a new appliance — expand it.
+    await form.locator('details.hk-collapsible > summary').filter({ hasText: 'Custom fields' }).click();
     await form.locator('ha-button', { hasText: 'Warranty expiry' }).click();
     await expect(form.locator('ha-selector-date').first()).toBeVisible();
     // Switching to "existing device" adds the identity device picker alongside
@@ -95,6 +97,11 @@ test.describe('Home Keeper panel — smoke', () => {
     // Related-device multi-picker and icon picker exist for a virtual asset.
     await expect(panel.locator('#hk-asset-form ha-selector-icon').first()).toBeVisible();
     await expect(panel.locator('#hk-asset-form ha-selector-device').first()).toBeVisible();
+    // The "Parts & wear items" section collapses by default on a new appliance — expand it.
+    await panel
+      .locator('#hk-asset-form details.hk-collapsible > summary')
+      .filter({ hasText: 'Parts & wear items' })
+      .click();
     // Add a part; switching its type to "wear item" reveals the replacement
     // interval (a second ha-select — the replace unit — appears in the part).
     await panel.locator('#a-add-part').click();

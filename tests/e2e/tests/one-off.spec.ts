@@ -49,7 +49,7 @@ test.describe('Home Keeper panel — one-off tasks', () => {
     await expect(panel.locator('#hk-task-form')).toBeVisible();
     // Switch the recurrence dropdown to One-off; a single datetime (Due) field appears.
     await panel.locator('#hk-task-form ha-select').first().click();
-    await page.getByRole('menuitem', { name: /One-off/ }).first().click();
+    await page.getByRole('menuitem', { name: /Just once/ }).first().click();
     await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   });
 
@@ -66,7 +66,7 @@ test.describe('Home Keeper panel — one-off tasks', () => {
     await expect(panel.locator('#hk-task-form')).toBeVisible();
     await fillText(panel.locator('#hk-task-form'), 0, NAME);
     await panel.locator('#hk-task-form ha-select').first().click();
-    await page.getByRole('menuitem', { name: /One-off/ }).first().click();
+    await page.getByRole('menuitem', { name: /Just once/ }).first().click();
     await panel.locator('#f-save').click();
 
     // It shows up as a one-off, still actionable.
