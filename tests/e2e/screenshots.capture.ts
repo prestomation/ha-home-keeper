@@ -372,18 +372,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     const open = await partsDetails.first().evaluate((d: HTMLDetailsElement) => d.open);
     if (!open) await partsDetails.first().locator('summary').click();
   }
-  await expect(partEditForm.locator('.hk-part').first()).toBeVisible();
-  // Click the delete (trash) icon-button on the first part.
-  await partEditForm.locator('.hk-part').first().locator('ha-icon-button.part-del').click();
-  // ha-dialog portals its surface, so wait on the primary-action button slot.
+  await expect(partsDetails.locator('.hk-part').first()).toBeVisible();
+  // Click the delete (trash) icon-button on the first PART (scoped to the Parts
+  // section so the Custom Fields rows — which share the same class names — are
+  // excluded).
+  await partsDetails.locator('.hk-part').first().locator('ha-icon-button.part-del').click();
+  // Scrim is appended to document.body (not shadow root) so use page.locator.
   await expect(
-    panel.locator('ha-dialog[open] ha-button[slot="primaryAction"]'),
+    page.locator('.hk-confirm-scrim ha-button[destructive]'),
   ).toBeAttached({ timeout: 5_000 });
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/35-panel-part-delete-confirm.png`, fullPage: true });
-  // Dismiss via Escape (closes ha-dialog) — slot buttons are inside shadow DOM.
+  // Viewport screenshot — position:fixed overlays render correctly here.
+  await page.screenshot({ path: `${OUT}/35-panel-part-delete-confirm.png`, fullPage: false });
+  // Dismiss via Escape key (our keydown handler closes the overlay).
   await page.keyboard.press('Escape');
-  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
 
   // 17. The Settings tab — friendly forms mirroring the options flow: a
   // Problem sensor sync card (toggle + entity / device / area / label exclusions)

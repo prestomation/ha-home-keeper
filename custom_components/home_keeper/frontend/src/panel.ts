@@ -587,6 +587,8 @@ export class HomeKeeperPanel extends HTMLElement {
     label: '',
     onConfirm: null,
   };
+  // Body-level scrim for the delete confirmation overlay.
+  private _confirmScrim: HTMLElement | null = null;
   // config entry id -> integration domain, for resolving device brand logos.
   private _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.
@@ -906,51 +908,86 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _openConfirmDialog(label: string, onConfirm: () => void): void {
     this._confirmDelete = { open: true, label, onConfirm };
-    this._render();
+    this._renderConfirmDeleteDialog();
   }
 
   private _closeConfirmDialog(): void {
     this._confirmDelete = { open: false, label: '', onConfirm: null };
-    this._render();
+    if (this._confirmScrim) {
+      this._confirmScrim.remove();
+      this._confirmScrim = null;
+    }
   }
 
-  private _renderConfirmDeleteDialog(host: HTMLElement): void {
+  private _renderConfirmDeleteDialog(): void {
     const { label, onConfirm } = this._confirmDelete;
-    const dialog = document.createElement('ha-dialog');
-    dialog.setAttribute('open', '');
-    dialog.addEventListener('closed', () => {
-      if (this._confirmDelete.open) this._closeConfirmDialog();
-    });
 
-    // Use slot="heading" — more reliable across HA versions than the heading attribute.
-    const heading = document.createElement('span');
-    heading.setAttribute('slot', 'heading');
-    heading.textContent = label;
-    dialog.appendChild(heading);
+    // Appended to document.body so position:fixed works correctly outside the
+    // shadow DOM stacking context.
+    const scrim = document.createElement('div');
+    scrim.className = 'hk-confirm-scrim';
+    scrim.style.cssText =
+      'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
+      'justify-content:center;background:rgba(0,0,0,.4)';
 
-    // Body text so the dialog renders at a legible size.
-    const body = document.createElement('p');
-    body.textContent = t('confirm.cannotUndo');
-    dialog.appendChild(body);
+    const modal = document.createElement('div');
+    modal.style.cssText =
+      'background:var(--ha-card-background,var(--card-background-color,#fff));' +
+      'border-radius:28px;padding:24px;min-width:280px;max-width:400px;' +
+      'box-shadow:0 8px 32px rgba(0,0,0,.24)';
 
-    const primary = document.createElement('ha-button');
-    primary.setAttribute('slot', 'primaryAction');
-    primary.setAttribute('raised', '');
-    primary.setAttribute('destructive', '');
-    primary.textContent = t('btn.delete');
-    primary.addEventListener('click', () => {
+    const h2 = document.createElement('h2');
+    h2.style.cssText =
+      'margin:0 0 16px;font-size:1.25rem;font-weight:500;' +
+      'color:var(--primary-text-color,#000)';
+    h2.textContent = label;
+
+    const p = document.createElement('p');
+    p.style.cssText = 'margin:0 0 24px;color:var(--secondary-text-color,#666)';
+    p.textContent = t('confirm.cannotUndo');
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:flex-end;gap:8px';
+
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        document.removeEventListener('keydown', onKey);
+        this._closeConfirmDialog();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+
+    const close = (): void => {
+      document.removeEventListener('keydown', onKey);
+      this._closeConfirmDialog();
+    };
+
+    const cancel = document.createElement('ha-button');
+    cancel.textContent = t('btn.cancel');
+    cancel.addEventListener('click', close);
+
+    const del = document.createElement('ha-button');
+    del.setAttribute('raised', '');
+    del.setAttribute('destructive', '');
+    del.textContent = t('btn.delete');
+    del.addEventListener('click', () => {
+      document.removeEventListener('keydown', onKey);
       onConfirm?.();
       this._closeConfirmDialog();
     });
-    dialog.appendChild(primary);
 
-    const cancel = document.createElement('ha-button');
-    cancel.setAttribute('slot', 'secondaryAction');
-    cancel.textContent = t('btn.cancel');
-    cancel.addEventListener('click', () => this._closeConfirmDialog());
-    dialog.appendChild(cancel);
+    row.appendChild(cancel);
+    row.appendChild(del);
+    modal.appendChild(h2);
+    modal.appendChild(p);
+    modal.appendChild(row);
+    scrim.appendChild(modal);
+    scrim.addEventListener('click', (e) => {
+      if (e.target === scrim) close();
+    });
 
-    host.appendChild(dialog);
+    this._confirmScrim = scrim;
+    document.body.appendChild(scrim);
   }
 
   /** True when every required field of the in-progress completion is filled. */
@@ -2271,7 +2308,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // The completion-details dialog overlays any view, so build it first.
     const dialogHost = root.getElementById('hk-dialog-host');
     if (dialogHost && this._completion.open) this._renderCompletionDialog(dialogHost);
-    if (dialogHost && this._confirmDelete.open) this._renderConfirmDeleteDialog(dialogHost);
+    // _renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
     // Header sidebar toggle.
     const menuHost = root.getElementById('menu-host');
