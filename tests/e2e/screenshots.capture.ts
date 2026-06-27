@@ -354,6 +354,40 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     fullPage: true,
   });
 
+  // 35. Part delete confirmation dialog — clicking the trash icon on a part now
+  // shows a confirmation dialog before removing it (previously the icon was
+  // invisible and deletion was immediate). Navigate to the water heater edit form,
+  // expand the Parts section, and click the delete button on the first part to
+  // show the dialog.
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  await expect(panel.locator('.d-edit')).toBeVisible();
+  await panel.locator('.d-edit').click();
+  const partEditForm = panel.locator('#hk-asset-form');
+  await expect(partEditForm).toBeVisible();
+  // Expand Parts section if collapsed.
+  const partsDetails = partEditForm.locator('details').filter({ hasText: 'Parts & wear items' });
+  if (await partsDetails.count() > 0) {
+    const open = await partsDetails.first().evaluate((d: HTMLDetailsElement) => d.open);
+    if (!open) await partsDetails.first().locator('summary').click();
+  }
+  await expect(partsDetails.locator('.hk-part').first()).toBeVisible();
+  // Click the delete (trash) icon-button on the first PART (scoped to the Parts
+  // section so the Custom Fields rows — which share the same class names — are
+  // excluded).
+  await partsDetails.locator('.hk-part').first().locator('ha-icon-button.part-del').click();
+  // Scrim is appended to document.body (not shadow root) so use page.locator.
+  await expect(
+    page.locator('.hk-confirm-scrim ha-button[destructive]'),
+  ).toBeAttached({ timeout: 5_000 });
+  await page.waitForTimeout(500);
+  // Viewport screenshot — position:fixed overlays render correctly here.
+  await page.screenshot({ path: `${OUT}/35-panel-part-delete-confirm.png`, fullPage: false });
+  // Dismiss via Escape key (our keydown handler closes the overlay).
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
+
   // 17. The Settings tab — friendly forms mirroring the options flow: a
   // Problem sensor sync card (toggle + entity / device / area / label exclusions)
   // and a General card (one-off retention), each saved on change.

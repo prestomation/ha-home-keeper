@@ -26,5 +26,15 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'on-first-retry',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(process.env.CHROMIUM_EXEC
+          ? { launchOptions: { executablePath: process.env.CHROMIUM_EXEC } }
+          : {}),
+      },
+    },
+  ],
 });

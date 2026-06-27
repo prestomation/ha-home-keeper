@@ -49,7 +49,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": null,
+        "device_id": "f1686d32f46b6db6d4975fcb68483755",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -71,7 +71,9 @@
             "asset_id": "asset_water_heater",
             "part_id": "part_anode"
           }
-        }
+        },
+        "completion_detail": "none",
+        "completion_required_fields": []
       },
       "task_medicine": {
         "id": "task_medicine",
@@ -118,7 +120,7 @@
         "recurrence_type": "floating",
         "interval": 1,
         "unit": "months",
-        "device_id": "kitchen_fridge_demo",
+        "device_id": "f1686d32f46b6db6d4975fcb68483755",
         "area_id": null,
         "enabled": true,
         "created": "2026-03-20T12:00:00-04:00",
@@ -131,7 +133,16 @@
         ],
         "labels": [
           "home"
-        ]
+        ],
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "source": {
+          "part": {
+            "asset_id": "asset_water_heater",
+            "part_id": "part_sediment_filter",
+            "manual": true
+          }
+        }
       },
       "task_buddy_medicine": {
         "id": "task_buddy_medicine",
@@ -221,7 +232,7 @@
       "task_door_battery": {
         "id": "task_door_battery",
         "name": "Replace battery: Front door sensor",
-        "notes": "2\u00d7 AAA",
+        "notes": "2× AAA",
         "recurrence_type": "triggered",
         "device_id": null,
         "area_id": null,
@@ -258,7 +269,7 @@
       "task_smoke_battery": {
         "id": "task_smoke_battery",
         "name": "Replace battery: Hallway smoke alarm",
-        "notes": "1\u00d7 9V",
+        "notes": "1× 9V",
         "recurrence_type": "triggered",
         "device_id": null,
         "area_id": null,
@@ -298,7 +309,7 @@
       "task_thermostat_battery": {
         "id": "task_thermostat_battery",
         "name": "Replace battery: Thermostat",
-        "notes": "2\u00d7 AA",
+        "notes": "2× AA",
         "recurrence_type": "triggered",
         "device_id": null,
         "area_id": null,
@@ -332,7 +343,7 @@
       "task_passport": {
         "id": "task_passport",
         "name": "Renew passport",
-        "notes": "Expires before the spring trip \u2014 book the appointment",
+        "notes": "Expires before the spring trip — book the appointment",
         "recurrence_type": "one-off",
         "due": "2026-07-15T09:00:00-04:00",
         "device_id": null,
@@ -351,7 +362,7 @@
       "task_car_registration": {
         "id": "task_car_registration",
         "name": "Renew car registration",
-        "notes": "DMV renewal \u2014 done for this year",
+        "notes": "DMV renewal — done for this year",
         "recurrence_type": "one-off",
         "due": "2026-06-15T09:00:00-04:00",
         "device_id": null,
@@ -372,6 +383,66 @@
         ],
         "completion_detail": "optional",
         "completion_required_fields": []
+      },
+      "cfc844bd-e9de-4efe-84b3-5f4417d186c9": {
+        "id": "cfc844bd-e9de-4efe-84b3-5f4417d186c9",
+        "created": "2026-06-27T17:47:36.205398-04:00",
+        "last_completed": null,
+        "completions": [],
+        "source": {
+          "part": {
+            "asset_id": "asset_water_heater",
+            "part_id": "part_tp_valve"
+          }
+        },
+        "managed_by": null,
+        "labels": [],
+        "name": "Replace T&P relief valve (Garage water heater)",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": "f1686d32f46b6db6d4975fcb68483755",
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "interval": 36,
+        "unit": "months",
+        "next_due": "2026-06-27T17:47:36.205398-04:00"
+      },
+      "a8806a02-3b82-4137-9aeb-290e9be1a601": {
+        "id": "a8806a02-3b82-4137-9aeb-290e9be1a601",
+        "created": "2026-06-27T17:47:36.207568-04:00",
+        "last_completed": null,
+        "completions": [],
+        "source": {
+          "problem_sensor": {
+            "entity_id": "binary_sensor.sump_pump_problem"
+          }
+        },
+        "managed_by": {
+          "integration": "home_keeper",
+          "display_name": "Home Keeper",
+          "config_entry_id": "home_keeper_test_entry",
+          "deletion_protected": true,
+          "locked_fields": [
+            "name",
+            "recurrence_type",
+            "device_id",
+            "area_id"
+          ],
+          "completion_blocked": true,
+          "completion_prompt": "Synced from binary_sensor.sump_pump_problem. This problem can't be cleared in Home Keeper — it clears automatically once the originating integration resolves it (the sensor returns to OK)."
+        },
+        "labels": [],
+        "name": "Sump pump problem",
+        "notes": "",
+        "recurrence_type": "triggered",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "next_due": "2026-06-27T17:47:37.901565-04:00"
       }
     },
     "assets": {
@@ -379,7 +450,7 @@
         "id": "asset_water_heater",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": null,
+        "device_id": "f1686d32f46b6db6d4975fcb68483755",
         "identifiers": [
           [
             "home_keeper",
@@ -391,7 +462,6 @@
         "manufacturer": "Rheem",
         "model": "XE50T10HS45U0",
         "cost": 649.0,
-        "manual_url": "https://example.com/water-heater-manual",
         "icon": "mdi:water-boiler",
         "parts": [
           {
@@ -502,13 +572,22 @@
             "label": "Notes",
             "value": "Garage corner, behind the shelving"
           }
+        ],
+        "documents": [
+          {
+            "id": "d1d75bd3-9830-431d-a7b2-cf0ab97c1d3f",
+            "kind": "link",
+            "name": "example.com",
+            "url": "https://example.com/water-heater-manual",
+            "created": ""
+          }
         ]
       },
       "asset_shades": {
         "id": "asset_shades",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": null,
+        "device_id": "5bf6def05b53ac656aba72ec5656cceb",
         "identifiers": [
           [
             "home_keeper",
@@ -520,19 +599,19 @@
         "manufacturer": "Lutron",
         "model": "Serena",
         "cost": null,
-        "manual_url": "",
         "icon": "mdi:blinds",
         "parts": [],
         "parent_asset_id": null,
         "related_device_ids": [],
         "created": "2026-05-01T09:00:00-04:00",
-        "metadata": []
+        "metadata": [],
+        "documents": []
       },
       "asset_radio_shade": {
         "id": "asset_radio_shade",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": null,
+        "device_id": "7ab360529ee96861c943dde920492b9b",
         "identifiers": [
           [
             "home_keeper",
@@ -544,13 +623,13 @@
         "manufacturer": "Lutron",
         "model": "RF",
         "cost": null,
-        "manual_url": "",
         "icon": "",
         "parts": [],
         "parent_asset_id": "asset_shades",
         "related_device_ids": [],
         "created": "2026-05-01T09:00:00-04:00",
-        "metadata": []
+        "metadata": [],
+        "documents": []
       }
     }
   }
