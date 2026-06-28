@@ -175,6 +175,30 @@ the companion [Battery Notes glue](https://github.com/prestomation/ha-home-keepe
 
 ![Battery task detail — monitored, managed by Battery Notes, with replacement history](docs/images/14-panel-battery-detail.png)
 
+### Integration-provided metadata chips (`task_chips`)
+
+Integrations that push tasks into Home Keeper can attach **metadata chips** —
+compact labels with an optional icon and link — to communicate task-specific
+context at a glance. A battery integration, for example, attaches a chip like
+**"2× AAA"** to each replace-battery task so you know exactly what to buy
+before you open a drawer.
+
+- **What it solves:** surface structured, integration-owned facts (battery
+  type, filter model, part number, reorder link) directly on the task row and
+  detail page, without cluttering the task notes or requiring the user to look
+  elsewhere.
+- **How it works:** the owning integration sets `task_chips` when calling
+  `home_keeper.add_task` or `home_keeper.update_task`. Chips are shown in both
+  the sidebar panel task list and the dashboard card. Users can't edit them —
+  the integration owns them.
+- **Schema:** each chip is `{label, icon?, url?}`. The icon must be an
+  `mdi:` name; the URL must be `http(s)://`. An empty label is silently
+  dropped.
+
+![Panel task list row showing a battery task with a "2× AAA" chip alongside the "Overdue" status and "Managed by Battery Notes" chips](docs/images/37-panel-battery-chip-row.png)
+
+![Panel task detail page showing the same battery task with a "2× AAA" chip and completion history](docs/images/37b-panel-battery-chip-detail.png)
+
 ### Sync `problem` binary sensors as tasks
 
 Lots of integrations already expose a `binary_sensor` with the **`problem`** device
