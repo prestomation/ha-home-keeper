@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-102/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-102/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-102/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-102/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-102/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-102/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-102/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-102/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-102/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-102/assets/js/runtime~main.6018f892.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-102/assets/js/runtime~main.2755c048.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-102/assets/js/main.b04c7a03.js" defer="defer"></script>
 </head>
 <body>
@@ -17,16 +17,17 @@ versioning (with PEP 440 pre-release suffixes — <code>bN</code>/<code>aN</code
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="060b4">[0.6.0b4]<a href="#060b4" class="hash-link" aria-label="Direct link to [0.6.0b4]" title="Direct link to [0.6.0b4]" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added">Added<a href="#added" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
 <ul>
-<li class=""><strong>Show appliance links on a task&#x27;s dashboard-card row.</strong> Each task can now pick
-which of its appliance&#x27;s links — manuals and other <strong>document links</strong>, plus
-free-form <strong>metadata links</strong> (e.g. a reorder or warranty page) — to surface
-directly on the <a href="https://github.com/prestomation/ha-home-keeper/blob/main/README.md#dashboard-task-card" target="_blank" rel="noopener noreferrer" class="">dashboard task card</a>. Choose them in
-the panel&#x27;s task editor under <strong>Links to show on card</strong> (the picker appears once the
-task&#x27;s appliance has links); the card renders each as a compact &quot;open in new tab&quot;
-chip on the task&#x27;s row, so a manual or parts page is one tap away while you work. The
-selection rides the existing <code>home_keeper.add_task</code> / <code>update_task</code> services
-(<code>card_links</code>), and links are resolved live — rename or remove one on the appliance
-and the card follows.</li>
+<li class=""><strong>Show appliance documents on a task&#x27;s dashboard-card row.</strong> Each task can now pick
+which of its appliance&#x27;s documents to surface directly on the
+<a href="https://github.com/prestomation/ha-home-keeper/blob/main/README.md#dashboard-task-card" target="_blank" rel="noopener noreferrer" class="">dashboard task card</a>: external <strong>document links</strong>,
+<strong>uploaded files</strong> (a PDF manual, a photo), and free-form <strong>metadata links</strong> (e.g. a
+reorder or warranty page). Choose them in the panel&#x27;s task editor under <strong>Links to
+show on card</strong> (the picker appears once the task&#x27;s appliance has documents); the card
+renders each as a compact chip on the task&#x27;s row — a link or file opens in a new tab
+(an uploaded file via a short-lived signed URL) — so a manual or parts page is one tap
+away while you work. The selection rides the existing <code>home_keeper.add_task</code> /
+<code>update_task</code> services (<code>card_links</code>), and entries resolve live — rename or remove one
+on the appliance and the card follows.</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="changed">Changed<a href="#changed" class="hash-link" aria-label="Direct link to Changed" title="Direct link to Changed" translate="no">​</a></h3>
 <ul>
