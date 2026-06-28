@@ -864,6 +864,7 @@ def test_merge_update_leaves_card_links_untouched_when_absent():
 
 # ── task_chips ───────────────────────────────────────────────────────────────
 
+
 def test_normalize_task_chips_label_only():
     result = m.normalize_task_chips([{"label": "2x AAA"}])
     assert result == [{"label": "2x AAA"}]
@@ -875,7 +876,9 @@ def test_normalize_task_chips_with_icon():
 
 
 def test_normalize_task_chips_with_url():
-    result = m.normalize_task_chips([{"label": "CR2032", "url": "https://example.com/battery"}])
+    result = m.normalize_task_chips(
+        [{"label": "CR2032", "url": "https://example.com/battery"}]
+    )
     assert result == [{"label": "CR2032", "url": "https://example.com/battery"}]
 
 
@@ -883,7 +886,9 @@ def test_normalize_task_chips_full():
     result = m.normalize_task_chips(
         [{"label": "CR2032", "icon": "mdi:battery", "url": "https://example.com"}]
     )
-    assert result == [{"label": "CR2032", "icon": "mdi:battery", "url": "https://example.com"}]
+    assert result == [
+        {"label": "CR2032", "icon": "mdi:battery", "url": "https://example.com"}
+    ]
 
 
 def test_normalize_task_chips_drops_empty_label():
