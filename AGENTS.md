@@ -42,10 +42,29 @@
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
 - **Every PR that touches the panel UI MUST include screenshots — no exceptions.**
   This is a hard gate: a UI change is not reviewable (or mergeable) until the PR
-  body embeds current screenshots of the changed surface. Capture them with the
-  Playwright harness (`tests/e2e/screenshots.capture.ts`; bring HA up with
-  `KEEP_UP=1 bash ci/e2e-up.sh`, then run the capture config), commit the PNG(s)
-  under `docs/images/`, and embed them in the PR via a
+  body embeds current screenshots of the changed surface. The capture harness is
+  `tests/e2e/screenshots.capture.ts` (the test) driven by `screenshots.config.ts`
+  (the config — **pass this one to `--config`**, not the test file itself).
+  Step-by-step:
+  ```bash
+  # 1. Start HA and leave it running (from repo root)
+  KEEP_UP=1 bash ci/e2e-up.sh
+
+  # 2. Run the capture — from tests/e2e/
+  cd tests/e2e
+  SHOT_DIR=../../docs/images \
+    npx playwright test --config=screenshots.config.ts
+  ```
+  **In the Claude Code remote environment `npx playwright install chromium` fails**
+  (the CDN is blocked by the proxy). Chromium is pre-installed at
+  `/opt/pw-browsers/`. Set `CHROMIUM_EXEC` to use it — `playwright.config.ts`
+  already wires it up:
+  ```bash
+  CHROMIUM_EXEC=$(ls /opt/pw-browsers/chromium-*/chrome-linux/chrome 2>/dev/null | head -1) \
+    SHOT_DIR=../../docs/images \
+    npx playwright test --config=screenshots.config.ts
+  ```
+  Commit PNG(s) under `docs/images/`, and embed them in the PR via a
   `raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/images/<file>.png`
   URL pinned to the commit that added them. When a change adds a new UI surface,
   add a capture step for it to the capture script in the same PR.
