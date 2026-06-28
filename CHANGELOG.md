@@ -6,6 +6,15 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [0.7.0b1]
 
+### Added
+
+- **Integration-provided metadata chips on tasks.** Integrations can now attach
+  compact metadata chips to any task via the `task_chips` field on
+  `home_keeper.add_task` / `update_task`. Each chip carries a label, an optional
+  `mdi:` icon, and an optional link URL — making contextual information (e.g. battery
+  type, part number) immediately visible in both the **sidebar panel task list** and
+  the **dashboard card** without cluttering the task notes.
+
 ## [0.6.0] - 2026-06-29
 
 This release adds **consumable linking** so completing a task (e.g. swapping a water

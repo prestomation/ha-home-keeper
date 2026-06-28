@@ -156,6 +156,7 @@ const STYLES = `
   .hk-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
   /* Per-task document chips: a row of compact, clearly-tappable affordances that open
      the appliance's manual / file / other associated URL in a new tab. */
+  .hk-task-chip-link { display: contents; }
   .hk-docs { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
   .hk-doc {
     display: inline-flex; align-items: center; gap: 4px; min-width: 0;
@@ -759,6 +760,19 @@ export class HomeKeeperCard extends HTMLElement {
       this._config.show_notes && task.notes
         ? `<div class="hk-notes">${escapeHTML(task.notes)}</div>`
         : '';
+    // Integration-provided metadata chips (e.g. battery type from Battery Notes).
+    // Chips with a URL become links; icon slot is populated when present.
+    const taskChipsHtml = (task.task_chips ?? [])
+      .map(({ label, icon, url }) => {
+        const iconSlot = icon
+          ? `<ha-icon slot="icon" icon="${escapeHTML(icon)}" class="hk-chip-ic"></ha-icon>`
+          : '';
+        const chip = `<ha-assist-chip label="${escapeHTML(label)}">${iconSlot}</ha-assist-chip>`;
+        return url
+          ? `<a class="hk-task-chip-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
+          : chip;
+      })
+      .join('');
     // Per-task "show on card" documents — links/metadata open in a new tab; uploaded
     // files open via a signed URL minted on click (see `_hydrate`).
     const docs = this._resolveDocuments(task);
@@ -779,7 +793,7 @@ export class HomeKeeperCard extends HTMLElement {
           <div class="hk-name">${escapeHTML(task.name)}</div>
           <div class="hk-meta">${meta}</div>
           ${notes}
-          <div class="hk-chips">${statusChip}${areaChip}${labelChips}${managedChip}</div>
+          <div class="hk-chips">${statusChip}${areaChip}${labelChips}${taskChipsHtml}${managedChip}</div>
           ${docsHtml}
         </div>
         ${done}

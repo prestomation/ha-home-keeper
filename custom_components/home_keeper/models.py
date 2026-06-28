@@ -230,6 +230,44 @@ def normalize_card_links(value: Any) -> list[dict[str, str]]:
     return result
 
 
+def normalize_task_chips(value: Any) -> list[dict[str, str]]:
+    """Normalize a task's ``task_chips`` — integration-provided metadata chips shown
+    in both the sidebar panel task list and the dashboard card.
+
+    Each chip is a ``{"label": str, "icon"?: "mdi:*", "url"?: "https?://..."}`` dict.
+    ``label`` is required and non-empty. ``icon`` must start with ``mdi:`` if present.
+    ``url`` must be an http(s) URL if present. Chips without a label are silently
+    dropped; anything that isn't a list fails loudly at the service edge.
+    """
+    if value in (None, "", []):
+        return []
+    if not isinstance(value, (list, tuple)):
+        raise TaskValidationError("task_chips must be a list")
+    result: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            raise TaskValidationError("each task_chips entry must be an object")
+        label = str(item.get("label", "")).strip()
+        if not label:
+            continue
+        chip: dict[str, str] = {"label": label}
+        if icon := str(item.get("icon", "")).strip():
+            if not icon.startswith("mdi:"):
+                raise TaskValidationError(
+                    f"task_chips icon must start with 'mdi:': {icon!r}"
+                )
+            chip["icon"] = icon
+        if url := str(item.get("url", "")).strip():
+            lower = url.lower()
+            if not (lower.startswith("http://") or lower.startswith("https://")):
+                raise TaskValidationError(
+                    f"task_chips url must be an http(s) URL: {url!r}"
+                )
+            chip["url"] = url
+        result.append(chip)
+    return result
+
+
 def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     """Validate and normalize the user-supplied fields of a task.
 
@@ -446,6 +484,10 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # References to appliance links (documents/metadata) the dashboard card shows
         # on this task's row. Independent of recurrence/identity, like labels.
         "card_links": normalize_card_links(data.get("card_links")),
+        # Integration-provided metadata chips shown in both the panel task list and the
+        # dashboard card. Each chip is {label, icon?, url?}. Integration-owned; the
+        # panel does not expose an editor for this field.
+        "task_chips": normalize_task_chips(data.get("task_chips")),
         **fields,
     }
     seed = data.get("last_completed")
@@ -545,6 +587,11 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # doesn't wipe a task's chosen links (normalize_fields never touches them).
     if "card_links" in updates:
         merged["card_links"] = normalize_card_links(updates["card_links"])
+
+    # Integration chips follow the same pattern: only rewrite when explicitly sent so
+    # a routine update_task call can't accidentally clear chips set at creation time.
+    if "task_chips" in updates:
+        merged["task_chips"] = normalize_task_chips(updates["task_chips"])
 
     # A triggered or sensor task has no schedule: its next_due is owned by the arm /
     # complete chokepoints (armed timestamp vs dormant None), so editing

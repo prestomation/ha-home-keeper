@@ -366,6 +366,27 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   `strings.json`/16-locale parity entries, unlike user-facing UI strings). The panel
   Companions strings ARE user-facing and are localized in the frontend `locales/`.
 
+## Integration-provided task chips (`task_chips`)
+- A task may carry an optional `task_chips` list — an array of `{label, icon?, url?}`
+  objects set **exclusively by the integration that owns the task** (not user-editable
+  in the panel). The field is normalized in `models.normalize_task_chips` and carried
+  through `build_task` / `merge_update`. Validated constraints: `label` is a non-empty
+  string; `icon` (if present) must start with `"mdi:"`; `url` (if present) must be an
+  `http://` or `https://` URL. Empty-label entries are silently dropped.
+- Chips are rendered in **both** the panel task list and the dashboard card (using
+  `<ha-assist-chip>`), alongside the managed-by chip, area chip, and label chips. A
+  chip with a `url` is wrapped in `<a class="hk-task-chip-link">` (`display: contents`
+  makes the anchor transparent to flexbox layout while preserving native link behavior).
+  They are intentionally **not** shown in the panel task-edit form — the owning
+  integration controls them, not the user.
+- `task_chips` is distinct from `card_links` (which resolves appliance document links
+  at render time from the asset library, is user-configurable in the panel, and is
+  card-only). Use `task_chips` when an integration needs to surface direct metadata
+  alongside the task on all UI surfaces; use `card_links` when the task is attached to
+  an appliance and you want to link its manuals/documents.
+- See `docs/INTEGRATING.md` "Attaching metadata chips to a task (`task_chips`)" for
+  the full external-integrator API, schema, and example service calls.
+
 ## Deferred: cross-integration contribution API
 - The stable interface for other integrations (e.g. Battery Notes) to contribute
   tasks via a dedicated upsert/reconcile service is intentionally **not implemented

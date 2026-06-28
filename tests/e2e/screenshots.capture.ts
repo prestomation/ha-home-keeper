@@ -116,12 +116,28 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 1h. Condition-driven (triggered) battery task detail. An active one (battery
   // low) reads as due-now with the "Managed by Battery Notes" chip and shows the
-  // full replacement cadence — every time the battery was changed.
+  // full replacement cadence — every time the battery was changed. The battery-type
+  // chip (e.g. "2× AAA") is shown alongside the managed chip.
   await panel.locator('.detail-open[data-detail-id="task_door_battery"]').click();
   await expect(panel.locator('ha-assist-chip.hk-managed').first()).toBeVisible();
   await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/14-panel-battery-detail.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
+  // 37. Battery type chip on the task list — the active battery task shows its
+  // "2× AAA" chip (set by the Battery Notes glue as task_chips) right in the card row.
+  const batteryCard = panel.locator('.hk-card[data-id="task_door_battery"]');
+  await expect(batteryCard).toBeVisible();
+  await page.waitForTimeout(300);
+  await batteryCard.screenshot({ path: `${OUT}/37-panel-battery-chip-row.png` });
+
+  // 37b. Battery task detail with chip visible in header chips row.
+  await panel.locator('.detail-open[data-detail-id="task_door_battery"]').click();
+  await expect(panel.locator('ha-assist-chip.hk-managed').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/37b-panel-battery-chip-detail.png`, fullPage: true });
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 

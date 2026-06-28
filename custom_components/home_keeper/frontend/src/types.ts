@@ -94,6 +94,11 @@ export interface Task {
   // type `link`. The card resolves them to a live name/URL and silently drops any
   // that no longer exist. Empty / absent = show none (the default).
   card_links?: { asset_id: string; entry_id: string }[];
+  // Integration-provided metadata chips rendered in both the panel task list and the
+  // dashboard card. Each chip has a label (required), an optional mdi: icon, and an
+  // optional http(s) URL (clickable if present). Set by integrations via add_task /
+  // update_task; not user-editable in the panel.
+  task_chips?: { label: string; icon?: string; url?: string }[];
   // Provenance for tasks derived/owned by another source (e.g. an appliance wear
   // part, or a synced `device_class: problem` binary sensor). Such tasks are managed
   // by their source, so the panel hides edit/delete — EXCEPT a manual consumable

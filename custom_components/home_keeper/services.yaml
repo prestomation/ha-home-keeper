@@ -125,6 +125,18 @@ add_task:
       advanced: true
       selector:
         object:
+    task_chips:
+      name: Task chips
+      description: >-
+        Integration-provided metadata chips shown in both the panel task list and the
+        dashboard card. A list of {label, icon?, url?} objects. label is required;
+        icon must be an mdi: icon name if present; url must be an http(s) URL if
+        present (the chip becomes a link). Intended for integrations to surface
+        contextual metadata (e.g. battery type) alongside the task. Not
+        user-editable in the panel.
+      advanced: true
+      selector:
+        object:
     source:
       name: Source
       description: >-
@@ -234,6 +246,14 @@ update_task:
         Appliance links to surface on this task's dashboard-card row (replaces the
         current set). A list of {asset_id, entry_id} objects pointing at the
         appliance's document/metadata links. Usually set from the panel's task editor.
+      advanced: true
+      selector:
+        object:
+    task_chips:
+      name: Task chips
+      description: >-
+        Integration-provided metadata chips (replaces the current set). A list of
+        {label, icon?, url?} objects. See add_task for full schema.
       advanced: true
       selector:
         object:
