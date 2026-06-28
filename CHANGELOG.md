@@ -8,16 +8,17 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ### Added
 
-- **Show appliance links on a task's dashboard-card row.** Each task can now pick
-  which of its appliance's links — manuals and other **document links**, plus
-  free-form **metadata links** (e.g. a reorder or warranty page) — to surface
-  directly on the [dashboard task card](README.md#dashboard-task-card). Choose them in
-  the panel's task editor under **Links to show on card** (the picker appears once the
-  task's appliance has links); the card renders each as a compact "open in new tab"
-  chip on the task's row, so a manual or parts page is one tap away while you work. The
-  selection rides the existing `home_keeper.add_task` / `update_task` services
-  (`card_links`), and links are resolved live — rename or remove one on the appliance
-  and the card follows.
+- **Show appliance documents on a task's dashboard-card row.** Each task can now pick
+  which of its appliance's documents to surface directly on the
+  [dashboard task card](README.md#dashboard-task-card): external **document links**,
+  **uploaded files** (a PDF manual, a photo), and free-form **metadata links** (e.g. a
+  reorder or warranty page). Choose them in the panel's task editor under **Links to
+  show on card** (the picker appears once the task's appliance has documents); the card
+  renders each as a compact chip on the task's row — a link or file opens in a new tab
+  (an uploaded file via a short-lived signed URL) — so a manual or parts page is one tap
+  away while you work. The selection rides the existing `home_keeper.add_task` /
+  `update_task` services (`card_links`), and entries resolve live — rename or remove one
+  on the appliance and the card follows.
 
 ### Changed
 

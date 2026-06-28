@@ -3162,10 +3162,11 @@ export class HomeKeeperPanel extends HTMLElement {
 
   /**
    * `asset_id:entry_id` options for the task form's "Links to show on card" picker:
-   * every document link (kind `link`) and metadata link (type `link`) on the
-   * appliance(s) the task is associated with. The card resolves the chosen pairs to
-   * a live name/URL. Empty (the picker then hides) when the task touches no appliance
-   * or none of its appliances carry a link.
+   * every appliance document — an external **link** (kind `link`) or an **uploaded
+   * file** (kind `file`, e.g. a PDF manual) — plus every metadata link (type `link`)
+   * on the appliance(s) the task is associated with. The card resolves the chosen
+   * pairs live (a file opens via a signed URL minted on click). Empty (the picker
+   * then hides) when the task touches no appliance or none of them carry a document.
    */
   private _linkOptions(task: Partial<Task>): { value: string; label: string }[] {
     const assets = this._assetsForTask(task);
@@ -3173,10 +3174,13 @@ export class HomeKeeperPanel extends HTMLElement {
     const options: { value: string; label: string }[] = [];
     for (const asset of assets) {
       for (const doc of asset.documents ?? []) {
-        if (doc.kind !== 'link' || !doc.url || !doc.id) continue;
+        if (!doc.id) continue;
+        // A link needs a URL; an uploaded file needs its stored filename.
+        if (doc.kind === 'link' ? !doc.url : !doc.filename) continue;
+        const label = doc.name || doc.filename || doc.url || '';
         options.push({
           value: `${asset.id}:${doc.id}`,
-          label: multi ? `${asset.name} · ${doc.name}` : doc.name,
+          label: multi ? `${asset.name} · ${label}` : label,
         });
       }
       for (const meta of asset.metadata ?? []) {

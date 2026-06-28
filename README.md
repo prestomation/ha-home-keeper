@@ -377,26 +377,27 @@ reflects completions made anywhere else in real time.
 
 ![Home Keeper task card grouped into status sections](docs/images/card-grouped.png)
 
-### Show a task's appliance links on the card
+### Show a task's appliance documents on the card
 
 When a task is attached to an [appliance](#appliances--virtual-devices), you can pin any
-of that appliance's links — its **manuals / document links** and free-form **metadata
-links** (a reorder page, a warranty page, a how-to video) — to the task's row, so the
-manual or parts page is one tap away while you're actually doing the job. Nothing shows
-by default; you choose per task.
+of that appliance's documents — its **document links**, **uploaded files** (a PDF
+manual, a photo), and free-form **metadata links** (a reorder page, a warranty page, a
+how-to video) — to the task's row, so the manual or parts page is one tap away while
+you're actually doing the job. Nothing shows by default; you choose per task.
 
 How to use it:
 
-- **Pick the links**: open the task in the panel's editor and use **Links to show on
-  card** — a multi-select that lists every document/metadata link on the task's
-  appliance. (The picker only appears once the attached appliance has at least one
-  link.) You can also set them via the `home_keeper.add_task` / `home_keeper.update_task`
-  services (`card_links`).
-- **On the card**: each chosen link renders as a compact chip on the task's row and
-  opens in a new tab. Links resolve **live** — rename or remove one on the appliance and
-  the card follows; a deleted link simply drops off.
+- **Pick the documents**: open the task in the panel's editor and use **Links to show on
+  card** — a multi-select that lists every document (link or uploaded file) and metadata
+  link on the task's appliance. (The picker only appears once the attached appliance has
+  at least one document.) You can also set them via the `home_keeper.add_task` /
+  `home_keeper.update_task` services (`card_links`).
+- **On the card**: each chosen document renders as a compact chip on the task's row and
+  opens in a new tab — an uploaded file via a short-lived signed URL. They resolve
+  **live** — rename or remove one on the appliance and the card follows; a deleted one
+  simply drops off.
 
-![Home Keeper task card showing a row with "Owner's manual" and "Reorder filter" link chips](docs/images/card-task-links.png)
+![Home Keeper task card showing a row with "Owner's manual", "Reorder filter" and an "Installation guide (PDF)" file chip](docs/images/card-task-links.png)
 
 ### Filter by label — one card per subject
 

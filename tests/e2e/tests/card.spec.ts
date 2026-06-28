@@ -69,14 +69,15 @@ test.describe('Home Keeper card — dashboard', () => {
 
   test('a task surfaces its chosen appliance links as openable chips', async ({ page }) => {
     const card = await openCardDashboard(page);
-    // The seeded water-filter task pins two of its appliance's links: a document
-    // link ("Owner's manual") and a metadata link ("Reorder filter").
+    // The seeded water-filter task pins three of its appliance's documents: an
+    // external link ("Owner's manual"), a metadata link ("Reorder filter"), and an
+    // uploaded file ("Installation guide (PDF)").
     const row = card.locator('.hk-row', { hasText: 'Replace water filter' });
     await expect(row).toHaveCount(1, { timeout: 30_000 });
+    // External links render as anchors that open in a new tab.
     const links = row.locator('a.hk-link');
     await expect(links).toHaveCount(2);
 
-    // The document link resolves to its name + URL and opens safely in a new tab.
     const manual = links.filter({ hasText: "Owner's manual" });
     await expect(manual).toHaveAttribute('href', 'https://example.com/water-heater-manual');
     await expect(manual).toHaveAttribute('target', '_blank');
@@ -86,6 +87,12 @@ test.describe('Home Keeper card — dashboard', () => {
       'href',
       'https://example.com/reorder-water-filter',
     );
+
+    // An uploaded file has no static URL — it renders as a button that mints a
+    // short-lived signed URL on click, so it's a <button>, not an <a>.
+    const fileChip = row.locator('button.hk-link');
+    await expect(fileChip).toHaveCount(1);
+    await expect(fileChip).toContainText('Installation guide (PDF)');
   });
 
   test('add and complete a task from the card; rows no longer open an edit form', async ({

@@ -157,6 +157,12 @@ const STYLES = `
     color: var(--primary-color); text-decoration: none; font-size: 0.85rem;
     --mdc-icon-size: 16px;
   }
+  /* A file chip is a <button> (no static href) — strip the native chrome so it
+     reads identically to the anchor chips. */
+  button.hk-link {
+    background: none; border: none; padding: 0; margin: 0;
+    font: inherit; cursor: pointer;
+  }
   .hk-link > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hk-link:hover { text-decoration: underline; }
   /* Label chips read as a distinct, primary-tinted tag so they stand apart from
@@ -220,6 +226,12 @@ interface EditState {
   task: Partial<Task> | null;
   error?: string;
 }
+
+/** A resolved "show on card" chip: either a static link (external link document or
+ *  metadata link) or an uploaded file opened via a signed URL minted on click. */
+type CardChip =
+  | { name: string; url: string }
+  | { name: string; assetId: string; docId: string };
 
 export class HomeKeeperCard extends HTMLElement {
   private _hass?: Hass;
@@ -607,25 +619,28 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   /**
-   * Resolve a task's `card_links` references to live `{name, url}` pairs against the
-   * loaded appliance data. A document link uses its name + URL; a metadata link its
-   * label + value. References to deleted entries — or anything that isn't a plain
-   * http(s) URL — are silently dropped (defence-in-depth even though the backend only
-   * stores http(s) at the asset edge).
+   * Resolve a task's `card_links` references against the loaded appliance data into
+   * renderable chips. An external **link** document (or a metadata link) resolves to a
+   * static `{name, url}`; an **uploaded file** document resolves to `{name, assetId,
+   * docId}` so the row can mint a short-lived signed URL on click (a file has no static
+   * URL). References to deleted entries — or link URLs that aren't plain http(s) — are
+   * silently dropped (defence-in-depth even though the backend only stores http(s)).
    */
-  private _resolveLinks(task: Task): { name: string; url: string }[] {
+  private _resolveLinks(task: Task): CardChip[] {
     const refs = task.card_links;
     if (!refs?.length || !this._assets.length) return [];
     const isHttp = (u: string): boolean => /^https?:\/\//i.test(u);
-    const out: { name: string; url: string }[] = [];
+    const out: CardChip[] = [];
     for (const ref of refs) {
       const asset = this._assets.find((a) => a.id === ref.asset_id);
       if (!asset) continue;
-      const doc = asset.documents?.find(
-        (d) => d.id === ref.entry_id && d.kind === 'link' && d.url,
-      );
-      if (doc?.url && isHttp(doc.url)) {
-        out.push({ name: doc.name, url: doc.url });
+      const doc = asset.documents?.find((d) => d.id === ref.entry_id);
+      if (doc) {
+        if (doc.kind === 'file' && doc.filename) {
+          out.push({ name: doc.name || doc.filename, assetId: ref.asset_id, docId: ref.entry_id });
+        } else if (doc.kind === 'link' && doc.url && isHttp(doc.url)) {
+          out.push({ name: doc.name, url: doc.url });
+        }
         continue;
       }
       const meta = asset.metadata?.find(
@@ -634,6 +649,27 @@ export class HomeKeeperCard extends HTMLElement {
       if (meta?.value && isHttp(meta.value)) out.push({ name: meta.label, url: meta.value });
     }
     return out;
+  }
+
+  /** One link/file chip's HTML. A link is a static anchor; an uploaded file is a
+   *  button that signs a URL on click (hydrated in `_hydrate`). */
+  private _linkChip(chip: CardChip): string {
+    const name = escapeHTML(chip.name);
+    if ('url' in chip) {
+      return `<a class="hk-link" href="${escapeHTML(chip.url)}" target="_blank" rel="noopener noreferrer" title="${name}"><ha-icon icon="mdi:open-in-new"></ha-icon><span>${name}</span></a>`;
+    }
+    return `<button type="button" class="hk-link" data-asset="${escapeHTML(chip.assetId)}" data-doc="${escapeHTML(chip.docId)}" title="${name}"><ha-icon icon="mdi:file-document-outline"></ha-icon><span>${name}</span></button>`;
+  }
+
+  /** Open an uploaded file document via a short-lived signed URL (new tab). */
+  private async _openFileDocument(assetId: string, documentId: string): Promise<void> {
+    if (!this._hass) return;
+    try {
+      const url = await api.signDocumentUrl(this._hass, assetId, documentId);
+      window.open(url, '_blank', 'noopener');
+    } catch {
+      // Best-effort: a failed signing (e.g. a deleted file) simply doesn't open.
+    }
   }
 
   private _row(task: Task): string {
@@ -674,16 +710,11 @@ export class HomeKeeperCard extends HTMLElement {
       this._config.show_notes && task.notes
         ? `<div class="hk-notes">${escapeHTML(task.notes)}</div>`
         : '';
-    // Per-task "show on card" links — open in a new tab; `noopener` keeps the opener
-    // safe and the URL is http(s)-validated + escaped before going into the href.
+    // Per-task "show on card" links — external links open in a new tab; uploaded
+    // files open via a signed URL minted on click (see `_hydrate`).
     const links = this._resolveLinks(task);
     const linksHtml = links.length
-      ? `<div class="hk-links">${links
-          .map(
-            (l) =>
-              `<a class="hk-link" href="${escapeHTML(l.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(l.name)}"><ha-icon icon="mdi:open-in-new"></ha-icon><span>${escapeHTML(l.name)}</span></a>`,
-          )
-          .join('')}</div>`
+      ? `<div class="hk-links">${links.map((l) => this._linkChip(l)).join('')}</div>`
       : '';
     // A dormant triggered task has nothing to complete — its owner arms it; hide the
     // action. A completion-blocked task (a synced problem sensor) keeps a *disabled*
@@ -728,6 +759,15 @@ export class HomeKeeperCard extends HTMLElement {
         if (!task) return;
         if (task.managed_by?.completion_blocked) this._notifyBlocked(task);
         else void this._complete(task);
+      });
+    });
+
+    // Uploaded-file link chips have no static href — mint a signed URL on click.
+    root.querySelectorAll<HTMLElement>('button.hk-link[data-doc]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const assetId = b.dataset.asset;
+        const docId = b.dataset.doc;
+        if (assetId && docId) void this._openFileDocument(assetId, docId);
       });
     });
 

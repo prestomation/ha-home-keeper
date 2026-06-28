@@ -151,6 +151,10 @@
           {
             "asset_id": "asset_water_heater",
             "entry_id": "asset_water_heater_meta_reorder_link"
+          },
+          {
+            "asset_id": "asset_water_heater",
+            "entry_id": "asset_water_heater_doc_manual_pdf"
           }
         ]
       },
@@ -596,6 +600,15 @@
             "name": "Owner's manual",
             "url": "https://example.com/water-heater-manual",
             "created": ""
+          },
+          {
+            "id": "asset_water_heater_doc_manual_pdf",
+            "kind": "file",
+            "name": "Installation guide (PDF)",
+            "created": "",
+            "filename": "manual.pdf",
+            "content_type": "application/pdf",
+            "size": 193
           }
         ]
       },
