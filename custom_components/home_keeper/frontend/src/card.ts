@@ -24,6 +24,7 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
+import { documentLabel, isDisplayableDocument, openDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
 import type { Asset, Hass, HassLabel, Profile, Task } from './types';
 import {
@@ -149,22 +150,22 @@ const STYLES = `
   }
   .hk-notes { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
   .hk-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
-  /* Per-task documentation / link chips: a row of compact, clearly-tappable links
-     that open the appliance's manual or other associated URLs in a new tab. */
-  .hk-links { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
-  .hk-link {
+  /* Per-task document chips: a row of compact, clearly-tappable affordances that open
+     the appliance's manual / file / other associated URL in a new tab. */
+  .hk-docs { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+  .hk-doc {
     display: inline-flex; align-items: center; gap: 4px; min-width: 0;
     color: var(--primary-color); text-decoration: none; font-size: 0.85rem;
     --mdc-icon-size: 16px;
   }
   /* A file chip is a <button> (no static href) — strip the native chrome so it
      reads identically to the anchor chips. */
-  button.hk-link {
+  button.hk-doc {
     background: none; border: none; padding: 0; margin: 0;
     font: inherit; cursor: pointer;
   }
-  .hk-link > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .hk-link:hover { text-decoration: underline; }
+  .hk-doc > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hk-doc:hover { text-decoration: underline; }
   /* Label chips read as a distinct, primary-tinted tag so they stand apart from
      the neutral status / area chips. */
   ha-assist-chip.hk-label {
@@ -227,9 +228,9 @@ interface EditState {
   error?: string;
 }
 
-/** A resolved "show on card" chip: either a static link (external link document or
- *  metadata link) or an uploaded file opened via a signed URL minted on click. */
-type CardChip =
+/** A resolved "show on card" document chip: either a static link (external link
+ *  document or metadata link) or an uploaded file opened via a signed URL on click. */
+type DocumentChip =
   | { name: string; url: string }
   | { name: string; assetId: string; docId: string };
 
@@ -626,11 +627,11 @@ export class HomeKeeperCard extends HTMLElement {
    * URL). References to deleted entries — or link URLs that aren't plain http(s) — are
    * silently dropped (defence-in-depth even though the backend only stores http(s)).
    */
-  private _resolveLinks(task: Task): CardChip[] {
+  private _resolveDocuments(task: Task): DocumentChip[] {
     const refs = task.card_links;
     if (!refs?.length || !this._assets.length) return [];
     const isHttp = (u: string): boolean => /^https?:\/\//i.test(u);
-    const out: CardChip[] = [];
+    const out: DocumentChip[] = [];
     for (const ref of refs) {
       const asset = this._assets.find((a) => a.id === ref.asset_id);
       if (!asset) continue;
@@ -638,10 +639,11 @@ export class HomeKeeperCard extends HTMLElement {
       // namespaced), so a document match is authoritative — resolve it and move on.
       const doc = asset.documents?.find((d) => d.id === ref.entry_id);
       if (doc) {
-        if (doc.kind === 'file' && doc.filename) {
-          out.push({ name: doc.name || doc.filename, assetId: ref.asset_id, docId: ref.entry_id });
-        } else if (doc.kind === 'link' && doc.url && isHttp(doc.url)) {
-          out.push({ name: doc.name, url: doc.url });
+        if (!isDisplayableDocument(doc)) continue;
+        if (doc.kind === 'file') {
+          out.push({ name: documentLabel(doc), assetId: ref.asset_id, docId: ref.entry_id });
+        } else if (doc.url && isHttp(doc.url)) {
+          out.push({ name: documentLabel(doc), url: doc.url });
         }
         continue;
       }
@@ -653,26 +655,14 @@ export class HomeKeeperCard extends HTMLElement {
     return out;
   }
 
-  /** One link/file chip's HTML. A link is a static anchor; an uploaded file is a
-   *  button that signs a URL on click (hydrated in `_hydrate`). */
-  private _linkChip(chip: CardChip): string {
+  /** One document chip's HTML. A link/metadata-link is a static anchor; an uploaded
+   *  file is a button that signs a URL on click (hydrated in `_hydrate`). */
+  private _documentChip(chip: DocumentChip): string {
     const name = escapeHTML(chip.name);
     if ('url' in chip) {
-      return `<a class="hk-link" href="${escapeHTML(chip.url)}" target="_blank" rel="noopener noreferrer" title="${name}"><ha-icon icon="mdi:open-in-new"></ha-icon><span>${name}</span></a>`;
+      return `<a class="hk-doc" href="${escapeHTML(chip.url)}" target="_blank" rel="noopener noreferrer" title="${name}"><ha-icon icon="mdi:open-in-new"></ha-icon><span>${name}</span></a>`;
     }
-    return `<button type="button" class="hk-link" data-asset="${escapeHTML(chip.assetId)}" data-doc="${escapeHTML(chip.docId)}" title="${name}"><ha-icon icon="mdi:file-document-outline"></ha-icon><span>${name}</span></button>`;
-  }
-
-  /** Open an uploaded file document via a short-lived signed URL (new tab). */
-  private async _openFileDocument(assetId: string, documentId: string): Promise<void> {
-    if (!this._hass) return;
-    try {
-      const url = await api.signDocumentUrl(this._hass, assetId, documentId);
-      window.open(url, '_blank', 'noopener');
-    } catch {
-      // Best-effort: if signing fails (the asset/document is gone) the click is a
-      // no-op. A deleted *blob* still signs fine and 404s only when the tab loads.
-    }
+    return `<button type="button" class="hk-doc" data-asset="${escapeHTML(chip.assetId)}" data-doc="${escapeHTML(chip.docId)}" title="${name}"><ha-icon icon="mdi:file-document-outline"></ha-icon><span>${name}</span></button>`;
   }
 
   private _row(task: Task): string {
@@ -713,11 +703,11 @@ export class HomeKeeperCard extends HTMLElement {
       this._config.show_notes && task.notes
         ? `<div class="hk-notes">${escapeHTML(task.notes)}</div>`
         : '';
-    // Per-task "show on card" links — external links open in a new tab; uploaded
+    // Per-task "show on card" documents — links/metadata open in a new tab; uploaded
     // files open via a signed URL minted on click (see `_hydrate`).
-    const links = this._resolveLinks(task);
-    const linksHtml = links.length
-      ? `<div class="hk-links">${links.map((l) => this._linkChip(l)).join('')}</div>`
+    const docs = this._resolveDocuments(task);
+    const docsHtml = docs.length
+      ? `<div class="hk-docs">${docs.map((d) => this._documentChip(d)).join('')}</div>`
       : '';
     // A dormant triggered task has nothing to complete — its owner arms it; hide the
     // action. A completion-blocked task (a synced problem sensor) keeps a *disabled*
@@ -734,7 +724,7 @@ export class HomeKeeperCard extends HTMLElement {
           <div class="hk-meta">${meta}</div>
           ${notes}
           <div class="hk-chips">${statusChip}${areaChip}${labelChips}${managedChip}</div>
-          ${linksHtml}
+          ${docsHtml}
         </div>
         ${done}
       </div>`;
@@ -765,12 +755,14 @@ export class HomeKeeperCard extends HTMLElement {
       });
     });
 
-    // Uploaded-file link chips have no static href — mint a signed URL on click.
-    root.querySelectorAll<HTMLElement>('button.hk-link[data-doc]').forEach((b) => {
+    // Uploaded-file document chips have no static href — mint a signed URL on click.
+    root.querySelectorAll<HTMLElement>('button.hk-doc[data-doc]').forEach((b) => {
       b.addEventListener('click', () => {
         const assetId = b.dataset.asset;
-        const docId = b.dataset.doc;
-        if (assetId && docId) void this._openFileDocument(assetId, docId);
+        const doc = this._assets
+          .find((a) => a.id === assetId)
+          ?.documents?.find((d) => d.id === b.dataset.doc);
+        if (assetId && doc && this._hass) void openDocument(this._hass, assetId, doc);
       });
     });
 

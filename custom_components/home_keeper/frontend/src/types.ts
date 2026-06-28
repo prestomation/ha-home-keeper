@@ -176,16 +176,30 @@ export type DocumentKind = 'link' | 'file';
  *  `file` (PDF/image) stored locally and served back through the document HTTP view.
  *  For a `file`, `filename`/`content_type`/`size` are backend-managed and the bytes
  *  are opened via a short-lived signed URL (see api.signDocumentUrl). */
-export interface AssetDocument {
+interface AssetDocumentBase {
   id?: string;
-  kind: DocumentKind;
   name: string;
   created?: string;
+}
+/** An external link document — points at a URL the browser opens directly. */
+export interface AssetLinkDocument extends AssetDocumentBase {
+  kind: 'link';
   url?: string;
+}
+/** An uploaded file document — a stored blob opened via a short-lived signed URL. */
+export interface AssetFileDocument extends AssetDocumentBase {
+  kind: 'file';
   filename?: string;
   content_type?: string;
   size?: number;
 }
+/**
+ * An appliance document. A **discriminated union** on `kind` so the compiler forces
+ * every consumer to branch before touching a kind-specific field (`url` vs
+ * `filename`/`size`/`content_type`) — a missed kind is a build error, not a runtime
+ * gap. See `documents.ts` for the shared display/open helpers.
+ */
+export type AssetDocument = AssetLinkDocument | AssetFileDocument;
 
 /** A free-form metadata entry on an appliance: a typed label/value pair. A `date`
  *  entry with `track` set also becomes a date sensor on the device (opt-in). */

@@ -75,7 +75,7 @@ test.describe('Home Keeper card — dashboard', () => {
     const row = card.locator('.hk-row', { hasText: 'Replace water filter' });
     await expect(row).toHaveCount(1, { timeout: 30_000 });
     // External links render as anchors that open in a new tab.
-    const links = row.locator('a.hk-link');
+    const links = row.locator('a.hk-doc');
     await expect(links).toHaveCount(2);
 
     const manual = links.filter({ hasText: "Owner's manual" });
@@ -90,7 +90,7 @@ test.describe('Home Keeper card — dashboard', () => {
 
     // An uploaded file has no static URL — it renders as a button that mints a
     // short-lived signed URL on click, so it's a <button>, not an <a>.
-    const fileChip = row.locator('button.hk-link');
+    const fileChip = row.locator('button.hk-doc');
     await expect(fileChip).toHaveCount(1);
     await expect(fileChip).toContainText('Installation guide (PDF)');
   });

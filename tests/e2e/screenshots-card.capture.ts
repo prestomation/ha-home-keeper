@@ -52,19 +52,19 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
     }
   });
   await page.waitForTimeout(1500); // attaching a device reloads the entry; let it settle
-  await expect(card.locator('a.hk-link').first()).toBeVisible();
+  await expect(card.locator('a.hk-doc').first()).toBeVisible();
   await page.waitForTimeout(500); // let layout / chips settle
 
   // 1. The whole dashboard view (default card + grouped card + native cards).
   await page.screenshot({ path: `${OUT}/card-dashboard.png`, fullPage: true });
 
-  // 2. The default card on its own. The seeded water-filter task pins two of its
-  // appliance's links, so this clip also shows the per-task link chips.
+  // 2. The default card on its own. The seeded water-filter task pins some of its
+  // appliance's documents, so this clip also shows the per-task document chips.
   await shotCard(page, card, `${OUT}/card-default.png`);
 
-  // 2b. Same card, named for the per-task "links to show on card" feature — the
-  // water-filter row carries an "Owner's manual" + "Reorder filter" link chip.
-  await expect(card.locator('a.hk-link').first()).toBeVisible();
+  // 2b. Same card, named for the per-task "documents to show on card" feature — the
+  // water-filter row carries "Owner's manual", "Reorder filter" and a file chip.
+  await expect(card.locator('a.hk-doc').first()).toBeVisible();
   await shotCard(page, card, `${OUT}/card-task-links.png`);
 
   // 3. The grouped-by-status card.
