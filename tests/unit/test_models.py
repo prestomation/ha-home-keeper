@@ -865,13 +865,13 @@ def test_merge_update_leaves_card_links_untouched_when_absent():
 # ── task_chips ───────────────────────────────────────────────────────────────
 
 def test_normalize_task_chips_label_only():
-    result = m.normalize_task_chips([{"label": "2× AAA"}])
-    assert result == [{"label": "2× AAA"}]
+    result = m.normalize_task_chips([{"label": "2x AAA"}])
+    assert result == [{"label": "2x AAA"}]
 
 
 def test_normalize_task_chips_with_icon():
-    result = m.normalize_task_chips([{"label": "2× AAA", "icon": "mdi:battery"}])
-    assert result == [{"label": "2× AAA", "icon": "mdi:battery"}]
+    result = m.normalize_task_chips([{"label": "2x AAA", "icon": "mdi:battery"}])
+    assert result == [{"label": "2x AAA", "icon": "mdi:battery"}]
 
 
 def test_normalize_task_chips_with_url():
