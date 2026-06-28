@@ -101,6 +101,7 @@ ADD_TASK_SCHEMA = vol.Schema(
         ),
         vol.Optional("source"): dict,
         vol.Optional("managed_by"): dict,
+        vol.Optional("task_chips"): list,
     }
 )
 UPDATE_TASK_SCHEMA = vol.Schema(
@@ -124,6 +125,7 @@ UPDATE_TASK_SCHEMA = vol.Schema(
             cv.ensure_list, [cv.string]
         ),
         vol.Optional("source"): dict,
+        vol.Optional("task_chips"): list,
     }
 )
 TASK_ID_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
