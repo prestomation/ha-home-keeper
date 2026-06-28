@@ -294,5 +294,6 @@
   "tasks.intro.recurring": "<b>周期性</b>——按计划重复，或在每次完成后重复（更换滤芯、看兽医、电池）。",
   "tasks.intro.monitored": "<b>监测型</b>——由传感器或条件触发并自动清除；部分无法手动标记完成。",
   "tasks.intro.companion": "<b>来自配套集成</b>——由其他集成贡献，并带有“由……管理”标签。",
-  "tasks.intro.dismiss": "知道了"
+  "tasks.intro.dismiss": "知道了",
+  "field.card_links": "卡片上显示的链接"
 }

@@ -294,5 +294,6 @@
   "tasks.intro.recurring": "<b>Tilbagevendende</b> — gentages efter en plan eller hver gang du er færdig (filterskift, dyrlæge, batterier).",
   "tasks.intro.monitored": "<b>Overvåget</b> — udløst af en sensor eller tilstand og ryddet automatisk; nogle kan ikke markeres færdige manuelt.",
   "tasks.intro.companion": "<b>Fra companions</b> — bidraget af andre integrationer og vist med en “Administreret af …”-chip.",
-  "tasks.intro.dismiss": "Forstået"
+  "tasks.intro.dismiss": "Forstået",
+  "field.card_links": "Links på kortet"
 }

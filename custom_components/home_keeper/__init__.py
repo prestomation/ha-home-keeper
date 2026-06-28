@@ -58,6 +58,15 @@ _LOGGER = logging.getLogger(__name__)
 # ``managed_by`` is a well-known ownership block that Home Keeper DOES inspect: it
 # controls which fields are locked in the UI, deletion protection, and display metadata.
 # Set at creation time; ignored by update_task. See docs/INTEGRATING.md §6.
+# One reference in a task's ``card_links``: an appliance id plus the id of one of
+# its link documents / metadata-link entries. The dashboard card resolves the pair
+# to a live name/URL and silently drops references that no longer exist.
+CARD_LINK_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("entry_id"): cv.string,
+    }
+)
 ADD_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("name"): cv.string,
@@ -81,6 +90,9 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("area_id"): cv.string,
         # HA label-registry ids; used (with device/area labels) to scope the card.
         vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
+        # Appliance link references (document/metadata links) the dashboard card
+        # surfaces on this task's row. See models.normalize_card_links.
+        vol.Optional("card_links"): vol.All(cv.ensure_list, [CARD_LINK_SCHEMA]),
         # Per-task completion-capture mode + (optionally) which metadata fields are
         # mandatory. See const.COMPLETION_DETAIL_* / COMPLETION_METADATA_FIELDS.
         vol.Optional("completion_detail"): cv.string,
@@ -106,6 +118,7 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("device_id"): cv.string,
         vol.Optional("area_id"): cv.string,
         vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("card_links"): vol.All(cv.ensure_list, [CARD_LINK_SCHEMA]),
         vol.Optional("completion_detail"): cv.string,
         vol.Optional("completion_required_fields"): vol.All(
             cv.ensure_list, [cv.string]

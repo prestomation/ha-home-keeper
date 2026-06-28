@@ -89,6 +89,11 @@ export interface Task {
   // HA label-registry ids attached directly to this task. The dashboard card can
   // filter by label, matching a task via its own labels or those on its device/area.
   labels?: string[];
+  // References to appliance links the dashboard card surfaces on this task's row:
+  // each pair points at an appliance document of kind `link` or a metadata entry of
+  // type `link`. The card resolves them to a live name/URL and silently drops any
+  // that no longer exist. Empty / absent = show none (the default).
+  card_links?: { asset_id: string; entry_id: string }[];
   // Provenance for tasks derived/owned by another source (e.g. an appliance wear
   // part, or a synced `device_class: problem` binary sensor). Such tasks are managed
   // by their source, so the panel hides edit/delete — EXCEPT a manual consumable

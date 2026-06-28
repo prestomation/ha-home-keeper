@@ -364,15 +364,39 @@ button taps and the standalone
 ## Dashboard task card
 
 The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizable list
-of your tasks with a one-tap **Done** button on each row; tapping a row opens an inline
-add/edit/delete form. It's auto-registered (no resource setup) and appears in the
-dashboard **"Add card"** picker. Its GUI editor lets you filter (by status, area,
-device, **label**, recurrence type, a "due within N days" horizon, or a saved
-[Profile](#profiles--saved-filters-you-reuse-everywhere)), sort, group, cap
-rows, and toggle what each row shows. It's built from HA's own components and theme and
+of your tasks with a one-tap **Done** button on each row. It's a focused
+do-and-glance surface: mark tasks done, add a new one from the header **+**, and open
+any documentation links a task shows (see below) — while **editing and deleting a task
+live in the sidebar panel**, so a stray tap on the dashboard can't open a form or
+accidentally delete a task. It's auto-registered (no resource setup) and
+appears in the dashboard **"Add card"** picker. Its GUI editor lets you filter (by
+status, area, device, **label**, recurrence type, a "due within N days" horizon, or a
+saved [Profile](#profiles--saved-filters-you-reuse-everywhere)), sort, group, cap rows,
+and toggle what each row shows. It's built from HA's own components and theme and
 reflects completions made anywhere else in real time.
 
-![Home Keeper task card grouped into status sections, with an inline add form](docs/images/card-grouped.png)
+![Home Keeper task card grouped into status sections](docs/images/card-grouped.png)
+
+### Show a task's appliance links on the card
+
+When a task is attached to an [appliance](#appliances--virtual-devices), you can pin any
+of that appliance's links — its **manuals / document links** and free-form **metadata
+links** (a reorder page, a warranty page, a how-to video) — to the task's row, so the
+manual or parts page is one tap away while you're actually doing the job. Nothing shows
+by default; you choose per task.
+
+How to use it:
+
+- **Pick the links**: open the task in the panel's editor and use **Links to show on
+  card** — a multi-select that lists every document/metadata link on the task's
+  appliance. (The picker only appears once the attached appliance has at least one
+  link.) You can also set them via the `home_keeper.add_task` / `home_keeper.update_task`
+  services (`card_links`).
+- **On the card**: each chosen link renders as a compact chip on the task's row and
+  opens in a new tab. Links resolve **live** — rename or remove one on the appliance and
+  the card follows; a deleted link simply drops off.
+
+![Home Keeper task card showing a row with "Owner's manual" and "Reorder filter" link chips](docs/images/card-task-links.png)
 
 ### Filter by label — one card per subject
 

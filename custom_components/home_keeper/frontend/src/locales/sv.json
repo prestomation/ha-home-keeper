@@ -294,5 +294,6 @@
   "tasks.intro.recurring": "<b>Återkommande</b> — upprepas enligt schema eller efter varje gång du slutfört den (filterbyten, veterinärbesök, batterier).",
   "tasks.intro.monitored": "<b>Bevakad</b> — utlöst av en sensor eller ett villkor och löses automatiskt; vissa kan inte markeras klara för hand.",
   "tasks.intro.companion": "<b>Från companions</b> — bidragna av andra integrationer och visade med en ”Hanteras av …”-etikett.",
-  "tasks.intro.dismiss": "Jag förstår"
+  "tasks.intro.dismiss": "Jag förstår",
+  "field.card_links": "Länkar på kortet"
 }

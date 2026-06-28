@@ -307,5 +307,6 @@
   "tasks.intro.recurring": "<b>Recurrent</b>: es repeteix segons un calendari o cada cop que la completes (canvis de filtre, visites al veterinari, piles).",
   "tasks.intro.monitored": "<b>Supervisat</b>: activat per un sensor o condició i resolt automàticament; algunes no es poden completar a mà.",
   "tasks.intro.companion": "<b>De complements</b>: aportades per altres integracions i mostrades amb una etiqueta «Gestionat per …».",
-  "tasks.intro.dismiss": "Entesos"
+  "tasks.intro.dismiss": "Entesos",
+  "field.card_links": "Enllaços a la targeta"
 }

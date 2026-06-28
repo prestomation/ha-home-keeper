@@ -294,5 +294,6 @@
   "tasks.intro.recurring": "<b>Wiederkehrend</b> – wiederholt sich nach Zeitplan oder nach jedem Erledigen (Filterwechsel, Tierarzttermine, Batterien).",
   "tasks.intro.monitored": "<b>Überwacht</b> – durch einen Sensor oder Zustand ausgelöst und automatisch gelöscht; manche lassen sich nicht von Hand abschließen.",
   "tasks.intro.companion": "<b>Von Companions</b> – von anderen Integrationen beigesteuert und mit einem „Verwaltet von …“-Chip gekennzeichnet.",
-  "tasks.intro.dismiss": "Verstanden"
+  "tasks.intro.dismiss": "Verstanden",
+  "field.card_links": "Links auf der Karte"
 }

@@ -3,6 +3,7 @@ import * as api from './api';
 import { profileMatches } from './card-filter';
 import {
   buildTaskPayload,
+  cardLinkTokens,
   consumableLinkToken,
   selArea,
   selBool,
@@ -3147,6 +3148,48 @@ export class HomeKeeperPanel extends HTMLElement {
     return options.sort((a, b) => a.label.localeCompare(b.label));
   }
 
+  /** Appliances reachable from a task: the one(s) it's attached to via its device,
+   *  plus the appliance behind a manual consumable link (its part's asset). */
+  private _assetsForTask(task: Partial<Task>): Asset[] {
+    const byDevice = this._assetsForDevice(task.device_id);
+    const partAssetId = task.source?.part?.asset_id;
+    if (partAssetId && !byDevice.some((a) => a.id === partAssetId)) {
+      const a = this._assets.find((x) => x.id === partAssetId);
+      if (a) return [...byDevice, a];
+    }
+    return byDevice;
+  }
+
+  /**
+   * `asset_id:entry_id` options for the task form's "Links to show on card" picker:
+   * every document link (kind `link`) and metadata link (type `link`) on the
+   * appliance(s) the task is associated with. The card resolves the chosen pairs to
+   * a live name/URL. Empty (the picker then hides) when the task touches no appliance
+   * or none of its appliances carry a link.
+   */
+  private _linkOptions(task: Partial<Task>): { value: string; label: string }[] {
+    const assets = this._assetsForTask(task);
+    const multi = assets.length > 1; // disambiguate by appliance only when needed
+    const options: { value: string; label: string }[] = [];
+    for (const asset of assets) {
+      for (const doc of asset.documents ?? []) {
+        if (doc.kind !== 'link' || !doc.url || !doc.id) continue;
+        options.push({
+          value: `${asset.id}:${doc.id}`,
+          label: multi ? `${asset.name} · ${doc.name}` : doc.name,
+        });
+      }
+      for (const meta of asset.metadata ?? []) {
+        if (meta.type !== 'link' || !meta.value || !meta.id) continue;
+        options.push({
+          value: `${asset.id}:${meta.id}`,
+          label: multi ? `${asset.name} · ${meta.label}` : meta.label,
+        });
+      }
+    }
+    return options.sort((a, b) => a.label.localeCompare(b.label));
+  }
+
   /** Resolve a task's part link to a "Appliance · Part · In stock: N" detail line. */
   private _consumableLinkLabel(task: Task): string {
     const part = task.source?.part;
@@ -3176,7 +3219,7 @@ export class HomeKeeperPanel extends HTMLElement {
     )}</div>`;
 
     const form = this._makeForm(
-      taskSchema(task, this._consumableOptions(task)),
+      taskSchema(task, this._consumableOptions(task), this._linkOptions(task)),
       taskFormData(task),
       (value) => {
         const prevType = this._edit.task?.recurrence_type;
@@ -3197,6 +3240,12 @@ export class HomeKeeperPanel extends HTMLElement {
           if (cur && !opts.some((o) => o.value === cur)) {
             (this._edit.task as Record<string, unknown>).consumable_link = '';
           }
+          // The card-link picker is likewise device-scoped — drop chosen links that
+          // no longer resolve to the newly-attached appliance.
+          const linkOpts = this._linkOptions(this._edit.task);
+          (this._edit.task as Record<string, unknown>).card_links = cardLinkTokens(
+            this._edit.task,
+          ).filter((tok) => linkOpts.some((o) => o.value === tok));
         }
         // The recurrence type (cadence/sensor fields), the sensor mode (usage vs.
         // threshold), and the attached device (which scopes the consumable picker)

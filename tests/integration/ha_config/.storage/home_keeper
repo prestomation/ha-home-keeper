@@ -142,7 +142,17 @@
             "part_id": "part_sediment_filter",
             "manual": true
           }
-        }
+        },
+        "card_links": [
+          {
+            "asset_id": "asset_water_heater",
+            "entry_id": "d1d75bd3-9830-431d-a7b2-cf0ab97c1d3f"
+          },
+          {
+            "asset_id": "asset_water_heater",
+            "entry_id": "asset_water_heater_meta_reorder_link"
+          }
+        ]
       },
       "task_buddy_medicine": {
         "id": "task_buddy_medicine",
@@ -571,13 +581,19 @@
             "type": "text",
             "label": "Notes",
             "value": "Garage corner, behind the shelving"
+          },
+          {
+            "type": "link",
+            "label": "Reorder filter",
+            "value": "https://example.com/reorder-water-filter",
+            "id": "asset_water_heater_meta_reorder_link"
           }
         ],
         "documents": [
           {
             "id": "d1d75bd3-9830-431d-a7b2-cf0ab97c1d3f",
             "kind": "link",
-            "name": "example.com",
+            "name": "Owner's manual",
             "url": "https://example.com/water-heater-manual",
             "created": ""
           }

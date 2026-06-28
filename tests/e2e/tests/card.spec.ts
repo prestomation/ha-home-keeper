@@ -32,7 +32,9 @@ test.describe('Home Keeper card — dashboard', () => {
     await expect(card.locator('.hk-row.overdue').first()).toBeVisible();
     // A dormant (monitored) battery task has nothing to complete — its owner
     // arms it — so it renders without a Done button.
-    await expect(card.locator('[data-edit-id="task_smoke_battery"]')).toHaveCount(1);
+    await expect(
+      card.locator('.hk-row', { hasText: 'Replace battery: Hallway smoke alarm' }),
+    ).toHaveCount(1);
     await expect(card.locator('.hk-done[data-id="task_smoke_battery"]')).toHaveCount(0);
   });
 
@@ -65,16 +67,36 @@ test.describe('Home Keeper card — dashboard', () => {
     await expect(dog.locator('ha-assist-chip.hk-label').first()).toHaveAttribute('label', 'Dog');
   });
 
-  test('full lifecycle: add, complete, edit, then delete a task from the card', async ({
+  test('a task surfaces its chosen appliance links as openable chips', async ({ page }) => {
+    const card = await openCardDashboard(page);
+    // The seeded water-filter task pins two of its appliance's links: a document
+    // link ("Owner's manual") and a metadata link ("Reorder filter").
+    const row = card.locator('.hk-row', { hasText: 'Replace water filter' });
+    await expect(row).toHaveCount(1, { timeout: 30_000 });
+    const links = row.locator('a.hk-link');
+    await expect(links).toHaveCount(2);
+
+    // The document link resolves to its name + URL and opens safely in a new tab.
+    const manual = links.filter({ hasText: "Owner's manual" });
+    await expect(manual).toHaveAttribute('href', 'https://example.com/water-heater-manual');
+    await expect(manual).toHaveAttribute('target', '_blank');
+    await expect(manual).toHaveAttribute('rel', /noopener/);
+    // The metadata link resolves to its label + value.
+    await expect(links.filter({ hasText: 'Reorder filter' })).toHaveAttribute(
+      'href',
+      'https://example.com/reorder-water-filter',
+    );
+  });
+
+  test('add and complete a task from the card; rows no longer open an edit form', async ({
     page,
   }) => {
     const errors = trackPanelErrors(page);
     const card = await openCardDashboard(page);
 
     const NAME = `E2E card task ${Date.now()}`;
-    const RENAMED = `${NAME} (edited)`;
 
-    // ── Add ───────────────────────────────────────────────────────────────
+    // ── Add (header button — still available; the add form has no Delete) ───
     await card.locator('#hk-add').click();
     const form = card.locator('.hk-form');
     await expect(form).toBeVisible();
@@ -89,28 +111,19 @@ test.describe('Home Keeper card — dashboard', () => {
     await expect(row).toHaveCount(1, { timeout: 15_000 });
     await expect(card.locator('.hk-row.overdue', { hasText: NAME })).toHaveCount(1);
 
-    // ── Complete (trailing Done) ───────────────────────────────────────────
+    // ── Tapping the row no longer opens an inline edit form ────────────────
+    // Editing/deleting moved to the sidebar panel so a stray tap can't open a
+    // form (and can't reach Delete). The row's body is inert.
+    await row.locator('.grow').click();
+    await expect(card.locator('.hk-form')).toHaveCount(0);
+
+    // ── Complete (trailing Done still works) ───────────────────────────────
     await row.locator('.hk-done').click();
     // Completing a floating task advances next_due ~1 month -> no longer overdue.
     await expect(card.locator('.hk-row.overdue', { hasText: NAME })).toHaveCount(0, {
       timeout: 15_000,
     });
     await expect(card.locator('.hk-row', { hasText: NAME })).toHaveCount(1);
-
-    // ── Edit (row click opens the inline form) ─────────────────────────────
-    await card.locator('.hk-row', { hasText: NAME }).locator('.grow').click();
-    const editForm = card.locator('.hk-form');
-    await expect(editForm).toBeVisible();
-    await fillText(editForm, 0, RENAMED);
-    await editForm.locator('ha-button', { hasText: 'Save' }).click();
-    await expect(card.locator('.hk-row', { hasText: RENAMED })).toHaveCount(1, { timeout: 15_000 });
-
-    // ── Delete (inline form Delete button, confirm dialog) ─────────────────
-    page.once('dialog', (dialog) => dialog.accept());
-    await card.locator('.hk-row', { hasText: RENAMED }).locator('.grow').click();
-    await expect(card.locator('.hk-form')).toBeVisible();
-    await card.locator('.hk-form ha-button', { hasText: 'Delete' }).click();
-    await expect(card.locator('.hk-row', { hasText: NAME })).toHaveCount(0, { timeout: 15_000 });
 
     expect(errors, `card errors:\n${errors.join('\n')}`).toHaveLength(0);
   });

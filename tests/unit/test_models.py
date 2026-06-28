@@ -768,3 +768,95 @@ def test_merge_update_leaves_labels_untouched_when_absent():
     )
     updated = m.merge_update(task, {"name": "Wash the car"}, now=NOW)
     assert updated["labels"] == ["car"]
+
+
+# ── card_links (appliance links surfaced on the dashboard card) ──────────────
+
+
+def test_normalize_card_links_dedupes_and_strips():
+    out = m.normalize_card_links(
+        [
+            {"asset_id": "a1", "entry_id": "d1"},
+            {"asset_id": " a1 ", "entry_id": " d1 "},  # dupe after strip
+            {"asset_id": "a1", "entry_id": ""},  # blank entry dropped
+            {"asset_id": "a2", "entry_id": "m9"},
+        ]
+    )
+    assert out == [
+        {"asset_id": "a1", "entry_id": "d1"},
+        {"asset_id": "a2", "entry_id": "m9"},
+    ]
+
+
+def test_normalize_card_links_defaults_empty():
+    assert m.normalize_card_links(None) == []
+    assert m.normalize_card_links([]) == []
+
+
+def test_normalize_card_links_rejects_non_list():
+    with pytest.raises(m.TaskValidationError):
+        m.normalize_card_links({"asset_id": "a1", "entry_id": "d1"})
+
+
+def test_normalize_card_links_rejects_non_object_entry():
+    with pytest.raises(m.TaskValidationError):
+        m.normalize_card_links(["a1:d1"])
+
+
+def test_build_task_carries_card_links():
+    task = m.build_task(
+        {
+            "name": "Replace filter",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+            "card_links": [{"asset_id": "a1", "entry_id": "d1"}],
+        },
+        now=NOW,
+    )
+    assert task["card_links"] == [{"asset_id": "a1", "entry_id": "d1"}]
+
+
+def test_build_task_defaults_card_links_to_empty():
+    task = m.build_task(
+        {
+            "name": "Mow lawn",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "weeks",
+        },
+        now=NOW,
+    )
+    assert task["card_links"] == []
+
+
+def test_merge_update_sets_card_links_when_provided():
+    task = m.build_task(
+        {
+            "name": "Replace filter",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(
+        task, {"card_links": [{"asset_id": "a1", "entry_id": "m2"}]}, now=NOW
+    )
+    assert updated["card_links"] == [{"asset_id": "a1", "entry_id": "m2"}]
+
+
+def test_merge_update_leaves_card_links_untouched_when_absent():
+    # A plain rename must not wipe a task's chosen card links.
+    task = m.build_task(
+        {
+            "name": "Replace filter",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+            "card_links": [{"asset_id": "a1", "entry_id": "d1"}],
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"name": "Replace the filter"}, now=NOW)
+    assert updated["card_links"] == [{"asset_id": "a1", "entry_id": "d1"}]

@@ -25,7 +25,7 @@ import {
   type HaFormElement,
 } from './forms';
 import { setLanguage, t, tn } from './i18n';
-import type { Hass, HassLabel, Profile, Task } from './types';
+import type { Asset, Hass, HassLabel, Profile, Task } from './types';
 import {
   areaName,
   deviceName,
@@ -138,7 +138,7 @@ const STYLES = `
     border-bottom: 1px solid var(--divider-color);
   }
   .hk-row:last-child { border-bottom: none; }
-  .hk-row .grow { flex: 1; min-width: 0; cursor: pointer; }
+  .hk-row .grow { flex: 1; min-width: 0; }
   .hk-row.overdue { box-shadow: inset 3px 0 0 0 var(--error-color); }
   .hk-name {
     font-weight: 500; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -149,6 +149,16 @@ const STYLES = `
   }
   .hk-notes { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
   .hk-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  /* Per-task documentation / link chips: a row of compact, clearly-tappable links
+     that open the appliance's manual or other associated URLs in a new tab. */
+  .hk-links { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+  .hk-link {
+    display: inline-flex; align-items: center; gap: 4px; min-width: 0;
+    color: var(--primary-color); text-decoration: none; font-size: 0.85rem;
+    --mdc-icon-size: 16px;
+  }
+  .hk-link > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hk-link:hover { text-decoration: underline; }
   /* Label chips read as a distinct, primary-tinted tag so they stand apart from
      the neutral status / area chips. */
   ha-assist-chip.hk-label {
@@ -216,6 +226,9 @@ export class HomeKeeperCard extends HTMLElement {
   private _config: HomeKeeperCardConfig = { type: '' };
   private _tasks: Task[] = [];
   private _profiles: Profile[] = [];
+  // Appliance data, loaded only when a task references "show on card" links, so the
+  // card can resolve those references to live document/metadata names + URLs.
+  private _assets: Asset[] = [];
   // HA label registry (id -> entry), fetched once so label chips can show real
   // names rather than raw ids. Empty until loaded; lookups fall back to the id.
   private _labels: Record<string, HassLabel> = {};
@@ -382,6 +395,11 @@ export class HomeKeeperCard extends HTMLElement {
       if (this._config.profile) {
         this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
       }
+      // Appliance data is only needed to resolve per-task "show on card" links; fetch
+      // best-effort and only when a task actually references one.
+      this._assets = this._tasks.some((tk) => tk.card_links?.length)
+        ? await api.getAssets(this._hass).catch(() => [] as Asset[])
+        : [];
       this._error = false;
       this._signal = this._stateSignal(this._hass);
     } catch (err) {
@@ -485,10 +503,6 @@ export class HomeKeeperCard extends HTMLElement {
       open: true,
       task: { recurrence_type: 'floating', interval: 1, unit: 'months' },
     };
-    this._render();
-  }
-  private _openEdit(task: Task): void {
-    this._edit = { open: true, task: { ...task } };
     this._render();
   }
   private _closeForm(): void {
@@ -606,6 +620,36 @@ export class HomeKeeperCard extends HTMLElement {
       .join('');
   }
 
+  /**
+   * Resolve a task's `card_links` references to live `{name, url}` pairs against the
+   * loaded appliance data. A document link uses its name + URL; a metadata link its
+   * label + value. References to deleted entries — or anything that isn't a plain
+   * http(s) URL — are silently dropped (defence-in-depth even though the backend only
+   * stores http(s) at the asset edge).
+   */
+  private _resolveLinks(task: Task): { name: string; url: string }[] {
+    const refs = task.card_links;
+    if (!refs?.length || !this._assets.length) return [];
+    const isHttp = (u: string): boolean => /^https?:\/\//i.test(u);
+    const out: { name: string; url: string }[] = [];
+    for (const ref of refs) {
+      const asset = this._assets.find((a) => a.id === ref.asset_id);
+      if (!asset) continue;
+      const doc = asset.documents?.find(
+        (d) => d.id === ref.entry_id && d.kind === 'link' && d.url,
+      );
+      if (doc?.url && isHttp(doc.url)) {
+        out.push({ name: doc.name, url: doc.url });
+        continue;
+      }
+      const meta = asset.metadata?.find(
+        (m) => m.id === ref.entry_id && m.type === 'link' && m.value,
+      );
+      if (meta?.value && isHttp(meta.value)) out.push({ name: meta.label, url: meta.value });
+    }
+    return out;
+  }
+
   private _row(task: Task): string {
     const overdue = isOverdue(task);
     const statusChip = overdue
@@ -644,6 +688,17 @@ export class HomeKeeperCard extends HTMLElement {
       this._config.show_notes && task.notes
         ? `<div class="hk-notes">${escapeHTML(task.notes)}</div>`
         : '';
+    // Per-task "show on card" links — open in a new tab; `noopener` keeps the opener
+    // safe and the URL is http(s)-validated + escaped before going into the href.
+    const links = this._resolveLinks(task);
+    const linksHtml = links.length
+      ? `<div class="hk-links">${links
+          .map(
+            (l) =>
+              `<a class="hk-link" href="${escapeHTML(l.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(l.name)}"><ha-icon icon="mdi:open-in-new"></ha-icon><span>${escapeHTML(l.name)}</span></a>`,
+          )
+          .join('')}</div>`
+      : '';
     // A dormant triggered task has nothing to complete — its owner arms it; hide the
     // action. A completion-blocked task (a synced problem sensor) keeps a *disabled*
     // mark-done that, on tap, explains its source clears it.
@@ -654,11 +709,12 @@ export class HomeKeeperCard extends HTMLElement {
       : `<ha-icon-button class="hk-done${blocked ? ' blocked' : ''}" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.done'))}"></ha-icon-button>`;
     return `
       <div class="hk-row${overdue ? ' overdue' : ''}">
-        <div class="grow" data-edit-id="${escapeHTML(task.id)}" role="button" tabindex="0">
+        <div class="grow">
           <div class="hk-name">${escapeHTML(task.name)}</div>
           <div class="hk-meta">${meta}</div>
           ${notes}
           <div class="hk-chips">${statusChip}${areaChip}${labelChips}${managedChip}</div>
+          ${linksHtml}
         </div>
         ${done}
       </div>`;
@@ -686,21 +742,6 @@ export class HomeKeeperCard extends HTMLElement {
         if (!task) return;
         if (task.managed_by?.completion_blocked) this._notifyBlocked(task);
         else void this._complete(task);
-      });
-    });
-
-    root.querySelectorAll<HTMLElement>('[data-edit-id]').forEach((el) => {
-      const open = (): void => {
-        const task = this._tasks.find((x) => x.id === el.dataset.editId);
-        if (task) this._openEdit(task);
-      };
-      el.addEventListener('click', open);
-      el.addEventListener('keydown', (e) => {
-        const key = (e as KeyboardEvent).key;
-        if (key === 'Enter' || key === ' ') {
-          e.preventDefault();
-          open();
-        }
       });
     });
 

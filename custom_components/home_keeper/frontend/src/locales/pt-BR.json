@@ -307,5 +307,6 @@
   "tasks.intro.recurring": "<b>Recorrente</b> — repete em uma agenda ou após cada conclusão (troca de filtro, veterinário, pilhas).",
   "tasks.intro.monitored": "<b>Monitorado</b> — acionado por um sensor ou condição e resolvido automaticamente; alguns não dá para concluir manualmente.",
   "tasks.intro.companion": "<b>De complementos</b> — fornecidas por outras integrações e exibidas com a etiqueta “Gerenciado por …”.",
-  "tasks.intro.dismiss": "Entendi"
+  "tasks.intro.dismiss": "Entendi",
+  "field.card_links": "Links no cartão"
 }
