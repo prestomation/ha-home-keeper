@@ -27,6 +27,14 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   header **+**, and link chips — while **editing and deleting move to the sidebar
   panel**, where the full task editor lives.
 
+### Fixed
+
+- **The dashboard card and panel now reliably refresh after an update.** Their module
+  URLs are cache-busted by the bundle's **content hash** instead of the integration
+  version, so a rebuilt frontend always loads fresh — no more stale card (or "card
+  configuration error" in the mobile app) after upgrading, including across preview
+  builds that reuse a version string.
+
 ## [0.6.0b3]
 
 ### Changed

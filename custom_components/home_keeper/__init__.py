@@ -371,7 +371,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_request_refresh()
 
     await panel.async_register_panel(hass)
-    card.async_register_card(hass)
+    await card.async_register_card(hass)
     manuals.async_register_http(hass)
     websocket_api.async_register(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

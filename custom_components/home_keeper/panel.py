@@ -9,6 +9,7 @@ YAML required.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 
@@ -29,6 +30,24 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def cache_token(path: Path) -> str:
+    """A short content hash of a built asset for cache-busting its module URL.
+
+    Tying the panel/card ``?v=`` token to the file's *content* (rather than the
+    integration version) means any rebuild serves a fresh URL — including
+    same-version preview builds (``X.Y.Z.dev<pr>`` is reused across pushes to a PR)
+    and the dev→stable transition that reuses a version string. Without this,
+    browsers and the mobile-app webview cling to a stale bundle and render the old
+    card. Reads bytes off the event loop via ``async_add_executor_job``; falls back
+    to the version string if the file is somehow unreadable (it always exists in a
+    real install).
+    """
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+    except OSError:
+        return PANEL_VERSION
+
+
 async def async_register_panel(hass: HomeAssistant) -> None:
     """Register the static path and the sidebar panel (idempotent)."""
     frontend_dir = Path(__file__).parent / "frontend"
@@ -44,7 +63,10 @@ async def async_register_panel(hass: HomeAssistant) -> None:
     if PANEL_URL_PATH in hass.data.get("frontend_panels", {}):
         return
 
-    js_url = f"{PANEL_STATIC_URL}/{PANEL_JS_FILENAME}?v={PANEL_VERSION}"
+    token = await hass.async_add_executor_job(
+        cache_token, frontend_dir / PANEL_JS_FILENAME
+    )
+    js_url = f"{PANEL_STATIC_URL}/{PANEL_JS_FILENAME}?v={token}"
     frontend.async_register_built_in_panel(
         hass,
         component_name="custom",
