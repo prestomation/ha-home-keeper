@@ -634,6 +634,8 @@ export class HomeKeeperCard extends HTMLElement {
     for (const ref of refs) {
       const asset = this._assets.find((a) => a.id === ref.asset_id);
       if (!asset) continue;
+      // Document ids and metadata ids never collide (both server-minted, distinctly
+      // namespaced), so a document match is authoritative — resolve it and move on.
       const doc = asset.documents?.find((d) => d.id === ref.entry_id);
       if (doc) {
         if (doc.kind === 'file' && doc.filename) {
@@ -668,7 +670,8 @@ export class HomeKeeperCard extends HTMLElement {
       const url = await api.signDocumentUrl(this._hass, assetId, documentId);
       window.open(url, '_blank', 'noopener');
     } catch {
-      // Best-effort: a failed signing (e.g. a deleted file) simply doesn't open.
+      // Best-effort: if signing fails (the asset/document is gone) the click is a
+      // no-op. A deleted *blob* still signs fine and 404s only when the tab loads.
     }
   }
 
