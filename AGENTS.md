@@ -28,6 +28,12 @@
   on the floor. (If the current top CHANGELOG section is an already-released beta,
   open the next `bN`; if it's an unreleased beta still being iterated, fold the
   feature into it.) Bug-fix-only / developer-only PRs don't need a fresh beta.
+- **Always add the `preview-release` label to a new-feature PR.** As soon as the PR
+  is open, apply the `preview-release` label so `preview-release.yml` publishes an
+  installable ephemeral pre-release (`X.Y.Z.dev<pr>`) from the PR head — testers can
+  try the feature via HACS *before* merge. The build is ephemeral and auto-deletes
+  when the PR closes (see RELEASE.md → "Preview releases"). Bug-fix-only /
+  developer-only PRs don't need it.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only `pip install pytest`: `pytest tests/unit -v`.
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.

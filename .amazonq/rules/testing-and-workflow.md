@@ -68,6 +68,10 @@ gate); CI publishes it to the job summary.
   `PANEL_VERSION` → next `bN`, plus a matching `## [X.Y.0bN]` CHANGELOG section)
   so it reaches beta testers. Fold into the current top beta if it's still
   unreleased; otherwise open the next `bN`. Bug-fix/developer-only PRs don't.
+- **Always add the `preview-release` label to a new-feature PR** once it's open, so
+  `preview-release.yml` publishes an installable ephemeral pre-release
+  (`X.Y.Z.dev<pr>`) from the PR head for pre-merge HACS testing (auto-deleted on
+  close; see RELEASE.md). Bug-fix/developer-only PRs don't.
 - The built `home-keeper-panel.js` is gitignored; CI builds it.
 
 ## Typing (strict-typing gate — Platinum)
