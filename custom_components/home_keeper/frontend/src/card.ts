@@ -518,30 +518,16 @@ export class HomeKeeperCard extends HTMLElement {
       this._render();
       return;
     }
-    const payload = buildTaskPayload(task);
+    // The card only *creates* tasks (the header "+" button). Editing and deleting
+    // live in the sidebar panel, so there's no update/delete path here.
     try {
-      if (task.id) await api.updateTask(this._hass, task.id, payload);
-      else await api.addTask(this._hass, payload);
+      await api.addTask(this._hass, buildTaskPayload(task));
       this._closeForm();
       await this._refresh();
     } catch (err) {
       this._edit.error = String((err as { message?: string })?.message || err);
       this._render();
     }
-  }
-
-  private async _delete(task: Task): Promise<void> {
-    if (!this._hass) return;
-    if (!window.confirm(`${t('btn.delete')} — ${task.name}?`)) return;
-    try {
-      await api.deleteTask(this._hass, task.id);
-      this._closeForm();
-    } catch (err) {
-      this._edit.error = String((err as { message?: string })?.message || err);
-      this._render();
-      return;
-    }
-    await this._refresh();
   }
 
   // ── rendering ───────────────────────────────────────────────────────────────
@@ -754,13 +740,13 @@ export class HomeKeeperCard extends HTMLElement {
     );
   }
 
+  /** Render the card's *create* form (the header "+"). Editing/deleting lives in
+   *  the sidebar panel, so this is always a new-task form. */
   private _renderForm(host: HTMLElement): void {
     const task = this._edit.task || {};
     const wrap = document.createElement('div');
     wrap.className = 'hk-form';
-    wrap.innerHTML = `<div class="hk-form-title">${escapeHTML(
-      task.id ? t('form.task.edit') : t('form.task.new'),
-    )}</div>`;
+    wrap.innerHTML = `<div class="hk-form-title">${escapeHTML(t('form.task.new'))}</div>`;
 
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
@@ -792,24 +778,12 @@ export class HomeKeeperCard extends HTMLElement {
     actions.className = 'hk-form-actions';
     const save = document.createElement('ha-button');
     save.setAttribute('raised', '');
-    save.textContent = task.id ? t('btn.save') : t('btn.create');
+    save.textContent = t('btn.create');
     save.addEventListener('click', () => void this._submitForm());
     const cancel = document.createElement('ha-button');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeForm());
     actions.append(save, cancel);
-    // Editing a non-derived task offers Delete (derived/managed tasks are owned
-    // elsewhere — manage them where they're created).
-    const existing = task.id ? this._tasks.find((x) => x.id === task.id) : undefined;
-    const deletable = existing && !existing.source?.part && !existing.managed_by?.deletion_protected;
-    if (deletable) {
-      const spacer = document.createElement('span');
-      spacer.className = 'spacer';
-      const del = document.createElement('ha-button');
-      del.textContent = t('btn.delete');
-      del.addEventListener('click', () => void this._delete(existing as Task));
-      actions.append(spacer, del);
-    }
     wrap.appendChild(actions);
     host.appendChild(wrap);
   }

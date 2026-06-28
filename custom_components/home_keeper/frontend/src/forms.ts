@@ -331,7 +331,12 @@ export function cardLinkTokens(task: Partial<Task>): string[] {
     .filter(Boolean);
 }
 
-/** Parse `asset_id:entry_id` card-link tokens back into stored reference objects. */
+/**
+ * Parse `asset_id:entry_id` card-link tokens back into stored reference objects.
+ * Splits on the first `:` — safe because asset/document/metadata ids are UUIDs
+ * (server- or `crypto.randomUUID`-generated) and never contain a colon. The bounds
+ * check drops a malformed token rather than emitting an empty id half.
+ */
 export function cardLinksFromTokens(tokens: string[]): { asset_id: string; entry_id: string }[] {
   const out: { asset_id: string; entry_id: string }[] = [];
   for (const tok of tokens) {
