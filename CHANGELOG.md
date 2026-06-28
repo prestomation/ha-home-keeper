@@ -4,22 +4,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
-## [0.6.0b2]
-
-### Added
-
-- **Link a task to a consumable (sensor-driven reorder).** Any task can now be
-  **linked to an appliance consumable** so that marking it done **consumes one spare**
-  from the part's stock — and fires `home_keeper_part_low_stock` when you cross the
-  reorder threshold, so an automation can add it to your shopping list. Pair it with a
-  **sensor-based** task to cover the *"there's no schedule — my fridge tells me when the
-  water filter is spent"* case: the sensor arms the task, and completing it (when you
-  swap the filter) draws down inventory and signals **buy more**. Link from the task
-  form's new **Linked consumable** picker — scoped to the consumables of the appliance
-  the task is attached to — or with the new
-  **`home_keeper.set_task_consumable`** service (omit the ids to unlink). The link is
-  independent of the auto-generated wear-part tasks, so it's never reconciled away and
-  the task stays fully editable.
+## [0.6.0b3]
 
 ### Changed
 
@@ -43,6 +28,23 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
     appliance editor's advanced **Custom fields** and **Parts & wear items** sections
     **collapse by default** on an empty appliance (and remember your choice while
     editing), so adding a first appliance isn't a wall of fields.
+
+## [0.6.0b2]
+
+### Added
+
+- **Link a task to a consumable (sensor-driven reorder).** Any task can now be
+  **linked to an appliance consumable** so that marking it done **consumes one spare**
+  from the part's stock — and fires `home_keeper_part_low_stock` when you cross the
+  reorder threshold, so an automation can add it to your shopping list. Pair it with a
+  **sensor-based** task to cover the *"there's no schedule — my fridge tells me when the
+  water filter is spent"* case: the sensor arms the task, and completing it (when you
+  swap the filter) draws down inventory and signals **buy more**. Link from the task
+  form's new **Linked consumable** picker — scoped to the consumables of the appliance
+  the task is attached to — or with the new
+  **`home_keeper.set_task_consumable`** service (omit the ids to unlink). The link is
+  independent of the auto-generated wear-part tasks, so it's never reconciled away and
+  the task stays fully editable.
 
 ## [0.6.0b1]
 
