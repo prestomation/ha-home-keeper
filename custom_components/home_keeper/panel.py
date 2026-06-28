@@ -38,9 +38,9 @@ def cache_token(path: Path) -> str:
     same-version preview builds (``X.Y.Z.dev<pr>`` is reused across pushes to a PR)
     and the dev→stable transition that reuses a version string. Without this,
     browsers and the mobile-app webview cling to a stale bundle and render the old
-    card. Reads bytes off the event loop via ``async_add_executor_job``; falls back
-    to the version string if the file is somehow unreadable (it always exists in a
-    real install).
+    card. This blocking file read must be dispatched off the event loop by callers
+    (via ``async_add_executor_job``); it falls back to the version string if the
+    file is somehow unreadable (it always exists in a real install).
     """
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
