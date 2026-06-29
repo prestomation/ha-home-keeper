@@ -1,10 +1,18 @@
-"""Integration test: per-task entity cleanup after task deletion.
+"""Integration tests: stale entity cleanup after task deletion and metadata removal.
 
-When a device-attached task is deleted (or Problem Sensor Sync removes a synced
-task), the config entry reloads.  ``async_setup_entry`` must clean up the
-entity-registry entries for the deleted task's per-task entities
-(sensor.*_next_due, binary_sensor.*_overdue, button.*_done) so they don't
-linger as orphaned "unavailable" entries on the device page.
+Two scenarios:
+
+1. Per-task entity cleanup after task deletion — when a device-attached task is
+   deleted (or Problem Sensor Sync removes a synced task) the config entry reloads.
+   ``async_setup_entry`` must clean up the entity-registry entries for the deleted
+   task's per-task entities (sensor.*_next_due, binary_sensor.*_overdue,
+   button.*_done) so they don't linger as orphaned "unavailable" entries on the
+   device page.
+
+2. Asset date sensor cleanup after metadata removal — when a tracked date metadata
+   entry is removed from an asset (via ``update_asset``), ``async_setup_entry`` must
+   remove the corresponding ``sensor.*`` entity from the registry so it doesn't
+   linger as "unavailable" on the device page.
 
 Issue: #104 — Problem Sensor Sync leaves stale entities after disabling or exclusions
 """
@@ -134,3 +142,91 @@ def test_stale_per_task_entities_removed_after_task_deleted(ha):
                 call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
             except Exception:
                 pass
+
+
+def test_stale_asset_date_sensor_removed_after_metadata_untracked(ha):
+    """Removing a tracked date metadata entry must remove its entity registry entry.
+
+    update_asset triggers a config-entry reload.  Before the fix,
+    async_setup_entry only creates sensors for the current tracked-date set; it
+    never removed stale registry entries for entries that were un-tracked or
+    deleted.  After the fix, the setup pass scans the registry and removes any
+    ``home_keeper_asset_*_meta_*`` sensor whose (asset_id, meta_id) pair is no
+    longer in the live tracked-dates set.
+    """
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": "Date sensor cleanup probe appliance",
+            "manufacturer": "Test Co",
+            "metadata": [
+                {
+                    "id": "probe_meta_warranty",
+                    "type": "date",
+                    "label": "Probe warranty expiry",
+                    "value": "2030-01-01",
+                    "track": True,
+                }
+            ],
+        },
+        return_response=True,
+    )
+    asset_id = resp.get("service_response", resp)["asset_id"]
+
+    try:
+        # add_asset triggers a reload; poll until the asset is provisioned with a
+        # device_id and the date sensor appears in the entity registry.
+        meta_uid = None
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            assets_resp = call_service(
+                ha, "home_keeper", "list_assets", {}, return_response=True
+            )
+            assets = assets_resp.get("service_response", assets_resp)["assets"]
+            probe = next((a for a in assets if a["id"] == asset_id), None)
+            if probe and probe.get("device_id"):
+                # Device provisioned — look up the meta entry id that was assigned.
+                for entry in probe.get("metadata") or []:
+                    if entry.get("label") == "Probe warranty expiry":
+                        meta_uid = f"home_keeper_asset_{asset_id}_meta_{entry['id']}"
+                        break
+            if meta_uid and meta_uid in _unique_ids_in_registry(ha):
+                break
+            time.sleep(1)
+
+        assert meta_uid, (
+            "asset date sensor unique-id should appear in entity registry"
+            " after add_asset"
+        )
+
+        # Remove the tracked metadata by updating the asset with an empty list.
+        # update_asset triggers a config-entry reload; async_setup_entry must then
+        # clean up the now-stale registry entry.
+        call_service(
+            ha,
+            "home_keeper",
+            "update_asset",
+            {"asset_id": asset_id, "metadata": []},
+        )
+
+        # Poll up to 20 s for the registry entry to disappear.
+        deadline = time.monotonic() + 20
+        stale = True
+        while time.monotonic() < deadline:
+            if meta_uid not in _unique_ids_in_registry(ha):
+                stale = False
+                break
+            time.sleep(1)
+
+        assert not stale, (
+            f"stale asset date sensor {meta_uid!r} should be removed from the "
+            "entity registry after metadata is un-tracked via update_asset"
+        )
+
+    finally:
+        try:
+            call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset_id})
+        except Exception:
+            pass

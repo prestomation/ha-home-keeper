@@ -49,36 +49,48 @@ async def async_setup_entry(
     """Create next-due sensors for device-attached tasks and asset date sensors."""
     coordinator: HomeKeeperCoordinator = entry.runtime_data
 
-    # Remove entity-registry entries for per-task sensors whose task no longer
-    # exists (e.g. after disabling Problem Sensor Sync or deleting a task).
     task_ids = coordinator.device_attached_task_ids()
-    live_ids = set(task_ids)
-    reg = er.async_get(hass)
-    prefix = f"{DOMAIN}_"
-    suffix = "_next_due"
-    for entity_entry in reg.entities.get_entries_for_config_entry_id(entry.entry_id):
-        uid = entity_entry.unique_id or ""
-        if (
-            entity_entry.domain == "sensor"
-            and uid.startswith(prefix)
-            and uid.endswith(suffix)
-        ):
-            task_id = uid[len(prefix) : -len(suffix)]
-            if task_id not in live_ids:
-                reg.async_remove(entity_entry.entity_id)
+    live_task_ids = set(task_ids)
 
-    entities: list[SensorEntity] = [
-        HomeKeeperNextDueSensor(coordinator, task_id) for task_id in task_ids
-    ]
+    # Build the set of live asset-date sensor unique-ids (only for assets that have
+    # a resolvable device and tracked date entries with a value set).
+    live_asset_meta_uids: set[str] = set()
+    asset_entities: list[SensorEntity] = []
     for asset in coordinator.store.list_assets():
         device_info = coordinator.device_info_for_device_id(asset.get("device_id"))
         if device_info is None:
             continue
         for meta in _tracked_dates(asset):
-            entities.append(
+            uid = f"{DOMAIN}_asset_{asset['id']}_meta_{meta['id']}"
+            live_asset_meta_uids.add(uid)
+            asset_entities.append(
                 HomeKeeperAssetDateSensor(coordinator, asset["id"], meta, device_info)
             )
-    async_add_entities(entities)
+
+    # Remove entity-registry entries for sensors whose source no longer exists:
+    # • per-task next-due sensors for deleted/detached tasks
+    # • asset date sensors for removed or un-tracked metadata entries
+    reg = er.async_get(hass)
+    task_prefix = f"{DOMAIN}_"
+    task_suffix = "_next_due"
+    asset_prefix = f"{DOMAIN}_asset_"
+    asset_infix = "_meta_"
+    for entity_entry in reg.entities.get_entries_for_config_entry_id(entry.entry_id):
+        if entity_entry.domain != "sensor":
+            continue
+        uid = entity_entry.unique_id or ""
+        if uid.startswith(task_prefix) and uid.endswith(task_suffix):
+            task_id = uid[len(task_prefix) : -len(task_suffix)]
+            if task_id not in live_task_ids:
+                reg.async_remove(entity_entry.entity_id)
+        elif uid.startswith(asset_prefix) and asset_infix in uid:
+            if uid not in live_asset_meta_uids:
+                reg.async_remove(entity_entry.entity_id)
+
+    async_add_entities(
+        [HomeKeeperNextDueSensor(coordinator, task_id) for task_id in task_ids]
+        + asset_entities
+    )
 
 
 class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):

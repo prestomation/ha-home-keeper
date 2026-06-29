@@ -210,6 +210,47 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
     await expect(panel.locator('#back-btn')).toHaveCount(0);
   });
 
+  test('the in-panel Back button from an appliance detail returns to the appliances list', async ({
+    page,
+  }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    // Navigate to the Appliances tab and open the water heater detail.
+    await panel.locator('#tab-appliances').click();
+    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await expect(panel.locator('#back-btn')).toBeVisible();
+    await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater$/);
+
+    // In-panel Back must return to the appliances list, not leave the panel.
+    await panel.locator('#back-btn').click();
+    await expect(page).toHaveURL(/\/home-keeper(\/appliances)?$/);
+    await expect(panel.locator('#tab-appliances')).toBeVisible();
+    await expect(panel.locator('#back-btn')).toHaveCount(0);
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('an appliance detail URL deep-links straight to the appliance detail page', async ({
+    page,
+  }) => {
+    const errors = trackPanelErrors(page);
+    await page.goto('/home-keeper/appliances/asset_water_heater', {
+      waitUntil: 'domcontentloaded',
+    });
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.waitFor({ state: 'attached', timeout: 45_000 });
+    // Lands on the detail page (Back button present), not the list.
+    await expect(panel.locator('#back-btn')).toBeVisible();
+    // The appliance's name must appear in the detail heading.
+    await expect(panel).toContainText('Garage water heater');
+    // Back must return to the appliances list (fallback path — no prior history).
+    await panel.locator('#back-btn').click();
+    await expect(page).toHaveURL(/\/home-keeper(\/appliances)?$/);
+    await expect(panel.locator('#back-btn')).toHaveCount(0);
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
   test('Back from a task opened inside an appliance detail returns to the appliance detail', async ({
     page,
   }) => {
