@@ -94,8 +94,16 @@ export function haDateTimeToIso(value?: string | null): string | undefined {
 export function taskSchema(
   task: Partial<Task>,
   consumables: { value: string; label: string }[] = [],
+  links: { value: string; label: string }[] = [],
 ): FormField[] {
   const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
+
+  // The "show on card" picker (appliance document/metadata links) — offered for
+  // every task kind, but only when the task's appliance actually has links to show.
+  const cardLinksField: FormField[] =
+    links.length && !locked.has('card_links')
+      ? [{ name: 'card_links', selector: selSelect(links, true) } as FormField]
+      : [];
 
   // A triggered (condition-driven) task has no schedule to edit — its state is
   // owned by the integration that monitors the condition. Offer only the
@@ -112,6 +120,7 @@ export function taskSchema(
       ...(!locked.has('labels')
         ? [{ name: 'labels', selector: selLabel(true) } as FormField]
         : []),
+      ...cardLinksField,
     ];
   }
 
@@ -241,6 +250,7 @@ export function taskSchema(
         ]
       : []),
     ...(!locked.has('labels') ? [{ name: 'labels', selector: selLabel(true) } as FormField] : []),
+    ...cardLinksField,
     ...(!locked.has('completion_detail')
       ? [
           {
@@ -290,6 +300,10 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // task's current part source.
     consumable_link: sd.consumable_link ?? consumableLinkToken(task),
     labels: task.labels ?? [],
+    // The card-link picker holds `asset_id:entry_id` tokens. `cardLinkTokens`
+    // accepts either the stored `{asset_id, entry_id}` objects (a freshly loaded
+    // task) or the flat token strings the form mutates onto the edit state.
+    card_links: cardLinkTokens(task),
     completion_detail: task.completion_detail ?? 'none',
   };
 }
@@ -298,6 +312,39 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
 export function consumableLinkToken(task: Partial<Task>): string {
   const part = task.source?.part;
   return part ? `${part.asset_id}:${part.part_id}` : '';
+}
+
+/**
+ * The `asset_id:entry_id` tokens for a task's chosen card links. Tolerates both
+ * shapes the field passes through: the persisted `{asset_id, entry_id}` objects and
+ * the flat token strings the `ha-form` select emits as the user edits.
+ */
+export function cardLinkTokens(task: Partial<Task>): string[] {
+  const raw = (task as Record<string, unknown>).card_links;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry) => {
+      if (typeof entry === 'string') return entry;
+      const e = entry as { asset_id?: string; entry_id?: string };
+      return e.asset_id && e.entry_id ? `${e.asset_id}:${e.entry_id}` : '';
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Parse `asset_id:entry_id` card-link tokens back into stored reference objects.
+ * Splits on the first `:` — safe because asset/document/metadata ids are UUIDs
+ * (server- or `crypto.randomUUID`-generated) and never contain a colon. The bounds
+ * check drops a malformed token rather than emitting an empty id half.
+ */
+export function cardLinksFromTokens(tokens: string[]): { asset_id: string; entry_id: string }[] {
+  const out: { asset_id: string; entry_id: string }[] = [];
+  for (const tok of tokens) {
+    const i = tok.indexOf(':');
+    if (i <= 0 || i >= tok.length - 1) continue;
+    out.push({ asset_id: tok.slice(0, i), entry_id: tok.slice(i + 1) });
+  }
+  return out;
 }
 
 /**
@@ -369,6 +416,9 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   // Labels apply to every task kind (including triggered) and always round-trip,
   // so an empty array correctly clears a task's labels on update.
   payload.labels = Array.isArray(task.labels) ? task.labels : [];
+  // Card links likewise apply to every kind and always round-trip — an empty array
+  // clears the selection on update. Convert the form's tokens back to references.
+  payload.card_links = cardLinksFromTokens(cardLinkTokens(task));
   if (!task.id) {
     const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
     if (lastCompleted) payload.last_completed = lastCompleted;

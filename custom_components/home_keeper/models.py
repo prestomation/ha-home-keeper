@@ -196,6 +196,40 @@ def normalize_labels(value: Any) -> list[str]:
     return result
 
 
+def normalize_card_links(value: Any) -> list[dict[str, str]]:
+    """Normalize a task's ``card_links`` — references to appliance links to surface
+    on the dashboard task card.
+
+    Each entry is an ``{"asset_id", "entry_id"}`` pair pointing at an appliance
+    document of kind ``link`` or a metadata entry of type ``link``. The card resolves
+    the reference to a live name/URL at render time and silently drops any that no
+    longer exist, so this stays a pure shape check — it never reaches into the asset
+    store (keeping ``models.py`` free of HA/store imports). Accepts a list of such
+    dicts (or ``None``/empty); blanks and duplicates are dropped, order preserved.
+    Anything that isn't a list of objects fails loudly at the edge rather than
+    persisting junk.
+    """
+    if value in (None, "", []):
+        return []
+    if not isinstance(value, (list, tuple)):
+        raise TaskValidationError("card_links must be a list")
+    seen: set[tuple[str, str]] = set()
+    result: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            raise TaskValidationError("each card_links entry must be an object")
+        asset_id = str(item.get("asset_id", "")).strip()
+        entry_id = str(item.get("entry_id", "")).strip()
+        if not asset_id or not entry_id:
+            continue
+        key = (asset_id, entry_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append({"asset_id": asset_id, "entry_id": entry_id})
+    return result
+
+
 def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     """Validate and normalize the user-supplied fields of a task.
 
@@ -409,6 +443,9 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # HA label-registry ids attached to this task. Free-form, many-to-many, and
         # used (alongside device/area labels) to scope the dashboard card.
         "labels": normalize_labels(data.get("labels")),
+        # References to appliance links (documents/metadata) the dashboard card shows
+        # on this task's row. Independent of recurrence/identity, like labels.
+        "card_links": normalize_card_links(data.get("card_links")),
         **fields,
     }
     seed = data.get("last_completed")
@@ -502,6 +539,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # had the field, which would surface as a phantom "labels changed" event).
     if "labels" in updates:
         merged["labels"] = normalize_labels(updates["labels"])
+
+    # Card-link references are likewise independent of recurrence/identity; only
+    # rewrite them when the caller actually sent ``card_links`` so a plain rename
+    # doesn't wipe a task's chosen links (normalize_fields never touches them).
+    if "card_links" in updates:
+        merged["card_links"] = normalize_card_links(updates["card_links"])
 
     # A triggered or sensor task has no schedule: its next_due is owned by the arm /
     # complete chokepoints (armed timestamp vs dormant None), so editing

@@ -307,5 +307,6 @@
   "tasks.intro.recurring": "<b>Ricorrente</b> — si ripete a calendario o dopo ogni completamento (cambi filtro, visite veterinarie, batterie).",
   "tasks.intro.monitored": "<b>Monitorato</b> — attivato da un sensore o una condizione e risolto automaticamente; alcune non si possono completare a mano.",
   "tasks.intro.companion": "<b>Dai companion</b> — forniti da altre integrazioni e mostrati con un chip «Gestito da …».",
-  "tasks.intro.dismiss": "Ho capito"
+  "tasks.intro.dismiss": "Ho capito",
+  "field.card_links": "Link nella scheda"
 }

@@ -31,13 +31,41 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1800 });
   const card = await openCardDashboard(page);
   await expect(card.locator('.hk-name').first()).toBeVisible();
-  await page.waitForTimeout(1000); // let layout / chips settle
+
+  // The seeded water-filter task points at a placeholder device_id; re-attach it to
+  // its real (runtime-provisioned) appliance device so the row's device chip resolves
+  // to "Garage water heater" rather than a raw id — and its pinned links still resolve
+  // (they reference the appliance by id, independent of the device).
+  await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { assets } = await hass.callWS({ type: 'home_keeper/get_assets' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wh = assets.find((a: any) => a.name === 'Garage water heater');
+    if (wh?.device_id) {
+      await hass.callService('home_keeper', 'update_task', {
+        task_id: 'task_water_filter',
+        device_id: wh.device_id,
+      });
+    }
+  });
+  await page.waitForTimeout(1500); // attaching a device reloads the entry; let it settle
+  await expect(card.locator('a.hk-doc').first()).toBeVisible();
+  await page.waitForTimeout(500); // let layout / chips settle
 
   // 1. The whole dashboard view (default card + grouped card + native cards).
   await page.screenshot({ path: `${OUT}/card-dashboard.png`, fullPage: true });
 
-  // 2. The default card on its own.
+  // 2. The default card on its own. The seeded water-filter task pins some of its
+  // appliance's documents, so this clip also shows the per-task document chips.
   await shotCard(page, card, `${OUT}/card-default.png`);
+
+  // 2b. Same card, named for the per-task "documents to show on card" feature — the
+  // water-filter row carries "Owner's manual", "Reorder filter" and a file chip.
+  await expect(card.locator('a.hk-doc').first()).toBeVisible();
+  await shotCard(page, card, `${OUT}/card-task-links.png`);
 
   // 3. The grouped-by-status card.
   const grouped = page.locator('home-keeper-card').nth(1);

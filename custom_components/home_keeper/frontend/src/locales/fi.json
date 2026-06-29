@@ -294,5 +294,6 @@
   "tasks.intro.recurring": "<b>Toistuva</b> — toistuu aikataulun mukaan tai aina kun suoritat sen (suodattimet, eläinlääkäri, paristot).",
   "tasks.intro.monitored": "<b>Valvottu</b> — anturin tai ehdon laukaisema ja poistuu automaattisesti; joitakin ei voi merkitä valmiiksi käsin.",
   "tasks.intro.companion": "<b>Companion-lähteistä</b> — muiden integraatioiden tuottamia ja merkitty ”Hallinnoi …” -merkinnällä.",
-  "tasks.intro.dismiss": "Selvä"
+  "tasks.intro.dismiss": "Selvä",
+  "field.card_links": "Linkit kortilla"
 }

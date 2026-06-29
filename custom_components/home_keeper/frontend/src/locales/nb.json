@@ -294,5 +294,6 @@
   "tasks.intro.recurring": "<b>Gjentakende</b> — gjentas etter en plan eller hver gang du fullfører den (filterbytte, veterinær, batterier).",
   "tasks.intro.monitored": "<b>Overvåket</b> — utløst av en sensor eller tilstand og ryddet automatisk; noen kan ikke merkes som ferdige manuelt.",
   "tasks.intro.companion": "<b>Fra companions</b> — bidratt av andre integrasjoner og vist med en «Administrert av …»-brikke.",
-  "tasks.intro.dismiss": "Forstått"
+  "tasks.intro.dismiss": "Forstått",
+  "field.card_links": "Lenker på kortet"
 }

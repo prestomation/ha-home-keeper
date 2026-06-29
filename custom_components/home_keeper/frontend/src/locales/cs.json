@@ -320,5 +320,6 @@
   "tasks.intro.recurring": "<b>Opakující se</b> — opakuje se podle plánu nebo po každém dokončení (výměna filtru, veterinář, baterie).",
   "tasks.intro.monitored": "<b>Sledované</b> — spuštěné senzorem nebo podmínkou a automaticky vyřešené; některé nelze dokončit ručně.",
   "tasks.intro.companion": "<b>Od companionů</b> — přidané jinými integracemi a označené štítkem „Spravováno přes …“.",
-  "tasks.intro.dismiss": "Rozumím"
+  "tasks.intro.dismiss": "Rozumím",
+  "field.card_links": "Odkazy na kartě"
 }

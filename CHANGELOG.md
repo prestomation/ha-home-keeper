@@ -4,6 +4,43 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [0.6.0b4]
+
+### Added
+
+- **Show appliance documents on a task's dashboard-card row.** Each task can now pick
+  which of its appliance's documents to surface directly on the
+  [dashboard task card](README.md#dashboard-task-card): external **document links**,
+  **uploaded files** (a PDF manual, a photo), and free-form **metadata links** (e.g. a
+  reorder or warranty page). Choose them in the panel's task editor under **Links to
+  show on card** (the picker appears once the task's appliance has documents); the card
+  renders each as a compact chip on the task's row — a link or file opens in a new tab
+  (an uploaded file via a short-lived signed URL) — so a manual or parts page is one tap
+  away while you work. The selection rides the existing `home_keeper.add_task` /
+  `update_task` services (`card_links`), and entries resolve live — rename or remove one
+  on the appliance and the card follows.
+
+### Changed
+
+- **Tapping a task row on the dashboard card no longer opens an edit form.** This made
+  it easy to accidentally open (and delete from) a task when you only meant to mark it
+  done. The card is now a focused do-and-glance surface: one-tap **Done**, add via the
+  header **+**, and link chips — while **editing and deleting move to the sidebar
+  panel**, where the full task editor lives.
+
+### Fixed
+
+- **The dashboard card and panel now reliably refresh after an update.** Their module
+  URLs are cache-busted by the bundle's **content hash** instead of the integration
+  version, so a rebuilt frontend always loads fresh — no more stale card (or "card
+  configuration error" in the mobile app) after upgrading, including across preview
+  builds that reuse a version string.
+- **Uploaded file documents on the card now open in the mobile app.** A pinned file
+  chip is now a plain link with its URL pre-signed when the card loads, so a tap opens
+  it natively — the Home Assistant companion app (iOS/WKWebView) was silently blocking
+  the previous open-on-tap because it happened just after an async request. (External
+  links were always fine.)
+
 ## [0.6.0b3]
 
 ### Changed

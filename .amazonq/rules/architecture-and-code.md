@@ -181,6 +181,17 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   full entry reload that metadata/parts need is pure waste here — the `store` save +
   `home_keeper_asset_updated` event is the whole job. The per-asset list is capped
   (`_MAX_DOCUMENTS`).
+- **Frontend: documents are a discriminated union; display/open goes through one
+  helper.** `AssetDocument` in `types.ts` is `AssetLinkDocument | AssetFileDocument`
+  (discriminated on `kind`), so touching a kind-specific field (`url` vs
+  `filename`/`size`) without first narrowing `kind` is a **compile error** — a missed
+  kind can't slip through. Every surface that lists or opens a document (the panel and
+  the dashboard card) consumes the shared `documents.ts` helpers
+  (`isDisplayableDocument` / `documentLabel` / `documentIcon` / `openDocument`, plus
+  `assertNever` for exhaustiveness) rather than re-deriving the link-vs-file branch.
+  Add a new kind, or change how files open, in `documents.ts` once and both surfaces
+  follow. (A link opens its URL directly; a file is signed on click via
+  `sign_document_url`.) Don't hand-roll `doc.kind === 'file' ? … : …` at call sites.
 
 ## Events are the observation surface — fire one for every state change
 - **Every observable state change fires a documented `home_keeper_<noun>_<verb>` bus

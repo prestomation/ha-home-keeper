@@ -307,5 +307,6 @@
   "tasks.intro.recurring": "<b>Recurrente</b>: se repite según un calendario o cada vez que la completas (cambios de filtro, visitas al veterinario, pilas).",
   "tasks.intro.monitored": "<b>Supervisado</b>: activado por un sensor o condición y resuelto automáticamente; algunas no se pueden completar a mano.",
   "tasks.intro.companion": "<b>De complementos</b>: aportadas por otras integraciones y mostradas con una etiqueta «Gestionado por …».",
-  "tasks.intro.dismiss": "Entendido"
+  "tasks.intro.dismiss": "Entendido",
+  "field.card_links": "Enlaces en la tarjeta"
 }

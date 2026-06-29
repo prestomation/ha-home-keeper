@@ -307,5 +307,6 @@
   "tasks.intro.recurring": "<b>Récurrent</b> — se répète selon un calendrier ou après chaque fois que vous le terminez (changements de filtre, visites véto, piles).",
   "tasks.intro.monitored": "<b>Surveillé</b> — déclenché par un capteur ou une condition et résolu automatiquement ; certains ne peuvent pas être terminés à la main.",
   "tasks.intro.companion": "<b>Depuis les companions</b> — fournis par d'autres intégrations et signalés par une étiquette « Géré par … ».",
-  "tasks.intro.dismiss": "Compris"
+  "tasks.intro.dismiss": "Compris",
+  "field.card_links": "Liens sur la carte"
 }

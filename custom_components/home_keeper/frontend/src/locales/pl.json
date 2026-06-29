@@ -320,5 +320,6 @@
   "tasks.intro.recurring": "<b>Cykliczne</b> — powtarza się według harmonogramu lub po każdym ukończeniu (wymiana filtra, wizyty u weterynarza, baterie).",
   "tasks.intro.monitored": "<b>Monitorowane</b> — uruchamiane przez czujnik lub warunek i usuwane automatycznie; niektórych nie można oznaczyć ręcznie.",
   "tasks.intro.companion": "<b>Od companionów</b> — dodane przez inne integracje i oznaczone etykietą „Zarządzane przez …”.",
-  "tasks.intro.dismiss": "Rozumiem"
+  "tasks.intro.dismiss": "Rozumiem",
+  "field.card_links": "Linki na karcie"
 }

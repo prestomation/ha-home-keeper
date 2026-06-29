@@ -24,8 +24,9 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
+import { documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
-import type { Hass, HassLabel, Profile, Task } from './types';
+import type { Asset, Hass, HassLabel, Profile, Task } from './types';
 import {
   areaName,
   deviceName,
@@ -43,6 +44,10 @@ const MDI_CHECK =
   '20 12,20M16.59,7.58L10,14.17L7.41,11.59L6,13L10,17L18,9L16.59,7.58Z';
 // mdi:plus — the header "add task" action.
 const MDI_PLUS = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
+// `ha-icon` names for the per-task document chips (external link / metadata link vs
+// an uploaded file). These are icon attributes, not SVG paths like the buttons above.
+const MDI_OPEN_IN_NEW = 'mdi:open-in-new';
+const MDI_FILE = 'mdi:file-document-outline';
 
 // HA registers many of its components lazily. On a cold dashboard load they may
 // not be defined yet, so we wait (best-effort) before the first paint — exactly
@@ -138,7 +143,7 @@ const STYLES = `
     border-bottom: 1px solid var(--divider-color);
   }
   .hk-row:last-child { border-bottom: none; }
-  .hk-row .grow { flex: 1; min-width: 0; cursor: pointer; }
+  .hk-row .grow { flex: 1; min-width: 0; }
   .hk-row.overdue { box-shadow: inset 3px 0 0 0 var(--error-color); }
   .hk-name {
     font-weight: 500; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -149,6 +154,16 @@ const STYLES = `
   }
   .hk-notes { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
   .hk-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  /* Per-task document chips: a row of compact, clearly-tappable affordances that open
+     the appliance's manual / file / other associated URL in a new tab. */
+  .hk-docs { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+  .hk-doc {
+    display: inline-flex; align-items: center; gap: 4px; min-width: 0;
+    color: var(--primary-color); text-decoration: none; font-size: 0.85rem;
+    --mdc-icon-size: 16px;
+  }
+  .hk-doc > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hk-doc:hover { text-decoration: underline; }
   /* Label chips read as a distinct, primary-tinted tag so they stand apart from
      the neutral status / area chips. */
   ha-assist-chip.hk-label {
@@ -211,11 +226,27 @@ interface EditState {
   error?: string;
 }
 
+/** A resolved "show on card" document chip — always a plain anchor. `url` is the
+ *  stored link for a link/metadata document, or a pre-signed URL for an uploaded file
+ *  (so the tap is native; see `_signDocuments`). `icon` is its `ha-icon` name. */
+interface DocumentChip {
+  name: string;
+  url: string;
+  icon: string;
+}
+
 export class HomeKeeperCard extends HTMLElement {
   private _hass?: Hass;
   private _config: HomeKeeperCardConfig = { type: '' };
   private _tasks: Task[] = [];
   private _profiles: Profile[] = [];
+  // Appliance data, loaded only when a task references "show on card" links, so the
+  // card can resolve those references to live document/metadata names + URLs.
+  private _assets: Asset[] = [];
+  // Short-lived signed URLs for pinned *file* documents, keyed `assetId:docId`, minted
+  // at refresh so a file chip can be a plain <a href> (a native tap — the iOS app's
+  // WKWebView blocks an async window.open). Re-signed before expiry; see _signDocuments.
+  private _signedDocs = new Map<string, { url: string; signedAt: number }>();
   // HA label registry (id -> entry), fetched once so label chips can show real
   // names rather than raw ids. Empty until loaded; lookups fall back to the id.
   private _labels: Record<string, HassLabel> = {};
@@ -382,6 +413,13 @@ export class HomeKeeperCard extends HTMLElement {
       if (this._config.profile) {
         this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
       }
+      // Appliance data is only needed to resolve per-task "show on card" links; fetch
+      // best-effort and only when a task actually references one.
+      this._assets = this._tasks.some((tk) => tk.card_links?.length)
+        ? await api.getAssets(this._hass).catch(() => [] as Asset[])
+        : [];
+      // Pre-sign any pinned file documents so their chips render as plain anchors.
+      await this._signDocuments();
       this._error = false;
       this._signal = this._stateSignal(this._hass);
     } catch (err) {
@@ -487,10 +525,6 @@ export class HomeKeeperCard extends HTMLElement {
     };
     this._render();
   }
-  private _openEdit(task: Task): void {
-    this._edit = { open: true, task: { ...task } };
-    this._render();
-  }
   private _closeForm(): void {
     this._edit = { open: false, task: null };
     this._render();
@@ -504,30 +538,16 @@ export class HomeKeeperCard extends HTMLElement {
       this._render();
       return;
     }
-    const payload = buildTaskPayload(task);
+    // The card only *creates* tasks (the header "+" button). Editing and deleting
+    // live in the sidebar panel, so there's no update/delete path here.
     try {
-      if (task.id) await api.updateTask(this._hass, task.id, payload);
-      else await api.addTask(this._hass, payload);
+      await api.addTask(this._hass, buildTaskPayload(task));
       this._closeForm();
       await this._refresh();
     } catch (err) {
       this._edit.error = String((err as { message?: string })?.message || err);
       this._render();
     }
-  }
-
-  private async _delete(task: Task): Promise<void> {
-    if (!this._hass) return;
-    if (!window.confirm(`${t('btn.delete')} — ${task.name}?`)) return;
-    try {
-      await api.deleteTask(this._hass, task.id);
-      this._closeForm();
-    } catch (err) {
-      this._edit.error = String((err as { message?: string })?.message || err);
-      this._render();
-      return;
-    }
-    await this._refresh();
   }
 
   // ── rendering ───────────────────────────────────────────────────────────────
@@ -606,6 +626,101 @@ export class HomeKeeperCard extends HTMLElement {
       .join('');
   }
 
+  /**
+   * Pre-mint signed URLs for every pinned **file** document so its chip can be a plain
+   * `<a href>` opened by a native tap. This sidesteps the iOS app's WKWebView, which
+   * blocks a `window.open` issued after the async signing round-trip (links open fine
+   * because they're native anchors with no async gap). Cached and only re-signed when
+   * stale, so frequent dashboard refreshes don't spam the signing command; entries for
+   * no-longer-referenced files are dropped. Best-effort — a failed sign just leaves that
+   * chip out until the next refresh.
+   */
+  private async _signDocuments(): Promise<void> {
+    if (!this._hass) return;
+    // Re-sign comfortably before the backend's 1h TTL so an idle dashboard's hrefs
+    // stay valid; a fresh cache entry is reused across refreshes until then.
+    const RESIGN_AFTER_MS = 45 * 60 * 1000;
+    const now = Date.now();
+    const needed = new Map<string, { assetId: string; docId: string }>();
+    for (const task of this._tasks) {
+      for (const ref of task.card_links ?? []) {
+        const doc = this._assets
+          .find((a) => a.id === ref.asset_id)
+          ?.documents?.find((d) => d.id === ref.entry_id);
+        if (doc?.kind === 'file' && doc.filename) {
+          needed.set(`${ref.asset_id}:${ref.entry_id}`, {
+            assetId: ref.asset_id,
+            docId: ref.entry_id,
+          });
+        }
+      }
+    }
+    for (const key of [...this._signedDocs.keys()]) {
+      if (!needed.has(key)) this._signedDocs.delete(key);
+    }
+    await Promise.all(
+      [...needed].map(async ([key, { assetId, docId }]) => {
+        const cached = this._signedDocs.get(key);
+        if (cached && now - cached.signedAt < RESIGN_AFTER_MS) return;
+        try {
+          const url = await api.signDocumentUrl(this._hass!, assetId, docId);
+          this._signedDocs.set(key, { url, signedAt: now });
+        } catch {
+          // Keep any prior URL; a failed sign just won't refresh it this round.
+        }
+      }),
+    );
+  }
+
+  /**
+   * Resolve a task's `card_links` references against the loaded appliance data into
+   * renderable document chips, each a plain anchor. A **link** document / metadata link
+   * uses its stored URL; an **uploaded file** uses the signed URL pre-minted by
+   * `_signDocuments` (skipped until it's signed). References to deleted entries — or
+   * link URLs that aren't plain http(s) — are silently dropped (defence-in-depth even
+   * though the backend only stores http(s)).
+   */
+  private _resolveDocuments(task: Task): DocumentChip[] {
+    const refs = task.card_links;
+    if (!refs?.length || !this._assets.length) return [];
+    const isHttp = (u: string): boolean => /^https?:\/\//i.test(u);
+    const out: DocumentChip[] = [];
+    for (const ref of refs) {
+      const asset = this._assets.find((a) => a.id === ref.asset_id);
+      if (!asset) continue;
+      // Document ids and metadata ids never collide (both server-minted, distinctly
+      // namespaced), so a document match is authoritative — resolve it and move on.
+      const doc = asset.documents?.find((d) => d.id === ref.entry_id);
+      if (doc) {
+        if (!isDisplayableDocument(doc)) continue;
+        if (doc.kind === 'file') {
+          // Use the signed URL pre-minted at refresh; skip until it's available.
+          const signed = this._signedDocs.get(`${ref.asset_id}:${ref.entry_id}`);
+          if (signed) {
+            out.push({ name: documentLabel(doc), url: signed.url, icon: MDI_FILE });
+          }
+        } else if (doc.url && isHttp(doc.url)) {
+          out.push({ name: documentLabel(doc), url: doc.url, icon: MDI_OPEN_IN_NEW });
+        }
+        continue;
+      }
+      const meta = asset.metadata?.find(
+        (m) => m.id === ref.entry_id && m.type === 'link' && m.value,
+      );
+      if (meta?.value && isHttp(meta.value)) {
+        out.push({ name: meta.label, url: meta.value, icon: MDI_OPEN_IN_NEW });
+      }
+    }
+    return out;
+  }
+
+  /** One document chip's HTML — always a plain anchor opened by a native tap (works in
+   *  the iOS app's WKWebView; file URLs are pre-signed in `_signDocuments`). */
+  private _documentChip(chip: DocumentChip): string {
+    const name = escapeHTML(chip.name);
+    return `<a class="hk-doc" href="${escapeHTML(chip.url)}" target="_blank" rel="noopener noreferrer" title="${name}"><ha-icon icon="${chip.icon}"></ha-icon><span>${name}</span></a>`;
+  }
+
   private _row(task: Task): string {
     const overdue = isOverdue(task);
     const statusChip = overdue
@@ -644,6 +759,12 @@ export class HomeKeeperCard extends HTMLElement {
       this._config.show_notes && task.notes
         ? `<div class="hk-notes">${escapeHTML(task.notes)}</div>`
         : '';
+    // Per-task "show on card" documents — links/metadata open in a new tab; uploaded
+    // files open via a signed URL minted on click (see `_hydrate`).
+    const docs = this._resolveDocuments(task);
+    const docsHtml = docs.length
+      ? `<div class="hk-docs">${docs.map((d) => this._documentChip(d)).join('')}</div>`
+      : '';
     // A dormant triggered task has nothing to complete — its owner arms it; hide the
     // action. A completion-blocked task (a synced problem sensor) keeps a *disabled*
     // mark-done that, on tap, explains its source clears it.
@@ -654,11 +775,12 @@ export class HomeKeeperCard extends HTMLElement {
       : `<ha-icon-button class="hk-done${blocked ? ' blocked' : ''}" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.done'))}"></ha-icon-button>`;
     return `
       <div class="hk-row${overdue ? ' overdue' : ''}">
-        <div class="grow" data-edit-id="${escapeHTML(task.id)}" role="button" tabindex="0">
+        <div class="grow">
           <div class="hk-name">${escapeHTML(task.name)}</div>
           <div class="hk-meta">${meta}</div>
           ${notes}
           <div class="hk-chips">${statusChip}${areaChip}${labelChips}${managedChip}</div>
+          ${docsHtml}
         </div>
         ${done}
       </div>`;
@@ -689,21 +811,6 @@ export class HomeKeeperCard extends HTMLElement {
       });
     });
 
-    root.querySelectorAll<HTMLElement>('[data-edit-id]').forEach((el) => {
-      const open = (): void => {
-        const task = this._tasks.find((x) => x.id === el.dataset.editId);
-        if (task) this._openEdit(task);
-      };
-      el.addEventListener('click', open);
-      el.addEventListener('keydown', (e) => {
-        const key = (e as KeyboardEvent).key;
-        if (key === 'Enter' || key === ' ') {
-          e.preventDefault();
-          open();
-        }
-      });
-    });
-
     root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
       d.addEventListener('toggle', () => {
         const key = d.dataset.groupKey || '';
@@ -713,13 +820,13 @@ export class HomeKeeperCard extends HTMLElement {
     );
   }
 
+  /** Render the card's *create* form (the header "+"). Editing/deleting lives in
+   *  the sidebar panel, so this is always a new-task form. */
   private _renderForm(host: HTMLElement): void {
     const task = this._edit.task || {};
     const wrap = document.createElement('div');
     wrap.className = 'hk-form';
-    wrap.innerHTML = `<div class="hk-form-title">${escapeHTML(
-      task.id ? t('form.task.edit') : t('form.task.new'),
-    )}</div>`;
+    wrap.innerHTML = `<div class="hk-form-title">${escapeHTML(t('form.task.new'))}</div>`;
 
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
@@ -751,24 +858,12 @@ export class HomeKeeperCard extends HTMLElement {
     actions.className = 'hk-form-actions';
     const save = document.createElement('ha-button');
     save.setAttribute('raised', '');
-    save.textContent = task.id ? t('btn.save') : t('btn.create');
+    save.textContent = t('btn.create');
     save.addEventListener('click', () => void this._submitForm());
     const cancel = document.createElement('ha-button');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeForm());
     actions.append(save, cancel);
-    // Editing a non-derived task offers Delete (derived/managed tasks are owned
-    // elsewhere — manage them where they're created).
-    const existing = task.id ? this._tasks.find((x) => x.id === task.id) : undefined;
-    const deletable = existing && !existing.source?.part && !existing.managed_by?.deletion_protected;
-    if (deletable) {
-      const spacer = document.createElement('span');
-      spacer.className = 'spacer';
-      const del = document.createElement('ha-button');
-      del.textContent = t('btn.delete');
-      del.addEventListener('click', () => void this._delete(existing as Task));
-      actions.append(spacer, del);
-    }
     wrap.appendChild(actions);
     host.appendChild(wrap);
   }

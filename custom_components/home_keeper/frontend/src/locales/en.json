@@ -294,5 +294,6 @@
   "notify.profile": "Profile",
   "notify.need_profile": "Add a profile first — a notification needs one to choose what to send.",
   "field.consumable_link": "Linked consumable",
-  "opt.consumable.none": "Not linked"
+  "opt.consumable.none": "Not linked",
+  "field.card_links": "Links to show on card"
 }

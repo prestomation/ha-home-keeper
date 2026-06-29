@@ -115,6 +115,16 @@ add_task:
       selector:
         label:
           multiple: true
+    card_links:
+      name: Card links
+      description: >-
+        Appliance links to surface on this task's dashboard-card row. A list of
+        {asset_id, entry_id} objects, each pointing at one of the appliance's
+        document links or metadata links. The card resolves them to a live name/URL
+        and drops any that no longer exist. Usually set from the panel's task editor.
+      advanced: true
+      selector:
+        object:
     source:
       name: Source
       description: >-
@@ -218,6 +228,15 @@ update_task:
       selector:
         label:
           multiple: true
+    card_links:
+      name: Card links
+      description: >-
+        Appliance links to surface on this task's dashboard-card row (replaces the
+        current set). A list of {asset_id, entry_id} objects pointing at the
+        appliance's document/metadata links. Usually set from the panel's task editor.
+      advanced: true
+      selector:
+        object:
     source:
       name: Source
       description: >-

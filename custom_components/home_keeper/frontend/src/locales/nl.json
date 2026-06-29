@@ -294,5 +294,6 @@
   "tasks.intro.recurring": "<b>Terugkerend</b> — herhaalt volgens schema of na elke keer dat je het afrondt (filters, dierenarts, batterijen).",
   "tasks.intro.monitored": "<b>Bewaakt</b> — geactiveerd door een sensor of voorwaarde en automatisch opgelost; sommige kun je niet handmatig afvinken.",
   "tasks.intro.companion": "<b>Van companions</b> — aangeleverd door andere integraties en getoond met een chip ‘Beheerd door …’.",
-  "tasks.intro.dismiss": "Begrepen"
+  "tasks.intro.dismiss": "Begrepen",
+  "field.card_links": "Links op de kaart"
 }

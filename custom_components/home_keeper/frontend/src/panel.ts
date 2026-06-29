@@ -2,7 +2,14 @@ import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
 import { profileMatches } from './card-filter';
 import {
+  documentIcon,
+  documentLabel,
+  isDisplayableDocument,
+  openDocument,
+} from './documents';
+import {
   buildTaskPayload,
+  cardLinkTokens,
   consumableLinkToken,
   selArea,
   selBool,
@@ -1907,11 +1914,9 @@ export class HomeKeeperPanel extends HTMLElement {
   private _documentsSection(asset: Asset): string {
     const docs = asset.documents || [];
     if (!docs.length) return '';
-    const icon = (kind: string): string =>
-      kind === 'file' ? 'mdi:file-document-outline' : 'mdi:link-variant';
     const rows = docs
       .map((d) => {
-        const name = escapeHTML(d.name || d.filename || d.url || '');
+        const name = escapeHTML(documentLabel(d));
         const inner =
           d.kind === 'file'
             ? `<a class="hk-doc-file" role="button" tabindex="0" data-doc="${escapeHTML(
@@ -1919,7 +1924,7 @@ export class HomeKeeperPanel extends HTMLElement {
               )}">${name}</a>`
             : `<a href="${escapeHTML(d.url || '')}" target="_blank" rel="noopener">${name}</a>`;
         return `<div class="hk-detail-row"><span class="k"><ha-icon
-          icon="${icon(d.kind)}"></ha-icon></span><span class="v">${inner}</span></div>`;
+          icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}</span></div>`;
       })
       .join('');
     return `<div class="hk-section">${escapeHTML(t('section.documents'))}</div>
@@ -2491,8 +2496,8 @@ export class HomeKeeperPanel extends HTMLElement {
     // File documents open via a short-lived signed URL (no auth header on a tab open).
     root.querySelectorAll<HTMLElement>('.hk-doc-file').forEach((el) => {
       const open = (): void => {
-        const docId = el.dataset.doc;
-        if (docId) void this._openFileDocument(asset.id, docId);
+        const doc = asset.documents?.find((d) => d.id === el.dataset.doc);
+        if (doc && this._hass) void openDocument(this._hass, asset.id, doc);
       };
       el.addEventListener('click', open);
       el.addEventListener('keydown', (e) => {
@@ -2502,16 +2507,6 @@ export class HomeKeeperPanel extends HTMLElement {
         }
       });
     });
-  }
-
-  private async _openFileDocument(assetId: string, documentId: string): Promise<void> {
-    if (!this._hass) return;
-    try {
-      const url = await api.signDocumentUrl(this._hass, assetId, documentId);
-      window.open(url, '_blank', 'noopener');
-    } catch {
-      // Best-effort: a failed signing (e.g. deleted file) simply doesn't open.
-    }
   }
 
   private _switchView(view: 'tasks' | 'appliances' | 'settings'): void {
@@ -3147,6 +3142,50 @@ export class HomeKeeperPanel extends HTMLElement {
     return options.sort((a, b) => a.label.localeCompare(b.label));
   }
 
+  /** Appliances reachable from a task: the one(s) it's attached to via its device,
+   *  plus the appliance behind a manual consumable link (its part's asset). */
+  private _assetsForTask(task: Partial<Task>): Asset[] {
+    const byDevice = this._assetsForDevice(task.device_id);
+    const partAssetId = task.source?.part?.asset_id;
+    if (partAssetId && !byDevice.some((a) => a.id === partAssetId)) {
+      const a = this._assets.find((x) => x.id === partAssetId);
+      if (a) return [...byDevice, a];
+    }
+    return byDevice;
+  }
+
+  /**
+   * `asset_id:entry_id` options for the task form's "Links to show on card" picker:
+   * every appliance document — an external **link** (kind `link`) or an **uploaded
+   * file** (kind `file`, e.g. a PDF manual) — plus every metadata link (type `link`)
+   * on the appliance(s) the task is associated with. The card resolves the chosen
+   * pairs live (a file opens via a signed URL minted on click). Empty (the picker
+   * then hides) when the task touches no appliance or none of them carry a document.
+   */
+  private _documentOptions(task: Partial<Task>): { value: string; label: string }[] {
+    const assets = this._assetsForTask(task);
+    const multi = assets.length > 1; // disambiguate by appliance only when needed
+    const options: { value: string; label: string }[] = [];
+    for (const asset of assets) {
+      for (const doc of asset.documents ?? []) {
+        if (!doc.id || !isDisplayableDocument(doc)) continue;
+        const label = documentLabel(doc);
+        options.push({
+          value: `${asset.id}:${doc.id}`,
+          label: multi ? `${asset.name} · ${label}` : label,
+        });
+      }
+      for (const meta of asset.metadata ?? []) {
+        if (meta.type !== 'link' || !meta.value || !meta.id) continue;
+        options.push({
+          value: `${asset.id}:${meta.id}`,
+          label: multi ? `${asset.name} · ${meta.label}` : meta.label,
+        });
+      }
+    }
+    return options.sort((a, b) => a.label.localeCompare(b.label));
+  }
+
   /** Resolve a task's part link to a "Appliance · Part · In stock: N" detail line. */
   private _consumableLinkLabel(task: Task): string {
     const part = task.source?.part;
@@ -3176,7 +3215,7 @@ export class HomeKeeperPanel extends HTMLElement {
     )}</div>`;
 
     const form = this._makeForm(
-      taskSchema(task, this._consumableOptions(task)),
+      taskSchema(task, this._consumableOptions(task), this._documentOptions(task)),
       taskFormData(task),
       (value) => {
         const prevType = this._edit.task?.recurrence_type;
@@ -3197,6 +3236,12 @@ export class HomeKeeperPanel extends HTMLElement {
           if (cur && !opts.some((o) => o.value === cur)) {
             (this._edit.task as Record<string, unknown>).consumable_link = '';
           }
+          // The card-link picker is likewise device-scoped — drop chosen links that
+          // no longer resolve to the newly-attached appliance.
+          const docOpts = this._documentOptions(this._edit.task);
+          (this._edit.task as Record<string, unknown>).card_links = cardLinkTokens(
+            this._edit.task,
+          ).filter((tok) => docOpts.some((o) => o.value === tok));
         }
         // The recurrence type (cadence/sensor fields), the sensor mode (usage vs.
         // threshold), and the attached device (which scopes the consumable picker)
@@ -3459,14 +3504,14 @@ export class HomeKeeperPanel extends HTMLElement {
     const ic = document.createElement('div');
     ic.className = 'hk-doc-ic';
     const icon = document.createElement('ha-icon');
-    icon.setAttribute('icon', d.kind === 'file' ? 'mdi:file-document-outline' : 'mdi:link-variant');
+    icon.setAttribute('icon', documentIcon(d));
     ic.appendChild(icon);
 
     const main = document.createElement('div');
     main.className = 'hk-doc-main';
     const name = document.createElement('div');
     name.className = 'hk-doc-name';
-    name.textContent = d.name || d.filename || d.url || '';
+    name.textContent = documentLabel(d);
     main.appendChild(name);
     const subText = this._documentSubtitle(d);
     if (subText) {
@@ -3510,8 +3555,8 @@ export class HomeKeeperPanel extends HTMLElement {
   private _renderDocumentEdit(inner: HTMLElement, d: AssetDocument): void {
     const box = document.createElement('div');
     box.className = 'hk-part hk-doc-edit';
-    const draft = { name: d.name || '', url: d.url || '' };
     const isLink = d.kind === 'link';
+    const draft = { name: d.name || '', url: d.kind === 'link' ? d.url ?? '' : '' };
     const schema: FormField[] = isLink
       ? [
           {
@@ -3651,14 +3696,11 @@ export class HomeKeeperPanel extends HTMLElement {
     return subtype.split(';')[0].trim().toUpperCase();
   }
 
-  /** Open a document from the editor: a link opens its URL; a file opens via a signed URL. */
+  /** Open a document from the editor: a link opens its URL; a file opens via a signed
+   *  URL. A link needs no asset id (it carries its own URL), so an unsaved asset's
+   *  links still open. */
   private _openDocument(d: AssetDocument): void {
-    if (d.kind === 'file') {
-      const assetId = this._assetEdit.asset?.id;
-      if (assetId && d.id) void this._openFileDocument(assetId, d.id);
-    } else if (d.url) {
-      window.open(d.url, '_blank', 'noopener');
-    }
+    if (this._hass) void openDocument(this._hass, this._assetEdit.asset?.id ?? '', d);
   }
 
   /** Append the live document list onto the in-progress edit copy and re-render. */

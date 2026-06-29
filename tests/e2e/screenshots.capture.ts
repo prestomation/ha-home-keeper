@@ -267,6 +267,20 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     path: `${OUT}/34-panel-create-linked-consumable.png`,
     fullPage: true,
   });
+
+  // 36. The same edit form also offers "Links to show on card" — a multi-select of
+  // the attached appliance's document/metadata links. The seeded task pins two, which
+  // the dashboard card renders as openable chips on the task's row.
+  await expect(
+    panel.locator('#hk-task-form').getByText('Links to show on card'),
+  ).toBeVisible();
+  await panel.locator('#hk-task-form').getByText('Links to show on card').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: `${OUT}/36-panel-task-card-links.png`,
+    fullPage: true,
+  });
   await panel.locator('#f-cancel').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
