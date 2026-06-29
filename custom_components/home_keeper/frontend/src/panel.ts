@@ -1899,6 +1899,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const details = [
       this._row(t('field.manufacturer'), asset.manufacturer),
       this._row(t('field.model'), asset.model),
+      this._row(t('field.serial_number'), asset.serial_number),
       this._row(t('field.area_id'), areaName(this._hass?.areas, asset.area_id)),
       this._row(t('field.cost'), cost),
       meta,
@@ -2234,6 +2235,9 @@ export class HomeKeeperPanel extends HTMLElement {
           { name: 'model', selector: selText() },
         ],
       });
+      // serial_number is first-class (it syncs into the device page's info block), so
+      // it sits with make/model rather than in the free-form custom fields.
+      fields.push({ name: 'serial_number', selector: selText() });
       fields.push({
         name: '',
         type: 'grid',
@@ -3439,6 +3443,7 @@ export class HomeKeeperPanel extends HTMLElement {
         name: x.name ?? '',
         manufacturer: x.manufacturer ?? '',
         model: x.model ?? '',
+        serial_number: x.serial_number ?? '',
         icon: x.icon ?? '',
         parent_asset_id: x.parent_asset_id ?? undefined,
         area_id: x.area_id ?? undefined,

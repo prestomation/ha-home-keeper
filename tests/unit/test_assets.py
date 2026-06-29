@@ -28,6 +28,25 @@ def test_build_virtual_asset_sets_id_identifier_and_created():
     assert asset["created"] == NOW.isoformat()
 
 
+def test_serial_number_is_a_first_class_text_field():
+    # serial_number normalizes like manufacturer/model and round-trips through build +
+    # update (it syncs into the device-page info block in devices.py).
+    asset = a.build_asset(
+        {"name": "Water heater", "serial_number": "  RH-2021-0099  "}, now=NOW
+    )
+    assert asset["serial_number"] == "RH-2021-0099"
+    updated = a.merge_update(asset, {"serial_number": "NEW-SERIAL"}, now=NOW)
+    assert updated["serial_number"] == "NEW-SERIAL"
+    # Omitted on update -> preserved (text fields read from existing).
+    untouched = a.merge_update(updated, {"model": "XE50"}, now=NOW)
+    assert untouched["serial_number"] == "NEW-SERIAL"
+
+
+def test_serial_number_defaults_empty_when_absent():
+    asset = a.build_asset({"name": "No serial"}, now=NOW)
+    assert asset["serial_number"] == ""
+
+
 def test_asset_device_identifier_is_prefixed():
     # Must not collide with a per-task self-owned device (bare task id).
     domain, ident = a.asset_device_identifier("abc-123")
@@ -702,6 +721,23 @@ def test_part_is_low():
     # Untracked stock or no threshold is never "low".
     assert a.part_is_low({"stock": None, "reorder_at": 1}) is False
     assert a.part_is_low({"stock": 0, "reorder_at": None}) is False
+
+
+def test_part_tracks_stock_keys_on_stock_presence():
+    # ``stock`` present (even zero) opts the part into a stock number entity.
+    assert a.part_tracks_stock({"stock": 0}) is True
+    assert a.part_tracks_stock({"stock": 4, "reorder_at": 1}) is True
+    # No ``stock`` -> not counted, regardless of a stray reorder threshold.
+    assert a.part_tracks_stock({"stock": None, "reorder_at": 2}) is False
+    assert a.part_tracks_stock({}) is False
+
+
+def test_part_has_reorder_requires_both_stock_and_threshold():
+    assert a.part_has_reorder({"stock": 1, "reorder_at": 2}) is True
+    assert a.part_has_reorder({"stock": 0, "reorder_at": 0}) is True
+    # A low-stock sensor needs both halves of the comparison.
+    assert a.part_has_reorder({"stock": 4, "reorder_at": None}) is False
+    assert a.part_has_reorder({"stock": None, "reorder_at": 2}) is False
 
 
 def test_stock_transition_classifies_crossings():

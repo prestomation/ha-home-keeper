@@ -286,6 +286,10 @@
           "name": "Model",
           "description": "Modelnavn eller -nummer."
         },
+        "serial_number": {
+          "name": "Serienummer",
+          "description": "Serienummer (vises i enhedssidens informationsblok)."
+        },
         "cost": {
           "name": "Pris",
           "description": "Købspris."
@@ -343,6 +347,10 @@
         "model": {
           "name": "Model",
           "description": "Modelnavn eller -nummer."
+        },
+        "serial_number": {
+          "name": "Serienummer",
+          "description": "Serienummer (vises i enhedssidens informationsblok)."
         },
         "cost": {
           "name": "Pris",
@@ -491,11 +499,19 @@
     "binary_sensor": {
       "overdue": {
         "name": "{task_name}Forfalden"
+      },
+      "part_low_stock": {
+        "name": "{part} lav beholdning"
       }
     },
     "button": {
       "mark_done": {
         "name": "{task_name}Markér som udført"
+      }
+    },
+    "number": {
+      "part_spares": {
+        "name": "{part} reservedele"
       }
     }
   },

@@ -286,6 +286,10 @@
           "name": "Malli",
           "description": "Mallin nimi tai numero."
         },
+        "serial_number": {
+          "name": "Sarjanumero",
+          "description": "Sarjanumero (näkyy laitesivun tietolohkossa)."
+        },
         "cost": {
           "name": "Hinta",
           "description": "Ostohinta."
@@ -343,6 +347,10 @@
         "model": {
           "name": "Malli",
           "description": "Mallin nimi tai numero."
+        },
+        "serial_number": {
+          "name": "Sarjanumero",
+          "description": "Sarjanumero (näkyy laitesivun tietolohkossa)."
         },
         "cost": {
           "name": "Hinta",
@@ -491,11 +499,19 @@
     "binary_sensor": {
       "overdue": {
         "name": "{task_name}Myöhässä"
+      },
+      "part_low_stock": {
+        "name": "{part} – vähän varastoa"
       }
     },
     "button": {
       "mark_done": {
         "name": "{task_name}Merkitse valmiiksi"
+      }
+    },
+    "number": {
+      "part_spares": {
+        "name": "{part} – varaosat"
       }
     }
   },

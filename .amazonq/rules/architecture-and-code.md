@@ -138,6 +138,25 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   changes (`coordinator.entity_set_key`, i.e. `device_id` or `enabled`);
   otherwise call `coordinator.async_request_refresh()`. `add_task`/`delete_task`
   reload (entities appear/disappear).
+- **Owner vs guest on the device page.** The device-info block and `configuration_url`
+  belong to whoever owns the device record, so enrich **only our own virtual asset
+  devices** (`kind == "virtual"`); on a *foreign* device a task is attached to, add our
+  per-task entities but never overwrite the owning integration's metadata/Visit link.
+  `manufacturer`/`model`/`serial_number` are first-class asset text fields
+  (`assets._TEXT_FIELDS`) synced into `DeviceInfo` by `devices._reconcile_virtual`
+  (serial guarded by `_supports_kwarg`). A virtual device's `configuration_url`
+  deep-links to **that appliance's** panel page
+  (`homeassistant://navigate/home-keeper/appliances/<asset_id>`), not the panel root.
+- **Per-part stock entities** (virtual appliances only): a `number` (spare count, edits
+  delegate to `store.adjust_part_stock`) for each `assets.part_tracks_stock` part, and a
+  `PROBLEM` `binary_sensor` (`assets.part_is_low`) for each `assets.part_has_reorder`
+  part. Both enumerate via `coordinator.virtual_asset_parts(predicate)` and prune stale
+  registry entries by unique-id shape (mirroring the asset-date-sensor cleanup).
+- `diagnostics.py` provides **both** config-entry and **per-device**
+  (`async_get_device_diagnostics`) downloads; the per-device one scopes to the device's
+  appliance + its tasks. A device-level *action* was deliberately **not** added (the
+  per-task mark-done button + `adjust_part_stock` service cover it without the
+  which-task/which-part ambiguity).
 
 ## Services are the interoperability surface — expose every action as one
 - **Every action that mutates or exports Home Keeper data MUST be exposed as a
@@ -316,8 +335,9 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   (provision parents-first via `_ancestor_depth`; reject cycles with
   `assets.would_create_cycle`). `related_device_ids` is panel-only (foreign devices
   can't be reparented). Do NOT set `entry_type=service` on appliance devices (they're
-  physical); DO set `configuration_url`. Validate `area_id` at the HA boundary
-  (`devices.area_exists`), never in the pure model. See `IDEAS.md` / `docs/DESIGN.md`.
+  physical); DO set `configuration_url` (an `appliances/<asset_id>` deep link — see
+  "Entities & devices"). Validate `area_id` at the HA boundary (`devices.area_exists`),
+  never in the pure model. See `IDEAS.md` / `docs/DESIGN.md`.
 
 ## Exceptions are localized (exception-translations)
 - Every user-facing exception raised from a service handler or entity

@@ -286,6 +286,10 @@
           "name": "Modello",
           "description": "Nome o numero del modello."
         },
+        "serial_number": {
+          "name": "Numero di serie",
+          "description": "Numero di serie (mostrato nel blocco informazioni della pagina del dispositivo)."
+        },
         "cost": {
           "name": "Costo",
           "description": "Prezzo di acquisto."
@@ -343,6 +347,10 @@
         "model": {
           "name": "Modello",
           "description": "Nome o numero del modello."
+        },
+        "serial_number": {
+          "name": "Numero di serie",
+          "description": "Numero di serie (mostrato nel blocco informazioni della pagina del dispositivo)."
         },
         "cost": {
           "name": "Costo",
@@ -491,11 +499,19 @@
     "binary_sensor": {
       "overdue": {
         "name": "{task_name}Scaduta"
+      },
+      "part_low_stock": {
+        "name": "{part}: scorte in esaurimento"
       }
     },
     "button": {
       "mark_done": {
         "name": "{task_name}Segna come completata"
+      }
+    },
+    "number": {
+      "part_spares": {
+        "name": "{part}: ricambi"
       }
     }
   },

@@ -8,6 +8,14 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ### Added
 
+- **Richer appliance device pages.** A virtual appliance's Home Assistant device page now
+  surfaces much more of its Home Keeper data: the device-info block shows a first-class
+  **serial number** (alongside make/model), each stock-tracked part gets an editable
+  **spare-stock number** and a **low-stock problem sensor**, and the page's **Visit** link
+  deep-links straight to that appliance's panel page (manuals, full inventory, history)
+  rather than the panel root. Per-device **diagnostics** download is scoped to just that
+  appliance's tasks and parts. A task attached to a *foreign* device is left to its
+  owning integration (Home Keeper only adds its per-task entities there).
 - **Integration-provided metadata chips on tasks.** Integrations can now attach
   compact metadata chips to any task via the `task_chips` field on
   `home_keeper.add_task` / `update_task`. Each chip carries a label, an optional

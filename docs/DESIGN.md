@@ -130,9 +130,64 @@ only in the panel.
 
 `area_id` is validated at the HA boundary (`devices.area_exists`) for both tasks and
 assets; virtual devices set `configuration_url` (a `homeassistant://navigate` deep
-link to the panel) — but **not** `entry_type=service`, which would wrongly mark a
-physical appliance as a non-physical service entry. An optional mdi `icon` rides on
-the asset (applied to its metadata sensors, since HA devices have no icon field), and
-`diagnostics.py` exposes a tasks/assets snapshot. Remaining open items (labels for
-category/type, photo storage, a live device-registry listener, contribution-API
-interplay) are in [../IDEAS.md](../IDEAS.md).
+link straight to that appliance's panel page — see "Device page enrichment" below) —
+but **not** `entry_type=service`, which would wrongly mark a physical appliance as a
+non-physical service entry. An optional mdi `icon` rides on the asset (applied to its
+metadata sensors, since HA devices have no icon field), and `diagnostics.py` exposes a
+tasks/assets snapshot (config-entry-wide **and** per-device). Remaining open items
+(labels for category/type, photo storage, a live device-registry listener,
+contribution-API interplay) are in [../IDEAS.md](../IDEAS.md).
+
+## Device page enrichment
+
+The HA **device page** is a framework-fixed layout: an integration can't inject custom
+cards/HTML, only contribute entities, device-registry metadata, a diagnostics download,
+and the "Visit" link. Home Keeper leans into exactly those hooks so a maintenance
+appliance's device page is a useful summary *and* a one-click jump into the panel for
+the rich stuff (manuals, full inventory, history) that has no native rendering.
+
+**Owner vs guest.** The enrichment differs by who owns the device record, because the
+device-info block and `configuration_url` belong to whoever owns the device:
+
+- **Owned** — a Home Keeper *virtual* asset device (identifier `asset_<id>`). Home
+  Keeper controls the whole record, so it goes maximalist (see below).
+- **Guest** — a task merged onto a *foreign* device (`device_id` on a task/existing-kind
+  asset). Home Keeper is a polite guest: it adds its per-task entities (next-due,
+  overdue, mark-done) and tracked-date sensors but never overwrites the foreign
+  integration's device-info block or "Visit" link, and does **not** add per-part stock
+  entities there. So guest pages are not materially enriched beyond what already
+  existed — by design.
+
+**On an owned (virtual asset) device page Home Keeper contributes:**
+
+- **Identity in the device-info block.** `manufacturer` / `model` already synced;
+  `serial_number` is now a first-class asset field (`assets._TEXT_FIELDS`) synced into
+  `DeviceInfo.serial_number` by `devices._reconcile_virtual` (guarded by
+  `_supports_kwarg` for older HA). `sw_version`/`hw_version` are intentionally left out
+  — a maintenance appliance rarely has firmware, and a first-class field with no source
+  would just be clutter. Serial stays editable in the panel's appliance form next to
+  make/model (the legacy "Serial number" *metadata seed* remains for anyone already
+  using it; the first-class field is what feeds the registry).
+- **A precise "Visit" deep link.** `configuration_url` is
+  `homeassistant://navigate/home-keeper/appliances/<asset_id>` (was the panel root) so
+  the device page lands directly on that appliance's panel detail — where its documents
+  (manuals/warranties/receipts) and full parts inventory render as real links/lists.
+  This is the bridge for the data that *can't* live on the device page: entity
+  attributes are never linkified or markdown-rendered there, so links and lists belong
+  in the panel, reached in one click.
+- **Per-part spare-stock entities.** For each stock-tracked part (`assets.part_tracks_stock`)
+  the `number` platform (`number.py`) adds a "<part> spares" control: its value is the
+  on-hand count and editing it delegates to `store.adjust_part_stock` (the same service
+  path, so the edge-triggered stock events still fire). For each part that also carries a
+  reorder threshold (`assets.part_has_reorder`) the `binary_sensor` platform adds a
+  "<part> low stock" `PROBLEM` sensor (`is_on = assets.part_is_low`) — making the
+  *state* visible on the page, complementing the existing `part_*` device triggers that
+  only surface the *transition*. Both key on the asset device and are pruned from the
+  entity registry when their part/stock-tracking goes away (mirroring the asset-date
+  sensor cleanup).
+
+**Why not device actions.** A device-level "mark task done" / "restock" action was
+considered and skipped: a device with several tasks (or parts) makes the target
+ambiguous, and the mark-done **button entity** already exposes that action per task in a
+non-ambiguous way (and is automatable). The `part_*` device triggers + the
+`adjust_part_stock` service cover the automation side without that ambiguity.

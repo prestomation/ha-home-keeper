@@ -286,6 +286,10 @@
           "name": "Model",
           "description": "Nazwa lub numer modelu."
         },
+        "serial_number": {
+          "name": "Numer seryjny",
+          "description": "Numer seryjny (wyświetlany w bloku informacji na stronie urządzenia)."
+        },
         "cost": {
           "name": "Koszt",
           "description": "Cena zakupu."
@@ -343,6 +347,10 @@
         "model": {
           "name": "Model",
           "description": "Nazwa lub numer modelu."
+        },
+        "serial_number": {
+          "name": "Numer seryjny",
+          "description": "Numer seryjny (wyświetlany w bloku informacji na stronie urządzenia)."
         },
         "cost": {
           "name": "Koszt",
@@ -491,11 +499,19 @@
     "binary_sensor": {
       "overdue": {
         "name": "{task_name}Zaległe"
+      },
+      "part_low_stock": {
+        "name": "{part} – niski stan"
       }
     },
     "button": {
       "mark_done": {
         "name": "{task_name}Oznacz jako wykonane"
+      }
+    },
+    "number": {
+      "part_spares": {
+        "name": "{part} – zapas"
       }
     }
   },

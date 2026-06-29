@@ -51,14 +51,16 @@ class AssetValidationError(ValueError):
     """Raised when asset input fails validation."""
 
 
-# Structured text fields kept verbatim. These two are special: they sync into the
-# Home Assistant device registry (they title/brand the device card), so they stay
-# first-class rather than folding into the free-form ``metadata`` list below.
-# ``icon`` and ``cost`` (-> the inventory value rollup) are likewise structured but
-# validated separately, as is the ``documents`` list below.
+# Structured text fields kept verbatim. These are special: they sync into the Home
+# Assistant device registry (they title/brand/identify the device card —
+# ``manufacturer``/``model`` and ``serial_number`` map onto the matching ``DeviceInfo``
+# fields), so they stay first-class rather than folding into the free-form ``metadata``
+# list below. ``icon`` and ``cost`` (-> the inventory value rollup) are likewise
+# structured but validated separately, as is the ``documents`` list below.
 _TEXT_FIELDS = (
     "manufacturer",
     "model",
+    "serial_number",
 )
 
 # Free-form metadata: an ordered list of typed entries the user can shape however
@@ -476,6 +478,25 @@ def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
             part = {**part, "last_replaced": prior.get("last_replaced")}
         merged.append(part)
     return merged
+
+
+def part_tracks_stock(part: dict) -> bool:
+    """True when a part carries an on-hand spare count (gets a stock ``number``).
+
+    ``stock`` is the single signal that the user opted this part into inventory
+    tracking; a part without it simply isn't counted (and gets no stock entity).
+    """
+    return part.get("stock") is not None
+
+
+def part_has_reorder(part: dict) -> bool:
+    """True when a stock-tracked part also has a reorder threshold.
+
+    Such a part gets a low-stock ``binary_sensor`` (its on/off state is
+    :func:`part_is_low`); both ``stock`` and ``reorder_at`` must be set for the
+    comparison to mean anything.
+    """
+    return part.get("stock") is not None and part.get("reorder_at") is not None
 
 
 def part_is_low(part: dict) -> bool:

@@ -286,6 +286,10 @@
           "name": "型号",
           "description": "型号名称或编号。"
         },
+        "serial_number": {
+          "name": "序列号",
+          "description": "序列号（显示在设备页面的信息栏中）。"
+        },
         "cost": {
           "name": "费用",
           "description": "购买价格。"
@@ -343,6 +347,10 @@
         "model": {
           "name": "型号",
           "description": "型号名称或编号。"
+        },
+        "serial_number": {
+          "name": "序列号",
+          "description": "序列号（显示在设备页面的信息栏中）。"
         },
         "cost": {
           "name": "费用",
@@ -491,11 +499,19 @@
     "binary_sensor": {
       "overdue": {
         "name": "{task_name}已逾期"
+      },
+      "part_low_stock": {
+        "name": "{part}库存不足"
       }
     },
     "button": {
       "mark_done": {
         "name": "{task_name}标记为完成"
+      }
+    },
+    "number": {
+      "part_spares": {
+        "name": "{part}备件"
       }
     }
   },
