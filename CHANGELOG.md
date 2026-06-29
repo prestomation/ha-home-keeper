@@ -67,6 +67,13 @@ list easier to read at a glance. Highlights, for anyone upgrading from 0.5.0:
   chip is now a plain link with its URL pre-signed when the card loads, so a tap opens
   it natively — the Home Assistant companion app (iOS/WKWebView) was silently blocking
   the previous open-on-tap.
+- **Back navigation from a cross-view detail page now returns to the correct previous
+  page.** Navigating Appliance → device → related Task and pressing Back used to jump
+  to the top-level Tasks tab instead of back to the appliance/device view. (Fixes #105)
+- **Problem Sensor Sync no longer leaves stale entities after disabling or excluding.**
+  Disabling the sync, or adding a device/entity/label exclusion, now removes the
+  `next_due` sensor and `overdue` binary sensor that were created for the synced task —
+  they no longer linger on the device after the task is gone. (Fixes #104)
 
 ## [0.6.0b4]
 
