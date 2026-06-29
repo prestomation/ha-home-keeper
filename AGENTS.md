@@ -13,7 +13,10 @@
   roll the beta work into Added/Changed/Fixed as they'd perceive it. A feature
   introduced over the betas is **Added** (even if a later beta changed how it worked
   mid-stream); don't carry beta-to-beta framing — e.g. a `### Changed` for something
-  that didn't exist in the last stable — into the stable section.
+  that didn't exist in the last stable — into the stable section. **Include a `###
+  Fixed` section listing every GitHub issue closed by commits since the last stable**
+  — check the git log for `(Fixes #N)` / `(#N)` references and link each issue number
+  so they auto-close on merge (`Fixes #N` in the CHANGELOG entry).
 - **Beta versioning — always use the next release number.** After every stable
   `X.Y.0` ships, immediately bump `manifest.json` and `const.py` (`PANEL_VERSION`)
   to `X.(Y+1).0b1` on `main`, and rename the `## [Unreleased]` CHANGELOG section to
