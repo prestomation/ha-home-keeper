@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Architecture | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-110/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-110/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-110/developer/architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Architecture | Home Keeper"><meta data-rh="true" name="description" content="Goal"><meta data-rh="true" property="og:description" content="Goal"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-110/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-110/developer/architecture"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-110/developer/architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-110/developer/architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Architecture","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-110/developer/architecture"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-110/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-110/assets/js/runtime~main.1bfe59d9.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-110/assets/js/runtime~main.1ad51c0c.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-110/assets/js/main.ec22847f.js" defer="defer"></script>
 </head>
 <body>
@@ -145,7 +145,7 @@ registry devices (including foreign ones HA won&#x27;t let us reparent) — stor
 only in the panel.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="smaller-ha-integration-points">Smaller HA integration points<a href="#smaller-ha-integration-points" class="hash-link" aria-label="Direct link to Smaller HA integration points" title="Direct link to Smaller HA integration points" translate="no">​</a></h3>
 <p><code>area_id</code> is validated at the HA boundary (<code>devices.area_exists</code>) for both tasks and
-assets; virtual devices set <code>configuration_url</code> (a <code>homeassistant://navigate</code> deep
+assets; virtual devices set <code>configuration_url</code> (a <code>homeassistant://</code> deep
 link straight to that appliance&#x27;s panel page — see &quot;Device page enrichment&quot; below) —
 but <strong>not</strong> <code>entry_type=service</code>, which would wrongly mark a physical appliance as a
 non-physical service entry. An optional mdi <code>icon</code> rides on the asset (applied to its
@@ -182,9 +182,12 @@ would just be clutter. Serial stays editable in the panel&#x27;s appliance form 
 make/model (the legacy &quot;Serial number&quot; <em>metadata seed</em> remains for anyone already
 using it; the first-class field is what feeds the registry).</li>
 <li class=""><strong>A precise &quot;Visit&quot; deep link.</strong> <code>configuration_url</code> is
-<code>homeassistant://navigate/home-keeper/appliances/&lt;asset_id&gt;</code> (was the panel root) so
-the device page lands directly on that appliance&#x27;s panel detail — where its documents
+<code>homeassistant://home-keeper/appliances/&lt;asset_id&gt;</code> (was the panel root) so the device
+page lands directly on that appliance&#x27;s panel detail — where its documents
 (manuals/warranties/receipts) and full parts inventory render as real links/lists.
+(The device page renders a <code>homeassistant://X</code> config URL as the in-app path <code>/X</code> —
+there is <strong>no</strong> <code>navigate/</code> action segment on the web frontend, so a <code>navigate/...</code>
+URL renders as a dead <code>/navigate/...</code> link and bounces to the default dashboard.)
 This is the bridge for the data that <em>can&#x27;t</em> live on the device page: entity
 attributes are never linkified or markdown-rendered there, so links and lists belong
 in the panel, reached in one click.</li>
