@@ -677,9 +677,14 @@ export class HomeKeeperPanel extends HTMLElement {
    * back through `set route` so there is exactly one path into a state change.
    * Drill-in steps push (Back-able); lateral moves (tab switch) replace.
    */
+  // Set to true the first time _navigate pushes a history entry, so _closeDetail
+  // knows whether history.back() has a panel URL to return to.
+  private _hasHistory = false;
+
   private _navigate(loc: PanelLocation, replace = false): void {
     const url = this._routePrefix + buildPath(loc);
     history[replace ? 'replaceState' : 'pushState'](null, '', url);
+    if (!replace) this._hasHistory = true;
     this.dispatchEvent(
       new CustomEvent('location-changed', {
         detail: { replace },
@@ -749,9 +754,16 @@ export class HomeKeeperPanel extends HTMLElement {
     this._navigate({ view: kind === 'asset' ? 'appliances' : 'tasks', detail: { kind, id } });
   }
   private _closeDetail(): void {
-    // Return to the list this detail belongs to, collapsing the detail entry so
-    // browser Back from the list continues past it rather than re-opening it.
-    this._navigate({ view: this._view, detail: null }, true);
+    if (this._hasHistory) {
+      // A pushState has occurred in this session: history.back() correctly pops
+      // to whatever was before the current detail — even when the detail was
+      // opened cross-view (e.g. a task opened from inside an appliance detail).
+      history.back();
+    } else {
+      // No panel navigation has been pushed yet (user deep-linked directly to
+      // this detail URL). Fall back to an explicit navigate to the owning list.
+      this._navigate({ view: this._view, detail: null }, true);
+    }
   }
 
   private async _init(): Promise<void> {
