@@ -87,10 +87,10 @@ async def async_setup_entry(
             if uid not in live_asset_meta_uids:
                 reg.async_remove(entity_entry.entity_id)
 
-    async_add_entities(
-        [HomeKeeperNextDueSensor(coordinator, task_id) for task_id in task_ids]
-        + asset_entities
-    )
+    task_entities: list[SensorEntity] = [
+        HomeKeeperNextDueSensor(coordinator, task_id) for task_id in task_ids
+    ]
+    async_add_entities(task_entities + asset_entities)
 
 
 class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):

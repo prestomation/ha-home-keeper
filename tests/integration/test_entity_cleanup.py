@@ -154,7 +154,8 @@ def test_stale_asset_date_sensor_removed_after_metadata_untracked(ha):
     ``home_keeper_asset_*_meta_*`` sensor whose (asset_id, meta_id) pair is no
     longer in the live tracked-dates set.
     """
-    resp = call_service(
+    # add_asset does not return a service response, so find the asset by name.
+    call_service(
         ha,
         "home_keeper",
         "add_asset",
@@ -171,22 +172,29 @@ def test_stale_asset_date_sensor_removed_after_metadata_untracked(ha):
                 }
             ],
         },
-        return_response=True,
     )
-    asset_id = resp.get("service_response", resp)["asset_id"]
 
+    asset_id: str | None = None
     try:
         # add_asset triggers a reload; poll until the asset is provisioned with a
         # device_id and the date sensor appears in the entity registry.
-        meta_uid = None
+        meta_uid: str | None = None
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             assets_resp = call_service(
                 ha, "home_keeper", "list_assets", {}, return_response=True
             )
             assets = assets_resp.get("service_response", assets_resp)["assets"]
-            probe = next((a for a in assets if a["id"] == asset_id), None)
+            probe = next(
+                (
+                    a
+                    for a in assets
+                    if a["name"] == "Date sensor cleanup probe appliance"
+                ),
+                None,
+            )
             if probe and probe.get("device_id"):
+                asset_id = probe["id"]
                 # Device provisioned — look up the meta entry id that was assigned.
                 for entry in probe.get("metadata") or []:
                     if entry.get("label") == "Probe warranty expiry":
@@ -226,7 +234,8 @@ def test_stale_asset_date_sensor_removed_after_metadata_untracked(ha):
         )
 
     finally:
-        try:
-            call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset_id})
-        except Exception:
-            pass
+        if asset_id:
+            try:
+                call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset_id})
+            except Exception:
+                pass
