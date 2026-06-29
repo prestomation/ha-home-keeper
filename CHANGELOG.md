@@ -4,7 +4,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
-## [0.7.0b1]
+## [0.7.0b2]
 
 ### Added
 
@@ -14,6 +14,10 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   `mdi:` icon, and an optional link URL — making contextual information (e.g. battery
   type, part number) immediately visible in both the **sidebar panel task list** and
   the **dashboard card** without cluttering the task notes.
+
+## [0.7.0b1] - 2026-06-29
+
+Internal version bump after 0.6.0 stable shipped.
 
 ## [0.6.0] - 2026-06-29
 

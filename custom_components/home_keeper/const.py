@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.7.0b1"
+PANEL_VERSION = "0.7.0b2"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -278,7 +278,7 @@ DATA_COMPANIONS = f"{DOMAIN}_companions"
 # this ping. Carries no data.
 EVENT_REGISTER_COMPANIONS = f"{DOMAIN}_register_companions"
 # Fired (edge-triggered, deduped per domain) when a companion first becomes
-# connected (self-registers or a known glue is detected installed) or when a known
+# connected (self-registered or a known glue is detected installed) or when a known
 # upstream's glue is first suggested. Payload built by events.companion_event_data.
 EVENT_COMPANION_CONNECTED = f"{DOMAIN}_companion_connected"
 EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
