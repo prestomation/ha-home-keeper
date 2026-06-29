@@ -285,7 +285,7 @@
   "notify.need_profile": "Tilføj først en profil — en notifikation skal bruge en til at vælge, hvad der skal sendes.",
   "field.consumable_link": "Tilknyttet forbrugsvare",
   "opt.consumable.none": "Ikke tilknyttet",
-  "chip.virtualDevice.tip": "Ikke en rigtig Home Assistant-enhed — en Home Keeper-post til dele, dokumenter og tilknyttede opgaver.",
+  "chip.virtualDevice.tip": "Åbn dette apparats Home Assistant-enhedsside.",
   "chip.autoSynced": "Auto-synkroniseret",
   "chip.autoSynced.tip": "Oprettet automatisk fra en sensor. Forsvinder af sig selv, når sensoren bliver normal igen — kan ikke markeres som færdig her.",
   "done.autoClears": "Forsvinder automatisk",

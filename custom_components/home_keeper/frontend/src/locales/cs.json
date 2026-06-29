@@ -311,7 +311,7 @@
   "notify.need_profile": "Nejprve přidejte profil — oznámení jej potřebuje k výběru, co odeslat.",
   "field.consumable_link": "Propojený spotřební materiál",
   "opt.consumable.none": "Nepropojeno",
-  "chip.virtualDevice.tip": "Není to skutečné zařízení Home Assistant — záznam Home Keeper pro díly, dokumenty a propojené úkoly.",
+  "chip.virtualDevice.tip": "Otevřít stránku zařízení Home Assistant tohoto spotřebiče.",
   "chip.autoSynced": "Automaticky synchronizováno",
   "chip.autoSynced.tip": "Vytvořeno automaticky ze senzoru. Zmizí samo, jakmile se senzor vrátí do normálu — zde nelze dokončit.",
   "done.autoClears": "Zmizí automaticky",

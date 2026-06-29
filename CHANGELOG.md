@@ -16,12 +16,22 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   rather than the panel root. Per-device **diagnostics** download is scoped to just that
   appliance's tasks and parts. A task attached to a *foreign* device is left to its
   owning integration (Home Keeper only adds its per-task entities there).
+- **Jump from the panel to an appliance's device page.** The **"Virtual device"** chip
+  on the Appliances list and appliance detail is now a clickable link to that
+  appliance's Home Assistant device page (it was a static marker before).
 - **Integration-provided metadata chips on tasks.** Integrations can now attach
   compact metadata chips to any task via the `task_chips` field on
   `home_keeper.add_task` / `update_task`. Each chip carries a label, an optional
   `mdi:` icon, and an optional link URL — making contextual information (e.g. battery
   type, part number) immediately visible in both the **sidebar panel task list** and
   the **dashboard card** without cluttering the task notes.
+
+### Fixed
+
+- **Device chip on a task/appliance card row now opens the device page.** Clicking the
+  device chip was hijacked by the card row's open-detail handler (it opened the task or
+  appliance detail instead of navigating to the device); the chip click no longer
+  bubbles to the row.
 
 ## [0.7.0b1] - 2026-06-29
 

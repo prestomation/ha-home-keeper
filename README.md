@@ -471,7 +471,8 @@ expiring in 30 days → notify me"*). Untracked dates stay display-only.
 
 Tapping an appliance opens a **detail page** gathering its metadata, parts, related
 tasks, subdevices, and full maintenance history (including retained history of tasks
-deleted while still assigned to it). The tab also has an **Export inventory** button
+deleted while still assigned to it). The **"Virtual device"** chip (on both the list and
+the detail) links straight to the appliance's Home Assistant device page. The tab also has an **Export inventory** button
 that downloads a CSV **home inventory** — make/model, replacement cost, value of spares
 on hand (with a grand total), and a Details column flattening each appliance's custom
 fields. It's the grab-and-go record you want for an insurance claim.
