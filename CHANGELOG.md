@@ -35,6 +35,11 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   version, so a rebuilt frontend always loads fresh — no more stale card (or "card
   configuration error" in the mobile app) after upgrading, including across preview
   builds that reuse a version string.
+- **Uploaded file documents on the card now open in the mobile app.** A pinned file
+  chip is now a plain link with its URL pre-signed when the card loads, so a tap opens
+  it natively — the Home Assistant companion app (iOS/WKWebView) was silently blocking
+  the previous open-on-tap because it happened just after an async request. (External
+  links were always fine.)
 
 ## [0.6.0b3]
 

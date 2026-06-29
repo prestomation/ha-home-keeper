@@ -131,3 +131,54 @@ describe('HomeKeeperCard completion guard', () => {
     resolveComplete?.({});
   });
 });
+
+describe('HomeKeeperCard document chips', () => {
+  // Regression guard for the iOS/WKWebView fix: an uploaded *file* document must render
+  // as a plain <a href> with a pre-signed URL (a native tap), NOT a <button> that signs
+  // on click — WKWebView blocks a window.open issued after the async signing round-trip.
+  it('renders an uploaded file document as a pre-signed anchor (not a button)', async () => {
+    const card = makeCard();
+    const fileTask = {
+      id: 't1',
+      name: 'Replace filter',
+      recurrence_type: 'floating',
+      interval: 1,
+      unit: 'months',
+      next_due: new Date(Date.now() + 86_400_000).toISOString(),
+      completions: [],
+      card_links: [{ asset_id: 'a1', entry_id: 'd1' }],
+    };
+    let signCalls = 0;
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: [fileTask] };
+        if (msg.type === 'home_keeper/get_assets') {
+          return {
+            assets: [
+              {
+                id: 'a1',
+                name: 'Heater',
+                documents: [{ id: 'd1', kind: 'file', name: 'Manual', filename: 'm.pdf' }],
+              },
+            ],
+          };
+        }
+        if (msg.type === 'home_keeper/sign_document_url') {
+          signCalls++;
+          return { url: '/api/home_keeper/document/a1/d1?authSig=xyz' };
+        }
+        return {};
+      },
+    };
+
+    await waitFor(() => sr(card)?.querySelector('a.hk-doc'));
+    const anchor = sr(card).querySelector('a.hk-doc');
+    expect(anchor, 'a file document renders as an anchor').toBeTruthy();
+    expect(anchor.getAttribute('href')).toBe('/api/home_keeper/document/a1/d1?authSig=xyz');
+    expect(anchor.getAttribute('target')).toBe('_blank');
+    // The async-window.open path (a <button>) is gone — that's what failed on iOS.
+    expect(sr(card).querySelector('button.hk-doc'), 'no JS-driven file button').toBeNull();
+    expect(signCalls, 'the file URL was pre-signed').toBe(1);
+  });
+});

@@ -24,7 +24,7 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
-import { documentLabel, isDisplayableDocument, openDocument } from './documents';
+import { documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
 import type { Asset, Hass, HassLabel, Profile, Task } from './types';
 import {
@@ -44,6 +44,10 @@ const MDI_CHECK =
   '20 12,20M16.59,7.58L10,14.17L7.41,11.59L6,13L10,17L18,9L16.59,7.58Z';
 // mdi:plus — the header "add task" action.
 const MDI_PLUS = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
+// `ha-icon` names for the per-task document chips (external link / metadata link vs
+// an uploaded file). These are icon attributes, not SVG paths like the buttons above.
+const MDI_OPEN_IN_NEW = 'mdi:open-in-new';
+const MDI_FILE = 'mdi:file-document-outline';
 
 // HA registers many of its components lazily. On a cold dashboard load they may
 // not be defined yet, so we wait (best-effort) before the first paint — exactly
@@ -158,12 +162,6 @@ const STYLES = `
     color: var(--primary-color); text-decoration: none; font-size: 0.85rem;
     --mdc-icon-size: 16px;
   }
-  /* A file chip is a <button> (no static href) — strip the native chrome so it
-     reads identically to the anchor chips. */
-  button.hk-doc {
-    background: none; border: none; padding: 0; margin: 0;
-    font: inherit; cursor: pointer;
-  }
   .hk-doc > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hk-doc:hover { text-decoration: underline; }
   /* Label chips read as a distinct, primary-tinted tag so they stand apart from
@@ -228,11 +226,14 @@ interface EditState {
   error?: string;
 }
 
-/** A resolved "show on card" document chip: either a static link (external link
- *  document or metadata link) or an uploaded file opened via a signed URL on click. */
-type DocumentChip =
-  | { name: string; url: string }
-  | { name: string; assetId: string; docId: string };
+/** A resolved "show on card" document chip — always a plain anchor. `url` is the
+ *  stored link for a link/metadata document, or a pre-signed URL for an uploaded file
+ *  (so the tap is native; see `_signDocuments`). `icon` is its `ha-icon` name. */
+interface DocumentChip {
+  name: string;
+  url: string;
+  icon: string;
+}
 
 export class HomeKeeperCard extends HTMLElement {
   private _hass?: Hass;
@@ -242,6 +243,10 @@ export class HomeKeeperCard extends HTMLElement {
   // Appliance data, loaded only when a task references "show on card" links, so the
   // card can resolve those references to live document/metadata names + URLs.
   private _assets: Asset[] = [];
+  // Short-lived signed URLs for pinned *file* documents, keyed `assetId:docId`, minted
+  // at refresh so a file chip can be a plain <a href> (a native tap — the iOS app's
+  // WKWebView blocks an async window.open). Re-signed before expiry; see _signDocuments.
+  private _signedDocs = new Map<string, { url: string; signedAt: number }>();
   // HA label registry (id -> entry), fetched once so label chips can show real
   // names rather than raw ids. Empty until loaded; lookups fall back to the id.
   private _labels: Record<string, HassLabel> = {};
@@ -413,6 +418,8 @@ export class HomeKeeperCard extends HTMLElement {
       this._assets = this._tasks.some((tk) => tk.card_links?.length)
         ? await api.getAssets(this._hass).catch(() => [] as Asset[])
         : [];
+      // Pre-sign any pinned file documents so their chips render as plain anchors.
+      await this._signDocuments();
       this._error = false;
       this._signal = this._stateSignal(this._hass);
     } catch (err) {
@@ -620,12 +627,58 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   /**
+   * Pre-mint signed URLs for every pinned **file** document so its chip can be a plain
+   * `<a href>` opened by a native tap. This sidesteps the iOS app's WKWebView, which
+   * blocks a `window.open` issued after the async signing round-trip (links open fine
+   * because they're native anchors with no async gap). Cached and only re-signed when
+   * stale, so frequent dashboard refreshes don't spam the signing command; entries for
+   * no-longer-referenced files are dropped. Best-effort — a failed sign just leaves that
+   * chip out until the next refresh.
+   */
+  private async _signDocuments(): Promise<void> {
+    if (!this._hass) return;
+    // Re-sign comfortably before the backend's 1h TTL so an idle dashboard's hrefs
+    // stay valid; a fresh cache entry is reused across refreshes until then.
+    const RESIGN_AFTER_MS = 45 * 60 * 1000;
+    const now = Date.now();
+    const needed = new Map<string, { assetId: string; docId: string }>();
+    for (const task of this._tasks) {
+      for (const ref of task.card_links ?? []) {
+        const doc = this._assets
+          .find((a) => a.id === ref.asset_id)
+          ?.documents?.find((d) => d.id === ref.entry_id);
+        if (doc?.kind === 'file' && doc.filename) {
+          needed.set(`${ref.asset_id}:${ref.entry_id}`, {
+            assetId: ref.asset_id,
+            docId: ref.entry_id,
+          });
+        }
+      }
+    }
+    for (const key of [...this._signedDocs.keys()]) {
+      if (!needed.has(key)) this._signedDocs.delete(key);
+    }
+    await Promise.all(
+      [...needed].map(async ([key, { assetId, docId }]) => {
+        const cached = this._signedDocs.get(key);
+        if (cached && now - cached.signedAt < RESIGN_AFTER_MS) return;
+        try {
+          const url = await api.signDocumentUrl(this._hass!, assetId, docId);
+          this._signedDocs.set(key, { url, signedAt: now });
+        } catch {
+          // Keep any prior URL; a failed sign just won't refresh it this round.
+        }
+      }),
+    );
+  }
+
+  /**
    * Resolve a task's `card_links` references against the loaded appliance data into
-   * renderable chips. An external **link** document (or a metadata link) resolves to a
-   * static `{name, url}`; an **uploaded file** document resolves to `{name, assetId,
-   * docId}` so the row can mint a short-lived signed URL on click (a file has no static
-   * URL). References to deleted entries — or link URLs that aren't plain http(s) — are
-   * silently dropped (defence-in-depth even though the backend only stores http(s)).
+   * renderable document chips, each a plain anchor. A **link** document / metadata link
+   * uses its stored URL; an **uploaded file** uses the signed URL pre-minted by
+   * `_signDocuments` (skipped until it's signed). References to deleted entries — or
+   * link URLs that aren't plain http(s) — are silently dropped (defence-in-depth even
+   * though the backend only stores http(s)).
    */
   private _resolveDocuments(task: Task): DocumentChip[] {
     const refs = task.card_links;
@@ -641,28 +694,31 @@ export class HomeKeeperCard extends HTMLElement {
       if (doc) {
         if (!isDisplayableDocument(doc)) continue;
         if (doc.kind === 'file') {
-          out.push({ name: documentLabel(doc), assetId: ref.asset_id, docId: ref.entry_id });
+          // Use the signed URL pre-minted at refresh; skip until it's available.
+          const signed = this._signedDocs.get(`${ref.asset_id}:${ref.entry_id}`);
+          if (signed) {
+            out.push({ name: documentLabel(doc), url: signed.url, icon: MDI_FILE });
+          }
         } else if (doc.url && isHttp(doc.url)) {
-          out.push({ name: documentLabel(doc), url: doc.url });
+          out.push({ name: documentLabel(doc), url: doc.url, icon: MDI_OPEN_IN_NEW });
         }
         continue;
       }
       const meta = asset.metadata?.find(
         (m) => m.id === ref.entry_id && m.type === 'link' && m.value,
       );
-      if (meta?.value && isHttp(meta.value)) out.push({ name: meta.label, url: meta.value });
+      if (meta?.value && isHttp(meta.value)) {
+        out.push({ name: meta.label, url: meta.value, icon: MDI_OPEN_IN_NEW });
+      }
     }
     return out;
   }
 
-  /** One document chip's HTML. A link/metadata-link is a static anchor; an uploaded
-   *  file is a button that signs a URL on click (hydrated in `_hydrate`). */
+  /** One document chip's HTML — always a plain anchor opened by a native tap (works in
+   *  the iOS app's WKWebView; file URLs are pre-signed in `_signDocuments`). */
   private _documentChip(chip: DocumentChip): string {
     const name = escapeHTML(chip.name);
-    if ('url' in chip) {
-      return `<a class="hk-doc" href="${escapeHTML(chip.url)}" target="_blank" rel="noopener noreferrer" title="${name}"><ha-icon icon="mdi:open-in-new"></ha-icon><span>${name}</span></a>`;
-    }
-    return `<button type="button" class="hk-doc" data-asset="${escapeHTML(chip.assetId)}" data-doc="${escapeHTML(chip.docId)}" title="${name}"><ha-icon icon="mdi:file-document-outline"></ha-icon><span>${name}</span></button>`;
+    return `<a class="hk-doc" href="${escapeHTML(chip.url)}" target="_blank" rel="noopener noreferrer" title="${name}"><ha-icon icon="${chip.icon}"></ha-icon><span>${name}</span></a>`;
   }
 
   private _row(task: Task): string {
@@ -752,17 +808,6 @@ export class HomeKeeperCard extends HTMLElement {
         if (!task) return;
         if (task.managed_by?.completion_blocked) this._notifyBlocked(task);
         else void this._complete(task);
-      });
-    });
-
-    // Uploaded-file document chips have no static href — mint a signed URL on click.
-    root.querySelectorAll<HTMLElement>('button.hk-doc[data-doc]').forEach((b) => {
-      b.addEventListener('click', () => {
-        const assetId = b.dataset.asset;
-        const doc = this._assets
-          .find((a) => a.id === assetId)
-          ?.documents?.find((d) => d.id === b.dataset.doc);
-        if (assetId && doc && this._hass) void openDocument(this._hass, assetId, doc);
       });
     });
 

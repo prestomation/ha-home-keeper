@@ -22,8 +22,11 @@ from .const import DOMAIN, OPTION_PROFILES
 from .coordinator import HomeKeeperCoordinator, entity_set_key
 from .models import TaskValidationError
 
-# How long a signed document URL stays valid — long enough to open in a new tab.
-_DOCUMENT_URL_TTL = timedelta(minutes=5)
+# How long a signed document URL stays valid. The dashboard card pre-signs file
+# documents and embeds the URL as a plain <a href> (so a tap opens natively — the iOS
+# app's WKWebView blocks an async window.open), so the URL must outlive a reasonably
+# idle dashboard, not just a click. The card re-signs well before this on refresh.
+_DOCUMENT_URL_TTL = timedelta(hours=1)
 
 
 def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:

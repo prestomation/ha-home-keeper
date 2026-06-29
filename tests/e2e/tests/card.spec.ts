@@ -74,9 +74,12 @@ test.describe('Home Keeper card — dashboard', () => {
     // uploaded file ("Installation guide (PDF)").
     const row = card.locator('.hk-row', { hasText: 'Replace water filter' });
     await expect(row).toHaveCount(1, { timeout: 30_000 });
-    // External links render as anchors that open in a new tab.
+    // Every document chip — link, metadata link, and uploaded file — renders as a
+    // plain anchor that opens in a new tab (a native tap; the iOS app's WKWebView
+    // blocks an async window.open, so a file's signed URL is pre-minted into the href).
     const links = row.locator('a.hk-doc');
-    await expect(links).toHaveCount(2);
+    await expect(links).toHaveCount(3);
+    await expect(row.locator('button.hk-doc')).toHaveCount(0);
 
     const manual = links.filter({ hasText: "Owner's manual" });
     await expect(manual).toHaveAttribute('href', 'https://example.com/water-heater-manual');
@@ -87,12 +90,11 @@ test.describe('Home Keeper card — dashboard', () => {
       'href',
       'https://example.com/reorder-water-filter',
     );
-
-    // An uploaded file has no static URL — it renders as a button that mints a
-    // short-lived signed URL on click, so it's a <button>, not an <a>.
-    const fileChip = row.locator('button.hk-doc');
-    await expect(fileChip).toHaveCount(1);
-    await expect(fileChip).toContainText('Installation guide (PDF)');
+    // The uploaded file resolves to a pre-signed document URL (relative, token-signed).
+    await expect(links.filter({ hasText: 'Installation guide (PDF)' })).toHaveAttribute(
+      'href',
+      /\/api\/home_keeper\/document\/asset_water_heater\/asset_water_heater_doc_manual_pdf\?authSig=/,
+    );
   });
 
   test('add and complete a task from the card; rows no longer open an edit form', async ({
