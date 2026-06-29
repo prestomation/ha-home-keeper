@@ -46,8 +46,7 @@ async def async_setup_entry(
                 reg.async_remove(entity_entry.entity_id)
 
     async_add_entities(
-        HomeKeeperOverdueBinarySensor(coordinator, task_id)
-        for task_id in task_ids
+        HomeKeeperOverdueBinarySensor(coordinator, task_id) for task_id in task_ids
     )
 
 

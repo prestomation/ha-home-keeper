@@ -68,8 +68,7 @@ async def async_setup_entry(
                 reg.async_remove(entity_entry.entity_id)
 
     entities: list[SensorEntity] = [
-        HomeKeeperNextDueSensor(coordinator, task_id)
-        for task_id in task_ids
+        HomeKeeperNextDueSensor(coordinator, task_id) for task_id in task_ids
     ]
     for asset in coordinator.store.list_assets():
         device_info = coordinator.device_info_for_device_id(asset.get("device_id"))
