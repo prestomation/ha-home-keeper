@@ -384,6 +384,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     manuals.async_register_http(hass)
     websocket_api.async_register(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Platforms have removed entities for deleted/excluded tasks; drop Home Keeper
+    # from any device that no longer carries one of our entities so disabling Problem
+    # Sensor Sync (or an exclusion) leaves no empty device card behind.
+    await devices.async_prune_orphaned_devices(hass, entry)
 
     _register_services(hass)
     # Now that the register_companion service exists, ask companions to (re-)announce
