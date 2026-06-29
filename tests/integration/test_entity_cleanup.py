@@ -9,18 +9,31 @@ linger as orphaned "unavailable" entries on the device page.
 Issue: #104 — Problem Sensor Sync leaves stale entities after disabling or exclusions
 """
 
+import json
 import time
 
+import websockets.sync.client
 from conftest import HA_URL, call_service, list_states
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+_WS_URL = HA_URL.replace("http://", "ws://") + "/api/websocket"
+
 
 def _entity_registry(ha) -> list[dict]:
-    """Fetch all entity registry entries via HA's admin REST endpoint."""
-    r = ha.get(f"{HA_URL}/api/config/entity_registry")
-    r.raise_for_status()
-    return r.json()
+    """Fetch all entity registry entries via HA's WebSocket API."""
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    with websockets.sync.client.connect(_WS_URL) as ws:
+        # HA sends auth_required first
+        msg = json.loads(ws.recv())
+        assert msg["type"] == "auth_required"
+        ws.send(json.dumps({"type": "auth", "access_token": token}))
+        msg = json.loads(ws.recv())
+        assert msg["type"] == "auth_ok", f"auth failed: {msg}"
+        ws.send(json.dumps({"id": 1, "type": "config/entity_registry/list"}))
+        msg = json.loads(ws.recv())
+        assert msg.get("success"), f"entity_registry/list failed: {msg}"
+        return msg["result"]
 
 
 def _find_button_by_name(ha, name_substr: str):
