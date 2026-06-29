@@ -13,13 +13,7 @@ import time
 
 from conftest import HA_URL, call_service, list_states
 
-
 # ── helpers ──────────────────────────────────────────────────────────────────
-
-
-def _list_tasks(ha):
-    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
-    return resp.get("service_response", resp)["tasks"]
 
 
 def _entity_registry(ha) -> list[dict]:
@@ -30,7 +24,7 @@ def _entity_registry(ha) -> list[dict]:
 
 
 def _find_button_by_name(ha, name_substr: str):
-    """Return (entity_id, friendly_name) for the first button whose name contains name_substr."""
+    """Return (entity_id, friendly_name) for first button matching name_substr."""
     for s in list_states(ha):
         if not s["entity_id"].startswith("button."):
             continue
@@ -82,16 +76,24 @@ def test_stale_per_task_entities_removed_after_task_deleted(ha):
             if probe_button_eid:
                 break
             time.sleep(1)
-        assert probe_button_eid, "probe button entity should appear in states after add_task"
+        assert probe_button_eid, (
+            "probe button entity should appear in states after add_task"
+        )
 
         # Verify all three per-task unique-ids exist in the entity registry.
         button_uid = f"home_keeper_{task_id}_done"
         sensor_uid = f"home_keeper_{task_id}_next_due"
         binary_uid = f"home_keeper_{task_id}_overdue"
         reg_uids = _unique_ids_in_registry(ha)
-        assert button_uid in reg_uids, "button registry entry should exist before delete"
-        assert sensor_uid in reg_uids, "sensor registry entry should exist before delete"
-        assert binary_uid in reg_uids, "binary_sensor registry entry should exist before delete"
+        assert button_uid in reg_uids, (
+            "button registry entry should exist before delete"
+        )
+        assert sensor_uid in reg_uids, (
+            "sensor registry entry should exist before delete"
+        )
+        assert binary_uid in reg_uids, (
+            "binary_sensor registry entry should exist before delete"
+        )
 
         # Delete the task — this also triggers a config-entry reload.
         call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
@@ -109,7 +111,8 @@ def test_stale_per_task_entities_removed_after_task_deleted(ha):
             time.sleep(1)
 
         assert not stale_uids, (
-            f"stale entity registry entries should be removed after task deletion: {stale_uids}"
+            "stale entity registry entries should be removed after task deletion: "
+            f"{stale_uids}"
         )
 
     finally:

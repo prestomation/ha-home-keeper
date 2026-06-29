@@ -34,24 +34,25 @@ async def async_setup_entry(
 
     # Remove entity-registry entries for per-task buttons whose task no longer
     # exists (e.g. after disabling Problem Sensor Sync or deleting a task).
-    live_ids = set(coordinator.device_attached_task_ids())
+    task_ids = coordinator.device_attached_task_ids()
+    live_ids = set(task_ids)
     reg = er.async_get(hass)
-    _prefix = f"{DOMAIN}_"
-    _suffix = "_done"
-    for entity_entry in list(reg.entities.get_entries_for_config_entry_id(entry.entry_id)):
+    prefix = f"{DOMAIN}_"
+    suffix = "_done"
+    for entity_entry in reg.entities.get_entries_for_config_entry_id(entry.entry_id):
         uid = entity_entry.unique_id or ""
         if (
-            entity_entry.entity_id.split(".", 1)[0] == "button"
-            and uid.startswith(_prefix)
-            and uid.endswith(_suffix)
+            entity_entry.domain == "button"
+            and uid.startswith(prefix)
+            and uid.endswith(suffix)
         ):
-            task_id = uid[len(_prefix) : -len(_suffix)]
+            task_id = uid[len(prefix) : -len(suffix)]
             if task_id not in live_ids:
                 reg.async_remove(entity_entry.entity_id)
 
     async_add_entities(
         HomeKeeperMarkDoneButton(coordinator, task_id)
-        for task_id in coordinator.device_attached_task_ids()
+        for task_id in task_ids
         if problem_source(coordinator.data[task_id]) is None
     )
 
