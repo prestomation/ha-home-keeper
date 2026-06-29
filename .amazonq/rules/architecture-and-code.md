@@ -146,7 +146,9 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   (`assets._TEXT_FIELDS`) synced into `DeviceInfo` by `devices._reconcile_virtual`
   (serial guarded by `_supports_kwarg`). A virtual device's `configuration_url`
   deep-links to **that appliance's** panel page
-  (`homeassistant://navigate/home-keeper/appliances/<asset_id>`), not the panel root.
+  (`homeassistant://home-keeper/appliances/<asset_id>`), not the panel root — **no**
+  `navigate/` segment (the device page renders `homeassistant://X` as `/X`; a
+  `navigate/...` URL becomes a dead `/navigate/...` link that bounces to the dashboard).
 - **Per-part stock entities** (virtual appliances only): a `number` (spare count, edits
   delegate to `store.adjust_part_stock`) for each `assets.part_tracks_stock` part, and a
   `PROBLEM` `binary_sensor` (`assets.part_is_low`) for each `assets.part_has_reorder`

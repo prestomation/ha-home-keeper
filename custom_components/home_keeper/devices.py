@@ -39,8 +39,14 @@ def _asset_configuration_url(asset_id: str) -> str:
     The panel is route-driven (``parseRoute``/``buildPath``): an appliance detail lives
     at ``/home-keeper/appliances/<asset_id>``, so the device page's "Visit" link lands
     on that appliance — its documents/inventory/history — rather than the panel root.
+
+    The device page renders a ``homeassistant://`` ``configuration_url`` by replacing
+    the scheme with ``/`` (``homeassistant://X`` -> ``/X``) — there is **no**
+    ``navigate/`` action segment on the web frontend, so the URL must be the bare in-app
+    path. ``homeassistant://navigate/...`` produces a dead ``/navigate/...`` link that
+    bounces to the default dashboard.
     """
-    return f"homeassistant://navigate/{PANEL_URL_PATH}/appliances/{asset_id}"
+    return f"homeassistant://{PANEL_URL_PATH}/appliances/{asset_id}"
 
 
 def area_exists(hass: HomeAssistant, area_id: str | None) -> bool:

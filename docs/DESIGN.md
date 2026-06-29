@@ -129,7 +129,7 @@ only in the panel.
 ### Smaller HA integration points
 
 `area_id` is validated at the HA boundary (`devices.area_exists`) for both tasks and
-assets; virtual devices set `configuration_url` (a `homeassistant://navigate` deep
+assets; virtual devices set `configuration_url` (a `homeassistant://` deep
 link straight to that appliance's panel page — see "Device page enrichment" below) —
 but **not** `entry_type=service`, which would wrongly mark a physical appliance as a
 non-physical service entry. An optional mdi `icon` rides on the asset (applied to its
@@ -169,9 +169,12 @@ device-info block and `configuration_url` belong to whoever owns the device:
   make/model (the legacy "Serial number" *metadata seed* remains for anyone already
   using it; the first-class field is what feeds the registry).
 - **A precise "Visit" deep link.** `configuration_url` is
-  `homeassistant://navigate/home-keeper/appliances/<asset_id>` (was the panel root) so
-  the device page lands directly on that appliance's panel detail — where its documents
+  `homeassistant://home-keeper/appliances/<asset_id>` (was the panel root) so the device
+  page lands directly on that appliance's panel detail — where its documents
   (manuals/warranties/receipts) and full parts inventory render as real links/lists.
+  (The device page renders a `homeassistant://X` config URL as the in-app path `/X` —
+  there is **no** `navigate/` action segment on the web frontend, so a `navigate/...`
+  URL renders as a dead `/navigate/...` link and bounces to the default dashboard.)
   This is the bridge for the data that *can't* live on the device page: entity
   attributes are never linkified or markdown-rendered there, so links and lists belong
   in the panel, reached in one click.
