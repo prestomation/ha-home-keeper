@@ -174,7 +174,10 @@ device-info block and `configuration_url` belong to whoever owns the device:
   (manuals/warranties/receipts) and full parts inventory render as real links/lists.
   (The device page renders a `homeassistant://X` config URL as the in-app path `/X` —
   there is **no** `navigate/` action segment on the web frontend, so a `navigate/...`
-  URL renders as a dead `/navigate/...` link and bounces to the default dashboard.)
+  URL renders as a dead `/navigate/...` link and bounces to the default dashboard.
+  Caveat: the **companion mobile app** has historically used the `homeassistant://navigate/<path>`
+  deep-link form, so the two clients may disagree on the right value; the web/desktop
+  frontend is the supported surface here, and the bare-path form is verified there.)
   This is the bridge for the data that *can't* live on the device page: entity
   attributes are never linkified or markdown-rendered there, so links and lists belong
   in the panel, reached in one click.

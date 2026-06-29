@@ -112,8 +112,15 @@ class HomeKeeperPartStockNumber(CoordinatorEntity[HomeKeeperCoordinator], Number
     async def async_set_native_value(self, value: float) -> None:
         """Set the on-hand count by adjusting toward *value* (fires stock events)."""
         part = self._part()
-        current = int(part.get("stock") or 0) if part else 0
-        delta = int(value) - current
+        if part is None:
+            # The part (or its appliance) was removed between render and submit — the
+            # entity will be pruned on the next reload, so there's nothing to adjust
+            # (and adjust_part_stock would raise an unlocalized KeyError).
+            return
+        current = int(part.get("stock") or 0)
+        # round() (not int()) so a raw service call with a fractional value snaps to the
+        # nearest whole spare rather than truncating toward zero.
+        delta = round(value) - current
         if delta:
             await self.coordinator.store.adjust_part_stock(
                 self._asset_id, self._part_id, delta

@@ -39,7 +39,9 @@ def _metadata_details(asset: dict[str, Any]) -> str:
 
     Keeps the descriptive facts (warranty, purchase date, provider…) — now
     user-defined rather than fixed columns — discoverable in the export without a
-    prescriptive column per field. (Serial number is a first-class column, not here.)
+    prescriptive column per field. Serial number has its own first-class column; a
+    legacy free-form "Serial" *metadata* entry (if the user added one before the field
+    existed) still rides here too, so it can appear in both places.
     """
     parts = []
     for entry in asset.get("metadata") or []:
