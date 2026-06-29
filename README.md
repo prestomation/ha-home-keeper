@@ -462,48 +462,21 @@ record their warranty. Home Keeper fills that gap with **appliances**, managed f
   provides and enrich it with the same metadata, without owning it.
 
 Either way you record **asset metadata**. A few structured fields wire into Home
-Assistant — manufacturer/model, **serial number**, an mdi icon, a manual link,
-replacement cost — and beyond that you add free-form **custom fields**, each a label
-with a value typed as **text**, **link**, or **date** (seeded with common ones like
-warranty expiry, purchase/install dates). Tick **track** on a date and it becomes a real
-`date` **sensor** on the device page, so it's automatable natively (e.g. *"warranty
-expiring in 30 days → notify me"*). Untracked dates stay display-only.
+Assistant — manufacturer/model, an mdi icon, a manual link, replacement cost — and
+beyond that you add free-form **custom fields**, each a label with a value typed as
+**text**, **link**, or **date** (seeded with common ones like serial number, warranty
+expiry, purchase/install dates). Tick **track** on a date and it becomes a real `date`
+**sensor** on the device page, so it's automatable natively (e.g. *"warranty expiring
+in 30 days → notify me"*). Untracked dates stay display-only.
 
 Tapping an appliance opens a **detail page** gathering its metadata, parts, related
 tasks, subdevices, and full maintenance history (including retained history of tasks
-deleted while still assigned to it). The **"Virtual device"** chip (on both the list and
-the detail) links straight to the appliance's Home Assistant device page. The tab also has an **Export inventory** button
+deleted while still assigned to it). The tab also has an **Export inventory** button
 that downloads a CSV **home inventory** — make/model, replacement cost, value of spares
 on hand (with a grand total), and a Details column flattening each appliance's custom
 fields. It's the grab-and-go record you want for an insurance claim.
 
 ![Appliance detail page](docs/images/8-panel-appliance-detail.png)
-
-### What you see on the device page
-
-A virtual appliance's Home Assistant **device page** (Settings → Devices & Services →
-Devices → *your appliance*) becomes a real maintenance summary. Home Keeper fills its
-**device-info block** with make/model and the **serial number**, and points the page's
-**Visit** link straight at that appliance's panel page — one click from the device page
-to its manuals, full parts inventory, and history (links and lists that can't render on
-the device page itself).
-
-Grouped under the device you get, automatically:
-
-- **Spare-stock controls** — each part you track stock for shows an editable *spares*
-  number you can adjust right on the page (it draws down/refills the same count
-  automations use), plus a **low-stock** problem sensor that turns on when on-hand
-  spares hit the reorder threshold (here the *Anode rod*, with 1 left and a reorder-at
-  of 2).
-- The per-task **next-due** sensor, **overdue** problem sensor, and **mark-done** button
-  for every maintenance task on the appliance, and the **tracked-date** sensors
-  (purchase/install/warranty).
-
-This is the appliance side of the picture; a task attached to a *foreign* device (one
-another integration owns) still gets its next-due/overdue/mark-done entities there, but
-Home Keeper leaves that device's info block and Visit link to its owner.
-
-![A virtual appliance's HA device page — make/model/serial in the device-info block with a Visit deep link into the panel, per-part spare-stock numbers and a low-stock problem sensor, alongside per-task mark-done buttons and tracked-date sensors](docs/images/device-page-appliance.png)
 
 ### Parts & wear items
 
