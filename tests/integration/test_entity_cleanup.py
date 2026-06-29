@@ -58,7 +58,7 @@ def test_stale_per_task_entities_removed_after_task_deleted(ha):
             "name": "Entity cleanup probe task",
             "recurrence_type": "floating",
             "interval": 1,
-            "unit": "years",
+            "unit": "months",
             # A fake device_id gives the task per-task entities on a self-owned
             # synthetic device (the same pattern used in test_lifecycle.py).
             "device_id": "cleanup_probe_fake_device_104",
