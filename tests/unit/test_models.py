@@ -860,3 +860,132 @@ def test_merge_update_leaves_card_links_untouched_when_absent():
     )
     updated = m.merge_update(task, {"name": "Replace the filter"}, now=NOW)
     assert updated["card_links"] == [{"asset_id": "a1", "entry_id": "d1"}]
+
+
+# ── task_chips ───────────────────────────────────────────────────────────────
+
+
+def test_normalize_task_chips_label_only():
+    result = m.normalize_task_chips([{"label": "2x AAA"}])
+    assert result == [{"label": "2x AAA"}]
+
+
+def test_normalize_task_chips_with_icon():
+    result = m.normalize_task_chips([{"label": "2x AAA", "icon": "mdi:battery"}])
+    assert result == [{"label": "2x AAA", "icon": "mdi:battery"}]
+
+
+def test_normalize_task_chips_with_url():
+    result = m.normalize_task_chips(
+        [{"label": "CR2032", "url": "https://example.com/battery"}]
+    )
+    assert result == [{"label": "CR2032", "url": "https://example.com/battery"}]
+
+
+def test_normalize_task_chips_full():
+    result = m.normalize_task_chips(
+        [{"label": "CR2032", "icon": "mdi:battery", "url": "https://example.com"}]
+    )
+    assert result == [
+        {"label": "CR2032", "icon": "mdi:battery", "url": "https://example.com"}
+    ]
+
+
+def test_normalize_task_chips_drops_empty_label():
+    result = m.normalize_task_chips([{"label": ""}, {"label": "AAA"}])
+    assert result == [{"label": "AAA"}]
+
+
+def test_normalize_task_chips_defaults_empty():
+    assert m.normalize_task_chips(None) == []
+    assert m.normalize_task_chips([]) == []
+    assert m.normalize_task_chips("") == []
+
+
+def test_normalize_task_chips_rejects_non_list():
+    with pytest.raises(m.TaskValidationError, match="must be a list"):
+        m.normalize_task_chips("AAA")
+
+
+def test_normalize_task_chips_rejects_non_object_entry():
+    with pytest.raises(m.TaskValidationError, match="must be an object"):
+        m.normalize_task_chips(["AAA"])
+
+
+def test_normalize_task_chips_rejects_invalid_icon():
+    with pytest.raises(m.TaskValidationError, match="mdi:"):
+        m.normalize_task_chips([{"label": "AAA", "icon": "battery"}])
+
+
+def test_normalize_task_chips_rejects_invalid_url():
+    with pytest.raises(m.TaskValidationError, match="http"):
+        m.normalize_task_chips([{"label": "AAA", "url": "ftp://nope"}])
+
+
+def test_build_task_carries_task_chips():
+    chip = {"label": "2x AAA", "icon": "mdi:battery"}
+    task = m.build_task(
+        {
+            "name": "Replace battery",
+            "recurrence_type": "triggered",
+            "task_chips": [chip],
+        },
+        now=NOW,
+    )
+    assert task["task_chips"] == [chip]
+
+
+def test_build_task_defaults_task_chips_to_empty():
+    task = m.build_task(
+        {
+            "name": "Mow lawn",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "weeks",
+        },
+        now=NOW,
+    )
+    assert task["task_chips"] == []
+
+
+def test_merge_update_sets_task_chips_when_provided():
+    task = m.build_task(
+        {"name": "Replace battery", "recurrence_type": "triggered"},
+        now=NOW,
+    )
+    chip = {"label": "CR2032", "icon": "mdi:battery"}
+    updated = m.merge_update(task, {"task_chips": [chip]}, now=NOW)
+    assert updated["task_chips"] == [chip]
+
+
+def test_merge_update_leaves_task_chips_untouched_when_absent():
+    chip = {"label": "2x AAA", "icon": "mdi:battery"}
+    task = m.build_task(
+        {
+            "name": "Replace battery",
+            "recurrence_type": "triggered",
+            "task_chips": [chip],
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"name": "Replace the battery"}, now=NOW)
+    assert updated["task_chips"] == [chip]
+
+
+def test_merge_update_clears_task_chips_when_sent_empty():
+    chip = {"label": "2x AAA", "icon": "mdi:battery"}
+    task = m.build_task(
+        {
+            "name": "Replace battery",
+            "recurrence_type": "triggered",
+            "task_chips": [chip],
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"task_chips": []}, now=NOW)
+    assert updated["task_chips"] == []
+
+
+def test_normalize_task_chips_rejects_mdi_empty_suffix():
+    with pytest.raises(m.TaskValidationError, match="non-empty name"):
+        m.normalize_task_chips([{"label": "x", "icon": "mdi:"}])

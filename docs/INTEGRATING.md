@@ -413,6 +413,56 @@ it independent of the wear-part reconciler, so it is never auto-deleted and stay
 editable. A reconciler-derived wear-part task is already bound to its part and cannot be
 re-linked by hand.
 
+### Attaching metadata chips to a task (`task_chips`)
+
+Any task can carry a list of **integration-provided metadata chips** that appear in
+both the sidebar panel's task list and the dashboard card. Chips are a compact way to
+surface contextual information alongside a task — for example, the battery type needed
+to replace a low battery, or a part number.
+
+**Schema** — each chip is an object with one required and two optional fields:
+
+| Field   | Required | Description |
+|---------|----------|-------------|
+| `label` | ✅ | Display text shown on the chip. |
+| `icon`  | optional | An `mdi:` icon name (e.g. `mdi:battery`). Shown at the start of the chip. |
+| `url`   | optional | An `http(s)://` URL. When present the chip becomes a clickable link (opens in a new tab). |
+
+Pass `task_chips` in your `add_task` call:
+
+```yaml
+service: home_keeper.add_task
+data:
+  name: "Replace battery: Front door sensor"
+  recurrence_type: triggered
+  device_id: "abc123"
+  task_chips:
+    - label: "2× AAA"
+      icon: "mdi:battery"
+  managed_by:
+    integration: my_integration
+    display_name: My Integration
+    deletion_protected: true
+    config_entry_id: "..."
+```
+
+Chips can also be updated later via `update_task`. Home Keeper only rewrites `task_chips`
+when you explicitly send the field — a routine name/notes update will never clear chips
+set at creation time:
+
+```yaml
+service: home_keeper.update_task
+data:
+  task_id: "<task id>"
+  task_chips:
+    - label: "CR2032"
+      icon: "mdi:battery"
+```
+
+**Chips are integration-owned** — the panel does not expose a chip editor to users.
+Chips survive renaming (they are stored on the task, not derived at render time) and
+are included in every `home_keeper_task_*` event's payload under `task_chips`.
+
 ## 7. Discovery: announce yourself so users can find you (optional)
 
 Everything above works without Home Keeper knowing your integration exists. But users

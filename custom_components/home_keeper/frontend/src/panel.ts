@@ -188,6 +188,7 @@ const STYLES = `
     --md-assist-chip-outline-color: transparent;
   }
   .hk-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .hk-task-chip-link { display: contents; }
   ha-assist-chip.hk-device-chip { cursor: pointer; }
   .hk-managed-prompt {
     font-size: 0.85rem; color: var(--secondary-text-color);
@@ -1629,6 +1630,7 @@ export class HomeKeeperPanel extends HTMLElement {
       : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
     const dev = task.device_id ? this._deviceChip(task.device_id) : '';
     const managedChip = this._managedChip(task);
+    const taskChips = this._taskChipsHtml(task);
     // A completed one-off (do-once, now dormant) shows when it was done instead of a
     // due date.
     const completedOneOff =
@@ -1666,7 +1668,7 @@ export class HomeKeeperPanel extends HTMLElement {
           <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(task.name)}</div>
             <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${overdueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
-            <div class="hk-chips">${statusChip}${dev}${managedChip}</div>
+            <div class="hk-chips">${statusChip}${dev}${taskChips}${managedChip}</div>
           </div>
           <div class="hk-card-actions">
             ${doneAction}
@@ -1789,6 +1791,7 @@ export class HomeKeeperPanel extends HTMLElement {
       : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
     const dev = task.device_id ? this._deviceChip(task.device_id) : '';
     const managedChip = this._managedChip(task);
+    const taskChips = this._taskChipsHtml(task);
     const mb = task.managed_by;
 
     // Source-owned tasks (reconciler-derived wear parts, synced problem sensors) are
@@ -1851,7 +1854,7 @@ export class HomeKeeperPanel extends HTMLElement {
     return `
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
-        <div class="hk-chips">${statusChip}${dev}${managedChip}</div>
+        <div class="hk-chips">${statusChip}${dev}${taskChips}${managedChip}</div>
         <div class="hk-detail-actions">
           ${doneBtn}
           ${manage}
@@ -2071,6 +2074,22 @@ export class HomeKeeperPanel extends HTMLElement {
   private _isManagedOrphan(task: Task): boolean {
     const id = task.managed_by?.config_entry_id;
     return Boolean(id) && !this._loadedEntryIds.has(id as string);
+  }
+
+  /** Renders integration-provided metadata chips (task_chips). Chips with a URL
+   *  become native links; icon slot is populated when present. */
+  private _taskChipsHtml(task: Task): string {
+    return (task.task_chips ?? [])
+      .map(({ label, icon, url }) => {
+        const iconSlot = icon
+          ? `<ha-icon slot="icon" icon="${escapeHTML(icon)}" class="hk-chip-ic"></ha-icon>`
+          : '';
+        const chip = `<ha-assist-chip label="${escapeHTML(label)}">${iconSlot}</ha-assist-chip>`;
+        return url
+          ? `<a class="hk-task-chip-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
+          : chip;
+      })
+      .join('');
   }
 
   /** Renders a "Managed by X" chip (or "Integration offline" if orphaned). */

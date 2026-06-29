@@ -278,7 +278,13 @@
           "completion_prompt": "Mark battery as replaced?",
           "deletion_protected": true,
           "config_entry_id": "home_keeper_test_entry"
-        }
+        },
+        "task_chips": [
+          {
+            "label": "2× AAA",
+            "icon": "mdi:battery"
+          }
+        ]
       },
       "task_smoke_battery": {
         "id": "task_smoke_battery",
