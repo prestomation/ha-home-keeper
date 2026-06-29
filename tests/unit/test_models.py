@@ -970,3 +970,22 @@ def test_merge_update_leaves_task_chips_untouched_when_absent():
     )
     updated = m.merge_update(task, {"name": "Replace the battery"}, now=NOW)
     assert updated["task_chips"] == [chip]
+
+
+def test_merge_update_clears_task_chips_when_sent_empty():
+    chip = {"label": "2x AAA", "icon": "mdi:battery"}
+    task = m.build_task(
+        {
+            "name": "Replace battery",
+            "recurrence_type": "triggered",
+            "task_chips": [chip],
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"task_chips": []}, now=NOW)
+    assert updated["task_chips"] == []
+
+
+def test_normalize_task_chips_rejects_mdi_empty_suffix():
+    with pytest.raises(m.TaskValidationError, match="non-empty name"):
+        m.normalize_task_chips([{"label": "x", "icon": "mdi:"}])

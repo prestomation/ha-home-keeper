@@ -139,6 +139,7 @@ Every task event carries this core (per-event extras noted above are merged in):
 | `labels` | `list[str]` | HA label-registry ids attached to the task (empty list when none); used by the dashboard card's label filter |
 | `source` | `dict \| None` | opaque provenance, echoed verbatim ([INTEGRATING.md](INTEGRATING.md)) |
 | `managed_by` | `dict \| None` | well-known ownership block, or `None` |
+| `task_chips` | `list[dict]` | integration-provided metadata chips (empty list when none); each entry has `label`, optional `icon` (`mdi:` name), optional `url` (`http(s)://`) |
 
 ### Stock event payload
 

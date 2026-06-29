@@ -38,6 +38,7 @@ def task_event_data(
         "labels": task.get("labels", []),
         "source": task.get("source"),
         "managed_by": task.get("managed_by"),
+        "task_chips": task.get("task_chips", []),
     }
     if extra:
         data.update(extra)

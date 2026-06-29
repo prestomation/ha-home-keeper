@@ -154,6 +154,7 @@ const STYLES = `
   }
   .hk-notes { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
   .hk-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .hk-chip-ic { width: 16px; height: 16px; --mdc-icon-size: 16px; color: inherit; }
   /* Per-task document chips: a row of compact, clearly-tappable affordances that open
      the appliance's manual / file / other associated URL in a new tab. */
   .hk-task-chip-link { display: contents; }

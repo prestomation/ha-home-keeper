@@ -36,6 +36,7 @@ def test_payload_has_contract_fields():
         "labels": ["dog"],
         "source": {"pawsistant": {"schedule_id": "s1"}},
         "managed_by": None,
+        "task_chips": [],
         "completed_at": WHEN.isoformat(),
         "origin": "pawsistant",
     }
@@ -49,6 +50,7 @@ def test_task_event_spine_defaults_and_extra():
     assert data["enabled"] is True and data["next_due"] is None
     assert data["source"] is None and data["managed_by"] is None
     assert data["labels"] == []  # defaults to empty for a label-less task
+    assert data["task_chips"] == []  # defaults to empty for a chip-less task
     assert data["changed_fields"] == ["name"]
 
 

@@ -252,9 +252,9 @@ def normalize_task_chips(value: Any) -> list[dict[str, str]]:
             continue
         chip: dict[str, str] = {"label": label}
         if icon := str(item.get("icon", "")).strip():
-            if not icon.startswith("mdi:"):
+            if not (icon.startswith("mdi:") and len(icon) > 4):
                 raise TaskValidationError(
-                    f"task_chips icon must start with 'mdi:': {icon!r}"
+                    f"task_chips icon must be 'mdi:<name>' with a non-empty name: {icon!r}"
                 )
             chip["icon"] = icon
         if url := str(item.get("url", "")).strip():
