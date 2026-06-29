@@ -20,6 +20,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 from . import assets as asset_model
 from .const import (
@@ -145,6 +146,42 @@ async def async_reconcile_assets(
         ):
             _LOGGER.debug("Removing orphaned asset device %s", device.id)
             registry.async_remove_device(device.id)
+
+
+async def async_prune_orphaned_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Drop Home Keeper from devices that no longer carry any of our entities.
+
+    Per-task entities (``sensor.*_next_due``, ``binary_sensor.*_overdue``) attach to
+    the task's device — an existing/shared device, or a self-owned device we create
+    when the task has none. When the task goes away (Problem Sensor Sync disabled, an
+    entity/device/area/label excluded, or an ordinary delete) the platforms remove
+    those entities, but Home Assistant keeps the device/association — so the device
+    lingers under **Settings → Devices & Services → Home Keeper** with zero entities.
+
+    Call this *after* ``async_forward_entry_setups`` so the entity registry already
+    reflects the current set, then drop our config-entry link from any non-asset
+    device we no longer have an entity on. ``async_update_device`` removes a
+    self-owned device outright (we were its last config entry) and merely detaches us
+    from a shared device (its real owner keeps it). Virtual asset devices may be
+    legitimately entity-less and are reconciled by ``async_reconcile_assets``, so
+    they are skipped here.
+    """
+    dev_reg = dr.async_get(hass)
+    ent_reg = er.async_get(hass)
+    for device in list(dr.async_entries_for_config_entry(dev_reg, entry.entry_id)):
+        if _is_asset_device(device):
+            continue
+        has_our_entity = any(
+            entity.config_entry_id == entry.entry_id
+            for entity in er.async_entries_for_device(
+                ent_reg, device.id, include_disabled_entities=True
+            )
+        )
+        if not has_our_entity:
+            _LOGGER.debug("Pruning Home Keeper from orphaned device %s", device.id)
+            dev_reg.async_update_device(
+                device.id, remove_config_entry_id=entry.entry_id
+            )
 
 
 async def _reconcile_virtual(
