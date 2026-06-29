@@ -8,6 +8,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
@@ -25,6 +26,24 @@ async def async_setup_entry(
 ) -> None:
     """Create an overdue binary sensor for each device-attached task."""
     coordinator: HomeKeeperCoordinator = entry.runtime_data
+
+    # Remove entity-registry entries for per-task binary sensors whose task no
+    # longer exists (e.g. after disabling Problem Sensor Sync or deleting a task).
+    live_ids = set(coordinator.device_attached_task_ids())
+    reg = er.async_get(hass)
+    _prefix = f"{DOMAIN}_"
+    _suffix = "_overdue"
+    for entity_entry in list(reg.entities.get_entries_for_config_entry_id(entry.entry_id)):
+        uid = entity_entry.unique_id or ""
+        if (
+            entity_entry.entity_id.split(".", 1)[0] == "binary_sensor"
+            and uid.startswith(_prefix)
+            and uid.endswith(_suffix)
+        ):
+            task_id = uid[len(_prefix) : -len(_suffix)]
+            if task_id not in live_ids:
+                reg.async_remove(entity_entry.entity_id)
+
     async_add_entities(
         HomeKeeperOverdueBinarySensor(coordinator, task_id)
         for task_id in coordinator.device_attached_task_ids()

@@ -18,6 +18,7 @@ from typing import Any
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -47,6 +48,24 @@ async def async_setup_entry(
 ) -> None:
     """Create next-due sensors for device-attached tasks and asset date sensors."""
     coordinator: HomeKeeperCoordinator = entry.runtime_data
+
+    # Remove entity-registry entries for per-task sensors whose task no longer
+    # exists (e.g. after disabling Problem Sensor Sync or deleting a task).
+    live_ids = set(coordinator.device_attached_task_ids())
+    reg = er.async_get(hass)
+    _prefix = f"{DOMAIN}_"
+    _suffix = "_next_due"
+    for entity_entry in list(reg.entities.get_entries_for_config_entry_id(entry.entry_id)):
+        uid = entity_entry.unique_id or ""
+        if (
+            entity_entry.entity_id.split(".", 1)[0] == "sensor"
+            and uid.startswith(_prefix)
+            and uid.endswith(_suffix)
+        ):
+            task_id = uid[len(_prefix) : -len(_suffix)]
+            if task_id not in live_ids:
+                reg.async_remove(entity_entry.entity_id)
+
     entities: list[SensorEntity] = [
         HomeKeeperNextDueSensor(coordinator, task_id)
         for task_id in coordinator.device_attached_task_ids()
