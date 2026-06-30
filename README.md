@@ -21,6 +21,16 @@ changes, water filters, taking medicine, and anything else that recurs.
 
 ![Home Keeper task list](docs/images/1-panel-task-list.png)
 
+## See it in action
+
+A quick walkthrough of the admin panel — the task list, opening a task's history,
+creating a task, an appliance's detail page, the Companions settings, and the native
+to-do + calendar usage surfaces:
+
+![Home Keeper panel walkthrough](docs/videos/walkthrough.gif)
+
+> ▶️ Higher-quality [MP4 version](docs/videos/walkthrough.mp4).
+
 ## Features at a glance
 
 - **Tasks, five ways** — **floating** (every N units after last done), **fixed**

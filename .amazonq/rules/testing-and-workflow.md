@@ -7,11 +7,22 @@
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).
+- **Post a video walkthrough to the PR for any change that adds a _new user-facing
+  UI feature_** (hard gate; bug-fix/styling PRs need only screenshots). Capture via
+  `ci/capture-video.sh` (`tests/e2e/walkthrough.capture.ts` →
+  `walkthrough.config.ts`), which records a WebM and transcodes it with ffmpeg to
+  `docs/videos/walkthrough.mp4` (primary) + `.gif` (fallback); the `.webm` is
+  gitignored. Embed both a SHA-pinned `<video>` (mp4) and an `<img>` GIF fallback in
+  the PR body (inline `<video>` from `raw.githubusercontent.com` is unreliable, so
+  the GIF guarantees motion is visible). Extend the tour in `walkthrough.capture.ts`
+  for a new surface in the same PR, and visually inspect the GIF before committing.
 - **Document new major features in `README.md` in the same change** — add a brief
   section covering the **use cases** (what problem it solves) and a little about
   **how it's used**, with **screenshot(s)** (capture via the Playwright harness,
   commit under `docs/images/`, embed in the README with a relative `docs/images/…`
-  path). A new headline feature isn't "done" until the README shows it.
+  path). A new headline feature isn't "done" until the README shows it. The README
+  also embeds the panel **video walkthrough** once (`docs/videos/walkthrough.gif`,
+  relative path); the harness keeps that single tour current.
 
 ## Tests (run locally before pushing — never use CI as the test runner)
 - The recurrence engine and model are the correctness core: keep them HA-free and

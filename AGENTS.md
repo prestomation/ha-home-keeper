@@ -84,11 +84,57 @@
     (empty dialog, missing elements, `position:fixed` overlay not visible in a
     fullPage capture), diagnose the root cause and fix it before committing. Do not
     commit screenshots that don't clearly show the intended UI state.
+- **Every PR that adds a _new user-facing UI feature_ MUST include a short video
+  walkthrough of that surface — no exceptions.** Screenshots prove a surface
+  renders; a video proves the *interaction* works (the flow, the transitions, the
+  motion). This is a hard gate for feature PRs: a new UI feature is not "done" until
+  the PR body embeds a current walkthrough of it. (Pure bug-fix / styling / copy
+  PRs stay on the screenshots gate above — they don't need a video.) The capture
+  harness is `tests/e2e/walkthrough.capture.ts` (the test) driven by
+  `walkthrough.config.ts` (the config — **pass this one to `--config`**), and
+  `ci/capture-video.sh` wraps it and transcodes the recording. It reuses the same
+  authenticated, seeded HA container as the screenshots harness — Chromium records
+  a WebM at the browser-context level, which ffmpeg transcodes to an `mp4` (primary)
+  and a `gif` (fallback) under `docs/videos/`. Step-by-step:
+  ```bash
+  # 1. Start HA and leave it running (from repo root)
+  KEEP_UP=1 bash ci/e2e-up.sh
+
+  # 2. Capture + transcode (needs ffmpeg on PATH). In the Claude Code remote
+  #    environment, point Playwright at the pre-installed Chromium as for screenshots.
+  CHROMIUM_EXEC=$(ls /opt/pw-browsers/chromium-*/chrome-linux/chrome 2>/dev/null | head -1) \
+    bash ci/capture-video.sh
+  ```
+  When the feature adds a brand-new UI surface, extend the tour in
+  `walkthrough.capture.ts` to step through it (deliberate `BEAT` pauses so the motion
+  reads well) in the same PR — the walkthrough is the single moving demo of the panel,
+  kept current like the screenshots.
+  - **Commit `docs/videos/*.mp4` and `*.gif`; the intermediate `*.webm` is
+    gitignored.** Embed in the PR body with **both** an HTML `<video>` (the mp4) and
+    an `<img>` GIF fallback, each SHA-pinned to the commit that added them:
+    ```html
+    <video src="https://raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/videos/walkthrough.mp4" controls muted width="820"></video>
+    <img src="https://raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/videos/walkthrough.gif" alt="Home Keeper walkthrough" width="820">
+    ```
+    Inline `<video>` playback from a `raw.githubusercontent.com` URL is not always
+    reliable in a rendered PR body, so the GIF (which embeds exactly like a
+    screenshot) is what guarantees reviewers see motion. In-repo README/docs markdown
+    can use a relative `docs/videos/…` path. After editing the body, re-read it and
+    verify each URL returns HTTP 200.
+  - **Always visually inspect the captured video before committing it** (same rule as
+    screenshots): open the GIF with the Read tool and confirm the tour shows the
+    intended surfaces — populated lists, the feature's flow, no blank/stuck frames.
+    If it looks wrong (a step raced ahead of a render, an empty dialog), fix the
+    pacing/selectors and re-capture. Don't commit a walkthrough that doesn't clearly
+    show the feature working.
 - **Always document new major features in `README.md` in the same change.** Add a
   brief section with the **use cases** (what problem it solves) and a little about
   **how it's used**, and include **screenshot(s)** (same Playwright capture, committed
   under `docs/images/`, embedded with a relative `docs/images/…` path). A headline
-  feature isn't done until the README shows it.
+  feature isn't done until the README shows it. The panel's **video walkthrough**
+  (`docs/videos/walkthrough.*`) is the moving counterpart — README embeds it once
+  (relative `docs/videos/…` path) and the harness keeps it current; an
+  interaction-heavy headline feature should be visible in that tour.
 - **Always request an Amazon Q (Cue) review after every push and when opening a
   PR.** Immediately after pushing a commit (or opening a PR), post a PR comment
   of the form `/q review {request}`. Cue gives better results when explicitly

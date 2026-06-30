@@ -18,6 +18,10 @@ tests/e2e/.auth/
 tests/e2e/playwright-report/
 tests/e2e/test-results/
 
+# Intermediate raw recording from the video walkthrough capture (ci/capture-video.sh);
+# the committed deliverables are docs/videos/*.mp4 and *.gif, not the source .webm.
+docs/videos/*.webm
+
 # e2e: Docker creates this dir as the bind-mount target for the integration under
 # test and the stub companion integrations (see tests/integration/docker-compose.yml).
 tests/integration/ha_config/custom_components/
