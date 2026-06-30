@@ -1,14 +1,28 @@
 name: Docs site — deploy
 
 on:
-  # Deploy only when a stable (non-pre-release) GitHub Release is published.
-  # This keeps the live docs pinned to the latest release so users don't see
-  # documentation for unreleased features.
-  release:
-    types: [released]
-  # Keep workflow_dispatch for emergency manual deploys (e.g. urgent typo fix
-  # that shouldn't wait for the next release).
+  # Called by release.yml after a *stable* release is cut. We can't use the
+  # `release: [released]` event here: that release is created by release.yml
+  # with the default GITHUB_TOKEN, and events triggered by GITHUB_TOKEN never
+  # start a new workflow run (GitHub's anti-recursion safeguard) — so the event
+  # would silently never fire. A workflow_call runs inside the same triggering
+  # run, sidestepping that restriction. `ref` is the tag to build docs from, so
+  # the live site stays pinned to the released commit (not main HEAD).
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref (release tag) to build the docs from.
+        required: false
+        type: string
+  # Manual deploys: emergency fixes, or the one-time recovery of a release that
+  # shipped before this pipeline was wired up. Pass `ref` (e.g. v0.7.0) to pin
+  # to a tag; omit it to build from the default branch HEAD.
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref (release tag) to build the docs from. Defaults to the branch HEAD.
+        required: false
+        type: string
 
 # Production publishes to the root of the gh-pages branch. PR previews live under
 # pr-preview/ on the same branch, so clean-exclude keeps them from being wiped.
@@ -22,15 +36,13 @@ concurrency:
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
-    # Skip pre-releases (betas, RCs) — only stable releases update the live docs.
-    # workflow_dispatch always runs so maintainers can deploy a manual fix at any time.
-    if: ${{ !github.event.release.prerelease || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
         with:
-          # For release events: check out the exact release tag commit.
-          # For workflow_dispatch: fall back to the default branch HEAD.
-          ref: ${{ github.event.release.tag_name || github.ref }}
+          # Build from the release tag passed by the caller (workflow_call) or by
+          # a manual dispatch. Falls back to the default branch HEAD when no ref
+          # is given (plain workflow_dispatch).
+          ref: ${{ inputs.ref || github.ref }}
 
       - uses: actions/setup-node@v4
         with:

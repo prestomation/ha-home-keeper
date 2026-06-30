@@ -49,12 +49,21 @@ harness.
 
 ## Deployment
 
-- **`docs-deploy.yml`** — fires when a stable GitHub Release is published (not
-  pre-releases). Checks out the release tag commit, injects `DOCS_VERSION` from
-  `manifest.json`, and publishes to the root of the `gh-pages` branch. The live site
-  is therefore always pinned to the latest stable release — users never see docs for
-  unreleased features. A `workflow_dispatch` trigger is available for emergency manual
-  deploys (e.g. an urgent typo fix that can't wait for the next release).
+- **`docs-deploy.yml`** — a reusable workflow (`workflow_call`) invoked by
+  `release.yml`'s `deploy-docs` job after a **stable** release is cut. It checks out
+  the release tag passed in via the `ref` input, injects `DOCS_VERSION` from
+  `manifest.json` (surfaced as the navbar version badge), and publishes to the root of
+  the `gh-pages` branch. The live site is therefore always pinned to the latest stable
+  release — users never see docs for unreleased features.
+  - It is **not** triggered by the `release: [released]` event: that release is
+    created by `release.yml` using the default `GITHUB_TOKEN`, and events triggered by
+    `GITHUB_TOKEN` never start a new workflow run (GitHub's anti-recursion safeguard),
+    so the event would silently never fire. Calling the workflow directly runs it
+    inside the same triggering run and sidesteps that restriction.
+  - A `workflow_dispatch` trigger is also available for emergency manual deploys (e.g.
+    an urgent typo fix that can't wait for the next release) and one-time recovery.
+    Pass a `ref` input (e.g. `v0.7.0`) to pin the build to a release tag; omit it to
+    build from the branch HEAD.
 - **`docs-preview.yml`** — on pull requests, builds a preview and publishes it under
   `pr-preview/pr-<n>/` on the `gh-pages` branch, posting a sticky comment with the
   preview URL. Previews are torn down when the PR closes.
