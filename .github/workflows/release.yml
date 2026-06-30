@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      prerelease: ${{ steps.check.outputs.prerelease }}
+      release: ${{ steps.check.outputs.release }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -122,3 +126,20 @@ jobs:
           draft: false
           prerelease: ${{ steps.check.outputs.prerelease == 'true' }}
           files: home_keeper.zip
+
+  # Deploy the docs site once a *stable* release has been cut. We call the deploy
+  # workflow directly (workflow_call) rather than relying on a `release: [released]`
+  # event — that event would be created by this job's GITHUB_TOKEN and so would
+  # never start a workflow run. Pinned to the freshly created tag so the live site
+  # tracks the released commit, never unreleased main HEAD.
+  deploy-docs:
+    needs: release
+    if: >-
+      needs.release.outputs.release == 'true' &&
+      needs.release.outputs.prerelease == 'false' &&
+      github.event_name != 'pull_request'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/docs-deploy.yml
+    with:
+      ref: "v${{ needs.release.outputs.version }}"
