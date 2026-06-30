@@ -11,11 +11,13 @@
   UI feature_** (hard gate; bug-fix/styling PRs need only screenshots). Capture via
   `ci/capture-video.sh` (`tests/e2e/walkthrough.capture.ts` →
   `walkthrough.config.ts`), which records a WebM and transcodes it with ffmpeg to
-  `docs/videos/walkthrough.mp4` (primary) + `.gif` (fallback); the `.webm` is
-  gitignored. Embed both a SHA-pinned `<video>` (mp4) and an `<img>` GIF fallback in
-  the PR body (inline `<video>` from `raw.githubusercontent.com` is unreliable, so
-  the GIF guarantees motion is visible). Extend the tour in `walkthrough.capture.ts`
-  for a new surface in the same PR, and visually inspect the GIF before committing.
+  `docs/videos/walkthrough.mp4` (higher-quality link) + `.gif` (the embed); the
+  `.webm` is gitignored. In the PR body, **embed the GIF** with a SHA-pinned HTML
+  `img` tag and **link** the mp4 with a plain SHA-pinned markdown link — GitHub's
+  issue/PR-body sanitizer *strips* a committed-file `video` tag entirely, so the GIF
+  is what carries the motion (the README uses a relative `docs/videos/…` GIF image).
+  Extend the tour in `walkthrough.capture.ts` for a new surface in the same PR, and
+  visually inspect the GIF before committing.
 - **Document new major features in `README.md` in the same change** — add a brief
   section covering the **use cases** (what problem it solves) and a little about
   **how it's used**, with **screenshot(s)** (capture via the Playwright harness,

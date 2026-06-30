@@ -110,17 +110,24 @@
   reads well) in the same PR — the walkthrough is the single moving demo of the panel,
   kept current like the screenshots.
   - **Commit `docs/videos/*.mp4` and `*.gif`; the intermediate `*.webm` is
-    gitignored.** Embed in the PR body with **both** an HTML `<video>` (the mp4) and
-    an `<img>` GIF fallback, each SHA-pinned to the commit that added them:
-    ```html
-    <video src="https://raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/videos/walkthrough.mp4" controls muted width="820"></video>
+    gitignored.** In the PR body, **the GIF is the embed and the mp4 is a link** —
+    GitHub's issue/PR-body sanitizer *strips* a committed-file HTML `video` tag
+    entirely (it does not just fail to play; it is removed, even when written inside
+    backticks), so do **not** rely on one there. Embed the GIF with a SHA-pinned HTML
+    `img` tag (it renders exactly like a screenshot) and link the higher-quality mp4
+    with a plain SHA-pinned markdown link:
+    ```text
     <img src="https://raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/videos/walkthrough.gif" alt="Home Keeper walkthrough" width="820">
+
+    ▶️ [Higher-quality MP4](https://raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/videos/walkthrough.mp4)
     ```
-    Inline `<video>` playback from a `raw.githubusercontent.com` URL is not always
-    reliable in a rendered PR body, so the GIF (which embeds exactly like a
-    screenshot) is what guarantees reviewers see motion. In-repo README/docs markdown
-    can use a relative `docs/videos/…` path. After editing the body, re-read it and
-    verify each URL returns HTTP 200.
+    (GitHub *does* auto-embed a *drag-and-drop-uploaded* video as a
+    `github.com/user-attachments/assets/…` URL, but that can't be produced
+    programmatically — committed-file URLs are what an agent can pin, so the GIF
+    carries the motion.) In-repo README/docs markdown is different: a relative
+    `docs/videos/walkthrough.gif` image works there too — use that for the README.
+    After editing the body, re-read it and verify the GIF/mp4 URLs each return HTTP
+    200 **and** that the GIF `img` tag actually survived in the stored body.
   - **Always visually inspect the captured video before committing it** (same rule as
     screenshots): open the GIF with the Read tool and confirm the tour shows the
     intended surfaces — populated lists, the feature's flow, no blank/stuck frames.
