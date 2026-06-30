@@ -285,7 +285,7 @@
   "notify.need_profile": "Lägg till en profil först — en avisering behöver en för att välja vad som ska skickas.",
   "field.consumable_link": "Länkad förbrukningsvara",
   "opt.consumable.none": "Inte länkad",
-  "chip.virtualDevice.tip": "Inte en riktig Home Assistant-enhet — en Home Keeper-post för delar, dokument och länkade uppgifter.",
+  "chip.virtualDevice.tip": "Öppna den här apparatens Home Assistant-enhetssida.",
   "chip.autoSynced": "Auto-synkroniserad",
   "chip.autoSynced.tip": "Skapas automatiskt från en sensor. Försvinner av sig själv när sensorn återgår till normalt — kan inte markeras klar här.",
   "done.autoClears": "Försvinner automatiskt",

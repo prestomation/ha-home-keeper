@@ -285,7 +285,7 @@
   "notify.need_profile": "Voeg eerst een profiel toe — een melding heeft er een nodig om te kiezen wat te sturen.",
   "field.consumable_link": "Gekoppeld verbruiksartikel",
   "opt.consumable.none": "Niet gekoppeld",
-  "chip.virtualDevice.tip": "Geen echt Home Assistant-apparaat — een Home Keeper-record voor onderdelen, documenten en gekoppelde taken.",
+  "chip.virtualDevice.tip": "Open de Home Assistant-apparaatpagina van dit apparaat.",
   "chip.autoSynced": "Auto-gesynchroniseerd",
   "chip.autoSynced.tip": "Automatisch gemaakt vanuit een sensor. Verdwijnt vanzelf als de sensor weer normaal is — hier niet af te vinken.",
   "done.autoClears": "Verdwijnt automatisch",

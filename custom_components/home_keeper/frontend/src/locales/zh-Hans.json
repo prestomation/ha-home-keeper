@@ -285,7 +285,7 @@
   "notify.need_profile": "请先添加配置文件——通知需要它来选择要发送的内容。",
   "field.consumable_link": "关联的耗材",
   "opt.consumable.none": "未关联",
-  "chip.virtualDevice.tip": "并非真正的 Home Assistant 设备——这是 Home Keeper 用于跟踪部件、文档和关联任务的记录。",
+  "chip.virtualDevice.tip": "打开此设备的 Home Assistant 设备页面。",
   "chip.autoSynced": "自动同步",
   "chip.autoSynced.tip": "由传感器自动创建。当传感器恢复正常时会自动清除——无法在此标记为完成。",
   "done.autoClears": "自动清除",

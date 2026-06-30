@@ -288,6 +288,7 @@ export interface Asset {
   icon?: string;
   manufacturer?: string;
   model?: string;
+  serial_number?: string;
   cost?: number | null;
   documents?: AssetDocument[];
   metadata?: MetadataEntry[];

@@ -286,6 +286,10 @@
           "name": "Model",
           "description": "Modelnaam of -nummer."
         },
+        "serial_number": {
+          "name": "Serienummer",
+          "description": "Serienummer (getoond in het infoblok van de apparaatpagina)."
+        },
         "cost": {
           "name": "Kosten",
           "description": "Aankoopprijs."
@@ -343,6 +347,10 @@
         "model": {
           "name": "Model",
           "description": "Modelnaam of -nummer."
+        },
+        "serial_number": {
+          "name": "Serienummer",
+          "description": "Serienummer (getoond in het infoblok van de apparaatpagina)."
         },
         "cost": {
           "name": "Kosten",
@@ -491,11 +499,19 @@
     "binary_sensor": {
       "overdue": {
         "name": "{task_name}Te laat"
+      },
+      "part_low_stock": {
+        "name": "{part} lage voorraad"
       }
     },
     "button": {
       "mark_done": {
         "name": "{task_name}Als klaar markeren"
+      }
+    },
+    "number": {
+      "part_spares": {
+        "name": "{part} reserveonderdelen"
       }
     }
   },

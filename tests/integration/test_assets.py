@@ -502,8 +502,10 @@ def test_export_inventory_service_returns_report_and_csv(ha):
     assert "assets" in report and "totals" in report
     wh = next(r for r in report["assets"] if r["name"] == "Garage water heater")
     assert wh["cost"] == 649.0
-    # Descriptive metadata (e.g. the serial) is flattened into the details summary.
-    assert "Serial: RH-0001" in wh["details"]
+    # Serial number is a first-class identity column on the insurance record.
+    assert wh["serial_number"] == "RH-2021-0099823"
+    # Other descriptive metadata (warranty, dates…) is flattened into details.
+    assert "Warranty expiry:" in wh["details"]
     assert report["totals"]["asset_count"] >= 1
     assert report["totals"]["total_cost"] >= 649.0
     # A ready-to-save CSV is included, with a header row naming the columns.

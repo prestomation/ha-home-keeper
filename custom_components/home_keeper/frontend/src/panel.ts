@@ -1680,7 +1680,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private _assetCard(x: Asset): string {
     const kindChip =
       x.kind === 'virtual'
-        ? `<ha-assist-chip label="${escapeHTML(t('chip.virtualDevice'))}" title="${escapeHTML(t('chip.virtualDevice.tip'))}"></ha-assist-chip>`
+        ? this._virtualDeviceChip(x)
         : x.device_id
           ? this._deviceChip(x.device_id)
           : `<ha-assist-chip label="${escapeHTML(deviceName(this._hass?.devices, x.device_id))}"></ha-assist-chip>`;
@@ -1876,7 +1876,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private _assetDetail(asset: Asset): string {
     const kindChip =
       asset.kind === 'virtual'
-        ? `<ha-assist-chip label="${escapeHTML(t('chip.virtualDevice'))}"></ha-assist-chip>`
+        ? this._virtualDeviceChip(asset)
         : asset.device_id
           ? this._deviceChip(asset.device_id)
           : '';
@@ -1899,6 +1899,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const details = [
       this._row(t('field.manufacturer'), asset.manufacturer),
       this._row(t('field.model'), asset.model),
+      this._row(t('field.serial_number'), asset.serial_number),
       this._row(t('field.area_id'), areaName(this._hass?.areas, asset.area_id)),
       this._row(t('field.cost'), cost),
       meta,
@@ -2129,6 +2130,25 @@ export class HomeKeeperPanel extends HTMLElement {
     )}" label="${escapeHTML(name)}">${icon}</ha-assist-chip>`;
   }
 
+  /**
+   * Chip for a *virtual* appliance. A virtual asset now provisions a real HA device
+   * (see `devices._reconcile_virtual`), so when that device is resolvable the chip is
+   * a clickable link to its device page — reusing the same `.hk-device-chip` wiring as
+   * the existing-device chip. Until the device is provisioned (or if it's gone) it
+   * falls back to a static marker.
+   */
+  private _virtualDeviceChip(asset: Asset): string {
+    const deviceId = asset.device_id;
+    const label = escapeHTML(t('chip.virtualDevice'));
+    const tip = escapeHTML(t('chip.virtualDevice.tip'));
+    if (deviceId && this._hass?.devices?.[deviceId]) {
+      return `<ha-assist-chip class="hk-device-chip" role="link" tabindex="0" data-device-id="${escapeHTML(
+        deviceId,
+      )}" label="${label}" title="${tip}"><ha-icon slot="icon" icon="mdi:open-in-new" class="hk-chip-ic"></ha-icon></ha-assist-chip>`;
+    }
+    return `<ha-assist-chip label="${label}" title="${tip}"></ha-assist-chip>`;
+  }
+
   private _navigateToDevice(deviceId: string): void {
     history.pushState(null, '', `/config/devices/device/${deviceId}`);
     window.dispatchEvent(
@@ -2144,7 +2164,11 @@ export class HomeKeeperPanel extends HTMLElement {
   private _wireDeviceChips(root: ShadowRoot): void {
     root.querySelectorAll<HTMLElement>('.hk-device-chip').forEach((chip) => {
       const id = chip.dataset.deviceId;
-      const go = (): void => {
+      // Stop the event from bubbling to an enclosing `.detail-open` card row — without
+      // this, clicking a device chip on a task/appliance card row is hijacked by the
+      // row's open-detail handler and the chip never reaches its device page.
+      const go = (e?: Event): void => {
+        e?.stopPropagation();
         if (id) this._navigateToDevice(id);
       };
       chip.addEventListener('click', go);
@@ -2152,7 +2176,7 @@ export class HomeKeeperPanel extends HTMLElement {
         const key = (e as KeyboardEvent).key;
         if (key === 'Enter' || key === ' ') {
           e.preventDefault();
-          go();
+          go(e);
         }
       });
       const fallbackIcon = (): void => {
@@ -2234,6 +2258,9 @@ export class HomeKeeperPanel extends HTMLElement {
           { name: 'model', selector: selText() },
         ],
       });
+      // serial_number is first-class (it syncs into the device page's info block), so
+      // it sits with make/model rather than in the free-form custom fields.
+      fields.push({ name: 'serial_number', selector: selText() });
       fields.push({
         name: '',
         type: 'grid',
@@ -3439,6 +3466,7 @@ export class HomeKeeperPanel extends HTMLElement {
         name: x.name ?? '',
         manufacturer: x.manufacturer ?? '',
         model: x.model ?? '',
+        serial_number: x.serial_number ?? '',
         icon: x.icon ?? '',
         parent_asset_id: x.parent_asset_id ?? undefined,
         area_id: x.area_id ?? undefined,

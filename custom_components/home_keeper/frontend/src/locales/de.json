@@ -285,7 +285,7 @@
   "notify.need_profile": "Füge zuerst ein Profil hinzu — eine Benachrichtigung braucht eines, um auszuwählen, was gesendet wird.",
   "field.consumable_link": "Verknüpftes Verbrauchsmaterial",
   "opt.consumable.none": "Nicht verknüpft",
-  "chip.virtualDevice.tip": "Kein echtes Home-Assistant-Gerät – ein Home-Keeper-Eintrag zum Verfolgen von Teilen, Dokumenten und verknüpften Aufgaben.",
+  "chip.virtualDevice.tip": "Home-Assistant-Geräteseite dieses Geräts öffnen.",
   "chip.autoSynced": "Auto-synchronisiert",
   "chip.autoSynced.tip": "Automatisch aus einem Sensor erstellt. Wird von selbst gelöscht, sobald der Sensor wieder normal ist – hier nicht abschließbar.",
   "done.autoClears": "Wird automatisch gelöscht",

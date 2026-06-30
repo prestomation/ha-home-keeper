@@ -297,6 +297,40 @@ def _run_ws(token, commands):
     return asyncio.run(_ws_commands(token, commands))
 
 
+def test_virtual_appliance_configuration_url_deep_links_to_panel(ha, ha_token):
+    """The virtual appliance device's "Visit" link points at the panel detail page.
+
+    Regression: the device page renders a ``homeassistant://`` ``configuration_url`` by
+    replacing the scheme with ``/`` (``homeassistant://X`` -> ``/X``). A ``navigate/``
+    action segment is NOT stripped, so ``homeassistant://navigate/home-keeper/...``
+    rendered as a dead ``/navigate/...`` link and bounced to the default dashboard. The
+    URL must be the bare in-app path so "Visit" lands on the appliance's panel page.
+    """
+    (devices_reply,) = _run_ws(ha_token, [{"type": "config/device_registry/list"}])
+
+    def _hk_asset_identifier(device):
+        for pair in device.get("identifiers", []):
+            domain = pair[0] if isinstance(pair, (list, tuple)) else None
+            value = pair[1] if isinstance(pair, (list, tuple)) and len(pair) > 1 else ""
+            if domain == "home_keeper" and str(value).startswith("asset_"):
+                return str(value)
+        return None
+
+    virtual_devices = [
+        (d, _hk_asset_identifier(d))
+        for d in devices_reply["result"]
+        if _hk_asset_identifier(d)
+    ]
+    assert virtual_devices, "expected at least one virtual appliance device"
+
+    for device, identifier in virtual_devices:
+        asset_id = identifier[len("asset_") :]
+        url = device.get("configuration_url")
+        assert url == f"homeassistant://home-keeper/appliances/{asset_id}", url
+        # The dead-link footgun: a `navigate/` segment renders as `/navigate/...`.
+        assert "navigate" not in url, url
+
+
 def test_asset_lifecycle_events(ha, ha_token):
     def action():
         call_service(ha, "home_keeper", "add_asset", {"name": "Asset event appliance"})

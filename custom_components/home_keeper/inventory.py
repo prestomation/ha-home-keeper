@@ -37,9 +37,11 @@ def _spares_value(part: dict[str, Any]) -> float:
 def _metadata_details(asset: dict[str, Any]) -> str:
     """Flatten an asset's free-form metadata into a ``label: value; …`` summary.
 
-    Keeps the descriptive facts (serial, warranty, purchase date, provider…) — now
+    Keeps the descriptive facts (warranty, purchase date, provider…) — now
     user-defined rather than fixed columns — discoverable in the export without a
-    prescriptive column per field.
+    prescriptive column per field. Serial number has its own first-class column; a
+    legacy free-form "Serial" *metadata* entry (if the user added one before the field
+    existed) still rides here too, so it can appear in both places.
     """
     parts = []
     for entry in asset.get("metadata") or []:
@@ -82,6 +84,7 @@ def build_inventory(
                 "area": area_names.get(area_id) if area_id else None,
                 "manufacturer": asset.get("manufacturer") or "",
                 "model": asset.get("model") or "",
+                "serial_number": asset.get("serial_number") or "",
                 "cost": cost,
                 "spares_value": spares_value,
                 "part_count": len(parts),
@@ -100,14 +103,16 @@ def build_inventory(
     return {"assets": rows, "totals": totals}
 
 
-# (row key, CSV header) — the columns most useful on an insurance schedule. The
-# free-form descriptive facts (serial, warranty, dates…) ride in the trailing
-# Details column rather than a fixed column each.
+# (row key, CSV header) — the columns most useful on an insurance schedule.
+# ``serial_number`` is a first-class identity column; the remaining free-form
+# descriptive facts (warranty, dates, provider…) ride in the trailing Details column
+# rather than a fixed column each.
 _CSV_COLUMNS = (
     ("name", "Name"),
     ("area", "Area"),
     ("manufacturer", "Manufacturer"),
     ("model", "Model"),
+    ("serial_number", "Serial number"),
     ("cost", "Cost"),
     ("spares_value", "Spares value"),
     ("details", "Details"),

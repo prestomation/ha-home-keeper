@@ -33,8 +33,21 @@ from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
 
-# Deep-link the device page back to the Home Keeper panel for management.
-_CONFIGURATION_URL = f"homeassistant://navigate/{PANEL_URL_PATH}"
+
+def _asset_configuration_url(asset_id: str) -> str:
+    """Deep-link the device page straight to this appliance's panel detail page.
+
+    The panel is route-driven (``parseRoute``/``buildPath``): an appliance detail lives
+    at ``/home-keeper/appliances/<asset_id>``, so the device page's "Visit" link lands
+    on that appliance — its documents/inventory/history — rather than the panel root.
+
+    The device page renders a ``homeassistant://`` ``configuration_url`` by replacing
+    the scheme with ``/`` (``homeassistant://X`` -> ``/X``) — there is **no**
+    ``navigate/`` action segment on the web frontend, so the URL must be the bare in-app
+    path. ``homeassistant://navigate/...`` produces a dead ``/navigate/...`` link that
+    bounces to the default dashboard.
+    """
+    return f"homeassistant://{PANEL_URL_PATH}/appliances/{asset_id}"
 
 
 def area_exists(hass: HomeAssistant, area_id: str | None) -> bool:
@@ -203,14 +216,20 @@ async def _reconcile_virtual(
     parent = store.get_asset(parent_asset_id) if parent_asset_id else None
     parent_device_id = parent.get("device_id") if parent else None
 
+    configuration_url = _asset_configuration_url(asset["id"])
     create_kwargs: dict[str, Any] = {
         "config_entry_id": entry.entry_id,
         "identifiers": {identifier},
         "name": asset["name"],
         "manufacturer": asset.get("manufacturer") or None,
         "model": asset.get("model") or None,
-        "configuration_url": _CONFIGURATION_URL,
+        "configuration_url": configuration_url,
     }
+    # serial_number reached DeviceInfo/async_get_or_create later than the others; only
+    # seed it on create when this HA version accepts it (the update loop below is
+    # likewise guarded), so an older core still provisions the device cleanly.
+    if _supports_kwarg(registry.async_get_or_create, "serial_number"):
+        create_kwargs["serial_number"] = asset.get("serial_number") or None
     if via_device is not None:
         create_kwargs["via_device"] = via_device
     device = registry.async_get_or_create(**create_kwargs)
@@ -219,7 +238,7 @@ async def _reconcile_virtual(
     updates: dict[str, Any] = {}
     if device.name != asset["name"]:
         updates["name"] = asset["name"]
-    for field in ("manufacturer", "model"):
+    for field in ("manufacturer", "model", "serial_number"):
         desired = asset.get(field) or None
         if getattr(device, field, None) != desired and _supports_kwarg(
             registry.async_update_device, field
@@ -234,8 +253,8 @@ async def _reconcile_virtual(
         area_id = None
     if area_id != device.area_id:
         updates["area_id"] = area_id
-    if device.configuration_url != _CONFIGURATION_URL:
-        updates["configuration_url"] = _CONFIGURATION_URL
+    if device.configuration_url != configuration_url:
+        updates["configuration_url"] = configuration_url
     # Re-parent / un-parent after creation (via_device on create only applies the
     # first time). via_device_id is the parent's *device id*, which parents-first
     # ordering has already resolved.

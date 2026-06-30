@@ -124,7 +124,7 @@
   "meta.seed.notes": "Notes",
   "chip.overdue": "Overdue",
   "chip.virtualDevice": "Virtual device",
-  "chip.virtualDevice.tip": "Not a real Home Assistant device — a Home Keeper record for tracking parts, documents, and linked tasks.",
+  "chip.virtualDevice.tip": "Open this appliance's Home Assistant device page.",
   "chip.autoSynced": "Auto-synced",
   "chip.autoSynced.tip": "Created automatically from a sensor. It clears on its own when the sensor returns to normal — you can't mark it done here.",
   "chip.subdeviceOf": "subdevice of {name}",

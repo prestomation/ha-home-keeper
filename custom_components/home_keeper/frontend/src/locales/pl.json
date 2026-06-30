@@ -311,7 +311,7 @@
   "notify.need_profile": "Najpierw dodaj profil — powiadomienie potrzebuje go, aby wybrać, co wysłać.",
   "field.consumable_link": "Powiązany materiał eksploatacyjny",
   "opt.consumable.none": "Niepowiązane",
-  "chip.virtualDevice.tip": "To nie jest prawdziwe urządzenie Home Assistant — wpis Home Keeper do śledzenia części, dokumentów i powiązanych zadań.",
+  "chip.virtualDevice.tip": "Otwórz stronę urządzenia Home Assistant tego sprzętu.",
   "chip.autoSynced": "Auto-synchronizacja",
   "chip.autoSynced.tip": "Utworzone automatycznie z czujnika. Znika samo, gdy czujnik wróci do normy — nie można oznaczyć jako wykonane tutaj.",
   "done.autoClears": "Znika automatycznie",

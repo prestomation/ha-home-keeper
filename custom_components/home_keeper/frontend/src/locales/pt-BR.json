@@ -298,7 +298,7 @@
   "notify.need_profile": "Adicione um perfil primeiro — uma notificação precisa de um para escolher o que enviar.",
   "field.consumable_link": "Consumível vinculado",
   "opt.consumable.none": "Não vinculado",
-  "chip.virtualDevice.tip": "Não é um dispositivo real do Home Assistant — um registro do Home Keeper para peças, documentos e tarefas vinculadas.",
+  "chip.virtualDevice.tip": "Abrir a página do dispositivo Home Assistant deste aparelho.",
   "chip.autoSynced": "Auto-sincronizado",
   "chip.autoSynced.tip": "Criado automaticamente a partir de um sensor. Some sozinho quando o sensor volta ao normal — não dá para concluir aqui.",
   "done.autoClears": "Some automaticamente",

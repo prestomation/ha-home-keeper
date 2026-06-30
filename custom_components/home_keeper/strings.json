@@ -286,6 +286,10 @@
           "name": "Model",
           "description": "Model name or number."
         },
+        "serial_number": {
+          "name": "Serial number",
+          "description": "Serial number (shown in the appliance's device-page info block)."
+        },
         "cost": {
           "name": "Cost",
           "description": "Replacement cost (feeds the insurance inventory value rollup)."
@@ -343,6 +347,10 @@
         "model": {
           "name": "Model",
           "description": "Model name or number."
+        },
+        "serial_number": {
+          "name": "Serial number",
+          "description": "Serial number (shown in the appliance's device-page info block)."
         },
         "cost": {
           "name": "Cost",
@@ -491,11 +499,19 @@
     "binary_sensor": {
       "overdue": {
         "name": "{task_name}Overdue"
+      },
+      "part_low_stock": {
+        "name": "{part} low stock"
       }
     },
     "button": {
       "mark_done": {
         "name": "{task_name}Mark done"
+      }
+    },
+    "number": {
+      "part_spares": {
+        "name": "{part} spares"
       }
     }
   },

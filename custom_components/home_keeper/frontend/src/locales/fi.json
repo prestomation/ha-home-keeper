@@ -285,7 +285,7 @@
   "notify.need_profile": "Lisää ensin profiili — ilmoitus tarvitsee sellaisen valitakseen, mitä lähetetään.",
   "field.consumable_link": "Linkitetty kulutustarvike",
   "opt.consumable.none": "Ei linkitetty",
-  "chip.virtualDevice.tip": "Ei oikea Home Assistant -laite — Home Keeper -tietue osille, asiakirjoille ja liitetyille tehtäville.",
+  "chip.virtualDevice.tip": "Avaa tämän laitteen Home Assistant -laitesivu.",
   "chip.autoSynced": "Auto-synkronoitu",
   "chip.autoSynced.tip": "Luotu automaattisesti anturista. Poistuu itsestään, kun anturi palaa normaaliksi — ei voi merkitä valmiiksi täällä.",
   "done.autoClears": "Poistuu automaattisesti",

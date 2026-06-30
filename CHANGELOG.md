@@ -4,7 +4,30 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
-## [0.7.0b3]
+## [0.7.0b4]
+
+### Added
+
+- **Richer appliance device pages.** A virtual appliance's Home Assistant device page now
+  surfaces much more of its Home Keeper data: the device-info block shows a first-class
+  **serial number** (alongside make/model), each stock-tracked part gets an editable
+  **spare-stock number** and a **low-stock problem sensor**, and the page's **Visit** link
+  deep-links straight to that appliance's panel page (manuals, full inventory, history)
+  rather than the panel root. Per-device **diagnostics** download is scoped to just that
+  appliance's tasks and parts. A task attached to a *foreign* device is left to its
+  owning integration (Home Keeper only adds its per-task entities there).
+- **Jump from the panel to an appliance's device page.** The **"Virtual device"** chip
+  on the Appliances list and appliance detail is now a clickable link to that
+  appliance's Home Assistant device page (it was a static marker before).
+
+### Fixed
+
+- **Device chip on a task/appliance card row now opens the device page.** Clicking the
+  device chip was hijacked by the card row's open-detail handler (it opened the task or
+  appliance detail instead of navigating to the device); the chip click no longer
+  bubbles to the row.
+
+## [0.7.0b3] - 2026-06-29
 
 ### Fixed
 
@@ -16,7 +39,7 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   its (now entity-less) Home Keeper association. No more orphaned, zero-entity
   Home Keeper devices under **Settings → Devices & Services → Home Keeper**.
 
-## [0.7.0b2]
+## [0.7.0b2] - 2026-06-29
 
 ### Added
 

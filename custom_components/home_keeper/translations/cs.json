@@ -286,6 +286,10 @@
           "name": "Model",
           "description": "Název nebo číslo modelu."
         },
+        "serial_number": {
+          "name": "Sériové číslo",
+          "description": "Sériové číslo (zobrazuje se v informačním bloku na stránce zařízení)."
+        },
         "cost": {
           "name": "Cena",
           "description": "Pořizovací cena."
@@ -343,6 +347,10 @@
         "model": {
           "name": "Model",
           "description": "Název nebo číslo modelu."
+        },
+        "serial_number": {
+          "name": "Sériové číslo",
+          "description": "Sériové číslo (zobrazuje se v informačním bloku na stránce zařízení)."
         },
         "cost": {
           "name": "Cena",
@@ -491,11 +499,19 @@
     "binary_sensor": {
       "overdue": {
         "name": "{task_name}Po termínu"
+      },
+      "part_low_stock": {
+        "name": "{part} – docházejí zásoby"
       }
     },
     "button": {
       "mark_done": {
         "name": "{task_name}Označit jako hotové"
+      }
+    },
+    "number": {
+      "part_spares": {
+        "name": "{part} – náhradní díly"
       }
     }
   },

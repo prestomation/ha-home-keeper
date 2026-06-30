@@ -548,12 +548,6 @@
         ],
         "metadata": [
           {
-            "id": "asset_water_heater_meta_serial_number",
-            "type": "text",
-            "label": "Serial",
-            "value": "RH-0001"
-          },
-          {
             "id": "asset_water_heater_meta_purchase_date",
             "type": "date",
             "label": "Purchase date",
@@ -616,7 +610,8 @@
             "content_type": "application/pdf",
             "size": 193
           }
-        ]
+        ],
+        "serial_number": "RH-2021-0099823"
       },
       "asset_shades": {
         "id": "asset_shades",

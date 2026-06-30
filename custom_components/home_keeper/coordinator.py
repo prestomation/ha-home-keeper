@@ -8,6 +8,7 @@ mutations occur; every mutation also triggers an immediate refresh.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -24,6 +25,7 @@ from homeassistant.util import dt as dt_util
 
 from . import companions, models, notifier, recurrence, transitions
 from .const import (
+    ASSET_KIND_VIRTUAL,
     DOMAIN,
     EVENT_TASK_DUE_SOON,
     EVENT_TASK_OVERDUE,
@@ -193,6 +195,29 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             identifiers=device.identifiers,
             connections=device.connections,
         )
+
+    def virtual_asset_parts(
+        self, predicate: Callable[[dict[str, Any]], bool]
+    ) -> list[tuple[dict[str, Any], dict[str, Any], DeviceInfo]]:
+        """``(asset, part, device_info)`` for virtual-asset parts matching *predicate*.
+
+        The shared source for the per-part stock entities (the stock ``number`` and the
+        low-stock ``binary_sensor``). Limited to **owned** (virtual) appliances with a
+        resolvable device — we don't add stock entities onto a foreign/guest device — so
+        both platforms agree on which parts get entities. ``predicate`` selects the part
+        kind (tracks-stock vs has-reorder).
+        """
+        out: list[tuple[dict[str, Any], dict[str, Any], DeviceInfo]] = []
+        for asset in self.store.list_assets():
+            if asset.get("kind") != ASSET_KIND_VIRTUAL:
+                continue
+            device_info = self.device_info_for_device_id(asset.get("device_id"))
+            if device_info is None:
+                continue
+            for part in asset.get("parts", []) or []:
+                if predicate(part):
+                    out.append((asset, part, device_info))
+        return out
 
     def device_info_for_task(self, task: dict[str, Any]) -> DeviceInfo:
         """Return the DeviceInfo a per-task entity should use.

@@ -533,6 +533,11 @@ add_asset:
       name: Model
       selector:
         text:
+    serial_number:
+      name: Serial number
+      description: Serial number (shown in the appliance's device-page info block).
+      selector:
+        text:
     cost:
       name: Cost
       description: Replacement cost (feeds the insurance inventory value rollup).
@@ -613,6 +618,11 @@ update_asset:
         text:
     model:
       name: Model
+      selector:
+        text:
+    serial_number:
+      name: Serial number
+      description: Serial number (shown in the appliance's device-page info block).
       selector:
         text:
     cost:
