@@ -4,6 +4,43 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [0.7.0] - 2026-06-30
+
+### Added
+
+- **Integration-provided metadata chips on tasks.** Integrations can now attach
+  compact metadata chips to any task via the `task_chips` field on
+  `home_keeper.add_task` / `update_task`. Each chip carries a label, an optional
+  `mdi:` icon, and an optional link URL — making contextual information (e.g. battery
+  type, part number) immediately visible in both the sidebar panel task list and the
+  dashboard card without cluttering the task notes.
+
+- **Richer appliance device pages.** A virtual appliance's Home Assistant device page
+  now surfaces much more of its Home Keeper data: the device-info block shows a
+  first-class **serial number** (alongside make/model), each stock-tracked part gets
+  an editable **spare-stock number** and a **low-stock problem sensor**, and the
+  page's **Visit** link deep-links straight to that appliance's panel page (manuals,
+  full inventory, history) rather than the panel root. Per-device **diagnostics**
+  download is scoped to just that appliance's tasks and parts.
+
+- **Jump from the panel to an appliance's device page.** The **"Virtual device"**
+  chip on the Appliances list and appliance detail is now a clickable link to that
+  appliance's Home Assistant device page (it was a static marker before).
+
+### Fixed
+
+- **Problem Sensor Sync no longer leaves empty device cards behind.** When you
+  disable Problem Sensor Sync — or exclude an individual sensor, device, area, or
+  label — the synced task and its entities are removed as before, and now the
+  associated device is cleaned up too: a device Home Keeper created for the synced
+  task is removed outright, and a device owned by another integration simply loses
+  its (now entity-less) Home Keeper association. No more orphaned, zero-entity Home
+  Keeper devices under **Settings → Devices & Services → Home Keeper**.
+
+- **Device chip on a task/appliance card row now opens the device page.** Clicking
+  the device chip was hijacked by the card row's open-detail handler (it opened the
+  task or appliance detail instead); the chip click no longer bubbles to the row.
+
 ## [0.7.0b4]
 
 ### Added
