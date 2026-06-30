@@ -25,7 +25,8 @@ on:
         type: string
 
 # Production publishes to the root of the gh-pages branch. PR previews live under
-# pr-preview/ on the same branch, so clean-exclude keeps them from being wiped.
+# pr-preview/ (docs) and pr-preview-media/ (walkthrough videos) on the same branch,
+# so clean-exclude keeps them from being wiped.
 permissions:
   contents: write
 
@@ -75,3 +76,4 @@ jobs:
           clean: true
           clean-exclude: |
             pr-preview/
+            pr-preview-media/

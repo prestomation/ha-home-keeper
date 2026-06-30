@@ -1,0 +1,168 @@
+name: Walkthrough video — PR preview
+
+# Capture the panel video walkthrough in CI as a *build artifact* (never committed)
+# and surface it on the PR as a sticky comment. The gif/mp4 are published to the
+# gh-pages branch under the `pr-preview-media/pr-<n>/` umbrella (served by GitHub
+# Pages), so they embed in the comment without bloating the repo's git history. The
+# preview is re-published on each push and removed when the PR closes.
+#
+# Capture is a *soft* gate (continue-on-error): a flaky Playwright run posts a
+# "capture failed" note rather than blocking the PR. The reviewable artifact is the
+# comment, not anything in the diff — if a UI change alters the tour, update
+# tests/e2e/walkthrough.capture.ts so this regenerates correctly.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+# gh-pages push + sticky comment.
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: walkthrough-preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  walkthrough:
+    runs-on: ubuntu-latest
+    # Forked PRs get no write token — skip gracefully (same as the docs preview).
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        if: github.event.action != 'closed'
+        with:
+          node-version: "20"
+
+      - name: Install frontend deps
+        if: github.event.action != 'closed'
+        run: npm ci --prefix custom_components/home_keeper/frontend
+
+      - name: Build panel JS
+        if: github.event.action != 'closed'
+        run: bash ci/build-panel.sh
+
+      - name: Install e2e deps
+        if: github.event.action != 'closed'
+        run: npm ci --prefix tests/e2e
+
+      - name: Install Playwright Chromium
+        if: github.event.action != 'closed'
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Install ffmpeg
+        if: github.event.action != 'closed'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Start Home Assistant
+        if: github.event.action != 'closed'
+        working-directory: tests/integration
+        run: docker compose up -d
+
+      - name: Wait for Home Assistant
+        if: github.event.action != 'closed'
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8123/api/ 2>/dev/null || true)
+            if [ "$code" = "200" ] || [ "$code" = "401" ]; then
+              echo "Home Assistant is responding (HTTP $code, attempt $i)"
+              exit 0
+            fi
+            echo "Attempt $i/60 - HTTP $code - waiting..."
+            sleep 2
+          done
+          echo "Home Assistant failed to start within 120s"
+          (cd tests/integration && docker compose logs)
+          exit 1
+
+      - name: Capture walkthrough video
+        id: capture
+        if: github.event.action != 'closed'
+        continue-on-error: true
+        env:
+          # Output to a workspace dir, never docs/videos — nothing is committed.
+          VIDEO_DIR: ${{ github.workspace }}/_walkthrough_out
+        run: |
+          bash ci/capture-video.sh
+          # The intermediate WebM isn't published — only gif (embed) + mp4 (link).
+          rm -f "$VIDEO_DIR"/*.webm
+
+      - name: Dump Home Assistant logs on capture failure
+        if: github.event.action != 'closed' && steps.capture.outcome == 'failure'
+        working-directory: tests/integration
+        run: docker compose logs homeassistant
+
+      - name: Cleanup Home Assistant
+        if: always() && github.event.action != 'closed'
+        working-directory: tests/integration
+        run: docker compose down -v
+
+      # Deploy on open/sync (when capture succeeded); remove on close. A separate
+      # umbrella from the docs preview so the two don't fight over pr-<n>/.
+      - name: Publish / remove preview
+        if: github.event.action == 'closed' || steps.capture.outcome == 'success'
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: ./_walkthrough_out
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview-media
+          # We post our own comment with the embedded gif below.
+          comment: false
+
+      - name: Sticky comment with the walkthrough
+        if: always()
+        uses: actions/github-script@v9
+        env:
+          CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
+          EVENT_ACTION: ${{ github.event.action }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const marker = '<!-- walkthrough-preview -->';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const n = context.issue.number;
+            const action = process.env.EVENT_ACTION;
+            const outcome = process.env.CAPTURE_OUTCOME;
+
+            // GitHub Pages serves the project site at <owner>.github.io/<repo>/ (owner lowercased).
+            const base = `https://${owner.toLowerCase()}.github.io/${repo}/pr-preview-media/pr-${n}`;
+            const gif = `${base}/walkthrough.gif`;
+            const mp4 = `${base}/walkthrough.mp4`;
+
+            let body;
+            if (action === 'closed') {
+              // Preview was torn down; leave a tombstone rather than a broken image.
+              body = [marker, '### 🎥 Panel walkthrough', '', '_Preview removed — the PR is closed._'].join('\n');
+            } else if (outcome === 'success') {
+              body = [
+                marker,
+                '### 🎥 Panel walkthrough',
+                '',
+                `<img src="${gif}" alt="Home Keeper panel walkthrough" width="820">`,
+                '',
+                `▶️ [Higher-quality MP4](${mp4})`,
+                '',
+                'Auto-generated from this PR\'s HEAD by `walkthrough-preview.yml` — updated on every push, removed when the PR closes. (A committed `<video>` tag is stripped by GitHub\'s sanitizer, so the gif carries the motion and the mp4 is linked.)',
+              ].join('\n');
+            } else {
+              body = [
+                marker,
+                '### 🎥 Panel walkthrough',
+                '',
+                `⚠️ The walkthrough capture failed for this push — see the [run logs](${process.env.RUN_URL}). This is a soft gate and does not block the PR; pushing again re-runs it.`,
+              ].join('\n');
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: n });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: n, body });
+            }

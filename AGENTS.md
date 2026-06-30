@@ -84,64 +84,51 @@
     (empty dialog, missing elements, `position:fixed` overlay not visible in a
     fullPage capture), diagnose the root cause and fix it before committing. Do not
     commit screenshots that don't clearly show the intended UI state.
-- **Every PR that adds a _new user-facing UI feature_ MUST include a short video
-  walkthrough of that surface — no exceptions.** Screenshots prove a surface
+- **Every PR that adds a _new user-facing UI feature_ MUST keep the video walkthrough
+  current — but you don't capture or commit it; CI does.** Screenshots prove a surface
   renders; a video proves the *interaction* works (the flow, the transitions, the
-  motion). This is a hard gate for feature PRs: a new UI feature is not "done" until
-  the PR body embeds a current walkthrough of it. (Pure bug-fix / styling / copy
-  PRs stay on the screenshots gate above — they don't need a video.) The capture
-  harness is `tests/e2e/walkthrough.capture.ts` (the test) driven by
-  `walkthrough.config.ts` (the config — **pass this one to `--config`**), and
-  `ci/capture-video.sh` wraps it and transcodes the recording. It reuses the same
-  authenticated, seeded HA container as the screenshots harness — Chromium records
-  a WebM at the browser-context level, which ffmpeg transcodes to an `mp4` (primary)
-  and a `gif` (fallback) under `docs/videos/`. Step-by-step:
-  ```bash
-  # 1. Start HA and leave it running (from repo root)
-  KEEP_UP=1 bash ci/e2e-up.sh
-
-  # 2. Capture + transcode (needs ffmpeg on PATH). In the Claude Code remote
-  #    environment, point Playwright at the pre-installed Chromium as for screenshots.
-  CHROMIUM_EXEC=$(ls /opt/pw-browsers/chromium-*/chrome-linux/chrome 2>/dev/null | head -1) \
-    bash ci/capture-video.sh
-  ```
-  When the feature adds a brand-new UI surface, extend the tour in
-  `walkthrough.capture.ts` to step through it (deliberate `BEAT` pauses so the motion
-  reads well) in the same PR — the walkthrough is the single moving demo of the panel,
-  kept current like the screenshots.
-  - **Commit `docs/videos/*.mp4` and `*.gif`; the intermediate `*.webm` is
-    gitignored.** In the PR body, **the GIF is the embed and the mp4 is a link** —
-    GitHub's issue/PR-body sanitizer *strips* a committed-file HTML `video` tag
-    entirely (it does not just fail to play; it is removed, even when written inside
-    backticks), so do **not** rely on one there. Embed the GIF with a SHA-pinned HTML
-    `img` tag (it renders exactly like a screenshot) and link the higher-quality mp4
-    with a plain SHA-pinned markdown link:
-    ```text
-    <img src="https://raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/videos/walkthrough.gif" alt="Home Keeper walkthrough" width="820">
-
-    ▶️ [Higher-quality MP4](https://raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/videos/walkthrough.mp4)
+  motion). The walkthrough is a **CI build artifact, never committed**: on every PR,
+  `walkthrough-preview.yml` stands up the seeded HA container, runs the capture
+  harness, transcodes to gif+mp4, publishes them to the `gh-pages`
+  `pr-preview-media/pr-<n>/` umbrella (served by GitHub Pages), and posts/updates a
+  **sticky PR comment** embedding the gif (with an mp4 link). Nothing lands in
+  `docs/videos/` in git — that directory is gitignored — so there's zero repo bloat,
+  and the comment always reflects the PR's HEAD.
+  - **The gate for a feature PR is: the walkthrough comment renders the new surface.**
+    Since the tour is generated, "keeping it current" means **editing the tour**, not
+    capturing a file: when a feature adds a brand-new UI surface, extend
+    `tests/e2e/walkthrough.capture.ts` to step through it (deliberate `BEAT` pauses so
+    the motion reads well) **in the same PR**, then confirm the regenerated comment
+    shows it. (Pure bug-fix / styling / copy PRs don't need to touch the tour.)
+  - **Capture is a _soft_ gate.** A flaky Playwright run posts a "capture failed" note
+    (with a logs link) instead of blocking the PR; pushing again re-runs it. If the
+    comment is missing or stale, check the `walkthrough-preview.yml` run — don't
+    hand-commit a video to work around it.
+  - **Run it locally to debug the tour** (the harness still works standalone). From the
+    repo root, with ffmpeg on PATH:
+    ```bash
+    KEEP_UP=1 bash ci/e2e-up.sh        # build panel + start HA
+    # In the Claude Code remote env, point Playwright at the pre-installed Chromium:
+    CHROMIUM_EXEC=$(ls /opt/pw-browsers/chromium-*/chrome-linux/chrome 2>/dev/null | head -1) \
+      bash ci/capture-video.sh         # writes gif/mp4 to docs/videos/ (gitignored)
     ```
-    (GitHub *does* auto-embed a *drag-and-drop-uploaded* video as a
-    `github.com/user-attachments/assets/…` URL, but that can't be produced
-    programmatically — committed-file URLs are what an agent can pin, so the GIF
-    carries the motion.) In-repo README/docs markdown is different: a relative
-    `docs/videos/walkthrough.gif` image works there too — use that for the README.
-    After editing the body, re-read it and verify the GIF/mp4 URLs each return HTTP
-    200 **and** that the GIF `img` tag actually survived in the stored body.
-  - **Always visually inspect the captured video before committing it** (same rule as
-    screenshots): open the GIF with the Read tool and confirm the tour shows the
-    intended surfaces — populated lists, the feature's flow, no blank/stuck frames.
-    If it looks wrong (a step raced ahead of a render, an empty dialog), fix the
-    pacing/selectors and re-capture. Don't commit a walkthrough that doesn't clearly
-    show the feature working.
+    Open the resulting `docs/videos/walkthrough.gif` with the Read tool and confirm the
+    tour shows the intended surfaces — populated lists, the feature's flow, no
+    blank/stuck frames — before relying on CI to publish it.
+  - **Why a comment and not the PR/README body:** GitHub's issue/PR-body sanitizer
+    *strips* a committed-file HTML `video` tag entirely, and committing the gif bloats
+    git history with multi-MB binaries that never delta-compress. Hosting the gif on
+    Pages and embedding it via the comment keeps motion visible while leaving `main`
+    clean. (The only path that inline-*plays* an mp4 is a drag-and-drop
+    `user-attachments` upload, which CI can't produce — so the gif still carries the
+    motion and the mp4 is a link.)
 - **Always document new major features in `README.md` in the same change.** Add a
   brief section with the **use cases** (what problem it solves) and a little about
   **how it's used**, and include **screenshot(s)** (same Playwright capture, committed
   under `docs/images/`, embedded with a relative `docs/images/…` path). A headline
-  feature isn't done until the README shows it. The panel's **video walkthrough**
-  (`docs/videos/walkthrough.*`) is the moving counterpart — README embeds it once
-  (relative `docs/videos/…` path) and the harness keeps it current; an
-  interaction-heavy headline feature should be visible in that tour.
+  feature isn't done until the README shows it. (The moving walkthrough is **not** in
+  the README — it's the per-PR CI comment described above; the README stays on
+  committed screenshots.)
 - **Always request an Amazon Q (Cue) review after every push and when opening a
   PR.** Immediately after pushing a commit (or opening a PR), post a PR comment
   of the form `/q review {request}`. Cue gives better results when explicitly
