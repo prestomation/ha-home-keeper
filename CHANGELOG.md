@@ -4,7 +4,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
-## [0.7.0b3]
+## [0.7.0b4]
 
 ### Added
 
@@ -26,6 +26,18 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   device chip was hijacked by the card row's open-detail handler (it opened the task or
   appliance detail instead of navigating to the device); the chip click no longer
   bubbles to the row.
+
+## [0.7.0b3] - 2026-06-29
+
+### Fixed
+
+- **Problem Sensor Sync no longer leaves empty device cards behind.** When you
+  disable Problem Sensor Sync — or exclude an individual sensor, device, area, or
+  label — the synced task and its entities are removed as before, and now the
+  associated device is cleaned up too: a device Home Keeper created for the synced
+  task is removed outright, and a device owned by another integration simply loses
+  its (now entity-less) Home Keeper association. No more orphaned, zero-entity
+  Home Keeper devices under **Settings → Devices & Services → Home Keeper**.
 
 ## [0.7.0b2] - 2026-06-29
 
