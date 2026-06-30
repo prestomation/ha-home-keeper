@@ -18,6 +18,11 @@ tests/e2e/.auth/
 tests/e2e/playwright-report/
 tests/e2e/test-results/
 
+# The video walkthrough (ci/capture-video.sh) is a CI build artifact, never
+# committed — it's captured per-PR and published to the gh-pages pr-preview-media
+# umbrella (see walkthrough-preview.yml). Local runs still write here for debugging.
+docs/videos/
+
 # e2e: Docker creates this dir as the bind-mount target for the integration under
 # test and the stub companion integrations (see tests/integration/docker-compose.yml).
 tests/integration/ha_config/custom_components/
