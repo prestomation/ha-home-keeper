@@ -273,6 +273,80 @@ ship rather than adding a parallel system.
 
 ---
 
+## Companion / glue integration candidates (beyond Battery Notes)
+
+Battery Notes' pattern — an integration whose *primary* purpose is something else, but
+that exposes a "this consumable is wearing out" signal as a secondary/implied feature —
+generalizes. Below is a survey of other popular HA integrations checked against that
+pattern, to seed future `companions_catalog.py` entries and glue integrations (see
+`docs/GLUE_INTEGRATIONS.md`). Install counts are from
+[analytics.home-assistant.io](https://analytics.home-assistant.io/) (core-integration
+installs only — HACS-only integrations like Bambu Lab aren't counted there). Entity
+lists were checked against each integration's HA docs page, not assumed.
+
+**Ready now — exposes a numeric "remaining life" sensor, same shape as a battery %:**
+
+- **Brother** (printer, 44k installs) — per-color toner % *and* drum/belt/fuser/laser
+  "remaining lifetime" % sensors. The closest analogue to Battery Notes: printing is the
+  point, supply depletion is implied.
+- **IPP** (generic network-printer protocol, 150k installs — the single largest printer
+  integration, covers most non-Brother printers via the standard "marker-levels"
+  attribute) — same shape, broader device coverage, less granular (no per-component
+  breakdown).
+- **Roborock** (robot vacuum, 47k installs) — "filter time left", "main brush time
+  left", "side brush time left", "strainer time left" sensors, literally time-remaining.
+- **Ecovacs** (robot vacuum, 11k installs) — per-component lifespan % (filter, brush),
+  disabled-by-default sensors.
+- **LG ThinQ** (air purifiers/AC/fridges/washers/dishwashers, 22k installs) — explicit
+  `time_to_change_filter` / `time_to_change_water_filter` events plus "filter remaining"
+  sensors across several appliance types in one integration; highest-leverage target
+  since one glue covers many appliance categories.
+
+**Real signal, but weaker or needs inference:**
+
+- **NUT — Network UPS Tools** (21k installs) — exposes battery install/manufacture date
+  and self-test result, but no raw remaining-life %. UPS batteries have a well-known
+  ~3-5yr replace cadence; a glue would need to infer "due" from age the way Battery
+  Notes infers expected life from battery *type*. Power monitoring is the integration's
+  job; battery aging is the implied secondary need nobody currently tracks.
+- **Miele** (dishwashers/washers/coffee machines, 9k installs) — detergent/rinse-aid/
+  salt level sensors, plus descale/degrease cycle counters on coffee machines and steam
+  ovens. More "needs refilling" than "wears out," but same trigger shape.
+- **Roomba (iRobot)** (11k installs) — only "bin full" is exposed (no filter/brush wear,
+  unlike Roborock/Ecovacs); still a usable trigger on bin-equipped models.
+- **Synology DSM** (49k installs — very popular) — disk SMART "remaining life" and
+  bad-sector-threshold binary sensors exist. Not a consumable, but "replace this failing
+  drive" is a high-stakes maintenance task that's otherwise invisible outside the
+  Synology app.
+- **Husqvarna Automower** (2.3k installs) — exposes raw "cutting blade usage time" but
+  no built-in threshold/reminder; a glue would own the "replace every N cutting-hours"
+  logic itself (configurable, like Battery Notes' per-battery-type estimate).
+
+**Speculative — no usable entity today, but the upstream device has the feature:**
+
+- **Ecobee** — the thermostat hardware/app has built-in filter, UV-light, and humidifier
+  pad reminders, but the HA `ecobee` integration does not surface them as entities.
+  Real opportunity, blocked upstream until/unless the integration adds the entity.
+- **3D printers — OctoPrint / PrusaLink / Bambu Lab (HACS)** — no dedicated nozzle- or
+  belt-wear sensor in any of these today. Nozzle replacement and bed releveling are
+  well-known maintenance items the hobbyist community already tracks by print-hours —
+  closer to the existing *usage-based recurrence* idea above (seed a recurring task from
+  cumulative print time) than a sensor-triggered glue.
+- **EVs — Tesla Fleet / Teslemetry** (~4.6k installs combined) — odometer and tire-
+  pressure sensors exist (disabled by default) but no service-reminder entity; a
+  mileage-based recurring task (e.g. "rotate tires every 6,250 mi") is again the
+  usage-based pattern, not a triggered one.
+- **Pool/spa controllers — iAqualink, Ondilo ICO, Balboa** (combined < 2k installs) —
+  small install base individually, but filter cleaning / chemical dosing is a classic
+  recurring-maintenance domain. Probably better served by a generic recurring "Pool
+  maintenance" template than per-integration glue, given how thin the signal is on each.
+
+Not pursued: locks (august/yale/schlage/nuki) and garage openers (myq/gogogate2) only
+expose a generic `battery` sensor — already covered by Battery Notes itself, no new glue
+needed.
+
+---
+
 ## Community feature requests
 
 Things people in the Home Assistant community have asked for publicly — collected from
