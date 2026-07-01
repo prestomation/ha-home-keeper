@@ -76,6 +76,7 @@
   "field.related_device_ids": "Gerelateerde apparaten",
   "field.part_name": "Onderdeel",
   "field.part_number": "Onderdeelnr.",
+  "field.part_url": "Product-URL",
   "field.type": "Type",
   "field.replace_interval": "Vervangen elke",
   "field.replace_unit": "Eenheid",

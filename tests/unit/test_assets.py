@@ -535,6 +535,7 @@ def test_parts_normalized_with_ids_and_types():
                     "replace_interval": 10,
                     "replace_unit": "months",
                     "cost": "120",
+                    "url": "https://example.com/shade-material",
                 },
                 {"name": "Cord", "part_number": "C-9"},  # defaults to consumable
             ],
@@ -548,8 +549,23 @@ def test_parts_normalized_with_ids_and_types():
     assert parts[0]["replace_interval"] == 10
     assert parts[0]["replace_unit"] == "months"
     assert parts[0]["cost"] == pytest.approx(120.0)
+    assert parts[0]["url"] == "https://example.com/shade-material"
     assert parts[1]["type"] == "consumable"
     assert parts[1]["replace_interval"] is None
+    assert parts[1]["url"] == ""
+
+
+def test_part_url_rejects_non_http_scheme_and_allows_empty():
+    for bad in ("javascript:alert(1)", "ftp://example.com", "not a url"):
+        with pytest.raises(a.AssetValidationError):
+            a.build_asset(
+                {"name": "Furnace", "parts": [{"name": "Filter", "url": bad}]},
+                now=NOW,
+            )
+    asset = a.build_asset(
+        {"name": "Furnace", "parts": [{"name": "Filter", "url": ""}]}, now=NOW
+    )
+    assert asset["parts"][0]["url"] == ""
 
 
 def test_part_requires_name_and_valid_type():

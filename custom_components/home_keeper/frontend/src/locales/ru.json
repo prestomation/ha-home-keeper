@@ -76,6 +76,7 @@
   "field.related_device_ids": "Связанные устройства",
   "field.part_name": "Деталь",
   "field.part_number": "Номер детали",
+  "field.part_url": "Ссылка на товар",
   "field.type": "Тип",
   "field.replace_interval": "Заменять каждые",
   "field.replace_unit": "Единица",

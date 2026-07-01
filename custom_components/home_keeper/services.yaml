@@ -688,8 +688,9 @@ add_asset:
       name: Parts
       description: >-
         Structured parts/wear items. Each: name, part_number, type (consumable or
-        wear), vendor, cost, optional stock + reorder_at (spare-inventory tracking),
-        and for wear items replace_interval + replace_unit (days/weeks/months) which
+        wear), vendor, cost, an optional http(s) url to the product's page (e.g. an
+        Amazon listing), optional stock + reorder_at (spare-inventory tracking), and
+        for wear items replace_interval + replace_unit (days/weeks/months) which
         drive a maintenance task.
       selector:
         object:

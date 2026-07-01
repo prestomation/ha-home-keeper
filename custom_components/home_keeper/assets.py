@@ -418,6 +418,7 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
         "type": ptype,
         "vendor": str(raw.get("vendor", "")).strip(),
         "cost": _normalize_cost(raw.get("cost")),
+        "url": _normalize_http_url(raw.get("url"), "part url"),
         "notes": str(raw.get("notes", "")).strip(),
         # Replacement cadence (only meaningful for wear items — drives a task).
         "replace_interval": _normalize_interval(raw.get("replace_interval")),

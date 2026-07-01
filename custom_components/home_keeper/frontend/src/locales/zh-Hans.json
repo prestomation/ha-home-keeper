@@ -76,6 +76,7 @@
   "field.related_device_ids": "相关设备",
   "field.part_name": "部件",
   "field.part_number": "部件编号",
+  "field.part_url": "产品链接",
   "field.type": "类型",
   "field.replace_interval": "更换间隔",
   "field.replace_unit": "单位",

@@ -4,7 +4,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
-## [Unreleased]
+## [0.8.0b3]
+
+### Added
+
+- **Product URL on replaceable parts.** A part can now carry a link to where you buy
+  it (e.g. an Amazon listing). When set, the part's name in the appliance detail page
+  becomes a clickable link that opens the product page in a new tab, so reordering a
+  worn or consumed part is one click away. (Fixes #118)
 
 ### Fixed
 

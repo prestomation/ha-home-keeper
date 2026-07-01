@@ -76,6 +76,7 @@
   "field.related_device_ids": "Appareils associés",
   "field.part_name": "Pièce",
   "field.part_number": "Réf. pièce",
+  "field.part_url": "URL du produit",
   "field.type": "Type",
   "field.replace_interval": "Remplacer tous les",
   "field.replace_unit": "Unité",

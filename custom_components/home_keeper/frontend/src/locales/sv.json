@@ -76,6 +76,7 @@
   "field.related_device_ids": "Relaterade enheter",
   "field.part_name": "Del",
   "field.part_number": "Delnr.",
+  "field.part_url": "Produkt-URL",
   "field.type": "Typ",
   "field.replace_interval": "Byt var",
   "field.replace_unit": "Enhet",

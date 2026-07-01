@@ -76,6 +76,7 @@
   "field.related_device_ids": "Dispositius relacionats",
   "field.part_name": "Peça",
   "field.part_number": "Núm. de peça",
+  "field.part_url": "URL del producte",
   "field.type": "Tipus",
   "field.replace_interval": "Substitueix cada",
   "field.replace_unit": "Unitat",

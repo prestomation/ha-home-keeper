@@ -76,6 +76,7 @@
   "field.related_device_ids": "Relaterede enheder",
   "field.part_name": "Del",
   "field.part_number": "Delnr.",
+  "field.part_url": "Produkt-URL",
   "field.type": "Type",
   "field.replace_interval": "Udskift hver",
   "field.replace_unit": "Enhed",

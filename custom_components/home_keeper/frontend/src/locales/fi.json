@@ -76,6 +76,7 @@
   "field.related_device_ids": "Liittyvät laitteet",
   "field.part_name": "Osa",
   "field.part_number": "Osanumero",
+  "field.part_url": "Tuotteen URL-osoite",
   "field.type": "Tyyppi",
   "field.replace_interval": "Vaihda joka",
   "field.replace_unit": "Yksikkö",
