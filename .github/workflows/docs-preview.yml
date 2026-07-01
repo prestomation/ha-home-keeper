@@ -5,11 +5,16 @@ on:
     types: [opened, reopened, synchronize, closed]
     paths:
       - 'website/**'
-      - 'docs/images/**'
+      # Canonical doc sources: the site content is generated from these, so a
+      # change here changes the rendered pages (see website/scripts/sync-docs.mjs).
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'docs/**'
       - '.github/workflows/docs-preview.yml'
 
-# Previews deploy to pr-preview/pr-<n>/ on the gh-pages branch and a sticky
-# comment with the URL is posted on the PR.
+# Previews deploy to pr-preview/pr-<n>/ on the gh-pages branch and two sticky
+# comments are posted on the PR: the preview URL (pr-preview-action) and a list
+# of deep links to the doc pages this PR changed (changed-pages.mjs).
 permissions:
   contents: write
   pull-requests: write
@@ -25,6 +30,9 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Need history back to the PR base so we can diff which docs changed.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         if: github.event.action != 'closed'
@@ -51,3 +59,47 @@ jobs:
           source-dir: website/build
           preview-branch: gh-pages
           umbrella-dir: pr-preview
+
+      - name: Compute changed doc pages
+        id: changed
+        if: github.event.action != 'closed'
+        env:
+          PREVIEW_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-preview/pr-${{ github.event.number }}/
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Files this PR changed (three-dot: since divergence from base).
+          git diff --name-only "$BASE_SHA"...HEAD > /tmp/changed.txt
+          # Base version of the README so section-level changes can be detected.
+          git show "$BASE_SHA:README.md" > /tmp/readme-base.md 2>/dev/null || true
+          CHANGED_FILES="$(cat /tmp/changed.txt)" \
+          README_BASE=/tmp/readme-base.md \
+          README_HEAD=README.md \
+            node website/scripts/changed-pages.mjs > /tmp/changed-pages.md
+          if grep -q '^- \[' /tmp/changed-pages.md; then
+            echo "has_pages=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_pages=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Find existing changed-pages comment
+        id: find
+        if: github.event.action != 'closed'
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- doc-preview-changed-pages -->'
+
+      # Post the list when pages changed, or update an existing comment to "none"
+      # if a later push removed all doc changes. Skip entirely otherwise.
+      - name: Post changed-pages comment
+        if: >
+          github.event.action != 'closed' &&
+          (steps.changed.outputs.has_pages == 'true' ||
+           steps.find.outputs.comment-id != '')
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          issue-number: ${{ github.event.number }}
+          body-path: /tmp/changed-pages.md
+          edit-mode: replace
