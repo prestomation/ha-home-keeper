@@ -5,6 +5,8 @@
   "btn.openDocument": "Åpne",
   "btn.addLink": "+ Legg til lenke",
   "btn.uploadFile": "Last opp fil",
+  "btn.attachFile": "Legg ved fil",
+  "btn.removePartFile": "Fjern fil",
   "section.documents": "Håndbøker og dokumenter",
   "field.doc_name": "Navn",
   "field.doc_url": "URL",

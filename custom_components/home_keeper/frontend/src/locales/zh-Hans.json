@@ -5,6 +5,8 @@
   "btn.openDocument": "打开",
   "btn.addLink": "+ 添加链接",
   "btn.uploadFile": "上传文件",
+  "btn.attachFile": "附加文件",
+  "btn.removePartFile": "删除文件",
   "section.documents": "手册和文档",
   "field.doc_name": "名称",
   "field.doc_url": "URL",

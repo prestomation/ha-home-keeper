@@ -539,6 +539,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Rimuovi file del ricambio",
+      "description": "Scollega il file allegato di un ricambio (ricevuta/scheda tecnica/foto), eliminandone la copia salvata su disco. Carica/sostituisci un file dal pannello; questo servizio gestisce solo la rimozione.",
+      "fields": {
+        "asset_id": {
+          "name": "ID risorsa",
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio."
+        },
+        "part_id": {
+          "name": "ID ricambio",
+          "description": "L'id del ricambio di cui rimuovere il file."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Aggiungi documento dell'elettrodomestico",
       "description": "Allega un documento di tipo link (manuale/garanzia/ricevuta) a un elettrodomestico. Carica i file dal pannello; questo servizio gestisce solo i link.",

@@ -539,6 +539,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Fjern reservedelsfil",
+      "description": "Kobler fra en reservedels vedlagte fil (kvittering/datablad/bilde) og sletter den lagrede kopien fra disken. Last opp/erstatt en fil fra panelet; denne tjenesten håndterer bare fjerning.",
+      "fields": {
+        "asset_id": {
+          "name": "Eiendels-ID",
+          "description": "ID-en til apparatet som reservedelen tilhører."
+        },
+        "part_id": {
+          "name": "Reservedels-ID",
+          "description": "ID-en til reservedelen hvis fil skal fjernes."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Legg til apparatdokument",
       "description": "Fester et lenkedokument (håndbok/garanti/kvittering) til et apparat. Last opp filer fra panelet; denne tjenesten håndterer kun lenker.",

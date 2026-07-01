@@ -5,6 +5,8 @@
   "btn.openDocument": "Открыть",
   "btn.addLink": "+ Добавить ссылку",
   "btn.uploadFile": "Загрузить файл",
+  "btn.attachFile": "Прикрепить файл",
+  "btn.removePartFile": "Удалить файл",
   "section.documents": "Руководства и документы",
   "field.doc_name": "Имя",
   "field.doc_url": "URL",

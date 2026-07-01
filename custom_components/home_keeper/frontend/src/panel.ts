@@ -6,6 +6,7 @@ import {
   documentLabel,
   isDisplayableDocument,
   openDocument,
+  openPartFile,
 } from './documents';
 import {
   buildTaskPayload,
@@ -408,6 +409,12 @@ const STYLES = `
     color: var(--primary-color);
     border-color: color-mix(in srgb, var(--primary-color) 50%, transparent);
   }
+  .hk-part-file {
+    display: inline-flex; align-items: center; cursor: pointer;
+    color: var(--secondary-text-color);
+  }
+  .hk-part-file ha-icon { --mdc-icon-size: 16px; }
+  .hk-part-file:hover { color: var(--primary-color); }
   .hk-part-sub {
     color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px;
     word-break: break-word;
@@ -2034,7 +2041,7 @@ export class HomeKeeperPanel extends HTMLElement {
         ${this._row(t('field.recurrence_type'), recurrenceSummary(task))}
         ${task.recurrence_type === 'sensor' ? this._row(t('field.sensor_entity_id'), this._sensorProgress(task)) : ''}
         ${this._row(t('detail.nextDue'), due)}
-        ${this._row(t('field.consumable_link'), this._consumableLinkLabel(task))}
+        ${this._row(t('field.consumable_link'), this._consumableLinkLabel(task), true)}
       </div></ha-card>
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>
@@ -2165,13 +2172,20 @@ export class HomeKeeperPanel extends HTMLElement {
         const name = p.url
           ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">${escapeHTML(p.name)}</a>`
           : escapeHTML(p.name);
+        // An attached file (receipt/spec sheet/photo) opens via a signed URL, wired
+        // in `_wireDetailActions` alongside the same pattern for asset documents.
+        const fileLink = p.file_name
+          ? `<a class="hk-part-file" role="button" tabindex="0" data-part="${escapeHTML(
+              p.id || '',
+            )}" title="${escapeHTML(p.file_name)}"><ha-icon icon="mdi:paperclip"></ha-icon></a>`
+          : '';
         return `
           <div class="hk-part-row ${isWear ? 'wear' : 'consumable'}">
             <div class="hk-part-ic">
               <ha-svg-icon data-mdi="${isWear ? 'wear' : 'consumable'}"></ha-svg-icon>
             </div>
             <div class="grow">
-              <div class="hk-part-name">${name}${badge}</div>
+              <div class="hk-part-name">${name}${badge}${fileLink}</div>
               ${subLine}
               ${chipRow}
             </div>
@@ -2735,6 +2749,20 @@ export class HomeKeeperPanel extends HTMLElement {
       const open = (): void => {
         const doc = asset.documents?.find((d) => d.id === el.dataset.doc);
         if (doc && this._hass) void openDocument(this._hass, asset.id, doc);
+      };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => {
+        if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') {
+          e.preventDefault();
+          open();
+        }
+      });
+    });
+    // A part's attached file, same signed-URL pattern.
+    root.querySelectorAll<HTMLElement>('.hk-part-file').forEach((el) => {
+      const open = (): void => {
+        const part = asset.parts?.find((p) => p.id === el.dataset.part);
+        if (part && this._hass) void openPartFile(this._hass, asset.id, part);
       };
       el.addEventListener('click', open);
       el.addEventListener('keydown', (e) => {
@@ -3426,7 +3454,9 @@ export class HomeKeeperPanel extends HTMLElement {
     return options.sort((a, b) => a.label.localeCompare(b.label));
   }
 
-  /** Resolve a task's part link to a "Appliance · Part · In stock: N" detail line. */
+  /** Resolve a task's part link to a "Appliance · Part · In stock: N" detail line
+   *  (HTML — the part name is a clickable link to its product page when it has a
+   *  `url`, same anchor pattern as the appliance's parts-list read view). */
   private _consumableLinkLabel(task: Task): string {
     const part = task.source?.part;
     if (!part) return '';
@@ -3435,12 +3465,17 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!asset || !p) return '';
     const stock =
       p.stock != null
-        ? ` · ${t(
-            p.reorder_at != null && p.stock <= p.reorder_at ? 'part.lowStock' : 'part.inStock',
-            { n: p.stock },
+        ? ` · ${escapeHTML(
+            t(
+              p.reorder_at != null && p.stock <= p.reorder_at ? 'part.lowStock' : 'part.inStock',
+              { n: p.stock },
+            ),
           )}`
         : '';
-    return `${asset.name} · ${p.name}${stock}`;
+    const name = p.url
+      ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">${escapeHTML(p.name)}</a>`
+      : escapeHTML(p.name);
+    return `${escapeHTML(asset.name)} · ${name}${stock}`;
   }
 
   /**
@@ -4294,6 +4329,7 @@ export class HomeKeeperPanel extends HTMLElement {
         },
       );
       box.appendChild(form);
+      this._renderPartFile(box, p, i);
 
       if (p.type === 'wear') {
         const note = document.createElement('div');
@@ -4314,6 +4350,126 @@ export class HomeKeeperPanel extends HTMLElement {
       this._render();
     });
     body.appendChild(add);
+  }
+
+  /** A part's single attached file: a card (icon, filename · size · type, Open /
+   *  Remove) when one is attached; otherwise an "Attach file" upload button — only
+   *  once both the appliance and this part row are saved (a part gets its id from
+   *  the backend, so a brand-new unsaved part has none yet to upload against). */
+  private _renderPartFile(box: HTMLElement, p: Part, i: number): void {
+    const assetId = this._assetEdit.asset?.id;
+    if (p.file_name) {
+      const card = document.createElement('div');
+      card.className = 'hk-doc-card';
+
+      const ic = document.createElement('div');
+      ic.className = 'hk-doc-ic';
+      const icon = document.createElement('ha-icon');
+      icon.setAttribute('icon', 'mdi:paperclip');
+      ic.appendChild(icon);
+
+      const main = document.createElement('div');
+      main.className = 'hk-doc-main';
+      const name = document.createElement('div');
+      name.className = 'hk-doc-name';
+      name.textContent = p.file_name;
+      main.appendChild(name);
+      const subText = this._partFileSubtitle(p);
+      if (subText) {
+        const sub = document.createElement('div');
+        sub.className = 'hk-doc-sub';
+        sub.textContent = subText;
+        main.appendChild(sub);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'hk-doc-actions';
+      const open = document.createElement('ha-icon-button');
+      open.setAttribute('label', t('btn.openDocument'));
+      this._setIcon(open, MDI_OPEN_IN_NEW);
+      open.addEventListener('click', () => this._openPartFile(p));
+      const del = document.createElement('ha-icon-button');
+      del.setAttribute('label', t('btn.removePartFile'));
+      this._setIcon(del, MDI_DELETE);
+      del.addEventListener('click', () => void this._removePartFile(p, i));
+      actions.append(open, del);
+
+      card.append(ic, main, actions);
+      box.appendChild(card);
+      return;
+    }
+    if (!assetId || !p.id) return;
+    const upload = document.createElement('ha-button');
+    upload.textContent = t('btn.attachFile');
+    const picker = document.createElement('input');
+    picker.type = 'file';
+    picker.accept = 'application/pdf,image/png,image/jpeg,image/webp,image/gif';
+    picker.style.display = 'none';
+    picker.addEventListener('change', () => {
+      const file = picker.files?.[0];
+      if (file) void this._uploadPartFile(p, i, file);
+      picker.value = '';
+    });
+    upload.addEventListener('click', () => picker.click());
+    const row = document.createElement('div');
+    row.className = 'hk-meta-seeds';
+    row.append(upload, picker);
+    box.appendChild(row);
+  }
+
+  /** Details line for a part's attached file: filename · size · type. */
+  private _partFileSubtitle(p: Part): string {
+    const parts: string[] = [];
+    const size = this._formatBytes(p.file_size ?? undefined);
+    if (size) parts.push(size);
+    const type = this._documentTypeLabel(p.file_content_type ?? undefined);
+    if (type) parts.push(type);
+    return parts.join(' · ');
+  }
+
+  private _openPartFile(p: Part): void {
+    const assetId = this._assetEdit.asset?.id;
+    if (this._hass && assetId) void openPartFile(this._hass, assetId, p);
+  }
+
+  private async _uploadPartFile(p: Part, i: number, file: File): Promise<void> {
+    const assetId = this._assetEdit.asset?.id;
+    if (!this._hass || !assetId || !p.id) return;
+    try {
+      const updated = await api.uploadPartFile(this._hass, assetId, p.id, file);
+      const list = [...(this._assetEdit.asset?.parts || [])];
+      list[i] = {
+        ...list[i],
+        file_name: updated.file_name,
+        file_content_type: updated.file_content_type,
+        file_size: updated.file_size,
+      };
+      this._assetEdit.asset!.parts = list;
+      this._render();
+    } catch (err) {
+      const e = err as api.UploadError;
+      if (e?.status === 413 && !e.serverMessage) {
+        this._setAssetError(t('doc.uploadTooLargeProxy'), DOCS_UPLOAD_413_URL);
+      } else {
+        this._setAssetError(String(e?.message || err));
+      }
+      this._render();
+    }
+  }
+
+  private async _removePartFile(p: Part, i: number): Promise<void> {
+    const assetId = this._assetEdit.asset?.id;
+    if (!this._hass || !assetId || !p.id) return;
+    try {
+      await api.removePartFile(this._hass, assetId, p.id);
+      const list = [...(this._assetEdit.asset?.parts || [])];
+      list[i] = { ...list[i], file_name: null, file_content_type: null, file_size: null };
+      this._assetEdit.asset!.parts = list;
+      this._render();
+    } catch (err) {
+      this._setAssetError(String((err as { message?: string })?.message || err));
+      this._render();
+    }
   }
 
   private _section(title: string): HTMLElement {

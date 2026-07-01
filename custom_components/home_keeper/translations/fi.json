@@ -539,6 +539,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Poista varaosan tiedosto",
+      "description": "Irrottaa varaosan liitetyn tiedoston (kuitti/tietolomake/kuva) ja poistaa sen tallennetun kopion levyltä. Lataa tai korvaa tiedosto paneelista; tämä palvelu käsittelee vain poistamisen.",
+      "fields": {
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu."
+        },
+        "part_id": {
+          "name": "Varaosan tunnus",
+          "description": "Sen varaosan tunnus, jonka tiedosto poistetaan."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Lisää laitteen asiakirja",
       "description": "Liittää linkkiasiakirjan (opas/takuu/kuitti) laitteeseen. Lataa tiedostot paneelista; tämä palvelu käsittelee vain linkkejä.",

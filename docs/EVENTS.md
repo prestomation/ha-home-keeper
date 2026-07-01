@@ -95,7 +95,9 @@ when you mark it done.
 
 Attaching or removing an appliance **document** (a manual/warranty/receipt link, or an
 uploaded file) is an appliance change, so it surfaces as `home_keeper_asset_updated`
-with `changed_fields: ["documents"]` — there is no separate document event.
+with `changed_fields: ["documents"]` — there is no separate document event. Attaching
+or removing a **part's** single file works the same way, with
+`changed_fields: ["parts"]`.
 
 Deleting an entry from an appliance's **archived task history** (via
 `home_keeper.delete_archived_completion`) likewise surfaces as

@@ -226,6 +226,11 @@ export interface Part {
   vendor?: string;
   cost?: number | null;
   url?: string;
+  // The part's single attached file (receipt / spec sheet / photo) — upload-only,
+  // never settable through the generic edit form; see `uploadPartFile`/`removePartFile`.
+  file_name?: string | null;
+  file_content_type?: string | null;
+  file_size?: number | null;
   notes?: string;
   replace_interval?: number | null;
   replace_unit?: Unit | null;

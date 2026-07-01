@@ -5,6 +5,8 @@
   "btn.openDocument": "Otevřít",
   "btn.addLink": "+ Přidat odkaz",
   "btn.uploadFile": "Nahrát soubor",
+  "btn.attachFile": "Připojit soubor",
+  "btn.removePartFile": "Odebrat soubor",
   "section.documents": "Manuály a dokumenty",
   "field.doc_name": "Název",
   "field.doc_url": "URL",

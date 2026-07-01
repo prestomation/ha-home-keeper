@@ -5,6 +5,8 @@
   "btn.openDocument": "Abrir",
   "btn.addLink": "+ Añadir enlace",
   "btn.uploadFile": "Subir archivo",
+  "btn.attachFile": "Adjuntar archivo",
+  "btn.removePartFile": "Eliminar archivo",
   "section.documents": "Manuales y documentos",
   "field.doc_name": "Nombre",
   "field.doc_url": "URL",

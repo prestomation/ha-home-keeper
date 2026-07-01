@@ -5,6 +5,8 @@
   "btn.openDocument": "Obre",
   "btn.addLink": "+ Afegeix un enllaç",
   "btn.uploadFile": "Puja un fitxer",
+  "btn.attachFile": "Adjunta un fitxer",
+  "btn.removePartFile": "Suprimeix el fitxer",
   "section.documents": "Manuals i documents",
   "field.doc_name": "Nom",
   "field.doc_url": "URL",

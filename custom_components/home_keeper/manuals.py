@@ -38,12 +38,18 @@ from .const import (
     DOMAIN,
     MANUALS_SUBDIR,
     MAX_DOCUMENT_BYTES,
+    PART_FILE_URL_PREFIX,
 )
 from .documents import validate_upload
 
 _LOGGER = logging.getLogger(__name__)
 
-__all__ = ["HomeKeeperDocumentView", "async_register_http", "validate_upload"]
+__all__ = [
+    "HomeKeeperDocumentView",
+    "HomeKeeperPartFileView",
+    "async_register_http",
+    "validate_upload",
+]
 
 
 def _root(hass: HomeAssistant) -> Path:
@@ -119,6 +125,11 @@ def document_path(asset_id: str, document_id: str) -> str:
     return f"{DOCUMENT_URL_PREFIX}/{asset_id}/{document_id}"
 
 
+def part_file_path(asset_id: str, part_id: str) -> str:
+    """The view path for a part's attached file (signed by the websocket command)."""
+    return f"{PART_FILE_URL_PREFIX}/{asset_id}/{part_id}"
+
+
 def _coordinator(hass: HomeAssistant) -> Any:
     """Locate the loaded Home Keeper coordinator (lazy import avoids a cycle)."""
     from .coordinator import HomeKeeperCoordinator
@@ -134,6 +145,13 @@ def _file_document(asset: dict[str, Any] | None, document_id: str) -> dict | Non
     for document in (asset or {}).get("documents", []):
         if document.get("id") == document_id and document.get("kind") == "file":
             return document
+    return None
+
+
+def _part_with_file(asset: dict[str, Any] | None, part_id: str) -> dict | None:
+    for part in (asset or {}).get("parts", []):
+        if part.get("id") == part_id and part.get("file_name"):
+            return part
     return None
 
 
@@ -286,9 +304,130 @@ class HomeKeeperDocumentView(HomeAssistantView):
         return self.json({"asset": coord.store.get_asset(asset_id), "document": entry})
 
 
+class HomeKeeperPartFileView(HomeAssistantView):
+    """Upload (POST) and serve (GET) a part's single attached file.
+
+    A smaller sibling of :class:`HomeKeeperDocumentView`: a part has exactly one
+    optional file slot (no link kind — that's the part's ``url`` field, and no list to
+    manage), keyed by the part's own id instead of a document id. Reuses the same
+    on-disk blob helpers, storage root, and validation.
+    """
+
+    url = PART_FILE_URL_PREFIX + "/{asset_id}/{part_id}"
+    name = "api:home_keeper:part_document"
+    requires_auth = True
+
+    async def get(
+        self, request: web.Request, asset_id: str, part_id: str
+    ) -> web.StreamResponse:
+        hass = request.app[KEY_HASS]
+        coord = _coordinator(hass)
+        part = _part_with_file(
+            coord.store.get_asset(asset_id) if coord else None, part_id
+        )
+        if part is None:
+            return web.Response(status=HTTPStatus.NOT_FOUND)
+        try:
+            data = await async_read_document(hass, asset_id, part_id, part["file_name"])
+        except (FileNotFoundError, AssetValidationError):
+            return web.Response(status=HTTPStatus.NOT_FOUND)
+        disposition = f'inline; filename="{part["file_name"]}"'
+        return web.Response(
+            body=data,
+            content_type=part.get("file_content_type") or "application/octet-stream",
+            headers={hdrs.CONTENT_DISPOSITION: disposition},
+        )
+
+    async def post(
+        self, request: web.Request, asset_id: str, part_id: str
+    ) -> web.Response:
+        hass = request.app[KEY_HASS]
+        request._client_max_size = MAX_DOCUMENT_BYTES  # see HomeKeeperDocumentView.post
+        coord = _coordinator(hass)
+        if coord is None:
+            return self.json_message("Home Keeper is not loaded", HTTPStatus.NOT_FOUND)
+        asset = coord.store.get_asset(asset_id)
+        if asset is None:
+            return self.json_message("Unknown asset", HTTPStatus.NOT_FOUND)
+        if not any(p.get("id") == part_id for p in asset.get("parts", [])):
+            return self.json_message("Unknown part", HTTPStatus.NOT_FOUND)
+
+        filename: str | None = None
+        declared_type: str | None = None
+        data = b""
+        too_large = self.json_message(
+            f"File exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)} MB limit",
+            HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+        )
+        try:
+            reader = await request.multipart()
+        except (ValueError, AssertionError):
+            return self.json_message(
+                "Expected a multipart upload", HTTPStatus.BAD_REQUEST
+            )
+        try:
+            while True:
+                part_field = await reader.next()
+                if part_field is None:
+                    break
+                if not isinstance(part_field, BodyPartReader):
+                    continue
+                if not part_field.filename:
+                    continue
+                filename = part_field.filename
+                declared_type = part_field.headers.get(hdrs.CONTENT_TYPE)
+                buffer = bytearray()
+                while chunk := await part_field.read_chunk():
+                    buffer += chunk
+                    if len(buffer) > MAX_DOCUMENT_BYTES:
+                        return too_large
+                data = bytes(buffer)
+        except web.HTTPRequestEntityTooLarge:
+            return too_large
+
+        if filename is None:
+            return self.json_message("No file part in upload", HTTPStatus.BAD_REQUEST)
+        try:
+            content_type, safe_name = validate_upload(filename, declared_type, data)
+        except AssetValidationError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+
+        # A re-upload replaces the existing file (only one slot per part) — remember
+        # the old filename so its blob can be deleted once the new one is written.
+        old_part = _part_with_file(asset, part_id)
+        old_filename = old_part["file_name"] if old_part else None
+
+        try:
+            updated_part = await coord.store.set_part_file(
+                asset_id,
+                part_id,
+                {
+                    "filename": safe_name,
+                    "content_type": content_type,
+                    "size": len(data),
+                },
+            )
+        except (KeyError, AssetValidationError) as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+        try:
+            await async_save_document(hass, asset_id, part_id, safe_name, data)
+        except OSError as err:  # roll the metadata back if the disk write fails
+            _LOGGER.error("Failed to write file for part %s: %s", part_id, err)
+            await coord.store.remove_part_file(asset_id, part_id)
+            return self.json_message(
+                "Failed to store the file", HTTPStatus.INTERNAL_SERVER_ERROR
+            )
+        if old_filename and old_filename != safe_name:
+            await async_delete_document(hass, asset_id, part_id, old_filename)
+        return self.json(
+            {"asset": coord.store.get_asset(asset_id), "part": updated_part}
+        )
+
+
 def async_register_http(hass: HomeAssistant) -> None:
-    """Register the document HTTP view (idempotent across entry reloads)."""
+    """Register the document HTTP views (idempotent across entry reloads)."""
     if hass.data.get(f"{DOMAIN}_document_view"):
         return
     hass.http.register_view(HomeKeeperDocumentView())
+    hass.http.register_view(HomeKeeperPartFileView())
     hass.data[f"{DOMAIN}_document_view"] = True

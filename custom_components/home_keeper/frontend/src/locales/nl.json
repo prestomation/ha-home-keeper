@@ -5,6 +5,8 @@
   "btn.openDocument": "Openen",
   "btn.addLink": "+ Link toevoegen",
   "btn.uploadFile": "Bestand uploaden",
+  "btn.attachFile": "Bestand bijvoegen",
+  "btn.removePartFile": "Bestand verwijderen",
   "section.documents": "Handleidingen en documenten",
   "field.doc_name": "Naam",
   "field.doc_url": "URL",
