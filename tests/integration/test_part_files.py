@@ -75,7 +75,10 @@ def test_upload_download_and_remove_part_file(ha):
     assert dl.headers.get("Content-Type", "").startswith("application/pdf")
 
     call_service(
-        ha, "home_keeper", "remove_part_file", {"asset_id": asset["id"], "part_id": part_id}
+        ha,
+        "home_keeper",
+        "remove_part_file",
+        {"asset_id": asset["id"], "part_id": part_id},
     )
     cleared = _part(ha, asset["id"], part_id)
     assert cleared["file_name"] is None
