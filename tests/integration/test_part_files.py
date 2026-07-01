@@ -159,13 +159,12 @@ def test_update_asset_preserves_part_file(ha):
     dl = ha.get(url)
     assert dl.status_code == 200 and dl.content == PDF_BYTES
 
-    # ...nor can a generic write inject a spoofed file_name for a part that never
-    # had one uploaded.
-    call_service(
-        ha,
-        "home_keeper",
-        "update_asset",
-        {
+    # ...nor can a generic write even *attempt* to set file_name on a part: the
+    # service schema doesn't declare it as a recognized field (voluptuous rejects
+    # unknown keys outright — a stronger guarantee than silently stripping it).
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/update_asset",
+        json={
             "asset_id": asset["id"],
             "parts": [
                 {"id": part_id, "name": "Filter", "type": "consumable"},
@@ -173,12 +172,7 @@ def test_update_asset_preserves_part_file(ha):
             ],
         },
     )
-    other = next(
-        p
-        for p in next(a for a in _assets(ha) if a["id"] == asset["id"])["parts"]
-        if p["name"] == "Other"
-    )
-    assert other["file_name"] is None
+    assert r.status_code >= 400, "file_name must not be a settable part field"
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 

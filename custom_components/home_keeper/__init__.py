@@ -216,12 +216,17 @@ _PART_SCHEMA = vol.Schema(
         vol.Optional("type"): cv.string,
         vol.Optional("vendor"): cv.string,
         vol.Optional("cost"): vol.Coerce(float),
+        vol.Optional("url"): cv.string,
         vol.Optional("notes"): cv.string,
         vol.Optional("replace_interval"): vol.Coerce(int),
         vol.Optional("replace_unit"): cv.string,
         vol.Optional("last_replaced"): cv.string,
         vol.Optional("stock"): vol.Coerce(int),
         vol.Optional("reorder_at"): vol.Coerce(int),
+        # file_name/file_content_type/file_size are deliberately absent: a part's
+        # attached file is upload-only (see manuals.HomeKeeperPartFileView) and must
+        # never be settable through add_asset/update_asset — voluptuous rejects any
+        # part payload that includes them (strict schema, no extra keys allowed).
     }
 )
 

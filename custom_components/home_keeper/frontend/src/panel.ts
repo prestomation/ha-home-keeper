@@ -4175,6 +4175,15 @@ export class HomeKeeperPanel extends HTMLElement {
               value.type === 'wear' && value.replace_interval
                 ? (value.replace_unit as Part['replace_unit'])
                 : null,
+            // Not editable in this form (upload-only — see _renderPartFile); carry
+            // the current known values forward so the in-progress client copy stays
+            // accurate between saves. The server ignores whatever this sends anyway
+            // and always restores the stored values (see assets._merge_parts), but
+            // without this the local UI would show "no file" the moment any other
+            // field on this part changes, even though nothing was actually lost.
+            file_name: p.file_name ?? null,
+            file_content_type: p.file_content_type ?? null,
+            file_size: p.file_size ?? null,
           };
           const list = [...(this._assetEdit.asset?.parts || [])];
           list[i] = updated;
