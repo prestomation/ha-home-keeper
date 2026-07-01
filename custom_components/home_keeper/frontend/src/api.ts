@@ -6,6 +6,7 @@ import type {
   HassLabel,
   HomeKeeperOptions,
   Inventory,
+  Part,
   Profile,
   Task,
 } from './types';
@@ -342,6 +343,76 @@ export async function uploadAssetDocument(
 export interface UploadError extends Error {
   status?: number;
   serverMessage?: boolean;
+}
+
+/**
+ * Upload (or replace) a part's single attached file via the Home Keeper HTTP view.
+ * The binary can't ride the websocket, so this POSTs multipart with the auth token —
+ * same shape as `uploadAssetDocument`, keyed by the part's own id instead of a
+ * client-minted document id (a part has exactly one file slot).
+ *
+ * Returns just the updated **part** (not the whole asset): the caller has an
+ * in-progress edit draft covering every part in the form, and syncing the whole
+ * `parts` array from the server would stomp any unsaved edits to sibling parts. The
+ * caller grafts only this part's `file_*` fields into its draft by id.
+ */
+export async function uploadPartFile(
+  hass: Hass,
+  assetId: string,
+  partId: string,
+  file: File,
+  name?: string,
+): Promise<Part> {
+  const body = new FormData();
+  body.append('file', file, file.name);
+  if (name) body.append('name', name);
+  const token = hass.auth?.data?.access_token;
+  const res = await fetch(`/api/home_keeper/part_document/${assetId}/${partId}`, {
+    method: 'POST',
+    body,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = ((await res.json()) as { message?: string }).message ?? '';
+    } catch {
+      /* non-JSON body (a proxy's error page) — leave detail empty */
+    }
+    const error = new Error(detail || `Upload failed (${res.status})`) as UploadError;
+    error.status = res.status;
+    error.serverMessage = !!detail;
+    throw error;
+  }
+  return ((await res.json()) as { part: Part }).part;
+}
+
+/** Detach a part's attached file; its on-disk blob is deleted. */
+export async function removePartFile(
+  hass: Hass,
+  assetId: string,
+  partId: string,
+): Promise<Asset> {
+  const res = await hass.callWS<{ asset: Asset }>({
+    type: 'home_keeper/remove_part_file',
+    asset_id: assetId,
+    part_id: partId,
+  });
+  return res.asset;
+}
+
+/** Mint a short-lived signed URL the browser can open for a part's attached file. */
+export async function signPartFileUrl(
+  hass: Hass,
+  assetId: string,
+  partId: string,
+): Promise<string> {
+  const res = await hass.callWS<{ url: string }>({
+    type: 'home_keeper/sign_part_file_url',
+    asset_id: assetId,
+    part_id: partId,
+  });
+  return res.url;
 }
 
 /** Fetch the home-inventory report (for insurance) plus a ready-to-save CSV. */

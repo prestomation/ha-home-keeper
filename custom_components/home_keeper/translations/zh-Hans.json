@@ -443,6 +443,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "移除零件文件",
+      "description": "分离零件的附件文件（收据/规格表/照片），并删除磁盘上保存的副本。请通过面板上传或替换文件；此服务仅处理移除操作。",
+      "fields": {
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "该零件所属设备的 ID。"
+        },
+        "part_id": {
+          "name": "零件 ID",
+          "description": "要移除文件的零件的 ID。"
+        }
+      }
+    },
     "add_asset_document": {
       "name": "添加设备文档",
       "description": "将链接文档（手册/保修/收据）附加到设备。请从面板上传文件；此服务仅处理链接。",

@@ -32,6 +32,8 @@
   "btn.openDocument": "Open",
   "btn.addLink": "+ Add link",
   "btn.uploadFile": "Upload file",
+  "btn.attachFile": "Attach file",
+  "btn.removePartFile": "Remove file",
   "btn.learnMore": "Learn more",
   "tasks.empty": "No tasks yet. Click {addTask} to create your first maintenance reminder.",
   "tasks.intro.title": "Welcome to Home Keeper",

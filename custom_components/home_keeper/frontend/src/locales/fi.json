@@ -5,6 +5,8 @@
   "btn.openDocument": "Avaa",
   "btn.addLink": "+ Lisää linkki",
   "btn.uploadFile": "Lataa tiedosto",
+  "btn.attachFile": "Liitä tiedosto",
+  "btn.removePartFile": "Poista tiedosto",
   "section.documents": "Käyttöoppaat ja asiakirjat",
   "field.doc_name": "Nimi",
   "field.doc_url": "URL",

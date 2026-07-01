@@ -443,6 +443,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Supprimer le fichier de la pièce",
+      "description": "Détache le fichier joint d'une pièce (reçu/fiche technique/photo), en supprimant sa copie stockée du disque. Téléversez ou remplacez un fichier depuis le panneau ; ce service gère uniquement la suppression.",
+      "fields": {
+        "asset_id": {
+          "name": "ID du bien",
+          "description": "L'identifiant de l'appareil auquel la pièce appartient."
+        },
+        "part_id": {
+          "name": "ID de la pièce",
+          "description": "L'identifiant de la pièce dont le fichier doit être supprimé."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Ajouter un document d'appareil",
       "description": "Joint un document de type lien (manuel/garantie/reçu) à un appareil. Téléversez les fichiers depuis le panneau ; ce service ne gère que les liens.",

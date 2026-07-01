@@ -5,6 +5,8 @@
   "btn.openDocument": "Öppna",
   "btn.addLink": "+ Lägg till länk",
   "btn.uploadFile": "Ladda upp fil",
+  "btn.attachFile": "Bifoga fil",
+  "btn.removePartFile": "Ta bort fil",
   "section.documents": "Manualer och dokument",
   "field.doc_name": "Namn",
   "field.doc_url": "URL",

@@ -5,6 +5,8 @@
   "btn.openDocument": "Otwórz",
   "btn.addLink": "+ Dodaj link",
   "btn.uploadFile": "Prześlij plik",
+  "btn.attachFile": "Załącz plik",
+  "btn.removePartFile": "Usuń plik",
   "section.documents": "Instrukcje i dokumenty",
   "field.doc_name": "Nazwa",
   "field.doc_url": "URL",

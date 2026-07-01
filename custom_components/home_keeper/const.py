@@ -36,6 +36,11 @@ STORAGE_VERSION = 1
 MANUALS_SUBDIR = "home_keeper/documents"
 DOCUMENT_URL_PREFIX = "/api/home_keeper/document"
 MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
+# A part's single attached file (receipt / spec sheet / photo) reuses the same
+# documents.py/manuals.py storage and validation, keyed by the part's own id instead
+# of a document id — it lives under the same per-asset directory (asset deletion's
+# rmtree cleans it up for free) and is served by a sibling HTTP view.
+PART_FILE_URL_PREFIX = "/api/home_keeper/part_document"
 # How many completion timestamps to retain per task. Generous so the panel's task
 # history shows years of cadence (e.g. 500 monthly completions ≈ 40 years) while
 # still bounding the stored list. When a task that belongs to an appliance is

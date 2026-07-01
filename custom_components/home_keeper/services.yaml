@@ -710,6 +710,26 @@ adjust_part_stock:
         number:
           mode: box
 
+remove_part_file:
+  name: Remove part file
+  description: >-
+    Detach a part's attached file (receipt / spec sheet / photo), deleting its
+    on-disk blob. Upload/replace a file from the panel; this service handles
+    removal only (a service call can't carry binary bytes).
+  fields:
+    asset_id:
+      name: Asset ID
+      description: The id of the appliance the part belongs to.
+      required: true
+      selector:
+        text:
+    part_id:
+      name: Part ID
+      description: The id of the part whose file to remove.
+      required: true
+      selector:
+        text:
+
 add_asset_document:
   name: Add appliance document
   description: >-

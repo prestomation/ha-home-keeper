@@ -443,6 +443,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Teildatei entfernen",
+      "description": "Entfernt die angehängte Datei eines Teils (Beleg/Datenblatt/Foto) und löscht die gespeicherte Kopie von der Festplatte. Eine Datei über das Panel hochladen/ersetzen; dieser Dienst übernimmt nur das Entfernen.",
+      "fields": {
+        "asset_id": {
+          "name": "Objekt-ID",
+          "description": "Die ID des Geräts, zu dem das Teil gehört."
+        },
+        "part_id": {
+          "name": "Teile-ID",
+          "description": "Die ID des Teils, dessen Datei entfernt werden soll."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Gerätedokument hinzufügen",
       "description": "Hängt ein Link-Dokument (Handbuch/Garantie/Beleg) an ein Gerät an. Dateien lädst du im Panel hoch; dieser Dienst verarbeitet nur Links.",

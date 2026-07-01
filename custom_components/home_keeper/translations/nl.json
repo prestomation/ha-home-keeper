@@ -443,6 +443,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Onderdeelbestand verwijderen",
+      "description": "Koppelt het bijgevoegde bestand van een onderdeel los (bon/specificatieblad/foto) en verwijdert de opgeslagen kopie van de schijf. Upload/vervang een bestand vanuit het paneel; deze service verwerkt alleen verwijdering.",
+      "fields": {
+        "asset_id": {
+          "name": "Object-ID",
+          "description": "De id van het apparaat waartoe het onderdeel behoort."
+        },
+        "part_id": {
+          "name": "Onderdeel-ID",
+          "description": "De id van het onderdeel waarvan het bestand moet worden verwijderd."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Apparaatdocument toevoegen",
       "description": "Voegt een link-document (handleiding/garantie/bon) toe aan een apparaat. Upload bestanden vanuit het paneel; deze service verwerkt alleen links.",

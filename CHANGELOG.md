@@ -13,6 +13,16 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   becomes a clickable link that opens the product page in a new tab, so reordering a
   worn or consumed part is one click away. (Fixes #118)
 
+- **Attach a file to a replaceable part.** A part can now carry a single attached
+  file (a receipt, spec sheet, or photo) alongside its product URL — upload it from
+  the part's editor and open or remove it later, the same secure upload/storage path
+  appliance documents already use.
+
+- **A linked task's "Consumable link" points straight at the part's product page.**
+  When a maintenance task is tied to a part that has a product URL, that link now
+  opens the product page directly — in the panel's task detail and on the dashboard
+  card's task row — instead of just naming the part.
+
 ## [0.8.0b2]
 
 ### Added
