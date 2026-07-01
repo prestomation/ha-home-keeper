@@ -4,6 +4,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [0.8.0b1]
+
+### Added
+
+- **Discover known companions from the panel.** The **Settings → Companions** section
+  now links out to the docs catalog of integrations and glue that work with Home
+  Keeper, so you can browse the full list even when nothing is detected on your setup.
+  The docs page also invites you to open a GitHub issue to suggest a companion (or
+  glue) integration that should be listed.
+
 ## [0.7.0] - 2026-06-30
 
 ### Added
@@ -317,7 +327,7 @@ upgrading from 0.3.0:
   Keeper never hard-codes it), and Home Keeper *detects* a small curated set of popular
   upstreams from a catalog. New `home_keeper_companion_connected` /
   `home_keeper_companion_suggested` events let automations react. See the
-  [Companions](README.md#companions--discover-integrations-that-work-with-home-keeper)
+  [Companions](README.md#companions)
   README section and [docs/INTEGRATING.md](docs/INTEGRATING.md) §7.
 - **Sensor-based tasks.** A recurrence type whose due-state is derived from a bound
   numeric Home Assistant entity rather than the clock, in two modes. **Usage / meter**
@@ -356,7 +366,7 @@ upgrading from 0.3.0:
   Keeper never hard-codes it), and Home Keeper *detects* a small curated set of popular
   upstreams from a catalog. New `home_keeper_companion_connected` /
   `home_keeper_companion_suggested` events let automations react. See the
-  [Companions](README.md#companions--discover-integrations-that-work-with-home-keeper)
+  [Companions](README.md#companions)
   README section and [docs/INTEGRATING.md](docs/INTEGRATING.md) §7.
 - **Sensor-based tasks.** A recurrence type whose due-state is derived from a bound
   numeric Home Assistant entity rather than the clock, in two modes. **Usage / meter**

@@ -37,8 +37,7 @@ const ANCHOR_ROUTES = {
   '#sensor-based-tasks-usage-meters--thresholds': '/docs/guide/sensor-tasks',
   '#appliances--virtual-devices': '/docs/guide/appliances',
   // The "Companions" subsection lives under the Settings section (→ settings page).
-  '#companions--discover-integrations-that-work-with-home-keeper':
-    '/docs/guide/settings#companions--discover-integrations-that-work-with-home-keeper',
+  '#companions': '/docs/guide/settings#companions',
   '#notifications--actionable-reminders-on-your-phone': '/docs/guide/notifications',
   '#profiles--saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
   // The "Link a task to a consumable" subsection lives under the Sensor-based tasks

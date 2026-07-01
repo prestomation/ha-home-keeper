@@ -227,6 +227,7 @@
   "done.needsDetails": "Åpne denne oppgaven i Home Keeper for å legge til de påkrevde detaljene.",
   "companions.heading": "Følgesvenner",
   "companions.help": "Integrasjoner som fungerer med Home Keeper. Koble til en følgesvenn for å administrere den her, eller installer en foreslått bro for å knytte til en app du allerede bruker.",
+  "companions.discover": "Nysgjerrig på hva som passer med Home Keeper? Se <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">listen over kjente følgesvenner</a>.",
   "companions.empty": "Ingen følgesvenn-integrasjoner oppdaget ennå.",
   "companions.connected": "Tilkoblet",
   "companions.suggested": "Foreslått",

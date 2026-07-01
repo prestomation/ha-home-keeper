@@ -253,6 +253,7 @@
   "done.needsDetails": "Откройте эту задачу в Home Keeper, чтобы добавить необходимые детали.",
   "companions.heading": "Компаньоны",
   "companions.help": "Интеграции, работающие с Home Keeper. Подключите компаньон, чтобы управлять им здесь, или установите предлагаемый мост, чтобы связать уже используемое приложение.",
+  "companions.discover": "Хотите узнать, что работает с Home Keeper? Смотрите <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">список известных компаньонов</a>.",
   "companions.empty": "Интеграции-компаньоны пока не обнаружены.",
   "companions.connected": "Подключено",
   "companions.suggested": "Предложено",

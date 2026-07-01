@@ -253,6 +253,7 @@
   "done.needsDetails": "Otwórz to zadanie w Home Keeper, aby dodać wymagane szczegóły.",
   "companions.heading": "Powiązane integracje",
   "companions.help": "Integracje współpracujące z Home Keeper. Połącz powiązaną integrację, aby zarządzać nią tutaj, lub zainstaluj sugerowany pomost, aby połączyć już używaną aplikację.",
+  "companions.discover": "Ciekawi Cię, co współpracuje z Home Keeper? Zobacz <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">listę znanych integracji powiązanych</a>.",
   "companions.empty": "Nie wykryto jeszcze powiązanych integracji.",
   "companions.connected": "Połączono",
   "companions.suggested": "Sugerowane",

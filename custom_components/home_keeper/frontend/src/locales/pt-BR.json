@@ -240,6 +240,7 @@
   "done.needsDetails": "Abra esta tarefa no Home Keeper para adicionar os detalhes obrigatórios.",
   "companions.heading": "Complementos",
   "companions.help": "Integrações que funcionam com o Home Keeper. Conecte um complemento para gerenciá-lo aqui ou instale uma ponte sugerida para vincular um app que você já usa.",
+  "companions.discover": "Quer saber o que funciona com o Home Keeper? Veja a <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">lista de complementos conhecidos</a>.",
   "companions.empty": "Nenhuma integração complementar detectada ainda.",
   "companions.connected": "Conectado",
   "companions.suggested": "Sugerido",

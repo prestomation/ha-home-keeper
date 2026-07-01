@@ -227,6 +227,7 @@
   "done.needsDetails": "Åbn denne opgave i Home Keeper for at tilføje de påkrævede detaljer.",
   "companions.heading": "Ledsagere",
   "companions.help": "Integrationer der fungerer med Home Keeper. Forbind en ledsager for at administrere den her, eller installer en foreslået bro for at forbinde en app, du allerede bruger.",
+  "companions.discover": "Nysgerrig efter, hvad der passer sammen med Home Keeper? Se <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">listen over kendte ledsagere</a>.",
   "companions.empty": "Ingen ledsagerintegrationer fundet endnu.",
   "companions.connected": "Forbundet",
   "companions.suggested": "Foreslået",

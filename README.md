@@ -299,27 +299,32 @@ options flow and the `home_keeper.set_options` service (for automations).
 
 ![The Home Keeper Settings tab — a form with the problem-sensor sync toggle and entity/area/label exclusion pickers](docs/images/17-panel-settings.png)
 
-### Companions — discover integrations that work with Home Keeper
+### Companions
 
-You shouldn't have to *already know* that another integration pairs with Home Keeper to
-benefit from it. The **Companions** section at the bottom of the Settings tab surfaces
-that ecosystem for you:
+A **companion** is any integration that works with Home Keeper — a pet-care tracker that
+schedules recurring chores, a bridge that turns low batteries into replacement tasks, and
+so on. You shouldn't have to *already know* a companion exists to benefit from it, so the
+**Companions** section at the bottom of the Settings tab surfaces them for you:
 
-- **Connected** — integrations that work with Home Keeper and have announced themselves
-  (e.g. [Pawsistant](https://github.com/prestomation/pawsistant), or the
+- **Connected** — companions that are integrated with Home Keeper and have announced
+  themselves (e.g. [Pawsistant](https://github.com/prestomation/pawsistant), or the
   [Battery Notes bridge](https://github.com/prestomation/ha-home-keeper-battery-notes)).
-  Each row has a **Configure** button that takes you to that integration's own page —
-  so the pet-care schedules or the battery-task options live where they belong, one
-  click away.
+  Each row has a **Configure** button that takes you to that companion's own page — so the
+  pet-care schedules or the battery-task options live where they belong, one click away.
 - **Suggested** — Home Keeper also recognises a few *popular* integrations that aren't
-  Home-Keeper-aware themselves. If you have one installed (e.g. **Battery Notes**) but
-  not the small "glue" that bridges it, Home Keeper points you at it with an **Install**
+  companions yet. If you have one installed (e.g. **Battery Notes**) but not the small
+  "glue" that integrates it, Home Keeper points you at that companion with an **Install**
   link. Not interested? **Dismiss** silences that suggestion.
 
-This works in two directions: a Home-Keeper-aware integration *registers itself* (so
-Home Keeper never has to hard-code it), while a popular upstream is *detected* from a
-curated catalog. Either way you find out — from inside Home Keeper — that the pieces fit
-together.
+Companions surface in two directions: one can *register itself* (so Home Keeper never has
+to hard-code it), while a popular upstream is *detected* from a curated catalog. Either
+way you find out — from inside Home Keeper — that the pieces fit together.
+
+**Know a companion that should be here?** The Companions section links out to this page so
+you can always find the current list. If you maintain — or just know of — a companion or a
+small [glue integration](docs/GLUE_INTEGRATIONS.md) that isn't listed, please
+[open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20)
+so we can add it to the suggested-companions catalog.
 
 ![The Companions section on the Settings tab — connected integrations with Configure buttons](docs/images/21-panel-companions.png)
 
@@ -620,7 +625,7 @@ pet tracker that schedules *"give medicine"*.
 | [Home Keeper — Battery Notes](https://github.com/prestomation/ha-home-keeper-battery-notes) | Glue between [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes) and Home Keeper | Uses Home Keeper's **triggered** task type — arms a *"Replace battery"* task when a battery goes low and clears it when replaced, keeping both sides in sync so completion from either side is recorded in both. |
 | [Pawsistant](https://github.com/prestomation/pawsistant) | Pet-care logger for tracking recurring pet activities | Attaches Home Keeper floating-recurrence tasks to pet care schedules (e.g. *"medicine every 2 weeks"*), so completing the task in Home Keeper logs the event in Pawsistant, and logging it in Pawsistant marks the task done — with no loop. |
 
-Installed companions show up automatically in the panel's **[Companions](#companions--discover-integrations-that-work-with-home-keeper)**
+Installed companions show up automatically in the panel's **[Companions](#companions)**
 section (Settings tab), where you can jump to each one's settings — and Home Keeper will
 *suggest* the Battery Notes bridge if it sees you have Battery Notes but not the glue.
 

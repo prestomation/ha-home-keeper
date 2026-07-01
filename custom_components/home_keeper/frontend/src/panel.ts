@@ -77,6 +77,12 @@ const MDI_DEVICES =
   '1.5 0 0,1 11,14.5A1.5,1.5 0 0,1 12.5,16A1.5,1.5 0 0,1 11,17.5M22,8H16A1,1 0 0,' +
   '0 15,9V19A1,1 0 0,0 16,20H22A1,1 0 0,0 23,19V9A1,1 0 0,0 22,8M21,18H17V10H21V18Z';
 
+// Docs page listing known companion / glue integrations (Settings → Companions
+// blurb links here). Points at the User Guide's Settings page anchor, which the
+// docs site generates from README.md's "Companions" section.
+const COMPANIONS_DOCS_URL =
+  'https://prestomation.github.io/ha-home-keeper/docs/guide/settings#companions';
+
 /**
  * The Home Keeper panel is built entirely from Home Assistant's own web
  * components (the HA design language): `ha-form` for every form (which also
@@ -3042,6 +3048,9 @@ export class HomeKeeperPanel extends HTMLElement {
     const sections: string[] = [
       `<div class="hk-form-title">${escapeHTML(t('companions.heading'))}</div>`,
       `<div class="hk-settings-intro">${escapeHTML(t('companions.help'))}</div>`,
+      // Static link to the docs catalog of known companions/glue. Only the
+      // template's `<a>` is trusted here — the URL is a constant, no user content.
+      `<div class="hk-settings-intro">${t('companions.discover', { url: COMPANIONS_DOCS_URL })}</div>`,
     ];
     if (!connected.length && !suggested.length) {
       sections.push(`<ha-alert alert-type="info">${escapeHTML(t('companions.empty'))}</ha-alert>`);

@@ -240,6 +240,7 @@
   "done.needsDetails": "Apri questa attività in Home Keeper per aggiungere i dettagli richiesti.",
   "companions.heading": "Integrazioni partner",
   "companions.help": "Integrazioni che funzionano con Home Keeper. Collega un partner per gestirlo qui oppure installa un ponte suggerito per collegare un'app che usi già.",
+  "companions.discover": "Vuoi sapere cosa si abbina a Home Keeper? Consulta la <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">lista dei partner conosciuti</a>.",
   "companions.empty": "Nessuna integrazione partner rilevata finora.",
   "companions.connected": "Connesso",
   "companions.suggested": "Suggerito",

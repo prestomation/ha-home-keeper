@@ -227,6 +227,7 @@
   "done.needsDetails": "Öffne diese Aufgabe in Home Keeper, um die erforderlichen Details hinzuzufügen.",
   "companions.heading": "Begleiter",
   "companions.help": "Integrationen, die mit Home Keeper zusammenarbeiten. Verbinde einen Begleiter, um ihn hier zu verwalten, oder installiere eine vorgeschlagene Brücke, um eine bereits genutzte App zu verknüpfen.",
+  "companions.discover": "Neugierig, was zu Home Keeper passt? Sieh dir die <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">Liste bekannter Begleiter</a> an.",
   "companions.empty": "Noch keine Begleiter-Integrationen erkannt.",
   "companions.connected": "Verbunden",
   "companions.suggested": "Vorgeschlagen",
