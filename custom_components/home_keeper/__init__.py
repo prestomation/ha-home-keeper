@@ -223,12 +223,17 @@ _PART_SCHEMA = vol.Schema(
         vol.Optional("type"): cv.string,
         vol.Optional("vendor"): cv.string,
         vol.Optional("cost"): vol.Coerce(float),
+        vol.Optional("url"): cv.string,
         vol.Optional("notes"): cv.string,
         vol.Optional("replace_interval"): vol.Coerce(int),
         vol.Optional("replace_unit"): cv.string,
         vol.Optional("last_replaced"): cv.string,
         vol.Optional("stock"): vol.Coerce(int),
         vol.Optional("reorder_at"): vol.Coerce(int),
+        # file_name/file_content_type/file_size are deliberately absent: a part's
+        # attached file is upload-only (see manuals.HomeKeeperPartFileView) and must
+        # never be settable through add_asset/update_asset — voluptuous rejects any
+        # part payload that includes them (strict schema, no extra keys allowed).
     }
 )
 
@@ -313,6 +318,14 @@ ADJUST_PART_STOCK_SCHEMA = vol.Schema(
         vol.Required("asset_id"): cv.string,
         vol.Required("part_id"): cv.string,
         vol.Required("delta"): vol.Coerce(int),
+    }
+)
+# Detach a part's attached file (upload is HTTP-only — see manuals.py — since a
+# service call can't carry binary bytes; removal needs none, so it's a service too).
+REMOVE_PART_FILE_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("part_id"): cv.string,
     }
 )
 EXPORT_INVENTORY_SCHEMA = vol.Schema({})
@@ -770,6 +783,22 @@ def _register_services(hass: HomeAssistant) -> None:
             ) from None
         await coord.async_request_refresh()
 
+    async def handle_remove_part_file(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.remove_part_file(
+                call.data["asset_id"], call.data["part_id"]
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="unknown_part",
+                translation_placeholders={
+                    "asset_id": call.data["asset_id"],
+                    "part_id": call.data["part_id"],
+                },
+            ) from None
+
     async def handle_add_asset_document(call: ServiceCall) -> None:
         coord = _coordinator()
         document = dict(call.data["document"])
@@ -921,6 +950,12 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN,
+        "remove_part_file",
+        handle_remove_part_file,
+        REMOVE_PART_FILE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
         "add_asset_document",
         handle_add_asset_document,
         ADD_ASSET_DOCUMENT_SCHEMA,
@@ -1018,6 +1053,7 @@ _SERVICES = (
     "delete_asset",
     "list_assets",
     "adjust_part_stock",
+    "remove_part_file",
     "add_asset_document",
     "remove_asset_document",
     "update_asset_document",

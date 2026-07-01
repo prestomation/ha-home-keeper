@@ -443,6 +443,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Odebrat soubor dílu",
+      "description": "Odpojí přiložený soubor dílu (účtenka/technický list/fotka) a smaže jeho uloženou kopii z disku. Nahrajte nebo nahraďte soubor z panelu; tato služba zajišťuje pouze odebrání.",
+      "fields": {
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "Id spotřebiče, ke kterému díl patří."
+        },
+        "part_id": {
+          "name": "ID dílu",
+          "description": "Id dílu, jehož soubor chcete odebrat."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Přidat dokument spotřebiče",
       "description": "Připojí dokument typu odkaz (manuál/záruka/účtenka) ke spotřebiči. Soubory nahrajte z panelu; tato služba zpracovává pouze odkazy.",

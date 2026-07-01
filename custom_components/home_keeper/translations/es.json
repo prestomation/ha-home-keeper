@@ -443,6 +443,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Eliminar archivo de pieza",
+      "description": "Desvincula el archivo adjunto de una pieza (recibo/ficha técnica/foto), eliminando su copia almacenada del disco. Sube o reemplaza un archivo desde el panel; este servicio solo gestiona la eliminación.",
+      "fields": {
+        "asset_id": {
+          "name": "ID del activo",
+          "description": "El id del electrodoméstico al que pertenece la pieza."
+        },
+        "part_id": {
+          "name": "ID de la pieza",
+          "description": "El id de la pieza cuyo archivo se va a eliminar."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Añadir documento de electrodoméstico",
       "description": "Adjunta un documento de enlace (manual/garantía/recibo) a un electrodoméstico. Sube los archivos desde el panel; este servicio solo gestiona enlaces.",

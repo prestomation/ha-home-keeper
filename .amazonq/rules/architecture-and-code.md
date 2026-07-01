@@ -213,6 +213,21 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   Add a new kind, or change how files open, in `documents.ts` once and both surfaces
   follow. (A link opens its URL directly; a file is signed on click via
   `sign_document_url`.) Don't hand-roll `doc.kind === 'file' ? … : …` at call sites.
+- **A part's single attached file is a smaller sibling of the document pattern
+  above, not a second implementation of it.** A part has exactly one optional file
+  slot (`file_name`/`file_content_type`/`file_size` — no list, no link kind, since a
+  link is already the part's own `url` field), keyed by the **part's own id** instead
+  of a minted document id and served by a second, much shorter
+  `HomeAssistantView` (`HomeKeeperPartFileView`). It reuses `documents.py`'s pure
+  validation and `manuals.py`'s on-disk I/O helpers as-is (they're already generic
+  over an opaque id) and lives under the **same per-asset directory**, so an
+  asset-delete `rmtree` cleans up part files for free — no separate cleanup path.
+  The same upload-only isolation applies: `_normalize_part` never reads `file_*` from
+  input, and `_merge_parts` unconditionally restores them from the stored part, so
+  only `set_part_file`/`clear_part_file` (called from the view/store, never from a
+  generic write) can change them. Removal is a service (`remove_part_file`) like
+  `remove_asset_document`; upload stays HTTP-only, same reasoning (no binary bytes in
+  a service call).
 
 ## Events are the observation surface — fire one for every state change
 - **Every observable state change fires a documented `home_keeper_<noun>_<verb>` bus
@@ -422,6 +437,18 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   card-only). Use `task_chips` when an integration needs to surface direct metadata
   alongside the task on all UI surfaces; use `card_links` when the task is attached to
   an appliance and you want to link its manuals/documents.
+- A third, distinct mechanism: `task.source.part = {asset_id, part_id[, manual]}`
+  links a task to a specific **part** (an auto-generated wear-item task, or a
+  manually-linked consumable via `set_task_consumable`) — this is not a chip list,
+  just a pointer resolved at render time. The panel's task-detail "Consumable link"
+  row (`_consumableLinkLabel`) and the dashboard card's task row
+  (`_resolvePartLink`) both resolve it against the loaded asset library and render
+  the part's name as a clickable link **when the part has a `url`** (falling back to
+  plain text in the panel; the card shows no chip at all when there's no link, since
+  its docs row is specifically for openable links). Both call sites duplicate the
+  `asset_id`/`part_id` lookup rather than sharing a helper because they live in
+  different files (`panel.ts` vs `card.ts`) with no existing shared "resolve a task's
+  part" module — if a third surface needs this, extract one then.
 - See `docs/INTEGRATING.md` "Attaching metadata chips to a task (`task_chips`)" for
   the full external-integrator API, schema, and example service calls.
 

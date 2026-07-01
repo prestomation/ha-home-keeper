@@ -72,6 +72,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_remove_asset_document)
     websocket_api.async_register_command(hass, ws_update_asset_document)
     websocket_api.async_register_command(hass, ws_sign_document_url)
+    websocket_api.async_register_command(hass, ws_remove_part_file)
+    websocket_api.async_register_command(hass, ws_sign_part_file_url)
     websocket_api.async_register_command(hass, ws_export_inventory)
     websocket_api.async_register_command(hass, ws_get_options)
     websocket_api.async_register_command(hass, ws_set_options)
@@ -573,6 +575,69 @@ async def ws_sign_document_url(
         connection.send_error(msg["id"], "not_found", "Unknown file document")
         return
     path = manuals.document_path(msg["asset_id"], msg["document_id"])
+    signed = async_sign_path(
+        hass,
+        path,
+        _DOCUMENT_URL_TTL,
+        refresh_token_id=connection.refresh_token_id,
+    )
+    connection.send_result(msg["id"], {"url": signed})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/remove_part_file",
+        vol.Required("asset_id"): str,
+        vol.Required("part_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_remove_part_file(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    try:
+        asset = await coord.store.remove_part_file(msg["asset_id"], msg["part_id"])
+    except KeyError:
+        connection.send_error(msg["id"], "not_found", "Unknown asset_id or part_id")
+        return
+    connection.send_result(msg["id"], {"asset": asset})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/sign_part_file_url",
+        vol.Required("asset_id"): str,
+        vol.Required("part_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_sign_part_file_url(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Mint a short-lived signed URL the browser can open for a part's file."""
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    asset = coord.store.get_asset(msg["asset_id"])
+    part = next(
+        (
+            p
+            for p in (asset or {}).get("parts", [])
+            if p.get("id") == msg["part_id"] and p.get("file_name")
+        ),
+        None,
+    )
+    if part is None:
+        connection.send_error(
+            msg["id"], "not_found", "Unknown part or no attached file"
+        )
+        return
+    path = manuals.part_file_path(msg["asset_id"], msg["part_id"])
     signed = async_sign_path(
         hass,
         path,

@@ -443,6 +443,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Remover arquivo da peça",
+      "description": "Desvincula o arquivo anexado de uma peça (recibo/ficha técnica/foto), excluindo sua cópia armazenada do disco. Envie ou substitua um arquivo pelo painel; este serviço trata apenas da remoção.",
+      "fields": {
+        "asset_id": {
+          "name": "ID do ativo",
+          "description": "O id do eletrodoméstico ao qual a peça pertence."
+        },
+        "part_id": {
+          "name": "ID da peça",
+          "description": "O id da peça cujo arquivo deve ser removido."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Adicionar documento do eletrodoméstico",
       "description": "Anexa um documento de link (manual/garantia/recibo) a um eletrodoméstico. Envie arquivos pelo painel; este serviço lida apenas com links.",

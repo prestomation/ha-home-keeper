@@ -443,6 +443,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Elimina el fitxer de la peça",
+      "description": "Desvincula el fitxer adjunt d'una peça (rebut/full d'especificacions/foto), eliminant-ne la còpia emmagatzemada del disc. Puja o substitueix un fitxer des del tauler; aquest servei només gestiona l'eliminació.",
+      "fields": {
+        "asset_id": {
+          "name": "ID de l'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany la peça."
+        },
+        "part_id": {
+          "name": "ID de la peça",
+          "description": "L'id de la peça el fitxer de la qual s'ha d'eliminar."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Afegeix un document a l'electrodomèstic",
       "description": "Adjunta un document d'enllaç (manual/garantia/rebut) a un electrodomèstic. Puja els fitxers des del tauler; aquest servei només gestiona enllaços.",

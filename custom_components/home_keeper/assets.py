@@ -397,7 +397,11 @@ def _normalize_part(raw: Any) -> dict:
 
     Backend-managed fields (``id``, ``last_replaced``) are preserved when present so
     a round-trip through the panel doesn't drop them; :func:`_merge_parts` reconciles
-    them against the stored record.
+    them against the stored record. ``file_name``/``file_content_type``/``file_size``
+    (a part's single attached file) are deliberately **not** read from *raw* here —
+    like an asset's ``file`` documents, they are upload-only and settable solely via
+    :func:`set_part_file`/:func:`clear_part_file`; :func:`_merge_parts` always restores
+    them from the stored part so a generic edit can neither inject nor drop them.
     """
     if not isinstance(raw, dict):
         raise AssetValidationError("each part must be an object")
@@ -415,6 +419,7 @@ def _normalize_part(raw: Any) -> dict:
         "type": ptype,
         "vendor": str(raw.get("vendor", "")).strip(),
         "cost": _normalize_cost(raw.get("cost")),
+        "url": _normalize_http_url(raw.get("url"), "part url"),
         "notes": str(raw.get("notes", "")).strip(),
         # Replacement cadence (only meaningful for wear items — drives a task).
         "replace_interval": _normalize_interval(raw.get("replace_interval")),
@@ -426,6 +431,11 @@ def _normalize_part(raw: Any) -> dict:
         # Both are optional — a part without ``stock`` simply isn't tracked.
         "stock": _normalize_stock(raw.get("stock"), "stock"),
         "reorder_at": _normalize_stock(raw.get("reorder_at"), "reorder_at"),
+        # Upload-only; see the docstring. Always absent here — _merge_parts restores
+        # the stored values (or set_part_file/clear_part_file set them directly).
+        "file_name": None,
+        "file_content_type": None,
+        "file_size": None,
     }
     if part["replace_interval"] is not None:
         unit = raw.get("replace_unit") or "months"
@@ -459,7 +469,7 @@ def _normalize_parts(value: Any) -> list[dict]:
 
 
 def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
-    """Carry the stored ``last_replaced`` across an edit when the caller omits it.
+    """Carry the stored ``last_replaced`` and attached-file fields across an edit.
 
     The panel can seed ``last_replaced`` when adding a wear item (so the derived
     maintenance task starts from the real date), but it is also stamped automatically
@@ -469,6 +479,12 @@ def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
     ordinary user-editable fields — incoming wins, including a ``None`` that clears
     them — so they are intentionally *not* preserved here (otherwise stock tracking
     could never be switched back off).
+
+    ``file_name``/``file_content_type``/``file_size`` are **always** restored from the
+    stored part, unconditionally — like an asset's ``file`` documents, a part's
+    attached file is upload-only (see :func:`set_part_file`) and must never be
+    settable through a generic write, so incoming values for these three keys (which
+    ``_normalize_part`` never actually produces) are ignored outright.
     """
     by_id = {p["id"]: p for p in existing}
     merged: list[dict] = []
@@ -476,8 +492,66 @@ def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
         prior = by_id.get(part["id"])
         if prior and part.get("last_replaced") is None:
             part = {**part, "last_replaced": prior.get("last_replaced")}
+        if prior:
+            part = {
+                **part,
+                "file_name": prior.get("file_name"),
+                "file_content_type": prior.get("file_content_type"),
+                "file_size": prior.get("file_size"),
+            }
         merged.append(part)
     return merged
+
+
+def set_part_file(asset: dict, part_id: str, file_meta: dict) -> dict | None:
+    """Attach (or replace) *part_id*'s single file, in place; return the updated part.
+
+    *file_meta* is ``{filename, content_type, size}`` (already validated/sniffed by
+    the caller — see ``manuals.HomeKeeperPartFileView``). Returns ``None`` when no
+    such part exists.
+    """
+    parts = asset.get("parts") or []
+    for index, part in enumerate(parts):
+        if part.get("id") != part_id:
+            continue
+        updated = {
+            **part,
+            "file_name": file_meta["filename"],
+            "file_content_type": file_meta["content_type"],
+            "file_size": file_meta["size"],
+        }
+        parts[index] = updated
+        asset["parts"] = parts
+        return updated
+    return None
+
+
+def clear_part_file(asset: dict, part_id: str) -> dict | None:
+    """Detach *part_id*'s file, in place; return its *prior* file fields.
+
+    The caller uses the returned ``filename`` to delete the on-disk blob. Returns
+    ``None`` when no such part exists or it had no attached file.
+    """
+    parts = asset.get("parts") or []
+    for index, part in enumerate(parts):
+        if part.get("id") != part_id:
+            continue
+        if not part.get("file_name"):
+            return None
+        prior = {
+            "filename": part.get("file_name"),
+            "content_type": part.get("file_content_type"),
+            "size": part.get("file_size"),
+        }
+        parts[index] = {
+            **part,
+            "file_name": None,
+            "file_content_type": None,
+            "file_size": None,
+        }
+        asset["parts"] = parts
+        return prior
+    return None
 
 
 def part_tracks_stock(part: dict) -> bool:

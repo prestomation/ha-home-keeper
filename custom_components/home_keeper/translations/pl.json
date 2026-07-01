@@ -443,6 +443,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Usuń plik części",
+      "description": "Odłącza załączony plik części (paragon/karta katalogowa/zdjęcie), usuwając zapisaną kopię z dysku. Prześlij/zamień plik z poziomu panelu; ta usługa obsługuje tylko usuwanie.",
+      "fields": {
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy część."
+        },
+        "part_id": {
+          "name": "Identyfikator części",
+          "description": "Identyfikator części, której plik ma zostać usunięty."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Dodaj dokument urządzenia",
       "description": "Dołącza dokument typu link (instrukcja/gwarancja/paragon) do urządzenia. Pliki prześlij z panelu; ta usługa obsługuje tylko linki.",

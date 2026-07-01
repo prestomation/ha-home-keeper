@@ -414,6 +414,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Remove part file",
+      "description": "Detach a part's attached file (receipt/spec sheet/photo), deleting its on-disk blob. Upload/replace a file from the panel; this service handles removal only.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance the part belongs to."
+        },
+        "part_id": {
+          "name": "Part ID",
+          "description": "The id of the part whose file to remove."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Add appliance document",
       "description": "Attach a link document (manual/warranty/receipt) to an appliance. Upload files from the panel; this service handles links only.",

@@ -181,4 +181,75 @@ describe('HomeKeeperCard document chips', () => {
     expect(sr(card).querySelector('button.hk-doc'), 'no JS-driven file button').toBeNull();
     expect(signCalls, 'the file URL was pre-signed').toBe(1);
   });
+
+  it('renders a linked part\'s product URL as a chip when the part has one', async () => {
+    const card = makeCard();
+    const linkedTask = {
+      id: 't2',
+      name: 'Replace anode rod',
+      recurrence_type: 'floating',
+      interval: 12,
+      unit: 'months',
+      next_due: new Date(Date.now() + 86_400_000).toISOString(),
+      completions: [],
+      source: { part: { asset_id: 'a1', part_id: 'p1' } },
+    };
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: [linkedTask] };
+        if (msg.type === 'home_keeper/get_assets') {
+          return {
+            assets: [
+              {
+                id: 'a1',
+                name: 'Water heater',
+                parts: [
+                  { id: 'p1', name: 'Anode rod', type: 'wear', url: 'https://example.com/anode' },
+                ],
+              },
+            ],
+          };
+        }
+        return {};
+      },
+    };
+
+    await waitFor(() => sr(card)?.querySelector('a.hk-doc'));
+    const anchor = sr(card).querySelector('a.hk-doc');
+    expect(anchor, 'the linked part renders as a chip').toBeTruthy();
+    expect(anchor.getAttribute('href')).toBe('https://example.com/anode');
+    expect(anchor.textContent).toContain('Anode rod');
+  });
+
+  it('renders no chip for a linked part without a product URL', async () => {
+    const card = makeCard();
+    const linkedTask = {
+      id: 't3',
+      name: 'Replace T&P valve',
+      recurrence_type: 'floating',
+      interval: 36,
+      unit: 'months',
+      next_due: new Date(Date.now() + 86_400_000).toISOString(),
+      completions: [],
+      source: { part: { asset_id: 'a1', part_id: 'p2' } },
+    };
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: [linkedTask] };
+        if (msg.type === 'home_keeper/get_assets') {
+          return {
+            assets: [
+              { id: 'a1', name: 'Water heater', parts: [{ id: 'p2', name: 'T&P valve', type: 'wear' }] },
+            ],
+          };
+        }
+        return {};
+      },
+    };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(sr(card).querySelector('a.hk-doc')).toBeNull();
+  });
 });
