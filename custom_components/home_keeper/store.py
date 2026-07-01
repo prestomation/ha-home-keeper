@@ -614,7 +614,7 @@ class HomeKeeperStore:
         if removed is None:
             return asset
         if removed.get("filename"):
-            await manuals.async_delete_document(
+            await manuals.async_delete_part_file(
                 self._hass, asset_id, part_id, removed["filename"]
             )
         await self._save()
