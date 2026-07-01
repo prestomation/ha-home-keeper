@@ -23,18 +23,26 @@ const STATIC_PAGES = {
   // Hand-authored pages under website/ (see website/README.md).
   'website/docs/intro.md': {title: 'Introduction', route: '/docs/intro'},
   'website/src/pages/index.tsx': {title: 'Home (landing page)', route: '/'},
+  // Developer Guide docs copied 1:1; the served route drops the `.md` that
+  // sync-docs.mjs writes as the filename under website/developer/.
+  ...Object.fromEntries(
+    DEV_DOCS.map((d) => [
+      d.file,
+      {title: d.title, route: `/developer/${d.out.replace(/\.md$/, '')}`},
+    ]),
+  ),
 };
-for (const d of DEV_DOCS) {
-  STATIC_PAGES[d.file] = {
-    title: d.title,
-    route: `/developer/${d.out.replace(/\.md$/, '')}`,
-  };
-}
 
 // Given the README before/after, return the list of `##` section headings whose
 // body changed (or were added). A missing/empty base (new file) treats every
 // section as changed. Section titles are compared by heading text, so inserting
 // or reordering a section only flags the ones that actually differ.
+//
+// Renames are keyed by heading text, exactly like the generator: sync-docs.mjs
+// also looks sections up by their exact `## ` text (USER_SECTIONS `h`) and skips
+// generating a page whose heading it can't find. So renaming a section without
+// updating USER_SECTIONS drops the page from the site *and* from this list in
+// lockstep — the two never disagree about what exists to link to.
 export function readmeChangedHeadings(baseMd, headMd) {
   const base = new Map(
     splitByH2(baseMd ?? '').sections.map((s) => [s.title, s.body.join('\n')]),
