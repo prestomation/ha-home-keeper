@@ -292,3 +292,89 @@ EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
 # ``source`` field). Declares the integration that owns the task: which fields
 # are locked, whether deletion is protected, and display metadata for the UI.
 TASK_MANAGED_BY = "managed_by"
+
+# ── Localized name for reconciler-generated wear-part tasks ─────────────────────
+# The wear-part reconciler auto-generates a maintenance task name like
+# "Replace {part} ({asset})". Unlike the panel's static UI (translated client-side
+# per viewer), a task's ``name`` is server-side global data — a single value shared
+# by every to-do item, calendar event, notification, device-page entity, and API
+# consumer. So we translate it once, at write time, into Home Assistant's configured
+# language (``hass.config.language`` — the household's primary language), and store
+# that. ``store.reconcile_part_tasks`` resolves these and hands them to the pure
+# reconciler; a language change relocalizes every generated name via an entry reload
+# (see ``__init__`` EVENT_CORE_CONFIG_UPDATE listener). The 16 languages match the
+# panel's shipped locales. ``{part}``/``{asset}`` are filled from the wear part and
+# its appliance.
+DEFAULT_LANGUAGE = "en"
+WEAR_TASK_NAME_TEMPLATES: dict[str, str] = {
+    "en": "Replace {part} ({asset})",
+    "ca": "Substituir {part} ({asset})",
+    "cs": "Vyměnit {part} ({asset})",
+    "da": "Udskift {part} ({asset})",
+    "de": "{part} ersetzen ({asset})",
+    "es": "Reemplazar {part} ({asset})",
+    "fi": "Vaihda {part} ({asset})",
+    "fr": "Remplacer {part} ({asset})",
+    "it": "Sostituire {part} ({asset})",
+    "nb": "Bytt {part} ({asset})",
+    "nl": "{part} vervangen ({asset})",
+    "pl": "Wymień {part} ({asset})",
+    "pt-BR": "Trocar {part} ({asset})",
+    "ru": "Замена {part} ({asset})",
+    "sv": "Byt {part} ({asset})",
+    "zh-Hans": "更换 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
+}
+# The word substituted for ``{asset}`` when an appliance has no name yet. Mirrors the
+# panel's ``appliance.fallbackName`` locale key so the two stay consistent.
+APPLIANCE_FALLBACK_NAMES: dict[str, str] = {
+    "en": "Appliance",
+    "ca": "Electrodomèstic",
+    "cs": "Spotřebič",
+    "da": "Apparat",
+    "de": "Gerät",
+    "es": "Electrodoméstico",
+    "fi": "Laite",
+    "fr": "Appareil",
+    "it": "Elettrodomestico",
+    "nb": "Apparat",
+    "nl": "Apparaat",
+    "pl": "Urządzenie",
+    "pt-BR": "Eletrodoméstico",
+    "ru": "Устройство",
+    "sv": "Apparat",
+    "zh-Hans": "电器",
+}
+
+
+def _pick_localized(table: dict[str, str], language: str | None) -> str:
+    """Resolve *language* against *table*: exact → case-insensitive → base → English.
+
+    Mirrors the panel's ``i18n.resolve`` so a code like ``"pt-BR"`` matches exactly,
+    ``"en-GB"`` falls back to ``"en"``, and anything unknown lands on English. Pure —
+    safe to unit-test without a Home Assistant runtime.
+    """
+    lang = language or DEFAULT_LANGUAGE
+    if lang in table:
+        return table[lang]
+    low = lang.lower()
+    for key, value in table.items():
+        if key.lower() == low:
+            return value
+    base = low.split("-")[0]
+    for key, value in table.items():
+        if key.lower() == base:
+            return value
+    return table[DEFAULT_LANGUAGE]
+
+
+def resolve_wear_task_naming(language: str | None) -> tuple[str, str]:
+    """Return ``(name_template, appliance_fallback)`` for *language*.
+
+    Used by ``store.reconcile_part_tasks`` to localize the generated wear-part task
+    name to Home Assistant's configured language before handing the strings to the
+    pure reconciler.
+    """
+    return (
+        _pick_localized(WEAR_TASK_NAME_TEMPLATES, language),
+        _pick_localized(APPLIANCE_FALLBACK_NAMES, language),
+    )

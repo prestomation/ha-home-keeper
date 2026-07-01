@@ -41,6 +41,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
     TASK_SOURCE_PART,
+    resolve_wear_task_naming,
 )
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
 from .problem_tasks import problem_source as _problem_source
@@ -711,10 +712,24 @@ class HomeKeeperStore:
 
         Delegates the (pure) computation to :func:`reconcile.reconcile_part_tasks`
         and persists the result. Returns ``True`` if any task changed.
+
+        The generated task name is localized to Home Assistant's configured language
+        (``hass.config.language`` — the household's primary language) here, at the HA
+        boundary, so the pure reconciler stays language-agnostic. A language change
+        relocalizes every generated name as ordinary name drift on the next reconcile
+        (the ``__init__`` EVENT_CORE_CONFIG_UPDATE listener reloads the entry to force
+        one immediately).
         """
         old_tasks = self._tasks
+        name_template, appliance_fallback = resolve_wear_task_naming(
+            self._hass.config.language
+        )
         new_tasks, changed = _reconcile_part_tasks(
-            self._assets, old_tasks, now=dt_util.now()
+            self._assets,
+            old_tasks,
+            name_template=name_template,
+            appliance_fallback=appliance_fallback,
+            now=dt_util.now(),
         )
         if changed:
             # A part-derived task dropped here means its wear part was removed while

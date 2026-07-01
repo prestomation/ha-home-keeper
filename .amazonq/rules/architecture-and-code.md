@@ -289,6 +289,22 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   `models.build_task`/`recurrence.py` + the existing per-task entities — do NOT build
   a parallel "part sensor". A load-time shim migrates the legacy `part_numbers` string
   (no storage-version bump).
+  - **The generated name is localized to the instance language at write time.** The
+    task name (`"Replace {part} ({asset})"`) is server-side *global* data — one value
+    shared by the to-do item, calendar event, notifications, device-page entity names,
+    and every API consumer — so it can't be re-rendered per viewer the way the panel's
+    static UI is. Instead `store.reconcile_part_tasks` resolves the template + the
+    unnamed-appliance fallback word from `hass.config.language` (the household's
+    primary language) via `const.resolve_wear_task_naming` and passes them into the
+    **pure** reconciler (which stays HA-free, defaulting to English). Translations live
+    in `const.WEAR_TASK_NAME_TEMPLATES` / `APPLIANCE_FALLBACK_NAMES` (16 languages,
+    guarded by `tests/unit/test_wear_task_naming.py`). A language change is picked up
+    as ordinary **name drift** — the `__init__` `EVENT_CORE_CONFIG_UPDATE` listener
+    reloads the entry, reconcile recomputes the name in the new language, and the
+    existing `before.get("name") != name` branch rewrites it (and recreates the
+    per-task entities under the new name). Consequence, by design: a mixed-language
+    household sees one language (the instance's) on these names everywhere, including
+    the panel — the tradeoff for translating every surface, not just the panel.
 - **Manual consumable links.** A user can link *any* task (e.g. a sensor task) to a
   consumable via `store.set_task_consumable` (the `home_keeper.set_task_consumable`
   service + `home_keeper/set_task_consumable` websocket command). It reuses the same

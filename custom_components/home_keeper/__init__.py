@@ -13,7 +13,14 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse, callback
+from homeassistant.const import EVENT_CORE_CONFIG_UPDATE
+from homeassistant.core import (
+    Event,
+    HomeAssistant,
+    ServiceCall,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
@@ -410,6 +417,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # React to options-flow changes (e.g. toggling problem-sensor syncing) by
     # reloading the entry, which re-runs this setup with the new options.
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+    # Relocalize reconciler-generated task names when the HA language changes. The
+    # generated wear-part name is baked into storage in the configured language at
+    # write time (see store.reconcile_part_tasks); reloading the entry re-runs setup,
+    # which reconciles with the new language and recreates the per-task entities under
+    # their new names. Captured at setup, so the reload re-baselines to the new value.
+    setup_language = hass.config.language
+
+    async def _relocalize_on_language_change(event: Event) -> None:
+        if hass.config.language == setup_language:
+            return  # some other core-config change (unit system, name, …) — ignore
+        _LOGGER.debug(
+            "HA language changed %s -> %s; reloading Home Keeper to relocalize "
+            "generated task names",
+            setup_language,
+            hass.config.language,
+        )
+        await hass.config_entries.async_reload(entry.entry_id)
+
+    entry.async_on_unload(
+        hass.bus.async_listen(EVENT_CORE_CONFIG_UPDATE, _relocalize_on_language_change)
+    )
     # Now that platforms are up, start the live problem-sensor listeners (these may
     # reload the entry when a synced task is created/removed, so they run last).
     problem_sync.async_start_listeners()

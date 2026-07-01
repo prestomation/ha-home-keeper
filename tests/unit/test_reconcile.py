@@ -68,7 +68,54 @@ def test_creates_task_due_now_when_no_last_replaced():
 def test_uses_appliance_fallback_when_asset_name_blank():
     asset = _asset(name="", parts=[_wear_part()])
     task = _only(_reconcile({"a1": asset})[0])
-    assert task["name"] == "Replace Anode (appliance)"
+    # Default (English) fallback word; mirrors the panel's appliance.fallbackName.
+    assert task["name"] == "Replace Anode (Appliance)"
+
+
+# ── localized generated name (hass.config.language, resolved by the store) ─────
+def test_localized_name_template_is_applied_on_create():
+    # The store passes the language-resolved template + fallback in; the reconciler
+    # formats the name with them (this is how a Polish household gets a Polish name).
+    asset = _asset(parts=[_wear_part()])
+    tasks, _ = rc.reconcile_part_tasks(
+        {"a1": asset},
+        {},
+        name_template="Wymień {part} ({asset})",
+        appliance_fallback="Urządzenie",
+        now=NOW,
+    )
+    assert _only(tasks)["name"] == "Wymień Anode (Heater)"
+
+
+def test_localized_appliance_fallback_is_applied_when_asset_name_blank():
+    asset = _asset(name="", parts=[_wear_part()])
+    tasks, _ = rc.reconcile_part_tasks(
+        {"a1": asset},
+        {},
+        name_template="Wymień {part} ({asset})",
+        appliance_fallback="Urządzenie",
+        now=NOW,
+    )
+    assert _only(tasks)["name"] == "Wymień Anode (Urządzenie)"
+
+
+def test_language_change_rewrites_generated_name_as_drift():
+    # A task created in English is re-reconciled with a Polish template: the name
+    # differs, so the existing drift branch updates it (this is what an entry reload
+    # after a language change triggers — no bespoke migration needed).
+    asset = _asset(parts=[_wear_part()])
+    english, _ = _reconcile({"a1": asset})
+    assert _only(english)["name"] == "Replace Anode (Heater)"
+    tid = _only(english)["id"]
+    polish, changed = rc.reconcile_part_tasks(
+        {"a1": asset},
+        english,
+        name_template="Wymień {part} ({asset})",
+        appliance_fallback="Urządzenie",
+        now=NOW,
+    )
+    assert changed is True
+    assert polish[tid]["name"] == "Wymień Anode (Heater)"
 
 
 # ── what does NOT create a task ───────────────────────────────────────────────
