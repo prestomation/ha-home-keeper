@@ -64,9 +64,15 @@ harness.
     an urgent typo fix that can't wait for the next release) and one-time recovery.
     Pass a `ref` input (e.g. `v0.7.0`) to pin the build to a release tag; omit it to
     build from the branch HEAD.
-- **`docs-preview.yml`** — on pull requests, builds a preview and publishes it under
-  `pr-preview/pr-<n>/` on the `gh-pages` branch, posting a sticky comment with the
-  preview URL. Previews are torn down when the PR closes.
+- **`docs-preview.yml`** — on pull requests (that touch `website/**` or the canonical
+  doc sources `README.md` / `CHANGELOG.md` / `docs/**`), builds a preview and publishes
+  it under `pr-preview/pr-<n>/` on the `gh-pages` branch, posting a sticky comment with
+  the preview URL. It posts a **second** sticky comment listing deep links to just the
+  doc pages the PR changed — `scripts/changed-pages.mjs` maps the changed sources to
+  their generated routes (README is section-granular, so only the User Guide pages whose
+  `##` section changed are linked), reusing the source→page mapping in
+  `scripts/doc-map.mjs` so it never drifts from `sync-docs.mjs`. Previews are torn down
+  when the PR closes.
 
 Both publish to the `gh-pages` branch, so **GitHub Pages must be set to "Deploy from a
 branch" → `gh-pages` / root** in the repository settings. The production deploy uses
