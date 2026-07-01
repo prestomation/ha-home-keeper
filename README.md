@@ -238,11 +238,23 @@ no automation to wire up.
 Pick **Based on a sensor** on the task form, choose the **sensor**, and pick a **mode**:
 
 - **Usage / meter** — set a **target**. Home Keeper records the reading when you create
-  the task (and again each time you complete it), and the task becomes **due** once the
-  meter has advanced by *target* units since then. Completing it "resets the counter"
-  just like a floating task resets its clock; if the meter is reset or the part is
-  replaced (the reading drops), Home Keeper re-anchors automatically so it never gets
-  stuck. Great for odometers, runtime-hours, and cycle counters.
+  the task (its *baseline*, again each time you complete it), and the task becomes
+  **due** once the meter has advanced by *target* units since then. The target counts
+  **usage from the current reading — not from zero** — so it doesn't matter that your
+  sensor is already partway up. Example: your printer's run-hours sensor reads **660 h**
+  and you set a target of **100**; Home Keeper anchors at 660, so the task first becomes
+  due at **760 h**, and the detail reads *"0 of 100 used"* until then. Completing it
+  "resets the counter" (re-anchors at whatever the sensor reads at that moment) just
+  like a floating task resets its clock — so the next one is due 100 h later again. If
+  the meter is reset or the part is replaced (the reading drops below the baseline),
+  Home Keeper re-anchors automatically so it never gets stuck. Great for odometers,
+  runtime-hours, and cycle counters.
+
+  > **Where the numbers show up.** As you fill in the form, a live hint reads your
+  > chosen sensor and spells this out — *"This sensor reads 660 h now. The task becomes
+  > due at 760 h, then every 100 h after each completion."* — and a **?** by the form
+  > title links here. So you can see exactly when the task will first come due before
+  > you save it.
 - **Threshold** — set a **comparison** (`≥ ≤ > < = ≠`) and a **value**, with an optional
   **hold** (the reading must stay across the line that many seconds, to debounce noise)
   and an optional **attribute** (read e.g. a climate entity's `current_temperature`

@@ -24,6 +24,11 @@ async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Pr
   await select.page().getByRole('menuitem', { name: optionLabel }).first().click();
 }
 
+/** Fill the input of the nth ha-form number selector within a scope. */
+async function fillNumber(scope: Locator, nth: number, value: string): Promise<void> {
+  await scope.locator('ha-selector-number').nth(nth).locator('input').fill(value);
+}
+
 test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 1. The admin sidebar panel — task list with floating + fixed + overdue tasks.
   await openPanel(page);
@@ -214,6 +219,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await fillText(panel.locator('#hk-task-form'), 0, 'Service generator (runtime hours)');
   await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Based on a sensor/);
   await expect(panel.locator('#hk-task-form ha-selector-entity').first()).toBeVisible();
+  // Enter a target so the live hint renders and spells out the baseline model — "due
+  // once the sensor climbs 100 above its reading when you create the task, then every
+  // 100 after each completion." (The per-field Target helper adds the concrete
+  // 660 -> 760 example.)
+  await fillNumber(panel.locator('#hk-task-form'), 0, '100');
+  await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/30-panel-create-sensor-task.png`, fullPage: true });
@@ -223,6 +234,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // mode select is the 2nd ha-select in the form, after recurrence type.)
   await chooseHaSelect(panel.locator('#hk-task-form ha-select').nth(1), /Threshold/);
   await expect(panel.locator('#hk-task-form ha-selector-number').first()).toBeVisible();
+  // A threshold value so the live hint reads "becomes due when the sensor is ≥ 90 h".
+  await fillNumber(panel.locator('#hk-task-form'), 0, '90');
+  await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/31-panel-create-sensor-threshold.png`, fullPage: true });

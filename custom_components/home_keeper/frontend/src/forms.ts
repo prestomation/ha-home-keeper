@@ -28,6 +28,7 @@ export interface HaFormElement extends HTMLElement {
   schema?: unknown[];
   data?: Record<string, unknown>;
   computeLabel?: (schema: { name: string }) => string;
+  computeHelper?: (schema: { name: string }) => string;
 }
 
 export type Selector = Record<string, unknown>;
@@ -424,6 +425,63 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     if (lastCompleted) payload.last_completed = lastCompleted;
   }
   return payload;
+}
+
+/** Stored sensor comparisons rendered as their human symbol for help/hint copy. */
+const COMPARISON_SYMBOLS: Record<string, string> = {
+  '>=': '≥',
+  '<=': '≤',
+  '>': '>',
+  '<': '<',
+  '==': '=',
+  '!=': '≠',
+};
+
+/**
+ * A plain-language sentence explaining when a sensor-based task will next become
+ * due, given the sensor's live reading. Pure (no DOM) so the panel can render it
+ * under the sensor fields and unit tests can assert the wording and arithmetic.
+ *
+ * Usage mode anchors a *baseline* at the sensor's reading when the task is created
+ * (or last completed) and arms once the reading climbs `target` above it — so the
+ * first due point is `reading + target`, and it repeats `target` after each
+ * completion. Threshold mode arms on a comparison instead. Reads the live edit
+ * state's flat `sensor_*` fields, falling back to a loaded task's nested binding.
+ * Returns `''` when there isn't enough entered yet to say anything useful.
+ */
+export function sensorHintText(
+  task: Partial<Task>,
+  ctx: { reading?: number; unit?: string } = {},
+): string {
+  const sd = task as Record<string, unknown>;
+  const mode = ((sd.sensor_mode as SensorMode) ?? task.sensor?.mode ?? 'usage') as SensorMode;
+  const unit = ctx.unit ? ` ${ctx.unit}` : '';
+
+  if (mode === 'threshold') {
+    const rawValue = sd.sensor_value ?? task.sensor?.value;
+    if (rawValue == null || rawValue === '' || Number.isNaN(Number(rawValue))) return '';
+    const comparison = String(sd.sensor_comparison ?? task.sensor?.comparison ?? '>=');
+    const symbol = COMPARISON_SYMBOLS[comparison] ?? comparison;
+    const value = `${Number(rawValue)}${unit}`;
+    const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds ?? 0) || 0;
+    return forSeconds > 0
+      ? t('hint.sensor.thresholdFor', { comparison: symbol, value, seconds: forSeconds })
+      : t('hint.sensor.threshold', { comparison: symbol, value });
+  }
+
+  // usage / meter
+  const rawTarget = sd.sensor_target ?? task.sensor?.target;
+  const target = Number(rawTarget);
+  if (rawTarget == null || rawTarget === '' || Number.isNaN(target) || target <= 0) return '';
+  const targetStr = `${target}${unit}`;
+  if (ctx.reading == null || Number.isNaN(ctx.reading)) {
+    return t('hint.sensor.usageNoReading', { target: targetStr });
+  }
+  return t('hint.sensor.usage', {
+    reading: `${ctx.reading}${unit}`,
+    due: `${ctx.reading + target}${unit}`,
+    target: targetStr,
+  });
 }
 
 /**

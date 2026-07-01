@@ -27,6 +27,7 @@ import {
   selNumber,
   selSelect,
   selText,
+  sensorHintText,
   taskFormData,
   taskSchema,
   type FormField,
@@ -82,6 +83,11 @@ const MDI_DEVICES =
 // docs site generates from README.md's "Companions" section.
 const COMPANIONS_DOCS_URL =
   'https://prestomation.github.io/ha-home-keeper/docs/guide/settings#companions';
+
+// User Guide page explaining sensor-based (usage-meter / threshold) tasks — the
+// task form's help affordances link here. Generated from README.md's
+// "Sensor-based tasks" section (slug `sensor-tasks`, see website/scripts/sync-docs.mjs).
+const SENSOR_DOCS_URL = 'https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks';
 
 /**
  * The Home Keeper panel is built entirely from Home Assistant's own web
@@ -240,10 +246,26 @@ const STYLES = `
   details.hk-collapsible[open] > summary .hk-section-chevron { transform: rotate(180deg); }
   .hk-form-card { margin-bottom: 16px; }
   .hk-form-inner { padding: 16px; }
-  .hk-form-title { font-size: 1.1rem; font-weight: 500; margin-bottom: 8px; }
+  .hk-form-title {
+    font-size: 1.1rem; font-weight: 500; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .hk-form-help {
+    color: var(--secondary-text-color); line-height: 0;
+    --mdc-icon-size: 20px;
+  }
+  .hk-form-help:hover { color: var(--primary-color); }
   .hk-settings-intro {
     color: var(--secondary-text-color); font-size: 0.9rem;
     margin-bottom: 16px; line-height: 1.4;
+  }
+  /* Live "reads N -> due at M" primer under the sensor task fields. */
+  .hk-form-hint {
+    color: var(--secondary-text-color); font-size: 0.85rem; line-height: 1.4;
+    margin-top: 8px; padding: 8px 12px;
+    background: var(--secondary-background-color);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary-color);
   }
   #hk-settings ha-form, #hk-settings-general ha-form { display: block; }
   /* Companions section (Settings tab). */
@@ -3270,6 +3292,35 @@ export class HomeKeeperPanel extends HTMLElement {
     return `${asset.name} · ${p.name}${stock}`;
   }
 
+  /**
+   * The bound sensor's live reading and unit for the task-form hint. Mirrors
+   * `_sensorProgress`'s value extraction but reads the flat `sensor_*` edit state
+   * (the entity/attribute the user is currently picking). `reading` is undefined
+   * when the entity is unset, unknown, or non-numeric.
+   */
+  private _sensorLive(task: Partial<Task>): { reading?: number; unit?: string } {
+    const sd = task as Record<string, unknown>;
+    const entityId = String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? '');
+    if (!entityId) return {};
+    const state = this._hass?.states?.[entityId];
+    if (!state) return {};
+    const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '');
+    const raw = attribute ? (state.attributes?.[attribute] as unknown) : state.state;
+    const num = raw == null || raw === '' ? NaN : Number(raw);
+    const unit = state.attributes?.unit_of_measurement as string | undefined;
+    return { reading: Number.isNaN(num) ? undefined : num, unit };
+  }
+
+  /** Refresh the sensor task-form hint in place (no re-render → keeps input focus). */
+  private _updateSensorHint(): void {
+    const hint = this.shadowRoot?.getElementById('hk-sensor-hint');
+    if (!hint) return;
+    const task = this._edit.task || {};
+    const text = sensorHintText(task, this._sensorLive(task));
+    hint.textContent = text;
+    (hint as HTMLElement).style.display = text ? '' : 'none';
+  }
+
   private _renderTaskForm(host: HTMLElement): void {
     const task = this._edit.task || {};
     const card = document.createElement('ha-card');
@@ -3277,9 +3328,22 @@ export class HomeKeeperPanel extends HTMLElement {
     card.id = 'hk-form';
     const inner = document.createElement('div');
     inner.className = 'hk-form-inner';
-    inner.innerHTML = `<div class="hk-form-title">${escapeHTML(
+    // Title carries a help affordance: a "?" icon linking to the User Guide so the
+    // recurrence kinds (esp. sensor-based) are one tap from an explanation.
+    inner.innerHTML = `<div class="hk-form-title"><span>${escapeHTML(
       task.id ? t('form.task.edit') : t('form.task.new'),
-    )}</div>`;
+    )}</span><a class="hk-form-help" href="${SENSOR_DOCS_URL}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(
+      t('help.docsLink'),
+    )}" aria-label="${escapeHTML(t('help.docsLink'))}"><ha-icon icon="mdi:help-circle-outline"></ha-icon></a></div>`;
+
+    // Sensor-based tasks have no clock cadence — a short primer (with a docs link)
+    // explains the baseline/reset model the fields below can't convey on their own.
+    if (task.recurrence_type === 'sensor') {
+      const intro = document.createElement('div');
+      intro.className = 'hk-settings-intro';
+      intro.innerHTML = t('help.sensor.section', { url: SENSOR_DOCS_URL });
+      inner.appendChild(intro);
+    }
 
     const form = this._makeForm(
       taskSchema(task, this._consumableOptions(task), this._documentOptions(task)),
@@ -3319,11 +3383,35 @@ export class HomeKeeperPanel extends HTMLElement {
           value.device_id !== prevDevice
         ) {
           this._render();
+        } else if (this._edit.task?.recurrence_type === 'sensor') {
+          // A sensor entity/target/value edit doesn't change the visible schema, so
+          // refresh the live hint in place (a full re-render would drop focus from
+          // the number box the user is typing in).
+          this._updateSensorHint();
         }
       },
     );
     form.id = 'hk-task-form';
+    // Muted per-field helper text under each field (keyed `help.<field>`); returns
+    // '' where no string is authored, so helpers appear only where we wrote them.
+    form.computeHelper = (s: { name: string }): string => {
+      if (!s.name) return '';
+      const h = t('help.' + s.name);
+      return h === 'help.' + s.name ? '' : h;
+    };
     inner.appendChild(form);
+
+    // Live, computed hint for a sensor task: reads the bound entity's current value
+    // and spells out the next due point ("reads 660 h -> first due at 760 h").
+    if (task.recurrence_type === 'sensor') {
+      const hint = document.createElement('div');
+      hint.className = 'hk-form-hint';
+      hint.id = 'hk-sensor-hint';
+      const text = sensorHintText(task, this._sensorLive(task));
+      hint.textContent = text;
+      hint.style.display = text ? '' : 'none';
+      inner.appendChild(hint);
+    }
 
     if (this._edit.error) {
       const err = document.createElement('ha-alert');

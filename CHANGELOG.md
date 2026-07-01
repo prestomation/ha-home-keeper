@@ -4,6 +4,19 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [0.8.0b2]
+
+### Added
+
+- **In-form help for creating tasks.** The task editor now explains itself as you fill
+  it in: every field carries concise helper text, a **?** icon by the form title links
+  straight to the docs, and **sensor-based** tasks gain a short primer plus a **live,
+  computed hint** that reads the bound sensor and spells out what happens next — e.g.
+  *"This sensor reads 660 h now. The task becomes due at 760 h, then every 100 h after
+  each completion."* This clears up the most common confusion with usage-meter tasks:
+  the target counts usage **from the sensor's current reading**, not from zero, and the
+  count restarts after each completion.
+
 ## [0.8.0b1]
 
 ### Added
