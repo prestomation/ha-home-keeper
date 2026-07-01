@@ -327,7 +327,7 @@ upgrading from 0.3.0:
   Keeper never hard-codes it), and Home Keeper *detects* a small curated set of popular
   upstreams from a catalog. New `home_keeper_companion_connected` /
   `home_keeper_companion_suggested` events let automations react. See the
-  [Companions](README.md#companions--discover-integrations-that-work-with-home-keeper)
+  [Companions](README.md#companions)
   README section and [docs/INTEGRATING.md](docs/INTEGRATING.md) §7.
 - **Sensor-based tasks.** A recurrence type whose due-state is derived from a bound
   numeric Home Assistant entity rather than the clock, in two modes. **Usage / meter**
@@ -366,7 +366,7 @@ upgrading from 0.3.0:
   Keeper never hard-codes it), and Home Keeper *detects* a small curated set of popular
   upstreams from a catalog. New `home_keeper_companion_connected` /
   `home_keeper_companion_suggested` events let automations react. See the
-  [Companions](README.md#companions--discover-integrations-that-work-with-home-keeper)
+  [Companions](README.md#companions)
   README section and [docs/INTEGRATING.md](docs/INTEGRATING.md) §7.
 - **Sensor-based tasks.** A recurrence type whose due-state is derived from a bound
   numeric Home Assistant entity rather than the clock, in two modes. **Usage / meter**

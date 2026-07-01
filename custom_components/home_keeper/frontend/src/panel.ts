@@ -81,8 +81,7 @@ const MDI_DEVICES =
 // blurb links here). Points at the User Guide's Settings page anchor, which the
 // docs site generates from README.md's "Companions" section.
 const COMPANIONS_DOCS_URL =
-  'https://prestomation.github.io/ha-home-keeper/docs/guide/settings' +
-  '#companions--discover-integrations-that-work-with-home-keeper';
+  'https://prestomation.github.io/ha-home-keeper/docs/guide/settings#companions';
 
 /**
  * The Home Keeper panel is built entirely from Home Assistant's own web
