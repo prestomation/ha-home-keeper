@@ -273,6 +273,132 @@ ship rather than adding a parallel system.
 
 ---
 
+## Companion / glue integration candidates (beyond Battery Notes)
+
+Battery Notes' pattern — an integration whose *primary* purpose is something else, but
+that exposes a "this consumable is wearing out" signal as a secondary/implied feature —
+generalizes. Below is a survey of other popular HA integrations checked against that
+pattern, to seed future `companions_catalog.py` entries and glue integrations (see
+`docs/GLUE_INTEGRATIONS.md`). Install counts are from
+[analytics.home-assistant.io](https://analytics.home-assistant.io/) (core-integration
+installs only — HACS-only integrations like Bambu Lab aren't counted there). Entity
+lists were checked against each integration's HA docs page, not assumed.
+
+**Ready now — exposes a numeric "remaining life" sensor, same shape as a battery %:**
+
+- **Brother** (printer, 44k installs) — per-color toner % *and* drum/belt/fuser/laser
+  "remaining lifetime" % sensors. The closest analogue to Battery Notes: printing is the
+  point, supply depletion is implied.
+  Marketing target: ["Show values which are only temporary available (printer toner
+  status)"](https://community.home-assistant.io/t/show-values-which-are-only-temporary-available-printer-toner-status/207106)
+  — users already fighting the exact problem a persistent Home Keeper task (vs. a
+  volatile sensor) solves; also the general
+  ["Brother printer integration"](https://community.home-assistant.io/t/brother-printer-integration/591748)
+  hub thread.
+- **IPP** (generic network-printer protocol, 150k installs — the single largest printer
+  integration, covers most non-Brother printers via the standard "marker-levels"
+  attribute) — same shape, broader device coverage, less granular (no per-component
+  breakdown).
+  Marketing target: ["IPP printer sensors with custom button-card"](https://community.home-assistant.io/t/ipp-printer-sensors-with-custom-button-card/250719)
+  — long-running, multi-page thread of users hand-rolling ink-level dashboards; prime
+  audience for a glue that turns the sensor into an actual task.
+- **Roborock** (robot vacuum, 47k installs) — "filter time left", "main brush time
+  left", "side brush time left", "strainer time left" sensors, literally time-remaining.
+  Marketing target: ["Roborock maintenance reminder"](https://community.home-assistant.io/t/roborock-maintenance-reminder/602942)
+  — a community blueprint already reinventing this with helpers; also the feature
+  request ["Roborock Integration, add Dock Maintence items"](https://community.home-assistant.io/t/roborock-integration-add-dock-maintence-items/712274).
+- **Ecovacs** (robot vacuum, 11k installs) — per-component lifespan % (filter, brush),
+  disabled-by-default sensors.
+  Marketing target: ["Information about DEEBOT OZMO 900 Series(y79a7u)
+  filter"](https://community.home-assistant.io/t/information-about-deebot-ozmo-900-series-y79a7u-filter/895150)
+  — a Deebot (Ecovacs) owner asking specifically about the filter-lifespan attribute.
+- **LG ThinQ** (air purifiers/AC/fridges/washers/dishwashers, 22k installs) — explicit
+  `time_to_change_filter` / `time_to_change_water_filter` events plus "filter remaining"
+  sensors across several appliance types in one integration; highest-leverage target
+  since one glue covers many appliance categories.
+  Marketing target: the long-running ["LG Smart ThinQ - Component"](https://community.home-assistant.io/t/lg-smart-thinq-component/93944)
+  mega-thread (80+ replies) and ["ThinQ status sensor in automation"](https://community.home-assistant.io/t/thinq-status-sensor-in-automation/1015588).
+
+**Real signal, but weaker or needs inference:**
+
+- **NUT — Network UPS Tools** (21k installs) — exposes battery install/manufacture date
+  and self-test result, but no raw remaining-life %. UPS batteries have a well-known
+  ~3-5yr replace cadence; a glue would need to infer "due" from age the way Battery
+  Notes infers expected life from battery *type*. Power monitoring is the integration's
+  job; battery aging is the implied secondary need nobody currently tracks.
+  Marketing target: ["NUT UPS alert: battery needs to be replaced?"](https://community.home-assistant.io/t/nut-ups-alert-battery-needs-to-be-replaced/878003)
+  and the active blueprint thread ["UPS Monitor via NUT – Battery, Status &
+  Self-Test Notifications"](https://community.home-assistant.io/t/ups-monitor-via-nut-battery-status-self-test-notifications/902489).
+- **Miele** (dishwashers/washers/coffee machines, 9k installs) — detergent/rinse-aid/
+  salt level sensors, plus descale/degrease cycle counters on coffee machines and steam
+  ovens. More "needs refilling" than "wears out," but same trigger shape.
+  Marketing target: the long-running ["Integration for Miele@Home"](https://community.home-assistant.io/t/integration-for-miele-home/230417)
+  feature-request thread. (The sibling **Home Connect** integration — Bosch/Siemens
+  appliances — has the identical ask in
+  ["Home Connect - Addition of 'rinse aid' and 'salt' sensors for
+  dishwasher"](https://community.home-assistant.io/t/home-connect-addition-of-rinse-aid-and-salt-sensors-for-dishwasher/377084);
+  worth a look as a second appliance-glue candidate alongside Miele.)
+- **Roomba (iRobot)** (11k installs) — only "bin full" is exposed (no filter/brush wear,
+  unlike Roborock/Ecovacs); still a usable trigger on bin-equipped models.
+  Marketing target: ["Roomba automations - bin full, getting stuck and
+  auto-start"](https://community.home-assistant.io/t/roomba-automations-bin-full-getting-stuck-and-auto-start/31515).
+- **Synology DSM** (49k installs — very popular) — disk SMART "remaining life" and
+  bad-sector-threshold binary sensors exist. Not a consumable, but "replace this failing
+  drive" is a high-stakes maintenance task that's otherwise invisible outside the
+  Synology app.
+  Marketing target: weak — no dedicated disk-health thread turned up; closest is
+  ["Synology System Health widget in a
+  dashboard"](https://community.home-assistant.io/t/synology-system-health-widget-in-a-dashboard/944883).
+- **Husqvarna Automower** (2.3k installs) — exposes raw "cutting blade usage time" but
+  no built-in threshold/reminder; a glue would own the "replace every N cutting-hours"
+  logic itself (configurable, like Battery Notes' per-battery-type estimate).
+  Marketing target: no blade-specific thread found; the long-running ["Husqvarna
+  Automower monitoring"](https://community.home-assistant.io/t/husqvarna-automower-monitoring/4808)
+  mega-thread (100+ replies) is still the highest-traffic venue to reach owners.
+
+**Speculative — no usable entity today, but the upstream device has the feature:**
+
+- **Ecobee** — the thermostat hardware/app has built-in filter, UV-light, and humidifier
+  pad reminders, but the HA `ecobee` integration does not surface them as entities.
+  Real opportunity, blocked upstream until/unless the integration adds the entity.
+  Marketing target: ["Please Add Alerts to Ecobee
+  Integration"](https://community.home-assistant.io/t/please-add-alerts-to-ecobee-integration/405520)
+  — the exact ask (air filter / UV filter / AC service alerts) is already an open
+  feature request; also
+  ["EcoBee additions"](https://community.home-assistant.io/t/ecobee-additions/344598).
+- **3D printers — OctoPrint / PrusaLink / Bambu Lab (HACS)** — no dedicated nozzle- or
+  belt-wear sensor in any of these today. Nozzle replacement and bed releveling are
+  well-known maintenance items the hobbyist community already tracks by print-hours —
+  closer to the existing *usage-based recurrence* idea above (seed a recurring task from
+  cumulative print time) than a sensor-triggered glue.
+  Marketing target: ["3D Printer Maintenance
+  Reminder"](https://community.home-assistant.io/t/3d-printer-maintenance-reminder/643313)
+  — someone already asking for exactly this; Bambu Lab owners cluster in
+  ["My Bambu Lab X1C Dashboard &
+  Automations"](https://community.home-assistant.io/t/my-bambu-lab-x1c-dashboard-automations/665646).
+- **EVs — Tesla Fleet / Teslemetry** (~4.6k installs combined) — odometer and tire-
+  pressure sensors exist (disabled by default) but no service-reminder entity; a
+  mileage-based recurring task (e.g. "rotate tires every 6,250 mi") is again the
+  usage-based pattern, not a triggered one.
+  Marketing target: ["Sensor that activates on a certain
+  increment"](https://community.home-assistant.io/t/sensor-that-activates-on-a-certain-increment/331690)
+  — a TeslaMate user asking for exactly a 7,000-mile tire-rotation reminder off the
+  odometer, i.e. asking Home Keeper to exist.
+- **Pool/spa controllers — iAqualink, Ondilo ICO, Balboa** (combined < 2k installs) —
+  small install base individually, but filter cleaning / chemical dosing is a classic
+  recurring-maintenance domain. Probably better served by a generic recurring "Pool
+  maintenance" template than per-integration glue, given how thin the signal is on each.
+  Marketing target: the long-running ["Jandy iAqualink Pool
+  Integration"](https://community.home-assistant.io/t/jandy-iaqualink-pool-integration/105633)
+  thread (160+ replies) — no maintenance-specific thread found, but it's the highest-
+  traffic pool-owner venue.
+
+Not pursued: locks (august/yale/schlage/nuki) and garage openers (myq/gogogate2) only
+expose a generic `battery` sensor — already covered by Battery Notes itself, no new glue
+needed.
+
+---
+
 ## Community feature requests
 
 Things people in the Home Assistant community have asked for publicly — collected from
