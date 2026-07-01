@@ -17,7 +17,19 @@ from datetime import datetime, tzinfo
 from typing import Any
 
 from . import models, recurrence
-from .const import PART_WEAR, TASK_SOURCE_PART
+from .const import (
+    APPLIANCE_FALLBACK_NAMES,
+    DEFAULT_LANGUAGE,
+    PART_WEAR,
+    TASK_SOURCE_PART,
+    WEAR_TASK_NAME_TEMPLATES,
+)
+
+# English defaults so the pure reconciler is usable (and unit-testable) without a
+# caller resolving the locale; ``store.reconcile_part_tasks`` passes the strings
+# resolved from ``hass.config.language`` (see const.resolve_wear_task_naming).
+_DEFAULT_NAME_TEMPLATE = WEAR_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
+_DEFAULT_APPLIANCE_FALLBACK = APPLIANCE_FALLBACK_NAMES[DEFAULT_LANGUAGE]
 
 
 def part_source(task: dict[str, Any]) -> dict[str, Any] | None:
@@ -73,6 +85,8 @@ def reconcile_part_tasks(
     assets: dict[str, dict[str, Any]],
     tasks: dict[str, dict[str, Any]],
     *,
+    name_template: str = _DEFAULT_NAME_TEMPLATE,
+    appliance_fallback: str = _DEFAULT_APPLIANCE_FALLBACK,
     now: datetime,
 ) -> tuple[dict[str, dict[str, Any]], bool]:
     """Compute the task map derived from wear parts.
@@ -80,6 +94,14 @@ def reconcile_part_tasks(
     Returns ``(new_tasks, changed)``. ``new_tasks`` is a fresh dict (the input is
     not mutated); ``changed`` is ``True`` when it differs from ``tasks``. Tasks
     without a part source are carried through untouched.
+
+    ``name_template`` (with ``{part}``/``{asset}`` placeholders) and
+    ``appliance_fallback`` (substituted for an unnamed appliance) are the localized
+    strings for the generated task name; the caller resolves them from
+    ``hass.config.language`` (see ``const.resolve_wear_task_naming``). Defaulting to
+    English keeps this function pure and independently testable. Because the name is
+    recomputed here on every pass, a language change is picked up as ordinary name
+    drift — the existing ``before.get("name") != name`` branch rewrites it.
     """
     result = dict(tasks)
 
@@ -109,7 +131,9 @@ def reconcile_part_tasks(
 
     # Create or update the rest.
     for key, (asset, part) in desired.items():
-        name = f"Replace {part['name']} ({asset.get('name') or 'appliance'})"
+        name = name_template.format(
+            part=part["name"], asset=asset.get("name") or appliance_fallback
+        )
         # A part's last_replaced is a date-only string; qualify it to HA's tz so the
         # derived next_due is timezone-aware. A naive next_due otherwise crashes the
         # next-due sensor, overdue binary_sensor, and the calendar (which compare it

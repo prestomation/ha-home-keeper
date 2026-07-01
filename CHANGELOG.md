@@ -17,6 +17,14 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   the target counts usage **from the sensor's current reading**, not from zero, and the
   count restarts after each completion.
 
+### Fixed
+
+- **Auto-generated maintenance task names now follow your Home Assistant language.**
+  The name Home Keeper generates for a wear part (e.g. "Replace {part} ({appliance})")
+  was always English; it's now translated into your configured language across every
+  surface — the panel, the to-do list, the calendar, notifications, and the device
+  pages — and updates automatically if you change the language. (Fixes #119)
+
 ## [0.8.0b1]
 
 ### Added
