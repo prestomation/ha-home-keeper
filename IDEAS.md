@@ -309,8 +309,9 @@ lists were checked against each integration's HA docs page, not assumed.
   request ["Roborock Integration, add Dock Maintence items"](https://community.home-assistant.io/t/roborock-integration-add-dock-maintence-items/712274).
 - **Ecovacs** (robot vacuum, 11k installs) — per-component lifespan % (filter, brush),
   disabled-by-default sensors.
-  Marketing target: ["Assistance with Eufy Robovac integration and sensor data for
-  filter, brush etc"](https://community.home-assistant.io/t/assistance-with-eufy-robovac-integration-and-sensor-data-for-filter-brush-etc/773045).
+  Marketing target: ["Information about DEEBOT OZMO 900 Series(y79a7u)
+  filter"](https://community.home-assistant.io/t/information-about-deebot-ozmo-900-series-y79a7u-filter/895150)
+  — a Deebot (Ecovacs) owner asking specifically about the filter-lifespan attribute.
 - **LG ThinQ** (air purifiers/AC/fridges/washers/dishwashers, 22k installs) — explicit
   `time_to_change_filter` / `time_to_change_water_filter` events plus "filter remaining"
   sensors across several appliance types in one integration; highest-leverage target
