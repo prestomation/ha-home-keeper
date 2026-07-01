@@ -624,12 +624,12 @@ def test_merge_update_preserves_part_last_replaced():
 
 
 def test_set_and_clear_part_file():
-    asset = a.build_asset(
-        {"name": "Furnace", "parts": [{"name": "Filter"}]}, now=NOW
-    )
+    asset = a.build_asset({"name": "Furnace", "parts": [{"name": "Filter"}]}, now=NOW)
     pid = asset["parts"][0]["id"]
     updated = a.set_part_file(
-        asset, pid, {"filename": "f.pdf", "content_type": "application/pdf", "size": 100}
+        asset,
+        pid,
+        {"filename": "f.pdf", "content_type": "application/pdf", "size": 100},
     )
     assert updated["file_name"] == "f.pdf"
     assert asset["parts"][0]["file_name"] == "f.pdf"
@@ -637,24 +637,33 @@ def test_set_and_clear_part_file():
     assert asset["parts"][0]["file_size"] == 100
 
     prior = a.clear_part_file(asset, pid)
-    assert prior == {"filename": "f.pdf", "content_type": "application/pdf", "size": 100}
+    assert prior == {
+        "filename": "f.pdf",
+        "content_type": "application/pdf",
+        "size": 100,
+    }
     assert asset["parts"][0]["file_name"] is None
     assert asset["parts"][0]["file_content_type"] is None
     assert asset["parts"][0]["file_size"] is None
 
     # Clearing an already-fileless part, or acting on an unknown part id, is a no-op.
     assert a.clear_part_file(asset, pid) is None
-    assert a.set_part_file(asset, "bogus", {"filename": "x", "content_type": "x", "size": 1}) is None
+    assert (
+        a.set_part_file(
+            asset, "bogus", {"filename": "x", "content_type": "x", "size": 1}
+        )
+        is None
+    )
     assert a.clear_part_file(asset, "bogus") is None
 
 
 def test_merge_update_cannot_inject_or_clear_part_file():
-    asset = a.build_asset(
-        {"name": "Furnace", "parts": [{"name": "Filter"}]}, now=NOW
-    )
+    asset = a.build_asset({"name": "Furnace", "parts": [{"name": "Filter"}]}, now=NOW)
     pid = asset["parts"][0]["id"]
     a.set_part_file(
-        asset, pid, {"filename": "f.pdf", "content_type": "application/pdf", "size": 100}
+        asset,
+        pid,
+        {"filename": "f.pdf", "content_type": "application/pdf", "size": 100},
     )
     # A generic update can't clear the attached file by omitting it...
     preserved = a.merge_update(
