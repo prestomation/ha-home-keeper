@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTaskPayload, taskFormData, taskSchema } from '../src/forms.ts';
+import { buildTaskPayload, sensorHintText, taskFormData, taskSchema } from '../src/forms.ts';
 import { recurrenceSummary } from '../src/utils.ts';
 
 describe('task form — sensor-based tasks', () => {
@@ -114,5 +114,81 @@ describe('task form — sensor-based tasks', () => {
     });
     expect(thr).toContain('>');
     expect(thr).toContain('90');
+  });
+});
+
+describe('sensorHintText — live "when is it due" primer', () => {
+  it('spells out the next due point from the current reading (baseline anchor)', () => {
+    const hint = sensorHintText(
+      { recurrence_type: 'sensor', sensor_mode: 'usage', sensor_target: 100 },
+      { reading: 660, unit: 'h' },
+    );
+    // reads 660 -> due at 660 + 100 = 760, then every 100.
+    expect(hint).toContain('660 h');
+    expect(hint).toContain('760 h');
+    expect(hint).toContain('100 h');
+  });
+
+  it('handles a missing unit gracefully', () => {
+    const hint = sensorHintText(
+      { recurrence_type: 'sensor', sensor_mode: 'usage', sensor_target: 100 },
+      { reading: 660 },
+    );
+    expect(hint).toContain('660');
+    expect(hint).toContain('760');
+    expect(hint).not.toContain('undefined');
+  });
+
+  it('falls back to a static explanation when the reading is unavailable', () => {
+    const hint = sensorHintText(
+      { recurrence_type: 'sensor', sensor_mode: 'usage', sensor_target: 100 },
+      {},
+    );
+    expect(hint).toContain('100');
+    expect(hint).not.toContain('undefined');
+    // No concrete "reads N now" claim without a live value.
+    expect(hint).not.toMatch(/reads\s+\d/);
+  });
+
+  it('reads a loaded binding when no flat edit state is present', () => {
+    const hint = sensorHintText(
+      { recurrence_type: 'sensor', sensor: { mode: 'usage', target: 500, entity_id: 'sensor.x' } },
+      { reading: 20, unit: 'h' },
+    );
+    expect(hint).toContain('520 h');
+  });
+
+  it('describes the threshold comparison in plain symbols', () => {
+    const hint = sensorHintText(
+      {
+        recurrence_type: 'sensor',
+        sensor_mode: 'threshold',
+        sensor_comparison: '>=',
+        sensor_value: 90,
+      },
+      { unit: '%' },
+    );
+    expect(hint).toContain('≥');
+    expect(hint).toContain('90 %');
+  });
+
+  it('mentions the hold time when a threshold sets one', () => {
+    const hint = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'threshold',
+      sensor_comparison: '<',
+      sensor_value: 10,
+      sensor_for: 300,
+    });
+    expect(hint).toContain('300');
+  });
+
+  it('returns empty until enough is entered to be useful', () => {
+    expect(sensorHintText({ recurrence_type: 'sensor', sensor_mode: 'usage' }, { reading: 5 })).toBe(
+      '',
+    );
+    expect(
+      sensorHintText({ recurrence_type: 'sensor', sensor_mode: 'threshold' }, {}),
+    ).toBe('');
   });
 });
