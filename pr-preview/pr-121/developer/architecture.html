@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-developer docs-version-current docs-doc-page docs-doc-id-architecture" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.10.1">
+<title data-rh="true">Architecture | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-121/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-121/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-121/developer/architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Architecture | Home Keeper"><meta data-rh="true" name="description" content="Goal"><meta data-rh="true" property="og:description" content="Goal"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-121/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-121/developer/architecture"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-121/developer/architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-121/developer/architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Architecture","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-121/developer/architecture"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-121/assets/css/styles.12814b72.css">
+<script src="/ha-home-keeper/pr-preview/pr-121/assets/js/runtime~main.b70f28c8.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-121/assets/js/main.7c18843a.js" defer="defer"></script>
+</head>
+<body>
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/ha-home-keeper/pr-preview/pr-121/img/logo.svg"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/ha-home-keeper/pr-preview/pr-121/"><div class="navbar__logo"><img src="/ha-home-keeper/pr-preview/pr-121/img/logo.svg" alt="Home Keeper" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/ha-home-keeper/pr-preview/pr-121/img/logo.svg" alt="Home Keeper" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div><b class="navbar__title text--truncate">Home Keeper</b></a><a class="navbar__item navbar__link" href="/ha-home-keeper/pr-preview/pr-121/docs/intro">User Guide</a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/ha-home-keeper/pr-preview/pr-121/developer/integrating">Developer Guide</a><a class="navbar__item navbar__link" href="/ha-home-keeper/pr-preview/pr-121/docs/release-notes">Release Notes</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/prestomation/ha-home-keeper/commits/main" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">dev<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/prestomation/ha-home-keeper" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/ha-home-keeper/pr-preview/pr-121/developer/integrating"><span title="Integrating" class="linkLabel_WmDU">Integrating</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/ha-home-keeper/pr-preview/pr-121/developer/glue-integrations"><span title="Glue integrations" class="linkLabel_WmDU">Glue integrations</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/ha-home-keeper/pr-preview/pr-121/developer/events"><span title="Events" class="linkLabel_WmDU">Events</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" href="/ha-home-keeper/pr-preview/pr-121/developer/architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/ha-home-keeper/pr-preview/pr-121/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Architecture</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Architecture</h1></header><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="goal">Goal<a href="#goal" class="hash-link" aria-label="Direct link to Goal" title="Direct link to Goal" translate="no">​</a></h2>
+<p>Track home maintenance and chores in Home Assistant, modeled deeply enough to live
+<em>on</em> the devices they concern (Battery-Notes-style), with administration separated
+from everyday usage.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="recurrence-model">Recurrence model<a href="#recurrence-model" class="hash-link" aria-label="Direct link to Recurrence model" title="Direct link to Recurrence model" translate="no">​</a></h2>
+<p>Three kinds, all implemented in the pure <code>recurrence.py</code> engine (no HA imports, takes
+an explicit <code>now</code>):</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Type</th><th>Semantics</th><th><code>next_due</code> after completion</th></tr></thead><tbody><tr><td><strong>floating</strong></td><td>measured from last completion (<code>interval</code> × days/weeks/months)</td><td><code>completed_at + interval</code> — the clock resets</td></tr><tr><td><strong>fixed</strong></td><td>anchored calendar schedule (<code>FREQ</code> DAILY/WEEKLY/MONTHLY × <code>interval</code> from an <code>anchor</code> datetime)</td><td>the next scheduled occurrence after <code>now</code> — schedule-driven, not completion-driven</td></tr><tr><td><strong>triggered</strong></td><td>condition-driven, <em>no schedule</em>. An owning integration arms it (<code>trigger_task</code>, or by creating it) when a condition becomes true and clears it (<code>complete_task</code>) when it resolves. <code>next_due</code> is its state: a timestamp = armed/due-now, <code>None</code> = dormant (invisible to to-do/calendar/overdue).</td><td><code>None</code> (dormant) — completing <em>clears</em> the condition rather than rescheduling, while still recording the completion so cadence accumulates</td></tr></tbody></table>
+<p>Month arithmetic clamps to month length (Jan 31 + 1mo → Feb 28/29). A missed
+floating task stays overdue rather than rolling forward on its own. The <code>triggered</code>
+type is the first-class home for condition-driven sources (Battery Notes batteries,
+leak sensors, filter pressure) — see <a class="" href="/ha-home-keeper/pr-preview/pr-121/developer/integrating">INTEGRATING.md</a> §7 and
+<a href="https://github.com/prestomation/ha-home-keeper/blob/main/docs/BATTERY_NOTES_PLAN.md" target="_blank" rel="noopener noreferrer" class="">BATTERY_NOTES_PLAN.md</a>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="components">Components<a href="#components" class="hash-link" aria-label="Direct link to Components" title="Direct link to Components" translate="no">​</a></h2>
+<ul>
+<li class=""><code>store.py</code> — single JSON document (<code>.storage/home_keeper</code>); all mutations funnel
+through it.</li>
+<li class=""><code>coordinator.py</code> — <code>DataUpdateCoordinator</code> exposing the task map; refreshed after
+each mutation, plus a 5-minute tick so time-based &quot;overdue&quot; stays current.
+<code>device_info_for_task</code> reuses an existing device&#x27;s identifiers when a task is
+attached (so entities merge onto that device page), else a self-owned device.</li>
+<li class="">Entities (usage surfaces):
+<ul>
+<li class=""><code>todo.py</code> — one to-do list; completing an item advances recurrence.</li>
+<li class=""><code>calendar.py</code> — upcoming occurrences (floating = next due; fixed = expanded).</li>
+<li class=""><code>button.py</code> / <code>sensor.py</code> / <code>binary_sensor.py</code> — per-task, <strong>only for
+device-attached tasks</strong>; mark-done / next-due / overdue.</li>
+</ul>
+</li>
+<li class=""><code>panel.py</code> + <code>frontend/</code> — the admin sidebar panel (a custom HA panel registered
+via <code>frontend.async_register_built_in_panel</code> with a <code>_panel_custom</code> config block).</li>
+<li class=""><code>websocket_api.py</code> + services in <code>__init__.py</code> — CRUD + complete; the panel uses
+websocket commands, automations use services.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-a-panel-not-a-lovelace-card-for-admin">Why a panel (not a Lovelace card) for admin<a href="#why-a-panel-not-a-lovelace-card-for-admin" class="hash-link" aria-label="Direct link to Why a panel (not a Lovelace card) for admin" title="Direct link to Why a panel (not a Lovelace card) for admin" translate="no">​</a></h2>
+<p>Management is a full-screen, app-like activity (lists, forms, device pickers) that
+shouldn&#x27;t compete for space on a dashboard. Usage — <em>what&#x27;s due, mark it done</em> — is
+exactly what HA&#x27;s native to-do/calendar cards and the mobile app already do well, so
+we lean on those instead of a bespoke card.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="device-attachment">Device attachment<a href="#device-attachment" class="hash-link" aria-label="Direct link to Device attachment" title="Direct link to Device attachment" translate="no">​</a></h2>
+<p>A task may reference a device-registry <code>device_id</code> (chosen in the panel). Its per-
+task entities set <code>DeviceInfo(identifiers=&lt;that device&#x27;s identifiers&gt;)</code>, which makes
+HA merge them onto the existing device&#x27;s page — no new device created. This is the
+same identifier-merge mechanism Battery Notes uses, and it works regardless of which
+integration owns the device.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="deferred-cross-integration-contribution-api">Deferred: cross-integration contribution API<a href="#deferred-cross-integration-contribution-api" class="hash-link" aria-label="Direct link to Deferred: cross-integration contribution API" title="Direct link to Deferred: cross-integration contribution API" translate="no">​</a></h2>
+<p>The end goal is for other integrations (e.g. Battery Notes) to contribute tasks
+<em>without Home Keeper knowing about them</em>. Planned mechanism:</p>
+<ul>
+<li class="">a dispatcher signal <code>home_keeper_task_contribution</code> (constant reserved in
+<code>const.py</code>) and/or a <code>home_keeper.contribute_task</code> service;</li>
+<li class="">contributed tasks carry a <code>source</code> so they can be reconciled/removed when the
+contributor goes away.</li>
+</ul>
+<p>Not built in this prototype — only the hook points and this note exist. See
+<a href="https://github.com/prestomation/ha-home-keeper/blob/main/IDEAS.md" target="_blank" rel="noopener noreferrer" class="">../IDEAS.md</a>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="appliances--asset-metadata">Appliances &amp; asset metadata<a href="#appliances--asset-metadata" class="hash-link" aria-label="Direct link to Appliances &amp; asset metadata" title="Direct link to Appliances &amp; asset metadata" translate="no">​</a></h2>
+<p>Support for dumb appliances and richer asset records, built as two intentionally
+<strong>decoupled</strong> layers. An <strong>asset</strong> is a JSON dict (<code>assets.py</code>, pure — no HA imports)
+managed from the panel&#x27;s <strong>Appliances</strong> tab and the <code>*_asset</code> services/websocket
+commands; all mutations funnel through <code>HomeKeeperStore</code> alongside tasks in the same
+<code>.storage/home_keeper</code> document (the <code>assets</code> key is additive — no migration).</p>
+<ul>
+<li class=""><strong>Asset-metadata layer</strong> — keyed by an <code>id</code>, with a <code>device_id</code> anchor that can
+point at <em>any</em> device. <code>kind == &quot;existing&quot;</code> attaches metadata to a device another
+integration owns (we never mutate that device); <code>kind == &quot;virtual&quot;</code> is one we
+provision. Only the fields that wire into HA stay structured — <code>manufacturer</code>/<code>model</code>
+(the device card), <code>cost</code> (the inventory value rollup), <code>icon</code>, <code>area</code>. Manuals,
+warranties and receipts live in a <strong><code>documents</code></strong> list (each a <code>link</code> URL or an
+uploaded <code>file</code> served from disk via the document HTTP view).
+Everything else is a free-form <strong><code>metadata</code></strong> list: ordered <code>{id, type, label, value}</code>
+entries where <code>type</code> is <code>text</code>, <code>link</code>, or <code>date</code>. A <code>date</code> entry with <code>track: true</code>
+becomes a <code>date</code> sensor (<code>HomeKeeperAssetDateSensor</code>, named from its label) merged
+onto the device page via <code>coordinator.device_info_for_device_id</code>, so e.g. a tracked
+warranty-expiry date is automatable; untracked dates are display-only.</li>
+<li class=""><strong>Virtual-device provision</strong> — <code>devices.async_reconcile_assets()</code> registers a real
+registry device with <code>async_get_or_create(config_entry_id=..., identifiers={...})</code>,
+idempotently on setup and after each asset mutation, writes the assigned
+<code>device.id</code> back to the asset, and prunes orphan asset devices. The identifier is
+prefixed <code>(home_keeper, asset_&lt;id&gt;)</code> so it never collides with the per-task
+self-owned device <code>(home_keeper, &lt;task_id&gt;)</code>. Multiple tasks (and, later, Battery
+Notes batteries) thus share one appliance device page.</li>
+</ul>
+<p>Lifecycle: metadata is never coupled to device creation; existing-device assets
+recover a re-created device from a stored <code>identifiers</code>/<code>connections</code> snapshot.
+Virtual devices are config-entry-owned, so HA removes them on integration removal,
+and <code>async_remove_entry</code> drops the stored document. Deleting an asset removes its
+virtual device and detaches its tasks (they become standalone).</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="parts--wear-items">Parts / wear items<a href="#parts--wear-items" class="hash-link" aria-label="Direct link to Parts / wear items" title="Direct link to Parts / wear items" translate="no">​</a></h3>
+<p>An asset carries a structured <code>parts</code> list (<code>assets._normalize_parts</code>); a legacy
+<code>part_numbers</code> string is folded into a single consumable part by a load-time shim
+(<code>assets.migrate_legacy_part_numbers</code>, no storage-version bump). A <code>wear</code> part with a
+<code>replace_interval</code>/<code>replace_unit</code> is materialized into a floating <strong>task</strong> by
+<code>store.reconcile_part_tasks</code> (run at setup and after every asset mutation): the task
+is tagged <code>source = {&quot;part&quot;: {asset_id, part_id}}</code> so the reconciler exclusively owns
+it (create/update/remove), reuses <code>models.build_task</code>/<code>recurrence.py</code>, and lands the
+normal per-task entities on the appliance device. Completing such a task stamps the
+part&#x27;s <code>last_replaced</code>. This is the first internal use of the task <code>source</code> field
+that the deferred cross-integration contribution API will generalize.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="relationships-subdevices--related-devices">Relationships: subdevices &amp; related devices<a href="#relationships-subdevices--related-devices" class="hash-link" aria-label="Direct link to Relationships: subdevices &amp; related devices" title="Direct link to Relationships: subdevices &amp; related devices" translate="no">​</a></h3>
+<p><code>parent_asset_id</code> (virtual assets only) makes one appliance a <strong>subdevice</strong> of
+another via HA&#x27;s native <code>via_device</code>: <code>devices._reconcile_virtual</code> passes the parent&#x27;s
+identifier (<code>asset_&lt;parentid&gt;</code>) on create and syncs <code>via_device_id</code> on update, with
+assets provisioned <strong>parents-first</strong> (<code>_ancestor_depth</code>) and cycles rejected in the
+store (<code>assets.would_create_cycle</code>). <code>related_device_ids</code> loosely associates arbitrary
+registry devices (including foreign ones HA won&#x27;t let us reparent) — stored and shown
+only in the panel.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="smaller-ha-integration-points">Smaller HA integration points<a href="#smaller-ha-integration-points" class="hash-link" aria-label="Direct link to Smaller HA integration points" title="Direct link to Smaller HA integration points" translate="no">​</a></h3>
+<p><code>area_id</code> is validated at the HA boundary (<code>devices.area_exists</code>) for both tasks and
+assets; virtual devices set <code>configuration_url</code> (a <code>homeassistant://</code> deep
+link straight to that appliance&#x27;s panel page — see &quot;Device page enrichment&quot; below) —
+but <strong>not</strong> <code>entry_type=service</code>, which would wrongly mark a physical appliance as a
+non-physical service entry. An optional mdi <code>icon</code> rides on the asset (applied to its
+metadata sensors, since HA devices have no icon field), and <code>diagnostics.py</code> exposes a
+tasks/assets snapshot (config-entry-wide <strong>and</strong> per-device). Remaining open items
+(labels for category/type, photo storage, a live device-registry listener,
+contribution-API interplay) are in <a href="https://github.com/prestomation/ha-home-keeper/blob/main/IDEAS.md" target="_blank" rel="noopener noreferrer" class="">../IDEAS.md</a>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="device-page-enrichment">Device page enrichment<a href="#device-page-enrichment" class="hash-link" aria-label="Direct link to Device page enrichment" title="Direct link to Device page enrichment" translate="no">​</a></h2>
+<p>The HA <strong>device page</strong> is a framework-fixed layout: an integration can&#x27;t inject custom
+cards/HTML, only contribute entities, device-registry metadata, a diagnostics download,
+and the &quot;Visit&quot; link. Home Keeper leans into exactly those hooks so a maintenance
+appliance&#x27;s device page is a useful summary <em>and</em> a one-click jump into the panel for
+the rich stuff (manuals, full inventory, history) that has no native rendering.</p>
+<p><strong>Owner vs guest.</strong> The enrichment differs by who owns the device record, because the
+device-info block and <code>configuration_url</code> belong to whoever owns the device:</p>
+<ul>
+<li class=""><strong>Owned</strong> — a Home Keeper <em>virtual</em> asset device (identifier <code>asset_&lt;id&gt;</code>). Home
+Keeper controls the whole record, so it goes maximalist (see below).</li>
+<li class=""><strong>Guest</strong> — a task merged onto a <em>foreign</em> device (<code>device_id</code> on a task/existing-kind
+asset). Home Keeper is a polite guest: it adds its per-task entities (next-due,
+overdue, mark-done) and tracked-date sensors but never overwrites the foreign
+integration&#x27;s device-info block or &quot;Visit&quot; link, and does <strong>not</strong> add per-part stock
+entities there. So guest pages are not materially enriched beyond what already
+existed — by design.</li>
+</ul>
+<p><strong>On an owned (virtual asset) device page Home Keeper contributes:</strong></p>
+<ul>
+<li class=""><strong>Identity in the device-info block.</strong> <code>manufacturer</code> / <code>model</code> already synced;
+<code>serial_number</code> is now a first-class asset field (<code>assets._TEXT_FIELDS</code>) synced into
+<code>DeviceInfo.serial_number</code> by <code>devices._reconcile_virtual</code> (guarded by
+<code>_supports_kwarg</code> for older HA). <code>sw_version</code>/<code>hw_version</code> are intentionally left out
+— a maintenance appliance rarely has firmware, and a first-class field with no source
+would just be clutter. Serial stays editable in the panel&#x27;s appliance form next to
+make/model (the legacy &quot;Serial number&quot; <em>metadata seed</em> remains for anyone already
+using it; the first-class field is what feeds the registry).</li>
+<li class=""><strong>A precise &quot;Visit&quot; deep link.</strong> <code>configuration_url</code> is
+<code>homeassistant://home-keeper/appliances/&lt;asset_id&gt;</code> (was the panel root) so the device
+page lands directly on that appliance&#x27;s panel detail — where its documents
+(manuals/warranties/receipts) and full parts inventory render as real links/lists.
+(The device page renders a <code>homeassistant://X</code> config URL as the in-app path <code>/X</code> —
+there is <strong>no</strong> <code>navigate/</code> action segment on the web frontend, so a <code>navigate/...</code>
+URL renders as a dead <code>/navigate/...</code> link and bounces to the default dashboard.
+Caveat: the <strong>companion mobile app</strong> has historically used the <code>homeassistant://navigate/&lt;path&gt;</code>
+deep-link form, so the two clients may disagree on the right value; the web/desktop
+frontend is the supported surface here, and the bare-path form is verified there.)
+This is the bridge for the data that <em>can&#x27;t</em> live on the device page: entity
+attributes are never linkified or markdown-rendered there, so links and lists belong
+in the panel, reached in one click.</li>
+<li class=""><strong>Per-part spare-stock entities.</strong> For each stock-tracked part (<code>assets.part_tracks_stock</code>)
+the <code>number</code> platform (<code>number.py</code>) adds a &quot;<part> spares&quot; control: its value is the
+on-hand count and editing it delegates to <code>store.adjust_part_stock</code> (the same service
+path, so the edge-triggered stock events still fire). For each part that also carries a
+reorder threshold (<code>assets.part_has_reorder</code>) the <code>binary_sensor</code> platform adds a
+&quot;<part> low stock&quot; <code>PROBLEM</code> sensor (<code>is_on = assets.part_is_low</code>) — making the
+<em>state</em> visible on the page, complementing the existing <code>part_*</code> device triggers that
+only surface the <em>transition</em>. Both key on the asset device and are pruned from the
+entity registry when their part/stock-tracking goes away (mirroring the asset-date
+sensor cleanup).</part></part></li>
+</ul>
+<p><strong>Why not device actions.</strong> A device-level &quot;mark task done&quot; / &quot;restock&quot; action was
+considered and skipped: a device with several tasks (or parts) makes the target
+ambiguous, and the mark-done <strong>button entity</strong> already exposes that action per task in a
+non-ambiguous way (and is automatable). The <code>part_*</code> device triggers + the
+<code>adjust_part_stock</code> service cover the automation side without that ambiguity.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/prestomation/ha-home-keeper/tree/main/website/developer/architecture.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/ha-home-keeper/pr-preview/pr-121/developer/events"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Events</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#goal" class="table-of-contents__link toc-highlight">Goal</a></li><li><a href="#recurrence-model" class="table-of-contents__link toc-highlight">Recurrence model</a></li><li><a href="#components" class="table-of-contents__link toc-highlight">Components</a></li><li><a href="#why-a-panel-not-a-lovelace-card-for-admin" class="table-of-contents__link toc-highlight">Why a panel (not a Lovelace card) for admin</a></li><li><a href="#device-attachment" class="table-of-contents__link toc-highlight">Device attachment</a></li><li><a href="#deferred-cross-integration-contribution-api" class="table-of-contents__link toc-highlight">Deferred: cross-integration contribution API</a></li><li><a href="#appliances--asset-metadata" class="table-of-contents__link toc-highlight">Appliances &amp; asset metadata</a><ul><li><a href="#parts--wear-items" class="table-of-contents__link toc-highlight">Parts / wear items</a></li><li><a href="#relationships-subdevices--related-devices" class="table-of-contents__link toc-highlight">Relationships: subdevices &amp; related devices</a></li><li><a href="#smaller-ha-integration-points" class="table-of-contents__link toc-highlight">Smaller HA integration points</a></li></ul></li><li><a href="#device-page-enrichment" class="table-of-contents__link toc-highlight">Device page enrichment</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-121/docs/intro">User Guide</a></li><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-121/developer/integrating">Developer Guide</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://www.home-assistant.io/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Home Assistant<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://hacs.xyz/" target="_blank" rel="noopener noreferrer" class="footer__link-item">HACS<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper/issues" target="_blank" rel="noopener noreferrer" class="footer__link-item">Issues<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Home Keeper — a community Home Assistant integration. Built with Docusaurus.</div></div></div></footer></div>
+</body>
+</html>
