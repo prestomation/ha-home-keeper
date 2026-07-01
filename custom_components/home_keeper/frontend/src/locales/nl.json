@@ -227,6 +227,7 @@
   "done.needsDetails": "Open deze taak in Home Keeper om de vereiste details toe te voegen.",
   "companions.heading": "Metgezellen",
   "companions.help": "Integraties die met Home Keeper samenwerken. Koppel een metgezel om deze hier te beheren, of installeer een voorgestelde brug om een app te koppelen die je al gebruikt.",
+  "companions.discover": "Benieuwd wat samenwerkt met Home Keeper? Bekijk de <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">lijst met bekende metgezellen</a>.",
   "companions.empty": "Nog geen metgezel-integraties gedetecteerd.",
   "companions.connected": "Verbonden",
   "companions.suggested": "Voorgesteld",

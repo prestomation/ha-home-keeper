@@ -227,6 +227,7 @@
   "done.needsDetails": "在 Home Keeper 中打开此任务以添加必填详情。",
   "companions.heading": "配套集成",
   "companions.help": "可与 Home Keeper 配合使用的集成。连接配套集成即可在此管理，或安装建议的桥接以关联你已在使用的应用。",
+  "companions.discover": "想知道哪些集成能与 Home Keeper 搭配使用？请查看<a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">已知配套集成列表</a>。",
   "companions.empty": "尚未检测到配套集成。",
   "companions.connected": "已连接",
   "companions.suggested": "建议",

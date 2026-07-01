@@ -321,6 +321,13 @@ Home Keeper never has to hard-code it), while a popular upstream is *detected* f
 curated catalog. Either way you find out — from inside Home Keeper — that the pieces fit
 together.
 
+**Know an integration that should be here?** The Companions section links out to this
+page so you can always find the current list. If you maintain — or just know of — an
+integration or a small [glue integration](docs/GLUE_INTEGRATIONS.md) that works with
+Home Keeper and isn't listed, please
+[open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20)
+so we can add it to the suggested-companions catalog.
+
 ![The Companions section on the Settings tab — connected integrations with Configure buttons](docs/images/21-panel-companions.png)
 
 ## Profiles — saved filters you reuse everywhere

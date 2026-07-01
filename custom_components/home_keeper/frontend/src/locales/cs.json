@@ -253,6 +253,7 @@
   "done.needsDetails": "Otevřete tento úkol v Home Keeper a doplňte požadované detaily.",
   "companions.heading": "Doplňky",
   "companions.help": "Integrace, které spolupracují s Home Keeper. Připojte doplněk a spravujte jej zde, nebo nainstalujte navrhovaný most pro propojení aplikace, kterou už používáte.",
+  "companions.discover": "Zajímá vás, co funguje s Home Keeper? Podívejte se na <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">seznam známých doplňků</a>.",
   "companions.empty": "Zatím nebyly zjištěny žádné doplňkové integrace.",
   "companions.connected": "Připojeno",
   "companions.suggested": "Navrženo",

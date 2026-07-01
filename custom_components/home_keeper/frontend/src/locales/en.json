@@ -237,6 +237,7 @@
   "done.needsDetails": "Open this task in Home Keeper to add the required details.",
   "companions.heading": "Companions",
   "companions.help": "Integrations that work with Home Keeper. Connect a companion to manage it here, or install a suggested bridge to link an app you already use.",
+  "companions.discover": "Curious what pairs with Home Keeper? See the <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">list of known companions</a>.",
   "companions.empty": "No companion integrations detected yet.",
   "companions.connected": "Connected",
   "companions.suggested": "Suggested",
