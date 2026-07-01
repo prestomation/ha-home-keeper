@@ -395,6 +395,7 @@ const STYLES = `
     font-weight: 500; display: flex; align-items: center; gap: 8px;
     flex-wrap: wrap; word-break: break-word;
   }
+  .hk-part-name a { color: var(--primary-color); }
   .hk-part-badge {
     font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.04em; color: var(--secondary-text-color);
@@ -2022,13 +2023,16 @@ export class HomeKeeperPanel extends HTMLElement {
         }
         const chipRow = chips.length ? `<div class="hk-part-chips">${chips.join('')}</div>` : '';
         const badge = `<span class="hk-part-badge">${escapeHTML(t(`opt.part.${p.type}`))}</span>`;
+        const name = p.url
+          ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">${escapeHTML(p.name)}</a>`
+          : escapeHTML(p.name);
         return `
           <div class="hk-part-row ${isWear ? 'wear' : 'consumable'}">
             <div class="hk-part-ic">
               <ha-svg-icon data-mdi="${isWear ? 'wear' : 'consumable'}"></ha-svg-icon>
             </div>
             <div class="grow">
-              <div class="hk-part-name">${escapeHTML(p.name)}${badge}</div>
+              <div class="hk-part-name">${name}${badge}</div>
               ${subLine}
               ${chipRow}
             </div>
@@ -2359,6 +2363,7 @@ export class HomeKeeperPanel extends HTMLElement {
           { name: 'cost', selector: selNumber(0) },
         ],
       },
+      { name: 'part_url', selector: selText() },
       {
         name: '',
         type: 'grid',
@@ -4097,6 +4102,7 @@ export class HomeKeeperPanel extends HTMLElement {
           type: p.type ?? 'consumable',
           vendor: p.vendor ?? '',
           cost: p.cost ?? undefined,
+          part_url: p.url ?? '',
           stock: p.stock ?? undefined,
           reorder_at: p.reorder_at ?? undefined,
           replace_interval: p.replace_interval ?? undefined,
@@ -4120,6 +4126,7 @@ export class HomeKeeperPanel extends HTMLElement {
             type: (value.type as Part['type']) ?? 'consumable',
             vendor: String(value.vendor ?? ''),
             cost: value.cost != null && value.cost !== '' ? Number(value.cost) : null,
+            url: String(value.part_url ?? '').trim(),
             stock: value.stock != null && value.stock !== '' ? Number(value.stock) : null,
             reorder_at:
               value.reorder_at != null && value.reorder_at !== ''
