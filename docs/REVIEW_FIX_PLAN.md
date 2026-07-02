@@ -20,11 +20,12 @@ add/extend a regression test where the bug class allows it, and update
   `recurrence.apply_completion` as a defence-in-depth. Regression test added
   (`test_apply_completion_qualifies_naive_completed_at`). (`store.py:800`,
   `recurrence.py:288`)
-- [ ] C2. Unavailable/unknown problem-sensor state must be "skip", not "cleared":
-  treat `unavailable`/`unknown`/missing states as indeterminate in
-  `problem_sync._is_problem` → reconcile leaves armed tasks alone. Regression test:
-  armed task + unavailable sensor → no completion fired. (`problem_sync.py:160`,
-  `problem_tasks.py:177`)
+- [x] C2. Unavailable/unknown problem-sensor state must be "skip", not "cleared":
+  `problem_sync._is_problem` now returns three-way `True`/`False`/`None`; the
+  reconciler transitions only on a definite reading (`is True`/`is False`) and
+  leaves the armed state untouched while indeterminate. New sensors start dormant
+  on `None`. Regression tests added (indeterminate doesn't clear/arm/false-create).
+  (`problem_sync.py:160`, `problem_tasks.py:173`)
 
 ## Security
 

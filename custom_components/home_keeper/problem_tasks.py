@@ -96,9 +96,11 @@ def _build_task(
         },
         now=now,
     )
-    # ``build_task`` arms a triggered task by default (compute_next_due -> now). If
-    # the sensor is currently OK, start the mirror dormant instead.
-    if not meta.get("is_problem"):
+    # ``build_task`` arms a triggered task by default (compute_next_due -> now). Arm
+    # only when the sensor is *definitely* reporting a problem; a clear (``False``)
+    # or indeterminate (``None`` — unavailable/unknown/not-yet-restored) state starts
+    # the mirror dormant so we never fabricate a problem we haven't observed.
+    if meta.get("is_problem") is not True:
         task["next_due"] = None
     return task
 
@@ -171,11 +173,17 @@ def reconcile_problem_tasks(
             changed = True
 
         armed = task.get("next_due") is not None
-        if meta.get("is_problem") and not armed:
+        problem = meta.get("is_problem")
+        # ``problem`` is three-way: True (arm), False (clear), None (indeterminate —
+        # sensor unavailable/unknown/not-yet-restored). Only transition on a definite
+        # reading; leave the armed state untouched while indeterminate so a
+        # device-offline blip or an early-setup reconcile can't fabricate a clear
+        # (which would fire a spurious completion) or a false arm.
+        if problem is True and not armed:
             task["next_due"] = now.isoformat()
             ops.append(("armed", task))
             changed = True
-        elif not meta.get("is_problem") and armed:
+        elif problem is False and armed:
             recurrence.apply_completion(task, now, now=now)
             ops.append(("cleared", task))
             changed = True
