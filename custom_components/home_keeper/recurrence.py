@@ -293,10 +293,19 @@ def apply_completion(
     if completed_at.tzinfo is None:
         completed_at = completed_at.replace(tzinfo=now.tzinfo)
     history = list(task.get("completions", []))
-    entry: dict = {"ts": completed_at.isoformat()}
+    ts_iso = completed_at.isoformat()
+    entry: dict = {"ts": ts_iso}
     if metadata:
         entry.update(metadata)
-    history.append(entry)
+    # Completions are keyed by their ISO ``ts``; a second completion at the exact same
+    # instant (a double-tapped notification action, a duplicated automation) would
+    # otherwise create an ambiguous duplicate that undo/edit can't disambiguate.
+    # Replace the existing entry at that ts rather than appending a twin.
+    dup = next((i for i, e in enumerate(history) if e.get("ts") == ts_iso), None)
+    if dup is not None:
+        history[dup] = entry
+    else:
+        history.append(entry)
     if len(history) > MAX_COMPLETION_HISTORY:
         history = history[-MAX_COMPLETION_HISTORY:]
     task["completions"] = history

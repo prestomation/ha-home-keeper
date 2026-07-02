@@ -87,6 +87,22 @@ def test_apply_completion_qualifies_naive_completed_at():
     assert r.is_overdue(task, now=now) is False
 
 
+def test_apply_completion_idempotent_for_duplicate_ts():
+    # Two completions at the identical instant (double-tapped notification) must not
+    # create an ambiguous duplicate history entry — the second replaces the first.
+    now = dt(2026, 6, 13, 10)
+    task = {
+        "recurrence_type": "floating",
+        "interval": 1,
+        "unit": "months",
+        "completions": [],
+    }
+    r.apply_completion(task, now, now=now, metadata={"note": "first"})
+    r.apply_completion(task, now, now=now, metadata={"note": "second"})
+    assert len(task["completions"]) == 1
+    assert task["completions"][0]["note"] == "second"
+
+
 def test_overdue_and_due_soon():
     now = dt(2026, 6, 13, 12)
     overdue = {"next_due": dt(2026, 6, 1).isoformat()}

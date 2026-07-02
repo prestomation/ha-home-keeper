@@ -131,9 +131,10 @@ add/extend a regression test where the bug class allows it, and update
 - [ ] N6. Calendar: fixed occurrences count as active during their event window;
   window queries include events overlapping the window start.
   (`calendar.py:91,128`)
-- [ ] N7. Duplicate completion timestamps: make `complete_task` idempotent for an
-  identical explicit `completed_at` ts (skip duplicate history entries).
-  (`store.py:799`, `recurrence.py:374`)
+- [x] N7. `apply_completion` now replaces (rather than appends) a completion at an
+  already-present ISO `ts`, so a double-tapped notification / duplicated automation
+  can't create an ambiguous twin entry that undo/edit can't disambiguate. Regression
+  test added. (`recurrence.py`)
 - [ ] N8. Frontend bucket drift: dormant sensor tasks land in the Monitored bucket
   (panel + card-filter); card hides Done on completed one-offs; panel
   `_statusBucket` gets card-filter's NaN guard; `dueLabel`/`_relativeDay` use
