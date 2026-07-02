@@ -140,6 +140,14 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             # (removal 2025.11). The base stores it as ``self.config_entry``; ``entry``
             # is a read-only alias so existing call sites don't churn.
             config_entry=entry,
+            # ``_async_update_data`` returns the store's *live* task map (see the note
+            # there): ``self.data`` and the task dicts it holds are the same objects the
+            # store mutates in place, so the base coordinator's data-equality change
+            # detection would compare the map to itself and never notify. Force
+            # ``always_update`` so every refresh propagates regardless. It defaults to
+            # True today; pinning it makes the contract explicit and immune to a default
+            # flip. Return a copy here instead only if this alias is ever removed.
+            always_update=True,
         )
         self.store = store
         # The problem-sensor sync helper, attached during async_setup_entry.
@@ -250,6 +258,13 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         # installed/removed glue updates — edge-triggered + silently baselined inside
         # the registry (a no-op until it's live).
         companions.async_reconcile(self.hass)
+        # NOTE: this is the store's *live* task map (``store.get_tasks()`` returns its
+        # internal dict, not a copy), so ``self.data`` and every task dict it holds are
+        # aliases the store keeps mutating in place. Entities rely on that to read
+        # current state via ``coordinator.data[task_id]``. The consequence is that base
+        # change detection can't work (map compared to itself), which is why the
+        # coordinator pins ``always_update=True`` (see __init__). Do not mutate the
+        # returned map/tasks from consumers — the store owns them.
         return tasks
 
     async def _purge_expired_one_offs(self) -> None:

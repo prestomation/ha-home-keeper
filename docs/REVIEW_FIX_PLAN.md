@@ -195,10 +195,15 @@ add/extend a regression test where the bug class allows it, and update
   `_renderProfiles`/`_renderNotifications` pair.
 - [ ] R7. Extract the asset editor (form + schemas + parts/metadata/documents
   editors) from `panel.ts` into `asset-form.ts`.
-- [ ] R8. Contract hygiene: coordinator returns a copy (or documents the live-dict
-  alias loudly + asserts `always_update`); `problem_tasks` reconciler stops
-  mutating store dicts in place; `transitions.py` uses a public parse helper
-  instead of `recurrence._parse`.
+- [x] R8. Contract hygiene: (a) coordinator now pins `always_update=True` explicitly
+  with a loud note at both `__init__` and the `_async_update_data` return documenting
+  that `self.data` aliases the store's live task map (so base change-detection can't
+  apply); (b) the `problem_tasks` reconciler copies each touched task
+  (`dict(result[tid])`) before mutating, so it no longer mutates the store's live
+  dicts in place — the store adopts the returned map wholesale; (c) `recurrence._parse`
+  promoted to public `recurrence.parse_due`, and `transitions.py` uses it instead of
+  reaching into the private helper. (`coordinator.py`, `problem_tasks.py`,
+  `recurrence.py`, `transitions.py`)
 
 ## Wrap-up
 
