@@ -15,11 +15,37 @@ which recreates these entities with the new name.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .coordinator import HomeKeeperCoordinator
+
+
+@callback
+def async_prune_platform_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    domain: str,
+    is_stale: Callable[[str], bool],
+) -> None:
+    """Remove registry entries in *domain* whose source no longer exists.
+
+    Every Home Keeper platform's ``async_setup_entry`` recreates its per-task /
+    per-part entities from live data and must drop the registry entries for sources
+    that have gone away (deleted/detached tasks, removed parts, un-tracked metadata).
+    They all walked the config entry's registry entries the same way; this factors
+    out that loop. The caller supplies *is_stale*, a predicate over the entity's
+    ``unique_id`` that encodes the platform's own unique-id shape(s) and live sets.
+    """
+    reg = er.async_get(hass)
+    for entity_entry in reg.entities.get_entries_for_config_entry_id(entry.entry_id):
+        if entity_entry.domain == domain and is_stale(entity_entry.unique_id or ""):
+            reg.async_remove(entity_entry.entity_id)
 
 
 class HomeKeeperTaskEntity(CoordinatorEntity[HomeKeeperCoordinator]):

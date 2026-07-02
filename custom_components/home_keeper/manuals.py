@@ -121,13 +121,9 @@ def document_path(asset_id: str, document_id: str) -> str:
 
 def _coordinator(hass: HomeAssistant) -> Any:
     """Locate the loaded Home Keeper coordinator (lazy import avoids a cycle)."""
-    from .coordinator import HomeKeeperCoordinator
+    from .coordinator import get_coordinator
 
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        coord = getattr(entry, "runtime_data", None)
-        if isinstance(coord, HomeKeeperCoordinator):
-            return coord
-    return None
+    return get_coordinator(hass)
 
 
 def _file_document(asset: dict[str, Any] | None, document_id: str) -> dict | None:
