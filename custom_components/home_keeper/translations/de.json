@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Kartenlinks",
-          "description": "Gerätelinks, die in der Dashboard-Kartenzeile dieser Aufgabe angezeigt werden – eine Liste von {asset_id, entry_id}-Objekten, die auf die Dokument- oder Metadatenlinks eines Geräts verweisen. Wird normalerweise über den Aufgabeneditor des Panels gesetzt."
+          "description": "Gerätelinks, die in der Dashboard-Kartenzeile dieser Aufgabe angezeigt werden – eine Liste von (asset_id, entry_id)-Objekten, die auf die Dokument- oder Metadatenlinks eines Geräts verweisen. Wird normalerweise über den Aufgabeneditor des Panels gesetzt."
         },
         "task_chips": {
           "name": "Aufgaben-Chips",
-          "description": "Von der Integration bereitgestellte Metadaten-Chips, die in der Aufgabenliste und der Dashboard-Karte angezeigt werden – eine Liste von {label, icon?, url?}-Objekten. Im Panel nicht bearbeitbar."
+          "description": "Von der Integration bereitgestellte Metadaten-Chips, die in der Aufgabenliste und der Dashboard-Karte angezeigt werden – eine Liste von (label, icon?, url?)-Objekten. Im Panel nicht bearbeitbar."
         },
         "source": {
           "name": "Quelle",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Kartenlinks",
-          "description": "Gerätelinks, die in der Dashboard-Kartenzeile dieser Aufgabe angezeigt werden (ersetzt die aktuelle Auswahl) – eine Liste von {asset_id, entry_id}-Objekten. Wird normalerweise über den Aufgabeneditor des Panels gesetzt."
+          "description": "Gerätelinks, die in der Dashboard-Kartenzeile dieser Aufgabe angezeigt werden (ersetzt die aktuelle Auswahl) – eine Liste von (asset_id, entry_id)-Objekten. Wird normalerweise über den Aufgabeneditor des Panels gesetzt."
         },
         "task_chips": {
           "name": "Aufgaben-Chips",
-          "description": "Von der Integration bereitgestellte Metadaten-Chips (ersetzt die aktuelle Auswahl) – eine Liste von {label, icon?, url?}-Objekten. Das vollständige Schema siehe add_task."
+          "description": "Von der Integration bereitgestellte Metadaten-Chips (ersetzt die aktuelle Auswahl) – eine Liste von (label, icon?, url?)-Objekten. Das vollständige Schema siehe add_task."
         },
         "source": {
           "name": "Quelle",

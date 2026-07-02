@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Card links",
-          "description": "Appliance links to surface on this task's dashboard-card row — a list of {asset_id, entry_id} objects pointing at an appliance's document or metadata links. Usually set from the panel's task editor."
+          "description": "Appliance links to surface on this task's dashboard-card row — a list of (asset_id, entry_id) objects pointing at an appliance's document or metadata links. Usually set from the panel's task editor."
         },
         "task_chips": {
           "name": "Task chips",
-          "description": "Integration-provided metadata chips shown in the task list and dashboard card — a list of {label, icon?, url?} objects. Not user-editable in the panel."
+          "description": "Integration-provided metadata chips shown in the task list and dashboard card — a list of (label, icon?, url?) objects. Not user-editable in the panel."
         },
         "source": {
           "name": "Source",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Card links",
-          "description": "Appliance links to surface on this task's dashboard-card row (replaces the current set) — a list of {asset_id, entry_id} objects. Usually set from the panel's task editor."
+          "description": "Appliance links to surface on this task's dashboard-card row (replaces the current set) — a list of (asset_id, entry_id) objects. Usually set from the panel's task editor."
         },
         "task_chips": {
           "name": "Task chips",
-          "description": "Integration-provided metadata chips (replaces the current set) — a list of {label, icon?, url?} objects. See add_task for the full schema."
+          "description": "Integration-provided metadata chips (replaces the current set) — a list of (label, icon?, url?) objects. See add_task for the full schema."
         },
         "source": {
           "name": "Source",

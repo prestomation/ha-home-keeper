@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Kortlenker",
-          "description": "Apparatlenker som skal vises på denne oppgavens dashbordkortrad – en liste med {asset_id, entry_id}-objekter som peker på et apparats dokument- eller metadatalenker. Angis vanligvis fra panelets oppgaveredigering."
+          "description": "Apparatlenker som skal vises på denne oppgavens dashbordkortrad – en liste med (asset_id, entry_id)-objekter som peker på et apparats dokument- eller metadatalenker. Angis vanligvis fra panelets oppgaveredigering."
         },
         "task_chips": {
           "name": "Oppgavechips",
-          "description": "Metadatachips levert av integrasjonen og vist i oppgavelisten og dashbordkortet – en liste med {label, icon?, url?}-objekter. Kan ikke redigeres av brukeren i panelet."
+          "description": "Metadatachips levert av integrasjonen og vist i oppgavelisten og dashbordkortet – en liste med (label, icon?, url?)-objekter. Kan ikke redigeres av brukeren i panelet."
         },
         "source": {
           "name": "Kilde",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Kortlenker",
-          "description": "Apparatlenker som skal vises på denne oppgavens dashbordkortrad (erstatter det gjeldende settet) – en liste med {asset_id, entry_id}-objekter. Angis vanligvis fra panelets oppgaveredigering."
+          "description": "Apparatlenker som skal vises på denne oppgavens dashbordkortrad (erstatter det gjeldende settet) – en liste med (asset_id, entry_id)-objekter. Angis vanligvis fra panelets oppgaveredigering."
         },
         "task_chips": {
           "name": "Oppgavechips",
-          "description": "Metadatachips levert av integrasjonen (erstatter det gjeldende settet) – en liste med {label, icon?, url?}-objekter. Se add_task for det fullstendige skjemaet."
+          "description": "Metadatachips levert av integrasjonen (erstatter det gjeldende settet) – en liste med (label, icon?, url?)-objekter. Se add_task for det fullstendige skjemaet."
         },
         "source": {
           "name": "Kilde",

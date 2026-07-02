@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Kortlinks",
-          "description": "Apparatlinks, der skal vises på denne opgaves dashboard-kortrække – en liste af {asset_id, entry_id}-objekter, der peger på et apparats dokument- eller metadatalinks. Angives normalt fra panelets opgaveredigering."
+          "description": "Apparatlinks, der skal vises på denne opgaves dashboard-kortrække – en liste af (asset_id, entry_id)-objekter, der peger på et apparats dokument- eller metadatalinks. Angives normalt fra panelets opgaveredigering."
         },
         "task_chips": {
           "name": "Opgavechips",
-          "description": "Metadatachips leveret af integrationen og vist i opgavelisten og dashboard-kortet – en liste af {label, icon?, url?}-objekter. Kan ikke redigeres af brugeren i panelet."
+          "description": "Metadatachips leveret af integrationen og vist i opgavelisten og dashboard-kortet – en liste af (label, icon?, url?)-objekter. Kan ikke redigeres af brugeren i panelet."
         },
         "source": {
           "name": "Kilde",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Kortlinks",
-          "description": "Apparatlinks, der skal vises på denne opgaves dashboard-kortrække (erstatter det aktuelle sæt) – en liste af {asset_id, entry_id}-objekter. Angives normalt fra panelets opgaveredigering."
+          "description": "Apparatlinks, der skal vises på denne opgaves dashboard-kortrække (erstatter det aktuelle sæt) – en liste af (asset_id, entry_id)-objekter. Angives normalt fra panelets opgaveredigering."
         },
         "task_chips": {
           "name": "Opgavechips",
-          "description": "Metadatachips leveret af integrationen (erstatter det aktuelle sæt) – en liste af {label, icon?, url?}-objekter. Se add_task for det fulde skema."
+          "description": "Metadatachips leveret af integrationen (erstatter det aktuelle sæt) – en liste af (label, icon?, url?)-objekter. Se add_task for det fulde skema."
         },
         "source": {
           "name": "Kilde",

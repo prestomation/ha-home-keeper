@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Korttilinkit",
-          "description": "Laitelinkit, jotka näytetään tämän tehtävän koontinäyttökortin rivillä – luettelo {asset_id, entry_id} -objekteista, jotka osoittavat laitteen asiakirja- tai metatietolinkkeihin. Yleensä asetetaan paneelin tehtäväeditorista."
+          "description": "Laitelinkit, jotka näytetään tämän tehtävän koontinäyttökortin rivillä – luettelo (asset_id, entry_id) -objekteista, jotka osoittavat laitteen asiakirja- tai metatietolinkkeihin. Yleensä asetetaan paneelin tehtäväeditorista."
         },
         "task_chips": {
           "name": "Tehtäväsirut",
-          "description": "Integraation tarjoamat metatietosirut, jotka näytetään tehtäväluettelossa ja koontinäytön kortissa – luettelo {label, icon?, url?} -objekteista. Käyttäjä ei voi muokata paneelissa."
+          "description": "Integraation tarjoamat metatietosirut, jotka näytetään tehtäväluettelossa ja koontinäytön kortissa – luettelo (label, icon?, url?) -objekteista. Käyttäjä ei voi muokata paneelissa."
         },
         "source": {
           "name": "Lähde",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Korttilinkit",
-          "description": "Laitelinkit, jotka näytetään tämän tehtävän koontinäyttökortin rivillä (korvaa nykyisen joukon) – luettelo {asset_id, entry_id} -objekteista. Yleensä asetetaan paneelin tehtäväeditorista."
+          "description": "Laitelinkit, jotka näytetään tämän tehtävän koontinäyttökortin rivillä (korvaa nykyisen joukon) – luettelo (asset_id, entry_id) -objekteista. Yleensä asetetaan paneelin tehtäväeditorista."
         },
         "task_chips": {
           "name": "Tehtäväsirut",
-          "description": "Integraation tarjoamat metatietosirut (korvaa nykyisen joukon) – luettelo {label, icon?, url?} -objekteista. Katso koko rakenne kohdasta add_task."
+          "description": "Integraation tarjoamat metatietosirut (korvaa nykyisen joukon) – luettelo (label, icon?, url?) -objekteista. Katso koko rakenne kohdasta add_task."
         },
         "source": {
           "name": "Lähde",

@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Enlaces de tarjeta",
-          "description": "Enlaces de electrodoméstico para mostrar en la fila de tarjeta del panel de control de esta tarea: una lista de objetos {asset_id, entry_id} que apuntan a los enlaces de documento o metadatos de un electrodoméstico. Normalmente se establece desde el editor de tareas del panel."
+          "description": "Enlaces de electrodoméstico para mostrar en la fila de tarjeta del panel de control de esta tarea: una lista de objetos (asset_id, entry_id) que apuntan a los enlaces de documento o metadatos de un electrodoméstico. Normalmente se establece desde el editor de tareas del panel."
         },
         "task_chips": {
           "name": "Chips de tarea",
-          "description": "Chips de metadatos proporcionados por la integración, mostrados en la lista de tareas y la tarjeta del panel de control: una lista de objetos {label, icon?, url?}. No editable por el usuario en el panel."
+          "description": "Chips de metadatos proporcionados por la integración, mostrados en la lista de tareas y la tarjeta del panel de control: una lista de objetos (label, icon?, url?). No editable por el usuario en el panel."
         },
         "source": {
           "name": "Fuente",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Enlaces de tarjeta",
-          "description": "Enlaces de electrodoméstico para mostrar en la fila de tarjeta del panel de control de esta tarea (reemplaza el conjunto actual): una lista de objetos {asset_id, entry_id}. Normalmente se establece desde el editor de tareas del panel."
+          "description": "Enlaces de electrodoméstico para mostrar en la fila de tarjeta del panel de control de esta tarea (reemplaza el conjunto actual): una lista de objetos (asset_id, entry_id). Normalmente se establece desde el editor de tareas del panel."
         },
         "task_chips": {
           "name": "Chips de tarea",
-          "description": "Chips de metadatos proporcionados por la integración (reemplaza el conjunto actual): una lista de objetos {label, icon?, url?}. Consulta add_task para ver el esquema completo."
+          "description": "Chips de metadatos proporcionados por la integración (reemplaza el conjunto actual): una lista de objetos (label, icon?, url?). Consulta add_task para ver el esquema completo."
         },
         "source": {
           "name": "Fuente",

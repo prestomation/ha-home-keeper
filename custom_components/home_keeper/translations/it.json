@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Collegamenti della scheda",
-          "description": "Collegamenti a elettrodomestici da mostrare nella riga della scheda dashboard di questa attività — un elenco di oggetti {asset_id, entry_id} che puntano ai link di documenti o metadati di un elettrodomestico. Di solito impostati dall'editor delle attività del pannello."
+          "description": "Collegamenti a elettrodomestici da mostrare nella riga della scheda dashboard di questa attività — un elenco di oggetti (asset_id, entry_id) che puntano ai link di documenti o metadati di un elettrodomestico. Di solito impostati dall'editor delle attività del pannello."
         },
         "task_chips": {
           "name": "Chip dell'attività",
-          "description": "Chip di metadati forniti dall'integrazione, mostrati nell'elenco delle attività e nella scheda dashboard — un elenco di oggetti {label, icon?, url?}. Non modificabili dall'utente nel pannello."
+          "description": "Chip di metadati forniti dall'integrazione, mostrati nell'elenco delle attività e nella scheda dashboard — un elenco di oggetti (label, icon?, url?). Non modificabili dall'utente nel pannello."
         },
         "source": {
           "name": "Origine",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Collegamenti della scheda",
-          "description": "Collegamenti a elettrodomestici da mostrare nella riga della scheda dashboard di questa attività (sostituisce l'insieme attuale) — un elenco di oggetti {asset_id, entry_id}. Di solito impostati dall'editor delle attività del pannello."
+          "description": "Collegamenti a elettrodomestici da mostrare nella riga della scheda dashboard di questa attività (sostituisce l'insieme attuale) — un elenco di oggetti (asset_id, entry_id). Di solito impostati dall'editor delle attività del pannello."
         },
         "task_chips": {
           "name": "Chip dell'attività",
-          "description": "Chip di metadati forniti dall'integrazione (sostituisce l'insieme attuale) — un elenco di oggetti {label, icon?, url?}. Vedi add_task per lo schema completo."
+          "description": "Chip di metadati forniti dall'integrazione (sostituisce l'insieme attuale) — un elenco di oggetti (label, icon?, url?). Vedi add_task per lo schema completo."
         },
         "source": {
           "name": "Origine",

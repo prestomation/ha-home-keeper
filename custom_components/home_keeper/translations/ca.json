@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Enllaços de la targeta",
-          "description": "Enllaços d'electrodomèstic per mostrar a la fila d'aquesta tasca a la targeta del tauler — una llista d'objectes {asset_id, entry_id} que apunten al document d'un electrodomèstic o als seus enllaços de metadades. Normalment s'estableix des de l'editor de tasques del panell."
+          "description": "Enllaços d'electrodomèstic per mostrar a la fila d'aquesta tasca a la targeta del tauler — una llista d'objectes (asset_id, entry_id) que apunten al document d'un electrodomèstic o als seus enllaços de metadades. Normalment s'estableix des de l'editor de tasques del panell."
         },
         "task_chips": {
           "name": "Xips de la tasca",
-          "description": "Xips de metadades proporcionats per la integració, mostrats a la llista de tasques i a la targeta del tauler — una llista d'objectes {label, icon?, url?}. No editables per l'usuari al panell."
+          "description": "Xips de metadades proporcionats per la integració, mostrats a la llista de tasques i a la targeta del tauler — una llista d'objectes (label, icon?, url?). No editables per l'usuari al panell."
         },
         "source": {
           "name": "Origen",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Enllaços de la targeta",
-          "description": "Enllaços d'electrodomèstic per mostrar a la fila d'aquesta tasca a la targeta del tauler (substitueix el conjunt actual) — una llista d'objectes {asset_id, entry_id}. Normalment s'estableix des de l'editor de tasques del panell."
+          "description": "Enllaços d'electrodomèstic per mostrar a la fila d'aquesta tasca a la targeta del tauler (substitueix el conjunt actual) — una llista d'objectes (asset_id, entry_id). Normalment s'estableix des de l'editor de tasques del panell."
         },
         "task_chips": {
           "name": "Xips de la tasca",
-          "description": "Xips de metadades proporcionats per la integració (substitueix el conjunt actual) — una llista d'objectes {label, icon?, url?}. Vegeu add_task per a l'esquema complet."
+          "description": "Xips de metadades proporcionats per la integració (substitueix el conjunt actual) — una llista d'objectes (label, icon?, url?). Vegeu add_task per a l'esquema complet."
         },
         "source": {
           "name": "Origen",

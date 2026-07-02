@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Kaartkoppelingen",
-          "description": "Apparaatkoppelingen om te tonen op de dashboardkaartrij van deze taak — een lijst met {asset_id, entry_id}-objecten die verwijzen naar de document- of metadatakoppelingen van een apparaat. Meestal ingesteld vanuit de taakeditor van het paneel."
+          "description": "Apparaatkoppelingen om te tonen op de dashboardkaartrij van deze taak — een lijst met (asset_id, entry_id)-objecten die verwijzen naar de document- of metadatakoppelingen van een apparaat. Meestal ingesteld vanuit de taakeditor van het paneel."
         },
         "task_chips": {
           "name": "Taakchips",
-          "description": "Door de integratie geleverde metadatachips die worden getoond in de takenlijst en de dashboardkaart — een lijst met {label, icon?, url?}-objecten. Niet door de gebruiker bewerkbaar in het paneel."
+          "description": "Door de integratie geleverde metadatachips die worden getoond in de takenlijst en de dashboardkaart — een lijst met (label, icon?, url?)-objecten. Niet door de gebruiker bewerkbaar in het paneel."
         },
         "source": {
           "name": "Bron",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Kaartkoppelingen",
-          "description": "Apparaatkoppelingen om te tonen op de dashboardkaartrij van deze taak (vervangt de huidige set) — een lijst met {asset_id, entry_id}-objecten. Meestal ingesteld vanuit de taakeditor van het paneel."
+          "description": "Apparaatkoppelingen om te tonen op de dashboardkaartrij van deze taak (vervangt de huidige set) — een lijst met (asset_id, entry_id)-objecten. Meestal ingesteld vanuit de taakeditor van het paneel."
         },
         "task_chips": {
           "name": "Taakchips",
-          "description": "Door de integratie geleverde metadatachips (vervangt de huidige set) — een lijst met {label, icon?, url?}-objecten. Zie add_task voor het volledige schema."
+          "description": "Door de integratie geleverde metadatachips (vervangt de huidige set) — een lijst met (label, icon?, url?)-objecten. Zie add_task voor het volledige schema."
         },
         "source": {
           "name": "Bron",

@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Liens de carte",
-          "description": "Liens d'appareil à afficher sur la ligne de carte de tableau de bord de cette tâche — une liste d'objets {asset_id, entry_id} pointant vers les liens de document ou de métadonnées d'un appareil. Généralement défini depuis l'éditeur de tâches du panneau."
+          "description": "Liens d'appareil à afficher sur la ligne de carte de tableau de bord de cette tâche — une liste d'objets (asset_id, entry_id) pointant vers les liens de document ou de métadonnées d'un appareil. Généralement défini depuis l'éditeur de tâches du panneau."
         },
         "task_chips": {
           "name": "Puces de tâche",
-          "description": "Puces de métadonnées fournies par l'intégration, affichées dans la liste des tâches et la carte du tableau de bord — une liste d'objets {label, icon?, url?}. Non modifiable par l'utilisateur dans le panneau."
+          "description": "Puces de métadonnées fournies par l'intégration, affichées dans la liste des tâches et la carte du tableau de bord — une liste d'objets (label, icon?, url?). Non modifiable par l'utilisateur dans le panneau."
         },
         "source": {
           "name": "Source",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Liens de carte",
-          "description": "Liens d'appareil à afficher sur la ligne de carte de tableau de bord de cette tâche (remplace l'ensemble actuel) — une liste d'objets {asset_id, entry_id}. Généralement défini depuis l'éditeur de tâches du panneau."
+          "description": "Liens d'appareil à afficher sur la ligne de carte de tableau de bord de cette tâche (remplace l'ensemble actuel) — une liste d'objets (asset_id, entry_id). Généralement défini depuis l'éditeur de tâches du panneau."
         },
         "task_chips": {
           "name": "Puces de tâche",
-          "description": "Puces de métadonnées fournies par l'intégration (remplace l'ensemble actuel) — une liste d'objets {label, icon?, url?}. Voir add_task pour le schéma complet."
+          "description": "Puces de métadonnées fournies par l'intégration (remplace l'ensemble actuel) — une liste d'objets (label, icon?, url?). Voir add_task pour le schéma complet."
         },
         "source": {
           "name": "Source",

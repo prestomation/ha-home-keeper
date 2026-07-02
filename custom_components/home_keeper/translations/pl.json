@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Łącza karty",
-          "description": "Łącza do urządzeń wyświetlane w wierszu tego zadania na karcie pulpitu — lista obiektów {asset_id, entry_id} wskazujących na dokumenty lub łącza z metadanymi urządzenia. Zwykle ustawiane w edytorze zadań panelu."
+          "description": "Łącza do urządzeń wyświetlane w wierszu tego zadania na karcie pulpitu — lista obiektów (asset_id, entry_id) wskazujących na dokumenty lub łącza z metadanymi urządzenia. Zwykle ustawiane w edytorze zadań panelu."
         },
         "task_chips": {
           "name": "Chipy zadania",
-          "description": "Chipy metadanych dostarczane przez integrację, wyświetlane na liście zadań i karcie pulpitu — lista obiektów {label, icon?, url?}. Nie można ich edytować przez użytkownika w panelu."
+          "description": "Chipy metadanych dostarczane przez integrację, wyświetlane na liście zadań i karcie pulpitu — lista obiektów (label, icon?, url?). Nie można ich edytować przez użytkownika w panelu."
         },
         "source": {
           "name": "Źródło",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Łącza karty",
-          "description": "Łącza do urządzeń wyświetlane w wierszu tego zadania na karcie pulpitu (zastępują bieżący zestaw) — lista obiektów {asset_id, entry_id}. Zwykle ustawiane w edytorze zadań panelu."
+          "description": "Łącza do urządzeń wyświetlane w wierszu tego zadania na karcie pulpitu (zastępują bieżący zestaw) — lista obiektów (asset_id, entry_id). Zwykle ustawiane w edytorze zadań panelu."
         },
         "task_chips": {
           "name": "Chipy zadania",
-          "description": "Chipy metadanych dostarczane przez integrację (zastępują bieżący zestaw) — lista obiektów {label, icon?, url?}. Pełny schemat znajdziesz w add_task."
+          "description": "Chipy metadanych dostarczane przez integrację (zastępują bieżący zestaw) — lista obiektów (label, icon?, url?). Pełny schemat znajdziesz w add_task."
         },
         "source": {
           "name": "Źródło",

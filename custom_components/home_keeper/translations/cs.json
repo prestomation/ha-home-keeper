@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Odkazy na kartě",
-          "description": "Odkazy na spotřebič, které se zobrazí v řádku tohoto úkolu na kartě nástěnky – seznam objektů {asset_id, entry_id} odkazujících na dokument spotřebiče nebo jeho metadatové odkazy. Obvykle se nastavuje z editoru úkolů v panelu."
+          "description": "Odkazy na spotřebič, které se zobrazí v řádku tohoto úkolu na kartě nástěnky – seznam objektů (asset_id, entry_id) odkazujících na dokument spotřebiče nebo jeho metadatové odkazy. Obvykle se nastavuje z editoru úkolů v panelu."
         },
         "task_chips": {
           "name": "Čipy úkolu",
-          "description": "Metadatové čipy poskytnuté integrací, zobrazené v seznamu úkolů a na kartě nástěnky – seznam objektů {label, icon?, url?}. V panelu je nelze uživatelsky upravovat."
+          "description": "Metadatové čipy poskytnuté integrací, zobrazené v seznamu úkolů a na kartě nástěnky – seznam objektů (label, icon?, url?). V panelu je nelze uživatelsky upravovat."
         },
         "source": {
           "name": "Zdroj",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Odkazy na kartě",
-          "description": "Odkazy na spotřebič, které se zobrazí v řádku tohoto úkolu na kartě nástěnky (nahradí aktuální sadu) – seznam objektů {asset_id, entry_id}. Obvykle se nastavuje z editoru úkolů v panelu."
+          "description": "Odkazy na spotřebič, které se zobrazí v řádku tohoto úkolu na kartě nástěnky (nahradí aktuální sadu) – seznam objektů (asset_id, entry_id). Obvykle se nastavuje z editoru úkolů v panelu."
         },
         "task_chips": {
           "name": "Čipy úkolu",
-          "description": "Metadatové čipy poskytnuté integrací (nahradí aktuální sadu) – seznam objektů {label, icon?, url?}. Úplné schéma viz add_task."
+          "description": "Metadatové čipy poskytnuté integrací (nahradí aktuální sadu) – seznam objektů (label, icon?, url?). Úplné schéma viz add_task."
         },
         "source": {
           "name": "Zdroj",

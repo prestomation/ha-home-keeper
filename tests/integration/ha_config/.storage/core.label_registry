@@ -1,23 +1,27 @@
 {
- "version": 1,
- "minor_version": 1,
- "key": "core.label_registry",
- "data": {
-  "labels": [
-   {
-    "label_id": "dog",
-    "name": "Dog",
-    "color": "brown",
-    "icon": "mdi:dog",
-    "description": null
-   },
-   {
-    "label_id": "home",
-    "name": "Home",
-    "color": "blue",
-    "icon": "mdi:home",
-    "description": null
-   }
-  ]
- }
+  "version": 1,
+  "minor_version": 2,
+  "key": "core.label_registry",
+  "data": {
+    "labels": [
+      {
+        "label_id": "dog",
+        "name": "Dog",
+        "color": "brown",
+        "icon": "mdi:dog",
+        "description": null,
+        "created_at": "1970-01-01T00:00:00+00:00",
+        "modified_at": "1970-01-01T00:00:00+00:00"
+      },
+      {
+        "label_id": "home",
+        "name": "Home",
+        "color": "blue",
+        "icon": "mdi:home",
+        "description": null,
+        "created_at": "1970-01-01T00:00:00+00:00",
+        "modified_at": "1970-01-01T00:00:00+00:00"
+      }
+    ]
+  }
 }

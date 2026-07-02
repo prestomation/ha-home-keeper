@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "卡片链接",
-          "description": "在此任务的仪表板卡片行中显示的电器链接 — 由 {asset_id, entry_id} 对象组成的列表，指向某个电器的文档或元数据链接。通常在面板的任务编辑器中设置。"
+          "description": "在此任务的仪表板卡片行中显示的电器链接 — 由 (asset_id, entry_id) 对象组成的列表，指向某个电器的文档或元数据链接。通常在面板的任务编辑器中设置。"
         },
         "task_chips": {
           "name": "任务信息片",
-          "description": "由集成提供、显示在任务列表和仪表板卡片中的元数据信息片 — 由 {label, icon?, url?} 对象组成的列表。无法在面板中由用户编辑。"
+          "description": "由集成提供、显示在任务列表和仪表板卡片中的元数据信息片 — 由 (label, icon?, url?) 对象组成的列表。无法在面板中由用户编辑。"
         },
         "source": {
           "name": "来源",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "卡片链接",
-          "description": "在此任务的仪表板卡片行中显示的电器链接（替换当前集合）— 由 {asset_id, entry_id} 对象组成的列表。通常在面板的任务编辑器中设置。"
+          "description": "在此任务的仪表板卡片行中显示的电器链接（替换当前集合）— 由 (asset_id, entry_id) 对象组成的列表。通常在面板的任务编辑器中设置。"
         },
         "task_chips": {
           "name": "任务信息片",
-          "description": "由集成提供的元数据信息片（替换当前集合）— 由 {label, icon?, url?} 对象组成的列表。完整架构请参见 add_task。"
+          "description": "由集成提供的元数据信息片（替换当前集合）— 由 (label, icon?, url?) 对象组成的列表。完整架构请参见 add_task。"
         },
         "source": {
           "name": "来源",

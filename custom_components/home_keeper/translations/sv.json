@@ -88,11 +88,11 @@
         },
         "card_links": {
           "name": "Kortlänkar",
-          "description": "Apparatlänkar att visa på den här uppgiftens rad i instrumentpanelskortet — en lista med {asset_id, entry_id}-objekt som pekar på en apparats dokument- eller metadatalänkar. Anges vanligtvis från panelens uppgiftsredigerare."
+          "description": "Apparatlänkar att visa på den här uppgiftens rad i instrumentpanelskortet — en lista med (asset_id, entry_id)-objekt som pekar på en apparats dokument- eller metadatalänkar. Anges vanligtvis från panelens uppgiftsredigerare."
         },
         "task_chips": {
           "name": "Uppgiftschips",
-          "description": "Metadatachips som tillhandahålls av integrationen och visas i uppgiftslistan och instrumentpanelskortet — en lista med {label, icon?, url?}-objekt. Kan inte redigeras av användaren i panelen."
+          "description": "Metadatachips som tillhandahålls av integrationen och visas i uppgiftslistan och instrumentpanelskortet — en lista med (label, icon?, url?)-objekt. Kan inte redigeras av användaren i panelen."
         },
         "source": {
           "name": "Källa",
@@ -166,11 +166,11 @@
         },
         "card_links": {
           "name": "Kortlänkar",
-          "description": "Apparatlänkar att visa på den här uppgiftens rad i instrumentpanelskortet (ersätter den nuvarande uppsättningen) — en lista med {asset_id, entry_id}-objekt. Anges vanligtvis från panelens uppgiftsredigerare."
+          "description": "Apparatlänkar att visa på den här uppgiftens rad i instrumentpanelskortet (ersätter den nuvarande uppsättningen) — en lista med (asset_id, entry_id)-objekt. Anges vanligtvis från panelens uppgiftsredigerare."
         },
         "task_chips": {
           "name": "Uppgiftschips",
-          "description": "Metadatachips som tillhandahålls av integrationen (ersätter den nuvarande uppsättningen) — en lista med {label, icon?, url?}-objekt. Se add_task för det fullständiga schemat."
+          "description": "Metadatachips som tillhandahålls av integrationen (ersätter den nuvarande uppsättningen) — en lista med (label, icon?, url?)-objekt. Se add_task för det fullständiga schemat."
         },
         "source": {
           "name": "Källa",

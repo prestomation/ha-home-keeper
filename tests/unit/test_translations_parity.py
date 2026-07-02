@@ -288,6 +288,27 @@ def test_no_brace_balance_errors(path: Path) -> None:
     assert not bad, {"locale": path.name, "brace_errors": bad}
 
 
+# A ``{token}`` is formatted by HA via ``str.format`` — anything that isn't a
+# bare identifier (e.g. an illustrative ``{asset_id, entry_id}`` written into a
+# field description) fails hassfest's TRANSLATIONS validation. Guard it here so
+# the failure surfaces locally, not only in CI hassfest.
+_ANY_BRACE_RE = re.compile(r"\{([^}]*)\}")
+_IDENT_RE = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*")
+_ALL_TRANSLATION_FILES = [_STRINGS, *_locale_files()]
+
+
+@pytest.mark.parametrize("path", _ALL_TRANSLATION_FILES, ids=lambda p: p.name)
+def test_placeholders_are_valid_identifiers(path: Path) -> None:
+    """Every ``{token}`` must be a valid ``str.format`` identifier (hassfest)."""
+    bad = {
+        key: value
+        for key, value in _strings(_load(path)).items()
+        for tok in _ANY_BRACE_RE.findall(value)
+        if not _IDENT_RE.fullmatch(tok)
+    }
+    assert not bad, {"file": path.name, "invalid_placeholders": bad}
+
+
 @pytest.mark.parametrize("path", _NON_EN, ids=lambda p: p.name)
 def test_no_untranslated_strings(path: Path) -> None:
     """No string may be shipped identical to its English source.
