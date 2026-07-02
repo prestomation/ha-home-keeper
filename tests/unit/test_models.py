@@ -698,6 +698,80 @@ def test_merge_update_one_off_edit_notes_keeps_completed_dormant():
     assert merged["notes"] == "done at the post office"
 
 
+def test_merge_update_completed_one_off_survives_realistic_frontend_payload():
+    # Regression: the panel's edit form always sends recurrence_type + due, even for a
+    # rename. For a completed (dormant) one-off that must NOT recompute next_due from
+    # the past ``due`` (which would resurrect the done task as overdue).
+    task = m.build_task(
+        {
+            "name": "Renew passport",
+            "recurrence_type": "one-off",
+            "due": NOW.isoformat(),
+        },
+        now=NOW,
+    )
+    task["next_due"] = None  # completed -> dormant
+    task["last_completed"] = NOW.isoformat()
+    merged = m.merge_update(
+        task,
+        # Same recurrence_type + same due, only the name differs.
+        {
+            "name": "Renew passport (10yr)",
+            "recurrence_type": "one-off",
+            "due": NOW.isoformat(),
+        },
+        now=NOW,
+    )
+    assert merged["next_due"] is None  # still dormant
+    assert merged["name"] == "Renew passport (10yr)"
+
+
+def test_merge_update_name_edit_preserves_snooze():
+    # Regression: a snoozed task's next_due is pushed to the snooze instant. The panel
+    # rename payload carries recurrence_type/interval/unit at their unchanged values;
+    # that must not recompute next_due and silently cancel the snooze.
+    task = m.build_task(
+        {
+            "name": "Water plants",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "weeks",
+        },
+        now=NOW,
+    )
+    snoozed_until = datetime(2026, 6, 20, 9, tzinfo=TZ).isoformat()
+    task["next_due"] = snoozed_until  # snoozed
+    merged = m.merge_update(
+        task,
+        {
+            "name": "Water the plants",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "weeks",
+        },
+        now=NOW,
+    )
+    assert merged["next_due"] == snoozed_until  # snooze preserved
+    assert merged["name"] == "Water the plants"
+
+
+def test_merge_update_genuine_interval_change_still_reschedules():
+    # The value-change guard must not suppress a real reschedule.
+    task = m.build_task(
+        {
+            "name": "Water plants",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "weeks",
+            "last_completed": NOW.isoformat(),
+        },
+        now=NOW,
+    )
+    merged = m.merge_update(task, {"interval": 2, "unit": "weeks"}, now=NOW)
+    # 2 weeks from the seeded completion (NOW), not 1.
+    assert merged["next_due"] == datetime(2026, 6, 27, 10, tzinfo=TZ).isoformat()
+
+
 def test_build_task_normalizes_labels():
     # Labels are de-duplicated and blank-stripped, order preserved.
     task = m.build_task(

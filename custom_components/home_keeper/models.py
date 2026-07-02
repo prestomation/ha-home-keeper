@@ -622,7 +622,18 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     }
     new_type = merged.get("recurrence_type")
     old_type = existing.get("recurrence_type")
-    if new_type not in (REC_TRIGGERED, REC_SENSOR) and (recurrence_keys & set(updates)):
+    # Recompute only when a recurrence field's *value* actually changed — not merely
+    # because the key is present in the payload. The panel's edit form always sends
+    # recurrence_type/due (and interval/unit for scheduled tasks), so keying off
+    # presence recomputed next_due on every rename: it resurrected a completed one-off
+    # (next_due derived from its past ``due``) and silently cancelled a snooze
+    # (next_due snapped back to the schedule). Comparing merged-vs-existing keeps a
+    # no-op field edit a no-op while still rescheduling on a genuine change.
+    recurrence_changed = any(
+        key in updates and merged.get(key) != existing.get(key)
+        for key in recurrence_keys
+    )
+    if new_type not in (REC_TRIGGERED, REC_SENSOR) and recurrence_changed:
         merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
     elif new_type == REC_SENSOR and old_type != REC_SENSOR:
         # Converting an existing (e.g. floating, due-now) task into a sensor task: it

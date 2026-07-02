@@ -46,10 +46,10 @@ add/extend a regression test where the bug class allows it, and update
 
 ## Major bugs
 
-- [ ] M1. `merge_update` recomputes `next_due` on recurrence-key *presence*; only
-  recompute when a recurrence key's value actually changed. Regression tests: panel
-  edit payload on a completed one-off (stays dormant) and on a snoozed task (snooze
-  survives). (`models.py:610`)
+- [x] M1. `merge_update` now recomputes `next_due` only when a recurrence key's
+  *value* actually changed (was: key present in payload). Regression tests added:
+  completed one-off + realistic rename payload stays dormant; snoozed task rename
+  keeps the snooze; genuine interval change still reschedules. (`models.py:614`)
 - [ ] M2. Reserved `source` namespaces: validate `source.part` / and reject malformed
   reserved shapes in `models.build_task` (service `add_task` path); make
   `reconcile.py` use `.get()` so malformed stored data can't brick setup.
