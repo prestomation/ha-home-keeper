@@ -68,7 +68,7 @@ def detect_transitions(
             overdue_fired = False
 
         if task.get("enabled", True) and next_due is not None:
-            parsed = recurrence._parse(next_due)
+            parsed = recurrence.parse_due(next_due)
             if not due_soon_fired and recurrence.is_due_soon(task, window, now=now):
                 due_in_hours = round((parsed - now).total_seconds() / 3600, 1)
                 fired.append(
