@@ -349,5 +349,8 @@
   "hint.sensor.usage": "Tento senzor nyní ukazuje {reading}. Termín úkolu nastane při {due} (to je {target} použití) a poté vždy po {target} po každém dokončení.",
   "hint.sensor.usageNoReading": "Termín úkolu nastane, jakmile senzor stoupne o {target} nad hodnotu při vytvoření úkolu, a poté vždy po {target} po každém dokončení.",
   "hint.sensor.threshold": "Termín úkolu nastane, když je senzor {comparison} {value}.",
-  "hint.sensor.thresholdFor": "Termín úkolu nastane, když senzor zůstane {comparison} {value} po dobu {seconds}s."
+  "hint.sensor.thresholdFor": "Termín úkolu nastane, když senzor zůstane {comparison} {value} po dobu {seconds}s.",
+  "error.actionFailed": "Něco se pokazilo. Zkuste to znovu.",
+  "error.loadFailed": "Nepodařilo se načíst Home Keeper.",
+  "btn.retry": "Zkusit znovu"
 }

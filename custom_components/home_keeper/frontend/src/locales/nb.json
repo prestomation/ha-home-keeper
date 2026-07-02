@@ -323,5 +323,8 @@
   "hint.sensor.usage": "Denne sensoren viser {reading} nå. Oppgaven forfaller ved {due} (det er {target} bruk), deretter hver {target} etter hver fullføring.",
   "hint.sensor.usageNoReading": "Oppgaven forfaller når sensoren klatrer {target} over avlesningen sin da du opprettet oppgaven, deretter hver {target} etter hver fullføring.",
   "hint.sensor.threshold": "Oppgaven forfaller når sensoren er {comparison} {value}.",
-  "hint.sensor.thresholdFor": "Oppgaven forfaller når sensoren holder seg {comparison} {value} i {seconds}s."
+  "hint.sensor.thresholdFor": "Oppgaven forfaller når sensoren holder seg {comparison} {value} i {seconds}s.",
+  "error.actionFailed": "Noe gikk galt. Prøv igjen.",
+  "error.loadFailed": "Kunne ikke laste Home Keeper.",
+  "btn.retry": "Prøv igjen"
 }

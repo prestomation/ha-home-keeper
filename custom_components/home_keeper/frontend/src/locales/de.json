@@ -323,5 +323,8 @@
   "hint.sensor.usage": "Dieser Sensor zeigt jetzt {reading}. Die Aufgabe wird bei {due} fällig (das sind {target} Verbrauch), danach alle {target} nach jedem Abschließen.",
   "hint.sensor.usageNoReading": "Die Aufgabe wird fällig, sobald der Sensor {target} über seinen Wert beim Erstellen der Aufgabe steigt, danach alle {target} nach jedem Abschließen.",
   "hint.sensor.threshold": "Die Aufgabe wird fällig, wenn der Sensor {comparison} {value} ist.",
-  "hint.sensor.thresholdFor": "Die Aufgabe wird fällig, wenn der Sensor {seconds}s lang {comparison} {value} bleibt."
+  "hint.sensor.thresholdFor": "Die Aufgabe wird fällig, wenn der Sensor {seconds}s lang {comparison} {value} bleibt.",
+  "error.actionFailed": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+  "error.loadFailed": "Home Keeper konnte nicht geladen werden.",
+  "btn.retry": "Erneut versuchen"
 }

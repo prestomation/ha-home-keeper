@@ -323,5 +323,8 @@
   "hint.sensor.usage": "Tämä anturi näyttää nyt {reading}. Tehtävä erääntyy arvolla {due} (se on {target} käyttöä) ja sen jälkeen joka {target} jokaisen suorituksen jälkeen.",
   "hint.sensor.usageNoReading": "Tehtävä erääntyy, kun anturi nousee {target} yli sen lukeman, joka sillä oli tehtävää luotaessa, ja sen jälkeen joka {target} jokaisen suorituksen jälkeen.",
   "hint.sensor.threshold": "Tehtävä erääntyy, kun anturi on {comparison} {value}.",
-  "hint.sensor.thresholdFor": "Tehtävä erääntyy, kun anturi pysyy {comparison} {value} {seconds}s ajan."
+  "hint.sensor.thresholdFor": "Tehtävä erääntyy, kun anturi pysyy {comparison} {value} {seconds}s ajan.",
+  "error.actionFailed": "Jotain meni vikaan. Yritä uudelleen.",
+  "error.loadFailed": "Home Keeperin lataus epäonnistui.",
+  "btn.retry": "Yritä uudelleen"
 }

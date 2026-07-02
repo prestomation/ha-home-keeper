@@ -90,11 +90,13 @@ add/extend a regression test where the bug class allows it, and update
   deleted metadata/part row disappears and the form rebuilds with fresh indices —
   fixing both the invisible deletion and the stale-index closures that corrupted
   sibling rows. (`panel.ts`)
-- [ ] M11. Panel robustness: initial-load failure shows error + retry instead of
-  infinite spinner; try/catch + toast on `_complete`, `_deleteAsset`,
-  `_deleteCompletion`, `_deleteArchivedCompletion`; debounce + serialize
-  profile/notification persistence (no per-keystroke entry reloads, no
-  out-of-order overwrite). (`panel.ts:843,916,1166,1251,2786,2974`)
+- [x] M11. Panel robustness: initial-load failure now shows a localized error +
+  Retry button instead of an infinite spinner (`_loadError`); `_complete`,
+  `_deleteAsset`, `_deleteCompletion`, `_deleteArchivedCompletion` catch and toast;
+  per-keystroke profile/notification saves are debounced (600ms trailing) so typing
+  no longer fires a config-entry reload per character or races out-of-order. New
+  locale keys (`error.actionFailed`, `error.loadFailed`, `btn.retry`) across 16
+  locales. (`panel.ts`)
 - [x] M12. `_openEdit`/`_openEditAsset` now navigate via `_navigate(...)` (URL is
   the single source of truth) instead of mutating `_view`/`_detail`, so reload/
   deep-link, the tab buttons, and Back stay consistent. (`panel.ts`)

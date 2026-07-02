@@ -349,5 +349,8 @@
   "hint.sensor.usage": "Сейчас этот датчик показывает {reading}. Срок задачи наступит на {due} (это {target} использования), а затем каждые {target} после каждого выполнения.",
   "hint.sensor.usageNoReading": "Срок задачи наступит, когда датчик поднимется на {target} выше своего показания на момент создания задачи, а затем каждые {target} после каждого выполнения.",
   "hint.sensor.threshold": "Срок задачи наступает, когда датчик {comparison} {value}.",
-  "hint.sensor.thresholdFor": "Срок задачи наступает, когда датчик держится {comparison} {value} в течение {seconds}с."
+  "hint.sensor.thresholdFor": "Срок задачи наступает, когда датчик держится {comparison} {value} в течение {seconds}с.",
+  "error.actionFailed": "Что-то пошло не так. Повторите попытку.",
+  "error.loadFailed": "Не удалось загрузить Home Keeper.",
+  "btn.retry": "Повторить"
 }

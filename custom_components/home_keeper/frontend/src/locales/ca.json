@@ -336,5 +336,8 @@
   "hint.sensor.usage": "Aquest sensor marca ara {reading}. La tasca venç a {due} (és a dir {target} d'ús), i després cada {target} després de cada realització.",
   "hint.sensor.usageNoReading": "La tasca venç quan el sensor puja {target} per sobre de la seva lectura en crear la tasca, i després cada {target} després de cada realització.",
   "hint.sensor.threshold": "La tasca venç quan el sensor és {comparison} {value}.",
-  "hint.sensor.thresholdFor": "La tasca venç quan el sensor es manté {comparison} {value} durant {seconds}s."
+  "hint.sensor.thresholdFor": "La tasca venç quan el sensor es manté {comparison} {value} durant {seconds}s.",
+  "error.actionFailed": "Alguna cosa ha anat malament. Torneu-ho a provar.",
+  "error.loadFailed": "No s'ha pogut carregar Home Keeper.",
+  "btn.retry": "Torna-ho a provar"
 }

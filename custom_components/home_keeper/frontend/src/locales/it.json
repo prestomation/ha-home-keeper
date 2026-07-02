@@ -336,5 +336,8 @@
   "hint.sensor.usage": "Questo sensore indica ora {reading}. L'attività diventa dovuta a {due} (ovvero {target} di utilizzo), poi ogni {target} dopo ogni completamento.",
   "hint.sensor.usageNoReading": "L'attività diventa dovuta quando il sensore sale di {target} rispetto al suo valore al momento in cui crei l'attività, poi ogni {target} dopo ogni completamento.",
   "hint.sensor.threshold": "L'attività diventa dovuta quando il sensore è {comparison} {value}.",
-  "hint.sensor.thresholdFor": "L'attività diventa dovuta quando il sensore rimane {comparison} {value} per {seconds} s."
+  "hint.sensor.thresholdFor": "L'attività diventa dovuta quando il sensore rimane {comparison} {value} per {seconds} s.",
+  "error.actionFailed": "Qualcosa è andato storto. Riprova.",
+  "error.loadFailed": "Impossibile caricare Home Keeper.",
+  "btn.retry": "Riprova"
 }
