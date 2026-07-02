@@ -832,8 +832,11 @@ def _bind(
 
     A plain coroutine closure rather than ``functools.partial`` so the registered
     callable is statically typed as returning a coroutine (partial is not).
+    ``functools.wraps`` carries the handler's ``__name__``/``__doc__`` onto the bound
+    callable so logs/introspection still show the handler, not a bare ``service``.
     """
 
+    @functools.wraps(handler)
     async def service(call: ServiceCall) -> Any:
         return await handler(hass, call)
 
