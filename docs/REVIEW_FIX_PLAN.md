@@ -36,9 +36,10 @@ add/extend a regression test where the bug class allows it, and update
   Also routed the other href sinks (panel `_link`, document links, `task_chips` in
   both panel and card) through the guard, and folded card's local `isHttp` into the
   shared helper. Unit + frontend regression tests added.
-- [ ] S2. Admin-gate the sensitive websocket commands: `require_admin` on
-  `home_keeper/set_options` and `home_keeper/export_inventory`.
-  (`websocket_api.py`)
+- [x] S2. Admin-gate the sensitive websocket commands: `@websocket_api.require_admin`
+  on `ws_set_options` and `ws_export_inventory` (config-entry mutation and the
+  serial/cost inventory export). Service-based integration tests unaffected (they
+  call via the admin service path, not the ws command). (`websocket_api.py`)
 - [ ] S3. Redact sensitive fields in diagnostics (`serial_number`, completion `who`)
   via `async_redact_data`. (`diagnostics.py`)
 

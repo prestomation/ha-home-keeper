@@ -583,11 +583,16 @@ async def ws_sign_document_url(
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/export_inventory"})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_export_inventory(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    """Return the home-inventory report (for insurance) plus a ready-to-save CSV."""
+    """Return the home-inventory report (for insurance) plus a ready-to-save CSV.
+
+    Admin-only: the report exposes every asset's serial numbers, purchase costs and
+    value totals, which a non-admin household member shouldn't be able to exfiltrate.
+    """
     coord = _coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
@@ -633,6 +638,7 @@ async def ws_get_options(
         vol.Required("options"): dict,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_set_options(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -640,7 +646,10 @@ async def ws_set_options(
     """Persist options from the Settings tab (delegates to the shared service path).
 
     ``async_set_options`` updates the entry, which reloads it and re-runs the
-    problem-sensor sync. Mirrors the ``home_keeper.set_options`` service.
+    problem-sensor sync. Mirrors the ``home_keeper.set_options`` service. Admin-only:
+    mutating config-entry options (profiles, notification targets, problem-sensor
+    exclusions) is administration, which HA core reserves for admins — a non-admin
+    could otherwise wipe another user's saved settings.
     """
     coord = _coordinator(hass)
     if coord is None:
