@@ -46,9 +46,12 @@ def test_normalize_metadata_accepts_safe_photo_urls():
     assert m.normalize_completion_metadata({"photo": "https://x/y.jpg"})["photo"] == (
         "https://x/y.jpg"
     )
-    assert m.normalize_completion_metadata(
-        {"photo": "/api/image/serve/abc/original"}
-    )["photo"] == "/api/image/serve/abc/original"
+    assert (
+        m.normalize_completion_metadata({"photo": "/api/image/serve/abc/original"})[
+            "photo"
+        ]
+        == "/api/image/serve/abc/original"
+    )
 
 
 def test_normalize_metadata_rejects_unsafe_photo_urls():
