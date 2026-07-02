@@ -40,8 +40,9 @@ add/extend a regression test where the bug class allows it, and update
   on `ws_set_options` and `ws_export_inventory` (config-entry mutation and the
   serial/cost inventory export). Service-based integration tests unaffected (they
   call via the admin service path, not the ws command). (`websocket_api.py`)
-- [ ] S3. Redact sensitive fields in diagnostics (`serial_number`, completion `who`)
-  via `async_redact_data`. (`diagnostics.py`)
+- [x] S3. Redact sensitive fields in diagnostics via `async_redact_data`:
+  `serial_number`, `notes`, `who`, `photo` (recursive by key). Schedule/structural
+  fields kept for debugging. (`diagnostics.py`)
 
 ## Major bugs
 
