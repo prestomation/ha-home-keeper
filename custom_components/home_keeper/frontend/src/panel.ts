@@ -665,10 +665,11 @@ export class HomeKeeperPanel extends HTMLElement {
   private _routePrefix = '/home-keeper';
   private _loaded = false;
   private _loadError = false;
-  // In-flight guard for _refresh: both `set hass` (first update) and `_init` gate on
-  // `!this._loaded`, and `_loaded` only flips true after the awaited reload — so without
-  // this they can pass the check and run two concurrent full loads.
-  private _loading = false;
+  // In-flight refresh, shared by overlapping callers. Both `set hass` (first update)
+  // and `_init` gate on `!this._loaded`, and `_loaded` only flips true after the awaited
+  // reload — so without coalescing they can pass the check and run two concurrent full
+  // loads. Callers await the same promise, so none no-ops and all see a completed render.
+  private _refreshing: Promise<void> | null = null;
   // Debounce timers for per-keystroke option saves (profiles / notifications), so a
   // text edit doesn't fire a config-entry reload on every character (and a slow
   // earlier response can't clobber a later one — only the trailing save runs).
@@ -895,17 +896,21 @@ export class HomeKeeperPanel extends HTMLElement {
     }
   }
 
-  private async _refresh(): Promise<void> {
-    // Guard against overlapping full loads: `set hass` and `_init` can both pass the
-    // `!this._loaded` gate before the first reload resolves and set `_loaded`.
-    if (this._loading) return;
-    this._loading = true;
-    try {
-      await this._reload();
-      this._render();
-    } finally {
-      this._loading = false;
-    }
+  private _refresh(): Promise<void> {
+    // Coalesce overlapping refreshes onto one in-flight load so `set hass` and `_init`
+    // can't run two concurrent full loads, while every `await this._refresh()` caller
+    // still waits for a completed reload + render (a blanket early-return would let a
+    // caller proceed against an unrendered view).
+    if (this._refreshing) return this._refreshing;
+    this._refreshing = (async () => {
+      try {
+        await this._reload();
+        this._render();
+      } finally {
+        this._refreshing = null;
+      }
+    })();
+    return this._refreshing;
   }
 
   // ── task form lifecycle ─────────────────────────────────────────────────────
