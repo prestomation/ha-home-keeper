@@ -67,9 +67,9 @@ add/extend a regression test where the bug class allows it, and update
   services are removed when the last entry unloads; make `_coordinator()` raise a
   localized `ServiceValidationError` instead of bare `RuntimeError`.
   (`__init__.py:1035,486`)
-- [ ] M5. Pass `config_entry=entry` to `DataUpdateCoordinator.__init__` (2025.11
-  removal of implicit inference); collapse `self.entry` duality.
-  (`coordinator.py:68`)
+- [x] M5. Pass `config_entry=entry` to `DataUpdateCoordinator.__init__` (fixes the
+  2025.11 implicit-inference removal); `entry` is now a read-only property aliasing
+  the base's `self.config_entry`, collapsing the duality. (`coordinator.py`)
 - [ ] M6. Add `serial_number` to `_ASSET_FIELDS` so `add_asset`/`update_asset`
   services accept it. (`__init__.py:268`)
 - [ ] M7. To-do item rename support: apply summary changes via `store.update_task`

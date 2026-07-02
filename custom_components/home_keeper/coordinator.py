@@ -88,9 +88,12 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             _LOGGER,
             name="Home Keeper",
             update_interval=SCAN_INTERVAL,
+            # Pass the entry explicitly — HA deprecated inferring it from a ContextVar
+            # (removal 2025.11). The base stores it as ``self.config_entry``; ``entry``
+            # is a read-only alias so existing call sites don't churn.
+            config_entry=entry,
         )
         self.store = store
-        self.entry = entry
         # The problem-sensor sync helper, attached during async_setup_entry.
         self.problem_sync: ProblemSensorSync | None = None
         # The sensor-based-task watcher, attached during async_setup_entry (after its
@@ -111,6 +114,13 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         # several refreshes during async_setup_entry silently *baseline* current state
         # — an HA restart never replays an "overdue" storm for tasks already overdue.
         self._events_enabled = False
+
+    @property
+    def entry(self) -> ConfigEntry:
+        """The config entry (alias for the base coordinator's ``config_entry``)."""
+        entry = self.config_entry
+        assert entry is not None  # always set: we pass config_entry= in __init__
+        return entry
 
     def enable_transition_events(self) -> None:
         """Start firing overdue/due-soon events (called once setup is complete).
