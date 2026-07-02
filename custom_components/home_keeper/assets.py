@@ -392,12 +392,15 @@ def _normalize_stock(value: Any, field: str) -> int | None:
     return count
 
 
-def _normalize_part(raw: Any) -> dict:
+def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
     """Validate and normalize a single part dict.
 
     Backend-managed fields (``id``, ``last_replaced``) are preserved when present so
     a round-trip through the panel doesn't drop them; :func:`_merge_parts` reconciles
-    them against the stored record.
+    them against the stored record. *today* is the injected clock the public entry
+    points thread down (so ``last_replaced`` is validated against Home Assistant's
+    timezone, not the process wall clock); it falls back to ``date.today()`` only when
+    an internal caller omits it.
     """
     if not isinstance(raw, dict):
         raise AssetValidationError("each part must be an object")
@@ -434,20 +437,19 @@ def _normalize_part(raw: Any) -> dict:
         part["replace_unit"] = unit
     # A future "last replaced" would push the derived maintenance task far out and
     # silently hide it; it can only be a past (or today's) date.
-    if (
-        part["last_replaced"]
-        and date.fromisoformat(part["last_replaced"]) > date.today()
+    if part["last_replaced"] and date.fromisoformat(part["last_replaced"]) > (
+        today or date.today()
     ):
         raise AssetValidationError("last_replaced must not be in the future")
     return part
 
 
-def _normalize_parts(value: Any) -> list[dict]:
+def _normalize_parts(value: Any, *, today: date | None = None) -> list[dict]:
     if value in (None, ""):
         return []
     if not isinstance(value, list):
         raise AssetValidationError("parts must be a list")
-    parts = [_normalize_part(p) for p in value]
+    parts = [_normalize_part(p, today=today) for p in value]
     # Part ids must be unique: duplicates (from a misbehaving caller) would collapse
     # derived tasks onto one key and mis-stamp replacements. Regenerate collisions.
     seen: set[str] = set()
@@ -565,12 +567,14 @@ def adjust_part_stock(part: dict, delta: int) -> str:
     return stock_transition(old, new, part.get("reorder_at"))
 
 
-def normalize_fields(data: dict) -> dict:
+def normalize_fields(data: dict, *, today: date | None = None) -> dict:
     """Validate and normalize the user-supplied fields of an asset.
 
     Returns only the descriptive/provisioning fields (no id / created / device_id /
     identifiers — those are assigned by :func:`build_asset` and the provisioning
-    layer). ``kind`` defaults to ``virtual``.
+    layer). ``kind`` defaults to ``virtual``. *today* is threaded through to the parts
+    normalizer so ``last_replaced`` is validated against the injected clock (the public
+    :func:`build_asset` / :func:`merge_update` entry points pass ``now.date()``).
     """
     kind = data.get("kind", ASSET_KIND_VIRTUAL)
     if kind not in ASSET_KINDS:
@@ -600,7 +604,7 @@ def normalize_fields(data: dict) -> dict:
     fields["icon"] = _normalize_icon(data.get("icon"))
     fields["metadata"] = _normalize_metadata(data.get("metadata"))
     fields["cost"] = _normalize_cost(data.get("cost"))
-    fields["parts"] = _normalize_parts(data.get("parts"))
+    fields["parts"] = _normalize_parts(data.get("parts"), today=today)
 
     related = data.get("related_device_ids") or []
     if not isinstance(related, list):
@@ -611,7 +615,7 @@ def normalize_fields(data: dict) -> dict:
 
 def build_asset(data: dict, *, now: datetime) -> dict:
     """Create a brand-new asset dict (with id, created, and provisioning anchors)."""
-    fields = normalize_fields(data)
+    fields = normalize_fields(data, today=now.date())
     # Files are upload-only (they own an on-disk blob, which a brand-new asset can't
     # have yet), so a create payload can only seed link documents.
     fields["documents"] = [d for d in fields["documents"] if d.get("kind") == "link"]
@@ -659,7 +663,7 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     for key in _TEXT_FIELDS:
         candidate[key] = updates.get(key, existing.get(key))
 
-    fields = normalize_fields(candidate)
+    fields = normalize_fields(candidate, today=now.date())
     # Preserve backend-managed part fields across the edit.
     if "parts" in updates:
         fields["parts"] = _merge_parts(existing.get("parts", []), fields["parts"])
@@ -669,6 +673,13 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         fields["documents"] = _merge_documents(
             existing.get("documents", []), fields["documents"]
         )
+        # _normalize_documents caps only the *incoming* payload; _merge_documents then
+        # prepends the stored file documents, so the merged total can exceed the cap.
+        # Enforce it on the assembled result (mirrors append_document's merged cap).
+        if len(fields["documents"]) > _MAX_DOCUMENTS:
+            raise AssetValidationError(
+                f"an appliance can have at most {_MAX_DOCUMENTS} documents"
+            )
 
     merged = dict(existing)
     # For a virtual asset, normalize_fields omits device_id, so the provisioned

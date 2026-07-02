@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Zone",
           "description": "Zone facultative à associer à cette tâche."
+        },
+        "labels": {
+          "name": "Étiquettes",
+          "description": "Étiquettes Home Assistant facultatives pour marquer cette tâche. Utilisées par le filtre d'étiquettes de la carte du tableau de bord (qui prend aussi en compte les étiquettes de l'appareil ou de la zone rattachés)."
+        },
+        "card_links": {
+          "name": "Liens de carte",
+          "description": "Liens d'appareil à afficher sur la ligne de carte de tableau de bord de cette tâche — une liste d'objets (asset_id, entry_id) pointant vers les liens de document ou de métadonnées d'un appareil. Généralement défini depuis l'éditeur de tâches du panneau."
+        },
+        "task_chips": {
+          "name": "Puces de tâche",
+          "description": "Puces de métadonnées fournies par l'intégration, affichées dans la liste des tâches et la carte du tableau de bord — une liste d'objets (label, icon?, url?). Non modifiable par l'utilisateur dans le panneau."
+        },
+        "source": {
+          "name": "Source",
+          "description": "Provenance opaque appartenant à l'intégration qui a créé la tâche. Home Keeper la stocke et la renvoie telle quelle et ne l'inspecte jamais. Voir docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Niveau de détail de l'achèvement",
+          "description": "Quantité de contexte à saisir lorsque cette tâche est terminée : none (marquer comme fait sans invite), optional (proposer les champs note/cost/photo/who) ou required (exiger les champs listés dans completion_required_fields). Invite de saisie uniquement dans le panneau."
+        },
+        "completion_required_fields": {
+          "name": "Champs d'achèvement obligatoires",
+          "description": "Quels champs de métadonnées d'achèvement le panneau rend obligatoires lorsque le niveau de détail est required — au choix note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Zone",
           "description": "Zone à associer à cette tâche."
+        },
+        "labels": {
+          "name": "Étiquettes",
+          "description": "Étiquettes Home Assistant pour marquer cette tâche (remplace l'ensemble actuel). Utilisées par le filtre d'étiquettes de la carte du tableau de bord."
+        },
+        "card_links": {
+          "name": "Liens de carte",
+          "description": "Liens d'appareil à afficher sur la ligne de carte de tableau de bord de cette tâche (remplace l'ensemble actuel) — une liste d'objets (asset_id, entry_id). Généralement défini depuis l'éditeur de tâches du panneau."
+        },
+        "task_chips": {
+          "name": "Puces de tâche",
+          "description": "Puces de métadonnées fournies par l'intégration (remplace l'ensemble actuel) — une liste d'objets (label, icon?, url?). Voir add_task pour le schéma complet."
+        },
+        "source": {
+          "name": "Source",
+          "description": "Provenance opaque appartenant à l'intégration qui a créé la tâche. Voir docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Niveau de détail de l'achèvement",
+          "description": "Quantité de contexte à saisir à l'achèvement : none, optional ou required (voir add_task). Invite de saisie uniquement dans le panneau."
+        },
+        "completion_required_fields": {
+          "name": "Champs d'achèvement obligatoires",
+          "description": "Quels champs de métadonnées d'achèvement le panneau rend obligatoires lorsque le niveau de détail est required — au choix note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Terminée le",
           "description": "Horodatage d'achèvement facultatif (par défaut maintenant)."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marqueur libre facultatif renvoyé dans l'événement home_keeper_task_completed, afin qu'une intégration contributrice puisse reconnaître et ignorer l'achèvement qu'elle a déclenché (prévention des boucles). Home Keeper ne l'interprète pas."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Note facultative en texte libre enregistrée avec cet achèvement."
+        },
+        "cost": {
+          "name": "Coût",
+          "description": "Coût facultatif enregistré avec cet achèvement (votre devise HA)."
+        },
+        "photo": {
+          "name": "Photo",
+          "description": "id de téléversement d'image Home Assistant facultatif à joindre comme photo d'achèvement (le panneau la définit lorsque vous téléversez depuis la boîte de dialogue d'achèvement)."
+        },
+        "who": {
+          "name": "Qui",
+          "description": "Personne facultative ayant réalisé la tâche (un id d'entité personne)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Horodatage de l'achèvement",
           "description": "L'horodatage ISO (ts) de l'entrée d'achèvement à modifier."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Nouvelle note (à omettre ou laisser vide pour l'effacer)."
+        },
+        "cost": {
+          "name": "Coût",
+          "description": "Nouveau coût (à omettre ou laisser vide pour l'effacer)."
+        },
+        "photo": {
+          "name": "Photo",
+          "description": "Nouvel id de téléversement d'image (à omettre ou laisser vide pour l'effacer)."
+        },
+        "who": {
+          "name": "Qui",
+          "description": "Nouvel id d'entité personne (à omettre ou laisser vide pour l'effacer)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Heures",
           "description": "De combien d'heures reporter la tâche (24 par défaut)."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marqueur libre facultatif renvoyé dans l'événement home_keeper_task_snoozed, afin qu'une intégration contributrice puisse reconnaître et ignorer le report qu'elle a déclenché (prévention des boucles). Home Keeper ne l'interprète pas."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "ID de la tâche",
           "description": "L'identifiant de la tâche à ignorer."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marqueur libre facultatif renvoyé dans l'événement home_keeper_task_skipped, afin qu'une intégration contributrice puisse reconnaître et ignorer l'omission qu'elle a déclenchée (prévention des boucles). Home Keeper ne l'interprète pas."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Conservation des tâches ponctuelles (jours)",
           "description": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 les conserve indéfiniment."
+        },
+        "dismissed_companions": {
+          "name": "Companions ignorés",
+          "description": "Domaines d'intégration de liaison à masquer de la liste « Suggéré » de Paramètres → Companions. Ignorer ne fait que masquer une suggestion ; un appairage connecté est toujours affiché."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "L'horodatage ISO (ts) de la réalisation archivée à supprimer."
         }
       }
+    },
+    "register_companion": {
+      "name": "Enregistrer un companion",
+      "description": "Annonce une autre intégration qui fonctionne avec Home Keeper afin qu'elle apparaisse dans la section Paramètres → Companions du panneau. Home Keeper stocke le descripteur tel quel et n'importe jamais le companion.",
+      "fields": {
+        "domain": {
+          "name": "Domaine",
+          "description": "Le domaine de l'intégration companion."
+        },
+        "name": {
+          "name": "Nom",
+          "description": "Nom d'affichage montré dans la liste des Companions."
+        },
+        "icon": {
+          "name": "Icône",
+          "description": "Une icône mdi pour la ligne."
+        },
+        "description": {
+          "name": "Description",
+          "description": "Une ligne décrivant ce que le companion fait avec Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "id d'entrée de configuration",
+          "description": "L'id d'entrée de configuration du companion, afin que le bouton « Configurer » du panneau puisse créer un lien direct vers sa page d'options."
+        },
+        "docs_url": {
+          "name": "URL de documentation",
+          "description": "Un lien vers la documentation du companion."
+        },
+        "capabilities": {
+          "name": "Capacités",
+          "description": "Balises de capacité en texte libre (p. ex. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Lister les companions",
+      "description": "Renvoie en réponse la liste fusionnée des companions (intégrations auto-enregistrées plus upstreams détectés dont la liaison n'est pas encore installée)."
     }
   },
   "entity": {

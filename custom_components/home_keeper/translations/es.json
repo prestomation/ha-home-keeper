@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Área",
           "description": "Área opcional para asociar con esta tarea."
+        },
+        "labels": {
+          "name": "Etiquetas",
+          "description": "Etiquetas de Home Assistant opcionales para marcar esta tarea. Las usa el filtro de etiquetas de la tarjeta del panel de control (que también tiene en cuenta las etiquetas del dispositivo o el área adjuntos)."
+        },
+        "card_links": {
+          "name": "Enlaces de tarjeta",
+          "description": "Enlaces de electrodoméstico para mostrar en la fila de tarjeta del panel de control de esta tarea: una lista de objetos (asset_id, entry_id) que apuntan a los enlaces de documento o metadatos de un electrodoméstico. Normalmente se establece desde el editor de tareas del panel."
+        },
+        "task_chips": {
+          "name": "Chips de tarea",
+          "description": "Chips de metadatos proporcionados por la integración, mostrados en la lista de tareas y la tarjeta del panel de control: una lista de objetos (label, icon?, url?). No editable por el usuario en el panel."
+        },
+        "source": {
+          "name": "Fuente",
+          "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Home Keeper la almacena y la devuelve tal cual y nunca la inspecciona. Consulta docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Detalle de finalización",
+          "description": "Cuánto contexto capturar cuando se completa esta tarea: none (marcar como hecho sin preguntar), optional (ofrecer los campos note/cost/photo/who) o required (exigir los campos indicados en completion_required_fields). Solicitud de captura solo en el panel."
+        },
+        "completion_required_fields": {
+          "name": "Campos de finalización obligatorios",
+          "description": "Qué campos de metadatos de finalización hace obligatorios el panel cuando el detalle de finalización es required: cualquiera de note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Área",
           "description": "Área para asociar con esta tarea."
+        },
+        "labels": {
+          "name": "Etiquetas",
+          "description": "Etiquetas de Home Assistant para marcar esta tarea (reemplaza el conjunto actual). Las usa el filtro de etiquetas de la tarjeta del panel de control."
+        },
+        "card_links": {
+          "name": "Enlaces de tarjeta",
+          "description": "Enlaces de electrodoméstico para mostrar en la fila de tarjeta del panel de control de esta tarea (reemplaza el conjunto actual): una lista de objetos (asset_id, entry_id). Normalmente se establece desde el editor de tareas del panel."
+        },
+        "task_chips": {
+          "name": "Chips de tarea",
+          "description": "Chips de metadatos proporcionados por la integración (reemplaza el conjunto actual): una lista de objetos (label, icon?, url?). Consulta add_task para ver el esquema completo."
+        },
+        "source": {
+          "name": "Fuente",
+          "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Consulta docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Detalle de finalización",
+          "description": "Cuánto contexto capturar al completar: none, optional o required (consulta add_task). Solicitud de captura solo en el panel."
+        },
+        "completion_required_fields": {
+          "name": "Campos de finalización obligatorios",
+          "description": "Qué campos de metadatos de finalización hace obligatorios el panel cuando el detalle de finalización es required: cualquiera de note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Completada el",
           "description": "Marca de tiempo de finalización opcional (por defecto ahora)."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador de formato libre opcional que se devuelve en el evento home_keeper_task_completed, para que una integración contribuyente pueda reconocer e ignorar la finalización que ella misma desencadenó (prevención de bucles). Home Keeper no lo interpreta."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Nota opcional de texto libre registrada con esta finalización."
+        },
+        "cost": {
+          "name": "Coste",
+          "description": "Coste opcional registrado con esta finalización (tu moneda de HA)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "id de subida de imagen de Home Assistant opcional para adjuntar como foto de la finalización (el panel lo establece cuando subes desde el diálogo de finalización)."
+        },
+        "who": {
+          "name": "Quién",
+          "description": "Persona opcional que realizó la tarea (un id de entidad persona)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Marca de tiempo de finalización",
           "description": "La marca de tiempo ISO (ts) de la entrada de finalización que se va a editar."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Nueva nota (omítela o déjala en blanco para borrarla)."
+        },
+        "cost": {
+          "name": "Coste",
+          "description": "Nuevo coste (omítelo o déjalo en blanco para borrarlo)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Nuevo id de subida de imagen (omítelo o déjalo en blanco para borrarlo)."
+        },
+        "who": {
+          "name": "Quién",
+          "description": "Nuevo id de entidad persona (omítelo o déjalo en blanco para borrarlo)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Horas",
           "description": "Cuántas horas aplazar la tarea (24 por defecto)."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador de formato libre opcional que se devuelve en el evento home_keeper_task_snoozed, para que una integración contribuyente pueda reconocer e ignorar el aplazamiento que ella misma desencadenó (prevención de bucles). Home Keeper no lo interpreta."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "ID de la tarea",
           "description": "El id de la tarea que se va a omitir."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador de formato libre opcional que se devuelve en el evento home_keeper_task_skipped, para que una integración contribuyente pueda reconocer e ignorar la omisión que ella misma desencadenó (prevención de bucles). Home Keeper no lo interpreta."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Conservación de tareas únicas (días)",
           "description": "Eliminar automáticamente una tarea única completada transcurridos estos días desde su finalización. El valor 0 las conserva para siempre."
+        },
+        "dismissed_companions": {
+          "name": "Companions descartados",
+          "description": "Dominios de integración de enlace que ocultar de la lista «Sugerido» de Ajustes → Companions. Descartar solo silencia una sugerencia; un emparejamiento conectado siempre se muestra."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "La marca de tiempo ISO (ts) de la finalización archivada a eliminar."
         }
       }
+    },
+    "register_companion": {
+      "name": "Registrar companion",
+      "description": "Anuncia otra integración que funciona con Home Keeper para que aparezca en la sección Ajustes → Companions del panel. Home Keeper almacena el descriptor tal cual y nunca importa el companion.",
+      "fields": {
+        "domain": {
+          "name": "Dominio",
+          "description": "El dominio de la integración companion."
+        },
+        "name": {
+          "name": "Nombre",
+          "description": "Nombre visible mostrado en la lista de Companions."
+        },
+        "icon": {
+          "name": "Icono",
+          "description": "Un icono mdi para la fila."
+        },
+        "description": {
+          "name": "Descripción",
+          "description": "Una línea que describe qué hace el companion con Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "id de entrada de configuración",
+          "description": "El id de entrada de configuración del companion, para que el botón «Configurar» del panel pueda enlazar directamente con su página de opciones."
+        },
+        "docs_url": {
+          "name": "URL de documentación",
+          "description": "Un enlace a la documentación del companion."
+        },
+        "capabilities": {
+          "name": "Capacidades",
+          "description": "Etiquetas de capacidad de formato libre (p. ej. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Listar companions",
+      "description": "Devuelve como respuesta la lista combinada de companions (integraciones autorregistradas más upstreams detectados cuya integración de enlace aún no está instalada)."
     }
   },
   "entity": {

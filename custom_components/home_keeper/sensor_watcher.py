@@ -78,6 +78,12 @@ class SensorTaskWatcher:
         # In-memory threshold edge state, keyed by task id:
         #   {"condition_met": bool, "crossed_at": datetime | None}
         self._edge: dict[str, dict[str, Any]] = {}
+        # In-memory usage-meter reset-candidate state, keyed by task id: the reading
+        # from a prior below-baseline tick, awaiting a second consecutive one before
+        # we treat it as a genuine meter reset (debounces a transient dip/blip to 0).
+        # Held in memory only — never persisted — so a restart safely re-evaluates
+        # from the current reading rather than acting on a half-seen reset.
+        self._usage_reset: dict[str, float | None] = {}
 
     # ── task / entity enumeration ──────────────────────────────────────────────
     def _sensor_tasks(self) -> dict[str, dict[str, Any]]:
@@ -180,13 +186,21 @@ class SensorTaskWatcher:
         live = set(self._sensor_tasks())
         for stale in [tid for tid in self._edge if tid not in live]:
             del self._edge[stale]
+        for stale in [tid for tid in self._usage_reset if tid not in live]:
+            del self._usage_reset[stale]
         if armed_any and refresh:
             await self._coordinator.async_request_refresh()
 
     async def _evaluate_usage(
         self, tid: str, task: dict[str, Any], *, reading: float, now: Any
     ) -> bool:
-        decision = sensor_tasks.evaluate_usage(task, reading=reading, now=now)
+        decision = sensor_tasks.evaluate_usage(
+            task,
+            reading=reading,
+            reset_candidate=self._usage_reset.get(tid),
+            now=now,
+        )
+        self._usage_reset[tid] = decision["reset_candidate"]
         action = decision["action"]
         if action == sensor_tasks.ACTION_REBASELINE:
             await self._coordinator.store.set_sensor_baseline(tid, decision["baseline"])

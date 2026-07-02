@@ -211,6 +211,33 @@ def test_upload_download_and_remove_file_document(ha):
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
+def test_download_streams_with_content_disposition(ha):
+    # N10: the blob is written to disk BEFORE the metadata is persisted / the
+    # home_keeper_asset_updated event fires, so a GET immediately after the upload
+    # returns 200 (no 404 gap). The GET streams from disk via aiohttp's FileResponse,
+    # which sets an inline Content-Disposition naming the file and a content type.
+    name = f"Doc stream probe {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    doc_id = uuid.uuid4().hex
+    up = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc_id}",
+        files={"file": ("owner-manual.pdf", PDF_BYTES, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=30,
+    )
+    assert up.status_code == 200, up.text
+    file_id = up.json()["document"]["id"]
+
+    dl = ha.get(f"{HA_URL}/api/home_keeper/document/{asset['id']}/{file_id}")
+    assert dl.status_code == 200
+    assert dl.content == PDF_BYTES
+    disposition = dl.headers.get("Content-Disposition", "")
+    assert disposition.startswith("inline")
+    assert "owner-manual.pdf" in disposition
+    assert dl.headers.get("Content-Type", "").startswith("application/pdf")
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
 def test_upload_rejects_non_allowlisted_type(ha):
     name = f"Doc bad-type {uuid.uuid4().hex[:8]}"
     asset = _provision(ha, name)

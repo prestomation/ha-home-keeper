@@ -324,6 +324,32 @@ def test_documents_count_is_capped():
         a.build_asset({"name": "Furnace", "documents": too_many}, now=NOW)
 
 
+def test_merge_update_caps_merged_documents_total():
+    # _normalize_documents caps only the incoming payload; _merge_documents then
+    # prepends the stored *file* documents, so a payload that is itself under the cap
+    # can push the merged total over it. The merged result must be re-checked.
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    # Seed the asset with 30 uploaded file documents (upload-only; carried through).
+    for i in range(30):
+        a.append_document(
+            asset,
+            {
+                "kind": "file",
+                "filename": f"m{i}.pdf",
+                "content_type": "application/pdf",
+            },
+            created="",
+        )
+    # A generic edit sending 30 links: 30 files + 30 links = 60 > _MAX_DOCUMENTS (50).
+    incoming = [{"kind": "link", "url": f"https://ex.com/{i}"} for i in range(30)]
+    with pytest.raises(a.AssetValidationError):
+        a.merge_update(asset, {"documents": incoming}, now=NOW)
+    # A payload that keeps the merged total within the cap is accepted (30 + 15 = 45).
+    fifteen = [{"kind": "link", "url": f"https://ex.com/{i}"} for i in range(15)]
+    ok = a.merge_update(asset, {"documents": fifteen}, now=NOW)
+    assert len(ok["documents"]) == 45
+
+
 def test_duplicate_document_ids_are_regenerated():
     asset = a.build_asset(
         {
@@ -607,10 +633,10 @@ def test_parent_asset_id_only_for_virtual():
 
 
 def test_part_rejects_future_last_replaced():
-    from datetime import date
-    from datetime import timedelta as _td
-
-    future = (date.today() + _td(days=30)).isoformat()
+    # "Future" is measured against the injected clock (``now``), not the wall clock:
+    # a date one day past NOW is rejected deterministically regardless of when the
+    # test runs.
+    future = (NOW.date() + timedelta(days=1)).isoformat()
     with pytest.raises(a.AssetValidationError):
         a.build_asset(
             {"name": "Boiler", "parts": [{"name": "Anode", "last_replaced": future}]},
@@ -618,17 +644,42 @@ def test_part_rejects_future_last_replaced():
         )
 
 
-def test_part_allows_today_last_replaced():
-    from datetime import date
+def test_part_last_replaced_validated_against_injected_now_not_wall_clock():
+    # A date well in the past of any plausible wall clock but *after* the injected
+    # ``now`` must still be rejected — proving validation uses ``now``, not
+    # ``date.today()``. Symmetrically it is accepted when ``now`` is advanced past it.
+    day_after_now = (NOW.date() + timedelta(days=1)).isoformat()
+    payload = {
+        "name": "Boiler",
+        "parts": [{"name": "Anode", "last_replaced": day_after_now}],
+    }
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset(payload, now=NOW)
+    # Advancing ``now`` past that date makes the same payload valid.
+    asset = a.build_asset(payload, now=NOW + timedelta(days=2))
+    assert asset["parts"][0]["last_replaced"] == day_after_now
 
+
+def test_part_allows_today_last_replaced():
+    # ``now``'s own date is allowed (the boundary is inclusive).
+    today = NOW.date().isoformat()
     asset = a.build_asset(
-        {
-            "name": "Boiler",
-            "parts": [{"name": "Anode", "last_replaced": date.today().isoformat()}],
-        },
+        {"name": "Boiler", "parts": [{"name": "Anode", "last_replaced": today}]},
         now=NOW,
     )
-    assert asset["parts"][0]["last_replaced"] == date.today().isoformat()
+    assert asset["parts"][0]["last_replaced"] == today
+
+
+def test_merge_update_rejects_future_part_last_replaced():
+    # The merge_update entry point threads the injected clock too.
+    asset = a.build_asset({"name": "Boiler"}, now=NOW)
+    future = (NOW.date() + timedelta(days=5)).isoformat()
+    with pytest.raises(a.AssetValidationError):
+        a.merge_update(
+            asset,
+            {"parts": [{"name": "Anode", "last_replaced": future}]},
+            now=NOW,
+        )
 
 
 def test_duplicate_part_ids_are_regenerated():

@@ -57,9 +57,11 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.add_task.fields.interval.name",
             "services.add_task.fields.notes.name",
             "services.adjust_part_stock.fields.delta.name",
+            "services.complete_task.fields.cost.name",  # "Cost" — CA cognate
             "services.update_asset.fields.cost.name",
             "services.update_asset.fields.documents.name",  # "Documents" — CA cognate
             "services.update_asset.fields.model.name",
+            "services.update_completion.fields.cost.name",  # "Cost" — CA cognate
             "services.update_task.fields.interval.name",
             "services.update_task.fields.notes.name",
         }
@@ -80,16 +82,22 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.add_asset.fields.metadata.name",
             "services.add_asset.fields.model.name",
             "services.add_task.fields.interval.name",
+            "services.complete_task.fields.note.name",  # "Note" — DA cognate
             "services.update_asset.fields.metadata.name",
             "services.update_asset.fields.model.name",
+            "services.update_completion.fields.note.name",  # "Note" — DA cognate
             "services.update_task.fields.interval.name",
         }
     ),
     "de": frozenset(
         {
             "services.add_asset.fields.name.name",
+            "services.add_task.fields.labels.name",  # "Labels" — DE loanword (HA UI)
             "services.add_task.fields.name.name",
+            "services.register_companion.fields.domain.name",  # "Domain" — DE loanword
+            "services.register_companion.fields.name.name",  # "Name" — DE cognate
             "services.update_asset.fields.name.name",
+            "services.update_task.fields.labels.name",  # "Labels" — DE loanword (HA UI)
             "services.update_task.fields.name.name",
         }
     ),
@@ -99,9 +107,16 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.add_asset.fields.documents.name",  # "Documents" — FR cognate
             "services.add_asset_document.fields.document.name",
             "services.add_task.fields.notes.name",
+            "services.add_task.fields.source.name",  # "Source" — FR cognate
+            "services.complete_task.fields.note.name",  # "Note" — FR cognate
+            "services.complete_task.fields.photo.name",  # "Photo" — FR cognate
             "services.notify.fields.notification.name",  # "Notification" — FR cognate
+            "services.register_companion.fields.description.name",  # FR cognate
             "services.update_asset.fields.documents.name",  # "Documents" — FR cognate
+            "services.update_completion.fields.note.name",  # "Note" — FR cognate
+            "services.update_completion.fields.photo.name",  # "Photo" — FR cognate
             "services.update_task.fields.notes.name",
+            "services.update_task.fields.source.name",  # "Source" — FR cognate
         }
     ),
     "it": frozenset(
@@ -125,9 +140,11 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.add_asset.fields.model.name",
             "services.add_asset_document.fields.document.name",
             "services.add_task.fields.interval.name",
+            "services.add_task.fields.labels.name",  # "Labels" — NL loanword (HA UI)
             "services.update_asset.fields.metadata.name",
             "services.update_asset.fields.model.name",
             "services.update_task.fields.interval.name",
+            "services.update_task.fields.labels.name",  # "Labels" — NL loanword (HA UI)
         }
     ),
     "pl": frozenset(
@@ -269,6 +286,27 @@ def test_no_brace_balance_errors(path: Path) -> None:
         if not ok or depth != 0:
             bad[key] = value
     assert not bad, {"locale": path.name, "brace_errors": bad}
+
+
+# A ``{token}`` is formatted by HA via ``str.format`` — anything that isn't a
+# bare identifier (e.g. an illustrative ``{asset_id, entry_id}`` written into a
+# field description) fails hassfest's TRANSLATIONS validation. Guard it here so
+# the failure surfaces locally, not only in CI hassfest.
+_ANY_BRACE_RE = re.compile(r"\{([^}]*)\}")
+_IDENT_RE = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*")
+_ALL_TRANSLATION_FILES = [_STRINGS, *_locale_files()]
+
+
+@pytest.mark.parametrize("path", _ALL_TRANSLATION_FILES, ids=lambda p: p.name)
+def test_placeholders_are_valid_identifiers(path: Path) -> None:
+    """Every ``{token}`` must be a valid ``str.format`` identifier (hassfest)."""
+    bad = {
+        key: value
+        for key, value in _strings(_load(path)).items()
+        for tok in _ANY_BRACE_RE.findall(value)
+        if not _IDENT_RE.fullmatch(tok)
+    }
+    assert not bad, {"file": path.name, "invalid_placeholders": bad}
 
 
 @pytest.mark.parametrize("path", _NON_EN, ids=lambda p: p.name)

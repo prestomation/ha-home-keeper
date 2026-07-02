@@ -269,6 +269,9 @@ export class HomeKeeperCard extends HTMLElement {
   private _subscribing = false;
   private _refreshing = false;
   private _booted = false;
+  // Set in disconnectedCallback, reset in connectedCallback: guards the gap in
+  // `_subscribe` where an in-flight subscribeEvents resolves after we've detached.
+  private _disconnected = false;
   // The websocket connection our event subscription is bound to, so we can
   // re-subscribe if HA hands us a fresh connection after a reconnect.
   private _subConn?: Hass['connection'];
@@ -327,11 +330,13 @@ export class HomeKeeperCard extends HTMLElement {
 
   connectedCallback(): void {
     if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
+    this._disconnected = false;
     void this._subscribe();
     void this._boot();
   }
 
   disconnectedCallback(): void {
+    this._disconnected = true;
     if (this._unsub) {
       this._unsub();
       this._unsub = undefined;
@@ -399,7 +404,17 @@ export class HomeKeeperCard extends HTMLElement {
     if (this._unsub || this._subscribing) return;
     this._subscribing = true;
     try {
-      this._unsub = await conn.subscribeEvents(() => void this._refresh(), 'home_keeper_task_completed');
+      const unsub = await conn.subscribeEvents(
+        () => void this._refresh(),
+        'home_keeper_task_completed',
+      );
+      // If we detached during the await, the subscription would leak on a dead
+      // element — drop it immediately rather than storing it.
+      if (this._disconnected) {
+        unsub();
+        return;
+      }
+      this._unsub = unsub;
       this._subConn = conn;
     } catch {
       // Subscription unavailable — the state-signal path still keeps us current.
@@ -786,10 +801,14 @@ export class HomeKeeperCard extends HTMLElement {
     // action. A completion-blocked task (a synced problem sensor) keeps a *disabled*
     // mark-done that, on tap, explains its source clears it.
     const dormant = task.recurrence_type === 'triggered' && !task.next_due;
+    // A completed one-off (do-once, now dormant) is also nothing to complete — hide Done.
+    const completedOneOff =
+      task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
     const blocked = Boolean(task.managed_by?.completion_blocked);
-    const done = dormant
-      ? ''
-      : `<ha-icon-button class="hk-done${blocked ? ' blocked' : ''}" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.done'))}"></ha-icon-button>`;
+    const done =
+      dormant || completedOneOff
+        ? ''
+        : `<ha-icon-button class="hk-done${blocked ? ' blocked' : ''}" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('btn.done'))}"></ha-icon-button>`;
     return `
       <div class="hk-row${overdue ? ' overdue' : ''}">
         <div class="grow">
@@ -892,6 +911,10 @@ export class HomeKeeperCardEditor extends HTMLElement {
   private _config: HomeKeeperCardConfig = { type: '' };
   private _form?: HaFormElement;
   private _profiles: Profile[] = [];
+  // Whether the profile fetch has resolved (even to an empty list). Tracked separately
+  // from `_profiles.length` so a legitimately empty result doesn't re-hit the API on
+  // every `set hass`.
+  private _profilesLoaded = false;
 
   setConfig(config: HomeKeeperCardConfig): void {
     this._config = { ...config };
@@ -905,7 +928,8 @@ export class HomeKeeperCardEditor extends HTMLElement {
   }
 
   private async _maybeLoadProfiles(): Promise<void> {
-    if (!this._hass || this._profiles.length) return;
+    if (!this._hass || this._profilesLoaded) return;
+    this._profilesLoaded = true;
     this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
     if (this._profiles.length && this._form) this._form.schema = this._schema() as unknown[];
   }

@@ -155,6 +155,25 @@ describe('dueLabel', () => {
     expect(dueLabel({ recurrence_type: 'triggered' }, now)).toBe('Monitored');
     expect(dueLabel({ recurrence_type: 'triggered', next_due: null }, now)).toBe('Monitored');
   });
+  it('counts calendar days, not rolling 24h windows, at time-of-day boundaries', () => {
+    // Local dates so the assertion holds regardless of the test runner's timezone
+    // (dueLabel's day diff is computed from local midnights).
+    const evening = new Date(2026, 5, 13, 20, 0, 0); // 8pm June 13, local
+    // Due 8am the *next* calendar day is only 12h out — a rolling-24h round would
+    // read "today"; a calendar-day diff correctly reads "tomorrow".
+    expect(dueLabel({ next_due: new Date(2026, 5, 14, 8, 0, 0).toISOString() }, evening)).toBe(
+      'tomorrow',
+    );
+    // Still the same calendar day → "today".
+    expect(dueLabel({ next_due: new Date(2026, 5, 13, 23, 0, 0).toISOString() }, evening)).toBe(
+      'today',
+    );
+    // Yesterday evening from this morning is <24h ago but a day earlier → "yesterday".
+    const morning = new Date(2026, 5, 13, 8, 0, 0);
+    expect(dueLabel({ next_due: new Date(2026, 5, 12, 20, 0, 0).toISOString() }, morning)).toBe(
+      'yesterday',
+    );
+  });
 });
 
 describe('deviceName', () => {

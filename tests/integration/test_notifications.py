@@ -121,6 +121,25 @@ def test_notify_service_and_action_completes(ha, ha_token):
         time.sleep(1)
     assert completed, "notification action did not complete the task"
 
+    # N1: a *stale* "Mark done" tap (same action re-fired after the task was already
+    # completed) must be a no-op. The completion moved next_due into the future, so
+    # the task is no longer overdue and the second tap must not double-advance /
+    # append a second completion.
+    completed_task = _get_task(ha, task_id)
+    before_count = len(completed_task.get("completions", []))
+    before_next_due = completed_task.get("next_due")
+    before_last = completed_task.get("last_completed")
+    _fire_action(ha, f"home_keeper::complete::{task_id}::testnotif")
+    time.sleep(3)  # let the (no-op) action handler run
+    after_task = _get_task(ha, task_id)
+    assert len(after_task.get("completions", [])) == before_count, (
+        "stale complete tap should not append a second completion"
+    )
+    assert after_task.get("next_due") == before_next_due, (
+        "stale complete tap should not advance next_due"
+    )
+    assert after_task.get("last_completed") == before_last
+
     # A foreign / unknown action is ignored (no error, task already complete).
     _fire_action(ha, "some_other_app::complete::whatever::x")
 

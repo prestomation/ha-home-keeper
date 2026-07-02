@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Area",
           "description": "Area facoltativa da associare a questa attività."
+        },
+        "labels": {
+          "name": "Etichette",
+          "description": "Etichette Home Assistant facoltative con cui contrassegnare questa attività. Usate dal filtro per etichette della scheda dashboard (che corrisponde anche alle etichette del dispositivo o dell'area collegati)."
+        },
+        "card_links": {
+          "name": "Collegamenti della scheda",
+          "description": "Collegamenti a elettrodomestici da mostrare nella riga della scheda dashboard di questa attività — un elenco di oggetti (asset_id, entry_id) che puntano ai link di documenti o metadati di un elettrodomestico. Di solito impostati dall'editor delle attività del pannello."
+        },
+        "task_chips": {
+          "name": "Chip dell'attività",
+          "description": "Chip di metadati forniti dall'integrazione, mostrati nell'elenco delle attività e nella scheda dashboard — un elenco di oggetti (label, icon?, url?). Non modificabili dall'utente nel pannello."
+        },
+        "source": {
+          "name": "Origine",
+          "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Home Keeper la memorizza e la restituisce testualmente e non la ispeziona mai. Vedi docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Dettaglio del completamento",
+          "description": "Quanto contesto acquisire quando questa attività viene completata: none (segna come fatta senza richiesta), optional (offre i campi note/cost/photo/who) o required (richiede i campi elencati in completion_required_fields). Richiesta di acquisizione solo nel pannello."
+        },
+        "completion_required_fields": {
+          "name": "Campi di completamento obbligatori",
+          "description": "Quali campi di metadati del completamento il pannello rende obbligatori quando il dettaglio del completamento è required — uno tra note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Area",
           "description": "Area da associare a questa attività."
+        },
+        "labels": {
+          "name": "Etichette",
+          "description": "Etichette Home Assistant con cui contrassegnare questa attività (sostituisce l'insieme attuale). Usate dal filtro per etichette della scheda dashboard."
+        },
+        "card_links": {
+          "name": "Collegamenti della scheda",
+          "description": "Collegamenti a elettrodomestici da mostrare nella riga della scheda dashboard di questa attività (sostituisce l'insieme attuale) — un elenco di oggetti (asset_id, entry_id). Di solito impostati dall'editor delle attività del pannello."
+        },
+        "task_chips": {
+          "name": "Chip dell'attività",
+          "description": "Chip di metadati forniti dall'integrazione (sostituisce l'insieme attuale) — un elenco di oggetti (label, icon?, url?). Vedi add_task per lo schema completo."
+        },
+        "source": {
+          "name": "Origine",
+          "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Vedi docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Dettaglio del completamento",
+          "description": "Quanto contesto acquisire al completamento: none, optional o required (vedi add_task). Richiesta di acquisizione solo nel pannello."
+        },
+        "completion_required_fields": {
+          "name": "Campi di completamento obbligatori",
+          "description": "Quali campi di metadati del completamento il pannello rende obbligatori quando il dettaglio del completamento è required — uno tra note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Completata il",
           "description": "Timestamp di completamento facoltativo (predefinito: adesso)."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marcatore facoltativo in formato libero restituito nell'evento home_keeper_task_completed, così che un'integrazione contribuente possa riconoscere e ignorare il completamento che ha attivato (prevenzione dei cicli). Home Keeper non lo interpreta."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Nota facoltativa in formato libero registrata con questo completamento."
+        },
+        "cost": {
+          "name": "Costo",
+          "description": "Costo facoltativo registrato con questo completamento (la tua valuta HA)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Id facoltativo di un'immagine caricata in Home Assistant da allegare come foto del completamento (il pannello lo imposta quando carichi dalla finestra di completamento)."
+        },
+        "who": {
+          "name": "Chi",
+          "description": "Persona facoltativa che ha eseguito l'attività (un id di entità persona)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Marca temporale del completamento",
           "description": "La marca temporale ISO (ts) della voce di completamento da modificare."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Nuova nota (ometti o lascia vuoto per cancellarla)."
+        },
+        "cost": {
+          "name": "Costo",
+          "description": "Nuovo costo (ometti o lascia vuoto per cancellarlo)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Nuovo id di immagine caricata (ometti o lascia vuoto per cancellarlo)."
+        },
+        "who": {
+          "name": "Chi",
+          "description": "Nuovo id di entità persona (ometti o lascia vuoto per cancellarlo)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Ore",
           "description": "Di quante ore rinviare l'attività (24 di default)."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marcatore facoltativo in formato libero restituito nell'evento home_keeper_task_snoozed, così che un'integrazione contribuente possa riconoscere e ignorare il rinvio che ha attivato (prevenzione dei cicli). Home Keeper non lo interpreta."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "ID attività",
           "description": "L'id dell'attività da saltare."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marcatore facoltativo in formato libero restituito nell'evento home_keeper_task_skipped, così che un'integrazione contribuente possa riconoscere e ignorare il salto che ha attivato (prevenzione dei cicli). Home Keeper non lo interpreta."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Conservazione delle attività singole (giorni)",
           "description": "Elimina automaticamente un'attività singola completata dopo questo numero di giorni dal completamento. 0 le conserva per sempre."
+        },
+        "dismissed_companions": {
+          "name": "Companion ignorati",
+          "description": "Domini delle integrazioni di collegamento da nascondere dall'elenco «Suggeriti» in Impostazioni → Companions. Ignorare silenzia solo un suggerimento; un abbinamento connesso viene sempre mostrato."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "Il timestamp ISO (ts) del completamento archiviato da rimuovere."
         }
       }
+    },
+    "register_companion": {
+      "name": "Registra companion",
+      "description": "Annuncia un'altra integrazione che funziona con Home Keeper affinché appaia nella sezione Impostazioni → Companions del pannello. Home Keeper memorizza il descrittore testualmente e non importa mai il companion.",
+      "fields": {
+        "domain": {
+          "name": "Dominio",
+          "description": "Il dominio dell'integrazione companion."
+        },
+        "name": {
+          "name": "Nome",
+          "description": "Nome visualizzato mostrato nell'elenco Companions."
+        },
+        "icon": {
+          "name": "Icona",
+          "description": "Un'icona mdi per la riga."
+        },
+        "description": {
+          "name": "Descrizione",
+          "description": "Una riga che descrive cosa fa il companion con Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "Id voce di configurazione",
+          "description": "L'id della voce di configurazione del companion, così che il pulsante «Configura» del pannello possa collegarsi direttamente alla sua pagina delle opzioni."
+        },
+        "docs_url": {
+          "name": "URL della documentazione",
+          "description": "Un link alla documentazione del companion."
+        },
+        "capabilities": {
+          "name": "Funzionalità",
+          "description": "Tag di funzionalità in formato libero (es. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Elenca companion",
+      "description": "Restituisce come risposta l'elenco unificato dei companion (integrazioni auto-registrate più upstream rilevati il cui collegamento non è ancora installato)."
     }
   },
   "entity": {

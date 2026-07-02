@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Bereich",
           "description": "Optionaler Bereich, der mit dieser Aufgabe verknüpft wird."
+        },
+        "labels": {
+          "name": "Labels",
+          "description": "Optionale Home-Assistant-Labels, mit denen diese Aufgabe versehen wird. Wird vom Labelfilter der Dashboard-Karte verwendet (der auch Labels am angehängten Gerät oder Bereich berücksichtigt)."
+        },
+        "card_links": {
+          "name": "Kartenlinks",
+          "description": "Gerätelinks, die in der Dashboard-Kartenzeile dieser Aufgabe angezeigt werden – eine Liste von (asset_id, entry_id)-Objekten, die auf die Dokument- oder Metadatenlinks eines Geräts verweisen. Wird normalerweise über den Aufgabeneditor des Panels gesetzt."
+        },
+        "task_chips": {
+          "name": "Aufgaben-Chips",
+          "description": "Von der Integration bereitgestellte Metadaten-Chips, die in der Aufgabenliste und der Dashboard-Karte angezeigt werden – eine Liste von (label, icon?, url?)-Objekten. Im Panel nicht bearbeitbar."
+        },
+        "source": {
+          "name": "Quelle",
+          "description": "Undurchsichtige Herkunftsangabe, die der Integration gehört, die die Aufgabe erstellt hat. Home Keeper speichert und gibt sie unverändert zurück und wertet sie nie aus. Siehe docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Detailgrad der Erledigung",
+          "description": "Wie viel Kontext beim Abschließen dieser Aufgabe erfasst wird: none (ohne Nachfrage als erledigt markieren), optional (die Felder note/cost/photo/who anbieten) oder required (die in completion_required_fields aufgeführten Felder verlangen). Erfassungsdialog nur im Panel."
+        },
+        "completion_required_fields": {
+          "name": "Erforderliche Erledigungsfelder",
+          "description": "Welche Erledigungs-Metadatenfelder das Panel verpflichtend macht, wenn der Detailgrad required ist – eines von note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Bereich",
           "description": "Bereich, der mit dieser Aufgabe verknüpft wird."
+        },
+        "labels": {
+          "name": "Labels",
+          "description": "Home-Assistant-Labels, mit denen diese Aufgabe versehen wird (ersetzt die aktuelle Auswahl). Wird vom Labelfilter der Dashboard-Karte verwendet."
+        },
+        "card_links": {
+          "name": "Kartenlinks",
+          "description": "Gerätelinks, die in der Dashboard-Kartenzeile dieser Aufgabe angezeigt werden (ersetzt die aktuelle Auswahl) – eine Liste von (asset_id, entry_id)-Objekten. Wird normalerweise über den Aufgabeneditor des Panels gesetzt."
+        },
+        "task_chips": {
+          "name": "Aufgaben-Chips",
+          "description": "Von der Integration bereitgestellte Metadaten-Chips (ersetzt die aktuelle Auswahl) – eine Liste von (label, icon?, url?)-Objekten. Das vollständige Schema siehe add_task."
+        },
+        "source": {
+          "name": "Quelle",
+          "description": "Undurchsichtige Herkunftsangabe, die der Integration gehört, die die Aufgabe erstellt hat. Siehe docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Detailgrad der Erledigung",
+          "description": "Wie viel Kontext beim Abschließen erfasst wird: none, optional oder required (siehe add_task). Erfassungsdialog nur im Panel."
+        },
+        "completion_required_fields": {
+          "name": "Erforderliche Erledigungsfelder",
+          "description": "Welche Erledigungs-Metadatenfelder das Panel verpflichtend macht, wenn der Detailgrad required ist – eines von note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Abgeschlossen am",
           "description": "Optionaler Abschlusszeitstempel (Standard ist jetzt)."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Optionale Freiform-Markierung, die im Ereignis home_keeper_task_completed zurückgegeben wird, damit eine beitragende Integration die von ihr ausgelöste Erledigung erkennen und ignorieren kann (Schleifenvermeidung). Home Keeper wertet sie nicht aus."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Optionale Freitextnotiz, die mit dieser Erledigung erfasst wird."
+        },
+        "cost": {
+          "name": "Kosten",
+          "description": "Optionale Kosten, die mit dieser Erledigung erfasst werden (deine HA-Währung)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Optionale Home-Assistant-Bild-Upload-id, die als Erledigungsfoto angehängt wird (das Panel setzt dies, wenn du über den Erledigungsdialog hochlädst)."
+        },
+        "who": {
+          "name": "Wer",
+          "description": "Optionale Person, die die Aufgabe ausgeführt hat (die Entitäts-ID einer Person)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Erledigungszeitstempel",
           "description": "Der ISO-Zeitstempel (ts) des zu bearbeitenden Erledigungseintrags."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Neue Notiz (weglassen oder leer lassen, um sie zu löschen)."
+        },
+        "cost": {
+          "name": "Kosten",
+          "description": "Neue Kosten (weglassen oder leer lassen, um sie zu löschen)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Neue Bild-Upload-id (weglassen oder leer lassen, um sie zu löschen)."
+        },
+        "who": {
+          "name": "Wer",
+          "description": "Neue Entitäts-ID einer Person (weglassen oder leer lassen, um sie zu löschen)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Stunden",
           "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard: 24)."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Optionale Freiform-Markierung, die im Ereignis home_keeper_task_snoozed zurückgegeben wird, damit eine beitragende Integration die von ihr ausgelöste Zurückstellung erkennen und ignorieren kann (Schleifenvermeidung). Home Keeper wertet sie nicht aus."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "Aufgaben-ID",
           "description": "Die ID der zu überspringenden Aufgabe."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Optionale Freiform-Markierung, die im Ereignis home_keeper_task_skipped zurückgegeben wird, damit eine beitragende Integration die von ihr ausgelöste Überspringung erkennen und ignorieren kann (Schleifenvermeidung). Home Keeper wertet sie nicht aus."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Aufbewahrung einmaliger Aufgaben (Tage)",
           "description": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach dem Abschluss automatisch löschen. 0 behält sie dauerhaft."
+        },
+        "dismissed_companions": {
+          "name": "Ausgeblendete Companions",
+          "description": "Glue-Integrationsdomains, die in der Liste „Vorgeschlagen“ unter Einstellungen → Companions ausgeblendet werden. Das Ausblenden unterdrückt nur einen Vorschlag; eine verbundene Kopplung wird immer angezeigt."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "Der ISO-Zeitstempel (ts) der zu entfernenden archivierten Erledigung."
         }
       }
+    },
+    "register_companion": {
+      "name": "Companion registrieren",
+      "description": "Eine andere Integration bekannt machen, die mit Home Keeper zusammenarbeitet, damit sie im Abschnitt Einstellungen → Companions des Panels erscheint. Home Keeper speichert den Deskriptor unverändert und importiert den Companion nie.",
+      "fields": {
+        "domain": {
+          "name": "Domain",
+          "description": "Die Domain der Companion-Integration."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Anzeigename, der in der Companions-Liste angezeigt wird."
+        },
+        "icon": {
+          "name": "Symbol",
+          "description": "Ein mdi-Symbol für die Zeile."
+        },
+        "description": {
+          "name": "Beschreibung",
+          "description": "Eine Zeile, die beschreibt, was der Companion mit Home Keeper macht."
+        },
+        "config_entry_id": {
+          "name": "Konfigurationseintrags-id",
+          "description": "Die config_entry_id des Companions, damit die Schaltfläche „Konfigurieren“ des Panels direkt auf dessen Optionsseite verlinken kann."
+        },
+        "docs_url": {
+          "name": "Dokumentations-URL",
+          "description": "Ein Link zur Dokumentation des Companions."
+        },
+        "capabilities": {
+          "name": "Fähigkeiten",
+          "description": "Freiform-Fähigkeits-Tags (z. B. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Companions auflisten",
+      "description": "Gibt die zusammengeführte Companion-Liste als Antwort zurück (selbst registrierte Integrationen plus erkannte Upstreams, deren Glue noch nicht installiert ist)."
     }
   },
   "entity": {

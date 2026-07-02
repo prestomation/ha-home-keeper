@@ -56,15 +56,13 @@ def safe_filename(name: str, content_type: str) -> str:
     return f"{stem}{TYPE_EXTENSIONS[content_type]}"
 
 
-def validate_upload(
-    filename: str, declared_type: str | None, data: bytes
-) -> tuple[str, str]:
+def validate_upload(filename: str, data: bytes) -> tuple[str, str]:
     """Validate an uploaded blob; return ``(content_type, safe_filename)``.
 
     Raises :class:`AssetValidationError` when the file is empty, over the size ceiling,
-    or not a recognized allowlisted type (sniffed by magic bytes — the declared MIME is
-    advisory only). The returned content type is the sniffed one, so the stored metadata
-    can't be spoofed by a misleading client header.
+    or not a recognized allowlisted type (sniffed by magic bytes — any client-declared
+    MIME is ignored entirely). The returned content type is the sniffed one, so the
+    stored metadata can't be spoofed by a misleading client header.
     """
     if not data:
         raise AssetValidationError("uploaded file is empty")

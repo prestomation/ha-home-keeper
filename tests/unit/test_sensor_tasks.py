@@ -81,7 +81,7 @@ def test_compare_all_operators():
 def test_usage_no_baseline_rebaselines():
     now = dt(2026, 6, 1)
     out = s.evaluate_usage(_usage(15000, baseline=None), reading=41230, now=now)
-    assert out == {"action": "rebaseline", "baseline": 41230}
+    assert out == {"action": "rebaseline", "baseline": 41230, "reset_candidate": None}
 
 
 def test_usage_arms_when_delta_reaches_target():
@@ -101,9 +101,57 @@ def test_usage_already_armed_does_not_rearm():
 def test_usage_meter_reset_rebaselines_not_arms():
     now = dt(2026, 6, 1)
     # Reading dropped below the baseline (odometer replaced / counter reset).
+    # Debounced: a single below-baseline reading only records a candidate; a second
+    # consecutive one confirms the reset and re-baselines.
     task = _usage(15000, baseline=41000)
-    out = s.evaluate_usage(task, reading=12, now=now)
-    assert out == {"action": "rebaseline", "baseline": 12}
+    first = s.evaluate_usage(task, reading=12, now=now)
+    assert first == {"action": None, "reset_candidate": 12}
+    out = s.evaluate_usage(
+        task, reading=12, reset_candidate=first["reset_candidate"], now=now
+    )
+    assert out == {"action": "rebaseline", "baseline": 12, "reset_candidate": None}
+
+
+def test_usage_single_low_reading_does_not_rebaseline():
+    now = dt(2026, 6, 1)
+    # A momentary blip to 0 (or any transient dip) below the baseline must NOT
+    # re-anchor on its own — it only arms a candidate.
+    task = _usage(15000, baseline=41000)
+    out = s.evaluate_usage(task, reading=0, now=now)
+    assert out == {"action": None, "reset_candidate": 0}
+
+
+def test_usage_low_then_recovered_clears_candidate():
+    now = dt(2026, 6, 1)
+    # Below-baseline once, then the reading recovers to/above the baseline: the
+    # candidate is cleared, so no rebaseline (it was a blip).
+    task = _usage(15000, baseline=41000)
+    first = s.evaluate_usage(task, reading=0, now=now)
+    assert first["reset_candidate"] == 0
+    recovered = s.evaluate_usage(
+        task, reading=41500, reset_candidate=first["reset_candidate"], now=now
+    )
+    assert recovered == {"action": None, "reset_candidate": None}
+
+
+def test_usage_two_consecutive_low_readings_rebaseline():
+    now = dt(2026, 6, 1)
+    # Two consecutive below-baseline readings confirm a genuine meter reset.
+    task = _usage(15000, baseline=41000)
+    first = s.evaluate_usage(task, reading=100, now=now)
+    assert first == {"action": None, "reset_candidate": 100}
+    second = s.evaluate_usage(
+        task, reading=150, reset_candidate=first["reset_candidate"], now=now
+    )
+    assert second == {"action": "rebaseline", "baseline": 150, "reset_candidate": None}
+
+
+def test_usage_arm_clears_reset_candidate():
+    now = dt(2026, 6, 1)
+    # Arming (at/above baseline, delta reached) also carries a cleared candidate.
+    task = _usage(15000, baseline=41000)
+    out = s.evaluate_usage(task, reading=60000, reset_candidate=None, now=now)
+    assert out == {"action": "arm", "reset_candidate": None}
 
 
 # ── threshold ────────────────────────────────────────────────────────────────

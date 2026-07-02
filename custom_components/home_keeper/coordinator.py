@@ -201,15 +201,33 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             return
         now = dt_util.now()
         expired = [
-            tid
-            for tid, task in self.store.get_tasks().items()
+            task
+            for task in self.store.get_tasks().values()
             if recurrence.one_off_expired(task, retention, now=now)
         ]
-        for tid in expired:
+        reload_needed = False
+        for task in expired:
+            tid = task["id"]
             try:
                 await self.store.delete_task(tid)
             except models.TaskValidationError as err:  # pragma: no cover - defensive
                 _LOGGER.debug("Skipping auto-delete of one-off %s: %s", tid, err)
+                continue
+            # store.delete_task only mutates the store; the entity registry is cleaned
+            # by reloading the config entry (as the service delete path does). Track
+            # whether any purged task owned per-task entities so we reload once.
+            if task_has_entities(task):
+                reload_needed = True
+        if reload_needed:
+            # Reload to remove the now-orphaned per-task entities. This runs inside
+            # _async_update_data (the coordinator's own refresh), so awaiting the
+            # reload inline would tear down and recreate this coordinator mid-refresh.
+            # Defer it so the current refresh completes first. The purged task's
+            # entities therefore linger (as unavailable) until this reload lands on
+            # the loop — a brief, harmless window on the next refresh tick.
+            self.hass.async_create_task(
+                self.hass.config_entries.async_reload(self.entry.entry_id)
+            )
 
     def device_attached_task_ids(self) -> list[str]:
         """Enabled task ids attached to a device (so get per-task entities)."""

@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Alue",
           "description": "Valinnainen alue, joka liitetään tähän tehtävään."
+        },
+        "labels": {
+          "name": "Tunnisteet",
+          "description": "Valinnaisia Home Assistant -tunnisteita, joilla tämä tehtävä merkitään. Käytetään koontinäytön kortin tunnistesuodattimessa (joka vastaa myös liitetyn laitteen tai alueen tunnisteita)."
+        },
+        "card_links": {
+          "name": "Korttilinkit",
+          "description": "Laitelinkit, jotka näytetään tämän tehtävän koontinäyttökortin rivillä – luettelo (asset_id, entry_id) -objekteista, jotka osoittavat laitteen asiakirja- tai metatietolinkkeihin. Yleensä asetetaan paneelin tehtäväeditorista."
+        },
+        "task_chips": {
+          "name": "Tehtäväsirut",
+          "description": "Integraation tarjoamat metatietosirut, jotka näytetään tehtäväluettelossa ja koontinäytön kortissa – luettelo (label, icon?, url?) -objekteista. Käyttäjä ei voi muokata paneelissa."
+        },
+        "source": {
+          "name": "Lähde",
+          "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Home Keeper tallentaa ja toistaa sen sanatarkasti eikä koskaan tarkastele sitä. Katso docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Suorituksen tiedot",
+          "description": "Kuinka paljon kontekstia tallennetaan, kun tämä tehtävä suoritetaan: none (merkitse valmiiksi ilman kehotetta), optional (tarjoa kentät note/cost/photo/who) tai required (vaadi kentät, jotka on lueteltu kohdassa completion_required_fields). Vain paneelin tallennuskehote."
+        },
+        "completion_required_fields": {
+          "name": "Pakolliset suorituskentät",
+          "description": "Mitkä suorituksen metatietokentät paneeli tekee pakollisiksi, kun suorituksen tiedot on required – mikä tahansa seuraavista: note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Alue",
           "description": "Alue, joka liitetään tähän tehtävään."
+        },
+        "labels": {
+          "name": "Tunnisteet",
+          "description": "Home Assistant -tunnisteet, joilla tämä tehtävä merkitään (korvaa nykyisen joukon). Käytetään koontinäytön kortin tunnistesuodattimessa."
+        },
+        "card_links": {
+          "name": "Korttilinkit",
+          "description": "Laitelinkit, jotka näytetään tämän tehtävän koontinäyttökortin rivillä (korvaa nykyisen joukon) – luettelo (asset_id, entry_id) -objekteista. Yleensä asetetaan paneelin tehtäväeditorista."
+        },
+        "task_chips": {
+          "name": "Tehtäväsirut",
+          "description": "Integraation tarjoamat metatietosirut (korvaa nykyisen joukon) – luettelo (label, icon?, url?) -objekteista. Katso koko rakenne kohdasta add_task."
+        },
+        "source": {
+          "name": "Lähde",
+          "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Katso docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Suorituksen tiedot",
+          "description": "Kuinka paljon kontekstia tallennetaan suorituksen yhteydessä: none, optional tai required (katso add_task). Vain paneelin tallennuskehote."
+        },
+        "completion_required_fields": {
+          "name": "Pakolliset suorituskentät",
+          "description": "Mitkä suorituksen metatietokentät paneeli tekee pakollisiksi, kun suorituksen tiedot on required – mikä tahansa seuraavista: note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Valmistumisaika",
           "description": "Valinnainen valmistumisaika (oletuksena nykyhetki)."
+        },
+        "origin": {
+          "name": "Alkuperä",
+          "description": "Valinnainen vapaamuotoinen merkintä, joka toistetaan home_keeper_task_completed-tapahtumassa, jotta osallistuva integraatio voi tunnistaa ja ohittaa laukaisemansa suorituksen (silmukan esto). Home Keeper ei tulkitse sitä."
+        },
+        "note": {
+          "name": "Muistiinpano",
+          "description": "Valinnainen vapaamuotoinen muistiinpano, joka tallennetaan tähän suoritukseen."
+        },
+        "cost": {
+          "name": "Kustannus",
+          "description": "Valinnainen kustannus, joka tallennetaan tähän suoritukseen (HA-valuuttasi)."
+        },
+        "photo": {
+          "name": "Kuva",
+          "description": "Valinnainen Home Assistant -kuvan lähetystunnus, joka liitetään suorituskuvaksi (paneeli asettaa tämän, kun lähetät kuvan suoritusvalintaikkunasta)."
+        },
+        "who": {
+          "name": "Kuka",
+          "description": "Valinnainen henkilö, joka suoritti tehtävän (person-entiteetin tunnus)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Suorituksen aikaleima",
           "description": "Muokattavan suoritusmerkinnän ISO-aikaleima (ts)."
+        },
+        "note": {
+          "name": "Muistiinpano",
+          "description": "Uusi muistiinpano (jätä pois tai tyhjäksi tyhjentääksesi sen)."
+        },
+        "cost": {
+          "name": "Kustannus",
+          "description": "Uusi kustannus (jätä pois tai tyhjäksi tyhjentääksesi sen)."
+        },
+        "photo": {
+          "name": "Kuva",
+          "description": "Uusi kuvan lähetystunnus (jätä pois tai tyhjäksi tyhjentääksesi sen)."
+        },
+        "who": {
+          "name": "Kuka",
+          "description": "Uusi person-entiteetin tunnus (jätä pois tai tyhjäksi tyhjentääksesi sen)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Tunnit",
           "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24)."
+        },
+        "origin": {
+          "name": "Alkuperä",
+          "description": "Valinnainen vapaamuotoinen merkintä, joka toistetaan home_keeper_task_snoozed-tapahtumassa, jotta osallistuva integraatio voi tunnistaa ja ohittaa laukaisemansa torkun (silmukan esto). Home Keeper ei tulkitse sitä."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "Tehtävän tunnus",
           "description": "Ohitettavan tehtävän tunnus."
+        },
+        "origin": {
+          "name": "Alkuperä",
+          "description": "Valinnainen vapaamuotoinen merkintä, joka toistetaan home_keeper_task_skipped-tapahtumassa, jotta osallistuva integraatio voi tunnistaa ja ohittaa laukaisemansa ohituksen (silmukan esto). Home Keeper ei tulkitse sitä."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Kertaluonteisten säilytys (päivää)",
           "description": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää ne pysyvästi."
+        },
+        "dismissed_companions": {
+          "name": "Hylätyt kumppanit",
+          "description": "Glue-integraatiodomeenit, jotka piilotetaan kohdan Asetukset → Kumppanit \"Ehdotetut\"-luettelosta. Hylkääminen vain vaimentaa ehdotuksen; yhdistetty pariliitos näytetään aina."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "Poistettavan arkistoidun suorituksen ISO-aikaleima (ts)."
         }
       }
+    },
+    "register_companion": {
+      "name": "Rekisteröi kumppani",
+      "description": "Ilmoita toinen integraatio, joka toimii Home Keeperin kanssa, jotta se näkyy paneelin Asetukset → Kumppanit -osiossa. Home Keeper tallentaa kuvaajan sanatarkasti eikä koskaan tuo kumppania.",
+      "fields": {
+        "domain": {
+          "name": "Toimialue",
+          "description": "Kumppani-integraation toimialue."
+        },
+        "name": {
+          "name": "Nimi",
+          "description": "Näyttönimi, joka näytetään Kumppanit-luettelossa."
+        },
+        "icon": {
+          "name": "Kuvake",
+          "description": "Rivin mdi-kuvake."
+        },
+        "description": {
+          "name": "Kuvaus",
+          "description": "Yksi rivi, joka kuvaa, mitä kumppani tekee Home Keeperin kanssa."
+        },
+        "config_entry_id": {
+          "name": "Määritysmerkinnän tunnus",
+          "description": "Kumppanin määritysmerkinnän tunnus, jotta paneelin \"Määritä\"-painike voi linkittää suoraan sen asetussivulle."
+        },
+        "docs_url": {
+          "name": "Dokumentaation URL",
+          "description": "Linkki kumppanin dokumentaatioon."
+        },
+        "capabilities": {
+          "name": "Ominaisuudet",
+          "description": "Vapaamuotoiset ominaisuustunnisteet (esim. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Luettele kumppanit",
+      "description": "Palauta yhdistetty kumppaniluettelo (itserekisteröidyt integraatiot sekä havaitut upstream-lähteet, joiden glue-liitäntää ei ole vielä asennettu) vastauksena."
     }
   },
   "entity": {

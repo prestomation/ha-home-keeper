@@ -92,8 +92,16 @@ class HomeKeeperCalendarEntity(
             anchor = dt_util.parse_datetime(task["anchor"])
             if anchor is None:
                 return None
+            # Keep a fixed occurrence active during its event window: query from
+            # ``now - EVENT_DURATION`` so an in-progress occurrence (whose
+            # ``start + EVENT_DURATION`` still covers ``now``) isn't skipped past.
+            # ``start > now - EVENT_DURATION`` ⇔ ``start + EVENT_DURATION > now``,
+            # mirroring the floating branch below.
             return recurrence.next_fixed_occurrence(
-                anchor, task["freq"], int(task["interval"]), after=now
+                anchor,
+                task["freq"],
+                int(task["interval"]),
+                after=now - EVENT_DURATION,
             )
         due_iso = task.get("next_due")
         due = dt_util.parse_datetime(due_iso) if due_iso else None
@@ -120,13 +128,23 @@ class HomeKeeperCalendarEntity(
                 anchor = dt_util.parse_datetime(task["anchor"])
                 if anchor is None:
                     continue
+                # Expand from ``start_date - EVENT_DURATION`` so an occurrence that
+                # started just before the window but whose event still overlaps the
+                # window start is included. The half-open upper bound (``< end_date``)
+                # is preserved, so nothing is double-counted.
                 for occ in recurrence.expand_fixed_occurrences(
-                    anchor, task["freq"], int(task["interval"]), start_date, end_date
+                    anchor,
+                    task["freq"],
+                    int(task["interval"]),
+                    start_date - EVENT_DURATION,
+                    end_date,
                 ):
                     events.append(_event_for(task, occ))
             else:
                 due_iso = task.get("next_due")
                 due = dt_util.parse_datetime(due_iso) if due_iso else None
-                if due and start_date <= due < end_date:
+                # Include a floating occurrence whose event overlaps the window
+                # start, not only one that starts within it.
+                if due and due < end_date and due + EVENT_DURATION > start_date:
                     events.append(_event_for(task, due))
         return sorted(events, key=lambda e: e.start)

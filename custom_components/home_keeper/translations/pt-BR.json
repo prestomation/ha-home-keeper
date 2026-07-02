@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Área",
           "description": "Área opcional a associar a esta tarefa."
+        },
+        "labels": {
+          "name": "Etiquetas",
+          "description": "Etiquetas opcionais do Home Assistant para marcar esta tarefa. Usadas pelo filtro de etiquetas do cartão do painel (que também corresponde às etiquetas do dispositivo ou área anexados)."
+        },
+        "card_links": {
+          "name": "Links do cartão",
+          "description": "Links de eletrodomésticos a exibir na linha do cartão do painel desta tarefa — uma lista de objetos (asset_id, entry_id) que apontam para os links de documentos ou metadados de um eletrodoméstico. Geralmente definidos pelo editor de tarefas do painel."
+        },
+        "task_chips": {
+          "name": "Chips da tarefa",
+          "description": "Chips de metadados fornecidos pela integração, exibidos na lista de tarefas e no cartão do painel — uma lista de objetos (label, icon?, url?). Não editáveis pelo usuário no painel."
+        },
+        "source": {
+          "name": "Origem",
+          "description": "Procedência opaca de propriedade da integração que criou a tarefa. O Home Keeper a armazena e a repassa textualmente e nunca a inspeciona. Consulte docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Detalhe da conclusão",
+          "description": "Quanto contexto capturar quando esta tarefa for concluída: none (marcar como feita sem solicitação), optional (oferece os campos note/cost/photo/who) ou required (exige os campos listados em completion_required_fields). Solicitação de captura apenas no painel."
+        },
+        "completion_required_fields": {
+          "name": "Campos de conclusão obrigatórios",
+          "description": "Quais campos de metadados da conclusão o painel torna obrigatórios quando o detalhe da conclusão é required — qualquer um entre note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Área",
           "description": "Área a associar a esta tarefa."
+        },
+        "labels": {
+          "name": "Etiquetas",
+          "description": "Etiquetas do Home Assistant para marcar esta tarefa (substitui o conjunto atual). Usadas pelo filtro de etiquetas do cartão do painel."
+        },
+        "card_links": {
+          "name": "Links do cartão",
+          "description": "Links de eletrodomésticos a exibir na linha do cartão do painel desta tarefa (substitui o conjunto atual) — uma lista de objetos (asset_id, entry_id). Geralmente definidos pelo editor de tarefas do painel."
+        },
+        "task_chips": {
+          "name": "Chips da tarefa",
+          "description": "Chips de metadados fornecidos pela integração (substitui o conjunto atual) — uma lista de objetos (label, icon?, url?). Consulte add_task para o esquema completo."
+        },
+        "source": {
+          "name": "Origem",
+          "description": "Procedência opaca de propriedade da integração que criou a tarefa. Consulte docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Detalhe da conclusão",
+          "description": "Quanto contexto capturar na conclusão: none, optional ou required (consulte add_task). Solicitação de captura apenas no painel."
+        },
+        "completion_required_fields": {
+          "name": "Campos de conclusão obrigatórios",
+          "description": "Quais campos de metadados da conclusão o painel torna obrigatórios quando o detalhe da conclusão é required — qualquer um entre note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Concluída em",
           "description": "Carimbo de data/hora de conclusão opcional (padrão: agora)."
+        },
+        "origin": {
+          "name": "Origem",
+          "description": "Marcador opcional de formato livre repassado no evento home_keeper_task_completed, para que uma integração contribuinte possa reconhecer e ignorar a conclusão que ela acionou (prevenção de laço). O Home Keeper não o interpreta."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Nota opcional de formato livre registrada com esta conclusão."
+        },
+        "cost": {
+          "name": "Custo",
+          "description": "Custo opcional registrado com esta conclusão (sua moeda do HA)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Id opcional de uma imagem enviada ao Home Assistant para anexar como foto da conclusão (o painel define isto quando você faz o envio pela caixa de diálogo de conclusão)."
+        },
+        "who": {
+          "name": "Quem",
+          "description": "Pessoa opcional que realizou a tarefa (um id de entidade de pessoa)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Carimbo de data/hora da conclusão",
           "description": "O carimbo de data/hora ISO (ts) da entrada de conclusão a editar."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Nova nota (omita ou deixe em branco para limpá-la)."
+        },
+        "cost": {
+          "name": "Custo",
+          "description": "Novo custo (omita ou deixe em branco para limpá-lo)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Novo id de imagem enviada (omita ou deixe em branco para limpá-lo)."
+        },
+        "who": {
+          "name": "Quem",
+          "description": "Novo id de entidade de pessoa (omita ou deixe em branco para limpá-lo)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Horas",
           "description": "Em quantas horas adiar a tarefa (padrão de 24)."
+        },
+        "origin": {
+          "name": "Origem",
+          "description": "Marcador opcional de formato livre repassado no evento home_keeper_task_snoozed, para que uma integração contribuinte possa reconhecer e ignorar o adiamento que ela acionou (prevenção de laço). O Home Keeper não o interpreta."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "ID da tarefa",
           "description": "O id da tarefa a pular."
+        },
+        "origin": {
+          "name": "Origem",
+          "description": "Marcador opcional de formato livre repassado no evento home_keeper_task_skipped, para que uma integração contribuinte possa reconhecer e ignorar a ação de pular que ela acionou (prevenção de laço). O Home Keeper não o interpreta."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Retenção de tarefas avulsas (dias)",
           "description": "Excluir automaticamente uma tarefa avulsa concluída este número de dias após a conclusão. 0 as mantém para sempre."
+        },
+        "dismissed_companions": {
+          "name": "Companions dispensados",
+          "description": "Domínios de integrações de conexão a ocultar da lista \"Sugeridos\" em Configurações → Companions. Dispensar apenas silencia uma sugestão; um pareamento conectado é sempre exibido."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "O carimbo de data/hora ISO (ts) da conclusão arquivada a remover."
         }
       }
+    },
+    "register_companion": {
+      "name": "Registrar companion",
+      "description": "Anuncia outra integração que funciona com o Home Keeper para que ela apareça na seção Configurações → Companions do painel. O Home Keeper armazena o descritor textualmente e nunca importa o companion.",
+      "fields": {
+        "domain": {
+          "name": "Domínio",
+          "description": "O domínio da integração companion."
+        },
+        "name": {
+          "name": "Nome",
+          "description": "Nome de exibição mostrado na lista de Companions."
+        },
+        "icon": {
+          "name": "Ícone",
+          "description": "Um ícone mdi para a linha."
+        },
+        "description": {
+          "name": "Descrição",
+          "description": "Uma linha descrevendo o que o companion faz com o Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "Id da entrada de configuração",
+          "description": "O id da entrada de configuração do companion, para que o botão \"Configurar\" do painel possa criar um link direto para a página de opções dele."
+        },
+        "docs_url": {
+          "name": "URL da documentação",
+          "description": "Um link para a documentação do companion."
+        },
+        "capabilities": {
+          "name": "Capacidades",
+          "description": "Tags de capacidade de formato livre (ex.: care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Listar companions",
+      "description": "Retorna como resposta a lista combinada de companions (integrações auto-registradas mais upstreams detectados cuja conexão ainda não está instalada)."
     }
   },
   "entity": {

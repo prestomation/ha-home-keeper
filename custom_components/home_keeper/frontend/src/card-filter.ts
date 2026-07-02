@@ -85,8 +85,12 @@ function endOfToday(now: number): number {
  * overdue and soon, and adds a NaN guard for malformed due dates.
  */
 export function statusBucket(task: Task, now = Date.now()): StatusBucket {
-  // A dormant triggered task is "monitored" — armed-but-not-due.
-  if (task.recurrence_type === 'triggered' && !task.next_due) return 'monitored';
+  // A dormant triggered/sensor task is "monitored" — armed-but-not-due.
+  if (
+    (task.recurrence_type === 'triggered' || task.recurrence_type === 'sensor') &&
+    !task.next_due
+  )
+    return 'monitored';
   if (!task.next_due) return 'none';
   const due = new Date(task.next_due).getTime();
   if (Number.isNaN(due)) return 'none';

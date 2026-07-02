@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Àrea",
           "description": "Àrea opcional per associar amb aquesta tasca."
+        },
+        "labels": {
+          "name": "Etiquetes",
+          "description": "Etiquetes opcionals de Home Assistant amb què marcar aquesta tasca. Les utilitza el filtre d'etiquetes de la targeta del tauler (que també coincideix amb les etiquetes del dispositiu o àrea associats)."
+        },
+        "card_links": {
+          "name": "Enllaços de la targeta",
+          "description": "Enllaços d'electrodomèstic per mostrar a la fila d'aquesta tasca a la targeta del tauler — una llista d'objectes (asset_id, entry_id) que apunten al document d'un electrodomèstic o als seus enllaços de metadades. Normalment s'estableix des de l'editor de tasques del panell."
+        },
+        "task_chips": {
+          "name": "Xips de la tasca",
+          "description": "Xips de metadades proporcionats per la integració, mostrats a la llista de tasques i a la targeta del tauler — una llista d'objectes (label, icon?, url?). No editables per l'usuari al panell."
+        },
+        "source": {
+          "name": "Origen",
+          "description": "Procedència opaca propietat de la integració que ha creat la tasca. Home Keeper l'emmagatzema i la retorna literalment i mai la inspecciona. Vegeu docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Detall de la realització",
+          "description": "Quant context capturar en completar aquesta tasca: none (marca com a feta sense preguntar), optional (ofereix els camps note/cost/photo/who) o required (exigeix els camps enumerats a completion_required_fields). Diàleg de captura només al panell."
+        },
+        "completion_required_fields": {
+          "name": "Camps de realització obligatoris",
+          "description": "Quins camps de metadades de realització fa obligatoris el panell quan el detall de la realització és required — qualsevol de note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Àrea",
           "description": "Àrea per associar amb aquesta tasca."
+        },
+        "labels": {
+          "name": "Etiquetes",
+          "description": "Etiquetes de Home Assistant amb què marcar aquesta tasca (substitueix el conjunt actual). Les utilitza el filtre d'etiquetes de la targeta del tauler."
+        },
+        "card_links": {
+          "name": "Enllaços de la targeta",
+          "description": "Enllaços d'electrodomèstic per mostrar a la fila d'aquesta tasca a la targeta del tauler (substitueix el conjunt actual) — una llista d'objectes (asset_id, entry_id). Normalment s'estableix des de l'editor de tasques del panell."
+        },
+        "task_chips": {
+          "name": "Xips de la tasca",
+          "description": "Xips de metadades proporcionats per la integració (substitueix el conjunt actual) — una llista d'objectes (label, icon?, url?). Vegeu add_task per a l'esquema complet."
+        },
+        "source": {
+          "name": "Origen",
+          "description": "Procedència opaca propietat de la integració que ha creat la tasca. Vegeu docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Detall de la realització",
+          "description": "Quant context capturar en completar: none, optional o required (vegeu add_task). Diàleg de captura només al panell."
+        },
+        "completion_required_fields": {
+          "name": "Camps de realització obligatoris",
+          "description": "Quins camps de metadades de realització fa obligatoris el panell quan el detall de la realització és required — qualsevol de note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Completada el",
           "description": "Marca de temps de finalització opcional (per defecte, ara)."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador opcional de text lliure que es retorna a l'esdeveniment home_keeper_task_completed, perquè una integració col·laboradora pugui reconèixer i ignorar la realització que ha provocat (prevenció de bucles). Home Keeper no l'interpreta."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Nota opcional de text lliure registrada amb aquesta realització."
+        },
+        "cost": {
+          "name": "Cost",
+          "description": "Cost opcional registrat amb aquesta realització (la moneda de la teva HA)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Id opcional d'una imatge pujada a Home Assistant per adjuntar com a foto de la realització (el panell l'estableix quan puges des del diàleg de realització)."
+        },
+        "who": {
+          "name": "Qui",
+          "description": "Persona opcional que ha fet la tasca (un id d'entitat de persona)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Marca de temps de la realització",
           "description": "La marca de temps ISO (ts) de l'entrada de realització a editar."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Nota nova (ometeu-la o deixeu-la en blanc per esborrar-la)."
+        },
+        "cost": {
+          "name": "Cost",
+          "description": "Cost nou (ometeu-lo o deixeu-lo en blanc per esborrar-lo)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Id nou d'imatge pujada (ometeu-lo o deixeu-lo en blanc per esborrar-lo)."
+        },
+        "who": {
+          "name": "Qui",
+          "description": "Id nou d'entitat de persona (ometeu-lo o deixeu-lo en blanc per esborrar-lo)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Hores",
           "description": "Quantes hores s'ha d'ajornar la tasca (24 per defecte)."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador opcional de text lliure que es retorna a l'esdeveniment home_keeper_task_snoozed, perquè una integració col·laboradora pugui reconèixer i ignorar l'ajornament que ha provocat (prevenció de bucles). Home Keeper no l'interpreta."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "ID de tasca",
           "description": "L'id de la tasca a ometre."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador opcional de text lliure que es retorna a l'esdeveniment home_keeper_task_skipped, perquè una integració col·laboradora pugui reconèixer i ignorar l'omissió que ha provocat (prevenció de bucles). Home Keeper no l'interpreta."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Retenció de tasques úniques (dies)",
           "description": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 les manté per sempre."
+        },
+        "dismissed_companions": {
+          "name": "Companys descartats",
+          "description": "Dominis d'integracions de connexió a amagar de la llista «Suggerits» a Configuració → Companys. Descartar només silencia un suggeriment; un aparellament connectat es mostra sempre."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "La marca de temps ISO (ts) de la realització arxivada a eliminar."
         }
       }
+    },
+    "register_companion": {
+      "name": "Registra un company",
+      "description": "Anuncia una altra integració que funciona amb Home Keeper perquè aparegui a la secció Configuració → Companys del panell. Home Keeper emmagatzema el descriptor literalment i mai importa el company.",
+      "fields": {
+        "domain": {
+          "name": "Domini",
+          "description": "El domini de la integració del company."
+        },
+        "name": {
+          "name": "Nom",
+          "description": "Nom visible que es mostra a la llista de Companys."
+        },
+        "icon": {
+          "name": "Icona",
+          "description": "Una icona mdi per a la fila."
+        },
+        "description": {
+          "name": "Descripció",
+          "description": "Una línia que descriu què fa el company amb Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "Id de l'entrada de configuració",
+          "description": "L'id de l'entrada de configuració del company, perquè el botó «Configura» del panell pugui enllaçar directament amb la seva pàgina d'opcions."
+        },
+        "docs_url": {
+          "name": "URL de la documentació",
+          "description": "Un enllaç a la documentació del company."
+        },
+        "capabilities": {
+          "name": "Capacitats",
+          "description": "Etiquetes de capacitat de format lliure (p. ex. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Llista els companys",
+      "description": "Retorna la llista combinada de companys (integracions autoregistrades més upstreams detectats el connector dels quals encara no està instal·lat) com a resposta."
     }
   },
   "entity": {

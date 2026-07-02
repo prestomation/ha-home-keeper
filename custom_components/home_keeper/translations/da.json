@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Område",
           "description": "Valgfrit område at knytte til denne opgave."
+        },
+        "labels": {
+          "name": "Etiketter",
+          "description": "Valgfrie Home Assistant-etiketter til at mærke denne opgave med. Bruges af dashboard-kortets etiketfilter (som også matcher etiketter på den tilknyttede enhed eller det tilknyttede område)."
+        },
+        "card_links": {
+          "name": "Kortlinks",
+          "description": "Apparatlinks, der skal vises på denne opgaves dashboard-kortrække – en liste af (asset_id, entry_id)-objekter, der peger på et apparats dokument- eller metadatalinks. Angives normalt fra panelets opgaveredigering."
+        },
+        "task_chips": {
+          "name": "Opgavechips",
+          "description": "Metadatachips leveret af integrationen og vist i opgavelisten og dashboard-kortet – en liste af (label, icon?, url?)-objekter. Kan ikke redigeres af brugeren i panelet."
+        },
+        "source": {
+          "name": "Kilde",
+          "description": "Uigennemsigtig oprindelse ejet af den integration, der oprettede opgaven. Home Keeper gemmer og gengiver den ordret og inspicerer den aldrig. Se docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Fuldførelsesdetaljer",
+          "description": "Hvor meget kontekst der skal registreres, når denne opgave fuldføres: none (marker som udført uden prompt), optional (tilbyd felterne note/cost/photo/who) eller required (kræv de felter, der er angivet i completion_required_fields). Registreringsprompt kun i panelet."
+        },
+        "completion_required_fields": {
+          "name": "Påkrævede fuldførelsesfelter",
+          "description": "Hvilke fuldførelsesmetadatafelter panelet gør obligatoriske, når fuldførelsesdetaljen er required – et vilkårligt af note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Område",
           "description": "Område at knytte til denne opgave."
+        },
+        "labels": {
+          "name": "Etiketter",
+          "description": "Home Assistant-etiketter til at mærke denne opgave med (erstatter det aktuelle sæt). Bruges af dashboard-kortets etiketfilter."
+        },
+        "card_links": {
+          "name": "Kortlinks",
+          "description": "Apparatlinks, der skal vises på denne opgaves dashboard-kortrække (erstatter det aktuelle sæt) – en liste af (asset_id, entry_id)-objekter. Angives normalt fra panelets opgaveredigering."
+        },
+        "task_chips": {
+          "name": "Opgavechips",
+          "description": "Metadatachips leveret af integrationen (erstatter det aktuelle sæt) – en liste af (label, icon?, url?)-objekter. Se add_task for det fulde skema."
+        },
+        "source": {
+          "name": "Kilde",
+          "description": "Uigennemsigtig oprindelse ejet af den integration, der oprettede opgaven. Se docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Fuldførelsesdetaljer",
+          "description": "Hvor meget kontekst der skal registreres ved fuldførelse: none, optional eller required (se add_task). Registreringsprompt kun i panelet."
+        },
+        "completion_required_fields": {
+          "name": "Påkrævede fuldførelsesfelter",
+          "description": "Hvilke fuldførelsesmetadatafelter panelet gør obligatoriske, når fuldførelsesdetaljen er required – et vilkårligt af note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Fuldført",
           "description": "Valgfrit tidsstempel for fuldførelse (standard er nu)."
+        },
+        "origin": {
+          "name": "Oprindelse",
+          "description": "Valgfri fritekstmarkør, der gengives i home_keeper_task_completed-hændelsen, så en bidragende integration kan genkende og ignorere den fuldførelse, den udløste (sløjfeforebyggelse). Home Keeper fortolker den ikke."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Valgfri fritekstnote registreret med denne fuldførelse."
+        },
+        "cost": {
+          "name": "Pris",
+          "description": "Valgfri pris registreret med denne fuldførelse (din HA-valuta)."
+        },
+        "photo": {
+          "name": "Billede",
+          "description": "Valgfrit Home Assistant-billedupload-id, der skal vedhæftes som fuldførelsesbillede (panelet angiver dette, når du uploader fra fuldførelsesdialogen)."
+        },
+        "who": {
+          "name": "Hvem",
+          "description": "Valgfri person, der udførte opgaven (et person-entitets-id)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Tidsstempel for fuldførelse",
           "description": "ISO-tidsstemplet (ts) for den fuldførelsespost, der skal redigeres."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Ny note (udelad eller lad stå tom for at rydde den)."
+        },
+        "cost": {
+          "name": "Pris",
+          "description": "Ny pris (udelad eller lad stå tom for at rydde den)."
+        },
+        "photo": {
+          "name": "Billede",
+          "description": "Nyt billedupload-id (udelad eller lad stå tom for at rydde det)."
+        },
+        "who": {
+          "name": "Hvem",
+          "description": "Nyt person-entitets-id (udelad eller lad stå tom for at rydde det)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Timer",
           "description": "Hvor mange timer opgaven skal udskydes (standard 24)."
+        },
+        "origin": {
+          "name": "Oprindelse",
+          "description": "Valgfri fritekstmarkør, der gengives i home_keeper_task_snoozed-hændelsen, så en bidragende integration kan genkende og ignorere den udsættelse, den udløste (sløjfeforebyggelse). Home Keeper fortolker den ikke."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "Opgave-ID",
           "description": "Id'et på den opgave, der skal springes over."
+        },
+        "origin": {
+          "name": "Oprindelse",
+          "description": "Valgfri fritekstmarkør, der gengives i home_keeper_task_skipped-hændelsen, så en bidragende integration kan genkende og ignorere den overspringning, den udløste (sløjfeforebyggelse). Home Keeper fortolker den ikke."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Opbevaring af engangsopgaver (dage)",
           "description": "Slet automatisk en fuldført engangsopgave så mange dage efter fuldførelsen. 0 beholder dem for evigt."
+        },
+        "dismissed_companions": {
+          "name": "Afviste ledsagere",
+          "description": "Glue-integrationsdomæner, der skal skjules fra listen \"Foreslået\" under Indstillinger → Ledsagere. Afvisning dæmper kun et forslag; en tilsluttet parring vises altid."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "ISO-tidsstemplet (ts) for den arkiverede gennemførelse, der skal fjernes."
         }
       }
+    },
+    "register_companion": {
+      "name": "Registrer ledsager",
+      "description": "Annoncér en anden integration, der fungerer med Home Keeper, så den vises i panelets Indstillinger → Ledsagere-sektion. Home Keeper gemmer deskriptoren ordret og importerer aldrig ledsageren.",
+      "fields": {
+        "domain": {
+          "name": "Domæne",
+          "description": "Ledsagerintegrationens domæne."
+        },
+        "name": {
+          "name": "Navn",
+          "description": "Visningsnavn, der vises i Ledsagere-listen."
+        },
+        "icon": {
+          "name": "Ikon",
+          "description": "Et mdi-ikon til rækken."
+        },
+        "description": {
+          "name": "Beskrivelse",
+          "description": "Én linje, der beskriver, hvad ledsageren gør med Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "Konfigurationspost-id",
+          "description": "Ledsagerens konfigurationspost-id, så panelets \"Konfigurer\"-knap kan dybdelinke til dens indstillingsside."
+        },
+        "docs_url": {
+          "name": "Dokumentations-URL",
+          "description": "Et link til ledsagerens dokumentation."
+        },
+        "capabilities": {
+          "name": "Funktioner",
+          "description": "Fritekst-funktionstags (f.eks. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Vis ledsagere",
+      "description": "Returnér den sammenlagte ledsagerliste (selvregistrerede integrationer plus detekterede upstreams, hvis glue endnu ikke er installeret) som et svar."
     }
   },
   "entity": {

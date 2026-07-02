@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Obszar",
           "description": "Opcjonalny obszar do powiązania z tym zadaniem."
+        },
+        "labels": {
+          "name": "Etykiety",
+          "description": "Opcjonalne etykiety Home Assistant do oznaczenia tego zadania. Używane przez filtr etykiet karty pulpitu (który dopasowuje również etykiety przypisanego urządzenia lub obszaru)."
+        },
+        "card_links": {
+          "name": "Łącza karty",
+          "description": "Łącza do urządzeń wyświetlane w wierszu tego zadania na karcie pulpitu — lista obiektów (asset_id, entry_id) wskazujących na dokumenty lub łącza z metadanymi urządzenia. Zwykle ustawiane w edytorze zadań panelu."
+        },
+        "task_chips": {
+          "name": "Chipy zadania",
+          "description": "Chipy metadanych dostarczane przez integrację, wyświetlane na liście zadań i karcie pulpitu — lista obiektów (label, icon?, url?). Nie można ich edytować przez użytkownika w panelu."
+        },
+        "source": {
+          "name": "Źródło",
+          "description": "Nieprzejrzyste dane o pochodzeniu należące do integracji, która utworzyła zadanie. Home Keeper przechowuje je i zwraca dosłownie oraz nigdy ich nie sprawdza. Zobacz docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Szczegóły ukończenia",
+          "description": "Ile kontekstu zebrać po ukończeniu tego zadania: none (oznacz jako wykonane bez pytania), optional (zaoferuj pola note/cost/photo/who) lub required (wymagaj pól wymienionych w completion_required_fields). Monit o zebranie danych tylko w panelu."
+        },
+        "completion_required_fields": {
+          "name": "Wymagane pola ukończenia",
+          "description": "Które pola metadanych ukończenia panel czyni obowiązkowymi, gdy szczegóły ukończenia są ustawione na required — dowolne z note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Obszar",
           "description": "Obszar do powiązania z tym zadaniem."
+        },
+        "labels": {
+          "name": "Etykiety",
+          "description": "Etykiety Home Assistant do oznaczenia tego zadania (zastępują bieżący zestaw). Używane przez filtr etykiet karty pulpitu."
+        },
+        "card_links": {
+          "name": "Łącza karty",
+          "description": "Łącza do urządzeń wyświetlane w wierszu tego zadania na karcie pulpitu (zastępują bieżący zestaw) — lista obiektów (asset_id, entry_id). Zwykle ustawiane w edytorze zadań panelu."
+        },
+        "task_chips": {
+          "name": "Chipy zadania",
+          "description": "Chipy metadanych dostarczane przez integrację (zastępują bieżący zestaw) — lista obiektów (label, icon?, url?). Pełny schemat znajdziesz w add_task."
+        },
+        "source": {
+          "name": "Źródło",
+          "description": "Nieprzejrzyste dane o pochodzeniu należące do integracji, która utworzyła zadanie. Zobacz docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Szczegóły ukończenia",
+          "description": "Ile kontekstu zebrać przy ukończeniu: none, optional lub required (zobacz add_task). Monit o zebranie danych tylko w panelu."
+        },
+        "completion_required_fields": {
+          "name": "Wymagane pola ukończenia",
+          "description": "Które pola metadanych ukończenia panel czyni obowiązkowymi, gdy szczegóły ukończenia są ustawione na required — dowolne z note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Ukończono o",
           "description": "Opcjonalny znacznik czasu ukończenia (domyślnie teraz)."
+        },
+        "origin": {
+          "name": "Inicjator",
+          "description": "Opcjonalny znacznik w postaci dowolnego tekstu, zwracany w zdarzeniu home_keeper_task_completed, dzięki czemu wnosząca wkład integracja może rozpoznać i zignorować ukończenie, które sama wywołała (zapobieganie pętlom). Home Keeper go nie interpretuje."
+        },
+        "note": {
+          "name": "Notatka",
+          "description": "Opcjonalna notatka w postaci dowolnego tekstu zapisana wraz z tym ukończeniem."
+        },
+        "cost": {
+          "name": "Koszt",
+          "description": "Opcjonalny koszt zapisany wraz z tym ukończeniem (w walucie Twojego HA)."
+        },
+        "photo": {
+          "name": "Zdjęcie",
+          "description": "Opcjonalny id przesłanego obrazu Home Assistant do dołączenia jako zdjęcie ukończenia (panel ustawia go, gdy przesyłasz z okna dialogowego ukończenia)."
+        },
+        "who": {
+          "name": "Kto",
+          "description": "Opcjonalna osoba, która wykonała zadanie (id encji person)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Znacznik czasu ukończenia",
           "description": "Znacznik czasu ISO (ts) wpisu ukończenia do edycji."
+        },
+        "note": {
+          "name": "Notatka",
+          "description": "Nowa notatka (pomiń lub pozostaw puste, aby ją wyczyścić)."
+        },
+        "cost": {
+          "name": "Koszt",
+          "description": "Nowy koszt (pomiń lub pozostaw puste, aby go wyczyścić)."
+        },
+        "photo": {
+          "name": "Zdjęcie",
+          "description": "Nowy id przesłanego obrazu (pomiń lub pozostaw puste, aby go wyczyścić)."
+        },
+        "who": {
+          "name": "Kto",
+          "description": "Nowy id encji person (pomiń lub pozostaw puste, aby go wyczyścić)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Godziny",
           "description": "O ile godzin odroczyć zadanie (domyślnie 24)."
+        },
+        "origin": {
+          "name": "Inicjator",
+          "description": "Opcjonalny znacznik w postaci dowolnego tekstu, zwracany w zdarzeniu home_keeper_task_snoozed, dzięki czemu wnosząca wkład integracja może rozpoznać i zignorować odłożenie, które sama wywołała (zapobieganie pętlom). Home Keeper go nie interpretuje."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "Identyfikator zadania",
           "description": "Identyfikator zadania do pominięcia."
+        },
+        "origin": {
+          "name": "Inicjator",
+          "description": "Opcjonalny znacznik w postaci dowolnego tekstu, zwracany w zdarzeniu home_keeper_task_skipped, dzięki czemu wnosząca wkład integracja może rozpoznać i zignorować pominięcie, które sama wywołała (zapobieganie pętlom). Home Keeper go nie interpretuje."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Przechowywanie jednorazowych (dni)",
           "description": "Automatycznie usuwaj ukończone zadanie jednorazowe po upływie tylu dni od jego ukończenia. Wartość 0 zachowuje je na zawsze."
+        },
+        "dismissed_companions": {
+          "name": "Odrzuceni towarzysze",
+          "description": "Domeny integracji łączących do ukrycia z listy „Sugerowane” w Ustawienia → Towarzysze. Odrzucenie jedynie wycisza sugestię; połączone powiązanie jest zawsze wyświetlane."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "Znacznik czasu ISO (ts) zarchiwizowanego wykonania do usunięcia."
         }
       }
+    },
+    "register_companion": {
+      "name": "Zarejestruj towarzysza",
+      "description": "Ogłoś inną integrację współpracującą z Home Keeper, aby pojawiła się w sekcji Ustawienia → Towarzysze panelu. Home Keeper przechowuje deskryptor dosłownie i nigdy nie importuje towarzysza.",
+      "fields": {
+        "domain": {
+          "name": "Domena",
+          "description": "Domena integracji towarzyszącej."
+        },
+        "name": {
+          "name": "Nazwa",
+          "description": "Wyświetlana nazwa pokazywana na liście towarzyszy."
+        },
+        "icon": {
+          "name": "Ikona",
+          "description": "Ikona mdi dla wiersza."
+        },
+        "description": {
+          "name": "Opis",
+          "description": "Jeden wiersz opisujący, co towarzysz robi z Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "Id wpisu konfiguracji",
+          "description": "Id wpisu konfiguracji towarzysza, aby przycisk „Konfiguruj” w panelu mógł kierować bezpośrednio do jego strony opcji."
+        },
+        "docs_url": {
+          "name": "URL dokumentacji",
+          "description": "Łącze do dokumentacji towarzysza."
+        },
+        "capabilities": {
+          "name": "Możliwości",
+          "description": "Znaczniki możliwości w postaci dowolnego tekstu (np. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Wyświetl towarzyszy",
+      "description": "Zwróć jako odpowiedź scaloną listę towarzyszy (samodzielnie zarejestrowane integracje oraz wykryte integracje nadrzędne, których łącznik nie jest jeszcze zainstalowany)."
     }
   },
   "entity": {

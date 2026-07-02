@@ -50,20 +50,20 @@ def test_safe_filename_caps_length():
 
 
 def test_validate_upload_accepts_pdf_and_returns_sniffed_type():
-    # A misleading declared MIME is ignored in favour of the sniffed type.
-    content_type, filename = d.validate_upload("manual.pdf", "text/plain", PDF)
+    # The content type is sniffed from the bytes (no client-declared MIME is consulted).
+    content_type, filename = d.validate_upload("manual.pdf", PDF)
     assert content_type == "application/pdf"
     assert filename == "manual.pdf"
 
 
 def test_validate_upload_rejects_empty_oversized_and_unknown():
     with pytest.raises(AssetValidationError):
-        d.validate_upload("x.pdf", "application/pdf", b"")
+        d.validate_upload("x.pdf", b"")
     with pytest.raises(AssetValidationError):
-        d.validate_upload("x.exe", "application/octet-stream", b"MZ\x90\x00garbage")
+        d.validate_upload("x.exe", b"MZ\x90\x00garbage")
     big = PDF + b"0" * (25 * 1024 * 1024 + 1)
     with pytest.raises(AssetValidationError):
-        d.validate_upload("big.pdf", "application/pdf", big)
+        d.validate_upload("big.pdf", big)
 
 
 def test_safe_segment_reduces_or_rejects():
