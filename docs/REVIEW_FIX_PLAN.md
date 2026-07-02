@@ -81,8 +81,9 @@ add/extend a regression test where the bug class allows it, and update
   `home_keeper.delete_completion` + `home_keeper.delete_archived_completion`
   services (services.yaml + strings.json), fire `asset_updated` for archived
   deletion, document in EVENTS.md. (`websocket_api.py:281`)
-- [ ] M9. `async_remove_entry` must delete the uploaded-documents tree
-  (`<config>/home_keeper/documents/`). (`__init__.py:1042`, `manuals.py`)
+- [x] M9. `async_remove_entry` now calls `manuals.async_delete_all_documents` to
+  rmtree the uploaded-documents blob tree on uninstall (was left on disk forever).
+  (`__init__.py`, `manuals.py`)
 - [ ] M10. Panel appliance editor: re-render after metadata/part row deletion and
   stop stale-index closures from corrupting sibling rows (key rows or re-read index
   at event time). (`panel.ts:3986,4084`)

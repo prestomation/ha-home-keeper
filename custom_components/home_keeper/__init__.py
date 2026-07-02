@@ -1071,8 +1071,10 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     Virtual asset devices (and per-task self-owned devices) are tied to this config
     entry, so Home Assistant removes them automatically. Here we additionally drop
-    our stored tasks/assets document so no residue is left behind.
+    our stored tasks/assets document and the uploaded-documents blob tree so no
+    residue is left behind.
     """
     discard_edge_state(hass, entry.entry_id)
     store = HomeKeeperStore(hass)
     await store.async_remove()
+    await manuals.async_delete_all_documents(hass)

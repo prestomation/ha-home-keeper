@@ -104,6 +104,16 @@ async def async_delete_asset_documents(hass: HomeAssistant, asset_id: str) -> No
     await hass.async_add_executor_job(_rmtree, path)
 
 
+async def async_delete_all_documents(hass: HomeAssistant) -> None:
+    """Remove the entire uploaded-documents tree (called on integration removal).
+
+    Per-asset deletes cover the running lifecycle, but uninstalling the integration
+    must also drop the blob tree — otherwise gigabytes of manuals/receipts linger in
+    the config directory forever (and a reinstall can resurrect stale blobs).
+    """
+    await hass.async_add_executor_job(_rmtree, _root(hass))
+
+
 def document_path(asset_id: str, document_id: str) -> str:
     """The view path for a file document (signed by the websocket command)."""
     return f"{DOCUMENT_URL_PREFIX}/{asset_id}/{document_id}"
