@@ -909,6 +909,14 @@ class HomeKeeperStore:
             raise KeyError(asset_id)
         if assets.remove_archived_completion(asset, task_id, ts):
             await self._save()
+            # The asset's archived history changed — fire asset_updated so listeners
+            # (and the events contract) see it, mirroring every other asset mutation.
+            self._hass.bus.async_fire(
+                EVENT_ASSET_UPDATED,
+                events.asset_event_data(
+                    asset, extra={"changed_fields": ["archived_history"]}
+                ),
+            )
         return asset
 
     def _reset_usage_baseline(self, task: dict[str, Any]) -> None:

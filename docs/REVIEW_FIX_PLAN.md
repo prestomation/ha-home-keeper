@@ -77,10 +77,12 @@ add/extend a regression test where the bug class allows it, and update
 - [x] M7. To-do item rename support: `async_update_todo_item` now persists
   summary/notes edits via `store.update_task` for a NEEDS_ACTION item (was silently
   discarded), keeping the declared `UPDATE_TODO_ITEM` feature honest. (`todo.py`)
-- [ ] M8. Services parity for completion deletion: add
-  `home_keeper.delete_completion` + `home_keeper.delete_archived_completion`
-  services (services.yaml + strings.json), fire `asset_updated` for archived
-  deletion, document in EVENTS.md. (`websocket_api.py:281`)
+- [x] M8. Added `home_keeper.delete_completion` and
+  `home_keeper.delete_archived_completion` services (handlers + schemas + `_SERVICES`
+  teardown, services.yaml, strings.json + all 16 locales); the ws commands and
+  services share the same store methods. `delete_archived_completion` now fires
+  `home_keeper_asset_updated` with `changed_fields: ["archived_history"]`, documented
+  in EVENTS.md. (`__init__.py`, `store.py`, `services.yaml`, `strings.json`)
 - [x] M9. `async_remove_entry` now calls `manuals.async_delete_all_documents` to
   rmtree the uploaded-documents blob tree on uninstall (was left on disk forever).
   (`__init__.py`, `manuals.py`)

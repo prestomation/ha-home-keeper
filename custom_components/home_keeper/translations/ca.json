@@ -488,6 +488,38 @@
           "description": "Els camps a canviar: un objecte amb un nom opcional i (per als documents d'enllaç) un url opcional."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Elimina la realització",
+      "description": "Elimina una realització de l'historial d'una tasca (desfés un «fet» accidental), identificada per la seva marca de temps.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tasca",
+          "description": "L'id de la tasca de la qual elimineu la realització."
+        },
+        "ts": {
+          "name": "Marca de temps de la realització",
+          "description": "La marca de temps ISO (ts) de la realització a eliminar."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Elimina la realització arxivada",
+      "description": "Elimina una realització de l'historial arxivat d'un electrodomèstic, identificada per l'id de la tasca original i la marca de temps.",
+      "fields": {
+        "asset_id": {
+          "name": "ID de l'electrodomèstic",
+          "description": "L'id de l'electrodomèstic de què editeu l'historial arxivat."
+        },
+        "task_id": {
+          "name": "ID de la tasca",
+          "description": "L'id de la tasca original a la qual pertany la realització arxivada."
+        },
+        "ts": {
+          "name": "Marca de temps de la realització",
+          "description": "La marca de temps ISO (ts) de la realització arxivada a eliminar."
+        }
+      }
     }
   },
   "entity": {

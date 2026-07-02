@@ -488,6 +488,38 @@
           "description": "Les champs à modifier : un objet avec un nom facultatif et (pour les documents de type lien) une url facultative."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Supprimer une réalisation",
+      "description": "Supprime une réalisation de l'historique d'une tâche (annuler un « fait » accidentel), identifiée par son horodatage.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tâche",
+          "description": "L'id de la tâche dont vous supprimez la réalisation."
+        },
+        "ts": {
+          "name": "Horodatage de réalisation",
+          "description": "L'horodatage ISO (ts) de la réalisation à supprimer."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Supprimer une réalisation archivée",
+      "description": "Supprime une réalisation de l'historique archivé d'un appareil, identifiée par l'id de la tâche d'origine et l'horodatage.",
+      "fields": {
+        "asset_id": {
+          "name": "ID d'appareil",
+          "description": "L'id de l'appareil dont vous modifiez l'historique archivé."
+        },
+        "task_id": {
+          "name": "ID de tâche",
+          "description": "L'id de la tâche d'origine à laquelle appartient la réalisation archivée."
+        },
+        "ts": {
+          "name": "Horodatage de réalisation",
+          "description": "L'horodatage ISO (ts) de la réalisation archivée à supprimer."
+        }
+      }
     }
   },
   "entity": {

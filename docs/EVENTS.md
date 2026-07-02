@@ -97,6 +97,10 @@ Attaching or removing an appliance **document** (a manual/warranty/receipt link,
 uploaded file) is an appliance change, so it surfaces as `home_keeper_asset_updated`
 with `changed_fields: ["documents"]` — there is no separate document event.
 
+Deleting an entry from an appliance's **archived task history** (via
+`home_keeper.delete_archived_completion`) likewise surfaces as
+`home_keeper_asset_updated` with `changed_fields: ["archived_history"]`.
+
 ### Companion discovery (edge-triggered, baselined on startup)
 
 Home Keeper surfaces integrations that work with it (see the panel's **Settings →

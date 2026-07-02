@@ -215,6 +215,21 @@ UPDATE_COMPLETION_SCHEMA = vol.Schema(
     }
 )
 
+DELETE_COMPLETION_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("ts"): cv.string,
+    }
+)
+
+DELETE_ARCHIVED_COMPLETION_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("task_id"): cv.string,
+        vol.Required("ts"): cv.string,
+    }
+)
+
 # The completion-metadata keys shared by complete_task / update_completion, lifted
 # out of a service call's data into the ``metadata`` mapping the store expects.
 _COMPLETION_METADATA_KEYS = ("note", "cost", "photo", "who")
@@ -625,6 +640,38 @@ def _register_services(hass: HomeAssistant) -> None:
             ) from err
         await coord.async_request_refresh()
 
+    async def handle_delete_completion(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.delete_completion(call.data["task_id"], call.data["ts"])
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await coord.async_request_refresh()
+
+    async def handle_delete_archived_completion(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.delete_archived_completion(
+                call.data["asset_id"], call.data["task_id"], call.data["ts"]
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="asset_not_found",
+                translation_placeholders={"asset_id": call.data["asset_id"]},
+            ) from None
+        await coord.async_request_refresh()
+
     async def handle_trigger_task(call: ServiceCall) -> None:
         coord = _coordinator()
         try:
@@ -887,6 +934,15 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN, "update_completion", handle_update_completion, UPDATE_COMPLETION_SCHEMA
     )
     hass.services.async_register(
+        DOMAIN, "delete_completion", handle_delete_completion, DELETE_COMPLETION_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "delete_archived_completion",
+        handle_delete_archived_completion,
+        DELETE_ARCHIVED_COMPLETION_SCHEMA,
+    )
+    hass.services.async_register(
         DOMAIN, "trigger_task", handle_trigger_task, TRIGGER_TASK_SCHEMA
     )
     hass.services.async_register(
@@ -1028,6 +1084,8 @@ _SERVICES = (
     "delete_task",
     "complete_task",
     "update_completion",
+    "delete_completion",
+    "delete_archived_completion",
     "trigger_task",
     "snooze_task",
     "skip_task",

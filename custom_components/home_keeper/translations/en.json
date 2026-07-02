@@ -488,6 +488,38 @@
           "description": "The fields to change: an object with an optional name and (for link documents) an optional url."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Delete completion",
+      "description": "Remove one completion from a task's history (undo an accidental “done”), identified by its timestamp.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task whose completion you are removing."
+        },
+        "ts": {
+          "name": "Completion timestamp",
+          "description": "The ISO timestamp (ts) of the completion entry to remove."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Delete archived completion",
+      "description": "Remove one completion from an appliance's archived task history, identified by the originating task id and completion timestamp.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the appliance whose archived history you are editing."
+        },
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the original task the archived completion belongs to."
+        },
+        "ts": {
+          "name": "Completion timestamp",
+          "description": "The ISO timestamp (ts) of the archived completion to remove."
+        }
+      }
     }
   },
   "entity": {

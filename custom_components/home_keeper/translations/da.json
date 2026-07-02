@@ -488,6 +488,38 @@
           "description": "Felterne, der skal ændres: et objekt med et valgfrit navn og (for linkdokumenter) en valgfri url."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Slet gennemførelse",
+      "description": "Fjern én gennemførelse fra en opgaves historik (fortryd en utilsigtet ”færdig“), angivet ved dens tidsstempel.",
+      "fields": {
+        "task_id": {
+          "name": "Opgave-ID",
+          "description": "Id'et på den opgave, hvis gennemførelse du fjerner."
+        },
+        "ts": {
+          "name": "Gennemførelsestidsstempel",
+          "description": "ISO-tidsstemplet (ts) for den gennemførelse, der skal fjernes."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Slet arkiveret gennemførelse",
+      "description": "Fjern én gennemførelse fra et apparats arkiverede historik, angivet ved den oprindelige opgaves id og tidsstempel.",
+      "fields": {
+        "asset_id": {
+          "name": "Apparat-ID",
+          "description": "Id'et på det apparat, hvis arkiverede historik du redigerer."
+        },
+        "task_id": {
+          "name": "Opgave-ID",
+          "description": "Id'et på den oprindelige opgave, som den arkiverede gennemførelse tilhører."
+        },
+        "ts": {
+          "name": "Gennemførelsestidsstempel",
+          "description": "ISO-tidsstemplet (ts) for den arkiverede gennemførelse, der skal fjernes."
+        }
+      }
     }
   },
   "entity": {

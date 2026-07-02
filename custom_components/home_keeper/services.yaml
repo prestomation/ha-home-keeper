@@ -378,6 +378,52 @@ update_completion:
           filter:
             domain: person
 
+delete_completion:
+  name: Delete completion
+  description: >-
+    Remove one completion from a task's history (undo an accidental "done"),
+    identified by its timestamp. Re-derives the task's last-completed and next-due
+    dates from the remaining history.
+  fields:
+    task_id:
+      name: Task ID
+      description: The id of the task whose completion you are removing.
+      required: true
+      selector:
+        text:
+    ts:
+      name: Completion timestamp
+      description: The ISO timestamp (ts) of the completion entry to remove.
+      required: true
+      selector:
+        text:
+
+delete_archived_completion:
+  name: Delete archived completion
+  description: >-
+    Remove one completion from an appliance's archived task history — the history
+    kept on the asset after its task was deleted. Identified by the originating task
+    id and the completion timestamp.
+  fields:
+    asset_id:
+      name: Asset ID
+      description: The id of the appliance whose archived history you are editing.
+      required: true
+      selector:
+        text:
+    task_id:
+      name: Task ID
+      description: The id of the original task the archived completion belongs to.
+      required: true
+      selector:
+        text:
+    ts:
+      name: Completion timestamp
+      description: The ISO timestamp (ts) of the archived completion to remove.
+      required: true
+      selector:
+        text:
+
 trigger_task:
   name: Trigger task
   description: >-
