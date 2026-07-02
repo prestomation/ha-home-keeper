@@ -56,10 +56,13 @@ add/extend a regression test where the bug class allows it, and update
   `part`/`problem_sensor` namespaces from the service/ws path (internal reconcilers
   use `build_task` directly, so they're unaffected). Regression test added.
   (`reconcile.py:45`, `store.py:163`)
-- [ ] M3. Transition edge-state must survive config-entry reloads: persist the
-  fired-flags map across coordinator recreation (hand off via `hass.data` keyed
-  storage that outlives the entry reload) so add/delete task no longer swallows
-  overdue/due-soon events. Regression test. (`transitions.py`, `coordinator.py`)
+- [x] M3. Transition edge-state now persists in a process-lifetime `hass.data`
+  store keyed by entry id, seeded into each new coordinator. On a *reload* the prior
+  state is preserved (not baselined over) during setup, so a transition that
+  happened during the reload fires on the first refresh after
+  `enable_transition_events` instead of being swallowed; a genuine *restart* (empty
+  `hass.data`) still baselines silently. Cleaned up on entry removal. Regression test
+  added. (`coordinator.py`, `__init__.py`)
 - [ ] M4. Unload teardown is dead code: gate on `async_loaded_entries()` so panel +
   services are removed when the last entry unloads; make `_coordinator()` raise a
   localized `ServiceValidationError` instead of bare `RuntimeError`.

@@ -51,7 +51,7 @@ from .const import (
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
 )
-from .coordinator import HomeKeeperCoordinator, entity_set_key
+from .coordinator import HomeKeeperCoordinator, discard_edge_state, entity_set_key
 from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
 from .sensor_watcher import SensorTaskWatcher
@@ -1046,5 +1046,6 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     entry, so Home Assistant removes them automatically. Here we additionally drop
     our stored tasks/assets document so no residue is left behind.
     """
+    discard_edge_state(hass, entry.entry_id)
     store = HomeKeeperStore(hass)
     await store.async_remove()

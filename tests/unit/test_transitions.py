@@ -75,6 +75,24 @@ def test_reschedule_rearms_announcements():
     assert state2["t1"]["overdue_fired"] is False
 
 
+def test_preserved_baseline_fires_pending_transition_after_reload():
+    # Regression (coordinator reload handoff): a task tracked as due-soon-but-not-yet-
+    # overdue crosses next_due while the entry is reloading. As long as the prior edge
+    # state is *preserved* (the coordinator seeds it from the process-lifetime store on
+    # reload rather than baselining a fresh empty map), the overdue fires on the first
+    # refresh after the reload instead of being silently swallowed.
+    due = NOW + timedelta(hours=1)
+    task_soon = _task(next_due=due)
+    fired, state = t.detect_transitions({}, {"t1": task_soon}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_DUE_SOON]  # due-soon announced, overdue pending
+
+    # Reload happens; the same (preserved) state is carried into the new coordinator.
+    # An hour later the task is overdue against the same next_due -> overdue fires.
+    later = due + timedelta(minutes=1)
+    fired2, _ = t.detect_transitions(state, {"t1": task_soon}, now=later)
+    assert _names(fired2) == [EVENT_TASK_OVERDUE]
+
+
 def test_dormant_and_disabled_never_fire():
     dormant = _task("d", next_due=None, recurrence_type="triggered")
     disabled = _task("x", next_due=NOW - timedelta(days=5), enabled=False)
