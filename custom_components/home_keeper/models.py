@@ -9,6 +9,7 @@ unit-testable.
 
 from __future__ import annotations
 
+import math
 import uuid
 from datetime import datetime
 from typing import Any
@@ -37,6 +38,24 @@ class TaskValidationError(ValueError):
     """Raised when task input fails validation."""
 
 
+def _finite_float(value: Any, field: str) -> float:
+    """Parse *value* to a float, rejecting NaN/Infinity.
+
+    ``float("nan")`` passes every ``<``/``<=`` comparison (all False), so a bare
+    ``float()`` would let NaN/inf slip past the range gates and persist — and NaN
+    serializes to ``null`` on the JSON round-trip, producing exactly the junk state
+    validation exists to prevent. Callers use this instead of ``float()`` for any
+    numeric field that is stored.
+    """
+    try:
+        result = float(value)
+    except (TypeError, ValueError) as err:
+        raise TaskValidationError(f"{field} must be a number") from err
+    if not math.isfinite(result):
+        raise TaskValidationError(f"{field} must be a finite number")
+    return result
+
+
 def normalize_completion_metadata(data: Any) -> dict[str, Any]:
     """Clean optional per-completion metadata into a dict of non-empty keys.
 
@@ -55,10 +74,7 @@ def normalize_completion_metadata(data: Any) -> dict[str, Any]:
         result["note"] = note
     cost = data.get("cost")
     if cost is not None and cost != "":
-        try:
-            cost_value = float(cost)
-        except (TypeError, ValueError) as err:
-            raise TaskValidationError("cost must be a number") from err
+        cost_value = _finite_float(cost, "cost")
         if cost_value < 0:
             raise TaskValidationError("cost must be >= 0")
         result["cost"] = cost_value
@@ -138,19 +154,13 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
         target_raw = data.get("target")
         if target_raw is None or target_raw == "":
             raise TaskValidationError("sensor.target must be a number")
-        try:
-            target = float(target_raw)
-        except (TypeError, ValueError) as err:
-            raise TaskValidationError("sensor.target must be a number") from err
+        target = _finite_float(target_raw, "sensor.target")
         if target <= 0:
             raise TaskValidationError("sensor.target must be > 0")
         result["target"] = target
         baseline_raw = data.get("baseline")
         if baseline_raw is not None and baseline_raw != "":
-            try:
-                result["baseline"] = float(baseline_raw)
-            except (TypeError, ValueError) as err:
-                raise TaskValidationError("sensor.baseline must be a number") from err
+            result["baseline"] = _finite_float(baseline_raw, "sensor.baseline")
     else:  # SENSOR_MODE_THRESHOLD
         comparison = data.get("comparison")
         if comparison not in SENSOR_COMPARISONS:
@@ -158,10 +168,7 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
         value_raw = data.get("value")
         if value_raw is None or value_raw == "":
             raise TaskValidationError("sensor.value must be a number")
-        try:
-            value = float(value_raw)
-        except (TypeError, ValueError) as err:
-            raise TaskValidationError("sensor.value must be a number") from err
+        value = _finite_float(value_raw, "sensor.value")
         result["comparison"] = comparison
         result["value"] = value
         raw_for = data.get("for_seconds") or 0
@@ -306,7 +313,9 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
 
     fields: dict[str, Any] = {
         "name": name,
-        "notes": str(data.get("notes", "")),
+        # ``str(None)`` would store the literal "None"; coalesce to "" so an explicit
+        # ``notes: null`` (reachable via the websocket updates dict) clears the field.
+        "notes": str(data.get("notes") or ""),
         "recurrence_type": rec_type,
         "device_id": data.get("device_id") or None,
         "area_id": data.get("area_id") or None,

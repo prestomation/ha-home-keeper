@@ -116,9 +116,12 @@ add/extend a regression test where the bug class allows it, and update
   (`notifier.py:300`)
 - [ ] N2. Usage-meter zero-blip: require a meter-reset reading to persist across two
   consecutive readings before re-baselining. (`sensor_tasks.py:113`)
-- [ ] N3. Reject NaN/Infinity in every numeric gate in `models.py` (`cost`,
-  `sensor.target`, `sensor.value`, baseline). (`models.py:58,129,149`)
-- [ ] N4. `notes: null` must normalize to `""`, not `"None"`. (`models.py:297`)
+- [x] N3. Added `models._finite_float` (rejects NaN/Infinity) and routed `cost`,
+  `sensor.target`, `sensor.value`, and `sensor.baseline` through it. Regression
+  tests added. (`models.py`)
+- [x] N4. `build_task`/`normalize_fields` now coalesce `notes` with `or ""` so an
+  explicit `notes: null` clears the field instead of storing `"None"`. Regression
+  test added. (`models.py`)
 - [ ] N5. Purged one-off tasks: clean up per-task entities when the coordinator
   purges expired one-offs (reload gate like the service delete path).
   (`coordinator.py:132`)

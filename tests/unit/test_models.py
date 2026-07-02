@@ -190,6 +190,46 @@ def test_build_task_rejects_non_numeric_interval():
         )
 
 
+def test_completion_metadata_rejects_nan_infinity_cost():
+    # NaN passes every < / <= comparison, so a bare float() would let it persist (and
+    # NaN serializes to null on the JSON round-trip). Reject non-finite numbers.
+    for bad in (float("nan"), float("inf"), "nan", "inf"):
+        with pytest.raises(m.TaskValidationError):
+            m.normalize_completion_metadata({"cost": bad})
+
+
+def test_build_sensor_task_rejects_nan_target():
+    for bad in (float("nan"), float("inf")):
+        with pytest.raises(m.TaskValidationError):
+            m.build_task(
+                {
+                    "name": "x",
+                    "recurrence_type": "sensor",
+                    "sensor": {
+                        "entity_id": "sensor.hours",
+                        "mode": "usage",
+                        "target": bad,
+                    },
+                },
+                now=NOW,
+            )
+
+
+def test_build_task_notes_null_becomes_empty_string():
+    # An explicit notes=None must clear the field, not store the literal "None".
+    task = m.build_task(
+        {
+            "name": "x",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "days",
+            "notes": None,
+        },
+        now=NOW,
+    )
+    assert task["notes"] == ""
+
+
 def test_merge_update_name_only_keeps_schedule():
     task = m.build_task(
         {
