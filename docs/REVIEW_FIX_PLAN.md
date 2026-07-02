@@ -180,8 +180,11 @@ add/extend a regression test where the bug class allows it, and update
 - [ ] R3. Shared registry-prune helper for the four entity platforms + shared part
   lookup for `number.py`/`binary_sensor.py`. (`sensor.py:73`, `binary_sensor.py:75`,
   `button.py:39`, `number.py:53`)
-- [ ] R4. Single content-type allowlist in `const.py` (used by `assets.py` and
-  `documents.py`).
+- [x] R4. Single upload allowlist `const.DOCUMENT_CONTENT_TYPES` (content type →
+  canonical extension). `documents.py`'s `TYPE_EXTENSIONS` now aliases it and
+  `assets.py`'s `_ALLOWED_DOC_CONTENT_TYPES = frozenset(DOCUMENT_CONTENT_TYPES)`, so
+  adding a type is a one-line change that covers both the HTTP upload path and the
+  stored-metadata validator. (`const.py`, `documents.py`, `assets.py`)
 - [ ] R5. Panel list-shaping folds onto `card-filter.ts`'s pure functions
   (`statusBucket`/`bucketByKey`/`taskAreaId`) to kill the drift class fixed in N8.
 - [ ] R6. Extract the Settings tab from `panel.ts` into `settings.ts` (profiles /
