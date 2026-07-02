@@ -32,9 +32,11 @@ import {
   deviceName,
   dueLabel,
   escapeHTML,
+  isHttpUrl,
   isOverdue,
   labelName,
   recurrenceSummary,
+  safeHref,
 } from './utils';
 
 // mdi:check-circle-outline — the trailing "mark done" action on each row.
@@ -685,7 +687,7 @@ export class HomeKeeperCard extends HTMLElement {
   private _resolveDocuments(task: Task): DocumentChip[] {
     const refs = task.card_links;
     if (!refs?.length || !this._assets.length) return [];
-    const isHttp = (u: string): boolean => /^https?:\/\//i.test(u);
+    const isHttp = isHttpUrl;
     const out: DocumentChip[] = [];
     for (const ref of refs) {
       const asset = this._assets.find((a) => a.id === ref.asset_id);
@@ -769,8 +771,8 @@ export class HomeKeeperCard extends HTMLElement {
           ? `<ha-icon slot="icon" icon="${escapeHTML(icon)}" class="hk-chip-ic"></ha-icon>`
           : '';
         const chip = `<ha-assist-chip label="${escapeHTML(label)}">${iconSlot}</ha-assist-chip>`;
-        return url
-          ? `<a class="hk-task-chip-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
+        return isHttpUrl(url)
+          ? `<a class="hk-task-chip-link" href="${safeHref(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
           : chip;
       })
       .join('');

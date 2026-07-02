@@ -64,6 +64,18 @@ def normalize_completion_metadata(data: Any) -> dict[str, Any]:
         result["cost"] = cost_value
     photo = str(data.get("photo") or "").strip()
     if photo:
+        # ``photo`` is rendered into an ``href``/``img src`` in the panel, so reject
+        # anything that isn't http(s) or a site-relative path (the shape
+        # ``ha-picture-upload`` produces) — otherwise a ``javascript:``/``data:`` URI
+        # becomes stored XSS the moment someone views the history. Defence-in-depth
+        # matches the frontend ``isSafeImageUrl`` guard.
+        lowered = photo.lower()
+        is_http = lowered.startswith(("http://", "https://"))
+        is_site_relative = photo.startswith("/") and not photo.startswith("//")
+        if not (is_http or is_site_relative):
+            raise TaskValidationError(
+                "photo must be an http(s) URL or a site-relative path"
+            )
         result["photo"] = photo
     who = str(data.get("who") or "").strip()
     if who:

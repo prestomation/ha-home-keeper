@@ -62,9 +62,12 @@ import {
   deviceName,
   dueLabel,
   escapeHTML,
+  isHttpUrl,
   isOverdue,
+  isSafeImageUrl,
   parseRoute,
   randomId,
+  safeHref,
   recurrenceSummary,
   tasksForAsset,
   type PanelLocation,
@@ -1759,10 +1762,15 @@ export class HomeKeeperPanel extends HTMLElement {
     return this._assetDetail(asset);
   }
 
-  /** Render a URL as a clickable anchor that opens in the browser (new tab). */
+  /** Render a URL as a clickable anchor that opens in the browser (new tab). A
+   *  non-http(s) value is shown as inert text (no href) — defence-in-depth against a
+   *  `javascript:` URI that escapeHTML can't neutralise in an href. */
   private _link(url: string): string {
     const safe = escapeHTML(url);
-    return `<a href="${safe}" target="_blank" rel="noopener">${safe}</a>`;
+    const href = safeHref(url);
+    return href
+      ? `<a href="${href}" target="_blank" rel="noopener">${safe}</a>`
+      : `<span>${safe}</span>`;
   }
 
   /** One label/value row, omitted entirely when the value is empty. */
@@ -1966,7 +1974,7 @@ export class HomeKeeperPanel extends HTMLElement {
             ? `<a class="hk-doc-file" role="button" tabindex="0" data-doc="${escapeHTML(
                 d.id || '',
               )}">${name}</a>`
-            : `<a href="${escapeHTML(d.url || '')}" target="_blank" rel="noopener">${name}</a>`;
+            : `<a href="${safeHref(d.url)}" target="_blank" rel="noopener">${name}</a>`;
         return `<div class="hk-detail-row"><span class="k"><ha-icon
           icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}</span></div>`;
       })
@@ -2114,8 +2122,8 @@ export class HomeKeeperPanel extends HTMLElement {
           ? `<ha-icon slot="icon" icon="${escapeHTML(icon)}" class="hk-chip-ic"></ha-icon>`
           : '';
         const chip = `<ha-assist-chip label="${escapeHTML(label)}">${iconSlot}</ha-assist-chip>`;
-        return url
-          ? `<a class="hk-task-chip-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
+        return isHttpUrl(url)
+          ? `<a class="hk-task-chip-link" href="${safeHref(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
           : chip;
       })
       .join('');
@@ -4271,7 +4279,12 @@ export class HomeKeeperPanel extends HTMLElement {
       ? `<span class="hk-hist-chips">${bits.join(' · ')}</span>`
       : '';
     const note = c.note ? `<span class="hk-hist-note">${escapeHTML(c.note)}</span>` : '';
-    const photo = c.photo
+    // `photo` is caller-supplied (any string via home_keeper/complete_task) and was
+    // rendered as a raw href — escapeHTML can't neutralise a `javascript:` URI in an
+    // href, so a non-admin could plant a stored-XSS payload an admin clicks. Only
+    // render the link/thumbnail when the URL is http(s) or a site-relative path (the
+    // shape `ha-picture-upload` produces, e.g. `/api/image/serve/<id>/original`).
+    const photo = isSafeImageUrl(c.photo)
       ? `<a href="${escapeHTML(c.photo)}" target="_blank" rel="noopener"><img class="hk-hist-photo" src="${escapeHTML(c.photo)}" alt="${escapeHTML(t('completion.photo'))}" /></a>`
       : '';
     if (!line && !note && !photo) return '';

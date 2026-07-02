@@ -41,6 +41,24 @@ def test_normalize_metadata_rejects_bad_cost():
         m.normalize_completion_metadata({"cost": -1})
 
 
+def test_normalize_metadata_accepts_safe_photo_urls():
+    # http(s) and the site-relative shape ha-picture-upload produces are allowed.
+    assert m.normalize_completion_metadata({"photo": "https://x/y.jpg"})["photo"] == (
+        "https://x/y.jpg"
+    )
+    assert m.normalize_completion_metadata(
+        {"photo": "/api/image/serve/abc/original"}
+    )["photo"] == "/api/image/serve/abc/original"
+
+
+def test_normalize_metadata_rejects_unsafe_photo_urls():
+    # javascript:/data: URIs and protocol-relative URLs are stored-XSS vectors when
+    # the panel renders `photo` into an href/img src.
+    for bad in ("javascript:alert(1)", "data:text/html,<script>", "//evil.com/x"):
+        with pytest.raises(m.TaskValidationError):
+            m.normalize_completion_metadata({"photo": bad})
+
+
 # ── recording metadata on a completion ───────────────────────────────────────
 
 

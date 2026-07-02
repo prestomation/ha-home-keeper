@@ -29,11 +29,13 @@ add/extend a regression test where the bug class allows it, and update
 
 ## Security
 
-- [ ] S1. Stored XSS via completion `photo`: add a shared `safeHref()` (http(s)-only)
-  in the frontend and use it for the history photo link/thumbnail; validate the
-  scheme server-side in `models.normalize_completion_metadata` too. Extend to the
-  other unguarded href sinks (panel `task_chips.url`, document links, metadata
-  links, card `task_chips`) for defence-in-depth. (`panel.ts:4274`, `models.py:65`)
+- [x] S1. Stored XSS via completion `photo`: added `isHttpUrl`/`safeHref`/
+  `isSafeImageUrl` to `utils.ts`; the history photo now renders only for http(s) or
+  site-relative URLs (the `ha-picture-upload` shape), and
+  `models.normalize_completion_metadata` rejects unsafe photo values server-side.
+  Also routed the other href sinks (panel `_link`, document links, `task_chips` in
+  both panel and card) through the guard, and folded card's local `isHttp` into the
+  shared helper. Unit + frontend regression tests added.
 - [ ] S2. Admin-gate the sensitive websocket commands: `require_admin` on
   `home_keeper/set_options` and `home_keeper/export_inventory`.
   (`websocket_api.py`)
