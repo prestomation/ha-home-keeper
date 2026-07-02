@@ -164,10 +164,15 @@ add/extend a regression test where the bug class allows it, and update
 
 ## Maintainability
 
-- [ ] R1. Extract services from `__init__.py` into `services.py`: registration
-  table (teardown derived from it), exception-translation decorator for the
-  copy-pasted `KeyError → task_not_found` blocks, schemas alongside. `__init__.py`
-  keeps only entry lifecycle.
+- [x] R1. Extracted the service layer into `services.py`: all schemas, the
+  handlers (now `async def _handle_*(hass, call)`, `hass`-bound at registration),
+  a frozen `_ServiceDef` registration table that drives **both** register and
+  teardown (killing the hand-maintained `_SERVICES` tuple that could drift), and a
+  `_translate_errors` decorator that folds the copy-pasted
+  `KeyError → {task,asset}_not_found` / `TaskValidationError → invalid_task` /
+  `AssetValidationError → invalid_asset` blocks. `__init__.py` now keeps only entry
+  lifecycle (down from ~1140 to ~180 lines). `_delete_asset` moved alongside.
+  (`services.py`, `__init__.py`)
 - [x] R2. Shared coordinator lookup helper in `coordinator.py`: `get_coordinator`
   (returns `None` when unloaded) and `require_coordinator` (raises the localized
   `integration_not_loaded`). Replaced the four hand-rolled copies in
