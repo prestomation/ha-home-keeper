@@ -10,12 +10,11 @@ from __future__ import annotations
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
-from .entity import HomeKeeperTaskEntity
+from .entity import HomeKeeperTaskEntity, async_prune_platform_entities
 from .problem_tasks import problem_source
 
 
@@ -36,19 +35,14 @@ async def async_setup_entry(
     # exists (e.g. after disabling Problem Sensor Sync or deleting a task).
     task_ids = coordinator.device_attached_task_ids()
     live_ids = set(task_ids)
-    reg = er.async_get(hass)
-    prefix = f"{DOMAIN}_"
-    suffix = "_done"
-    for entity_entry in reg.entities.get_entries_for_config_entry_id(entry.entry_id):
-        uid = entity_entry.unique_id or ""
-        if (
-            entity_entry.domain == "button"
-            and uid.startswith(prefix)
-            and uid.endswith(suffix)
-        ):
-            task_id = uid[len(prefix) : -len(suffix)]
-            if task_id not in live_ids:
-                reg.async_remove(entity_entry.entity_id)
+    prefix, suffix = f"{DOMAIN}_", "_done"
+
+    def _is_stale(uid: str) -> bool:
+        if uid.startswith(prefix) and uid.endswith(suffix):
+            return uid[len(prefix) : -len(suffix)] not in live_ids
+        return False
+
+    async_prune_platform_entities(hass, entry, "button", _is_stale)
 
     async_add_entities(
         HomeKeeperMarkDoneButton(coordinator, task_id)
