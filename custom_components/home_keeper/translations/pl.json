@@ -488,6 +488,38 @@
           "description": "Pola do zmiany: obiekt z opcjonalną nazwą i (w przypadku dokumentów z odnośnikiem) opcjonalnym url."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Usuń wykonanie",
+      "description": "Usuwa jedno wykonanie z historii zadania (cofa przypadkowe „gotowe”), określone jego znacznikiem czasu.",
+      "fields": {
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator zadania, którego wykonanie usuwasz."
+        },
+        "ts": {
+          "name": "Znacznik czasu wykonania",
+          "description": "Znacznik czasu ISO (ts) wpisu wykonania do usunięcia."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Usuń zarchiwizowane wykonanie",
+      "description": "Usuwa jedno wykonanie z zarchiwizowanej historii urządzenia, określone identyfikatorem pierwotnego zadania i znacznikiem czasu.",
+      "fields": {
+        "asset_id": {
+          "name": "Identyfikator urządzenia",
+          "description": "Identyfikator urządzenia, którego zarchiwizowaną historię edytujesz."
+        },
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator pierwotnego zadania, do którego należy zarchiwizowane wykonanie."
+        },
+        "ts": {
+          "name": "Znacznik czasu wykonania",
+          "description": "Znacznik czasu ISO (ts) zarchiwizowanego wykonania do usunięcia."
+        }
+      }
     }
   },
   "entity": {
@@ -559,6 +591,9 @@
     },
     "notify_no_targets": {
       "message": "To powiadomienie nie ma celu wysyłki – dodaj urządzenie „Wyślij do“ w Ustawienia → Powiadomienia lub przekaż target: w wywołaniu."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper nie jest teraz załadowany. Spróbuj ponownie za chwilę."
     }
   }
 }

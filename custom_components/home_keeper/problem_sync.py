@@ -14,7 +14,7 @@ from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_ON
+from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import (
     CALLBACK_TYPE,
     Event,
@@ -157,9 +157,23 @@ class ProblemSensorSync:
                 return str(friendly)
         return entry.name or entry.original_name or entry.entity_id
 
-    def _is_problem(self, entity_id: str) -> bool:
+    def _is_problem(self, entity_id: str) -> bool | None:
+        """Three-way problem state: ``True`` problem, ``False`` OK, ``None`` unknown.
+
+        An ``unavailable``/``unknown``/not-yet-restored sensor is *indeterminate*,
+        not "OK" — treating it as OK (the old ``== STATE_ON`` boolean) meant every
+        armed task was falsely cleared/completed at setup (before other integrations
+        restore their states) and on every device-offline blip. The reconciler leaves
+        a task's armed state untouched while indeterminate.
+        """
         state = self._hass.states.get(entity_id)
-        return state is not None and state.state == STATE_ON
+        if state is None:
+            return None
+        if state.state == STATE_ON:
+            return True
+        if state.state == STATE_OFF:
+            return False
+        return None
 
     # ── live updates ─────────────────────────────────────────────────────────
     @callback

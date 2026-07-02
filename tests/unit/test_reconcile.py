@@ -140,6 +140,16 @@ def test_non_part_tasks_are_carried_through_untouched():
     assert tasks["t9"] is standalone
 
 
+def test_malformed_part_source_does_not_crash_reconcile():
+    # Regression: a task carrying a reserved-but-malformed part source (dict without
+    # asset_id/part_id) must be ignored, not reach the bracket access that would raise
+    # KeyError inside async_setup_entry and brick the entry on every restart.
+    bad = {"id": "tbad", "name": "Bogus", "source": {"part": {"foo": 1}}}
+    tasks, changed = _reconcile({}, {"tbad": bad})
+    assert changed is False
+    assert tasks["tbad"] is bad  # carried through untouched, no crash
+
+
 # ── idempotency ───────────────────────────────────────────────────────────────
 def test_second_reconcile_is_idempotent():
     asset = _asset(device_id="dev1", parts=[_wear_part(last_replaced="2025-05-01")])

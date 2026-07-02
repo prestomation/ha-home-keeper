@@ -323,5 +323,8 @@
   "hint.sensor.usage": "Den här sensorn visar {reading} nu. Uppgiften förfaller vid {due} (det är {target} användning), sedan var {target} efter varje slutförande.",
   "hint.sensor.usageNoReading": "Uppgiften förfaller när sensorn stiger {target} över sitt värde vid tidpunkten då du skapar uppgiften, sedan var {target} efter varje slutförande.",
   "hint.sensor.threshold": "Uppgiften förfaller när sensorn är {comparison} {value}.",
-  "hint.sensor.thresholdFor": "Uppgiften förfaller när sensorn förblir {comparison} {value} i {seconds}s."
+  "hint.sensor.thresholdFor": "Uppgiften förfaller när sensorn förblir {comparison} {value} i {seconds}s.",
+  "error.actionFailed": "Något gick fel. Försök igen.",
+  "error.loadFailed": "Kunde inte läsa in Home Keeper.",
+  "btn.retry": "Försök igen"
 }

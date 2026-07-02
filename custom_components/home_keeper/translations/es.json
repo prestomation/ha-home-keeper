@@ -488,6 +488,38 @@
           "description": "Los campos a cambiar: un objeto con un nombre opcional y (para documentos de enlace) una url opcional."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Eliminar finalización",
+      "description": "Elimina una finalización del historial de una tarea (deshacer un «hecho» accidental), identificada por su marca de tiempo.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tarea",
+          "description": "El id de la tarea cuya finalización eliminas."
+        },
+        "ts": {
+          "name": "Marca de tiempo de finalización",
+          "description": "La marca de tiempo ISO (ts) de la finalización a eliminar."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Eliminar finalización archivada",
+      "description": "Elimina una finalización del historial archivado de un electrodoméstico, identificada por el id de la tarea original y la marca de tiempo.",
+      "fields": {
+        "asset_id": {
+          "name": "ID de electrodoméstico",
+          "description": "El id del electrodoméstico cuyo historial archivado editas."
+        },
+        "task_id": {
+          "name": "ID de tarea",
+          "description": "El id de la tarea original a la que pertenece la finalización archivada."
+        },
+        "ts": {
+          "name": "Marca de tiempo de finalización",
+          "description": "La marca de tiempo ISO (ts) de la finalización archivada a eliminar."
+        }
+      }
     }
   },
   "entity": {
@@ -559,6 +591,9 @@
     },
     "notify_no_targets": {
       "message": "Esta notificación no tiene destino al que enviar: añade un dispositivo «Enviar a» en Ajustes → Notificaciones, o pasa target: al llamarla."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper no está cargado en este momento. Vuelve a intentarlo en un momento."
     }
   }
 }

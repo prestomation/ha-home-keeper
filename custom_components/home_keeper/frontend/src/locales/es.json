@@ -336,5 +336,8 @@
   "hint.sensor.usage": "Este sensor marca {reading} ahora. La tarea vence en {due} (es decir, {target} de uso), y luego cada {target} después de cada finalización.",
   "hint.sensor.usageNoReading": "La tarea vence cuando el sensor sube {target} por encima de su lectura en el momento en que creas la tarea, y luego cada {target} después de cada finalización.",
   "hint.sensor.threshold": "La tarea vence cuando el sensor está {comparison} {value}.",
-  "hint.sensor.thresholdFor": "La tarea vence cuando el sensor se mantiene {comparison} {value} durante {seconds} s."
+  "hint.sensor.thresholdFor": "La tarea vence cuando el sensor se mantiene {comparison} {value} durante {seconds} s.",
+  "error.actionFailed": "Algo salió mal. Vuelve a intentarlo.",
+  "error.loadFailed": "No se pudo cargar Home Keeper.",
+  "btn.retry": "Reintentar"
 }

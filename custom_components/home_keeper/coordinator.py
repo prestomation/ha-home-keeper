@@ -42,6 +42,22 @@ _LOGGER = logging.getLogger(__name__)
 
 SCAN_INTERVAL = timedelta(minutes=5)
 
+# hass.data namespace holding the transition edge-state map per config entry, so it
+# survives a config-entry *reload* (add/delete task, options save) even though the
+# coordinator object is recreated. A genuine HA *restart* starts with an empty
+# hass.data, which is how we still baseline silently on restart (no overdue storm).
+_EDGE_STATE_STORE = f"{DOMAIN}_edge_state"
+
+
+def _edge_state_store(hass: HomeAssistant) -> dict[str, transitions.StateMap]:
+    """The process-lifetime edge-state map keyed by config-entry id."""
+    return hass.data.setdefault(_EDGE_STATE_STORE, {})
+
+
+def discard_edge_state(hass: HomeAssistant, entry_id: str) -> None:
+    """Drop an entry's persisted edge state (called when the entry is removed)."""
+    _edge_state_store(hass).pop(entry_id, None)
+
 
 def entity_set_key(task: dict[str, Any] | None) -> tuple:
     """Identity of a task's per-task entity set.
@@ -61,6 +77,17 @@ def entity_set_key(task: dict[str, Any] | None) -> tuple:
     return (task.get("device_id"), bool(task.get("enabled", True)), task.get("name"))
 
 
+def task_has_entities(task: dict[str, Any] | None) -> bool:
+    """True when a task owns per-task entities (button/sensor/binary_sensor).
+
+    Those exist only for an enabled, device-attached task. Adding or deleting a task
+    that owns none needs no entry reload — a plain coordinator refresh suffices, which
+    avoids flapping every entity unavailable when e.g. a companion seeds many
+    device-less tasks.
+    """
+    return bool(task and task.get("device_id") and task.get("enabled", True))
+
+
 class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     """Coordinator exposing the current task map to all entities."""
 
@@ -72,9 +99,12 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             _LOGGER,
             name="Home Keeper",
             update_interval=SCAN_INTERVAL,
+            # Pass the entry explicitly — HA deprecated inferring it from a ContextVar
+            # (removal 2025.11). The base stores it as ``self.config_entry``; ``entry``
+            # is a read-only alias so existing call sites don't churn.
+            config_entry=entry,
         )
         self.store = store
-        self.entry = entry
         # The problem-sensor sync helper, attached during async_setup_entry.
         self.problem_sync: ProblemSensorSync | None = None
         # The sensor-based-task watcher, attached during async_setup_entry (after its
@@ -83,12 +113,25 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.sensor_watcher: SensorTaskWatcher | None = None
         # Edge state for the time-based task events (overdue / due-soon). Carried
         # across refreshes so each is fired at most once per ``next_due``; see
-        # transitions.detect_transitions.
-        self._edge_state: transitions.StateMap = {}
+        # transitions.detect_transitions. Seeded from the process-lifetime store so it
+        # survives a config-entry reload — otherwise a reload (triggered by any
+        # add/delete task or options save) would recreate the coordinator with an
+        # empty map and silently baseline any transition that happened since the last
+        # refresh, losing the overdue/due-soon event forever.
+        prior = _edge_state_store(hass).get(entry.entry_id)
+        self._had_prior_edge_state = prior is not None
+        self._edge_state: transitions.StateMap = dict(prior) if prior else {}
         # Firing is gated until setup finishes (enable_transition_events) so the
         # several refreshes during async_setup_entry silently *baseline* current state
         # — an HA restart never replays an "overdue" storm for tasks already overdue.
         self._events_enabled = False
+
+    @property
+    def entry(self) -> ConfigEntry:
+        """The config entry (alias for the base coordinator's ``config_entry``)."""
+        entry = self.config_entry
+        assert entry is not None  # always set: we pass config_entry= in __init__
+        return entry
 
     def enable_transition_events(self) -> None:
         """Start firing overdue/due-soon events (called once setup is complete).
@@ -99,6 +142,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """
         self._events_enabled = True
 
+    def _persist_edge_state(self) -> None:
+        """Save the edge state to the process-lifetime store so it survives a reload."""
+        _edge_state_store(self.hass)[self.entry.entry_id] = self._edge_state
+
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         await self._purge_expired_one_offs()
         # Re-evaluate sensor-based tasks against their bound readings before reading the
@@ -107,10 +154,12 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         if self.sensor_watcher is not None:
             await self.sensor_watcher.async_evaluate(refresh=False)
         tasks = self.store.get_tasks()
-        fired, self._edge_state = transitions.detect_transitions(
+        fired, next_state = transitions.detect_transitions(
             self._edge_state, tasks, now=dt_util.now()
         )
         if self._events_enabled:
+            self._edge_state = next_state
+            self._persist_edge_state()
             for event_name, payload in fired:
                 self.hass.bus.async_fire(event_name, payload)
             # Automatic notification source: send to any profile whose auto trigger
@@ -122,6 +171,15 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             fired_kinds = {kinds[name] for name, _ in fired if name in kinds}
             if fired_kinds:
                 await notifier.async_send_auto(self.hass, self, fired_kinds)
+        elif not self._had_prior_edge_state:
+            # Fresh start (HA restart / first setup): adopt the detected state as the
+            # silent baseline so a task already overdue at startup doesn't replay.
+            self._edge_state = next_state
+            self._persist_edge_state()
+        # else: this is a config-entry *reload* still inside setup (events not yet
+        # enabled). Preserve the prior edge state instead of baselining over it, so a
+        # transition that occurred during the reload fires on the first refresh after
+        # enable_transition_events rather than being silently swallowed.
         # Re-detect companions on the same cadence so a popular upstream installed at
         # runtime (e.g. Battery Notes) surfaces a suggestion, and an
         # installed/removed glue updates — edge-triggered + silently baselined inside

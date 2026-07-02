@@ -323,5 +323,8 @@
   "hint.sensor.usage": "此传感器当前读数为 {reading}。任务将在 {due} 时到期（即 {target} 用量），此后每次完成后每 {target} 到期一次。",
   "hint.sensor.usageNoReading": "当传感器比你创建任务时的读数上升 {target} 时任务到期，此后每次完成后每 {target} 到期一次。",
   "hint.sensor.threshold": "当传感器 {comparison} {value} 时，任务到期。",
-  "hint.sensor.thresholdFor": "当传感器持续 {comparison} {value} 达 {seconds} 秒时，任务到期。"
+  "hint.sensor.thresholdFor": "当传感器持续 {comparison} {value} 达 {seconds} 秒时，任务到期。",
+  "error.actionFailed": "出了点问题。请重试。",
+  "error.loadFailed": "无法加载 Home Keeper。",
+  "btn.retry": "重试"
 }

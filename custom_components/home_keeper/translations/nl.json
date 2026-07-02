@@ -488,6 +488,38 @@
           "description": "De te wijzigen velden: een object met een optionele naam en (voor linkdocumenten) een optionele url."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Voltooiing verwijderen",
+      "description": "Verwijdert één voltooiing uit de geschiedenis van een taak (een per ongeluk “gedaan” ongedaan maken), aangeduid met de tijdstempel.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "De id van de taak waarvan je de voltooiing verwijdert."
+        },
+        "ts": {
+          "name": "Voltooiingstijdstempel",
+          "description": "De ISO-tijdstempel (ts) van de te verwijderen voltooiing."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Gearchiveerde voltooiing verwijderen",
+      "description": "Verwijdert één voltooiing uit de gearchiveerde geschiedenis van een apparaat, aangeduid met de id van de oorspronkelijke taak en de tijdstempel.",
+      "fields": {
+        "asset_id": {
+          "name": "Apparaat-ID",
+          "description": "De id van het apparaat waarvan je de gearchiveerde geschiedenis bewerkt."
+        },
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "De id van de oorspronkelijke taak waartoe de gearchiveerde voltooiing behoort."
+        },
+        "ts": {
+          "name": "Voltooiingstijdstempel",
+          "description": "De ISO-tijdstempel (ts) van de te verwijderen gearchiveerde voltooiing."
+        }
+      }
     }
   },
   "entity": {
@@ -559,6 +591,9 @@
     },
     "notify_no_targets": {
       "message": "Deze melding heeft geen doel om naar te sturen — voeg een 'Versturen naar'-apparaat toe in Instellingen → Meldingen, of geef target: mee bij de aanroep."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper is momenteel niet geladen. Probeer het zo meteen opnieuw."
     }
   }
 }

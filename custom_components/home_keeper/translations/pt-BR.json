@@ -488,6 +488,38 @@
           "description": "Os campos a alterar: um objeto com um nome opcional e (para documentos de link) uma url opcional."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Excluir conclusão",
+      "description": "Remove uma conclusão do histórico de uma tarefa (desfazer um “concluído” acidental), identificada pelo seu carimbo de data/hora.",
+      "fields": {
+        "task_id": {
+          "name": "ID da tarefa",
+          "description": "O id da tarefa cuja conclusão você está removendo."
+        },
+        "ts": {
+          "name": "Carimbo de data/hora da conclusão",
+          "description": "O carimbo de data/hora ISO (ts) da conclusão a remover."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Excluir conclusão arquivada",
+      "description": "Remove uma conclusão do histórico arquivado de um eletrodoméstico, identificada pelo id da tarefa original e o carimbo de data/hora.",
+      "fields": {
+        "asset_id": {
+          "name": "ID do eletrodoméstico",
+          "description": "O id do eletrodoméstico cujo histórico arquivado você está editando."
+        },
+        "task_id": {
+          "name": "ID da tarefa",
+          "description": "O id da tarefa original à qual a conclusão arquivada pertence."
+        },
+        "ts": {
+          "name": "Carimbo de data/hora da conclusão",
+          "description": "O carimbo de data/hora ISO (ts) da conclusão arquivada a remover."
+        }
+      }
     }
   },
   "entity": {
@@ -559,6 +591,9 @@
     },
     "notify_no_targets": {
       "message": "Esta notificação não tem destino para envio — adicione um dispositivo \"Enviar para\" em Configurações → Notificações, ou passe target: na chamada."
+    },
+    "integration_not_loaded": {
+      "message": "O Home Keeper não está carregado no momento. Tente novamente em instantes."
     }
   }
 }

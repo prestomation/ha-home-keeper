@@ -1,15 +1,18 @@
 """Diagnostics support for Home Keeper.
 
 Provides a downloadable snapshot (from a device or the config entry) of the tasks
-and assets Home Keeper manages, to make support/debugging easier. The data is local
-and non-sensitive (maintenance schedules + appliance metadata), so nothing is
-redacted beyond free-form notes being kept as-is.
+and assets Home Keeper manages, to make support/debugging easier. Diagnostics are
+routinely attached to public GitHub issues, so potentially personal fields are
+redacted: appliance serial numbers, free-form notes/metadata, and per-completion
+``who`` (a person entity id) / ``photo`` (an image reference). Schedules and
+structural data are kept so the dump is still useful for debugging.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -17,6 +20,12 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from . import assets as asset_model
 from .const import ASSET_IDENTIFIER_PREFIX, DOMAIN
 from .coordinator import HomeKeeperCoordinator
+
+# Redacted by key anywhere in the tasks/assets structure (recursively) before the
+# snapshot leaves the instance — these can carry personal or identifying data.
+# Structural/schedule fields (recurrence, due dates, thresholds) are kept so the
+# dump stays useful for debugging.
+TO_REDACT = {"serial_number", "notes", "who", "photo"}
 
 
 async def async_get_config_entry_diagnostics(
@@ -33,8 +42,8 @@ async def async_get_config_entry_diagnostics(
             "parts": sum(len(a.get("parts", [])) for a in assets),
             "virtual_devices": sum(1 for a in assets if a.get("kind") == "virtual"),
         },
-        "tasks": tasks,
-        "assets": assets,
+        "tasks": async_redact_data(tasks, TO_REDACT),
+        "assets": async_redact_data(assets, TO_REDACT),
     }
 
 
@@ -80,6 +89,6 @@ async def async_get_device_diagnostics(
             "assets": len(device_assets),
             "parts": sum(len(a.get("parts", [])) for a in device_assets),
         },
-        "tasks": device_tasks,
-        "assets": device_assets,
+        "tasks": async_redact_data(device_tasks, TO_REDACT),
+        "assets": async_redact_data(device_assets, TO_REDACT),
     }

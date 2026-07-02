@@ -336,5 +336,8 @@
   "hint.sensor.usage": "Ce capteur indique {reading} maintenant. La tâche devient due à {due} (soit {target} d'usage), puis tous les {target} après chaque achèvement.",
   "hint.sensor.usageNoReading": "La tâche devient due une fois que le capteur monte de {target} au-dessus de sa valeur au moment où vous créez la tâche, puis tous les {target} après chaque achèvement.",
   "hint.sensor.threshold": "La tâche devient due lorsque le capteur est {comparison} {value}.",
-  "hint.sensor.thresholdFor": "La tâche devient due lorsque le capteur reste {comparison} {value} pendant {seconds} s."
+  "hint.sensor.thresholdFor": "La tâche devient due lorsque le capteur reste {comparison} {value} pendant {seconds} s.",
+  "error.actionFailed": "Une erreur s'est produite. Veuillez réessayer.",
+  "error.loadFailed": "Impossible de charger Home Keeper.",
+  "btn.retry": "Réessayer"
 }

@@ -488,6 +488,38 @@
           "description": "Pole, která se mají změnit: objekt s volitelným názvem a (u dokumentů s odkazem) volitelnou url."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Smazat dokončení",
+      "description": "Odebere jedno dokončení z historie úkolu (vrátí náhodné „hotovo“), určené jeho časovým razítkem.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu, jehož dokončení odebíráte."
+        },
+        "ts": {
+          "name": "Časové razítko dokončení",
+          "description": "Časové razítko ISO (ts) záznamu dokončení k odebrání."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Smazat archivované dokončení",
+      "description": "Odebere jedno dokončení z archivované historie spotřebiče, určené ID původního úkolu a časovým razítkem.",
+      "fields": {
+        "asset_id": {
+          "name": "ID spotřebiče",
+          "description": "ID spotřebiče, jehož archivovanou historii upravujete."
+        },
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID původního úkolu, k němuž archivované dokončení patří."
+        },
+        "ts": {
+          "name": "Časové razítko dokončení",
+          "description": "Časové razítko ISO (ts) archivovaného dokončení k odebrání."
+        }
+      }
     }
   },
   "entity": {
@@ -559,6 +591,9 @@
     },
     "notify_no_targets": {
       "message": "Toto oznámení nemá žádný cíl pro odeslání – přidejte zařízení „Odeslat na“ v Nastavení → Oznámení nebo při volání předejte target:."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper právě není načten. Zkuste to prosím za chvíli znovu."
     }
   }
 }

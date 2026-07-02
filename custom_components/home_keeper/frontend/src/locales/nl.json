@@ -323,5 +323,8 @@
   "hint.sensor.usage": "Deze sensor leest nu {reading}. De taak is aan de beurt bij {due} (dat is {target} gebruik), daarna elke {target} na elke voltooiing.",
   "hint.sensor.usageNoReading": "De taak is aan de beurt zodra de sensor {target} boven zijn waarde stijgt op het moment dat je de taak aanmaakt, daarna elke {target} na elke voltooiing.",
   "hint.sensor.threshold": "De taak is aan de beurt wanneer de sensor {comparison} {value} is.",
-  "hint.sensor.thresholdFor": "De taak is aan de beurt wanneer de sensor {seconds}s lang {comparison} {value} blijft."
+  "hint.sensor.thresholdFor": "De taak is aan de beurt wanneer de sensor {seconds}s lang {comparison} {value} blijft.",
+  "error.actionFailed": "Er ging iets mis. Probeer het opnieuw.",
+  "error.loadFailed": "Home Keeper kon niet worden geladen.",
+  "btn.retry": "Opnieuw"
 }

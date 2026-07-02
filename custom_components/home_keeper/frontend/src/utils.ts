@@ -12,6 +12,37 @@ export function escapeHTML(value: unknown): string {
 }
 
 /**
+ * True when *url* is a plain http(s) URL — the only schemes safe to place in an
+ * `href`. `escapeHTML` cannot neutralise a `javascript:`/`data:` URI in an href
+ * context (it only encodes markup characters), so any link built from stored or
+ * user-supplied data must pass through this guard first.
+ */
+export function isHttpUrl(url: unknown): boolean {
+  return typeof url === 'string' && /^https?:\/\//i.test(url);
+}
+
+/**
+ * Escaped, scheme-checked value for an `href` attribute. Returns the escaped URL when
+ * it is http(s), otherwise an empty string so the anchor is inert (defence-in-depth:
+ * the backend also rejects non-http(s), but the frontend must not depend on that).
+ */
+export function safeHref(url: unknown): string {
+  return isHttpUrl(url) ? escapeHTML(url) : '';
+}
+
+/**
+ * True when *url* is safe to place in an image `src`/`href`: either a plain http(s)
+ * URL or a **site-relative** path (single leading `/`, e.g. HA's
+ * `/api/image/serve/<id>/original` from `ha-picture-upload`). Rejects
+ * `javascript:`/`data:`/`vbscript:` and protocol-relative `//host` URLs. The
+ * completion `photo` field is caller-supplied via `home_keeper.complete_task`, so it
+ * must be validated before it reaches an href/src.
+ */
+export function isSafeImageUrl(url: unknown): boolean {
+  return typeof url === 'string' && (isHttpUrl(url) || /^\/[^/]/.test(url));
+}
+
+/**
  * A random UUID-v4 string for client-minted ids (document ids, working-copy entries).
  *
  * `crypto.randomUUID()` only exists in a **secure context** — HTTPS or `localhost`. Over

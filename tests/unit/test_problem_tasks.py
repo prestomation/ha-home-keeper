@@ -90,6 +90,36 @@ def test_no_op_when_state_unchanged():
     assert changed is False
 
 
+# ── indeterminate (unavailable/unknown) state ─────────────────────────────────
+def test_indeterminate_does_not_clear_an_armed_task():
+    # Regression: an armed task must NOT be cleared/completed when the sensor goes
+    # unavailable/unknown (is_problem=None) — that fired spurious completions at
+    # setup (before other integrations restored state) and on device-offline blips.
+    tasks, _, _ = _reconcile(_eligible(is_problem=True))
+    tasks2, ops, changed = _reconcile(_eligible(is_problem=None), tasks)
+    assert ops == []
+    assert changed is False
+    task = _only(tasks2)
+    assert task["next_due"] is not None  # still armed
+    assert task["completions"] == []  # no spurious completion recorded
+
+
+def test_indeterminate_does_not_arm_a_dormant_task():
+    tasks, _, _ = _reconcile(_eligible(is_problem=False))
+    tasks2, ops, changed = _reconcile(_eligible(is_problem=None), tasks)
+    assert ops == []
+    assert changed is False
+    assert _only(tasks2)["next_due"] is None  # still dormant
+
+
+def test_creates_dormant_task_when_sensor_indeterminate():
+    # A brand-new sensor whose state hasn't restored yet starts dormant, not armed.
+    tasks, ops, _ = _reconcile(_eligible(is_problem=None))
+    task = _only(tasks)
+    assert task["next_due"] is None
+    assert [kind for kind, _ in ops] == ["created"]
+
+
 # ── orphan removal ────────────────────────────────────────────────────────────
 def test_removes_task_when_sensor_no_longer_eligible():
     tasks, _, _ = _reconcile(_eligible(is_problem=True))

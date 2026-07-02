@@ -488,6 +488,38 @@
           "description": "Die zu ändernden Felder: ein Objekt mit einem optionalen Namen und (bei Link-Dokumenten) einer optionalen URL."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Erledigung löschen",
+      "description": "Entfernt eine Erledigung aus dem Verlauf einer Aufgabe (macht ein versehentliches „Erledigt“ rückgängig), angegeben über ihren Zeitstempel.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der Aufgabe, deren Erledigung du entfernst."
+        },
+        "ts": {
+          "name": "Erledigungs-Zeitstempel",
+          "description": "Der ISO-Zeitstempel (ts) des zu entfernenden Erledigungseintrags."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Archivierte Erledigung löschen",
+      "description": "Entfernt eine Erledigung aus dem archivierten Verlauf eines Geräts, angegeben über die ursprüngliche Aufgaben-ID und den Zeitstempel.",
+      "fields": {
+        "asset_id": {
+          "name": "Geräte-ID",
+          "description": "Die ID des Geräts, dessen archivierten Verlauf du bearbeitest."
+        },
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der ursprünglichen Aufgabe, zu der die archivierte Erledigung gehört."
+        },
+        "ts": {
+          "name": "Erledigungs-Zeitstempel",
+          "description": "Der ISO-Zeitstempel (ts) der zu entfernenden archivierten Erledigung."
+        }
+      }
     }
   },
   "entity": {
@@ -559,6 +591,9 @@
     },
     "notify_no_targets": {
       "message": "Diese Benachrichtigung hat kein Ziel zum Senden – füge unter Einstellungen → Benachrichtigungen ein „Senden an“-Gerät hinzu oder übergib beim Aufruf target:."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper ist derzeit nicht geladen. Bitte versuche es gleich noch einmal."
     }
   }
 }

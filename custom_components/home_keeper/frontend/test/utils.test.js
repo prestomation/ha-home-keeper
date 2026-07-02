@@ -1,6 +1,9 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   escapeHTML,
+  isHttpUrl,
+  isSafeImageUrl,
+  safeHref,
   randomId,
   recurrenceSummary,
   isArmedTriggered,
@@ -58,6 +61,30 @@ describe('escapeHTML', () => {
   it('handles null/undefined', () => {
     expect(escapeHTML(null)).toBe('');
     expect(escapeHTML(undefined)).toBe('');
+  });
+});
+
+describe('href/image URL guards', () => {
+  it('isHttpUrl accepts only http(s)', () => {
+    expect(isHttpUrl('http://x')).toBe(true);
+    expect(isHttpUrl('https://x')).toBe(true);
+    expect(isHttpUrl('javascript:alert(1)')).toBe(false);
+    expect(isHttpUrl('/api/image/serve/a')).toBe(false);
+    expect(isHttpUrl(undefined)).toBe(false);
+  });
+
+  it('safeHref returns escaped http(s) or empty for unsafe', () => {
+    expect(safeHref('https://x/a?b=1&c=2')).toBe('https://x/a?b=1&amp;c=2');
+    expect(safeHref('javascript:alert(1)')).toBe('');
+    expect(safeHref('data:text/html,<script>')).toBe('');
+  });
+
+  it('isSafeImageUrl allows http(s) and site-relative, blocks scripts', () => {
+    expect(isSafeImageUrl('https://x/y.jpg')).toBe(true);
+    expect(isSafeImageUrl('/api/image/serve/abc/original')).toBe(true);
+    expect(isSafeImageUrl('javascript:alert(1)')).toBe(false);
+    expect(isSafeImageUrl('data:text/html,<script>')).toBe(false);
+    expect(isSafeImageUrl('//evil.com/x')).toBe(false); // protocol-relative
   });
 });
 

@@ -41,6 +41,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
     TASK_SOURCE_PART,
+    TASK_SOURCE_PROBLEM_SENSOR,
     resolve_wear_task_naming,
 )
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
@@ -161,7 +162,24 @@ class HomeKeeperStore:
 
     # ── mutations ──────────────────────────────────────────────────────────────
     async def add_task(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Create and persist a new task; returns the created task dict."""
+        """Create and persist a new task; returns the created task dict.
+
+        ``source`` is opaque provenance a caller may attach, but the ``part`` and
+        ``problem_sensor`` namespaces are *reserved* — the reconcilers own tasks that
+        carry them (and will silently delete a task whose reserved source doesn't
+        match a live part/sensor). Reject them here so an external ``add_task`` can't
+        mint a task that masquerades as reconciler-owned and then vanishes on the next
+        reconcile pass. Home Keeper's own reconcilers build such tasks via
+        ``models.build_task`` directly, not through this service path.
+        """
+        source = data.get("source")
+        if isinstance(source, dict):
+            reserved = {TASK_SOURCE_PART, TASK_SOURCE_PROBLEM_SENSOR} & set(source)
+            if reserved:
+                raise models.TaskValidationError(
+                    f"source keys {sorted(reserved)} are reserved for Home Keeper's "
+                    "own task reconcilers and cannot be set via add_task"
+                )
         task = models.build_task(data, now=dt_util.now())
         self._tasks[task["id"]] = task
         await self._save()
@@ -798,6 +816,11 @@ class HomeKeeperStore:
         _reject_synced_problem(existing, origin)
         now = dt_util.now()
         when = completed_at or now
+        if when.tzinfo is None:
+            # ``cv.datetime`` accepts offset-less strings as naive datetimes;
+            # qualify with HA's configured zone (mirrors ``models._coerce_seed``)
+            # so the event payload / part stamp / recurrence math all stay aware.
+            when = when.replace(tzinfo=now.tzinfo)
         clean_metadata = models.normalize_completion_metadata(metadata)
         updated = recurrence.apply_completion(
             dict(existing), when, now=now, metadata=clean_metadata
@@ -886,6 +909,14 @@ class HomeKeeperStore:
             raise KeyError(asset_id)
         if assets.remove_archived_completion(asset, task_id, ts):
             await self._save()
+            # The asset's archived history changed — fire asset_updated so listeners
+            # (and the events contract) see it, mirroring every other asset mutation.
+            self._hass.bus.async_fire(
+                EVENT_ASSET_UPDATED,
+                events.asset_event_data(
+                    asset, extra={"changed_fields": ["archived_history"]}
+                ),
+            )
         return asset
 
     def _reset_usage_baseline(self, task: dict[str, Any]) -> None:

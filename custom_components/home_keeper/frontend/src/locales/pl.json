@@ -349,5 +349,8 @@
   "hint.sensor.usage": "Ten czujnik wskazuje teraz {reading}. Termin zadania przypada przy {due} (to {target} użycia), a następnie co {target} po każdym ukończeniu.",
   "hint.sensor.usageNoReading": "Termin zadania przypada, gdy czujnik wzrośnie o {target} powyżej odczytu z chwili utworzenia zadania, a następnie co {target} po każdym ukończeniu.",
   "hint.sensor.threshold": "Termin zadania przypada, gdy czujnik jest {comparison} {value}.",
-  "hint.sensor.thresholdFor": "Termin zadania przypada, gdy czujnik pozostaje {comparison} {value} przez {seconds}s."
+  "hint.sensor.thresholdFor": "Termin zadania przypada, gdy czujnik pozostaje {comparison} {value} przez {seconds}s.",
+  "error.actionFailed": "Coś poszło nie tak. Spróbuj ponownie.",
+  "error.loadFailed": "Nie udało się załadować Home Keeper.",
+  "btn.retry": "Ponów"
 }

@@ -80,14 +80,20 @@ class HomeKeeperTodoListEntity(
         return items
 
     async def async_update_todo_item(self, item: TodoItem) -> None:
-        """Handle a checkbox toggle: completing advances the recurrence.
+        """Handle a to-do item edit from HA's card.
 
-        Completing a problem-sensor-synced task is rejected by the store (the
-        originating integration must clear the underlying problem); surface that as a
-        ``HomeAssistantError`` so the to-do card shows the reason and leaves it
-        checked-pending rather than silently swallowing it.
+        * Checking it off routes into the recurrence engine (completing a
+          problem-sensor-synced task is rejected by the store — the originating
+          integration must clear the underlying problem — surfaced as a
+          ``HomeAssistantError`` so the card shows the reason and leaves it
+          checked-pending).
+        * Editing the summary/notes in the detail dialog applies as a task update.
+          The entity declares ``UPDATE_TODO_ITEM``, so a rename must actually persist
+          rather than silently revert on the next render.
         """
-        if item.status == TodoItemStatus.COMPLETED and item.uid:
+        if not item.uid:
+            return
+        if item.status == TodoItemStatus.COMPLETED:
             try:
                 await self.coordinator.store.complete_task(item.uid)
             except TaskValidationError as err:
@@ -97,3 +103,26 @@ class HomeKeeperTodoListEntity(
                     translation_placeholders={"error": str(err)},
                 ) from err
             await self.coordinator.async_request_refresh()
+            return
+
+        # NEEDS_ACTION: persist summary/notes edits made in the card detail dialog.
+        task = self.coordinator.store.get_task(item.uid)
+        if task is None:
+            return
+        updates: dict[str, str] = {}
+        if item.summary is not None and item.summary != task.get("name"):
+            updates["name"] = item.summary
+        new_notes = item.description or ""
+        if new_notes != (task.get("notes") or ""):
+            updates["notes"] = new_notes
+        if not updates:
+            return
+        try:
+            await self.coordinator.store.update_task(item.uid, updates)
+        except TaskValidationError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await self.coordinator.async_request_refresh()

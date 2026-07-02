@@ -488,6 +488,38 @@
           "description": "Muutettavat kentät: objekti, jossa on valinnainen nimi ja (linkkiasiakirjoille) valinnainen url."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Poista suoritus",
+      "description": "Poistaa yhden suorituksen tehtävän historiasta (kumoaa vahingossa tehdyn ”valmis”), tunnistettuna aikaleimalla.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Sen tehtävän tunnus, jonka suorituksen poistat."
+        },
+        "ts": {
+          "name": "Suorituksen aikaleima",
+          "description": "Poistettavan suoritusmerkinnän ISO-aikaleima (ts)."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Poista arkistoitu suoritus",
+      "description": "Poistaa yhden suorituksen laitteen arkistoidusta historiasta, tunnistettuna alkuperäisen tehtävän tunnuksella ja aikaleimalla.",
+      "fields": {
+        "asset_id": {
+          "name": "Laitteen tunnus",
+          "description": "Sen laitteen tunnus, jonka arkistoitua historiaa muokkaat."
+        },
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Alkuperäisen tehtävän tunnus, johon arkistoitu suoritus kuuluu."
+        },
+        "ts": {
+          "name": "Suorituksen aikaleima",
+          "description": "Poistettavan arkistoidun suorituksen ISO-aikaleima (ts)."
+        }
+      }
     }
   },
   "entity": {
@@ -559,6 +591,9 @@
     },
     "notify_no_targets": {
       "message": "Tällä ilmoituksella ei ole lähetyskohdetta – lisää \"Lähetä laitteelle\" -laite kohdassa Asetukset → Ilmoitukset tai anna target: kutsussa."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper ei ole juuri nyt ladattuna. Yritä hetken kuluttua uudelleen."
     }
   }
 }

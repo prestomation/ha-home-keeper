@@ -44,6 +44,7 @@ from .const import (
     EVENT_TASK_TRIGGERED,
     EVENT_TASK_UPDATED,
 )
+from .store import _changed_fields as _store_changed_fields
 
 # Permissive schema: the fake mirrors behaviour, not validation. Your integration's
 # real calls still flow through Home Keeper's strict schemas in production.
@@ -73,9 +74,14 @@ class FakeHomeKeeper:
     async def _update_task(self, call: ServiceCall) -> None:
         data = dict(call.data)
         task_id = data.pop("task_id")
-        merged = models.merge_update(self.tasks[task_id], data, now=dt_util.now())
+        before = self.tasks[task_id]
+        merged = models.merge_update(before, data, now=dt_util.now())
+        # Compute changed_fields as a real before/after diff — matching the store — so
+        # the fake fires the update event only "when a task actually changes" (an
+        # unchanged field must not produce a spurious event the real integration
+        # wouldn't). The whole point of this module is that it can't drift.
+        changed = _store_changed_fields(before, merged)
         self.tasks[task_id] = merged
-        changed = sorted(k for k in data if k != "task_id")
         if changed:
             self.hass.bus.async_fire(
                 EVENT_TASK_UPDATED,

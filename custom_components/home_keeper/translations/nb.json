@@ -488,6 +488,38 @@
           "description": "Feltene som skal endres: et objekt med et valgfritt navn og (for lenkedokumenter) en valgfri url."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Slett fullføring",
+      "description": "Fjern én fullføring fra en oppgaves historikk (angre en utilsiktet «ferdig»), angitt med tidsstempelet.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til oppgaven du fjerner fullføringen fra."
+        },
+        "ts": {
+          "name": "Fullføringstidsstempel",
+          "description": "ISO-tidsstempelet (ts) for fullføringen som skal fjernes."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Slett arkivert fullføring",
+      "description": "Fjern én fullføring fra et apparats arkiverte historikk, angitt med den opprinnelige oppgavens id og tidsstempel.",
+      "fields": {
+        "asset_id": {
+          "name": "Apparat-ID",
+          "description": "ID-en til apparatet du redigerer den arkiverte historikken for."
+        },
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til den opprinnelige oppgaven som den arkiverte fullføringen tilhører."
+        },
+        "ts": {
+          "name": "Fullføringstidsstempel",
+          "description": "ISO-tidsstempelet (ts) for den arkiverte fullføringen som skal fjernes."
+        }
+      }
     }
   },
   "entity": {
@@ -559,6 +591,9 @@
     },
     "notify_no_targets": {
       "message": "Dette varselet har ingen mottaker – legg til en «Send til»-enhet under Innstillinger → Varsler, eller angi target: i kallet."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper er ikke lastet inn akkurat nå. Prøv igjen om et øyeblikk."
     }
   }
 }

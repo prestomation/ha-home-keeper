@@ -488,6 +488,38 @@
           "description": "Fälten som ska ändras: ett objekt med ett valfritt namn och (för länkdokument) en valfri url."
         }
       }
+    },
+    "delete_completion": {
+      "name": "Ta bort slutförande",
+      "description": "Tar bort ett slutförande från en uppgifts historik (ångra ett oavsiktligt ”klart”), angivet med dess tidsstämpel.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID:t för uppgiften vars slutförande du tar bort."
+        },
+        "ts": {
+          "name": "Tidsstämpel för slutförande",
+          "description": "ISO-tidsstämpeln (ts) för slutförandet som ska tas bort."
+        }
+      }
+    },
+    "delete_archived_completion": {
+      "name": "Ta bort arkiverat slutförande",
+      "description": "Tar bort ett slutförande från en apparats arkiverade historik, angivet med den ursprungliga uppgiftens id och tidsstämpel.",
+      "fields": {
+        "asset_id": {
+          "name": "Apparat-ID",
+          "description": "ID:t för apparaten vars arkiverade historik du redigerar."
+        },
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID:t för den ursprungliga uppgiften som det arkiverade slutförandet tillhör."
+        },
+        "ts": {
+          "name": "Tidsstämpel för slutförande",
+          "description": "ISO-tidsstämpeln (ts) för det arkiverade slutförandet som ska tas bort."
+        }
+      }
     }
   },
   "entity": {
@@ -559,6 +591,9 @@
     },
     "notify_no_targets": {
       "message": "Den här aviseringen har ingen mottagare – lägg till en \"Skicka till\"-enhet under Inställningar → Aviseringar, eller ange target: i anropet."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper är inte inläst just nu. Försök igen om en stund."
     }
   }
 }

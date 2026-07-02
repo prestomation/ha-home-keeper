@@ -323,5 +323,8 @@
   "notify.need_profile": "Add a profile first — a notification needs one to choose what to send.",
   "field.consumable_link": "Linked consumable",
   "opt.consumable.none": "Not linked",
-  "field.card_links": "Links to show on card"
+  "field.card_links": "Links to show on card",
+  "error.actionFailed": "Something went wrong. Please try again.",
+  "error.loadFailed": "Couldn't load Home Keeper.",
+  "btn.retry": "Retry"
 }

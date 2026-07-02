@@ -21,7 +21,7 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
@@ -51,7 +51,12 @@ from .const import (
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
 )
-from .coordinator import HomeKeeperCoordinator, entity_set_key
+from .coordinator import (
+    HomeKeeperCoordinator,
+    discard_edge_state,
+    entity_set_key,
+    task_has_entities,
+)
 from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
 from .sensor_watcher import SensorTaskWatcher
@@ -210,6 +215,21 @@ UPDATE_COMPLETION_SCHEMA = vol.Schema(
     }
 )
 
+DELETE_COMPLETION_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("ts"): cv.string,
+    }
+)
+
+DELETE_ARCHIVED_COMPLETION_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("task_id"): cv.string,
+        vol.Required("ts"): cv.string,
+    }
+)
+
 # The completion-metadata keys shared by complete_task / update_completion, lifted
 # out of a service call's data into the ``metadata`` mapping the store expects.
 _COMPLETION_METADATA_KEYS = ("note", "cost", "photo", "who")
@@ -273,6 +293,7 @@ _ASSET_FIELDS: dict[Any, Any] = {
     vol.Optional("icon"): cv.string,
     vol.Optional("manufacturer"): cv.string,
     vol.Optional("model"): cv.string,
+    vol.Optional("serial_number"): cv.string,
     vol.Optional("cost"): vol.Coerce(float),
     vol.Optional("documents"): [_DOCUMENT_SCHEMA],
     vol.Optional("metadata"): [_METADATA_SCHEMA],
@@ -488,7 +509,12 @@ def _register_services(hass: HomeAssistant) -> None:
             coord = getattr(entry, "runtime_data", None)
             if isinstance(coord, HomeKeeperCoordinator):
                 return coord
-        raise RuntimeError("No active Home Keeper coordinator found")
+        # Reachable transiently mid-reload (the entry is momentarily unloaded while
+        # its services are still registered). Surface a localized HA error rather than
+        # a bare RuntimeError that would present as an opaque 500.
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="integration_not_loaded"
+        )
 
     def _check_area(data: dict) -> None:
         if not devices.area_exists(hass, data.get("area_id")):
@@ -509,7 +535,13 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_key="invalid_task",
                 translation_placeholders={"error": str(err)},
             ) from err
-        await hass.config_entries.async_reload(coord.entry.entry_id)
+        # Only reload when the new task owns per-task entities; otherwise a refresh
+        # avoids a full teardown/rebuild (e.g. a companion seeding many device-less
+        # tasks would otherwise flap every entity unavailable N times).
+        if task_has_entities(task):
+            await hass.config_entries.async_reload(coord.entry.entry_id)
+        else:
+            await coord.async_request_refresh()
         return {"task_id": task["id"]}
 
     async def handle_update_task(call: ServiceCall) -> None:
@@ -542,6 +574,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_delete_task(call: ServiceCall) -> None:
         coord = _coordinator()
+        existing = coord.store.get_task(call.data["task_id"])
         try:
             await coord.store.delete_task(
                 call.data["task_id"], force=call.data.get("force", False)
@@ -552,7 +585,11 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_key="invalid_task",
                 translation_placeholders={"error": str(err)},
             ) from err
-        await hass.config_entries.async_reload(coord.entry.entry_id)
+        # Reload only if the deleted task owned per-task entities that must be removed.
+        if task_has_entities(existing):
+            await hass.config_entries.async_reload(coord.entry.entry_id)
+        else:
+            await coord.async_request_refresh()
 
     def _completion_metadata(data: dict) -> dict[str, Any]:
         """Lift the per-completion metadata keys out of a service call's data."""
@@ -601,6 +638,38 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_key="invalid_task",
                 translation_placeholders={"error": str(err)},
             ) from err
+        await coord.async_request_refresh()
+
+    async def handle_delete_completion(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.delete_completion(call.data["task_id"], call.data["ts"])
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await coord.async_request_refresh()
+
+    async def handle_delete_archived_completion(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.delete_archived_completion(
+                call.data["asset_id"], call.data["task_id"], call.data["ts"]
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="asset_not_found",
+                translation_placeholders={"asset_id": call.data["asset_id"]},
+            ) from None
         await coord.async_request_refresh()
 
     async def handle_trigger_task(call: ServiceCall) -> None:
@@ -865,6 +934,15 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN, "update_completion", handle_update_completion, UPDATE_COMPLETION_SCHEMA
     )
     hass.services.async_register(
+        DOMAIN, "delete_completion", handle_delete_completion, DELETE_COMPLETION_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "delete_archived_completion",
+        handle_delete_archived_completion,
+        DELETE_ARCHIVED_COMPLETION_SCHEMA,
+    )
+    hass.services.async_register(
         DOMAIN, "trigger_task", handle_trigger_task, TRIGGER_TASK_SCHEMA
     )
     hass.services.async_register(
@@ -1006,6 +1084,8 @@ _SERVICES = (
     "delete_task",
     "complete_task",
     "update_completion",
+    "delete_completion",
+    "delete_archived_completion",
     "trigger_task",
     "snooze_task",
     "skip_task",
@@ -1031,8 +1111,13 @@ _SERVICES = (
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    # Only tear down the panel/services when the last entry goes away.
-    if unloaded and not hass.config_entries.async_entries(DOMAIN):
+    # Only tear down the panel/services when the last entry goes away. Gate on
+    # *loaded* entries, not ``async_entries``: HA removes the entry from the registry
+    # only *after* this unload returns (and a disabled entry stays registered), so
+    # ``async_entries(DOMAIN)`` is never empty here and the teardown was dead code —
+    # leaving the panel pointing at a dead backend and all services registered until
+    # restart. ``async_loaded_entries`` excludes the entry currently unloading.
+    if unloaded and not hass.config_entries.async_loaded_entries(DOMAIN):
         panel.async_unregister_panel(hass)
         for service in _SERVICES:
             hass.services.async_remove(DOMAIN, service)
@@ -1044,7 +1129,10 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     Virtual asset devices (and per-task self-owned devices) are tied to this config
     entry, so Home Assistant removes them automatically. Here we additionally drop
-    our stored tasks/assets document so no residue is left behind.
+    our stored tasks/assets document and the uploaded-documents blob tree so no
+    residue is left behind.
     """
+    discard_edge_state(hass, entry.entry_id)
     store = HomeKeeperStore(hass)
     await store.async_remove()
+    await manuals.async_delete_all_documents(hass)

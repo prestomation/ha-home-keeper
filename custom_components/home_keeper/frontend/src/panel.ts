@@ -62,9 +62,12 @@ import {
   deviceName,
   dueLabel,
   escapeHTML,
+  isHttpUrl,
   isOverdue,
+  isSafeImageUrl,
   parseRoute,
   randomId,
+  safeHref,
   recurrenceSummary,
   tasksForAsset,
   type PanelLocation,
@@ -658,6 +661,15 @@ export class HomeKeeperPanel extends HTMLElement {
   // Navigation builds absolute paths from it; falls back until the first route.
   private _routePrefix = '/home-keeper';
   private _loaded = false;
+  private _loadError = false;
+  // Debounce timers for per-keystroke option saves (profiles / notifications), so a
+  // text edit doesn't fire a config-entry reload on every character (and a slow
+  // earlier response can't clobber a later one — only the trailing save runs).
+  private _persistTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+  // A form to open once the pending navigation settles in `_applyLocation` (opening
+  // an edit form from a detail page changes the URL, which would otherwise clear it).
+  private _pendingEdit: Partial<Task> | null = null;
+  private _pendingAssetEdit: Partial<Asset> | null = null;
   // Live HA components that need `.hass` refreshed when hass updates.
   private _liveHassEls: Array<{ hass?: Hass }> = [];
 
@@ -694,9 +706,19 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!changed) return;
     this._view = loc.view;
     this._detail = loc.detail;
-    // Leaving a list/detail closes any open form (forms are ephemeral overlays).
+    // Leaving a list/detail closes any open form (forms are ephemeral overlays)...
     this._edit = { open: false, task: null };
     this._assetEdit = { open: false, asset: null };
+    // ...unless this navigation was initiated to open a form (edit from a detail
+    // page): re-open it now that the location has settled.
+    if (this._pendingEdit) {
+      this._edit = { open: true, task: this._pendingEdit };
+      this._pendingEdit = null;
+    }
+    if (this._pendingAssetEdit) {
+      this._assetEdit = { open: true, asset: this._pendingAssetEdit };
+      this._pendingAssetEdit = null;
+    }
     this._render();
   }
 
@@ -840,9 +862,13 @@ export class HomeKeeperPanel extends HTMLElement {
         }
       }
       this._loaded = true;
+      this._loadError = false;
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('home-keeper: failed to load data', err);
+      // Surface a retry instead of spinning forever (the only auto-retry was on the
+      // first `set hass`, so a transient WS failure at startup bricked the panel).
+      this._loadError = true;
     }
   }
 
@@ -865,16 +891,23 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
   private _openEdit(task: Task): void {
-    // Editing happens in the list view's form host; leave any open detail page.
-    this._detail = null;
-    this._view = 'tasks';
     // Seed the flat consumable_link so the picker reflects the current link and a
     // plain save (no edit) round-trips it unchanged.
-    this._edit = {
-      open: true,
-      task: { ...task, consumable_link: consumableLinkToken(task) } as Partial<Task>,
-    };
-    this._render();
+    const seeded = { ...task, consumable_link: consumableLinkToken(task) } as Partial<Task>;
+    // Editing happens in the list view's form host; leave any open detail page. Drive
+    // this through the URL (the single source of truth) rather than mutating
+    // view/detail directly. When a detail page is open, the navigation changes the
+    // location, and `_applyLocation` clears ephemeral forms — so stash the target as a
+    // pending edit that `_applyLocation` re-opens after the reset (avoids the form
+    // flashing open then being wiped by the async route round-trip). When already on
+    // the list, the location is unchanged (no reset), so just open it directly.
+    if (this._view === 'tasks' && !this._detail) {
+      this._edit = { open: true, task: seeded };
+      this._render();
+    } else {
+      this._pendingEdit = seeded;
+      this._navigate({ view: 'tasks', detail: null });
+    }
   }
   private _closeForm(): void {
     this._edit = { open: false, task: null };
@@ -921,7 +954,12 @@ export class HomeKeeperPanel extends HTMLElement {
       this._openCompletionDialog(task);
       return;
     }
-    await api.completeTask(this._hass, task.id);
+    try {
+      await api.completeTask(this._hass, task.id);
+    } catch (err) {
+      console.error('home-keeper: complete failed', err);
+      this._toast(t('error.actionFailed'));
+    }
     await this._refresh();
   }
 
@@ -1022,6 +1060,13 @@ export class HomeKeeperPanel extends HTMLElement {
       document.removeEventListener('keydown', onKey);
       onConfirm?.();
       this._closeConfirmDialog();
+      // Re-render after the mutation: the confirm callbacks (metadata/part row
+      // deletion) only mutate state, and neither this handler nor
+      // _closeConfirmDialog rendered — so a deleted row stayed visible, and its
+      // siblings' value-changed closures kept stale render-time indices that wrote
+      // into the now-shifted array and corrupted the wrong entry. Rebuilding the form
+      // with fresh indices fixes both.
+      this._render();
     });
 
     row.appendChild(cancel);
@@ -1112,17 +1157,20 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
   private _openEditAsset(asset: Asset): void {
-    this._detail = null;
-    this._view = 'appliances';
-    this._assetEdit = {
-      open: true,
-      asset: {
-        ...asset,
-        parts: [...(asset.parts || [])],
-        metadata: (asset.metadata || []).map((m) => ({ ...m })),
-      },
+    // URL-driven (single source of truth); see _openEdit for the pending-edit dance
+    // that survives `_applyLocation` clearing ephemeral forms on a route change.
+    const seeded: Partial<Asset> = {
+      ...asset,
+      parts: [...(asset.parts || [])],
+      metadata: (asset.metadata || []).map((m) => ({ ...m })),
     };
-    this._render();
+    if (this._view === 'appliances' && !this._detail) {
+      this._assetEdit = { open: true, asset: seeded };
+      this._render();
+    } else {
+      this._pendingAssetEdit = seeded;
+      this._navigate({ view: 'appliances', detail: null });
+    }
   }
   private _closeAssetForm(): void {
     this._assetEdit = { open: false, asset: null };
@@ -1165,7 +1213,12 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private async _deleteAsset(asset: Asset): Promise<void> {
     if (!this._hass) return;
-    await api.deleteAsset(this._hass, asset.id);
+    try {
+      await api.deleteAsset(this._hass, asset.id);
+    } catch (err) {
+      console.error('home-keeper: delete appliance failed', err);
+      this._toast(t('error.actionFailed'));
+    }
     await this._refresh();
   }
 
@@ -1184,6 +1237,16 @@ export class HomeKeeperPanel extends HTMLElement {
       console.error('home-keeper: inventory export failed', err);
       this._toast(t('error.exportFailed'));
     }
+  }
+
+  /** Coalesce rapid calls under *key*, running only the trailing one after *ms*. */
+  private _debounce(key: string, fn: () => void, ms = 600): void {
+    const prev = this._persistTimers[key];
+    if (prev) clearTimeout(prev);
+    this._persistTimers[key] = setTimeout(() => {
+      delete this._persistTimers[key];
+      fn();
+    }, ms);
   }
 
   /** Surface a transient message via HA's toast notification. */
@@ -1250,7 +1313,12 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private async _deleteCompletion(taskId: string, ts: string): Promise<void> {
     if (!this._hass) return;
-    await api.deleteCompletion(this._hass, taskId, ts);
+    try {
+      await api.deleteCompletion(this._hass, taskId, ts);
+    } catch (err) {
+      console.error('home-keeper: delete completion failed', err);
+      this._toast(t('error.actionFailed'));
+    }
     await this._refresh();
   }
 
@@ -1260,7 +1328,12 @@ export class HomeKeeperPanel extends HTMLElement {
     ts: string,
   ): Promise<void> {
     if (!this._hass) return;
-    await api.deleteArchivedCompletion(this._hass, assetId, archivedTaskId, ts);
+    try {
+      await api.deleteArchivedCompletion(this._hass, assetId, archivedTaskId, ts);
+    } catch (err) {
+      console.error('home-keeper: delete archived completion failed', err);
+      this._toast(t('error.actionFailed'));
+    }
     await this._refresh();
   }
 
@@ -1271,7 +1344,15 @@ export class HomeKeeperPanel extends HTMLElement {
     const onTasks = this._view === 'tasks';
 
     let inner: string;
-    if (!this._loaded) {
+    if (!this._loaded && this._loadError) {
+      // A transient WS failure at startup used to leave the panel spinning forever
+      // (only the very first `set hass` retried). Show a retry instead.
+      inner = `<div class="hk-loading"><ha-alert alert-type="error">${escapeHTML(
+        t('error.loadFailed'),
+      )}</ha-alert><ha-button id="hk-retry" raised>${escapeHTML(
+        t('btn.retry'),
+      )}</ha-button></div>`;
+    } else if (!this._loaded) {
       inner = `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
     } else if (this._detail) {
       inner = `
@@ -1759,10 +1840,15 @@ export class HomeKeeperPanel extends HTMLElement {
     return this._assetDetail(asset);
   }
 
-  /** Render a URL as a clickable anchor that opens in the browser (new tab). */
+  /** Render a URL as a clickable anchor that opens in the browser (new tab). A
+   *  non-http(s) value is shown as inert text (no href) — defence-in-depth against a
+   *  `javascript:` URI that escapeHTML can't neutralise in an href. */
   private _link(url: string): string {
     const safe = escapeHTML(url);
-    return `<a href="${safe}" target="_blank" rel="noopener">${safe}</a>`;
+    const href = safeHref(url);
+    return href
+      ? `<a href="${href}" target="_blank" rel="noopener">${safe}</a>`
+      : `<span>${safe}</span>`;
   }
 
   /** One label/value row, omitted entirely when the value is empty. */
@@ -1966,7 +2052,7 @@ export class HomeKeeperPanel extends HTMLElement {
             ? `<a class="hk-doc-file" role="button" tabindex="0" data-doc="${escapeHTML(
                 d.id || '',
               )}">${name}</a>`
-            : `<a href="${escapeHTML(d.url || '')}" target="_blank" rel="noopener">${name}</a>`;
+            : `<a href="${safeHref(d.url)}" target="_blank" rel="noopener">${name}</a>`;
         return `<div class="hk-detail-row"><span class="k"><ha-icon
           icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}</span></div>`;
       })
@@ -2114,8 +2200,8 @@ export class HomeKeeperPanel extends HTMLElement {
           ? `<ha-icon slot="icon" icon="${escapeHTML(icon)}" class="hk-chip-ic"></ha-icon>`
           : '';
         const chip = `<ha-assist-chip label="${escapeHTML(label)}">${iconSlot}</ha-assist-chip>`;
-        return url
-          ? `<a class="hk-task-chip-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
+        return isHttpUrl(url)
+          ? `<a class="hk-task-chip-link" href="${safeHref(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
           : chip;
       })
       .join('');
@@ -2413,6 +2499,13 @@ export class HomeKeeperPanel extends HTMLElement {
       this._liveHassEls.push(mb);
       menuHost.appendChild(mb);
     }
+
+    // Load-error retry (shown instead of the infinite spinner on a startup failure).
+    root.getElementById('hk-retry')?.addEventListener('click', () => {
+      this._loadError = false;
+      this._render();
+      void this._refresh();
+    });
 
     // Detail page: just the back button, the detail's own action buttons, and
     // any device chips / completion-delete buttons it renders.
@@ -2789,7 +2882,7 @@ export class HomeKeeperPanel extends HTMLElement {
       const next = (this._options?.profiles ?? []).map((p) =>
         p.id === profile.id ? profileFormToProfile(profile.id, value) : p,
       );
-      void this._persistProfiles(next, false);
+      this._debounce('profiles', () => void this._persistProfiles(next, false));
     });
     this._liveHassEls.push(form);
     body.appendChild(form);
@@ -2977,7 +3070,7 @@ export class HomeKeeperPanel extends HTMLElement {
       const next = (this._options?.notifications ?? []).map((n) =>
         n.id === notification.id ? notifyFormToNotification(notification.id, value) : n,
       );
-      void this._persistNotifications(next, false);
+      this._debounce('notifications', () => void this._persistNotifications(next, false));
     });
     this._liveHassEls.push(form);
     body.appendChild(form);
@@ -4271,7 +4364,12 @@ export class HomeKeeperPanel extends HTMLElement {
       ? `<span class="hk-hist-chips">${bits.join(' · ')}</span>`
       : '';
     const note = c.note ? `<span class="hk-hist-note">${escapeHTML(c.note)}</span>` : '';
-    const photo = c.photo
+    // `photo` is caller-supplied (any string via home_keeper/complete_task) and was
+    // rendered as a raw href — escapeHTML can't neutralise a `javascript:` URI in an
+    // href, so a non-admin could plant a stored-XSS payload an admin clicks. Only
+    // render the link/thumbnail when the URL is http(s) or a site-relative path (the
+    // shape `ha-picture-upload` produces, e.g. `/api/image/serve/<id>/original`).
+    const photo = isSafeImageUrl(c.photo)
       ? `<a href="${escapeHTML(c.photo)}" target="_blank" rel="noopener"><img class="hk-hist-photo" src="${escapeHTML(c.photo)}" alt="${escapeHTML(t('completion.photo'))}" /></a>`
       : '';
     if (!line && !note && !photo) return '';

@@ -19,7 +19,7 @@ from homeassistant.util import dt as dt_util
 from . import companions, devices, inventory, manuals, notifier, options
 from .assets import AssetValidationError
 from .const import DOMAIN, OPTION_PROFILES
-from .coordinator import HomeKeeperCoordinator, entity_set_key
+from .coordinator import HomeKeeperCoordinator, entity_set_key, task_has_entities
 from .models import TaskValidationError
 
 # How long a signed document URL stays valid. The dashboard card pre-signs file
@@ -112,7 +112,11 @@ async def ws_add_task(
     except TaskValidationError as err:
         connection.send_error(msg["id"], "invalid_task", str(err))
         return
-    await hass.config_entries.async_reload(coord.entry.entry_id)
+    # Reload only when the new task owns per-task entities; else a refresh suffices.
+    if task_has_entities(task):
+        await hass.config_entries.async_reload(coord.entry.entry_id)
+    else:
+        await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
 
 
@@ -166,12 +170,17 @@ async def ws_delete_task(
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
+    existing = coord.store.get_task(msg["task_id"])
     try:
         await coord.store.delete_task(msg["task_id"], force=msg.get("force", False))
     except TaskValidationError as err:
         connection.send_error(msg["id"], "invalid_task", str(err))
         return
-    await hass.config_entries.async_reload(coord.entry.entry_id)
+    # Reload only if the deleted task owned per-task entities that must be removed.
+    if task_has_entities(existing):
+        await hass.config_entries.async_reload(coord.entry.entry_id)
+    else:
+        await coord.async_request_refresh()
     connection.send_result(msg["id"], {"ok": True})
 
 
@@ -583,11 +592,16 @@ async def ws_sign_document_url(
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/export_inventory"})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_export_inventory(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    """Return the home-inventory report (for insurance) plus a ready-to-save CSV."""
+    """Return the home-inventory report (for insurance) plus a ready-to-save CSV.
+
+    Admin-only: the report exposes every asset's serial numbers, purchase costs and
+    value totals, which a non-admin household member shouldn't be able to exfiltrate.
+    """
     coord = _coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
@@ -633,6 +647,7 @@ async def ws_get_options(
         vol.Required("options"): dict,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_set_options(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -640,7 +655,10 @@ async def ws_set_options(
     """Persist options from the Settings tab (delegates to the shared service path).
 
     ``async_set_options`` updates the entry, which reloads it and re-runs the
-    problem-sensor sync. Mirrors the ``home_keeper.set_options`` service.
+    problem-sensor sync. Mirrors the ``home_keeper.set_options`` service. Admin-only:
+    mutating config-entry options (profiles, notification targets, problem-sensor
+    exclusions) is administration, which HA core reserves for admins — a non-admin
+    could otherwise wipe another user's saved settings.
     """
     coord = _coordinator(hass)
     if coord is None:
