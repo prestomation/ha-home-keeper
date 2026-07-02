@@ -666,6 +666,10 @@ export class HomeKeeperPanel extends HTMLElement {
   // text edit doesn't fire a config-entry reload on every character (and a slow
   // earlier response can't clobber a later one — only the trailing save runs).
   private _persistTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+  // A form to open once the pending navigation settles in `_applyLocation` (opening
+  // an edit form from a detail page changes the URL, which would otherwise clear it).
+  private _pendingEdit: Partial<Task> | null = null;
+  private _pendingAssetEdit: Partial<Asset> | null = null;
   // Live HA components that need `.hass` refreshed when hass updates.
   private _liveHassEls: Array<{ hass?: Hass }> = [];
 
@@ -702,9 +706,19 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!changed) return;
     this._view = loc.view;
     this._detail = loc.detail;
-    // Leaving a list/detail closes any open form (forms are ephemeral overlays).
+    // Leaving a list/detail closes any open form (forms are ephemeral overlays)...
     this._edit = { open: false, task: null };
     this._assetEdit = { open: false, asset: null };
+    // ...unless this navigation was initiated to open a form (edit from a detail
+    // page): re-open it now that the location has settled.
+    if (this._pendingEdit) {
+      this._edit = { open: true, task: this._pendingEdit };
+      this._pendingEdit = null;
+    }
+    if (this._pendingAssetEdit) {
+      this._assetEdit = { open: true, asset: this._pendingAssetEdit };
+      this._pendingAssetEdit = null;
+    }
     this._render();
   }
 
@@ -877,18 +891,23 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
   private _openEdit(task: Task): void {
-    // Editing happens in the list view's form host; leave any open detail page.
-    // Navigate via the URL (the single source of truth) rather than mutating
-    // view/detail directly — so a reload/deep-link, the Tasks tab, and Back all stay
-    // consistent with what's on screen.
-    this._navigate({ view: 'tasks', detail: null });
     // Seed the flat consumable_link so the picker reflects the current link and a
     // plain save (no edit) round-trips it unchanged.
-    this._edit = {
-      open: true,
-      task: { ...task, consumable_link: consumableLinkToken(task) } as Partial<Task>,
-    };
-    this._render();
+    const seeded = { ...task, consumable_link: consumableLinkToken(task) } as Partial<Task>;
+    // Editing happens in the list view's form host; leave any open detail page. Drive
+    // this through the URL (the single source of truth) rather than mutating
+    // view/detail directly. When a detail page is open, the navigation changes the
+    // location, and `_applyLocation` clears ephemeral forms — so stash the target as a
+    // pending edit that `_applyLocation` re-opens after the reset (avoids the form
+    // flashing open then being wiped by the async route round-trip). When already on
+    // the list, the location is unchanged (no reset), so just open it directly.
+    if (this._view === 'tasks' && !this._detail) {
+      this._edit = { open: true, task: seeded };
+      this._render();
+    } else {
+      this._pendingEdit = seeded;
+      this._navigate({ view: 'tasks', detail: null });
+    }
   }
   private _closeForm(): void {
     this._edit = { open: false, task: null };
@@ -1138,17 +1157,20 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
   private _openEditAsset(asset: Asset): void {
-    // Navigate via the URL (single source of truth), not direct state mutation.
-    this._navigate({ view: 'appliances', detail: null });
-    this._assetEdit = {
-      open: true,
-      asset: {
-        ...asset,
-        parts: [...(asset.parts || [])],
-        metadata: (asset.metadata || []).map((m) => ({ ...m })),
-      },
+    // URL-driven (single source of truth); see _openEdit for the pending-edit dance
+    // that survives `_applyLocation` clearing ephemeral forms on a route change.
+    const seeded: Partial<Asset> = {
+      ...asset,
+      parts: [...(asset.parts || [])],
+      metadata: (asset.metadata || []).map((m) => ({ ...m })),
     };
-    this._render();
+    if (this._view === 'appliances' && !this._detail) {
+      this._assetEdit = { open: true, asset: seeded };
+      this._render();
+    } else {
+      this._pendingAssetEdit = seeded;
+      this._navigate({ view: 'appliances', detail: null });
+    }
   }
   private _closeAssetForm(): void {
     this._assetEdit = { open: false, asset: null };
