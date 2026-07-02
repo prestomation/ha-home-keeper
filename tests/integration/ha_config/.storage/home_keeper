@@ -519,6 +519,7 @@
             "type": "consumable",
             "vendor": "Amazon",
             "cost": 12.0,
+            "url": "https://www.amazon.com/dp/B0EXAMPLE1",
             "notes": "",
             "replace_interval": null,
             "replace_unit": null,

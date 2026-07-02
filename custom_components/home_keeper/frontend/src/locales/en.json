@@ -94,6 +94,7 @@
   "field.related_device_ids": "Related devices",
   "field.part_name": "Part",
   "field.part_number": "Part #",
+  "field.part_url": "Product URL",
   "field.type": "Type",
   "field.replace_interval": "Replace every",
   "field.replace_unit": "Unit",

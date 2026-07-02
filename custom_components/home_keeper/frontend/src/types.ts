@@ -225,6 +225,7 @@ export interface Part {
   type: PartType;
   vendor?: string;
   cost?: number | null;
+  url?: string;
   notes?: string;
   replace_interval?: number | null;
   replace_unit?: Unit | null;
