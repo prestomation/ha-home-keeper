@@ -168,8 +168,10 @@ add/extend a regression test where the bug class allows it, and update
   table (teardown derived from it), exception-translation decorator for the
   copy-pasted `KeyError → task_not_found` blocks, schemas alongside. `__init__.py`
   keeps only entry lifecycle.
-- [ ] R2. Shared `_coordinator()` lookup helper (used by `websocket_api.py`,
-  `device_trigger.py`, `manuals.py`, `__init__.py`/`services.py`).
+- [x] R2. Shared coordinator lookup helper in `coordinator.py`: `get_coordinator`
+  (returns `None` when unloaded) and `require_coordinator` (raises the localized
+  `integration_not_loaded`). Replaced the four hand-rolled copies in
+  `websocket_api.py`, `device_trigger.py`, `manuals.py`, and `__init__.py`.
 - [ ] R3. Shared registry-prune helper for the four entity platforms + shared part
   lookup for `number.py`/`binary_sensor.py`. (`sensor.py:73`, `binary_sensor.py:75`,
   `button.py:39`, `number.py:53`)

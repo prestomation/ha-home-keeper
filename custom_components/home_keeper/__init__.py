@@ -21,7 +21,7 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
@@ -55,6 +55,7 @@ from .coordinator import (
     HomeKeeperCoordinator,
     discard_edge_state,
     entity_set_key,
+    require_coordinator,
     task_has_entities,
 )
 from .models import TaskValidationError
@@ -505,16 +506,9 @@ def _register_services(hass: HomeAssistant) -> None:
     """
 
     def _coordinator() -> HomeKeeperCoordinator:
-        for entry in hass.config_entries.async_entries(DOMAIN):
-            coord = getattr(entry, "runtime_data", None)
-            if isinstance(coord, HomeKeeperCoordinator):
-                return coord
-        # Reachable transiently mid-reload (the entry is momentarily unloaded while
-        # its services are still registered). Surface a localized HA error rather than
-        # a bare RuntimeError that would present as an opaque 500.
-        raise HomeAssistantError(
-            translation_domain=DOMAIN, translation_key="integration_not_loaded"
-        )
+        # Shared lookup; raises a localized ``integration_not_loaded`` if hit
+        # transiently mid-reload (entry unloaded while its services stay registered).
+        return require_coordinator(hass)
 
     def _check_area(data: dict) -> None:
         if not devices.area_exists(hass, data.get("area_id")):

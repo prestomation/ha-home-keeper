@@ -13,7 +13,8 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 
 try:
     from homeassistant.helpers.device_registry import DeviceInfo
@@ -86,6 +87,38 @@ def task_has_entities(task: dict[str, Any] | None) -> bool:
     device-less tasks.
     """
     return bool(task and task.get("device_id") and task.get("enabled", True))
+
+
+@callback
+def get_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
+    """Return the loaded Home Keeper coordinator, or ``None`` if none is loaded.
+
+    The single lookup shared by every caller that needs the running coordinator
+    (services, websocket API, device triggers, the documents HTTP view). Returns
+    ``None`` transiently mid-reload, when the entry is momentarily unloaded.
+    """
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        coord = getattr(entry, "runtime_data", None)
+        if isinstance(coord, HomeKeeperCoordinator):
+            return coord
+    return None
+
+
+@callback
+def require_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator:
+    """Return the loaded coordinator, or raise a localized ``HomeAssistantError``.
+
+    For call paths (services) that cannot meaningfully proceed without it: surfaces
+    ``integration_not_loaded`` rather than a bare ``RuntimeError``/opaque 500 when hit
+    transiently mid-reload (the entry is briefly unloaded while services stay
+    registered).
+    """
+    coord = get_coordinator(hass)
+    if coord is None:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="integration_not_loaded"
+        )
+    return coord
 
 
 class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):

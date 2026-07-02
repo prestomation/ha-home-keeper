@@ -18,8 +18,12 @@ from homeassistant.util import dt as dt_util
 
 from . import companions, devices, inventory, manuals, notifier, options
 from .assets import AssetValidationError
-from .const import DOMAIN, OPTION_PROFILES
-from .coordinator import HomeKeeperCoordinator, entity_set_key, task_has_entities
+from .const import OPTION_PROFILES
+from .coordinator import (
+    entity_set_key,
+    get_coordinator,
+    task_has_entities,
+)
 from .models import TaskValidationError
 
 # How long a signed document URL stays valid. The dashboard card pre-signs file
@@ -27,14 +31,6 @@ from .models import TaskValidationError
 # app's WKWebView blocks an async window.open), so the URL must outlive a reasonably
 # idle dashboard, not just a click. The card re-signs well before this on refresh.
 _DOCUMENT_URL_TTL = timedelta(hours=1)
-
-
-def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        coord = getattr(entry, "runtime_data", None)
-        if isinstance(coord, HomeKeeperCoordinator):
-            return coord
-    return None
 
 
 def _area_ok(
@@ -84,7 +80,7 @@ def async_register(hass: HomeAssistant) -> None:
 async def ws_get_tasks(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -101,7 +97,7 @@ async def ws_get_tasks(
 async def ws_add_task(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -131,7 +127,7 @@ async def ws_add_task(
 async def ws_update_task(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -166,7 +162,7 @@ async def ws_update_task(
 async def ws_delete_task(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -197,7 +193,7 @@ async def ws_delete_task(
 async def ws_set_task_consumable(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -236,7 +232,7 @@ def _ws_metadata(msg: dict[str, Any]) -> dict[str, Any]:
 async def ws_complete_task(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -269,7 +265,7 @@ async def ws_complete_task(
 async def ws_update_completion(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -298,7 +294,7 @@ async def ws_update_completion(
 async def ws_delete_completion(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -326,7 +322,7 @@ async def ws_delete_completion(
 async def ws_delete_archived_completion(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -346,7 +342,7 @@ async def ws_delete_archived_completion(
 async def ws_get_assets(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -363,7 +359,7 @@ async def ws_get_assets(
 async def ws_add_asset(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -392,7 +388,7 @@ async def ws_add_asset(
 async def ws_update_asset(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -422,7 +418,7 @@ async def ws_update_asset(
 async def ws_delete_asset(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -447,7 +443,7 @@ async def ws_delete_asset(
 async def ws_adjust_part_stock(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -473,7 +469,7 @@ async def ws_adjust_part_stock(
 async def ws_add_asset_document(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -509,7 +505,7 @@ async def ws_add_asset_document(
 async def ws_remove_asset_document(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -536,7 +532,7 @@ async def ws_remove_asset_document(
 async def ws_update_asset_document(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -565,7 +561,7 @@ async def ws_sign_document_url(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
     """Mint a short-lived signed URL the browser can open for a file document."""
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -602,7 +598,7 @@ async def ws_export_inventory(
     Admin-only: the report exposes every asset's serial numbers, purchase costs and
     value totals, which a non-admin household member shouldn't be able to exfiltrate.
     """
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -628,7 +624,7 @@ async def ws_get_options(
     right now — so the Notifications card can offer them as a checklist instead of
     making the user type service names.
     """
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -660,7 +656,7 @@ async def ws_set_options(
     exclusions) is administration, which HA core reserves for admins — a non-admin
     could otherwise wipe another user's saved settings.
     """
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -679,7 +675,7 @@ async def ws_get_companions(
     popular upstreams whose glue isn't installed yet (the pull path). See
     companions.py.
     """
-    if _coordinator(hass) is None:
+    if get_coordinator(hass) is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
     connection.send_result(
@@ -698,7 +694,7 @@ async def ws_get_profiles(
     pulling the whole options object. The panel itself reads profiles from
     ``get_options``.
     """
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
