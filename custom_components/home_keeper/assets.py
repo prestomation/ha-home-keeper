@@ -567,6 +567,19 @@ def clear_part_file(asset: dict, part_id: str) -> dict | None:
     return None
 
 
+def find_part(asset: dict | None, part_id: str) -> dict | None:
+    """Return the part with *part_id* on *asset*, or ``None``.
+
+    The by-id lookup shared by the per-part stock ``number`` and low-stock
+    ``binary_sensor`` entities (both resolve their live part from the store on every
+    read, so a removed part reads as ``None`` before the entity is pruned).
+    """
+    for part in (asset or {}).get("parts", []) or []:
+        if part.get("id") == part_id:
+            return part
+    return None
+
+
 def part_tracks_stock(part: dict) -> bool:
     """True when a part carries an on-hand spare count (gets a stock ``number``).
 

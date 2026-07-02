@@ -602,7 +602,7 @@ async def ws_sign_document_url(
 async def ws_remove_part_file(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
@@ -626,7 +626,7 @@ async def ws_sign_part_file_url(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
     """Mint a short-lived signed URL the browser can open for a part's file."""
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return

@@ -177,9 +177,12 @@ add/extend a regression test where the bug class allows it, and update
   (returns `None` when unloaded) and `require_coordinator` (raises the localized
   `integration_not_loaded`). Replaced the four hand-rolled copies in
   `websocket_api.py`, `device_trigger.py`, `manuals.py`, and `__init__.py`.
-- [ ] R3. Shared registry-prune helper for the four entity platforms + shared part
-  lookup for `number.py`/`binary_sensor.py`. (`sensor.py:73`, `binary_sensor.py:75`,
-  `button.py:39`, `number.py:53`)
+- [x] R3. `entity.async_prune_platform_entities(hass, entry, domain, is_stale)` folds
+  the identical registry-walk loop out of all four platforms; each passes an
+  `is_stale(uid)` closure holding its own unique-id shape(s) + live sets (behavior
+  unchanged). Shared `assets.find_part(asset, part_id)` replaces the duplicated
+  `_part()` in `number.py`/`binary_sensor.py`. (`entity.py`, `assets.py`, `sensor.py`,
+  `binary_sensor.py`, `button.py`, `number.py`)
 - [x] R4. Single upload allowlist `const.DOCUMENT_CONTENT_TYPES` (content type →
   canonical extension). `documents.py`'s `TYPE_EXTENSIONS` now aliases it and
   `assets.py`'s `_ALLOWED_DOC_CONTENT_TYPES = frozenset(DOCUMENT_CONTENT_TYPES)`, so

@@ -15,7 +15,6 @@ from typing import Any
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -23,6 +22,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from . import assets as asset_model
 from .const import DOMAIN, MAX_INTERVAL
 from .coordinator import HomeKeeperCoordinator
+from .entity import async_prune_platform_entities
 
 _STOCK_ICON = "mdi:package-variant"
 # unique-id shape: ``{DOMAIN}_asset_<asset_id>_part_<part_id>_stock``.
@@ -50,17 +50,15 @@ async def async_setup_entry(
         )
 
     # Prune number entities whose part (or stock tracking) is gone.
-    reg = er.async_get(hass)
-    for entity_entry in reg.entities.get_entries_for_config_entry_id(entry.entry_id):
-        uid = entity_entry.unique_id or ""
-        if (
-            entity_entry.domain == "number"
-            and uid.startswith(_UID_PREFIX)
+    def _is_stale(uid: str) -> bool:
+        return (
+            uid.startswith(_UID_PREFIX)
             and uid.endswith(_UID_SUFFIX)
             and _UID_INFIX in uid
             and uid not in live_uids
-        ):
-            reg.async_remove(entity_entry.entity_id)
+        )
+
+    async_prune_platform_entities(hass, entry, "number", _is_stale)
 
     async_add_entities(entities)
 
@@ -95,11 +93,9 @@ class HomeKeeperPartStockNumber(CoordinatorEntity[HomeKeeperCoordinator], Number
         self._attr_device_info = device_info
 
     def _part(self) -> dict[str, Any] | None:
-        asset = self.coordinator.store.get_asset(self._asset_id) or {}
-        for part in asset.get("parts", []) or []:
-            if part.get("id") == self._part_id:
-                return part
-        return None
+        return asset_model.find_part(
+            self.coordinator.store.get_asset(self._asset_id), self._part_id
+        )
 
     @property
     def native_value(self) -> float | None:
