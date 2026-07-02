@@ -97,9 +97,11 @@ add/extend a regression test where the bug class allows it, and update
 - [ ] M13. Device triggers: don't freeze the task/asset filter at attach time —
   re-resolve per event so late-loading entries and newly attached tasks fire.
   (`device_trigger.py:143`)
-- [ ] M14. `add_task`/`delete_task` handlers reload the entry unconditionally —
-  apply the same entity-set gate as `update_task` (only reload when per-task
-  entities change). (`__init__.py:512,555`)
+- [x] M14. `add_task`/`delete_task` (both the services and the websocket commands)
+  now reload the entry only when the task owns per-task entities (device-attached +
+  enabled) via a shared `coordinator.task_has_entities` predicate; otherwise a plain
+  refresh — no more N teardown/rebuild cycles when a companion seeds device-less
+  tasks. (`__init__.py`, `websocket_api.py`, `coordinator.py`)
 
 ## Minor bugs
 

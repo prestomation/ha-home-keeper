@@ -19,7 +19,7 @@ from homeassistant.util import dt as dt_util
 from . import companions, devices, inventory, manuals, notifier, options
 from .assets import AssetValidationError
 from .const import DOMAIN, OPTION_PROFILES
-from .coordinator import HomeKeeperCoordinator, entity_set_key
+from .coordinator import HomeKeeperCoordinator, entity_set_key, task_has_entities
 from .models import TaskValidationError
 
 # How long a signed document URL stays valid. The dashboard card pre-signs file
@@ -112,7 +112,11 @@ async def ws_add_task(
     except TaskValidationError as err:
         connection.send_error(msg["id"], "invalid_task", str(err))
         return
-    await hass.config_entries.async_reload(coord.entry.entry_id)
+    # Reload only when the new task owns per-task entities; else a refresh suffices.
+    if task_has_entities(task):
+        await hass.config_entries.async_reload(coord.entry.entry_id)
+    else:
+        await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
 
 
@@ -166,12 +170,17 @@ async def ws_delete_task(
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
+    existing = coord.store.get_task(msg["task_id"])
     try:
         await coord.store.delete_task(msg["task_id"], force=msg.get("force", False))
     except TaskValidationError as err:
         connection.send_error(msg["id"], "invalid_task", str(err))
         return
-    await hass.config_entries.async_reload(coord.entry.entry_id)
+    # Reload only if the deleted task owned per-task entities that must be removed.
+    if task_has_entities(existing):
+        await hass.config_entries.async_reload(coord.entry.entry_id)
+    else:
+        await coord.async_request_refresh()
     connection.send_result(msg["id"], {"ok": True})
 
 

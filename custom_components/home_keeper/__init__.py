@@ -51,7 +51,12 @@ from .const import (
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
 )
-from .coordinator import HomeKeeperCoordinator, discard_edge_state, entity_set_key
+from .coordinator import (
+    HomeKeeperCoordinator,
+    discard_edge_state,
+    entity_set_key,
+    task_has_entities,
+)
 from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
 from .sensor_watcher import SensorTaskWatcher
@@ -515,7 +520,13 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_key="invalid_task",
                 translation_placeholders={"error": str(err)},
             ) from err
-        await hass.config_entries.async_reload(coord.entry.entry_id)
+        # Only reload when the new task owns per-task entities; otherwise a refresh
+        # avoids a full teardown/rebuild (e.g. a companion seeding many device-less
+        # tasks would otherwise flap every entity unavailable N times).
+        if task_has_entities(task):
+            await hass.config_entries.async_reload(coord.entry.entry_id)
+        else:
+            await coord.async_request_refresh()
         return {"task_id": task["id"]}
 
     async def handle_update_task(call: ServiceCall) -> None:
@@ -548,6 +559,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_delete_task(call: ServiceCall) -> None:
         coord = _coordinator()
+        existing = coord.store.get_task(call.data["task_id"])
         try:
             await coord.store.delete_task(
                 call.data["task_id"], force=call.data.get("force", False)
@@ -558,7 +570,11 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_key="invalid_task",
                 translation_placeholders={"error": str(err)},
             ) from err
-        await hass.config_entries.async_reload(coord.entry.entry_id)
+        # Reload only if the deleted task owned per-task entities that must be removed.
+        if task_has_entities(existing):
+            await hass.config_entries.async_reload(coord.entry.entry_id)
+        else:
+            await coord.async_request_refresh()
 
     def _completion_metadata(data: dict) -> dict[str, Any]:
         """Lift the per-completion metadata keys out of a service call's data."""

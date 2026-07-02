@@ -77,6 +77,17 @@ def entity_set_key(task: dict[str, Any] | None) -> tuple:
     return (task.get("device_id"), bool(task.get("enabled", True)), task.get("name"))
 
 
+def task_has_entities(task: dict[str, Any] | None) -> bool:
+    """True when a task owns per-task entities (button/sensor/binary_sensor).
+
+    Those exist only for an enabled, device-attached task. Adding or deleting a task
+    that owns none needs no entry reload — a plain coordinator refresh suffices, which
+    avoids flapping every entity unavailable when e.g. a companion seeds many
+    device-less tasks.
+    """
+    return bool(task and task.get("device_id") and task.get("enabled", True))
+
+
 class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     """Coordinator exposing the current task map to all entities."""
 
