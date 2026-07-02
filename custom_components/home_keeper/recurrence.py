@@ -285,6 +285,13 @@ def apply_completion(
       time surface until the owner re-arms it. History is still recorded, so the
       replacement cadence accumulates on the task.
     """
+    # A caller-supplied ``completed_at`` may be naive (HA's ``cv.datetime`` parses
+    # offset-less strings naively). Qualify it with *now*'s zone before it is
+    # persisted anywhere: a naive ``last_completed``/``ts``/``next_due`` poisons the
+    # store — every later aware-vs-naive comparison (``is_overdue``, history ``max``)
+    # raises ``TypeError`` until the storage file is hand-edited.
+    if completed_at.tzinfo is None:
+        completed_at = completed_at.replace(tzinfo=now.tzinfo)
     history = list(task.get("completions", []))
     entry: dict = {"ts": completed_at.isoformat()}
     if metadata:

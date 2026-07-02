@@ -67,6 +67,26 @@ def test_apply_completion_resets_clock_from_completion():
     assert len(task["completions"]) == 1
 
 
+def test_apply_completion_qualifies_naive_completed_at():
+    # HA's cv.datetime hands over a *naive* datetime for offset-less service input.
+    # A naive value must be qualified with now's zone before persisting — otherwise
+    # last_completed/ts/next_due are stored naive and every later aware comparison
+    # (is_overdue, history max) raises TypeError.
+    now = dt(2026, 6, 13, 10)
+    task = {
+        "recurrence_type": "floating",
+        "interval": 1,
+        "unit": "months",
+        "completions": [],
+    }
+    naive = datetime(2026, 6, 12, 9, 30)  # no tzinfo
+    r.apply_completion(task, naive, now=now)
+    assert task["last_completed"] == dt(2026, 6, 12, 9, 30).isoformat()
+    assert task["next_due"] == dt(2026, 7, 12, 9, 30).isoformat()
+    # The stored values are aware: comparisons against an aware now must not raise.
+    assert r.is_overdue(task, now=now) is False
+
+
 def test_overdue_and_due_soon():
     now = dt(2026, 6, 13, 12)
     overdue = {"next_due": dt(2026, 6, 1).isoformat()}

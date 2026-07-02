@@ -15,10 +15,11 @@ add/extend a regression test where the bug class allows it, and update
 
 ## Critical
 
-- [ ] C1. Naive `completed_at` corrupts the store: qualify naive datetimes at the
-  `store.complete_task` boundary (mirror `models._coerce_seed`), same for
-  `update_completion` ts edits. Regression test with a naive datetime through the
-  service schema path. (`store.py:800`, `__init__.py:193`)
+- [x] C1. Naive `completed_at` corrupts the store: qualify naive datetimes at the
+  `store.complete_task` boundary (mirror `models._coerce_seed`) and inside
+  `recurrence.apply_completion` as a defence-in-depth. Regression test added
+  (`test_apply_completion_qualifies_naive_completed_at`). (`store.py:800`,
+  `recurrence.py:288`)
 - [ ] C2. Unavailable/unknown problem-sensor state must be "skip", not "cleared":
   treat `unavailable`/`unknown`/missing states as indeterminate in
   `problem_sync._is_problem` → reconcile leaves armed tasks alone. Regression test:

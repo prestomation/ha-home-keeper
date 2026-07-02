@@ -798,6 +798,11 @@ class HomeKeeperStore:
         _reject_synced_problem(existing, origin)
         now = dt_util.now()
         when = completed_at or now
+        if when.tzinfo is None:
+            # ``cv.datetime`` accepts offset-less strings as naive datetimes;
+            # qualify with HA's configured zone (mirrors ``models._coerce_seed``)
+            # so the event payload / part stamp / recurrence math all stay aware.
+            when = when.replace(tzinfo=now.tzinfo)
         clean_metadata = models.normalize_completion_metadata(metadata)
         updated = recurrence.apply_completion(
             dict(existing), when, now=now, metadata=clean_metadata

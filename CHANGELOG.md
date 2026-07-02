@@ -4,6 +4,17 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [Unreleased]
+
+### Fixed
+
+- **Completing a task with a date-only or time-zone-less timestamp no longer breaks
+  the schedule.** Passing `completed_at` without an offset (e.g. from an automation
+  calling `home_keeper.complete_task`) previously stored a time-zone-naive date that
+  crashed the sensors, calendar, and to-do surfaces on the next refresh until the
+  stored data was hand-edited. The timestamp is now qualified with your Home
+  Assistant time zone before it is saved.
+
 ## [0.8.0b2]
 
 ### Added
