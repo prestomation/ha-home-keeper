@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "Tällä ilmoituksella ei ole lähetyskohdetta – lisää \"Lähetä laitteelle\" -laite kohdassa Asetukset → Ilmoitukset tai anna target: kutsussa."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper ei ole juuri nyt ladattuna. Yritä hetken kuluttua uudelleen."
     }
   }
 }

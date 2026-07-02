@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "Cette notification n'a aucune cible d'envoi : ajoutez un appareil « Envoyer à » dans Paramètres → Notifications, ou passez target: lors de l'appel."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper n'est pas chargé pour le moment. Veuillez réessayer dans un instant."
     }
   }
 }

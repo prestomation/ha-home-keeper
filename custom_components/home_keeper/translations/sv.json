@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "Den här aviseringen har ingen mottagare – lägg till en \"Skicka till\"-enhet under Inställningar → Aviseringar, eller ange target: i anropet."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper är inte inläst just nu. Försök igen om en stund."
     }
   }
 }

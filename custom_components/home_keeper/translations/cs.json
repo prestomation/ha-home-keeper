@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "Toto oznámení nemá žádný cíl pro odeslání – přidejte zařízení „Odeslat na“ v Nastavení → Oznámení nebo při volání předejte target:."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper právě není načten. Zkuste to prosím za chvíli znovu."
     }
   }
 }

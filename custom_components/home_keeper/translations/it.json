@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "Questa notifica non ha una destinazione: aggiungi un dispositivo \"Invia a\" in Impostazioni → Notifiche, oppure passa target: nella chiamata."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper non è caricato in questo momento. Riprova tra un momento."
     }
   }
 }

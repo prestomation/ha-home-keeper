@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "Dette varselet har ingen mottaker – legg til en «Send til»-enhet under Innstillinger → Varsler, eller angi target: i kallet."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper er ikke lastet inn akkurat nå. Prøv igjen om et øyeblikk."
     }
   }
 }

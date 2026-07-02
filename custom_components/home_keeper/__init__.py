@@ -21,7 +21,7 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
@@ -488,7 +488,12 @@ def _register_services(hass: HomeAssistant) -> None:
             coord = getattr(entry, "runtime_data", None)
             if isinstance(coord, HomeKeeperCoordinator):
                 return coord
-        raise RuntimeError("No active Home Keeper coordinator found")
+        # Reachable transiently mid-reload (the entry is momentarily unloaded while
+        # its services are still registered). Surface a localized HA error rather than
+        # a bare RuntimeError that would present as an opaque 500.
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="integration_not_loaded"
+        )
 
     def _check_area(data: dict) -> None:
         if not devices.area_exists(hass, data.get("area_id")):
@@ -1031,8 +1036,13 @@ _SERVICES = (
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    # Only tear down the panel/services when the last entry goes away.
-    if unloaded and not hass.config_entries.async_entries(DOMAIN):
+    # Only tear down the panel/services when the last entry goes away. Gate on
+    # *loaded* entries, not ``async_entries``: HA removes the entry from the registry
+    # only *after* this unload returns (and a disabled entry stays registered), so
+    # ``async_entries(DOMAIN)`` is never empty here and the teardown was dead code —
+    # leaving the panel pointing at a dead backend and all services registered until
+    # restart. ``async_loaded_entries`` excludes the entry currently unloading.
+    if unloaded and not hass.config_entries.async_loaded_entries(DOMAIN):
         panel.async_unregister_panel(hass)
         for service in _SERVICES:
             hass.services.async_remove(DOMAIN, service)

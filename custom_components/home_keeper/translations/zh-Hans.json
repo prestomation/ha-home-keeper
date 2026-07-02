@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "此通知没有发送目标——请在设置 → 通知中添加“发送至”设备，或在调用时传入 target:。"
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper 当前未加载。请稍后重试。"
     }
   }
 }

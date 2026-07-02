@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "Denne notifikation har ingen modtager – tilføj en \"Send til\"-enhed under Indstillinger → Notifikationer, eller angiv target: ved kaldet."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper er ikke indlæst lige nu. Prøv igen om et øjeblik."
     }
   }
 }

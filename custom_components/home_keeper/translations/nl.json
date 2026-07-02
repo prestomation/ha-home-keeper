@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "Deze melding heeft geen doel om naar te sturen — voeg een 'Versturen naar'-apparaat toe in Instellingen → Meldingen, of geef target: mee bij de aanroep."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper is momenteel niet geladen. Probeer het zo meteen opnieuw."
     }
   }
 }

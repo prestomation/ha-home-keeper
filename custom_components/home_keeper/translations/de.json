@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "Diese Benachrichtigung hat kein Ziel zum Senden – füge unter Einstellungen → Benachrichtigungen ein „Senden an“-Gerät hinzu oder übergib beim Aufruf target:."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper ist derzeit nicht geladen. Bitte versuche es gleich noch einmal."
     }
   }
 }

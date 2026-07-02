@@ -63,10 +63,12 @@ add/extend a regression test where the bug class allows it, and update
   `enable_transition_events` instead of being swallowed; a genuine *restart* (empty
   `hass.data`) still baselines silently. Cleaned up on entry removal. Regression test
   added. (`coordinator.py`, `__init__.py`)
-- [ ] M4. Unload teardown is dead code: gate on `async_loaded_entries()` so panel +
-  services are removed when the last entry unloads; make `_coordinator()` raise a
-  localized `ServiceValidationError` instead of bare `RuntimeError`.
-  (`__init__.py:1035,486`)
+- [x] M4. Unload teardown: gate on `async_loaded_entries(DOMAIN)` (was
+  `async_entries`, which is never empty during unload — dead code) so the panel and
+  all services are actually removed when the last entry unloads; `_coordinator()`
+  now raises a localized `HomeAssistantError` (`integration_not_loaded`, added to
+  strings.json + all 16 locales) instead of a bare `RuntimeError`.
+  (`__init__.py`)
 - [x] M5. Pass `config_entry=entry` to `DataUpdateCoordinator.__init__` (fixes the
   2025.11 implicit-inference removal); `entry` is now a read-only property aliasing
   the base's `self.config_entry`, collapsing the duality. (`coordinator.py`)

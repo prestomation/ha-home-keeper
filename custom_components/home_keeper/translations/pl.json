@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "To powiadomienie nie ma celu wysyłki – dodaj urządzenie „Wyślij do“ w Ustawienia → Powiadomienia lub przekaż target: w wywołaniu."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper nie jest teraz załadowany. Spróbuj ponownie za chwilę."
     }
   }
 }

@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "Aquesta notificació no té cap destinatari: afegeix un dispositiu «Envia a» a Configuració → Notificacions, o passa target: en cridar-la."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper no està carregat en aquest moment. Torneu-ho a provar d'aquí a un moment."
     }
   }
 }

@@ -559,6 +559,9 @@
     },
     "notify_no_targets": {
       "message": "This notification has no target to send to — add a \"Send to\" device in Settings → Notifications, or pass target: when calling the service."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper isn't loaded right now. Please try again in a moment."
     }
   }
 }
