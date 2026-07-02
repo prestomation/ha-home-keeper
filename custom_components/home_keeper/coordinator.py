@@ -222,7 +222,9 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             # Reload to remove the now-orphaned per-task entities. This runs inside
             # _async_update_data (the coordinator's own refresh), so awaiting the
             # reload inline would tear down and recreate this coordinator mid-refresh.
-            # Defer it so the current refresh completes first.
+            # Defer it so the current refresh completes first. The purged task's
+            # entities therefore linger (as unavailable) until this reload lands on
+            # the loop — a brief, harmless window on the next refresh tick.
             self.hass.async_create_task(
                 self.hass.config_entries.async_reload(self.entry.entry_id)
             )
