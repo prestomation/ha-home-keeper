@@ -97,9 +97,12 @@ add/extend a regression test where the bug class allows it, and update
 - [ ] M12. Panel navigation: `_openEdit`/`_openEditAsset` must navigate via URL
   (route is the single source of truth), not mutate `_view`/`_detail` directly.
   (`panel.ts:867,1114`)
-- [ ] M13. Device triggers: don't freeze the task/asset filter at attach time —
-  re-resolve per event so late-loading entries and newly attached tasks fire.
-  (`device_trigger.py:143`)
+- [x] M13. Device triggers: `async_attach_trigger` now derives its event-data
+  filter from the device registry alone (`_attach_filter`) instead of the
+  coordinator's loaded tasks, so a trigger attached before Home Keeper finishes
+  setup no longer freezes to the never-matching sentinel — it fires whenever its
+  event arrives, and picks up tasks attached after the automation was created.
+  (`device_trigger.py`)
 - [x] M14. `add_task`/`delete_task` (both the services and the websocket commands)
   now reload the entry only when the task owns per-task entities (device-attached +
   enabled) via a shared `coordinator.task_has_entities` predicate; otherwise a plain

@@ -140,6 +140,33 @@ async def async_get_triggers(
     return triggers
 
 
+def _attach_filter(hass: HomeAssistant, device_id: str, trigger_type: str) -> dict:
+    """Event-data filter for an *attached* trigger, derived from the device registry.
+
+    Unlike :func:`_filters` (which consults the coordinator to decide which triggers
+    to *offer*), attach must not depend on Home Keeper being loaded yet: automations
+    attach at HA startup, often before our config entry finishes setup. Resolving the
+    filter from the device's identifiers alone means the trigger fires whenever its
+    event arrives — instead of freezing to the never-matching ``_NO_MATCH`` sentinel
+    and staying silent until the automation is reloaded. It also picks up tasks
+    attached to the device after the automation was created (the old snapshot didn't).
+    """
+    device = dr.async_get(hass).async_get(device_id)
+    if device is None:
+        return _NO_MATCH
+    if trigger_type in ASSET_TRIGGERS:
+        # Asset (part-stock) events always carry the appliance's registry device_id.
+        return {"device_id": device_id}
+    ident = _hk_identifier(device)
+    asset_prefix = f"{ASSET_IDENTIFIER_PREFIX}_"
+    if ident is not None and not ident.startswith(asset_prefix):
+        # Self-owned task device: identifier is the bare task id; its events carry no
+        # device_id, so match on task_id.
+        return {"task_id": ident}
+    # Virtual appliance / existing device the task attaches to: events carry device_id.
+    return {"device_id": device_id}
+
+
 async def async_attach_trigger(
     hass: HomeAssistant,
     config: ConfigType,
@@ -148,16 +175,13 @@ async def async_attach_trigger(
 ) -> CALLBACK_TYPE:
     """Attach a Home Keeper device trigger by delegating to the event trigger."""
     trigger_type = config[CONF_TYPE]
-    task_filter, asset_filter = _filters(hass, config[CONF_DEVICE_ID])
-    event_data = asset_filter if trigger_type in ASSET_TRIGGERS else task_filter
+    event_data = _attach_filter(hass, config[CONF_DEVICE_ID], trigger_type)
 
     event_config = event_trigger.TRIGGER_SCHEMA(
         {
             event_trigger.CONF_PLATFORM: "event",
             event_trigger.CONF_EVENT_TYPE: _EVENT_BY_TYPE[trigger_type],
-            event_trigger.CONF_EVENT_DATA: event_data
-            if event_data is not None
-            else _NO_MATCH,
+            event_trigger.CONF_EVENT_DATA: event_data,
         }
     )
     return await event_trigger.async_attach_trigger(
