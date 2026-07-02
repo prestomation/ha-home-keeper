@@ -826,9 +826,7 @@ _SERVICE_DEFS: tuple[_ServiceDef, ...] = (
     _ServiceDef(
         "adjust_part_stock", _handle_adjust_part_stock, ADJUST_PART_STOCK_SCHEMA
     ),
-    _ServiceDef(
-        "remove_part_file", _handle_remove_part_file, REMOVE_PART_FILE_SCHEMA
-    ),
+    _ServiceDef("remove_part_file", _handle_remove_part_file, REMOVE_PART_FILE_SCHEMA),
     _ServiceDef(
         "add_asset_document", _handle_add_asset_document, ADD_ASSET_DOCUMENT_SCHEMA
     ),
@@ -871,8 +869,11 @@ def _bind(
 
     A plain coroutine closure rather than ``functools.partial`` so the registered
     callable is statically typed as returning a coroutine (partial is not).
+    ``functools.wraps`` carries the handler's ``__name__``/``__doc__`` onto the bound
+    callable so logs/introspection still show the handler, not a bare ``service``.
     """
 
+    @functools.wraps(handler)
     async def service(call: ServiceCall) -> Any:
         return await handler(hass, call)
 
