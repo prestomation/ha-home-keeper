@@ -148,8 +148,9 @@ add/extend a regression test where the bug class allows it, and update
 - [ ] N10. Documents: stream GETs via `web.FileResponse` (no 25 MB buffering) and
   write the blob to disk *before* persisting store metadata/firing the event.
   (`manuals.py:151,227`)
-- [ ] N11. `testing.py` fake: compute `changed_fields` as a real before/after diff
-  like the store. (`testing.py:73`)
+- [x] N11. `testing.py` fake now computes `changed_fields` via the store's real
+  `_changed_fields` before/after diff (was: every provided key), so it can't fire a
+  `task_updated` the real integration wouldn't. (`testing.py`)
 - [ ] N12. Feature-module minors: `last_replaced` validation uses injected `now`
   (not naive `date.today()`); enforce the document cap after `_merge_documents`;
   cap companion registry entry sizes/count; drop the dead `declared_type` param
