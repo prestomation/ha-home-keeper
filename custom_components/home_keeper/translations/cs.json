@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Oblast",
           "description": "Volitelná oblast, kterou lze přiřadit k tomuto úkolu."
+        },
+        "labels": {
+          "name": "Štítky",
+          "description": "Volitelné štítky Home Assistant, kterými lze tento úkol označit. Používá je filtr štítků na kartě nástěnky (který se shoduje i se štítky na připojeném zařízení nebo oblasti)."
+        },
+        "card_links": {
+          "name": "Odkazy na kartě",
+          "description": "Odkazy na spotřebič, které se zobrazí v řádku tohoto úkolu na kartě nástěnky – seznam objektů {asset_id, entry_id} odkazujících na dokument spotřebiče nebo jeho metadatové odkazy. Obvykle se nastavuje z editoru úkolů v panelu."
+        },
+        "task_chips": {
+          "name": "Čipy úkolu",
+          "description": "Metadatové čipy poskytnuté integrací, zobrazené v seznamu úkolů a na kartě nástěnky – seznam objektů {label, icon?, url?}. V panelu je nelze uživatelsky upravovat."
+        },
+        "source": {
+          "name": "Zdroj",
+          "description": "Neprůhledný údaj o původu vlastněný integrací, která úkol vytvořila. Home Keeper jej ukládá a vrací doslovně a nikdy jej nezkoumá. Viz docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Podrobnosti dokončení",
+          "description": "Kolik kontextu zachytit při dokončení tohoto úkolu: none (označit hotové bez dotazu), optional (nabídnout pole note/cost/photo/who) nebo required (vyžadovat pole uvedená v completion_required_fields). Dotaz pouze v panelu."
+        },
+        "completion_required_fields": {
+          "name": "Povinná pole dokončení",
+          "description": "Která pole metadat dokončení panel učiní povinnými, když jsou podrobnosti dokončení nastaveny na required – kterékoli z note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Oblast",
           "description": "Oblast, kterou lze přiřadit k tomuto úkolu."
+        },
+        "labels": {
+          "name": "Štítky",
+          "description": "Štítky Home Assistant, kterými lze tento úkol označit (nahradí aktuální sadu). Používá je filtr štítků na kartě nástěnky."
+        },
+        "card_links": {
+          "name": "Odkazy na kartě",
+          "description": "Odkazy na spotřebič, které se zobrazí v řádku tohoto úkolu na kartě nástěnky (nahradí aktuální sadu) – seznam objektů {asset_id, entry_id}. Obvykle se nastavuje z editoru úkolů v panelu."
+        },
+        "task_chips": {
+          "name": "Čipy úkolu",
+          "description": "Metadatové čipy poskytnuté integrací (nahradí aktuální sadu) – seznam objektů {label, icon?, url?}. Úplné schéma viz add_task."
+        },
+        "source": {
+          "name": "Zdroj",
+          "description": "Neprůhledný údaj o původu vlastněný integrací, která úkol vytvořila. Viz docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Podrobnosti dokončení",
+          "description": "Kolik kontextu zachytit při dokončení: none, optional nebo required (viz add_task). Dotaz pouze v panelu."
+        },
+        "completion_required_fields": {
+          "name": "Povinná pole dokončení",
+          "description": "Která pole metadat dokončení panel učiní povinnými, když jsou podrobnosti dokončení nastaveny na required – kterékoli z note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Dokončeno v",
           "description": "Volitelný časový údaj dokončení (výchozí je nyní)."
+        },
+        "origin": {
+          "name": "Původ",
+          "description": "Volitelná značka ve volném textu, která se vrací zpět v události home_keeper_task_completed, aby přispívající integrace mohla rozpoznat a ignorovat dokončení, které sama vyvolala (prevence smyčky). Home Keeper ji neinterpretuje."
+        },
+        "note": {
+          "name": "Poznámka",
+          "description": "Volitelná poznámka ve volném textu zaznamenaná s tímto dokončením."
+        },
+        "cost": {
+          "name": "Cena",
+          "description": "Volitelná cena zaznamenaná s tímto dokončením (ve vaší měně HA)."
+        },
+        "photo": {
+          "name": "Fotka",
+          "description": "Volitelné id nahraného obrázku Home Assistant, které se připojí jako fotka dokončení (panel jej nastaví, když nahrajete obrázek z dialogu dokončení)."
+        },
+        "who": {
+          "name": "Kdo",
+          "description": "Volitelná osoba, která úkol provedla (id entity osoby)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Časové razítko dokončení",
           "description": "Časové razítko ISO (ts) položky dokončení, kterou chcete upravit."
+        },
+        "note": {
+          "name": "Poznámka",
+          "description": "Nová poznámka (vynechte nebo nechte prázdné pro její vymazání)."
+        },
+        "cost": {
+          "name": "Cena",
+          "description": "Nová cena (vynechte nebo nechte prázdné pro její vymazání)."
+        },
+        "photo": {
+          "name": "Fotka",
+          "description": "Nové id nahraného obrázku (vynechte nebo nechte prázdné pro jeho vymazání)."
+        },
+        "who": {
+          "name": "Kdo",
+          "description": "Nové id entity osoby (vynechte nebo nechte prázdné pro jeho vymazání)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Hodiny",
           "description": "O kolik hodin úkol odložit (výchozí 24)."
+        },
+        "origin": {
+          "name": "Původ",
+          "description": "Volitelná značka ve volném textu, která se vrací zpět v události home_keeper_task_snoozed, aby přispívající integrace mohla rozpoznat a ignorovat odložení, které sama vyvolala (prevence smyčky). Home Keeper ji neinterpretuje."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "ID úkolu",
           "description": "ID úkolu, který se má přeskočit."
+        },
+        "origin": {
+          "name": "Původ",
+          "description": "Volitelná značka ve volném textu, která se vrací zpět v události home_keeper_task_skipped, aby přispívající integrace mohla rozpoznat a ignorovat přeskočení, které sama vyvolala (prevence smyčky). Home Keeper ji neinterpretuje."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Uchování jednorázových úkolů (dny)",
           "description": "Automaticky smazat dokončený jednorázový úkol tolik dní po dokončení. Hodnota 0 je ponechá navždy."
+        },
+        "dismissed_companions": {
+          "name": "Zamítnutí společníci",
+          "description": "Domény propojovacích integrací, které se mají skrýt ze seznamu „Navrhované“ v Nastavení → Společníci. Zamítnutí pouze umlčí návrh; propojené párování se zobrazuje vždy."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "Časové razítko ISO (ts) archivovaného dokončení k odebrání."
         }
       }
+    },
+    "register_companion": {
+      "name": "Zaregistrovat společníka",
+      "description": "Oznámí další integraci, která spolupracuje s Home Keeper, aby se objevila v sekci Nastavení → Společníci v panelu. Home Keeper uloží deskriptor doslovně a společníka nikdy neimportuje.",
+      "fields": {
+        "domain": {
+          "name": "Doména",
+          "description": "Doména integrace společníka."
+        },
+        "name": {
+          "name": "Název",
+          "description": "Zobrazovaný název v seznamu Společníci."
+        },
+        "icon": {
+          "name": "Ikona",
+          "description": "Ikona mdi pro řádek."
+        },
+        "description": {
+          "name": "Popis",
+          "description": "Jeden řádek popisující, co společník dělá s Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "Id konfiguračního záznamu",
+          "description": "Id konfiguračního záznamu společníka, aby tlačítko „Konfigurovat“ v panelu mohlo přímo odkázat na jeho stránku možností."
+        },
+        "docs_url": {
+          "name": "URL dokumentace",
+          "description": "Odkaz na dokumentaci společníka."
+        },
+        "capabilities": {
+          "name": "Schopnosti",
+          "description": "Značky schopností ve volném textu (např. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Vypsat společníky",
+      "description": "Vrátí sloučený seznam společníků (samostatně zaregistrované integrace plus zjištěné upstreamy, jejichž propojení ještě není nainstalováno) jako odpověď."
     }
   },
   "entity": {

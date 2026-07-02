@@ -628,6 +628,9 @@ export class HomeKeeperPanel extends HTMLElement {
   };
   // Body-level scrim for the delete confirmation overlay.
   private _confirmScrim: HTMLElement | null = null;
+  // The document keydown (Escape) handler bound while the confirm dialog is open, held
+  // as a field so disconnectedCallback can remove it if we unmount mid-dialog.
+  private _confirmOnKey: ((e: KeyboardEvent) => void) | null = null;
   // config entry id -> integration domain, for resolving device brand logos.
   private _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.
@@ -662,6 +665,10 @@ export class HomeKeeperPanel extends HTMLElement {
   private _routePrefix = '/home-keeper';
   private _loaded = false;
   private _loadError = false;
+  // In-flight guard for _refresh: both `set hass` (first update) and `_init` gate on
+  // `!this._loaded`, and `_loaded` only flips true after the awaited reload — so without
+  // this they can pass the check and run two concurrent full loads.
+  private _loading = false;
   // Debounce timers for per-keystroke option saves (profiles / notifications), so a
   // text edit doesn't fire a config-entry reload on every character (and a slow
   // earlier response can't clobber a later one — only the trailing save runs).
@@ -749,6 +756,22 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
     this._loadPrefs();
     void this._init();
+  }
+
+  disconnectedCallback(): void {
+    // Tear down anything appended outside our shadow DOM so it can't leak on unmount:
+    // the body-level confirm scrim and its document keydown listener (both live past
+    // the element otherwise), plus any pending per-keystroke persist timers.
+    if (this._confirmOnKey) {
+      document.removeEventListener('keydown', this._confirmOnKey);
+      this._confirmOnKey = null;
+    }
+    if (this._confirmScrim) {
+      this._confirmScrim.remove();
+      this._confirmScrim = null;
+    }
+    for (const id of Object.values(this._persistTimers)) clearTimeout(id);
+    this._persistTimers = {};
   }
 
   /** Restore the persisted group-by / filter choices (best-effort). */
@@ -873,8 +896,16 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private async _refresh(): Promise<void> {
-    await this._reload();
-    this._render();
+    // Guard against overlapping full loads: `set hass` and `_init` can both pass the
+    // `!this._loaded` gate before the first reload resolves and set `_loaded`.
+    if (this._loading) return;
+    this._loading = true;
+    try {
+      await this._reload();
+      this._render();
+    } finally {
+      this._loading = false;
+    }
   }
 
   // ── task form lifecycle ─────────────────────────────────────────────────────
@@ -993,12 +1024,26 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _openConfirmDialog(label: string, onConfirm: () => void): void {
+    // Drop any prior scrim (and its keydown listener) before opening a new one, so a
+    // second open — or a stale scrim — can't orphan the earlier overlay + handler.
+    if (this._confirmOnKey) {
+      document.removeEventListener('keydown', this._confirmOnKey);
+      this._confirmOnKey = null;
+    }
+    if (this._confirmScrim) {
+      this._confirmScrim.remove();
+      this._confirmScrim = null;
+    }
     this._confirmDelete = { open: true, label, onConfirm };
     this._renderConfirmDeleteDialog();
   }
 
   private _closeConfirmDialog(): void {
     this._confirmDelete = { open: false, label: '', onConfirm: null };
+    if (this._confirmOnKey) {
+      document.removeEventListener('keydown', this._confirmOnKey);
+      this._confirmOnKey = null;
+    }
     if (this._confirmScrim) {
       this._confirmScrim.remove();
       this._confirmScrim = null;
@@ -1035,16 +1080,15 @@ export class HomeKeeperPanel extends HTMLElement {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;justify-content:flex-end;gap:8px';
 
+    // Held on an instance field so disconnectedCallback can remove it if we unmount
+    // while the dialog is open; _closeConfirmDialog is the single teardown path.
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        document.removeEventListener('keydown', onKey);
-        this._closeConfirmDialog();
-      }
+      if (e.key === 'Escape') this._closeConfirmDialog();
     };
+    this._confirmOnKey = onKey;
     document.addEventListener('keydown', onKey);
 
     const close = (): void => {
-      document.removeEventListener('keydown', onKey);
       this._closeConfirmDialog();
     };
 
@@ -1057,7 +1101,6 @@ export class HomeKeeperPanel extends HTMLElement {
     del.setAttribute('destructive', '');
     del.textContent = t('btn.delete');
     del.addEventListener('click', () => {
-      document.removeEventListener('keydown', onKey);
       onConfirm?.();
       this._closeConfirmDialog();
       // Re-render after the mutation: the confirm callbacks (metadata/part row
@@ -1490,16 +1533,21 @@ export class HomeKeeperPanel extends HTMLElement {
     task: Task,
     now = Date.now(),
   ): 'overdue' | 'soon' | 'later' | 'monitored' | 'completed' | 'none' {
-    // A dormant triggered task is "monitored" — armed-but-not-due — and lands in its
-    // own (default-collapsed) section rather than the generic no-schedule bucket. An
+    // A dormant triggered/sensor task is "monitored" — armed-but-not-due — and lands in
+    // its own (default-collapsed) section rather than the generic no-schedule bucket. An
     // armed one (next_due set) flows through the normal overdue/soon/later logic.
-    if (task.recurrence_type === 'triggered' && !task.next_due) return 'monitored';
+    if (
+      (task.recurrence_type === 'triggered' || task.recurrence_type === 'sensor') &&
+      !task.next_due
+    )
+      return 'monitored';
     // A completed one-off (do-once, now dormant) goes to its own collapsed section so
     // it leaves the active list without cluttering the generic no-schedule bucket.
     if (task.recurrence_type === 'one-off' && !task.next_due && task.last_completed)
       return 'completed';
     if (!task.next_due) return 'none';
     const due = new Date(task.next_due).getTime();
+    if (Number.isNaN(due)) return 'none';
     if (due <= now) return 'overdue';
     if (due - now <= SOON_DAYS * 86_400_000) return 'soon';
     return 'later';

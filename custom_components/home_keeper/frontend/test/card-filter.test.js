@@ -53,6 +53,16 @@ describe('statusBucket', () => {
     expect(statusBucket(monitored, NOW)).toBe('monitored');
     expect(statusBucket(undated, NOW)).toBe('none');
   });
+
+  it('treats a dormant sensor task as monitored', () => {
+    const sensorDormant = task({ id: 'sd', name: 'Sensor', recurrence_type: 'sensor' });
+    expect(statusBucket(sensorDormant, NOW)).toBe('monitored');
+  });
+
+  it('buckets a malformed next_due as none rather than falling through to later', () => {
+    const bad = task({ id: 'b', name: 'Bad date', next_due: 'not-a-date' });
+    expect(statusBucket(bad, NOW)).toBe('none');
+  });
 });
 
 describe('filterTasks', () => {

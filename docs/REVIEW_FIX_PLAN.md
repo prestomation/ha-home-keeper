@@ -114,10 +114,10 @@ add/extend a regression test where the bug class allows it, and update
 
 ## Minor bugs
 
-- [ ] N1. Notification "Mark done" action: no-op when the task is no longer
+- [x] N1. Notification "Mark done" action: no-op when the task is no longer
   due/armed (stale tap on a second device must not double-advance).
   (`notifier.py:300`)
-- [ ] N2. Usage-meter zero-blip: require a meter-reset reading to persist across two
+- [x] N2. Usage-meter zero-blip: require a meter-reset reading to persist across two
   consecutive readings before re-baselining. (`sensor_tasks.py:113`)
 - [x] N3. Added `models._finite_float` (rejects NaN/Infinity) and routed `cost`,
   `sensor.target`, `sensor.value`, and `sensor.baseline` through it. Regression
@@ -125,38 +125,38 @@ add/extend a regression test where the bug class allows it, and update
 - [x] N4. `build_task`/`normalize_fields` now coalesce `notes` with `or ""` so an
   explicit `notes: null` clears the field instead of storing `"None"`. Regression
   test added. (`models.py`)
-- [ ] N5. Purged one-off tasks: clean up per-task entities when the coordinator
+- [x] N5. Purged one-off tasks: clean up per-task entities when the coordinator
   purges expired one-offs (reload gate like the service delete path).
   (`coordinator.py:132`)
-- [ ] N6. Calendar: fixed occurrences count as active during their event window;
+- [x] N6. Calendar: fixed occurrences count as active during their event window;
   window queries include events overlapping the window start.
   (`calendar.py:91,128`)
 - [x] N7. `apply_completion` now replaces (rather than appends) a completion at an
   already-present ISO `ts`, so a double-tapped notification / duplicated automation
   can't create an ambiguous twin entry that undo/edit can't disambiguate. Regression
   test added. (`recurrence.py`)
-- [ ] N8. Frontend bucket drift: dormant sensor tasks land in the Monitored bucket
+- [x] N8. Frontend bucket drift: dormant sensor tasks land in the Monitored bucket
   (panel + card-filter); card hides Done on completed one-offs; panel
   `_statusBucket` gets card-filter's NaN guard; `dueLabel`/`_relativeDay` use
   calendar days, not 24-hour buckets. (`panel.ts:1415,1421`, `card-filter.ts:89`,
   `card.ts:786`, `utils.ts:98`)
-- [ ] N9. `strings.json` ↔ `services.yaml` parity: add `register_companion` /
+- [x] N9. `strings.json` ↔ `services.yaml` parity: add `register_companion` /
   `list_companions` strings; add missing field strings (`labels`, `card_links`,
   `task_chips`, `source`, completion metadata fields, `dismissed_companions`);
   document schema-only fields (`completion_detail`, `completion_required_fields`,
   `managed_by`, snooze/skip `origin`).
-- [ ] N10. Documents: stream GETs via `web.FileResponse` (no 25 MB buffering) and
+- [x] N10. Documents: stream GETs via `web.FileResponse` (no 25 MB buffering) and
   write the blob to disk *before* persisting store metadata/firing the event.
   (`manuals.py:151,227`)
 - [x] N11. `testing.py` fake now computes `changed_fields` via the store's real
   `_changed_fields` before/after diff (was: every provided key), so it can't fire a
   `task_updated` the real integration wouldn't. (`testing.py`)
-- [ ] N12. Feature-module minors: `last_replaced` validation uses injected `now`
+- [x] N12. Feature-module minors: `last_replaced` validation uses injected `now`
   (not naive `date.today()`); enforce the document cap after `_merge_documents`;
   cap companion registry entry sizes/count; drop the dead `declared_type` param
   from `validate_upload`. (`assets.py:437,212`, `companions.py:68`,
   `documents.py:59`)
-- [ ] N13. Frontend leaks/races: panel `disconnectedCallback` removes confirm scrim
+- [x] N13. Frontend leaks/races: panel `disconnectedCallback` removes confirm scrim
   + document keydown listener (and `_openConfirmDialog` removes a previous scrim);
   card `_subscribe` unsubscribes if disconnected mid-flight; panel guards duplicate
   initial load; card editor stops refetching profiles on every hass churn.

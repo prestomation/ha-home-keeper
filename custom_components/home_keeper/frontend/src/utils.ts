@@ -127,8 +127,14 @@ export function dueLabel(task: Task, now: Date = new Date()): string {
   }
   if (!task.next_due) return t('due.none');
   const due = new Date(task.next_due);
-  const diffMs = due.getTime() - now.getTime();
-  const days = Math.round(diffMs / 86_400_000);
+  // Compare calendar days (local midnights), not rolling 24h windows: at 20:00 a
+  // task due 08:00 tomorrow should read "tomorrow", not "today".
+  const startOfDay = (d: Date) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x.getTime();
+  };
+  const days = Math.round((startOfDay(due) - startOfDay(now)) / 86_400_000);
   if (days === 0) return t('due.today');
   if (days > 0) return days === 1 ? t('due.tomorrow') : tn('due.in_days', days);
   const ago = Math.abs(days);

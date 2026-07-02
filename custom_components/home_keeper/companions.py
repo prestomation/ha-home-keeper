@@ -42,6 +42,7 @@ from .const import (
     EVENT_COMPANION_CONNECTED,
     EVENT_COMPANION_SUGGESTED,
     EVENT_REGISTER_COMPANIONS,
+    MAX_COMPANIONS,
     OPTION_DISMISSED_COMPANIONS,
 )
 
@@ -65,15 +66,22 @@ def _http_url(value: Any) -> str:
 # everything else is optional metadata the panel uses to render and deep-link the row.
 # ``config_entry_id`` lets the panel's "Configure" button open the companion's own
 # integration page. Extra keys are ignored (forward-compatible).
+# Generous per-field bounds so no legitimate integration is rejected, but a
+# misbehaving/compromised companion can't smuggle arbitrarily large strings (each
+# descriptor is stored verbatim on ``hass.data``).
 REGISTER_COMPANION_SCHEMA = vol.Schema(
     {
-        vol.Required("domain"): cv.string,
-        vol.Required("name"): cv.string,
-        vol.Optional("icon"): cv.string,
-        vol.Optional("description"): cv.string,
-        vol.Optional("config_entry_id"): cv.string,
-        vol.Optional("docs_url"): _http_url,
-        vol.Optional("capabilities"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Required("domain"): vol.All(cv.string, vol.Length(min=1, max=100)),
+        vol.Required("name"): vol.All(cv.string, vol.Length(min=1, max=100)),
+        vol.Optional("icon"): vol.All(cv.string, vol.Length(max=100)),
+        vol.Optional("description"): vol.All(cv.string, vol.Length(max=500)),
+        vol.Optional("config_entry_id"): vol.All(cv.string, vol.Length(max=100)),
+        vol.Optional("docs_url"): vol.All(_http_url, vol.Length(max=500)),
+        vol.Optional("capabilities"): vol.All(
+            cv.ensure_list,
+            vol.Length(max=50),
+            [vol.All(cv.string, vol.Length(max=100))],
+        ),
     },
     extra=vol.REMOVE_EXTRA,
 )
@@ -104,8 +112,20 @@ class CompanionRegistry:
 
         Does not fire events itself — the caller runs ``reconcile`` so a new
         registration is announced through the single edge-trigger path.
+
+        Bounded by ``MAX_COMPANIONS``: a *new* domain past the cap is refused (logged,
+        not stored) so a misbehaving companion can't grow the registry without limit;
+        an update to an already-registered domain always applies.
         """
         domain = descriptor["domain"]
+        if domain not in self._registered and len(self._registered) >= MAX_COMPANIONS:
+            _LOGGER.warning(
+                "Refusing companion registration for %s: the %d-companion limit "
+                "is reached",
+                domain,
+                MAX_COMPANIONS,
+            )
+            return dict(self._registered.get(domain, {"domain": domain}))
         stored = {
             "domain": domain,
             "name": descriptor["name"],

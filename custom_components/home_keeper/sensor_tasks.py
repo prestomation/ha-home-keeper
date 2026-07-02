@@ -89,17 +89,29 @@ def compare(reading: float, comparison: str, value: float) -> bool:
 
 
 def evaluate_usage(
-    task: dict[str, Any], *, reading: float, now: datetime
+    task: dict[str, Any],
+    *,
+    reading: float,
+    reset_candidate: float | None = None,
+    now: datetime,
 ) -> dict[str, Any]:
     """Decide the action for a usage (meter) task given the live ``reading``.
 
-    Returns a decision dict:
+    Returns a decision dict carrying both the action and the next
+    ``reset_candidate`` edge state (the caller holds it across ticks, mirroring the
+    threshold evaluator's carried edge state):
 
-    * ``{"action": "rebaseline", "baseline": <reading>}`` — no baseline yet (fresh
-      task) or the meter dropped below it (reset/replaced); stamp the current reading.
-    * ``{"action": "arm"}`` — dormant and the meter has advanced ``target`` units past
-      the baseline.
-    * ``{"action": None}`` — nothing to do.
+    * ``{"action": "rebaseline", "baseline": <reading>, "reset_candidate": None}`` —
+      no baseline yet (fresh task), or a **second consecutive** below-baseline
+      reading (a debounced meter reset / replacement); stamp the current reading and
+      clear the candidate.
+    * ``{"action": None, "reset_candidate": <reading>}`` — a *first* below-baseline
+      reading. Don't re-baseline yet: a momentary sensor blip to 0 (or any transient
+      dip) looks identical to a real reset, so we require it to persist for two ticks.
+    * ``{"action": "arm", "reset_candidate": None}`` — dormant and the meter has
+      advanced ``target`` units past the baseline.
+    * ``{"action": None, "reset_candidate": None}`` — nothing to do; any pending
+      reset candidate is cleared because this reading is at/above the baseline.
 
     Re-baselining is checked before arming, so a meter reset can never both reset and
     arm in the same evaluation.
@@ -109,15 +121,28 @@ def evaluate_usage(
     target = float(cfg["target"])
     raw_baseline = cfg.get("baseline")
     if raw_baseline is None:
-        return {"action": ACTION_REBASELINE, "baseline": reading}
+        return {
+            "action": ACTION_REBASELINE,
+            "baseline": reading,
+            "reset_candidate": None,
+        }
     baseline = float(raw_baseline)
     if reading < baseline:
-        # Meter reset / rolled over / part replaced: re-anchor so we don't get stuck.
-        return {"action": ACTION_REBASELINE, "baseline": reading}
+        # Meter reset / rolled over / part replaced — but debounce it: a single
+        # below-baseline reading may be a transient blip. Only re-anchor once a
+        # prior tick already saw a below-baseline reading.
+        if reset_candidate is not None:
+            return {
+                "action": ACTION_REBASELINE,
+                "baseline": reading,
+                "reset_candidate": None,
+            }
+        return {"action": None, "reset_candidate": reading}
+    # At/above baseline: any pending reset candidate was a blip — clear it.
     armed = task.get("next_due") is not None
     if not armed and (reading - baseline) >= target:
-        return {"action": ACTION_ARM}
-    return {"action": None}
+        return {"action": ACTION_ARM, "reset_candidate": None}
+    return {"action": None, "reset_candidate": None}
 
 
 def evaluate_threshold(

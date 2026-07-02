@@ -153,23 +153,24 @@ class HomeKeeperDocumentView(HomeAssistantView):
     ) -> web.StreamResponse:
         hass = request.app[KEY_HASS]
         coord = _coordinator(hass)
+        # The metadata lookup (below) is the permission check: the document must belong
+        # to the addressed asset. Keep it — and the view's ``requires_auth`` — ahead of
+        # any file response.
         document = _file_document(
             coord.store.get_asset(asset_id) if coord else None, document_id
         )
         if document is None:
             return web.Response(status=HTTPStatus.NOT_FOUND)
         try:
-            data = await async_read_document(
-                hass, asset_id, document_id, document["filename"]
-            )
-        except (FileNotFoundError, AssetValidationError):
+            path = _document_path(hass, asset_id, document_id, document["filename"])
+        except AssetValidationError:
             return web.Response(status=HTTPStatus.NOT_FOUND)
+        if not await hass.async_add_executor_job(path.is_file):
+            return web.Response(status=HTTPStatus.NOT_FOUND)
+        # Stream straight from disk (aiohttp handles range requests, content-type from
+        # the file extension, etc.) rather than buffering up to MAX_DOCUMENT_BYTES.
         disposition = f'inline; filename="{document["filename"]}"'
-        return web.Response(
-            body=data,
-            content_type=document.get("content_type") or "application/octet-stream",
-            headers={hdrs.CONTENT_DISPOSITION: disposition},
-        )
+        return web.FileResponse(path, headers={hdrs.CONTENT_DISPOSITION: disposition})
 
     async def post(
         self, request: web.Request, asset_id: str, document_id: str
@@ -189,7 +190,6 @@ class HomeKeeperDocumentView(HomeAssistantView):
 
         display_name = ""
         filename: str | None = None
-        declared_type: str | None = None
         data = b""
         too_large = self.json_message(
             f"File exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)} MB limit",
@@ -216,7 +216,6 @@ class HomeKeeperDocumentView(HomeAssistantView):
                 if not part.filename:
                     continue
                 filename = part.filename
-                declared_type = part.headers.get(hdrs.CONTENT_TYPE)
                 buffer = bytearray()
                 while chunk := await part.read_chunk():
                     buffer += chunk
@@ -230,9 +229,22 @@ class HomeKeeperDocumentView(HomeAssistantView):
         if filename is None:
             return self.json_message("No file part in upload", HTTPStatus.BAD_REQUEST)
         try:
-            content_type, safe_name = validate_upload(filename, declared_type, data)
+            content_type, safe_name = validate_upload(filename, data)
         except AssetValidationError as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+
+        # Write the blob to disk BEFORE persisting metadata (which fires
+        # ``home_keeper_asset_updated``). Otherwise a reader — or an automation reacting
+        # to the event — sees a document whose backing file isn't there yet, so a GET
+        # 404s in that gap. We write under the caller-supplied ``document_id``, which
+        # the store honours (see ``add_asset_document``), so the metadata + blob agree.
+        try:
+            await async_save_document(hass, asset_id, document_id, safe_name, data)
+        except OSError as err:
+            _LOGGER.error("Failed to write document for asset %s: %s", asset_id, err)
+            return self.json_message(
+                "Failed to store the file", HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
         try:
             entry = await coord.store.add_asset_document(
@@ -247,15 +259,27 @@ class HomeKeeperDocumentView(HomeAssistantView):
                 },
             )
         except (KeyError, AssetValidationError) as err:
+            # Metadata was rejected — don't leave an orphaned blob behind.
+            await async_delete_document(hass, asset_id, document_id, safe_name)
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
-        try:
-            await async_save_document(hass, asset_id, entry["id"], safe_name, data)
-        except OSError as err:  # roll the metadata back if the disk write fails
-            _LOGGER.error("Failed to write document for asset %s: %s", asset_id, err)
-            await coord.store.remove_asset_document(asset_id, entry["id"])
-            return self.json_message(
-                "Failed to store the file", HTTPStatus.INTERNAL_SERVER_ERROR
-            )
+
+        # The store regenerates a colliding id (a re-used ``document_id``); in that
+        # (rare) case move the blob so the served path matches the stored id, then drop
+        # the original write.
+        if entry["id"] != document_id:
+            try:
+                await async_save_document(hass, asset_id, entry["id"], safe_name, data)
+            except OSError as err:
+                _LOGGER.error(
+                    "Failed to write document for asset %s: %s", asset_id, err
+                )
+                await coord.store.remove_asset_document(asset_id, entry["id"])
+                await async_delete_document(hass, asset_id, document_id, safe_name)
+                return self.json_message(
+                    "Failed to store the file", HTTPStatus.INTERNAL_SERVER_ERROR
+                )
+            await async_delete_document(hass, asset_id, document_id, safe_name)
+
         # Documents touch neither the device registry nor any entity/task, so there's
         # no device reconcile or entry reload to do — the store already persisted and
         # fired ``home_keeper_asset_updated``.

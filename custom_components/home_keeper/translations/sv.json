@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Område",
           "description": "Valfritt område att associera med denna uppgift."
+        },
+        "labels": {
+          "name": "Etiketter",
+          "description": "Valfria Home Assistant-etiketter att märka denna uppgift med. Används av instrumentpanelskortets etikettfilter (som även matchar etiketter på den kopplade enheten eller området)."
+        },
+        "card_links": {
+          "name": "Kortlänkar",
+          "description": "Apparatlänkar att visa på den här uppgiftens rad i instrumentpanelskortet — en lista med {asset_id, entry_id}-objekt som pekar på en apparats dokument- eller metadatalänkar. Anges vanligtvis från panelens uppgiftsredigerare."
+        },
+        "task_chips": {
+          "name": "Uppgiftschips",
+          "description": "Metadatachips som tillhandahålls av integrationen och visas i uppgiftslistan och instrumentpanelskortet — en lista med {label, icon?, url?}-objekt. Kan inte redigeras av användaren i panelen."
+        },
+        "source": {
+          "name": "Källa",
+          "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Home Keeper lagrar och återger den ordagrant och inspekterar den aldrig. Se docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Detaljnivå för slutförande",
+          "description": "Hur mycket kontext som ska fångas när uppgiften slutförs: none (markera som klar utan fråga), optional (erbjud fälten note/cost/photo/who) eller required (kräv fälten som anges i completion_required_fields). Fråga endast i panelen."
+        },
+        "completion_required_fields": {
+          "name": "Obligatoriska slutförandefält",
+          "description": "Vilka slutförande-metadatafält panelen gör obligatoriska när slutförandedetaljen är required — något av note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Område",
           "description": "Område att associera med denna uppgift."
+        },
+        "labels": {
+          "name": "Etiketter",
+          "description": "Home Assistant-etiketter att märka denna uppgift med (ersätter den nuvarande uppsättningen). Används av instrumentpanelskortets etikettfilter."
+        },
+        "card_links": {
+          "name": "Kortlänkar",
+          "description": "Apparatlänkar att visa på den här uppgiftens rad i instrumentpanelskortet (ersätter den nuvarande uppsättningen) — en lista med {asset_id, entry_id}-objekt. Anges vanligtvis från panelens uppgiftsredigerare."
+        },
+        "task_chips": {
+          "name": "Uppgiftschips",
+          "description": "Metadatachips som tillhandahålls av integrationen (ersätter den nuvarande uppsättningen) — en lista med {label, icon?, url?}-objekt. Se add_task för det fullständiga schemat."
+        },
+        "source": {
+          "name": "Källa",
+          "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Se docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Detaljnivå för slutförande",
+          "description": "Hur mycket kontext som ska fångas vid slutförande: none, optional eller required (se add_task). Fråga endast i panelen."
+        },
+        "completion_required_fields": {
+          "name": "Obligatoriska slutförandefält",
+          "description": "Vilka slutförande-metadatafält panelen gör obligatoriska när slutförandedetaljen är required — något av note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Slutförd",
           "description": "Valfri tidsstämpel för slutförande (standard är nu)."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Valfri fritextmarkör som återges i händelsen home_keeper_task_completed, så att en bidragande integration kan känna igen och ignorera det slutförande den utlöste (loopförebyggande). Home Keeper tolkar den inte."
+        },
+        "note": {
+          "name": "Anteckning",
+          "description": "Valfri fritextanteckning som registreras med detta slutförande."
+        },
+        "cost": {
+          "name": "Kostnad",
+          "description": "Valfri kostnad som registreras med detta slutförande (din HA-valuta)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Valfritt Home Assistant-id för en uppladdad bild att bifoga som slutförandefoto (panelen anger detta när du laddar upp från slutförandedialogen)."
+        },
+        "who": {
+          "name": "Vem",
+          "description": "Valfri person som utförde uppgiften (ett person-entitets-id)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Tidsstämpel för slutförande",
           "description": "ISO-tidsstämpeln (ts) för slutförandeposten som ska redigeras."
+        },
+        "note": {
+          "name": "Anteckning",
+          "description": "Ny anteckning (utelämna eller lämna tom för att rensa den)."
+        },
+        "cost": {
+          "name": "Kostnad",
+          "description": "Ny kostnad (utelämna eller lämna tom för att rensa den)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Nytt id för uppladdad bild (utelämna eller lämna tom för att rensa det)."
+        },
+        "who": {
+          "name": "Vem",
+          "description": "Nytt person-entitets-id (utelämna eller lämna tom för att rensa det)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Timmar",
           "description": "Hur många timmar uppgiften ska skjutas upp (standard 24)."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Valfri fritextmarkör som återges i händelsen home_keeper_task_snoozed, så att en bidragande integration kan känna igen och ignorera den uppskjutning den utlöste (loopförebyggande). Home Keeper tolkar den inte."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "Uppgifts-ID",
           "description": "ID för uppgiften som ska hoppas över."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Valfri fritextmarkör som återges i händelsen home_keeper_task_skipped, så att en bidragande integration kan känna igen och ignorera den överhoppning den utlöste (loopförebyggande). Home Keeper tolkar den inte."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Lagringstid för engångsuppgifter (dagar)",
           "description": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter slutförandet. 0 behåller dem för alltid."
+        },
+        "dismissed_companions": {
+          "name": "Avfärdade kompanjoner",
+          "description": "Domäner för kopplingsintegrationer att dölja från listan ”Föreslagna” under Inställningar → Kompanjoner. Att avfärda tystar bara ett förslag; en ansluten koppling visas alltid."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "ISO-tidsstämpeln (ts) för det arkiverade slutförandet som ska tas bort."
         }
       }
+    },
+    "register_companion": {
+      "name": "Registrera kompanjon",
+      "description": "Tillkännager en annan integration som fungerar med Home Keeper så att den visas i panelens avsnitt Inställningar → Kompanjoner. Home Keeper lagrar deskriptorn ordagrant och importerar aldrig kompanjonen.",
+      "fields": {
+        "domain": {
+          "name": "Domän",
+          "description": "Kompanjonintegrationens domän."
+        },
+        "name": {
+          "name": "Namn",
+          "description": "Visningsnamn som visas i listan Kompanjoner."
+        },
+        "icon": {
+          "name": "Ikon",
+          "description": "En mdi-ikon för raden."
+        },
+        "description": {
+          "name": "Beskrivning",
+          "description": "En rad som beskriver vad kompanjonen gör med Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "Id för konfigurationspost",
+          "description": "Kompanjonens konfigurationspost-id, så att panelens ”Konfigurera”-knapp kan djuplänka till dess alternativsida."
+        },
+        "docs_url": {
+          "name": "Dokumentations-URL",
+          "description": "En länk till kompanjonens dokumentation."
+        },
+        "capabilities": {
+          "name": "Funktioner",
+          "description": "Fritextetiketter för funktioner (t.ex. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Lista kompanjoner",
+      "description": "Returnerar den sammanslagna kompanjonlistan (självregistrerade integrationer plus upptäckta uppströmsintegrationer vars koppling ännu inte är installerad) som ett svar."
     }
   },
   "entity": {

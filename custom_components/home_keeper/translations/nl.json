@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Gebied",
           "description": "Optioneel gebied om aan deze taak te koppelen."
+        },
+        "labels": {
+          "name": "Labels",
+          "description": "Optionele Home Assistant-labels om deze taak mee te taggen. Gebruikt door het labelfilter van de dashboardkaart (dat ook labels van het gekoppelde apparaat of gebied matcht)."
+        },
+        "card_links": {
+          "name": "Kaartkoppelingen",
+          "description": "Apparaatkoppelingen om te tonen op de dashboardkaartrij van deze taak — een lijst met {asset_id, entry_id}-objecten die verwijzen naar de document- of metadatakoppelingen van een apparaat. Meestal ingesteld vanuit de taakeditor van het paneel."
+        },
+        "task_chips": {
+          "name": "Taakchips",
+          "description": "Door de integratie geleverde metadatachips die worden getoond in de takenlijst en de dashboardkaart — een lijst met {label, icon?, url?}-objecten. Niet door de gebruiker bewerkbaar in het paneel."
+        },
+        "source": {
+          "name": "Bron",
+          "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Home Keeper slaat deze letterlijk op en geeft deze letterlijk terug en inspecteert deze nooit. Zie docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Voltooiingsdetail",
+          "description": "Hoeveel context vast te leggen wanneer deze taak wordt voltooid: none (als klaar markeren zonder prompt), optional (biedt de velden note/cost/photo/who) of required (vereist de velden vermeld in completion_required_fields). Alleen een vastlegprompt in het paneel."
+        },
+        "completion_required_fields": {
+          "name": "Vereiste voltooiingsvelden",
+          "description": "Welke voltooiingsmetadatavelden het paneel verplicht maakt wanneer het voltooiingsdetail required is — een van note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Gebied",
           "description": "Gebied om aan deze taak te koppelen."
+        },
+        "labels": {
+          "name": "Labels",
+          "description": "Home Assistant-labels om deze taak mee te taggen (vervangt de huidige set). Gebruikt door het labelfilter van de dashboardkaart."
+        },
+        "card_links": {
+          "name": "Kaartkoppelingen",
+          "description": "Apparaatkoppelingen om te tonen op de dashboardkaartrij van deze taak (vervangt de huidige set) — een lijst met {asset_id, entry_id}-objecten. Meestal ingesteld vanuit de taakeditor van het paneel."
+        },
+        "task_chips": {
+          "name": "Taakchips",
+          "description": "Door de integratie geleverde metadatachips (vervangt de huidige set) — een lijst met {label, icon?, url?}-objecten. Zie add_task voor het volledige schema."
+        },
+        "source": {
+          "name": "Bron",
+          "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Zie docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Voltooiingsdetail",
+          "description": "Hoeveel context vast te leggen bij voltooiing: none, optional of required (zie add_task). Alleen een vastlegprompt in het paneel."
+        },
+        "completion_required_fields": {
+          "name": "Vereiste voltooiingsvelden",
+          "description": "Welke voltooiingsmetadatavelden het paneel verplicht maakt wanneer het voltooiingsdetail required is — een van note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Voltooid op",
           "description": "Optionele voltooiingstijdstempel (standaard nu)."
+        },
+        "origin": {
+          "name": "Oorsprong",
+          "description": "Optionele vrije-vorm markering die wordt teruggegeven in de gebeurtenis home_keeper_task_completed, zodat een bijdragende integratie de voltooiing die zij heeft geactiveerd kan herkennen en negeren (luspreventie). Home Keeper interpreteert deze niet."
+        },
+        "note": {
+          "name": "Notitie",
+          "description": "Optionele vrije-vorm notitie die bij deze voltooiing wordt vastgelegd."
+        },
+        "cost": {
+          "name": "Kosten",
+          "description": "Optionele kosten die bij deze voltooiing worden vastgelegd (je HA-valuta)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Optionele id van een in Home Assistant geüploade afbeelding om als voltooiingsfoto te koppelen (het paneel stelt dit in wanneer je uploadt vanuit het voltooiingsvenster)."
+        },
+        "who": {
+          "name": "Wie",
+          "description": "Optionele persoon die de taak heeft uitgevoerd (een persoon-entiteits-id)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Tijdstempel van voltooiing",
           "description": "Het ISO-tijdstempel (ts) van het te bewerken voltooiingsitem."
+        },
+        "note": {
+          "name": "Notitie",
+          "description": "Nieuwe notitie (weglaten of leeg laten om te wissen)."
+        },
+        "cost": {
+          "name": "Kosten",
+          "description": "Nieuwe kosten (weglaten of leeg laten om te wissen)."
+        },
+        "photo": {
+          "name": "Foto",
+          "description": "Nieuwe id van geüploade afbeelding (weglaten of leeg laten om te wissen)."
+        },
+        "who": {
+          "name": "Wie",
+          "description": "Nieuwe persoon-entiteits-id (weglaten of leeg laten om te wissen)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Uren",
           "description": "Met hoeveel uur de taak wordt uitgesteld (standaard 24)."
+        },
+        "origin": {
+          "name": "Oorsprong",
+          "description": "Optionele vrije-vorm markering die wordt teruggegeven in de gebeurtenis home_keeper_task_snoozed, zodat een bijdragende integratie het uitstel dat zij heeft geactiveerd kan herkennen en negeren (luspreventie). Home Keeper interpreteert deze niet."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "Taak-ID",
           "description": "Het id van de over te slaan taak."
+        },
+        "origin": {
+          "name": "Oorsprong",
+          "description": "Optionele vrije-vorm markering die wordt teruggegeven in de gebeurtenis home_keeper_task_skipped, zodat een bijdragende integratie het overslaan dat zij heeft geactiveerd kan herkennen en negeren (luspreventie). Home Keeper interpreteert deze niet."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "Bewaartermijn eenmalige taken (dagen)",
           "description": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden ze voor altijd bewaard."
+        },
+        "dismissed_companions": {
+          "name": "Genegeerde companions",
+          "description": "Glue-integratiedomeinen om te verbergen uit de lijst \"Voorgesteld\" onder Instellingen → Companions. Negeren dempt alleen een suggestie; een verbonden koppeling wordt altijd getoond."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "De ISO-tijdstempel (ts) van de te verwijderen gearchiveerde voltooiing."
         }
       }
+    },
+    "register_companion": {
+      "name": "Companion registreren",
+      "description": "Kondig een andere integratie aan die met Home Keeper werkt zodat deze verschijnt in de sectie Instellingen → Companions van het paneel. Home Keeper slaat de descriptor letterlijk op en importeert de companion nooit.",
+      "fields": {
+        "domain": {
+          "name": "Domein",
+          "description": "Het domein van de companion-integratie."
+        },
+        "name": {
+          "name": "Naam",
+          "description": "Weergavenaam die wordt getoond in de Companions-lijst."
+        },
+        "icon": {
+          "name": "Pictogram",
+          "description": "Een mdi-pictogram voor de rij."
+        },
+        "description": {
+          "name": "Beschrijving",
+          "description": "Eén regel die beschrijft wat de companion doet met Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "Config entry-id",
+          "description": "De config entry-id van de companion, zodat de knop \"Configureren\" van het paneel rechtstreeks naar de optiepagina ervan kan verwijzen."
+        },
+        "docs_url": {
+          "name": "Documentatie-URL",
+          "description": "Een koppeling naar de documentatie van de companion."
+        },
+        "capabilities": {
+          "name": "Mogelijkheden",
+          "description": "Vrije-vorm mogelijkheidstags (bijv. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "Companions weergeven",
+      "description": "Geeft de samengevoegde companion-lijst als antwoord terug (zelf-geregistreerde integraties plus gedetecteerde upstreams waarvan de glue nog niet is geïnstalleerd)."
     }
   },
   "entity": {

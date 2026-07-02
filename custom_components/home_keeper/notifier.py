@@ -22,7 +22,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.util import dt as dt_util
 
-from . import notifications, profiles
+from . import notifications, profiles, recurrence
 from .const import (
     OPTION_NOTIFICATIONS,
     OPTION_PROFILES,
@@ -299,6 +299,15 @@ def async_setup_notifications(
         now = dt_util.now()
         try:
             if verb == notifications.ACTION_COMPLETE:
+                # Gate a "Mark done" tap on the task still being armed/overdue, so a
+                # stale notification tapped after the task was already completed (or
+                # snoozed) elsewhere is a silent no-op rather than a double-advance.
+                # A missing task (deleted) is likewise a no-op.
+                task = coord.store.get_task(task_id)
+                if task is None or not recurrence.is_overdue(
+                    task, now=dt_util.utcnow()
+                ):
+                    return
                 await coord.store.complete_task(
                     task_id, origin=ORIGIN_NOTIFICATION_ACTION
                 )

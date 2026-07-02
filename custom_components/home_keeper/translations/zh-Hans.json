@@ -81,6 +81,30 @@
         "area_id": {
           "name": "区域",
           "description": "要与此任务关联的可选区域。"
+        },
+        "labels": {
+          "name": "标签",
+          "description": "用于标记此任务的可选 Home Assistant 标签。供仪表板卡片的标签筛选器使用（该筛选器还会匹配所关联设备或区域上的标签）。"
+        },
+        "card_links": {
+          "name": "卡片链接",
+          "description": "在此任务的仪表板卡片行中显示的电器链接 — 由 {asset_id, entry_id} 对象组成的列表，指向某个电器的文档或元数据链接。通常在面板的任务编辑器中设置。"
+        },
+        "task_chips": {
+          "name": "任务信息片",
+          "description": "由集成提供、显示在任务列表和仪表板卡片中的元数据信息片 — 由 {label, icon?, url?} 对象组成的列表。无法在面板中由用户编辑。"
+        },
+        "source": {
+          "name": "来源",
+          "description": "由创建该任务的集成拥有的不透明来源信息。Home Keeper 会原样存储并回显，且从不检查它。参见 docs/INTEGRATING.md。"
+        },
+        "completion_detail": {
+          "name": "完成详情",
+          "description": "完成此任务时要采集多少上下文：none（直接标记完成，不提示）、optional（提供 note/cost/photo/who 字段）或 required（要求填写 completion_required_fields 中列出的字段）。仅在面板中提示采集。"
+        },
+        "completion_required_fields": {
+          "name": "必填完成字段",
+          "description": "当完成详情为 required 时，面板将哪些完成元数据字段设为必填 — 可为 note、cost、photo、who 中的任意项。"
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "区域",
           "description": "要与此任务关联的区域。"
+        },
+        "labels": {
+          "name": "标签",
+          "description": "用于标记此任务的 Home Assistant 标签（替换当前集合）。供仪表板卡片的标签筛选器使用。"
+        },
+        "card_links": {
+          "name": "卡片链接",
+          "description": "在此任务的仪表板卡片行中显示的电器链接（替换当前集合）— 由 {asset_id, entry_id} 对象组成的列表。通常在面板的任务编辑器中设置。"
+        },
+        "task_chips": {
+          "name": "任务信息片",
+          "description": "由集成提供的元数据信息片（替换当前集合）— 由 {label, icon?, url?} 对象组成的列表。完整架构请参见 add_task。"
+        },
+        "source": {
+          "name": "来源",
+          "description": "由创建该任务的集成拥有的不透明来源信息。参见 docs/INTEGRATING.md。"
+        },
+        "completion_detail": {
+          "name": "完成详情",
+          "description": "完成时要采集多少上下文：none、optional 或 required（参见 add_task）。仅在面板中提示采集。"
+        },
+        "completion_required_fields": {
+          "name": "必填完成字段",
+          "description": "当完成详情为 required 时，面板将哪些完成元数据字段设为必填 — 可为 note、cost、photo、who 中的任意项。"
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "完成时间",
           "description": "可选的完成时间戳（默认为现在）。"
+        },
+        "origin": {
+          "name": "发起方",
+          "description": "可选的自由文本标记，会在 home_keeper_task_completed 事件中回显，以便贡献集成能够识别并忽略由其自身触发的完成（防止循环）。Home Keeper 不会解释它。"
+        },
+        "note": {
+          "name": "备注",
+          "description": "随此次完成记录的可选自由文本备注。"
+        },
+        "cost": {
+          "name": "费用",
+          "description": "随此次完成记录的可选费用（使用你的 HA 货币）。"
+        },
+        "photo": {
+          "name": "照片",
+          "description": "可选的 Home Assistant 图片上传 id，用作完成照片附件（当你从完成对话框上传时，面板会设置它）。"
+        },
+        "who": {
+          "name": "执行人",
+          "description": "可选的任务执行人（person 实体 id）。"
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "完成时间戳",
           "description": "要编辑的完成记录条目的 ISO 时间戳 (ts)。"
+        },
+        "note": {
+          "name": "备注",
+          "description": "新备注（省略或留空以清除）。"
+        },
+        "cost": {
+          "name": "费用",
+          "description": "新费用（省略或留空以清除）。"
+        },
+        "photo": {
+          "name": "照片",
+          "description": "新的图片上传 id（省略或留空以清除）。"
+        },
+        "who": {
+          "name": "执行人",
+          "description": "新的 person 实体 id（省略或留空以清除）。"
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "小时",
           "description": "将任务推迟多少小时（默认 24）。"
+        },
+        "origin": {
+          "name": "发起方",
+          "description": "可选的自由文本标记，会在 home_keeper_task_snoozed 事件中回显，以便贡献集成能够识别并忽略由其自身触发的延后（防止循环）。Home Keeper 不会解释它。"
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "任务 ID",
           "description": "要跳过的任务的 id。"
+        },
+        "origin": {
+          "name": "发起方",
+          "description": "可选的自由文本标记，会在 home_keeper_task_skipped 事件中回显，以便贡献集成能够识别并忽略由其自身触发的跳过（防止循环）。Home Keeper 不会解释它。"
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "一次性任务保留天数",
           "description": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留。"
+        },
+        "dismissed_companions": {
+          "name": "已忽略的搭档",
+          "description": "要从 设置 → 搭档 的“建议”列表中隐藏的粘合集成域。忽略仅会静默某个建议；已连接的配对始终会显示。"
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "要移除的归档完成记录的 ISO 时间戳（ts）。"
         }
       }
+    },
+    "register_companion": {
+      "name": "注册搭档",
+      "description": "声明另一个与 Home Keeper 协作的集成，使其出现在面板的 设置 → 搭档 部分。Home Keeper 会原样存储该描述符，且从不导入该搭档。",
+      "fields": {
+        "domain": {
+          "name": "域",
+          "description": "搭档集成的域。"
+        },
+        "name": {
+          "name": "名称",
+          "description": "在搭档列表中显示的名称。"
+        },
+        "icon": {
+          "name": "图标",
+          "description": "用于该行的 mdi 图标。"
+        },
+        "description": {
+          "name": "描述",
+          "description": "用一行描述该搭档与 Home Keeper 配合完成的功能。"
+        },
+        "config_entry_id": {
+          "name": "配置项 id",
+          "description": "搭档的配置项 id，以便面板的“配置”按钮可以直接链接到其选项页面。"
+        },
+        "docs_url": {
+          "name": "文档 URL",
+          "description": "指向搭档文档的链接。"
+        },
+        "capabilities": {
+          "name": "能力",
+          "description": "自由文本能力标记（例如 care_schedules、battery_replacement）。"
+        }
+      }
+    },
+    "list_companions": {
+      "name": "列出搭档",
+      "description": "以响应形式返回合并后的搭档列表（自注册的集成，加上已检测到但其粘合尚未安装的上游集成）。"
     }
   },
   "entity": {

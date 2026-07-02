@@ -81,6 +81,30 @@
         "area_id": {
           "name": "Area",
           "description": "Optional area to associate with this task."
+        },
+        "labels": {
+          "name": "Labels",
+          "description": "Optional Home Assistant labels to tag this task with. Used by the dashboard card's label filter (which also matches labels on the attached device or area)."
+        },
+        "card_links": {
+          "name": "Card links",
+          "description": "Appliance links to surface on this task's dashboard-card row — a list of {asset_id, entry_id} objects pointing at an appliance's document or metadata links. Usually set from the panel's task editor."
+        },
+        "task_chips": {
+          "name": "Task chips",
+          "description": "Integration-provided metadata chips shown in the task list and dashboard card — a list of {label, icon?, url?} objects. Not user-editable in the panel."
+        },
+        "source": {
+          "name": "Source",
+          "description": "Opaque provenance owned by the integration that created the task. Home Keeper stores and echoes it verbatim and never inspects it. See docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Completion detail",
+          "description": "How much context to capture when this task is completed: none (mark done with no prompt), optional (offer the note/cost/photo/who fields), or required (require the fields listed in completion_required_fields). Panel-only capture prompt."
+        },
+        "completion_required_fields": {
+          "name": "Required completion fields",
+          "description": "Which completion-metadata fields the panel makes mandatory when completion detail is required — any of note, cost, photo, who."
         }
       }
     },
@@ -135,6 +159,30 @@
         "area_id": {
           "name": "Area",
           "description": "Area to associate with this task."
+        },
+        "labels": {
+          "name": "Labels",
+          "description": "Home Assistant labels to tag this task with (replaces the current set). Used by the dashboard card's label filter."
+        },
+        "card_links": {
+          "name": "Card links",
+          "description": "Appliance links to surface on this task's dashboard-card row (replaces the current set) — a list of {asset_id, entry_id} objects. Usually set from the panel's task editor."
+        },
+        "task_chips": {
+          "name": "Task chips",
+          "description": "Integration-provided metadata chips (replaces the current set) — a list of {label, icon?, url?} objects. See add_task for the full schema."
+        },
+        "source": {
+          "name": "Source",
+          "description": "Opaque provenance owned by the integration that created the task. See docs/INTEGRATING.md."
+        },
+        "completion_detail": {
+          "name": "Completion detail",
+          "description": "How much context to capture on completion: none, optional, or required (see add_task). Panel-only capture prompt."
+        },
+        "completion_required_fields": {
+          "name": "Required completion fields",
+          "description": "Which completion-metadata fields the panel makes mandatory when completion detail is required — any of note, cost, photo, who."
         }
       }
     },
@@ -163,6 +211,26 @@
         "completed_at": {
           "name": "Completed at",
           "description": "Optional completion timestamp (defaults to now)."
+        },
+        "origin": {
+          "name": "Origin",
+          "description": "Optional free-form marker echoed back in the home_keeper_task_completed event, so a contributing integration can recognise and ignore the completion it triggered (loop prevention). Home Keeper does not interpret it."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Optional free-form note recorded with this completion."
+        },
+        "cost": {
+          "name": "Cost",
+          "description": "Optional cost recorded with this completion (your HA currency)."
+        },
+        "photo": {
+          "name": "Photo",
+          "description": "Optional Home Assistant image-upload id to attach as the completion photo (the panel sets this when you upload from the completion dialog)."
+        },
+        "who": {
+          "name": "Who",
+          "description": "Optional person who performed the task (a person entity id)."
         }
       }
     },
@@ -177,6 +245,22 @@
         "ts": {
           "name": "Completion timestamp",
           "description": "The ISO timestamp (ts) of the completion entry to edit."
+        },
+        "note": {
+          "name": "Note",
+          "description": "New note (omit or leave blank to clear it)."
+        },
+        "cost": {
+          "name": "Cost",
+          "description": "New cost (omit or leave blank to clear it)."
+        },
+        "photo": {
+          "name": "Photo",
+          "description": "New image-upload id (omit or leave blank to clear it)."
+        },
+        "who": {
+          "name": "Who",
+          "description": "New person entity id (omit or leave blank to clear it)."
         }
       }
     },
@@ -201,6 +285,10 @@
         "hours": {
           "name": "Hours",
           "description": "How many hours to defer the task (defaults to 24)."
+        },
+        "origin": {
+          "name": "Origin",
+          "description": "Optional free-form marker echoed back in the home_keeper_task_snoozed event, so a contributing integration can recognise and ignore the snooze it triggered (loop prevention). Home Keeper does not interpret it."
         }
       }
     },
@@ -211,6 +299,10 @@
         "task_id": {
           "name": "Task ID",
           "description": "The id of the task to skip."
+        },
+        "origin": {
+          "name": "Origin",
+          "description": "Optional free-form marker echoed back in the home_keeper_task_skipped event, so a contributing integration can recognise and ignore the skip it triggered (loop prevention). Home Keeper does not interpret it."
         }
       }
     },
@@ -440,6 +532,10 @@
         "one_off_retention_days": {
           "name": "One-off retention (days)",
           "description": "Auto-delete a completed one-off task this many days after completion. 0 keeps them forever."
+        },
+        "dismissed_companions": {
+          "name": "Dismissed companions",
+          "description": "Glue integration domains to hide from the Settings → Companions \"Suggested\" list. Dismissing only silences a suggestion; a connected pairing is always shown."
         }
       }
     },
@@ -520,6 +616,44 @@
           "description": "The ISO timestamp (ts) of the archived completion to remove."
         }
       }
+    },
+    "register_companion": {
+      "name": "Register companion",
+      "description": "Announce another integration that works with Home Keeper so it appears in the panel's Settings → Companions section. Home Keeper stores the descriptor verbatim and never imports the companion.",
+      "fields": {
+        "domain": {
+          "name": "Domain",
+          "description": "The companion integration's domain."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Display name shown in the Companions list."
+        },
+        "icon": {
+          "name": "Icon",
+          "description": "An mdi icon for the row."
+        },
+        "description": {
+          "name": "Description",
+          "description": "One line describing what the companion does with Home Keeper."
+        },
+        "config_entry_id": {
+          "name": "Config entry id",
+          "description": "The companion's config entry id, so the panel's \"Configure\" button can deep-link to its options page."
+        },
+        "docs_url": {
+          "name": "Docs URL",
+          "description": "A link to the companion's documentation."
+        },
+        "capabilities": {
+          "name": "Capabilities",
+          "description": "Free-form capability tags (e.g. care_schedules, battery_replacement)."
+        }
+      }
+    },
+    "list_companions": {
+      "name": "List companions",
+      "description": "Return the merged companion list (self-registered integrations plus detected upstreams whose glue isn't installed yet) as a response."
     }
   },
   "entity": {

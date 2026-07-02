@@ -271,6 +271,11 @@ SIGNAL_TASK_CONTRIBUTION = f"{DOMAIN}_task_contribution"
 # Where the in-memory companion registry lives (survives entry reloads; rebuilt on
 # HA restart as companions re-announce).
 DATA_COMPANIONS = f"{DOMAIN}_companions"
+# Upper bound on how many distinct companion domains the in-memory registry will hold,
+# so a misbehaving/compromised companion can't register unbounded domains (each
+# descriptor is stored verbatim). Generous — no real ecosystem approaches this — and
+# updates to an already-registered domain are always allowed past the cap.
+MAX_COMPANIONS = 50
 # Bus event Home Keeper fires when it has set up (and on reload) asking companions
 # to (re-)announce themselves. Best-effort: registration survives entry reloads via
 # ``hass.data``, but a full HA restart sets every integration up fresh and ordering
