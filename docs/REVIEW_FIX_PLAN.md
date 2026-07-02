@@ -72,10 +72,11 @@ add/extend a regression test where the bug class allows it, and update
 - [x] M5. Pass `config_entry=entry` to `DataUpdateCoordinator.__init__` (fixes the
   2025.11 implicit-inference removal); `entry` is now a read-only property aliasing
   the base's `self.config_entry`, collapsing the duality. (`coordinator.py`)
-- [ ] M6. Add `serial_number` to `_ASSET_FIELDS` so `add_asset`/`update_asset`
-  services accept it. (`__init__.py:268`)
-- [ ] M7. To-do item rename support: apply summary changes via `store.update_task`
-  in `async_update_todo_item`. (`todo.py:82`)
+- [x] M6. Added `serial_number` to `_ASSET_FIELDS` so `add_asset`/`update_asset`
+  services accept it (previously rejected with "extra keys not allowed"). (`__init__.py`)
+- [x] M7. To-do item rename support: `async_update_todo_item` now persists
+  summary/notes edits via `store.update_task` for a NEEDS_ACTION item (was silently
+  discarded), keeping the declared `UPDATE_TODO_ITEM` feature honest. (`todo.py`)
 - [ ] M8. Services parity for completion deletion: add
   `home_keeper.delete_completion` + `home_keeper.delete_archived_completion`
   services (services.yaml + strings.json), fire `asset_updated` for archived
