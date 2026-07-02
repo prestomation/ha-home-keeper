@@ -869,8 +869,10 @@ export class HomeKeeperPanel extends HTMLElement {
   }
   private _openEdit(task: Task): void {
     // Editing happens in the list view's form host; leave any open detail page.
-    this._detail = null;
-    this._view = 'tasks';
+    // Navigate via the URL (the single source of truth) rather than mutating
+    // view/detail directly — so a reload/deep-link, the Tasks tab, and Back all stay
+    // consistent with what's on screen.
+    this._navigate({ view: 'tasks', detail: null });
     // Seed the flat consumable_link so the picker reflects the current link and a
     // plain save (no edit) round-trips it unchanged.
     this._edit = {
@@ -1025,6 +1027,13 @@ export class HomeKeeperPanel extends HTMLElement {
       document.removeEventListener('keydown', onKey);
       onConfirm?.();
       this._closeConfirmDialog();
+      // Re-render after the mutation: the confirm callbacks (metadata/part row
+      // deletion) only mutate state, and neither this handler nor
+      // _closeConfirmDialog rendered — so a deleted row stayed visible, and its
+      // siblings' value-changed closures kept stale render-time indices that wrote
+      // into the now-shifted array and corrupted the wrong entry. Rebuilding the form
+      // with fresh indices fixes both.
+      this._render();
     });
 
     row.appendChild(cancel);
@@ -1115,8 +1124,8 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
   private _openEditAsset(asset: Asset): void {
-    this._detail = null;
-    this._view = 'appliances';
+    // Navigate via the URL (single source of truth), not direct state mutation.
+    this._navigate({ view: 'appliances', detail: null });
     this._assetEdit = {
       open: true,
       asset: {

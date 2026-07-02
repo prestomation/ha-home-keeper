@@ -86,17 +86,18 @@ add/extend a regression test where the bug class allows it, and update
 - [x] M9. `async_remove_entry` now calls `manuals.async_delete_all_documents` to
   rmtree the uploaded-documents blob tree on uninstall (was left on disk forever).
   (`__init__.py`, `manuals.py`)
-- [ ] M10. Panel appliance editor: re-render after metadata/part row deletion and
-  stop stale-index closures from corrupting sibling rows (key rows or re-read index
-  at event time). (`panel.ts:3986,4084`)
+- [x] M10. Confirm-dialog delete now calls `_render()` after the callback, so a
+  deleted metadata/part row disappears and the form rebuilds with fresh indices —
+  fixing both the invisible deletion and the stale-index closures that corrupted
+  sibling rows. (`panel.ts`)
 - [ ] M11. Panel robustness: initial-load failure shows error + retry instead of
   infinite spinner; try/catch + toast on `_complete`, `_deleteAsset`,
   `_deleteCompletion`, `_deleteArchivedCompletion`; debounce + serialize
   profile/notification persistence (no per-keystroke entry reloads, no
   out-of-order overwrite). (`panel.ts:843,916,1166,1251,2786,2974`)
-- [ ] M12. Panel navigation: `_openEdit`/`_openEditAsset` must navigate via URL
-  (route is the single source of truth), not mutate `_view`/`_detail` directly.
-  (`panel.ts:867,1114`)
+- [x] M12. `_openEdit`/`_openEditAsset` now navigate via `_navigate(...)` (URL is
+  the single source of truth) instead of mutating `_view`/`_detail`, so reload/
+  deep-link, the tab buttons, and Back stay consistent. (`panel.ts`)
 - [x] M13. Device triggers: `async_attach_trigger` now derives its event-data
   filter from the device registry alone (`_attach_filter`) instead of the
   coordinator's loaded tasks, so a trigger attached before Home Keeper finishes
