@@ -41,6 +41,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
     TASK_SOURCE_PART,
+    TASK_SOURCE_PROBLEM_SENSOR,
     resolve_wear_task_naming,
 )
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
@@ -161,7 +162,24 @@ class HomeKeeperStore:
 
     # ── mutations ──────────────────────────────────────────────────────────────
     async def add_task(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Create and persist a new task; returns the created task dict."""
+        """Create and persist a new task; returns the created task dict.
+
+        ``source`` is opaque provenance a caller may attach, but the ``part`` and
+        ``problem_sensor`` namespaces are *reserved* — the reconcilers own tasks that
+        carry them (and will silently delete a task whose reserved source doesn't
+        match a live part/sensor). Reject them here so an external ``add_task`` can't
+        mint a task that masquerades as reconciler-owned and then vanishes on the next
+        reconcile pass. Home Keeper's own reconcilers build such tasks via
+        ``models.build_task`` directly, not through this service path.
+        """
+        source = data.get("source")
+        if isinstance(source, dict):
+            reserved = {TASK_SOURCE_PART, TASK_SOURCE_PROBLEM_SENSOR} & set(source)
+            if reserved:
+                raise models.TaskValidationError(
+                    f"source keys {sorted(reserved)} are reserved for Home Keeper's "
+                    "own task reconcilers and cannot be set via add_task"
+                )
         task = models.build_task(data, now=dt_util.now())
         self._tasks[task["id"]] = task
         await self._save()

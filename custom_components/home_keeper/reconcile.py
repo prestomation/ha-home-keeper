@@ -44,7 +44,14 @@ def part_source(task: dict[str, Any]) -> dict[str, Any] | None:
     """
     source = task.get("source")
     if isinstance(source, dict) and isinstance(source.get(TASK_SOURCE_PART), dict):
-        return source[TASK_SOURCE_PART]
+        part = source[TASK_SOURCE_PART]
+        # Require the identifying keys before treating this as a part source. A
+        # malformed reserved shape (e.g. a caller passing ``source={"part": {...}}``
+        # without asset_id/part_id) must not reach the bracket accesses in the
+        # reconciler — otherwise it raises KeyError inside async_setup_entry and the
+        # entry fails to set up on every restart until storage is hand-edited.
+        if "asset_id" in part and "part_id" in part:
+            return part
     return None
 
 

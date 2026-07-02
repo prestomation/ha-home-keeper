@@ -50,10 +50,12 @@ add/extend a regression test where the bug class allows it, and update
   *value* actually changed (was: key present in payload). Regression tests added:
   completed one-off + realistic rename payload stays dormant; snoozed task rename
   keeps the snooze; genuine interval change still reschedules. (`models.py:614`)
-- [ ] M2. Reserved `source` namespaces: validate `source.part` / and reject malformed
-  reserved shapes in `models.build_task` (service `add_task` path); make
-  `reconcile.py` use `.get()` so malformed stored data can't brick setup.
-  (`reconcile.py:121,220`, `models.py:477`)
+- [x] M2. Reserved `source` namespaces: `reconcile.part_source` now requires
+  asset_id/part_id before treating a source as a part source (malformed reserved
+  shapes no longer KeyError-brick setup), and `store.add_task` rejects the reserved
+  `part`/`problem_sensor` namespaces from the service/ws path (internal reconcilers
+  use `build_task` directly, so they're unaffected). Regression test added.
+  (`reconcile.py:45`, `store.py:163`)
 - [ ] M3. Transition edge-state must survive config-entry reloads: persist the
   fired-flags map across coordinator recreation (hand off via `hass.data` keyed
   storage that outlives the entry reload) so add/delete task no longer swallows
