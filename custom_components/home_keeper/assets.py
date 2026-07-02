@@ -39,6 +39,7 @@ from .const import (
     ASSET_IDENTIFIER_PREFIX,
     ASSET_KIND_VIRTUAL,
     ASSET_KINDS,
+    DOCUMENT_CONTENT_TYPES,
     DOMAIN,
     MAX_INTERVAL,
     PART_CONSUMABLE,
@@ -78,9 +79,8 @@ METADATA_TYPES = ("text", "link", "date")
 # (``filename``/``content_type``/``size``) needed to locate and serve it. Each entry is
 # ``{id, kind, name, created[, url | filename, content_type, size]}``.
 DOCUMENT_KINDS = ("link", "file")
-_ALLOWED_DOC_CONTENT_TYPES = frozenset(
-    {"application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"}
-)
+# The stored-metadata allowlist is exactly the upload allowlist (see const.py).
+_ALLOWED_DOC_CONTENT_TYPES = frozenset(DOCUMENT_CONTENT_TYPES)
 _MAX_DOC_NAME_LEN = 200
 # Bound the per-asset documents list (the whole asset map is one JSON document that's
 # rewritten on every save, and each file can be up to MAX_DOCUMENT_BYTES on disk).
