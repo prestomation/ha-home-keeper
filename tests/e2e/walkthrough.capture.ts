@@ -114,11 +114,12 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await buyPart.locator('ha-switch').first().click();
     await expect(buyPart.getByText('Restock quantity', { exact: false })).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
+    // Discard the unsaved toggle and return to the appliances list — a stable
+    // top-level surface — for the next scene (``_closeAssetForm`` only re-renders,
+    // so re-selecting the tab is the reliable way back to the list).
     await panel.locator('#a-cancel').click();
-    await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
     await page.waitForTimeout(BEAT);
-
-    await panel.locator('#back-btn').click();
+    await panel.locator('#tab-appliances').click();
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);
 
