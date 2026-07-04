@@ -902,20 +902,14 @@ def test_negative_restock_quantity_rejected():
 
 def test_part_wants_buy_task_requires_option_and_threshold():
     assert (
-        a.part_wants_buy_task(
-            {"stock": 0, "reorder_at": 1, "create_buy_task": True}
-        )
+        a.part_wants_buy_task({"stock": 0, "reorder_at": 1, "create_buy_task": True})
         is True
     )
     # Option on but no threshold -> no "low" to act on.
-    assert (
-        a.part_wants_buy_task({"stock": 0, "create_buy_task": True}) is False
-    )
+    assert a.part_wants_buy_task({"stock": 0, "create_buy_task": True}) is False
     # Threshold set but option off.
     assert (
-        a.part_wants_buy_task(
-            {"stock": 0, "reorder_at": 1, "create_buy_task": False}
-        )
+        a.part_wants_buy_task({"stock": 0, "reorder_at": 1, "create_buy_task": False})
         is False
     )
 

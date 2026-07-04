@@ -253,7 +253,7 @@ def _list_assets(ha):
 
 
 def test_auto_buy_task_lifecycle(ha):
-    """Enabling auto-buy creates a reminder when low; completing it restocks + clears."""
+    """Enabling auto-buy creates a reminder when low; completing it restocks/clears."""
     ids = {}
 
     def setup_asset():
@@ -275,9 +275,7 @@ def test_auto_buy_task_lifecycle(ha):
                 ],
             },
         )
-        asset = next(
-            a for a in _list_assets(ha) if a["name"] == "Auto-buy appliance"
-        )
+        asset = next(a for a in _list_assets(ha) if a["name"] == "Auto-buy appliance")
         ids["asset_id"] = asset["id"]
         ids["part_id"] = asset["parts"][0]["id"]
 
