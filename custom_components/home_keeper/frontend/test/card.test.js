@@ -172,13 +172,13 @@ describe('HomeKeeperCard document chips', () => {
       },
     };
 
-    await waitFor(() => sr(card)?.querySelector('a.hk-doc'));
-    const anchor = sr(card).querySelector('a.hk-doc');
-    expect(anchor, 'a file document renders as an anchor').toBeTruthy();
+    await waitFor(() => sr(card)?.querySelector('a.hk-link-chip'));
+    const anchor = sr(card).querySelector('a.hk-link-chip');
+    expect(anchor, 'a file document renders as a link-chip anchor').toBeTruthy();
     expect(anchor.getAttribute('href')).toBe('/api/home_keeper/document/a1/d1?authSig=xyz');
     expect(anchor.getAttribute('target')).toBe('_blank');
     // The async-window.open path (a <button>) is gone — that's what failed on iOS.
-    expect(sr(card).querySelector('button.hk-doc'), 'no JS-driven file button').toBeNull();
+    expect(sr(card).querySelector('button.hk-link-chip'), 'no JS-driven file button').toBeNull();
     expect(signCalls, 'the file URL was pre-signed').toBe(1);
   });
 
@@ -215,11 +215,11 @@ describe('HomeKeeperCard document chips', () => {
       },
     };
 
-    await waitFor(() => sr(card)?.querySelector('a.hk-doc'));
-    const anchor = sr(card).querySelector('a.hk-doc');
+    await waitFor(() => sr(card)?.querySelector('a.hk-link-chip'));
+    const anchor = sr(card).querySelector('a.hk-link-chip');
     expect(anchor, 'the linked part renders as a chip').toBeTruthy();
     expect(anchor.getAttribute('href')).toBe('https://example.com/anode');
-    expect(anchor.textContent).toContain('Anode rod');
+    expect(anchor.querySelector('ha-assist-chip')?.getAttribute('label')).toBe('Anode rod');
   });
 
   it('renders no chip for a linked part without a product URL', async () => {
@@ -250,6 +250,6 @@ describe('HomeKeeperCard document chips', () => {
     };
 
     await waitFor(() => sr(card)?.querySelector('.hk-row'));
-    expect(sr(card).querySelector('a.hk-doc')).toBeNull();
+    expect(sr(card).querySelector('a.hk-link-chip')).toBeNull();
   });
 });

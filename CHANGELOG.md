@@ -4,6 +4,17 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [0.8.0b5]
+
+### Changed
+
+- **A task's appliance links now render as chips, inline with the rest.** On the
+  dashboard card, a task's document/metadata links, uploaded files, and a linked
+  part's product URL previously appeared as plain blue links in a separate row below
+  the task's chips, which read inconsistently. They now render as primary-tinted
+  link-chips in the same chip row as the status, area, and label chips — one tidy,
+  wrapping row — while still opening in a new tab on tap.
+
 ## [0.8.0b4]
 
 ### Added
