@@ -5,12 +5,6 @@
 - **Never push directly to main.** Always use a feature branch and open a PR.
 - Wait for CI (tests, HACS validation, code review) and approval before merging.
 - **Always squash merge PRs.**
-- **Dependabot PRs (github-actions/pip/npm, see `.github/dependabot.yml`) auto-merge**
-  once CI is green, for patch/minor bumps only — `dependabot-auto-merge.yml` queues
-  `gh pr merge --auto --squash` gated on `dependabot/fetch-metadata`'s `update-type`.
-  Major-version bumps are left for manual review. Requires the repo's "Allow
-  auto-merge" setting (Settings → General → Pull Requests) to be enabled once by a
-  repo admin — the workflow can't toggle that itself.
 - **CHANGELOG.md** — update for every user-facing change before tagging a release.
   Developer-only changes (CI config, AGENTS.md, IDEAS.md) don't need entries.
 - **A stable release's `## [X.Y.Z]` notes describe what changed since the last
