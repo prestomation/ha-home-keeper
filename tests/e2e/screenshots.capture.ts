@@ -441,6 +441,22 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/38-panel-part-file.png`, fullPage: true });
 
+  // 39. Auto-create buy task: a stock-tracked part with a reorder threshold can opt
+  // into an auto-created "Buy {part}" reminder when it runs low. Enabling the toggle
+  // reveals a Restock quantity (the spares added back to stock on completing the
+  // reminder). The consumable "Sediment pre-filter" (last part, with a reorder
+  // threshold) is the natural home for a buy reminder — flip it on, fill the quantity,
+  // and capture just that part card.
+  const buyPart = partsDetails.locator('.hk-part').last();
+  await buyPart.scrollIntoViewIfNeeded();
+  await buyPart.locator('ha-switch').first().click();
+  await expect(buyPart.getByText('Restock quantity', { exact: false })).toBeVisible();
+  const buyNumbers = await buyPart.locator('ha-selector-number').count();
+  await buyPart.locator('ha-selector-number').nth(buyNumbers - 1).locator('input').fill('4');
+  await page.waitForTimeout(400);
+  await buyPart.scrollIntoViewIfNeeded();
+  await buyPart.screenshot({ path: `${OUT}/39-panel-part-auto-buy.png` });
+
   // 17. The Settings tab — friendly forms mirroring the options flow: a
   // Problem sensor sync card (toggle + entity / device / area / label exclusions)
   // and a General card (one-off retention), each saved on change.

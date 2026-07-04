@@ -242,6 +242,80 @@ def test_stock_transition_events(ha, ha_token):
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": ids["asset_id"]})
 
 
+def _list_tasks(ha):
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    return resp.get("service_response", resp)["tasks"]
+
+
+def _list_assets(ha):
+    resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+    return resp.get("service_response", resp)["assets"]
+
+
+def test_auto_buy_task_lifecycle(ha):
+    """Enabling auto-buy creates a reminder when low; completing it restocks + clears."""
+    ids = {}
+
+    def setup_asset():
+        call_service(
+            ha,
+            "home_keeper",
+            "add_asset",
+            {
+                "name": "Auto-buy appliance",
+                "parts": [
+                    {
+                        "name": "Cartridge",
+                        "type": "consumable",
+                        "stock": 2,
+                        "reorder_at": 1,
+                        "create_buy_task": True,
+                        "restock_quantity": 4,
+                    }
+                ],
+            },
+        )
+        asset = next(
+            a for a in _list_assets(ha) if a["name"] == "Auto-buy appliance"
+        )
+        ids["asset_id"] = asset["id"]
+        ids["part_id"] = asset["parts"][0]["id"]
+
+    setup_asset()
+
+    def _buy_task():
+        for t in _list_tasks(ha):
+            src = t.get("source") or {}
+            buy = src.get("buy") or {}
+            if buy.get("asset_id") == ids["asset_id"]:
+                return t
+        return None
+
+    # No buy task while stock (2) is above the reorder threshold (1).
+    assert _buy_task() is None
+
+    # Drive 2 -> 1: crosses low -> the reminder appears.
+    call_service(
+        ha,
+        "home_keeper",
+        "adjust_part_stock",
+        {"asset_id": ids["asset_id"], "part_id": ids["part_id"], "delta": -1},
+    )
+    buy = _buy_task()
+    assert buy is not None, "expected an auto-created buy task when the part went low"
+    assert buy["name"] == "Buy Cartridge"
+    assert buy["recurrence_type"] == "one-off"
+
+    # Completing the reminder bumps stock by restock_quantity (1 + 4 = 5) and, now that
+    # the part is restocked above the threshold, removes the reminder.
+    call_service(ha, "home_keeper", "complete_task", {"task_id": buy["id"]})
+    asset = next(a for a in _list_assets(ha) if a["id"] == ids["asset_id"])
+    assert asset["parts"][0]["stock"] == 5
+    assert _buy_task() is None
+
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": ids["asset_id"]})
+
+
 async def _ws_commands(token, commands):
     """Open one authed websocket; send each command; return the replies."""
     results = []

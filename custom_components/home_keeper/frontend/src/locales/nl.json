@@ -17,6 +17,8 @@
   "error.exportFailed": "Inventaris exporteren mislukt",
   "field.stock": "Voorraad",
   "field.reorder_at": "Bijbestellen bij",
+  "field.create_buy_task": "Kooptaak automatisch aanmaken",
+  "field.restock_quantity": "Aanvulhoeveelheid",
   "part.inStock": "Op voorraad: {n}",
   "part.lowStock": "Lage voorraad: {n}",
   "part.every": "Elke {n} {unit}",

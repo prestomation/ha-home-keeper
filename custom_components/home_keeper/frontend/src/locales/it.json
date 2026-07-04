@@ -17,6 +17,8 @@
   "error.exportFailed": "Esportazione inventario non riuscita",
   "field.stock": "Scorte",
   "field.reorder_at": "Riordina a",
+  "field.create_buy_task": "Crea attività di acquisto automaticamente",
+  "field.restock_quantity": "Quantità di rifornimento",
   "part.inStock": "Disponibili: {n}",
   "part.lowStock": "Scorte basse: {n}",
   "part.every": "Ogni {n} {unit}",

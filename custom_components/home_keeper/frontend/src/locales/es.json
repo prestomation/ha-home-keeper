@@ -17,6 +17,8 @@
   "error.exportFailed": "Error al exportar el inventario",
   "field.stock": "Existencias",
   "field.reorder_at": "Reordenar en",
+  "field.create_buy_task": "Crear tarea de compra automáticamente",
+  "field.restock_quantity": "Cantidad de reposición",
   "part.inStock": "En existencias: {n}",
   "part.lowStock": "Pocas existencias: {n}",
   "part.every": "Cada {n} {unit}",

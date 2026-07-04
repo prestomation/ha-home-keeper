@@ -125,4 +125,6 @@ class HomeKeeperPartStockNumber(CoordinatorEntity[HomeKeeperCoordinator], Number
             await self.coordinator.store.adjust_part_stock(
                 self._asset_id, self._part_id, delta
             )
-        await self.coordinator.async_request_refresh()
+        # A crossing may create/remove an auto-buy task; settle it (reloads only if a
+        # buy task's device entities changed, else refreshes).
+        await self.coordinator.async_settle_buy_tasks()

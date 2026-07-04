@@ -250,6 +250,8 @@ _PART_SCHEMA = vol.Schema(
         vol.Optional("last_replaced"): cv.string,
         vol.Optional("stock"): vol.Coerce(int),
         vol.Optional("reorder_at"): vol.Coerce(int),
+        vol.Optional("create_buy_task"): cv.boolean,
+        vol.Optional("restock_quantity"): vol.Coerce(int),
         # file_name/file_content_type/file_size are deliberately absent: a part's
         # attached file is upload-only (see manuals.HomeKeeperPartFileView) and must
         # never be settable through add_asset/update_asset — voluptuous rejects any
@@ -415,6 +417,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # mirroring ``device_class: problem`` binary sensors (when syncing is enabled).
     await devices.async_reconcile_assets(hass, entry, store)
     await store.reconcile_part_tasks()
+    # Auto-buy reminders for low spare parts — reconcile before platforms forward so
+    # any buy task's device-page entities exist at setup (no reload needed here).
+    await store.reconcile_buy_tasks()
     problem_sync = ProblemSensorSync(hass, entry, coordinator)
     await problem_sync.async_initial_reconcile()
     coordinator.problem_sync = problem_sync
@@ -629,7 +634,9 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_key="invalid_task",
                 translation_placeholders={"error": str(err)},
             ) from err
-        await coord.async_request_refresh()
+        # Completing an auto-buy task bumps stock (restocked) → its reminder is removed;
+        # settle so those device entities are (un)registered (else a plain refresh).
+        await coord.async_settle_buy_tasks()
 
     async def handle_update_completion(call: ServiceCall) -> None:
         coord = _coordinator()
@@ -850,7 +857,9 @@ def _register_services(hass: HomeAssistant) -> None:
                     "part_id": call.data["part_id"],
                 },
             ) from None
-        await coord.async_request_refresh()
+        # A crossing may create/remove an auto-buy task; settle it (reload if a buy
+        # task's device entities changed, else refresh).
+        await coord.async_settle_buy_tasks()
 
     async def handle_remove_part_file(call: ServiceCall) -> None:
         coord = _coordinator()

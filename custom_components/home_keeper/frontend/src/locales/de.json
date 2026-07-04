@@ -17,6 +17,8 @@
   "error.exportFailed": "Inventarexport fehlgeschlagen",
   "field.stock": "Bestand",
   "field.reorder_at": "Nachbestellen bei",
+  "field.create_buy_task": "Kaufaufgabe automatisch erstellen",
+  "field.restock_quantity": "Nachbestellmenge",
   "part.inStock": "Auf Lager: {n}",
   "part.lowStock": "Niedriger Bestand: {n}",
   "part.every": "Alle {n} {unit}",

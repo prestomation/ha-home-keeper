@@ -321,6 +321,25 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   the appliance the task is attached to** (its `device_id` / related devices) — you link
   a task to its own appliance's consumable, not an unrelated one — and re-scopes (clearing
   a now-out-of-scope link) when the attached device changes.
+- **Auto-buy tasks.** A part can opt in (`create_buy_task`, needs a `reorder_at`
+  threshold) to a system-managed shopping reminder. The pure
+  `reconcile.reconcile_buy_tasks` (wrapped by `store.reconcile_buy_tasks`) is
+  **level-triggered**: a one-off `"Buy {part}"` task exists exactly while the part
+  `part_wants_buy_task` **and** `part_is_low`, tagged `source={"buy":{asset_id,part_id}}`
+  (a third **reserved** source namespace — `add_task` rejects it, `delete_task` blocks
+  it, `delete_asset` drops it, `_purge_expired_one_offs` skips it). Idempotency is
+  **per low episode**: `existing_by_key` counts a buy task whether open *or completed*,
+  so completing it doesn't respawn one while still low; it's orphan-removed once the
+  part restocks above the threshold (or opts out). Name localized like wear tasks
+  (`const.BUY_TASK_NAME_TEMPLATES` / `resolve_buy_task_naming`). Completing the reminder
+  bumps stock by `restock_quantity` at a **new** `store._stamp_buy_restock` chokepoint
+  (buy tasks aren't a `part` source, so `_stamp_part_replacement`'s consume branch
+  skips them — no double-mutation). Because it's level-triggered, do **not** hook it
+  into the sync `_emit_stock_event`; instead every stock/completion surface calls
+  `coordinator.async_settle_buy_tasks`, which reconciles and — iff a buy task that owns
+  device entities was created/removed — schedules a **deferred** entry reload (guarded
+  like `problem_sync._reload_scheduled`), else a plain refresh. Asset-CRUD and setup
+  call `store.reconcile_buy_tasks` directly (they already reload / run pre-forward).
 - **Problem-sensor sync.** When the `sync_problem_sensors` option is on, every
   `binary_sensor` with `device_class: problem` is mirrored as a **triggered** task by
   the pure `problem_tasks.reconcile_problem_tasks` (wrapped by

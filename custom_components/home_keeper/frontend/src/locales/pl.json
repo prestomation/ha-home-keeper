@@ -17,6 +17,8 @@
   "error.exportFailed": "Eksport inwentarza nie powiódł się",
   "field.stock": "Zapas",
   "field.reorder_at": "Zamów przy",
+  "field.create_buy_task": "Automatycznie utwórz zadanie zakupu",
+  "field.restock_quantity": "Ilość uzupełnienia",
   "part.inStock": "W magazynie: {n}",
   "part.lowStock": "Niski zapas: {n}",
   "part.every": "Co {n} {unit}",

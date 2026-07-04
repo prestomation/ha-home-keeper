@@ -434,6 +434,16 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
         # Both are optional — a part without ``stock`` simply isn't tracked.
         "stock": _normalize_stock(raw.get("stock"), "stock"),
         "reorder_at": _normalize_stock(raw.get("reorder_at"), "reorder_at"),
+        # Auto-buy: when on, a "Buy {part}" task is auto-created while the part is low
+        # (stock <= reorder_at) and removed once restocked above the threshold — owned
+        # by the buy-task reconciler (see reconcile.reconcile_buy_tasks). Only
+        # meaningful when ``reorder_at`` is set. ``restock_quantity`` is how many spares
+        # completing that buy task adds back to ``stock`` (defaults to 1 at bump time
+        # when unset).
+        "create_buy_task": bool(raw.get("create_buy_task")),
+        "restock_quantity": _normalize_stock(
+            raw.get("restock_quantity"), "restock_quantity"
+        ),
         # Upload-only; see the docstring. Always absent here — _merge_parts restores
         # the stored values (or set_part_file/clear_part_file set them directly).
         "file_name": None,
@@ -480,7 +490,8 @@ def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
     stored value unless the caller explicitly set one. ``stock``/``reorder_at`` are
     ordinary user-editable fields — incoming wins, including a ``None`` that clears
     them — so they are intentionally *not* preserved here (otherwise stock tracking
-    could never be switched back off).
+    could never be switched back off). ``create_buy_task``/``restock_quantity`` are
+    likewise ordinary incoming-wins fields (so auto-buy can be toggled back off).
 
     ``file_name``/``file_content_type``/``file_size`` are **always** restored from the
     stored part, unconditionally — like an asset's ``file`` documents, a part's
@@ -580,6 +591,15 @@ def part_is_low(part: dict) -> bool:
     stock = part.get("stock")
     reorder = part.get("reorder_at")
     return stock is not None and reorder is not None and stock <= reorder
+
+
+def part_wants_buy_task(part: dict) -> bool:
+    """True when a part opts into an auto-created "buy" task while it's low.
+
+    Requires a reorder threshold — without both ``stock`` and ``reorder_at`` there's
+    no notion of "low" to drive the task (see :func:`part_has_reorder`).
+    """
+    return bool(part.get("create_buy_task")) and part_has_reorder(part)
 
 
 # Stock-change outcomes, returned by ``stock_transition`` / ``consume_part_stock`` /

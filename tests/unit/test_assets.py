@@ -865,6 +865,61 @@ def test_part_has_reorder_requires_both_stock_and_threshold():
     assert a.part_has_reorder({"stock": None, "reorder_at": 2}) is False
 
 
+def test_part_auto_buy_fields_normalized():
+    asset = a.build_asset(
+        {
+            "name": "Furnace",
+            "parts": [
+                {
+                    "name": "Filter",
+                    "stock": 0,
+                    "reorder_at": 1,
+                    "create_buy_task": True,
+                    "restock_quantity": "4",
+                }
+            ],
+        },
+        now=NOW,
+    )
+    part = asset["parts"][0]
+    assert part["create_buy_task"] is True
+    assert part["restock_quantity"] == 4
+
+
+def test_part_auto_buy_defaults_off():
+    asset = a.build_asset({"name": "X", "parts": [{"name": "F"}]}, now=NOW)
+    part = asset["parts"][0]
+    assert part["create_buy_task"] is False
+    assert part["restock_quantity"] is None
+
+
+def test_negative_restock_quantity_rejected():
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset(
+            {"name": "X", "parts": [{"name": "F", "restock_quantity": -2}]}, now=NOW
+        )
+
+
+def test_part_wants_buy_task_requires_option_and_threshold():
+    assert (
+        a.part_wants_buy_task(
+            {"stock": 0, "reorder_at": 1, "create_buy_task": True}
+        )
+        is True
+    )
+    # Option on but no threshold -> no "low" to act on.
+    assert (
+        a.part_wants_buy_task({"stock": 0, "create_buy_task": True}) is False
+    )
+    # Threshold set but option off.
+    assert (
+        a.part_wants_buy_task(
+            {"stock": 0, "reorder_at": 1, "create_buy_task": False}
+        )
+        is False
+    )
+
+
 def test_stock_transition_classifies_crossings():
     # No threshold -> untracked, never transitions.
     assert a.stock_transition(5, 4, None) == a.STOCK_NONE

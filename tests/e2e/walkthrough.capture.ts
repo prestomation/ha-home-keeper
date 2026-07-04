@@ -94,6 +94,30 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await applianceRow.click();
     await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
+
+    // 4b. Auto-buy — open the editor, reveal the Parts section, and flip on
+    //     "Auto-create buy task" for a stocked consumable so its Restock quantity
+    //     appears: the low → buy → restocked loop, configured in a single toggle.
+    await panel.locator('.d-edit').click();
+    const assetForm = panel.locator('#hk-asset-form');
+    await expect(assetForm).toBeVisible();
+    const partsSection = assetForm
+      .locator('details')
+      .filter({ hasText: 'Parts & wear items' });
+    if ((await partsSection.count()) > 0) {
+      const open = await partsSection.first().evaluate((d: HTMLDetailsElement) => d.open);
+      if (!open) await partsSection.first().locator('summary').click();
+    }
+    const buyPart = partsSection.locator('.hk-part').last();
+    await buyPart.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(BEAT);
+    await buyPart.locator('ha-switch').first().click();
+    await expect(buyPart.getByText('Restock quantity', { exact: false })).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('#a-cancel').click();
+    await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
+    await page.waitForTimeout(BEAT);
+
     await panel.locator('#back-btn').click();
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);

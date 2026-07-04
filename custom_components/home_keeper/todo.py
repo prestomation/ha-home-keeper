@@ -102,7 +102,9 @@ class HomeKeeperTodoListEntity(
                     translation_key="complete_failed",
                     translation_placeholders={"error": str(err)},
                 ) from err
-            await self.coordinator.async_request_refresh()
+            # Completing an auto-buy task bumps stock (restocked) → its reminder is
+            # removed; settle so those device entities are (un)registered.
+            await self.coordinator.async_settle_buy_tasks()
             return
 
         # NEEDS_ACTION: persist summary/notes edits made in the card detail dialog.

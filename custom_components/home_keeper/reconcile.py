@@ -17,10 +17,14 @@ from datetime import datetime, tzinfo
 from typing import Any
 
 from . import models, recurrence
+from .assets import part_is_low, part_wants_buy_task
 from .const import (
     APPLIANCE_FALLBACK_NAMES,
+    BUY_TASK_NAME_TEMPLATES,
     DEFAULT_LANGUAGE,
     PART_WEAR,
+    REC_ONE_OFF,
+    TASK_SOURCE_BUY,
     TASK_SOURCE_PART,
     WEAR_TASK_NAME_TEMPLATES,
 )
@@ -29,6 +33,7 @@ from .const import (
 # caller resolving the locale; ``store.reconcile_part_tasks`` passes the strings
 # resolved from ``hass.config.language`` (see const.resolve_wear_task_naming).
 _DEFAULT_NAME_TEMPLATE = WEAR_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
+_DEFAULT_BUY_NAME_TEMPLATE = BUY_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 _DEFAULT_APPLIANCE_FALLBACK = APPLIANCE_FALLBACK_NAMES[DEFAULT_LANGUAGE]
 
 
@@ -68,6 +73,22 @@ def is_manual_part_link(task: dict[str, Any]) -> bool:
     """
     src = part_source(task)
     return bool(src and src.get("manual"))
+
+
+def buy_source(task: dict[str, Any]) -> dict[str, Any] | None:
+    """Return a buy task's ``{asset_id, part_id}`` provenance, or None.
+
+    A buy task carries ``source = {"buy": {"asset_id", "part_id"}}`` and is owned
+    exclusively by :func:`reconcile_buy_tasks`. Both identifying keys are required
+    before treating the reserved shape as a real buy source (mirrors
+    :func:`part_source`'s crash-safety guard).
+    """
+    source = task.get("source")
+    if isinstance(source, dict) and isinstance(source.get(TASK_SOURCE_BUY), dict):
+        buy = source[TASK_SOURCE_BUY]
+        if "asset_id" in buy and "part_id" in buy:
+            return buy
+    return None
 
 
 def qualify_iso(value: str | None, tz: tzinfo | None) -> str | None:
@@ -227,5 +248,77 @@ def reconcile_part_tasks(
         if (src["asset_id"], src["part_id"]) not in existing_parts:
             result[tid] = {**task, "source": None}
             changed = True
+
+    return result, changed
+
+
+def reconcile_buy_tasks(
+    assets: dict[str, dict[str, Any]],
+    tasks: dict[str, dict[str, Any]],
+    *,
+    name_template: str = _DEFAULT_BUY_NAME_TEMPLATE,
+    now: datetime,
+) -> tuple[dict[str, dict[str, Any]], bool]:
+    """Compute the task map with auto-created "buy" tasks synced to low parts.
+
+    Returns ``(new_tasks, changed)``. A buy task is **desired** for every ``(asset,
+    part)`` where the part opts in (``part_wants_buy_task``) *and* is currently low
+    (``part_is_low``). The task is a one-off ``"Buy {part}"`` reminder attached to the
+    asset's device, keyed by ``source = {"buy": {asset_id, part_id}}`` so the
+    reconciler exclusively owns it.
+
+    Idempotency is **per low episode**: the existing index counts a buy task for a
+    part whether it is open *or already completed*, so completing the reminder does
+    not respawn it while the part stays low. The buy task is orphan-removed the moment
+    its key leaves the desired set — the part restocked above the threshold, opted
+    out, or was deleted — which also ends the episode and re-arms the next one.
+
+    Pure: the input maps are not mutated, and the name is localized by the caller
+    (``store.reconcile_buy_tasks`` resolves ``hass.config.language``). Buy tasks are
+    never *updated* here (a one-off has no cadence to re-derive); only created and
+    removed, so a rename after a language change is picked up as a delete + recreate
+    on the next reconcile — acceptable for a transient reminder.
+    """
+    result = dict(tasks)
+
+    desired: dict[tuple[str, str], tuple[dict, dict]] = {}
+    for asset in assets.values():
+        for part in asset.get("parts", []):
+            if part_wants_buy_task(part) and part_is_low(part):
+                desired[(asset["id"], part["id"])] = (asset, part)
+
+    # Index existing buy tasks by their part key — open OR completed — so a completed
+    # reminder still "occupies" the episode and blocks a duplicate.
+    existing_by_key: dict[tuple[str, str], str] = {}
+    for tid, task in result.items():
+        src = buy_source(task)
+        if src:
+            existing_by_key[(src["asset_id"], src["part_id"])] = tid
+
+    changed = False
+
+    # Remove orphaned buy tasks (part restocked / opted out / part or asset gone).
+    for key, tid in list(existing_by_key.items()):
+        if key not in desired:
+            del result[tid]
+            existing_by_key.pop(key, None)
+            changed = True
+
+    # Create a buy task for each desired key that doesn't already have one.
+    for key, (asset, part) in desired.items():
+        if key in existing_by_key:
+            continue
+        task = models.build_task(
+            {
+                "name": name_template.format(part=part["name"]),
+                "recurrence_type": REC_ONE_OFF,
+                "device_id": asset.get("device_id"),
+                "area_id": asset.get("area_id"),
+                "source": {"buy": {"asset_id": asset["id"], "part_id": part["id"]}},
+            },
+            now=now,
+        )
+        result[task["id"]] = task
+        changed = True
 
     return result, changed

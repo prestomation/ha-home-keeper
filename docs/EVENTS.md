@@ -85,6 +85,12 @@ linked** to a consumable (via `home_keeper.set_task_consumable`). This is how a
 sensor-armed "replace the fridge filter" task draws down inventory and signals a reorder
 when you mark it done.
 
+A part with **Auto-create buy task** enabled goes one step further: crossing the reorder
+threshold auto-creates a one-off *"Buy {part}"* task (a `home_keeper_task_created` event)
+and restocking removes it (`home_keeper_task_deleted`) — no new event type, just the
+ordinary task lifecycle. Completing that buy task restocks the part by its
+`restock_quantity`, which fires `home_keeper_part_restocked` like any other restock.
+
 ### Asset (appliance) lifecycle
 
 | Event | Fires when |

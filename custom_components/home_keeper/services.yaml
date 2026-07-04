@@ -689,7 +689,9 @@ add_asset:
       description: >-
         Structured parts/wear items. Each: name, part_number, type (consumable or
         wear), vendor, cost, an optional http(s) url to the product's page (e.g. an
-        Amazon listing), optional stock + reorder_at (spare-inventory tracking), and
+        Amazon listing), optional stock + reorder_at (spare-inventory tracking),
+        optional create_buy_task + restock_quantity (auto-create a "Buy {part}" task
+        while the part is low, adding restock_quantity spares back when completed), and
         for wear items replace_interval + replace_unit (days/weeks/months) which
         drive a maintenance task.
       selector:

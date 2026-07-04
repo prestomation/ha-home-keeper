@@ -72,4 +72,6 @@ class HomeKeeperMarkDoneButton(HomeKeeperTaskEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         await self.coordinator.store.complete_task(self._task_id)
-        await self.coordinator.async_request_refresh()
+        # Completing an auto-buy task bumps stock (restocked) → its reminder is removed;
+        # settle so those device entities are (un)registered (else a plain refresh).
+        await self.coordinator.async_settle_buy_tasks()

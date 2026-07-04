@@ -40,15 +40,19 @@ from .const import (
     SENSOR_MODE_USAGE,
     STORAGE_KEY,
     STORAGE_VERSION,
+    TASK_SOURCE_BUY,
     TASK_SOURCE_PART,
     TASK_SOURCE_PROBLEM_SENSOR,
+    resolve_buy_task_naming,
     resolve_wear_task_naming,
 )
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
 from .problem_tasks import problem_source as _problem_source
 from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks
+from .reconcile import buy_source as _buy_source
 from .reconcile import is_manual_part_link as _is_manual_part_link
 from .reconcile import part_source as _part_source
+from .reconcile import reconcile_buy_tasks as _reconcile_buy_tasks
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 
 # Stock transition -> the bus event it fires (STOCK_NONE maps to nothing).
@@ -59,6 +63,16 @@ _STOCK_EVENT = {
 }
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _task_owns_entities(task: dict[str, Any]) -> bool:
+    """True when a task owns per-task device-page entities (button/sensor/…).
+
+    Mirrors ``coordinator.task_has_entities`` (an enabled, device-attached task),
+    inlined here to avoid a store→coordinator import cycle. Used to decide whether
+    creating/removing a reconciler-owned task needs a full entry reload.
+    """
+    return bool(task.get("device_id")) and bool(task.get("enabled", True))
 
 
 def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
@@ -164,17 +178,21 @@ class HomeKeeperStore:
     async def add_task(self, data: dict[str, Any]) -> dict[str, Any]:
         """Create and persist a new task; returns the created task dict.
 
-        ``source`` is opaque provenance a caller may attach, but the ``part`` and
-        ``problem_sensor`` namespaces are *reserved* — the reconcilers own tasks that
-        carry them (and will silently delete a task whose reserved source doesn't
-        match a live part/sensor). Reject them here so an external ``add_task`` can't
-        mint a task that masquerades as reconciler-owned and then vanishes on the next
-        reconcile pass. Home Keeper's own reconcilers build such tasks via
+        ``source`` is opaque provenance a caller may attach, but the ``part``,
+        ``problem_sensor`` and ``buy`` namespaces are *reserved* — the reconcilers own
+        tasks that carry them (and will silently delete a task whose reserved source
+        doesn't match a live part/sensor). Reject them here so an external ``add_task``
+        can't mint a task that masquerades as reconciler-owned and then vanishes on the
+        next reconcile pass. Home Keeper's own reconcilers build such tasks via
         ``models.build_task`` directly, not through this service path.
         """
         source = data.get("source")
         if isinstance(source, dict):
-            reserved = {TASK_SOURCE_PART, TASK_SOURCE_PROBLEM_SENSOR} & set(source)
+            reserved = {
+                TASK_SOURCE_PART,
+                TASK_SOURCE_PROBLEM_SENSOR,
+                TASK_SOURCE_BUY,
+            } & set(source)
             if reserved:
                 raise models.TaskValidationError(
                     f"source keys {sorted(reserved)} are reserved for Home Keeper's "
@@ -397,6 +415,13 @@ class HomeKeeperStore:
             raise models.TaskValidationError(
                 "This task is managed by an appliance wear part; remove or change "
                 "the part to delete it."
+            )
+        if task is not None and _buy_source(task):
+            # System-managed auto-buy reminder; the reconciler would recreate it while
+            # the part is still low. Direct the user to restock or turn off the option.
+            raise models.TaskValidationError(
+                "This is an auto-created buy reminder; restock the part or turn off "
+                "its auto-buy option to remove it."
             )
         if task is not None:
             managed_by = task.get("managed_by")
@@ -691,6 +716,12 @@ class HomeKeeperStore:
         dropped_ids = set()
         unlinked = []
         for tid, t in self._tasks.items():
+            # An auto-created buy task for this appliance's part goes with it (it
+            # carries a ``buy`` source, not ``part``, so the loop below would skip it).
+            buy = _buy_source(t)
+            if buy is not None and buy.get("asset_id") == asset_id:
+                dropped_ids.add(tid)
+                continue
             src = _part_source(t)
             if src is None or src.get("asset_id") != asset_id:
                 continue
@@ -787,6 +818,51 @@ class HomeKeeperStore:
                     )
         return changed
 
+    async def reconcile_buy_tasks(self) -> bool:
+        """Create/remove the auto-generated "buy" tasks synced to low spare parts.
+
+        Delegates the (pure) diff to :func:`reconcile.reconcile_buy_tasks` and persists
+        the result. A buy task exists exactly while its part opts in
+        (``create_buy_task``) and is low; it's created when the part crosses low and
+        removed once restocked / opted out / the part or asset is gone. Because these
+        tasks bypass ``add_task``/``delete_task``, fire their lifecycle events here.
+
+        Returns ``True`` when the per-task **entity set** changed (a buy task that owns
+        device-page entities was created or removed) so the caller can decide between a
+        full entry reload and a plain coordinator refresh — mirroring
+        :meth:`reconcile_problem_sensor_tasks`.
+        """
+        old_tasks = self._tasks
+        name_template = resolve_buy_task_naming(self._hass.config.language)
+        new_tasks, changed = _reconcile_buy_tasks(
+            self._assets,
+            old_tasks,
+            name_template=name_template,
+            now=dt_util.now(),
+        )
+        if not changed:
+            return False
+        removed = [task for tid, task in old_tasks.items() if tid not in new_tasks]
+        # A removed buy task's completions (if any) belong to its appliance record.
+        for task in removed:
+            if _buy_source(task):
+                self._archive_task_history(task)
+        self._tasks = new_tasks
+        await self._save()
+        entity_set_changed = False
+        for task in removed:
+            self._hass.bus.async_fire(EVENT_TASK_DELETED, events.task_event_data(task))
+            if _task_owns_entities(task):
+                entity_set_changed = True
+        for tid, task in new_tasks.items():
+            if tid not in old_tasks:
+                self._hass.bus.async_fire(
+                    EVENT_TASK_CREATED, events.task_event_data(task)
+                )
+                if _task_owns_entities(task):
+                    entity_set_changed = True
+        return entity_set_changed
+
     async def reconcile_problem_sensor_tasks(
         self, eligible: dict[str, dict[str, Any]], *, config_entry_id: str
     ) -> bool:
@@ -880,6 +956,7 @@ class HomeKeeperStore:
         self._reset_usage_baseline(updated)
         self._tasks[task_id] = updated
         self._stamp_part_replacement(updated, when)
+        self._stamp_buy_restock(updated)
         await self._save()
         _LOGGER.debug(
             "Completed task %s; next due %s", task_id, updated.get("next_due")
@@ -1005,6 +1082,27 @@ class HomeKeeperStore:
                 # Completing a wear-part replacement consumes one stocked spare;
                 # signal a low/out-of-stock crossing so users can automate a reorder.
                 self._emit_stock_event(assets.consume_part_stock(part), asset, part)
+                break
+
+    def _stamp_buy_restock(self, task: dict[str, Any]) -> None:
+        """On completing an auto-created buy task, restock its part.
+
+        Adds the part's ``restock_quantity`` (default 1) to ``stock`` and emits the
+        resulting stock transition — normally a ``restocked`` crossing, which the next
+        buy-task reconcile turns into removal of this now-satisfied reminder. Buy tasks
+        never carry a ``part`` source, so ``_stamp_part_replacement`` leaves them
+        untouched (no double-mutation).
+        """
+        src = _buy_source(task)
+        if not src:
+            return
+        asset = self._assets.get(src["asset_id"])
+        if not asset:
+            return
+        for part in asset.get("parts", []):
+            if part.get("id") == src.get("part_id"):
+                qty = max(1, int(part.get("restock_quantity") or 1))
+                self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
                 break
 
     def _emit_stock_event(

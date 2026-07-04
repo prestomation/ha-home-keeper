@@ -17,6 +17,8 @@
   "error.exportFailed": "Не удалось экспортировать опись",
   "field.stock": "Запас",
   "field.reorder_at": "Заказ при",
+  "field.create_buy_task": "Автоматически создавать задачу покупки",
+  "field.restock_quantity": "Количество для пополнения",
   "part.inStock": "В наличии: {n}",
   "part.lowStock": "Мало на складе: {n}",
   "part.every": "Каждые {n} {unit}",

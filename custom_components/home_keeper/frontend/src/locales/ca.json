@@ -17,6 +17,8 @@
   "error.exportFailed": "Ha fallat l'exportació de l'inventari",
   "field.stock": "Estoc",
   "field.reorder_at": "Reabastir a",
+  "field.create_buy_task": "Crear tasca de compra automàticament",
+  "field.restock_quantity": "Quantitat de reposició",
   "part.inStock": "En estoc: {n}",
   "part.lowStock": "Estoc baix: {n}",
   "part.every": "Cada {n} {unit}",

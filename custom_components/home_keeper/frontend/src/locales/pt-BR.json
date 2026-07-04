@@ -17,6 +17,8 @@
   "error.exportFailed": "Falha ao exportar inventário",
   "field.stock": "Estoque",
   "field.reorder_at": "Reabastecer em",
+  "field.create_buy_task": "Criar tarefa de compra automaticamente",
+  "field.restock_quantity": "Quantidade de reposição",
   "part.inStock": "Em estoque: {n}",
   "part.lowStock": "Estoque baixo: {n}",
   "part.every": "A cada {n} {unit}",

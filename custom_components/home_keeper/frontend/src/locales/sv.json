@@ -17,6 +17,8 @@
   "error.exportFailed": "Export av inventering misslyckades",
   "field.stock": "Lager",
   "field.reorder_at": "Beställ vid",
+  "field.create_buy_task": "Skapa köpuppgift automatiskt",
+  "field.restock_quantity": "Påfyllningsantal",
   "part.inStock": "I lager: {n}",
   "part.lowStock": "Lågt lager: {n}",
   "part.every": "Var {n} {unit}",

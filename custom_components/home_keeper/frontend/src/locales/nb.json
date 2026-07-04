@@ -17,6 +17,8 @@
   "error.exportFailed": "Eksport av inventar mislyktes",
   "field.stock": "Lager",
   "field.reorder_at": "Bestill ved",
+  "field.create_buy_task": "Opprett kjøpsoppgave automatisk",
+  "field.restock_quantity": "Påfyllingsmengde",
   "part.inStock": "På lager: {n}",
   "part.lowStock": "Lavt lager: {n}",
   "part.every": "Hver {n} {unit}",

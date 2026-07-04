@@ -17,6 +17,8 @@
   "error.exportFailed": "Luettelon vienti epäonnistui",
   "field.stock": "Varasto",
   "field.reorder_at": "Tilausraja",
+  "field.create_buy_task": "Luo ostotehtävä automaattisesti",
+  "field.restock_quantity": "Täydennysmäärä",
   "part.inStock": "Varastossa: {n}",
   "part.lowStock": "Vähissä: {n}",
   "part.every": "Joka {n} {unit}",
