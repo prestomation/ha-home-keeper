@@ -8,6 +8,7 @@
 [![License][license-shield]](LICENSE)
 [![hacs][hacs-shield]][hacs]
 ![Project Maintenance][maintenance-shield]
+[![ko-fi][kofi-shield]][kofi]
 [![HACS Validation][hacs-validation-shield]][hacs-validation]
 [![HA Version][ha-version-shield]][ha-version]
 [![Docs][docs-shield]][docs]
@@ -736,3 +737,5 @@ See [AGENTS.md](AGENTS.md) for workflow and [RELEASE.md](RELEASE.md) for release
 [ha-version]: https://www.home-assistant.io/
 [docs-shield]: https://img.shields.io/badge/docs-website-03a9f4.svg?style=for-the-badge
 [docs]: https://prestomation.github.io/ha-home-keeper/
+[kofi-shield]: https://img.shields.io/badge/Ko--fi-donate-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white
+[kofi]: https://ko-fi.com/prestomation
