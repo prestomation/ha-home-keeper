@@ -3378,6 +3378,13 @@ export class HomeKeeperPanel extends HTMLElement {
     form.schema = schema;
     form.data = data;
     form.computeLabel = (s: { name: string }): string => (s.name ? t('field.' + s.name) : '');
+    // Muted per-field helper text under each field (keyed `help.<field>`); returns ''
+    // where no string is authored, so helpers appear only where we wrote them.
+    form.computeHelper = (s: { name: string }): string => {
+      if (!s.name) return '';
+      const h = t('help.' + s.name);
+      return h === 'help.' + s.name ? '' : h;
+    };
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
       onChange(value);
