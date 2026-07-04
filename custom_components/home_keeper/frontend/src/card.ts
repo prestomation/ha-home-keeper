@@ -157,17 +157,20 @@ const STYLES = `
   .hk-notes { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
   .hk-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
   .hk-chip-ic { width: 16px; height: 16px; --mdc-icon-size: 16px; color: inherit; }
-  /* Per-task document chips: a row of compact, clearly-tappable affordances that open
-     the appliance's manual / file / other associated URL in a new tab. */
+  /* A chip that wraps an <a>: the anchor is invisible (display:contents) so the chip
+     itself is the tappable element, opening the linked URL in a new tab. */
   .hk-task-chip-link { display: contents; }
-  .hk-docs { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
-  .hk-doc {
-    display: inline-flex; align-items: center; gap: 4px; min-width: 0;
-    color: var(--primary-color); text-decoration: none; font-size: 0.85rem;
-    --mdc-icon-size: 16px;
+  /* Link-chips (document / metadata / part-URL links) read as primary-tinted, outlined
+     pills so they sit in the same chip row yet still signal "tap to open externally".
+     Long document names ellipsize instead of blowing out the row. */
+  a.hk-link-chip ha-assist-chip {
+    --ha-assist-chip-label-text-color: var(--primary-color);
+    --md-assist-chip-label-text-color: var(--primary-color);
+    --ha-assist-chip-outline-color: var(--primary-color);
+    --md-assist-chip-outline-color: var(--primary-color);
+    --ha-assist-chip-icon-color: var(--primary-color);
+    max-width: 220px;
   }
-  .hk-doc > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .hk-doc:hover { text-decoration: underline; }
   /* Label chips read as a distinct, primary-tinted tag so they stand apart from
      the neutral status / area chips. */
   ha-assist-chip.hk-label {
@@ -749,11 +752,17 @@ export class HomeKeeperCard extends HTMLElement {
     return { name: part.name, url: part.url, icon: MDI_OPEN_IN_NEW };
   }
 
-  /** One document chip's HTML — always a plain anchor opened by a native tap (works in
-   *  the iOS app's WKWebView; file URLs are pre-signed in `_signDocuments`). */
+  /** One document link rendered as a primary-tinted chip, wrapped in an anchor opened by
+   *  a native tap (works in the iOS app's WKWebView; file URLs are pre-signed in
+   *  `_signDocuments`). Shares the `.hk-task-chip-link` wrapper with URL-bearing
+   *  `task_chips` so it sits inline in the same chip row. */
   private _documentChip(chip: DocumentChip): string {
     const name = escapeHTML(chip.name);
-    return `<a class="hk-doc" href="${escapeHTML(chip.url)}" target="_blank" rel="noopener noreferrer" title="${name}"><ha-icon icon="${chip.icon}"></ha-icon><span>${name}</span></a>`;
+    const iconSlot = `<ha-icon slot="icon" icon="${escapeHTML(chip.icon)}" class="hk-chip-ic"></ha-icon>`;
+    // `chip.url` is already validated at resolution time — external links pass
+    // `isHttpUrl`, uploaded files carry a server-minted *site-relative* signed URL
+    // (which `safeHref` would reject) — so escape it directly rather than re-guarding.
+    return `<a class="hk-task-chip-link hk-link-chip" href="${escapeHTML(chip.url)}" target="_blank" rel="noopener noreferrer" title="${name}"><ha-assist-chip label="${name}">${iconSlot}</ha-assist-chip></a>`;
   }
 
   private _row(task: Task): string {
@@ -809,12 +818,11 @@ export class HomeKeeperCard extends HTMLElement {
       .join('');
     // Per-task "show on card" documents — links/metadata open in a new tab; uploaded
     // files open via a signed URL minted on click (see `_hydrate`). A linked part's
-    // product URL (if any) rides along as one more chip.
+    // product URL (if any) rides along as one more chip. These render as link-chips
+    // inline in the same `.hk-chips` row as the rest.
     const partLink = this._resolvePartLink(task);
     const docs = partLink ? [partLink, ...this._resolveDocuments(task)] : this._resolveDocuments(task);
-    const docsHtml = docs.length
-      ? `<div class="hk-docs">${docs.map((d) => this._documentChip(d)).join('')}</div>`
-      : '';
+    const docsHtml = docs.map((d) => this._documentChip(d)).join('');
     // A dormant triggered task has nothing to complete — its owner arms it; hide the
     // action. A completion-blocked task (a synced problem sensor) keeps a *disabled*
     // mark-done that, on tap, explains its source clears it.
@@ -833,8 +841,7 @@ export class HomeKeeperCard extends HTMLElement {
           <div class="hk-name">${escapeHTML(task.name)}</div>
           <div class="hk-meta">${meta}</div>
           ${notes}
-          <div class="hk-chips">${statusChip}${areaChip}${labelChips}${taskChipsHtml}${managedChip}</div>
-          ${docsHtml}
+          <div class="hk-chips">${statusChip}${areaChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
         </div>
         ${done}
       </div>`;

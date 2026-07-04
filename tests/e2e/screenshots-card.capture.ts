@@ -27,8 +27,10 @@ async function shotCard(page: Page, card: Locator, path: string): Promise<void> 
 }
 
 test('capture Home Keeper card screenshots', async ({ page }) => {
-  // Tall viewport so even the grouped card fits in one clip.
-  await page.setViewportSize({ width: 1280, height: 1800 });
+  // Tall viewport so even the second (grouped) card sits above the fold and its
+  // clip stays inside the rendered image. The default card carries the water-filter
+  // task whose appliance link-chips wrap over several rows, so give it ample room.
+  await page.setViewportSize({ width: 1280, height: 2600 });
   const card = await openCardDashboard(page);
   await expect(card.locator('.hk-name').first()).toBeVisible();
 
@@ -52,7 +54,7 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
     }
   });
   await page.waitForTimeout(1500); // attaching a device reloads the entry; let it settle
-  await expect(card.locator('a.hk-doc').first()).toBeVisible();
+  await expect(card.locator('a.hk-link-chip').first()).toBeVisible();
   await page.waitForTimeout(500); // let layout / chips settle
 
   // 1. The whole dashboard view (default card + grouped card + native cards).
@@ -64,7 +66,7 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
 
   // 2b. Same card, named for the per-task "documents to show on card" feature — the
   // water-filter row carries "Owner's manual", "Reorder filter" and a file chip.
-  await expect(card.locator('a.hk-doc').first()).toBeVisible();
+  await expect(card.locator('a.hk-link-chip').first()).toBeVisible();
   await shotCard(page, card, `${OUT}/card-task-links.png`);
 
   // 3. The grouped-by-status card.

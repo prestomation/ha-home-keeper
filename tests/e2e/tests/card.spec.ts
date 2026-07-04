@@ -76,30 +76,35 @@ test.describe('Home Keeper card — dashboard', () => {
     // asset_water_heater's part_sediment_filter, which has a `url`.
     const row = card.locator('.hk-row', { hasText: 'Replace water filter' });
     await expect(row).toHaveCount(1, { timeout: 30_000 });
-    // Every document chip — link, metadata link, uploaded file, and part link —
-    // renders as a plain anchor that opens in a new tab (a native tap; the iOS app's
-    // WKWebView blocks an async window.open, so a file's signed URL is pre-minted
-    // into the href).
-    const links = row.locator('a.hk-doc');
+    // Every document link — external link, metadata link, uploaded file, and part
+    // link — renders as a link-chip: an ha-assist-chip wrapped in an anchor that
+    // opens in a new tab (a native tap; the iOS app's WKWebView blocks an async
+    // window.open, so a file's signed URL is pre-minted into the href). They sit
+    // inline in the same `.hk-chips` row as the status/area/label chips.
+    const links = row.locator('a.hk-link-chip');
     await expect(links).toHaveCount(4);
-    await expect(row.locator('button.hk-doc')).toHaveCount(0);
+    // Link-chips live inside the chip row, not a separate docs row.
+    await expect(row.locator('.hk-chips a.hk-link-chip')).toHaveCount(4);
 
-    const manual = links.filter({ hasText: "Owner's manual" });
+    const chipLink = (label: string) =>
+      links.filter({ has: page.locator(`ha-assist-chip[label="${label}"]`) });
+
+    const manual = chipLink("Owner's manual");
     await expect(manual).toHaveAttribute('href', 'https://example.com/water-heater-manual');
     await expect(manual).toHaveAttribute('target', '_blank');
     await expect(manual).toHaveAttribute('rel', /noopener/);
     // The metadata link resolves to its label + value.
-    await expect(links.filter({ hasText: 'Reorder filter' })).toHaveAttribute(
+    await expect(chipLink('Reorder filter')).toHaveAttribute(
       'href',
       'https://example.com/reorder-water-filter',
     );
     // The uploaded file resolves to a pre-signed document URL (relative, token-signed).
-    await expect(links.filter({ hasText: 'Installation guide (PDF)' })).toHaveAttribute(
+    await expect(chipLink('Installation guide (PDF)')).toHaveAttribute(
       'href',
       /\/api\/home_keeper\/document\/asset_water_heater\/asset_water_heater_doc_manual_pdf\?authSig=/,
     );
     // The linked part's product-page URL surfaces as its own chip.
-    await expect(links.filter({ hasText: 'Sediment pre-filter' })).toHaveAttribute(
+    await expect(chipLink('Sediment pre-filter')).toHaveAttribute(
       'href',
       'https://www.amazon.com/dp/B0EXAMPLE1',
     );
