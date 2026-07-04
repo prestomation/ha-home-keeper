@@ -85,6 +85,9 @@ def task_has_entities(task: dict[str, Any] | None) -> bool:
     that owns none needs no entry reload — a plain coordinator refresh suffices, which
     avoids flapping every entity unavailable when e.g. a companion seeds many
     device-less tasks.
+
+    NOTE: ``store._task_owns_entities`` inlines this same rule (to avoid a
+    store→coordinator import cycle). Keep the two in sync if the rule ever changes.
     """
     return bool(task and task.get("device_id") and task.get("enabled", True))
 

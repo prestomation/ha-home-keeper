@@ -9,6 +9,7 @@ refresh; here we cover the deterministic, mutation-driven events.
 
 import asyncio
 import json
+import time
 
 import websockets
 from conftest import call_service
@@ -289,27 +290,58 @@ def test_auto_buy_task_lifecycle(ha):
                 return t
         return None
 
-    # No buy task while stock (2) is above the reorder threshold (1).
+    def _poll(fn, *, timeout=30):
+        """First truthy ``fn()`` within *timeout*, tolerating mid-reload 500s.
+
+        Creating/removing a buy task settles via a **deferred** entry reload
+        (``coordinator.async_settle_buy_tasks``), so reads right after a stock/
+        completion mutation can transiently hit "No active coordinator" — retry
+        (mirrors ``test_problem_sync._synced_task``).
+        """
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                value = fn()
+                if value:
+                    return value
+            except Exception:
+                pass
+            time.sleep(1)
+        return None
+
+    # No buy task while stock (2) is above the reorder threshold (1). ``add_asset``
+    # awaits its own reload, so this read is stable.
     assert _buy_task() is None
 
-    # Drive 2 -> 1: crosses low -> the reminder appears.
+    # Drive 2 -> 1: crosses low -> the reminder appears (after the deferred reload).
     call_service(
         ha,
         "home_keeper",
         "adjust_part_stock",
         {"asset_id": ids["asset_id"], "part_id": ids["part_id"], "delta": -1},
     )
-    buy = _buy_task()
+    buy = _poll(_buy_task)
     assert buy is not None, "expected an auto-created buy task when the part went low"
     assert buy["name"] == "Buy Cartridge"
     assert buy["recurrence_type"] == "one-off"
 
     # Completing the reminder bumps stock by restock_quantity (1 + 4 = 5) and, now that
-    # the part is restocked above the threshold, removes the reminder.
-    call_service(ha, "home_keeper", "complete_task", {"task_id": buy["id"]})
-    asset = next(a for a in _list_assets(ha) if a["id"] == ids["asset_id"])
-    assert asset["parts"][0]["stock"] == 5
-    assert _buy_task() is None
+    # the part is restocked above the threshold, removes the reminder. Retry the
+    # completion if it lands mid-reload (a 500 means it didn't run), then poll for the
+    # terminal state (stock bumped + reminder gone).
+    def _complete():
+        call_service(ha, "home_keeper", "complete_task", {"task_id": buy["id"]})
+        return True
+
+    assert _poll(_complete), "complete_task never succeeded"
+
+    def _restocked_and_cleared():
+        asset = next((a for a in _list_assets(ha) if a["id"] == ids["asset_id"]), None)
+        return bool(asset) and asset["parts"][0]["stock"] == 5 and _buy_task() is None
+
+    assert _poll(_restocked_and_cleared), (
+        "expected stock restocked to 5 and the reminder cleared"
+    )
 
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": ids["asset_id"]})
 

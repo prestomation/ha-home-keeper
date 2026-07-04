@@ -955,8 +955,15 @@ class HomeKeeperStore:
         )
         self._reset_usage_baseline(updated)
         self._tasks[task_id] = updated
-        self._stamp_part_replacement(updated, when)
-        self._stamp_buy_restock(updated)
+        # A task carries at most one reserved source, so exactly one stock side-effect
+        # applies: a part-linked completion *consumes* a spare, a buy reminder
+        # *restocks*. Branch (rather than call both self-guarding helpers) so a
+        # malformed both-sources task can never both consume and restock on one
+        # completion — a `part` source wins, mirroring add_task's reserved-key guard.
+        if _part_source(updated):
+            self._stamp_part_replacement(updated, when)
+        elif _buy_source(updated):
+            self._stamp_buy_restock(updated)
         await self._save()
         _LOGGER.debug(
             "Completed task %s; next due %s", task_id, updated.get("next_due")
