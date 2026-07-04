@@ -539,6 +539,20 @@
         }
       }
     },
+    "remove_part_file": {
+      "name": "Ta bort delfil",
+      "description": "Kopplar bort en dels bifogade fil (kvitto/datablad/foto) och tar bort den lagrade kopian från disken. Ladda upp eller ersätt en fil från panelen; denna tjänst hanterar endast borttagning.",
+      "fields": {
+        "asset_id": {
+          "name": "Objekt-ID",
+          "description": "ID för den apparat som delen tillhör."
+        },
+        "part_id": {
+          "name": "Del-ID",
+          "description": "ID för den del vars fil ska tas bort."
+        }
+      }
+    },
     "add_asset_document": {
       "name": "Lägg till apparatdokument",
       "description": "Bifogar ett länkdokument (manual/garanti/kvitto) till en apparat. Ladda upp filer från panelen; den här tjänsten hanterar endast länkar.",

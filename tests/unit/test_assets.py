@@ -535,6 +535,7 @@ def test_parts_normalized_with_ids_and_types():
                     "replace_interval": 10,
                     "replace_unit": "months",
                     "cost": "120",
+                    "url": "https://example.com/shade-material",
                 },
                 {"name": "Cord", "part_number": "C-9"},  # defaults to consumable
             ],
@@ -548,8 +549,23 @@ def test_parts_normalized_with_ids_and_types():
     assert parts[0]["replace_interval"] == 10
     assert parts[0]["replace_unit"] == "months"
     assert parts[0]["cost"] == pytest.approx(120.0)
+    assert parts[0]["url"] == "https://example.com/shade-material"
     assert parts[1]["type"] == "consumable"
     assert parts[1]["replace_interval"] is None
+    assert parts[1]["url"] == ""
+
+
+def test_part_url_rejects_non_http_scheme_and_allows_empty():
+    for bad in ("javascript:alert(1)", "ftp://example.com", "not a url"):
+        with pytest.raises(a.AssetValidationError):
+            a.build_asset(
+                {"name": "Furnace", "parts": [{"name": "Filter", "url": bad}]},
+                now=NOW,
+            )
+    asset = a.build_asset(
+        {"name": "Furnace", "parts": [{"name": "Filter", "url": ""}]}, now=NOW
+    )
+    assert asset["parts"][0]["url"] == ""
 
 
 def test_part_requires_name_and_valid_type():
@@ -605,6 +621,64 @@ def test_merge_update_preserves_part_last_replaced():
     )
     assert updated["parts"][0]["last_replaced"] == "2025-01-01"
     assert updated["parts"][0]["replace_interval"] == 12
+
+
+def test_set_and_clear_part_file():
+    asset = a.build_asset({"name": "Furnace", "parts": [{"name": "Filter"}]}, now=NOW)
+    pid = asset["parts"][0]["id"]
+    updated = a.set_part_file(
+        asset,
+        pid,
+        {"filename": "f.pdf", "content_type": "application/pdf", "size": 100},
+    )
+    assert updated["file_name"] == "f.pdf"
+    assert asset["parts"][0]["file_name"] == "f.pdf"
+    assert asset["parts"][0]["file_content_type"] == "application/pdf"
+    assert asset["parts"][0]["file_size"] == 100
+
+    prior = a.clear_part_file(asset, pid)
+    assert prior == {
+        "filename": "f.pdf",
+        "content_type": "application/pdf",
+        "size": 100,
+    }
+    assert asset["parts"][0]["file_name"] is None
+    assert asset["parts"][0]["file_content_type"] is None
+    assert asset["parts"][0]["file_size"] is None
+
+    # Clearing an already-fileless part, or acting on an unknown part id, is a no-op.
+    assert a.clear_part_file(asset, pid) is None
+    assert (
+        a.set_part_file(
+            asset, "bogus", {"filename": "x", "content_type": "x", "size": 1}
+        )
+        is None
+    )
+    assert a.clear_part_file(asset, "bogus") is None
+
+
+def test_merge_update_cannot_inject_or_clear_part_file():
+    asset = a.build_asset({"name": "Furnace", "parts": [{"name": "Filter"}]}, now=NOW)
+    pid = asset["parts"][0]["id"]
+    a.set_part_file(
+        asset,
+        pid,
+        {"filename": "f.pdf", "content_type": "application/pdf", "size": 100},
+    )
+    # A generic update can't clear the attached file by omitting it...
+    preserved = a.merge_update(
+        asset, {"parts": [{"id": pid, "name": "Filter"}]}, now=NOW
+    )
+    assert preserved["parts"][0]["file_name"] == "f.pdf"
+    # ...nor inject one by sending the (unvalidated) key directly.
+    fileless = a.build_asset({"name": "Fridge", "parts": [{"name": "Bulb"}]}, now=NOW)
+    fid = fileless["parts"][0]["id"]
+    injected = a.merge_update(
+        fileless,
+        {"parts": [{"id": fid, "name": "Bulb", "file_name": "hacked.pdf"}]},
+        now=NOW,
+    )
+    assert injected["parts"][0]["file_name"] is None
 
 
 def test_migrate_legacy_part_numbers():

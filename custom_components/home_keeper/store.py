@@ -591,6 +591,58 @@ class HomeKeeperStore:
         )
         return entry
 
+    async def set_part_file(
+        self, asset_id: str, part_id: str, file_meta: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Attach (or replace) a part's single file; return the updated part.
+
+        *file_meta* is ``{filename, content_type, size}`` (already validated/sniffed
+        by the caller — see ``manuals.HomeKeeperPartFileView``). Raises ``KeyError``
+        for an unknown asset or part. Fires ``home_keeper_asset_updated`` with
+        ``changed_fields=["parts"]``.
+        """
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise KeyError(asset_id)
+        updated = assets.set_part_file(asset, part_id, file_meta)
+        if updated is None:
+            raise KeyError(part_id)
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_ASSET_UPDATED,
+            events.asset_event_data(asset, extra={"changed_fields": ["parts"]}),
+        )
+        return updated
+
+    async def remove_part_file(self, asset_id: str, part_id: str) -> dict[str, Any]:
+        """Detach a part's file; delete its on-disk blob if it had one.
+
+        Returns the updated asset. Raises ``KeyError`` for an unknown asset or part.
+        A part with no attached file is a no-op (idempotent — no save, no event).
+        Otherwise fires ``home_keeper_asset_updated`` with
+        ``changed_fields=["parts"]``.
+        """
+        from . import manuals  # lazy: manuals -> devices imports would cycle at load
+
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise KeyError(asset_id)
+        if not any(p.get("id") == part_id for p in asset.get("parts", [])):
+            raise KeyError(part_id)
+        removed = assets.clear_part_file(asset, part_id)
+        if removed is None:
+            return asset
+        if removed.get("filename"):
+            await manuals.async_delete_part_file(
+                self._hass, asset_id, part_id, removed["filename"]
+            )
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_ASSET_UPDATED,
+            events.asset_event_data(asset, extra={"changed_fields": ["parts"]}),
+        )
+        return asset
+
     def _validate_parent(
         self, asset_id: str | None, parent_asset_id: str | None
     ) -> None:

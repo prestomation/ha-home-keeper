@@ -432,6 +432,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
 
+  // 38. A part's attached file: the Anode rod part (seeded with a file, and first in
+  // the list) shows a card — icon, filename · size · type, Open / Remove — right in
+  // its editor, below the part's own fields. (The part's name lives inside a form
+  // input, not rendered text, so we select by position — same as the delete-icon
+  // click above — rather than by name text.)
+  await expect(partsDetails.locator('.hk-part').first().locator('.hk-doc-card')).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/38-panel-part-file.png`, fullPage: true });
+
   // 17. The Settings tab — friendly forms mirroring the options flow: a
   // Problem sensor sync card (toggle + entity / device / area / label exclusions)
   // and a General card (one-off retention), each saved on change.

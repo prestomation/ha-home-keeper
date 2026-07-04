@@ -51,8 +51,10 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);
 
-    // 2. Open a task's detail page — full schedule, notes, and completion history.
-    const taskRow = panel.locator('.detail-open[data-detail-id="task_fridge_filter"]');
+    // 2. Open a task's detail page — full schedule, notes, completion history, and
+    //    (since this task is linked to a part with a product URL) a clickable
+    //    "Consumable link" row that jumps straight to buying the replacement.
+    const taskRow = panel.locator('.detail-open[data-detail-id="task_water_filter"]');
     await expect(taskRow).toBeVisible();
     await taskRow.click();
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();

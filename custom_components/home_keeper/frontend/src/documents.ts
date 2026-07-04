@@ -1,5 +1,5 @@
 import * as api from './api';
-import type { AssetDocument, Hass } from './types';
+import type { AssetDocument, Hass, Part } from './types';
 
 /**
  * Shared helpers for appliance **documents** (manuals, warranties, receipts). A
@@ -84,5 +84,20 @@ export async function openDocument(
   } catch {
     // A deleted asset/document (or popup block) just doesn't open. A deleted file
     // *blob* still signs fine and 404s only when the new tab loads.
+  }
+}
+
+/**
+ * Open a part's attached file in a new tab — always the "file" branch (a part has no
+ * link kind; that's the part's own `url` field), signed on demand
+ * (`home_keeper/sign_part_file_url`). Best-effort, same as `openDocument`.
+ */
+export async function openPartFile(hass: Hass, assetId: string, part: Part): Promise<void> {
+  try {
+    if (!part.id) return;
+    const url = await api.signPartFileUrl(hass, assetId, part.id);
+    if (url) window.open(url, '_blank', 'noopener');
+  } catch {
+    // A deleted asset/part/file (or popup block) just doesn't open.
   }
 }

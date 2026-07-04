@@ -505,6 +505,18 @@ mark-done button and next-due sensor, and stamps the part's *last replaced* date
 completed. You can also backdate **when a wear item was last replaced** so the schedule
 starts from the real date.
 
+A part can also carry a **product URL** — a link to where you buy it (e.g. an Amazon
+listing). When set, the part's name in the appliance detail page becomes a clickable
+link that opens the product page in a new tab, so reordering is one click away. A
+maintenance task linked to that part (whether an auto-generated wear-item task or a
+manually-linked consumable) shows the same clickable link — in the task's detail page
+and on the dashboard card — so you can jump straight from "time to replace this" to
+buying the replacement.
+
+Each part can also carry a single **attached file** — a receipt, spec sheet, or photo
+— uploaded from the part's editor the same secure way appliance documents are (see
+below), and opened or removed from the same card.
+
 Any part can also track **spare inventory** — a *stock* count and a *reorder-at*
 threshold. Completing a wear-item replacement consumes one spare, and when stock drops
 to (or below) the threshold Home Keeper fires a `home_keeper_part_low_stock` event you

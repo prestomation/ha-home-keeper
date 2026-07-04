@@ -688,8 +688,9 @@ add_asset:
       name: Parts
       description: >-
         Structured parts/wear items. Each: name, part_number, type (consumable or
-        wear), vendor, cost, optional stock + reorder_at (spare-inventory tracking),
-        and for wear items replace_interval + replace_unit (days/weeks/months) which
+        wear), vendor, cost, an optional http(s) url to the product's page (e.g. an
+        Amazon listing), optional stock + reorder_at (spare-inventory tracking), and
+        for wear items replace_interval + replace_unit (days/weeks/months) which
         drive a maintenance task.
       selector:
         object:
@@ -824,6 +825,26 @@ adjust_part_stock:
       selector:
         number:
           mode: box
+
+remove_part_file:
+  name: Remove part file
+  description: >-
+    Detach a part's attached file (receipt / spec sheet / photo), deleting its
+    on-disk blob. Upload/replace a file from the panel; this service handles
+    removal only (a service call can't carry binary bytes).
+  fields:
+    asset_id:
+      name: Asset ID
+      description: The id of the appliance the part belongs to.
+      required: true
+      selector:
+        text:
+    part_id:
+      name: Part ID
+      description: The id of the part whose file to remove.
+      required: true
+      selector:
+        text:
 
 add_asset_document:
   name: Add appliance document

@@ -432,9 +432,10 @@ export class HomeKeeperCard extends HTMLElement {
       if (this._config.profile) {
         this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
       }
-      // Appliance data is only needed to resolve per-task "show on card" links; fetch
-      // best-effort and only when a task actually references one.
-      this._assets = this._tasks.some((tk) => tk.card_links?.length)
+      // Appliance data is only needed to resolve per-task "show on card" links (either
+      // explicit card_links or a linked part's product URL); fetch best-effort and
+      // only when a task actually references one.
+      this._assets = this._tasks.some((tk) => tk.card_links?.length || tk.source?.part)
         ? await api.getAssets(this._hass).catch(() => [] as Asset[])
         : [];
       // Pre-sign any pinned file documents so their chips render as plain anchors.
@@ -733,6 +734,21 @@ export class HomeKeeperCard extends HTMLElement {
     return out;
   }
 
+  /**
+   * Resolve a task's linked part (`source.part` — either an auto-generated wear-item
+   * task or a manually-linked consumable) to a document chip pointing at the part's
+   * product URL, when it has one. Unlike `_resolveDocuments`, this has no fallback
+   * "show the name anyway" — a part without a `url` simply contributes no chip.
+   */
+  private _resolvePartLink(task: Task): DocumentChip | null {
+    const link = task.source?.part;
+    if (!link) return null;
+    const asset = this._assets.find((a) => a.id === link.asset_id);
+    const part = asset?.parts?.find((p) => p.id === link.part_id);
+    if (!part?.url) return null;
+    return { name: part.name, url: part.url, icon: MDI_OPEN_IN_NEW };
+  }
+
   /** One document chip's HTML — always a plain anchor opened by a native tap (works in
    *  the iOS app's WKWebView; file URLs are pre-signed in `_signDocuments`). */
   private _documentChip(chip: DocumentChip): string {
@@ -792,8 +808,10 @@ export class HomeKeeperCard extends HTMLElement {
       })
       .join('');
     // Per-task "show on card" documents — links/metadata open in a new tab; uploaded
-    // files open via a signed URL minted on click (see `_hydrate`).
-    const docs = this._resolveDocuments(task);
+    // files open via a signed URL minted on click (see `_hydrate`). A linked part's
+    // product URL (if any) rides along as one more chip.
+    const partLink = this._resolvePartLink(task);
+    const docs = partLink ? [partLink, ...this._resolveDocuments(task)] : this._resolveDocuments(task);
     const docsHtml = docs.length
       ? `<div class="hk-docs">${docs.map((d) => this._documentChip(d)).join('')}</div>`
       : '';

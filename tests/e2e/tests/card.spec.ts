@@ -71,14 +71,17 @@ test.describe('Home Keeper card — dashboard', () => {
     const card = await openCardDashboard(page);
     // The seeded water-filter task pins three of its appliance's documents: an
     // external link ("Owner's manual"), a metadata link ("Reorder filter"), and an
-    // uploaded file ("Installation guide (PDF)").
+    // uploaded file ("Installation guide (PDF)") — plus its linked part's own product
+    // page ("Sediment pre-filter"), since the task is a manual consumable link to
+    // asset_water_heater's part_sediment_filter, which has a `url`.
     const row = card.locator('.hk-row', { hasText: 'Replace water filter' });
     await expect(row).toHaveCount(1, { timeout: 30_000 });
-    // Every document chip — link, metadata link, and uploaded file — renders as a
-    // plain anchor that opens in a new tab (a native tap; the iOS app's WKWebView
-    // blocks an async window.open, so a file's signed URL is pre-minted into the href).
+    // Every document chip — link, metadata link, uploaded file, and part link —
+    // renders as a plain anchor that opens in a new tab (a native tap; the iOS app's
+    // WKWebView blocks an async window.open, so a file's signed URL is pre-minted
+    // into the href).
     const links = row.locator('a.hk-doc');
-    await expect(links).toHaveCount(3);
+    await expect(links).toHaveCount(4);
     await expect(row.locator('button.hk-doc')).toHaveCount(0);
 
     const manual = links.filter({ hasText: "Owner's manual" });
@@ -94,6 +97,11 @@ test.describe('Home Keeper card — dashboard', () => {
     await expect(links.filter({ hasText: 'Installation guide (PDF)' })).toHaveAttribute(
       'href',
       /\/api\/home_keeper\/document\/asset_water_heater\/asset_water_heater_doc_manual_pdf\?authSig=/,
+    );
+    // The linked part's product-page URL surfaces as its own chip.
+    await expect(links.filter({ hasText: 'Sediment pre-filter' })).toHaveAttribute(
+      'href',
+      'https://www.amazon.com/dp/B0EXAMPLE1',
     );
   });
 
