@@ -3,6 +3,10 @@
 ## Git & PR workflow
 - Never push directly to `main`. Work on a feature branch and open a PR; squash
   merge.
+- Dependabot PRs auto-merge on green CI for patch/minor bumps
+  (`.github/workflows/dependabot-auto-merge.yml`, gated on
+  `dependabot/fetch-metadata`'s `update-type`); major bumps need manual review.
+  Requires the repo's "Allow auto-merge" setting enabled once by an admin.
 - Update `CHANGELOG.md` for every user-facing change before a release.
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
