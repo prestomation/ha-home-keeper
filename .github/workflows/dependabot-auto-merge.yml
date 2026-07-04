@@ -1,0 +1,28 @@
+name: Dependabot auto-merge
+
+# Auto-merges Dependabot PRs (github-actions, pip, npm — see .github/dependabot.yml)
+# once CI is green, for any bump including majors — we trust CI to catch breakage.
+#
+# Requires the repo setting Settings → General → Pull Requests → "Allow auto-merge"
+# to be enabled (one-time, repo-admin action; not settable via this workflow).
+# gh pr merge --auto queues the merge — GitHub performs it once all required status
+# checks pass, so this doesn't bypass CI.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
