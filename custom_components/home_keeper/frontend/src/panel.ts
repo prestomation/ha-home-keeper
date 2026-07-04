@@ -2526,6 +2526,14 @@ export class HomeKeeperPanel extends HTMLElement {
         ],
       },
     ];
+    // Auto-buy: only meaningful once a reorder threshold is set (that's what defines
+    // "low"). When enabled, offer the restock quantity added on completing the reminder.
+    if (p.reorder_at != null) {
+      base.push({ name: 'create_buy_task', selector: selBool() });
+      if (p.create_buy_task) {
+        base.push({ name: 'restock_quantity', selector: selNumber(1) });
+      }
+    }
     if (isWear) {
       base.push({
         name: '',
@@ -3370,6 +3378,13 @@ export class HomeKeeperPanel extends HTMLElement {
     form.schema = schema;
     form.data = data;
     form.computeLabel = (s: { name: string }): string => (s.name ? t('field.' + s.name) : '');
+    // Muted per-field helper text under each field (keyed `help.<field>`); returns ''
+    // where no string is authored, so helpers appear only where we wrote them.
+    form.computeHelper = (s: { name: string }): string => {
+      if (!s.name) return '';
+      const h = t('help.' + s.name);
+      return h === 'help.' + s.name ? '' : h;
+    };
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
       onChange(value);
@@ -4286,12 +4301,20 @@ export class HomeKeeperPanel extends HTMLElement {
           part_url: p.url ?? '',
           stock: p.stock ?? undefined,
           reorder_at: p.reorder_at ?? undefined,
+          create_buy_task: p.create_buy_task ?? false,
+          restock_quantity: p.restock_quantity ?? undefined,
           replace_interval: p.replace_interval ?? undefined,
           replace_unit: p.replace_unit ?? 'months',
           last_replaced: p.last_replaced ?? undefined,
         },
         (value) => {
-          const prevType = this._assetEdit.asset?.parts?.[i]?.type;
+          const prevPart = this._assetEdit.asset?.parts?.[i];
+          const prevType = prevPart?.type;
+          // These fields gate which others render (see _partSchema): the reorder
+          // threshold reveals the auto-buy toggle, and the toggle reveals the restock
+          // quantity. Re-render when one of them flips so the dependent field appears.
+          const prevHasReorder = prevPart?.reorder_at != null;
+          const prevBuy = Boolean(prevPart?.create_buy_task);
           const updated: Part = {
             id: p.id,
             // The last-replaced date is only editable for wear items; preserve any
@@ -4312,6 +4335,14 @@ export class HomeKeeperPanel extends HTMLElement {
             reorder_at:
               value.reorder_at != null && value.reorder_at !== ''
                 ? Number(value.reorder_at)
+                : null,
+            // Auto-buy a low spare. Only exposed once a reorder threshold is set (the
+            // field is hidden otherwise, so value.create_buy_task is then undefined →
+            // off, which is correct — no threshold means no "low" to act on).
+            create_buy_task: Boolean(value.create_buy_task),
+            restock_quantity:
+              value.restock_quantity != null && value.restock_quantity !== ''
+                ? Number(value.restock_quantity)
                 : null,
             replace_interval:
               value.type === 'wear' && value.replace_interval
@@ -4334,7 +4365,13 @@ export class HomeKeeperPanel extends HTMLElement {
           const list = [...(this._assetEdit.asset?.parts || [])];
           list[i] = updated;
           this._assetEdit.asset!.parts = list;
-          if (value.type !== prevType) this._render();
+          const nowHasReorder = updated.reorder_at != null;
+          if (
+            value.type !== prevType ||
+            nowHasReorder !== prevHasReorder ||
+            Boolean(updated.create_buy_task) !== prevBuy
+          )
+            this._render();
         },
       );
       box.appendChild(form);

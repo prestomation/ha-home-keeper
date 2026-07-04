@@ -370,3 +370,103 @@ def test_qualify_iso():
     assert rc.qualify_iso(None, TZ) is None
     assert rc.qualify_iso("", TZ) is None
     assert rc.qualify_iso("not-a-date", TZ) is None
+
+
+# ── auto-buy tasks (reconcile_buy_tasks) ───────────────────────────────────────
+def _consumable(
+    pid="p1", name="Filter", stock=0, reorder_at=1, create_buy_task=True, **extra
+):
+    return {
+        "id": pid,
+        "name": name,
+        "type": "consumable",
+        "stock": stock,
+        "reorder_at": reorder_at,
+        "create_buy_task": create_buy_task,
+        **extra,
+    }
+
+
+def _buy_reconcile(assets, tasks=None):
+    return rc.reconcile_buy_tasks(assets, tasks or {}, now=NOW)
+
+
+def test_creates_buy_task_when_low():
+    asset = _asset(device_id="dev1", parts=[_consumable(stock=0, reorder_at=2)])
+    tasks, changed = _buy_reconcile({"a1": asset})
+    assert changed is True
+    task = _only(tasks)
+    assert task["name"] == "Buy Filter"
+    assert task["recurrence_type"] == "one-off"
+    assert task["device_id"] == "dev1"
+    assert task["source"]["buy"] == {"asset_id": "a1", "part_id": "p1"}
+    assert rc.buy_source(task) == {"asset_id": "a1", "part_id": "p1"}
+
+
+def test_no_buy_task_when_not_low():
+    asset = _asset(parts=[_consumable(stock=5, reorder_at=2)])
+    tasks, changed = _buy_reconcile({"a1": asset})
+    assert changed is False
+    assert tasks == {}
+
+
+def test_no_buy_task_when_option_off():
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1, create_buy_task=False)])
+    tasks, changed = _buy_reconcile({"a1": asset})
+    assert changed is False
+    assert tasks == {}
+
+
+def test_no_buy_task_without_reorder_threshold():
+    # Low is undefined without a reorder threshold, so nothing is desired.
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=None)])
+    tasks, changed = _buy_reconcile({"a1": asset})
+    assert changed is False
+    assert tasks == {}
+
+
+def test_removes_buy_task_when_restocked():
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    assert len(tasks) == 1
+    # Restock above the threshold → the reminder is orphan-removed.
+    asset["parts"][0]["stock"] = 5
+    tasks2, changed = _buy_reconcile({"a1": asset}, tasks)
+    assert changed is True
+    assert tasks2 == {}
+
+
+def test_idempotent_while_still_low():
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    # A second pass while still low creates no duplicate.
+    tasks2, changed = _buy_reconcile({"a1": asset}, tasks)
+    assert changed is False
+    assert len(tasks2) == 1
+
+
+def test_no_respawn_when_completed_task_present_and_still_low():
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    task = _only(tasks)
+    # Simulate the user completing the reminder (still low, stock not yet updated):
+    # a completed buy task still "occupies" the episode and blocks a duplicate.
+    task["last_completed"] = NOW.isoformat()
+    tasks2, changed = _buy_reconcile({"a1": asset}, {task["id"]: task})
+    assert changed is False
+    assert len(tasks2) == 1
+
+
+def test_removes_buy_task_when_part_gone():
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    empty = _asset(parts=[])
+    tasks2, changed = _buy_reconcile({"a1": empty}, tasks)
+    assert changed is True
+    assert tasks2 == {}
+
+
+def test_buy_task_carries_area_from_asset():
+    asset = _asset(area_id="garage", parts=[_consumable()])
+    task = _only(_buy_reconcile({"a1": asset})[0])
+    assert task["area_id"] == "garage"

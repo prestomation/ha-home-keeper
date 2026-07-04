@@ -56,3 +56,27 @@ def test_no_untranslated_leaks():
             continue
         assert template != en_template, lang
         assert const.APPLIANCE_FALLBACK_NAMES[lang] != en_fallback, lang
+
+
+# ── buy-task name table (auto-buy reminders) ──────────────────────────────────
+def test_resolve_buy_task_naming_exact_and_fallbacks():
+    assert const.resolve_buy_task_naming("fr") == "Acheter {part}"
+    # Region/case variants and unknowns resolve like the wear resolver.
+    assert const.resolve_buy_task_naming("de-AT") == "{part} kaufen"
+    for lang in ("xx", "", None):
+        assert const.resolve_buy_task_naming(lang) == "Buy {part}"
+
+
+def test_buy_table_coverage_and_placeholder():
+    # Same 16-language coverage as the wear table, and every value carries {part}.
+    assert set(const.BUY_TASK_NAME_TEMPLATES) == set(const.WEAR_TASK_NAME_TEMPLATES)
+    for lang, template in const.BUY_TASK_NAME_TEMPLATES.items():
+        assert "{part}" in template, lang
+
+
+def test_buy_table_no_untranslated_leaks():
+    en = const.BUY_TASK_NAME_TEMPLATES[const.DEFAULT_LANGUAGE]
+    for lang, template in const.BUY_TASK_NAME_TEMPLATES.items():
+        if lang == const.DEFAULT_LANGUAGE:
+            continue
+        assert template != en, lang

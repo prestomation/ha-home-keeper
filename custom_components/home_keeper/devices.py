@@ -108,9 +108,11 @@ async def async_apply_asset_change(
     device; snapshot writes are skipped when unchanged).
     """
     await async_reconcile_assets(hass, entry, store)
-    # Wear parts may have created/removed derived maintenance tasks; sync them
-    # before the reload rebuilds the per-task entity set.
+    # Wear parts may have created/removed derived maintenance tasks, and an edit may
+    # have turned auto-buy on/off or changed a threshold; sync both before the reload
+    # rebuilds the per-task entity set.
     await store.reconcile_part_tasks()
+    await store.reconcile_buy_tasks()
     await hass.config_entries.async_reload(entry.entry_id)
 
 

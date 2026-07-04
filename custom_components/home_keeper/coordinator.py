@@ -32,6 +32,7 @@ from .const import (
     OPTION_ONE_OFF_RETENTION_DAYS,
 )
 from .options import current_options
+from .reconcile import buy_source
 from .store import HomeKeeperStore
 
 if TYPE_CHECKING:
@@ -84,6 +85,9 @@ def task_has_entities(task: dict[str, Any] | None) -> bool:
     that owns none needs no entry reload — a plain coordinator refresh suffices, which
     avoids flapping every entity unavailable when e.g. a companion seeds many
     device-less tasks.
+
+    NOTE: ``store._task_owns_entities`` inlines this same rule (to avoid a
+    store→coordinator import cycle). Keep the two in sync if the rule ever changes.
     """
     return bool(task and task.get("device_id") and task.get("enabled", True))
 
@@ -125,6 +129,9 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         # several refreshes during async_setup_entry silently *baseline* current state
         # — an HA restart never replays an "overdue" storm for tasks already overdue.
         self._events_enabled = False
+        # Guards against piling up entry reloads when several buy-task syncs land close
+        # together (mirrors ProblemSensorSync._reload_scheduled).
+        self._buy_reload_scheduled = False
 
     @property
     def entry(self) -> ConfigEntry:
@@ -145,6 +152,31 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     def _persist_edge_state(self) -> None:
         """Save the edge state to the process-lifetime store so it survives a reload."""
         _edge_state_store(self.hass)[self.entry.entry_id] = self._edge_state
+
+    async def async_settle_buy_tasks(self) -> None:
+        """Reconcile auto-buy tasks after a stock/completion change, then settle state.
+
+        The single decision point for the buy-task lifecycle at the HA boundary: any
+        surface that can change a part's low/enabled state (stock adjust, task
+        completion) calls this instead of a bare refresh. If a buy task that owns
+        per-task device entities was created or removed, a full entry reload is needed
+        to (un)register those entities — deferred via ``async_create_task`` so it never
+        tears down the calling entity/handler mid-call, and guarded so several changes
+        at once don't stack reloads. Otherwise a plain refresh suffices.
+        """
+        entity_set_changed = await self.store.reconcile_buy_tasks()
+        if entity_set_changed:
+            if not self._buy_reload_scheduled:
+                self._buy_reload_scheduled = True
+                self.hass.async_create_task(self._async_reload_for_buy_tasks())
+        else:
+            await self.async_request_refresh()
+
+    async def _async_reload_for_buy_tasks(self) -> None:
+        try:
+            await self.hass.config_entries.async_reload(self.entry.entry_id)
+        finally:
+            self._buy_reload_scheduled = False
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         await self._purge_expired_one_offs()
@@ -203,7 +235,11 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         expired = [
             task
             for task in self.store.get_tasks().values()
-            if recurrence.one_off_expired(task, retention, now=now)
+            # Skip auto-buy reminders: they're one-offs but reconciler-owned, so purging
+            # a completed-but-still-low one would just respawn it (and delete_task would
+            # reject it anyway). The reconciler removes them when the part restocks.
+            if buy_source(task) is None
+            and recurrence.one_off_expired(task, retention, now=now)
         ]
         reload_needed = False
         for task in expired:

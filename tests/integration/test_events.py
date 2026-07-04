@@ -9,6 +9,7 @@ refresh; here we cover the deterministic, mutation-driven events.
 
 import asyncio
 import json
+import time
 
 import websockets
 from conftest import call_service
@@ -239,6 +240,109 @@ def test_stock_transition_events(ha, ha_token):
     assert "home_keeper_part_restocked" in events
 
     # Clean up the asset we created.
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": ids["asset_id"]})
+
+
+def _list_tasks(ha):
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    return resp.get("service_response", resp)["tasks"]
+
+
+def _list_assets(ha):
+    resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+    return resp.get("service_response", resp)["assets"]
+
+
+def test_auto_buy_task_lifecycle(ha):
+    """Enabling auto-buy creates a reminder when low; completing it restocks/clears."""
+    ids = {}
+
+    def setup_asset():
+        call_service(
+            ha,
+            "home_keeper",
+            "add_asset",
+            {
+                "name": "Auto-buy appliance",
+                "parts": [
+                    {
+                        "name": "Cartridge",
+                        "type": "consumable",
+                        "stock": 2,
+                        "reorder_at": 1,
+                        "create_buy_task": True,
+                        "restock_quantity": 4,
+                    }
+                ],
+            },
+        )
+        asset = next(a for a in _list_assets(ha) if a["name"] == "Auto-buy appliance")
+        ids["asset_id"] = asset["id"]
+        ids["part_id"] = asset["parts"][0]["id"]
+
+    setup_asset()
+
+    def _buy_task():
+        for t in _list_tasks(ha):
+            src = t.get("source") or {}
+            buy = src.get("buy") or {}
+            if buy.get("asset_id") == ids["asset_id"]:
+                return t
+        return None
+
+    def _poll(fn, *, timeout=30):
+        """First truthy ``fn()`` within *timeout*, tolerating mid-reload 500s.
+
+        Creating/removing a buy task settles via a **deferred** entry reload
+        (``coordinator.async_settle_buy_tasks``), so reads right after a stock/
+        completion mutation can transiently hit "No active coordinator" — retry
+        (mirrors ``test_problem_sync._synced_task``).
+        """
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                value = fn()
+                if value:
+                    return value
+            except Exception:
+                pass
+            time.sleep(1)
+        return None
+
+    # No buy task while stock (2) is above the reorder threshold (1). ``add_asset``
+    # awaits its own reload, so this read is stable.
+    assert _buy_task() is None
+
+    # Drive 2 -> 1: crosses low -> the reminder appears (after the deferred reload).
+    call_service(
+        ha,
+        "home_keeper",
+        "adjust_part_stock",
+        {"asset_id": ids["asset_id"], "part_id": ids["part_id"], "delta": -1},
+    )
+    buy = _poll(_buy_task)
+    assert buy is not None, "expected an auto-created buy task when the part went low"
+    assert buy["name"] == "Buy Cartridge"
+    assert buy["recurrence_type"] == "one-off"
+
+    # Completing the reminder bumps stock by restock_quantity (1 + 4 = 5) and, now that
+    # the part is restocked above the threshold, removes the reminder. Retry the
+    # completion if it lands mid-reload (a 500 means it didn't run), then poll for the
+    # terminal state (stock bumped + reminder gone).
+    def _complete():
+        call_service(ha, "home_keeper", "complete_task", {"task_id": buy["id"]})
+        return True
+
+    assert _poll(_complete), "complete_task never succeeded"
+
+    def _restocked_and_cleared():
+        asset = next((a for a in _list_assets(ha) if a["id"] == ids["asset_id"]), None)
+        return bool(asset) and asset["parts"][0]["stock"] == 5 and _buy_task() is None
+
+    assert _poll(_restocked_and_cleared), (
+        "expected stock restocked to 5 and the reminder cleared"
+    )
+
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": ids["asset_id"]})
 
 

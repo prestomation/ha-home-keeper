@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.8.0b3"
+PANEL_VERSION = "0.8.0b4"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -119,6 +119,14 @@ PART_TYPES = [PART_CONSUMABLE, PART_WEAR]
 # Marker on a task dict identifying it as derived from an asset part, so the
 # part-task reconciler owns it: ``task["source"] = {"asset_id", "part_id"}``.
 TASK_SOURCE_PART = "part"
+
+# Marker on a task dict identifying it as an auto-created "buy" reminder for a low
+# spare part: ``task["source"] = {"buy": {"asset_id", "part_id"}}``. Owned entirely
+# by the buy-task reconciler (``reconcile.reconcile_buy_tasks``) — created while the
+# part is low (``stock <= reorder_at``) and the part opts in, removed once restocked.
+# A one-off task; completing it bumps the part's stock by ``restock_quantity``. Like
+# the wear-part/problem-sensor sources it is reserved: ``add_task`` rejects it.
+TASK_SOURCE_BUY = "buy"
 
 # Marker on a task dict identifying it as synced from a ``device_class: problem``
 # binary sensor: ``task["source"] = {"problem_sensor": {"entity_id": ...}}``. Such
@@ -329,6 +337,28 @@ WEAR_TASK_NAME_TEMPLATES: dict[str, str] = {
     "sv": "Byt {part} ({asset})",
     "zh-Hans": "更换 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
 }
+# Localized name for reconciler-generated *buy* tasks — "Buy {part}". Same rationale
+# as the wear-part template above: a task name is server-side global data, so it's
+# resolved once (to ``hass.config.language``) at write time. Only ``{part}`` is
+# substituted (the appliance isn't named in the buy reminder).
+BUY_TASK_NAME_TEMPLATES: dict[str, str] = {
+    "en": "Buy {part}",
+    "ca": "Comprar {part}",
+    "cs": "Koupit {part}",
+    "da": "Køb {part}",
+    "de": "{part} kaufen",
+    "es": "Comprar {part}",
+    "fi": "Osta {part}",
+    "fr": "Acheter {part}",
+    "it": "Comprare {part}",
+    "nb": "Kjøp {part}",
+    "nl": "{part} kopen",
+    "pl": "Kup {part}",
+    "pt-BR": "Comprar {part}",
+    "ru": "Купить {part}",
+    "sv": "Köp {part}",
+    "zh-Hans": "购买 {part}",
+}
 # The word substituted for ``{asset}`` when an appliance has no name yet. Mirrors the
 # panel's ``appliance.fallbackName`` locale key so the two stay consistent.
 APPLIANCE_FALLBACK_NAMES: dict[str, str] = {
@@ -383,3 +413,12 @@ def resolve_wear_task_naming(language: str | None) -> tuple[str, str]:
         _pick_localized(WEAR_TASK_NAME_TEMPLATES, language),
         _pick_localized(APPLIANCE_FALLBACK_NAMES, language),
     )
+
+
+def resolve_buy_task_naming(language: str | None) -> str:
+    """Return the ``"Buy {part}"`` name template for *language*.
+
+    Used by ``store.reconcile_buy_tasks`` to localize the generated buy-task name to
+    Home Assistant's configured language before handing it to the pure reconciler.
+    """
+    return _pick_localized(BUY_TASK_NAME_TEMPLATES, language)

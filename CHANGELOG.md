@@ -4,6 +4,19 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [0.8.0b4]
+
+### Added
+
+- **Auto-create a "buy" task when a spare part runs low.** A replaceable part that
+  tracks stock with a reorder threshold can now opt into an automatic shopping
+  reminder: enable **Auto-create buy task** on the part, and whenever its stock drops
+  to (or below) the reorder point Home Keeper adds a one-off **"Buy {part}"** task —
+  on the appliance's device page, the to-do list, and the panel. The reminder clears
+  itself once the part is restocked above the threshold (or you turn the option off).
+  Completing the reminder **restocks the part** by a configurable **Restock quantity**
+  (default 1), closing the low → buy → restocked loop with no automation to write.
+
 ## [0.8.0b3]
 
 ### Added

@@ -240,6 +240,12 @@ export interface Part {
   // threshold at/below which a low-stock event fires. Both optional / untracked.
   stock?: number | null;
   reorder_at?: number | null;
+  // Auto-buy: when true, a one-off "Buy {part}" task is auto-created while the part is
+  // low and removed once restocked. `restock_quantity` is how many spares completing
+  // that reminder adds back to `stock` (defaults to 1). Only meaningful with a
+  // `reorder_at` threshold set.
+  create_buy_task?: boolean;
+  restock_quantity?: number | null;
 }
 
 /** One appliance row in the insurance/home-inventory export. */

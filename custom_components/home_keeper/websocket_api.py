@@ -460,7 +460,9 @@ async def ws_adjust_part_stock(
     except KeyError:
         connection.send_error(msg["id"], "not_found", "Unknown asset_id or part_id")
         return
-    await coord.async_request_refresh()
+    # A crossing may create/remove an auto-buy task; settle it (reload if a buy task's
+    # device entities changed, else refresh).
+    await coord.async_settle_buy_tasks()
     connection.send_result(msg["id"], {"asset": asset})
 
 

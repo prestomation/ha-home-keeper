@@ -524,6 +524,27 @@ can automate on (add to a shopping list, notify, reorder). A *consumable* part i
 limited to its own wear cadence: you can **[link any task to it](#link-a-task-to-a-consumable-auto-reorder)**
 — including a sensor-driven one — so completing that task draws down the same stock.
 
+#### Auto-create a buy task when a part runs low
+
+If you'd rather have a **built-in shopping reminder** than wire up your own automation,
+turn on **Auto-create buy task** on a stock-tracked part (the option appears once the
+part has a reorder-at threshold). Whenever the part's stock drops to (or below) the
+threshold, Home Keeper adds a one-off **"Buy {part}"** task — on the appliance's device
+page, in your to-do list, and in the panel — so "go buy more" lands in the same place
+as the rest of your maintenance. The reminder is **system-managed**: it disappears on
+its own once the part is restocked above the threshold (or you switch the option off),
+and there's only ever one per low spell (completing it won't spawn another while you're
+still low).
+
+Completing the buy task **restocks the part** by its **Restock quantity** (how many
+spares you buy each time, default 1) — which normally lifts stock back above the
+threshold and clears the reminder in the same step. So the whole loop —
+*low → buy → restocked* — closes with a single tap and no automation to write. (Set the
+restock quantity high enough to clear the threshold; if it isn't, the completed reminder
+stays put until you actually restock.)
+
+![A part editor with Auto-create buy task enabled and a Restock quantity field](docs/images/39-panel-part-auto-buy.png)
+
 ### Offline manuals & documents
 
 Every appliance keeps a list of **documents** — manuals, warranties, receipts. Each is
