@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Appliances | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/docs/guide/appliances"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Appliances | Home Keeper"><meta data-rh="true" name="description" content="Most appliances you actually maintain — a &quot;dumb&quot; fridge, furnace, or water heater —"><meta data-rh="true" property="og:description" content="Most appliances you actually maintain — a &quot;dumb&quot; fridge, furnace, or water heater —"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-126/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/docs/guide/appliances"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/docs/guide/appliances" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/docs/guide/appliances" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Appliances","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/docs/guide/appliances"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-126/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-126/assets/js/runtime~main.7b46c890.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-126/assets/js/runtime~main.842c9d0b.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-126/assets/js/main.d4428ca0.js" defer="defer"></script>
 </head>
 <body>
@@ -34,7 +34,7 @@ deleted while still assigned to it). The tab also has an <strong>Export inventor
 that downloads a CSV <strong>home inventory</strong> — make/model, replacement cost, value of spares
 on hand (with a grand total), and a Details column flattening each appliance&#x27;s custom
 fields. It&#x27;s the grab-and-go record you want for an insurance claim.</p>
-<p><img decoding="async" loading="lazy" alt="Appliance detail page" src="/ha-home-keeper/pr-preview/pr-126/assets/images/8-panel-appliance-detail-1b7e85ece7943f926994ffe7e8167f0c.png" width="1280" height="1921" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="Appliance detail page" src="/ha-home-keeper/pr-preview/pr-126/assets/images/8-panel-appliance-detail-eee4cf0086666d324d28b4ece6cd1dd9.png" width="1280" height="1959" class="img_ev3q"></p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="parts--wear-items">Parts &amp; wear items<a href="#parts--wear-items" class="hash-link" aria-label="Direct link to Parts &amp; wear items" title="Direct link to Parts &amp; wear items" translate="no">​</a></h3>
 <p>Each appliance has a structured <strong>parts</strong> list — name, part number, vendor, cost, and a
 type of <em>consumable</em> (a stocked spare) or <em>wear item</em>. Give a wear item a <strong>replacement
@@ -43,12 +43,39 @@ to the appliance&#x27;s device — so it shows up in your to-do list and calenda
 mark-done button and next-due sensor, and stamps the part&#x27;s <em>last replaced</em> date when
 completed. You can also backdate <strong>when a wear item was last replaced</strong> so the schedule
 starts from the real date.</p>
+<p>A part can also carry a <strong>product URL</strong> — a link to where you buy it (e.g. an Amazon
+listing). When set, the part&#x27;s name in the appliance detail page becomes a clickable
+link that opens the product page in a new tab, so reordering is one click away. A
+maintenance task linked to that part (whether an auto-generated wear-item task or a
+manually-linked consumable) shows the same clickable link — in the task&#x27;s detail page
+and on the dashboard card — so you can jump straight from &quot;time to replace this&quot; to
+buying the replacement.</p>
+<p>Each part can also carry a single <strong>attached file</strong> — a receipt, spec sheet, or photo
+— uploaded from the part&#x27;s editor the same secure way appliance documents are (see
+below), and opened or removed from the same card.</p>
 <p>Any part can also track <strong>spare inventory</strong> — a <em>stock</em> count and a <em>reorder-at</em>
 threshold. Completing a wear-item replacement consumes one spare, and when stock drops
 to (or below) the threshold Home Keeper fires a <code>home_keeper_part_low_stock</code> event you
 can automate on (add to a shopping list, notify, reorder). A <em>consumable</em> part isn&#x27;t
 limited to its own wear cadence: you can <strong><a class="" href="/ha-home-keeper/pr-preview/pr-126/docs/guide/sensor-tasks#link-a-task-to-a-consumable-auto-reorder">link any task to it</a></strong>
 — including a sensor-driven one — so completing that task draws down the same stock.</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="auto-create-a-buy-task-when-a-part-runs-low">Auto-create a buy task when a part runs low<a href="#auto-create-a-buy-task-when-a-part-runs-low" class="hash-link" aria-label="Direct link to Auto-create a buy task when a part runs low" title="Direct link to Auto-create a buy task when a part runs low" translate="no">​</a></h4>
+<p>If you&#x27;d rather have a <strong>built-in shopping reminder</strong> than wire up your own automation,
+turn on <strong>Auto-create buy task</strong> on a stock-tracked part (the option appears once the
+part has a reorder-at threshold). Whenever the part&#x27;s stock drops to (or below) the
+threshold, Home Keeper adds a one-off <strong>&quot;Buy {part}&quot;</strong> task — on the appliance&#x27;s device
+page, in your to-do list, and in the panel — so &quot;go buy more&quot; lands in the same place
+as the rest of your maintenance. The reminder is <strong>system-managed</strong>: it disappears on
+its own once the part is restocked above the threshold (or you switch the option off),
+and there&#x27;s only ever one per low spell (completing it won&#x27;t spawn another while you&#x27;re
+still low).</p>
+<p>Completing the buy task <strong>restocks the part</strong> by its <strong>Restock quantity</strong> (how many
+spares you buy each time, default 1) — which normally lifts stock back above the
+threshold and clears the reminder in the same step. So the whole loop —
+<em>low → buy → restocked</em> — closes with a single tap and no automation to write. (Set the
+restock quantity high enough to clear the threshold; if it isn&#x27;t, the completed reminder
+stays put until you actually restock.)</p>
+<p><img decoding="async" loading="lazy" alt="A part editor with Auto-create buy task enabled and a Restock quantity field" src="/ha-home-keeper/pr-preview/pr-126/assets/images/39-panel-part-auto-buy-e94b922b09ecd0419f213f05c0b37cac.png" width="886" height="660" class="img_ev3q"></p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="offline-manuals--documents">Offline manuals &amp; documents<a href="#offline-manuals--documents" class="hash-link" aria-label="Direct link to Offline manuals &amp; documents" title="Direct link to Offline manuals &amp; documents" translate="no">​</a></h3>
 <p>Every appliance keeps a list of <strong>documents</strong> — manuals, warranties, receipts. Each is
 either an external <strong>link</strong> (a URL) or an <strong>uploaded file</strong> (a PDF or image) stored

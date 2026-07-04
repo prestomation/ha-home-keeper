@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Events reference | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/developer/events"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Events reference | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper fires a Home Assistant bus event for every meaningful thing that"><meta data-rh="true" property="og:description" content="Home Keeper fires a Home Assistant bus event for every meaningful thing that"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-126/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/developer/events"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/developer/events" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/developer/events" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Events","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-126/developer/events"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-126/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-126/assets/js/runtime~main.7b46c890.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-126/assets/js/runtime~main.842c9d0b.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-126/assets/js/main.d4428ca0.js" defer="defer"></script>
 </head>
 <body>
@@ -147,6 +147,11 @@ completed — both an auto-generated wear-part replacement task and a task you <
 linked</strong> to a consumable (via <code>home_keeper.set_task_consumable</code>). This is how a
 sensor-armed &quot;replace the fridge filter&quot; task draws down inventory and signals a reorder
 when you mark it done.</p>
+<p>A part with <strong>Auto-create buy task</strong> enabled goes one step further: crossing the reorder
+threshold auto-creates a one-off <em>&quot;Buy {part}&quot;</em> task (a <code>home_keeper_task_created</code> event)
+and restocking removes it (<code>home_keeper_task_deleted</code>) — no new event type, just the
+ordinary task lifecycle. Completing that buy task restocks the part by its
+<code>restock_quantity</code>, which fires <code>home_keeper_part_restocked</code> like any other restock.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="asset-appliance-lifecycle">Asset (appliance) lifecycle<a href="#asset-appliance-lifecycle" class="hash-link" aria-label="Direct link to Asset (appliance) lifecycle" title="Direct link to Asset (appliance) lifecycle" translate="no">​</a></h3>
 
 
@@ -172,7 +177,9 @@ when you mark it done.</p>
 <table><thead><tr><th>Event</th><th>Fires when</th></tr></thead><tbody><tr><td><code>home_keeper_asset_created</code></td><td>an appliance is created</td></tr><tr><td><code>home_keeper_asset_updated</code></td><td>an appliance changes; payload adds <code>changed_fields</code></td></tr><tr><td><code>home_keeper_asset_deleted</code></td><td>an appliance is removed</td></tr></tbody></table>
 <p>Attaching or removing an appliance <strong>document</strong> (a manual/warranty/receipt link, or an
 uploaded file) is an appliance change, so it surfaces as <code>home_keeper_asset_updated</code>
-with <code>changed_fields: [&quot;documents&quot;]</code> — there is no separate document event.</p>
+with <code>changed_fields: [&quot;documents&quot;]</code> — there is no separate document event. Attaching
+or removing a <strong>part&#x27;s</strong> single file works the same way, with
+<code>changed_fields: [&quot;parts&quot;]</code>.</p>
 <p>Deleting an entry from an appliance&#x27;s <strong>archived task history</strong> (via
 <code>home_keeper.delete_archived_completion</code>) likewise surfaces as
 <code>home_keeper_asset_updated</code> with <code>changed_fields: [&quot;archived_history&quot;]</code>.</p>
