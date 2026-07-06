@@ -503,6 +503,13 @@ const STYLES = `
   .hk-detail-row .v { flex: 1; min-width: 0; word-break: break-word; }
   .hk-detail-row .v a { color: var(--primary-color); }
   .hk-muted { color: var(--secondary-text-color); }
+  .hk-note-input {
+    width: 100%; box-sizing: border-box; resize: vertical; min-height: 72px;
+    padding: 8px; border-radius: 8px; font: inherit; color: var(--primary-text-color);
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+  }
+  .hk-note-input:focus { outline: none; border-color: var(--primary-color); }
   .hk-rel {
     display: flex; align-items: center; gap: 12px; padding: 8px 0;
     border-bottom: 1px solid var(--divider-color); cursor: pointer;
@@ -686,6 +693,11 @@ export class HomeKeeperPanel extends HTMLElement {
   // an edit form from a detail page changes the URL, which would otherwise clear it).
   private _pendingEdit: Partial<Task> | null = null;
   private _pendingAssetEdit: Partial<Asset> | null = null;
+  // Task id whose notes are being edited inline on the detail page (problem-sensor
+  // tasks only — their full edit dialog is suppressed, so notes get their own inline
+  // editor). Null when no note is being edited. The textarea is uncontrolled: its
+  // value is read on Save, so typing doesn't trigger a re-render (which would drop focus).
+  private _noteEdit: string | null = null;
   // Live HA components that need `.hass` refreshed when hass updates.
   private _liveHassEls: Array<{ hass?: Hass }> = [];
 
@@ -725,6 +737,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // Leaving a list/detail closes any open form (forms are ephemeral overlays)...
     this._edit = { open: false, task: null };
     this._assetEdit = { open: false, asset: null };
+    this._noteEdit = null;
     // ...unless this navigation was initiated to open a form (edit from a detail
     // page): re-open it now that the location has settled.
     if (this._pendingEdit) {
@@ -987,6 +1000,24 @@ export class HomeKeeperPanel extends HTMLElement {
     } catch (err) {
       this._edit.error = String((err as { message?: string })?.message || err);
       this._render();
+    }
+  }
+
+  /**
+   * Persist the inline-edited note on a problem-sensor task. Reuses the standard
+   * `update_task` path (a partial `{ notes }` update); the store mirrors it into the
+   * durable, entity-keyed side-store so it outlives the mirror. On failure the editor
+   * stays open with the typed text so the user can retry.
+   */
+  private async _saveNote(task: Task, notes: string): Promise<void> {
+    if (!this._hass) return;
+    try {
+      await api.updateTask(this._hass, task.id, { notes });
+      this._noteEdit = null;
+      await this._refresh();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Home Keeper: failed to save note', err);
     }
   }
 
@@ -2023,9 +2054,33 @@ export class HomeKeeperPanel extends HTMLElement {
       : mb?.completion_blocked
         ? this._blockedDone('d-done-blocked-wrap', task, true)
         : `<ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
-    const notes = task.notes
+    const notesBody = task.notes
       ? escapeHTML(task.notes)
       : `<span class="hk-muted">${escapeHTML(t('detail.noNotes'))}</span>`;
+    // A problem-sensor task carries no other user-owned metadata (name/schedule are
+    // locked, and the full edit dialog is suppressed for it), so its note gets a
+    // dedicated inline editor here. The note persists across the mirror being cleared
+    // and re-armed — and even deleted and recreated — so it's there next time the
+    // problem fires. Other source-owned tasks keep the read-only rendering.
+    const isProblemTask = Boolean(task.source?.problem_sensor);
+    let notes: string;
+    if (isProblemTask && this._noteEdit === task.id) {
+      notes = `
+        <textarea class="hk-note-input d-note-input" rows="3"
+          placeholder="${escapeHTML(t('note.placeholder'))}">${escapeHTML(task.notes || '')}</textarea>
+        <div class="hk-detail-actions">
+          <ha-button raised class="d-note-save">${escapeHTML(t('btn.save'))}</ha-button>
+          <ha-button class="d-note-cancel">${escapeHTML(t('btn.cancel'))}</ha-button>
+        </div>`;
+    } else if (isProblemTask) {
+      const label = task.notes ? t('note.edit') : t('note.add');
+      notes = `${notesBody}
+        <div class="hk-detail-actions">
+          <ha-button class="d-note-edit">${escapeHTML(label)}</ha-button>
+        </div>`;
+    } else {
+      notes = notesBody;
+    }
     return `
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
@@ -2727,6 +2782,18 @@ export class HomeKeeperPanel extends HTMLElement {
         .querySelector('.d-done-blocked-wrap')
         ?.addEventListener('click', () => this._notifyBlocked(task));
       root.querySelector('.d-edit')?.addEventListener('click', () => this._openEdit(task));
+      root.querySelector('.d-note-edit')?.addEventListener('click', () => {
+        this._noteEdit = task.id;
+        this._render();
+      });
+      root.querySelector('.d-note-cancel')?.addEventListener('click', () => {
+        this._noteEdit = null;
+        this._render();
+      });
+      root.querySelector('.d-note-save')?.addEventListener('click', () => {
+        const el = root.querySelector<HTMLTextAreaElement>('.d-note-input');
+        void this._saveNote(task, el?.value ?? '');
+      });
       root.querySelector('.d-del')?.addEventListener('click', () => {
         // The detail is about to vanish: replace it with its list so Forward
         // can't return to a deleted task.

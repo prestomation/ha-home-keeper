@@ -162,6 +162,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('.d-done-blocked-wrap').click();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/16b-panel-problem-sensor-blocked-toast.png`, fullPage: true });
+  // 18b. A durable note on the synced problem task. There's no device to model here,
+  // so the note is the place to jot what to remember next time this problem fires; it
+  // persists across the mirror clearing/re-arming (and even being recreated). Open the
+  // inline editor and seed a note for the shot.
+  await page.waitForTimeout(600); // let the transient toast fade
+  await panel.locator('.d-note-edit').click();
+  const noteInput = panel.locator('.d-note-input');
+  await expect(noteInput).toBeVisible();
+  await noteInput.fill(
+    'Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer.',
+  );
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/18-panel-problem-sensor-note.png`, fullPage: true });
+  await panel.locator('.d-note-save').click();
+  await expect(panel.locator('.d-note-edit')).toBeVisible();
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 

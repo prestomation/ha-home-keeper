@@ -4,6 +4,20 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [0.9.0b1]
+
+### Added
+
+- **Notes on problem-sensor tasks — remembered for next time.** When Home Keeper
+  mirrors a `device_class: problem` binary sensor as a task, you can now attach a
+  free-text note to it right from the task's detail page (**Add a note** → type →
+  **Save**). The note is for the instructions you want next time the problem fires —
+  the fix that worked last time, a part number, where the shut-off valve is. It sticks
+  with that sensor: it survives the task clearing and re-arming, and even survives the
+  mirror being removed and recreated (turning problem-sensor sync off and on, or
+  temporarily excluding the sensor), so it reappears the next time the same problem
+  goes off.
+
 ## [0.8.0] - 2026-07-04
 
 ### Added

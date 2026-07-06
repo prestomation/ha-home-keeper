@@ -355,7 +355,15 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   label exclusions; an options change reloads the entry. Reuse `models.build_task` +
   the existing per-task entities — do NOT build a parallel "problem sensor". A synced
   task that's created/removed reloads the entry (per-task entities); arm/clear is a
-  plain coordinator refresh.
+  plain coordinator refresh. **`notes` is the one user-editable field** on a synced
+  task (it's not in `managed_by.locked_fields`, and `update_task` isn't gated by the
+  synced-task guard) — it's where the user records what to remember next time the
+  problem fires. Notes are **durable, keyed by the sensor `entity_id`** in
+  `store._problem_notes` (persisted in the storage doc alongside `tasks`/`assets`):
+  `update_task` mirrors a synced task's note there, and `reconcile_problem_tasks`
+  re-hydrates it onto a freshly built mirror (`notes_by_entity`), so a note outlives
+  the task being deleted and recreated (sync toggled, sensor excluded) and reappears
+  the next time the same problem fires.
 - **Options have three editing surfaces that share `options.py`.** Config-entry
   `options` are edited from the **options flow**, the **`home_keeper.set_options`
   service**, AND the panel's **Settings tab** (via `home_keeper/get_options` +

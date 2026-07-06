@@ -59,3 +59,30 @@ def test_synced_problem_task_cannot_be_completed(ha):
     assert r.status_code >= 400, (
         f"completing a synced problem task should be rejected, got {r.status_code}"
     )
+
+
+def test_synced_problem_task_note_is_editable_and_persists(ha):
+    # Unlike completion, a synced problem task's *note* is user-editable — it's the
+    # place to record what to remember next time this problem fires (there's no device
+    # to model). update_task is not blocked by the synced-task guard.
+    task = _synced_task(ha)
+    assert task is not None
+    note = "Reset the pump breaker in the garage panel, then prime it."
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/update_task",
+        json={"task_id": task["id"], "notes": note},
+    )
+    assert r.status_code < 400, (
+        f"editing a synced task's note should be allowed, got {r.status_code}"
+    )
+    # The note round-trips on the same synced task (matched by sensor entity_id).
+    deadline = time.monotonic() + 15
+    again = None
+    while time.monotonic() < deadline:
+        again = _synced_task(ha)
+        if again is not None and again.get("notes") == note:
+            break
+        time.sleep(1)
+    assert again is not None and again["notes"] == note, (
+        "note did not persist on the synced task"
+    )

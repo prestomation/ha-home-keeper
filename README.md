@@ -220,12 +220,24 @@ problem becomes a visible, trackable to-do without writing an automation.
 - **Scope it:** syncing is **off by default**; once on, exclude specific **entities,
   devices, areas, or labels** — from the panel's **Settings** tab (below) or the options
   flow. Excluding a device leaves out every problem sensor that belongs to it.
+- **Leave yourself a note for next time.** These tasks don't map to a device you model,
+  so there's a dedicated place to jot the fix: open the task and use **Add a note** to
+  record what you want to remember the *next* time this problem fires — the steps that
+  cleared it last time, a part number, where the shut-off valve is. The note **sticks
+  with the sensor**: it survives the task clearing and re-arming, and even survives the
+  mirror being removed and recreated (toggling problem-sensor sync off and on, or
+  temporarily excluding the sensor), so it's waiting for you the next time the same
+  problem goes off.
 
 ![Synced problem-sensor task detail — armed and due-now, with a disabled Done button and the prompt explaining it clears when the source resolves it](docs/images/16-panel-problem-sensor-detail.png)
 
 Tapping the disabled **Done** explains why it can't be completed here:
 
 ![Tapping the disabled Done pops up a toast: the problem clears automatically when the originating integration resolves it](docs/images/16b-panel-problem-sensor-blocked-toast.png)
+
+Add a durable note that reappears the next time the problem fires:
+
+![Editing the note on a synced problem-sensor task — a textarea seeded with the previous note and Save/Cancel buttons](docs/images/18-panel-problem-sensor-note.png)
 
 ## Sensor-based tasks (usage meters & thresholds)
 

@@ -115,12 +115,19 @@ class HomeKeeperStore:
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self._tasks: dict[str, dict[str, Any]] = {}
         self._assets: dict[str, dict[str, Any]] = {}
+        # Durable free-text notes for problem-sensor mirrors, keyed by the sensor
+        # ``entity_id`` (not the task id). Kept outside the task so a note survives the
+        # task being deleted and later recreated — sync toggled off/on, or the sensor
+        # temporarily excluded — and re-hydrates onto the fresh task the next time the
+        # same problem fires. See ``reconcile_problem_sensor_tasks`` / ``update_task``.
+        self._problem_notes: dict[str, str] = {}
 
     async def load(self) -> None:
         """Load tasks and assets from disk (no-op safe on first run).
 
-        The ``assets`` key is additive — documents written before assets existed
-        simply lack it, so we default to empty without a storage migration.
+        The ``assets`` and ``problem_notes`` keys are additive — documents written
+        before they existed simply lack them, so we default to empty without a
+        storage migration.
         """
         data = await self._store.async_load()
         if data and isinstance(data.get("tasks"), dict):
@@ -131,6 +138,10 @@ class HomeKeeperStore:
             self._assets = data["assets"]
         else:
             self._assets = {}
+        if data and isinstance(data.get("problem_notes"), dict):
+            self._problem_notes = data["problem_notes"]
+        else:
+            self._problem_notes = {}
         # Additive migrations (no storage-version bump): fold a legacy
         # ``part_numbers`` string into structured ``parts`` and drop links to
         # assets that no longer exist.
@@ -146,7 +157,13 @@ class HomeKeeperStore:
             await self._save()
 
     async def _save(self) -> None:
-        await self._store.async_save({"tasks": self._tasks, "assets": self._assets})
+        await self._store.async_save(
+            {
+                "tasks": self._tasks,
+                "assets": self._assets,
+                "problem_notes": self._problem_notes,
+            }
+        )
 
     async def async_persist(self) -> None:
         """Flush the current in-memory state to disk.
@@ -162,6 +179,7 @@ class HomeKeeperStore:
         await self._store.async_remove()
         self._tasks = {}
         self._assets = {}
+        self._problem_notes = {}
 
     # ── reads ────────────────────────────────────────────────────────────────
     def get_tasks(self) -> dict[str, dict[str, Any]]:
@@ -213,6 +231,17 @@ class HomeKeeperStore:
             raise KeyError(task_id)
         merged = models.merge_update(existing, updates, now=dt_util.now())
         self._tasks[task_id] = merged
+        # Mirror a problem-sensor task's note into the durable, entity-keyed side-store
+        # so it outlives the task (the mirror is deleted/recreated as the sensor is
+        # excluded or the sync is toggled). Locked fields keep name/schedule owned by
+        # the sync, but ``notes`` is intentionally user-editable on these tasks.
+        entity_id = _problem_entity(merged)
+        if entity_id is not None:
+            note = merged.get("notes") or ""
+            if note:
+                self._problem_notes[entity_id] = note
+            else:
+                self._problem_notes.pop(entity_id, None)
         await self._save()
         # Fire only on a real change; carry which fields moved so automations can react
         # selectively (e.g. a rename vs. a schedule change).
@@ -879,7 +908,11 @@ class HomeKeeperStore:
         full entry reload and a plain coordinator refresh.
         """
         new_tasks, ops, changed = _reconcile_problem_tasks(
-            eligible, self._tasks, config_entry_id=config_entry_id, now=dt_util.now()
+            eligible,
+            self._tasks,
+            config_entry_id=config_entry_id,
+            now=dt_util.now(),
+            notes_by_entity=self._problem_notes,
         )
         if not changed:
             return False
