@@ -30,18 +30,18 @@
 | custom\_components/home\_keeper/options.py             |       47 |       47 |       16 |        0 |      0% |    15-135 |
 | custom\_components/home\_keeper/panel.py               |       29 |       29 |        4 |        0 |      0% |     10-92 |
 | custom\_components/home\_keeper/problem\_sync.py       |      113 |      113 |       40 |        0 |      0% |    10-219 |
-| custom\_components/home\_keeper/problem\_tasks.py      |       63 |        2 |       26 |        1 |     97% |   172-173 |
+| custom\_components/home\_keeper/problem\_tasks.py      |       64 |        2 |       26 |        1 |     97% |   192-193 |
 | custom\_components/home\_keeper/profiles.py            |       64 |        3 |       28 |        0 |     95% |     66-68 |
 | custom\_components/home\_keeper/reconcile.py           |      121 |        0 |       70 |        2 |     99% |89-\>91, 295-\>293 |
 | custom\_components/home\_keeper/recurrence.py          |      200 |       10 |      106 |       10 |     93% |53, 106, 136, 173, 184, 213, 258, 310, 334, 494 |
 | custom\_components/home\_keeper/sensor.py              |      100 |      100 |       30 |        0 |      0% |    13-185 |
 | custom\_components/home\_keeper/sensor\_tasks.py       |       67 |        1 |       30 |        1 |     98% |        88 |
 | custom\_components/home\_keeper/sensor\_watcher.py     |      111 |      111 |       44 |        0 |      0% |    18-231 |
-| custom\_components/home\_keeper/store.py               |      506 |      506 |      224 |        0 |      0% |    9-1147 |
+| custom\_components/home\_keeper/store.py               |      517 |      517 |      230 |        0 |      0% |    9-1180 |
 | custom\_components/home\_keeper/todo.py                |       61 |       61 |       18 |        0 |      0% |    10-130 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py      |      409 |      409 |       80 |        0 |      0% |     8-772 |
-| **TOTAL**                                              | **4532** | **2762** | **1568** |   **58** | **41%** |           |
+| **TOTAL**                                              | **4544** | **2773** | **1574** |   **58** | **41%** |           |
 
 
 ## Setup coverage badge
