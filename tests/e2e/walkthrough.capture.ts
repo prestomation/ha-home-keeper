@@ -63,6 +63,34 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);
 
+    // 2b. A synced problem-sensor task. It mirrors a device_class: problem binary
+    //     sensor, so it can't be completed here — but it has no device to model, so
+    //     its detail page offers an inline note for next time the problem fires (the
+    //     fix, a part number, where the shut-off is). The note persists across the
+    //     mirror clearing/re-arming and even being deleted and recreated.
+    const problemRow = panel
+      .locator('.hk-card', { hasText: 'Sump pump problem' })
+      .locator('.detail-open')
+      .first();
+    await expect(problemRow).toBeVisible();
+    await problemRow.click();
+    await expect(panel.locator('.hk-managed-prompt')).toBeVisible();
+    await page.waitForTimeout(BEAT);
+    await panel.locator('.d-note-edit').click();
+    const noteBox = panel.locator('.d-note-input');
+    await expect(noteBox).toBeVisible();
+    await page.waitForTimeout(BEAT);
+    await noteBox.fill(
+      'Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer.',
+    );
+    await page.waitForTimeout(BEAT);
+    await panel.locator('.d-note-save').click();
+    await expect(panel.locator('.d-note-edit')).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('#back-btn').click();
+    await expect(panel.locator('#add-btn')).toBeVisible();
+    await page.waitForTimeout(BEAT);
+
     // 3. Create a task — show the form and the recurrence picker switching modes.
     await panel.locator('#add-btn').click();
     await expect(panel.locator('#hk-form')).toBeVisible();

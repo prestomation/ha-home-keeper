@@ -163,3 +163,50 @@ def test_problem_source_helpers():
     assert pt.problem_sensor_entity_id(task) == "binary_sensor.washer_problem"
     assert pt.problem_source({"source": None}) is None
     assert pt.problem_source({"source": {"part": {}}}) is None
+
+
+# ── durable notes hydration ───────────────────────────────────────────────────
+ENTITY = "binary_sensor.washer_problem"
+
+
+def test_new_task_hydrates_note_from_notes_by_entity():
+    # A note the user saved previously (kept in the store's entity-keyed side-store)
+    # seeds the freshly created mirror, so it's there the next time the problem fires.
+    tasks, ops, _ = pt.reconcile_problem_tasks(
+        _eligible(is_problem=True),
+        {},
+        config_entry_id=ENTRY,
+        now=NOW,
+        notes_by_entity={ENTITY: "Reset breaker in garage panel"},
+    )
+    task = _only(tasks)
+    assert task["notes"] == "Reset breaker in garage panel"
+    assert [kind for kind, _ in ops] == ["created"]
+
+
+def test_new_task_without_stored_note_defaults_empty():
+    tasks, _, _ = pt.reconcile_problem_tasks(
+        _eligible(is_problem=True),
+        {},
+        config_entry_id=ENTRY,
+        now=NOW,
+        notes_by_entity={"binary_sensor.other": "unrelated"},
+    )
+    assert _only(tasks)["notes"] == ""
+
+
+def test_note_hydration_only_seeds_new_tasks_not_existing_ones():
+    # An existing mirror keeps its live note; re-reconciling never clobbers it from
+    # the side-store (write-back flows the other way, in the store on update_task).
+    tasks, _, _ = _reconcile(_eligible(is_problem=True))
+    tid = next(iter(tasks))
+    tasks[tid]["notes"] = "edited on the task"
+    tasks2, ops, _ = pt.reconcile_problem_tasks(
+        _eligible(is_problem=False),  # sensor clears
+        tasks,
+        config_entry_id=ENTRY,
+        now=NOW + timedelta(hours=1),
+        notes_by_entity={ENTITY: "stale side-store value"},
+    )
+    assert tasks2[tid]["notes"] == "edited on the task"
+    assert [kind for kind, _ in ops] == ["cleared"]

@@ -83,12 +83,21 @@ def _build_task(
     *,
     config_entry_id: str,
     now: datetime,
+    note: str = "",
 ) -> dict[str, Any]:
-    """Create a fresh synced task dict for *entity_id*, armed per ``is_problem``."""
+    """Create a fresh synced task dict for *entity_id*, armed per ``is_problem``.
+
+    *note* re-hydrates the free-text note the user last attached to this sensor. It
+    is persisted independently of the task (keyed by ``entity_id`` in the store), so
+    a note survives the task being deleted and later recreated — turning the sync off
+    and on again, or temporarily excluding the sensor — and reappears the next time
+    the problem fires.
+    """
     task = models.build_task(
         {
             "name": meta["name"],
             "recurrence_type": REC_TRIGGERED,
+            "notes": note,
             "device_id": meta.get("device_id"),
             "area_id": meta.get("area_id"),
             "source": {TASK_SOURCE_PROBLEM_SENSOR: {"entity_id": entity_id}},
@@ -111,12 +120,18 @@ def reconcile_problem_tasks(
     *,
     config_entry_id: str,
     now: datetime,
+    notes_by_entity: dict[str, str] | None = None,
 ) -> tuple[dict[str, dict[str, Any]], list[tuple[str, dict[str, Any]]], bool]:
     """Compute the task map mirroring the eligible problem sensors.
 
     *eligible* maps ``entity_id`` -> ``{"name", "device_id", "area_id",
     "is_problem"}`` for every sensor that should be synced (already filtered for the
     option being on, exclusions, and Home Keeper's own entities by the caller).
+
+    *notes_by_entity* maps ``entity_id`` -> the durable free-text note the user last
+    saved for that sensor. A freshly created task seeds its ``notes`` from it, so a
+    note the user wrote last time reappears when the same problem is mirrored again
+    (see :func:`_build_task`). Existing tasks keep their live ``notes`` untouched.
 
     Returns ``(new_tasks, ops, changed)``:
 
@@ -128,6 +143,7 @@ def reconcile_problem_tasks(
     * ``changed`` — whether ``new_tasks`` differs from ``tasks`` (persist if true).
     """
     result = dict(tasks)
+    notes_by_entity = notes_by_entity or {}
     ops: list[tuple[str, dict[str, Any]]] = []
     changed = False
 
@@ -149,7 +165,11 @@ def reconcile_problem_tasks(
         existing_tid = existing_by_entity.get(entity_id)
         if existing_tid is None:
             task = _build_task(
-                entity_id, meta, config_entry_id=config_entry_id, now=now
+                entity_id,
+                meta,
+                config_entry_id=config_entry_id,
+                now=now,
+                note=notes_by_entity.get(entity_id, ""),
             )
             result[task["id"]] = task
             ops.append(("created", task))
