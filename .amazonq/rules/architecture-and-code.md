@@ -364,6 +364,25 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   re-hydrates it onto a freshly built mirror (`notes_by_entity`), so a note outlives
   the task being deleted and recreated (sync toggled, sensor excluded) and reappears
   the next time the same problem fires.
+- **A problem mirror's spare-part link is decoupled from `source` and follows the
+  same durable pattern as notes.** The `source.part` consumable link (above) can't be
+  reused on a problem mirror — its `source` slot is owned by the sync and it's
+  completion-blocked. So a user attaches a spare via a **separate, user-editable
+  `task["consumable"]` field** (`{asset_id, part_id}`), governed by
+  `task["consume_on_clear"]` (`off` default / `auto` — see `const.CONSUME_ON_CLEAR_MODES`;
+  `confirm` is deferred, IDEAS.md). Both are edited through `update_task` (not
+  `set_task_consumable`, which writes `source.part`) and are **not** in
+  `locked_fields`. They are durable, keyed by the sensor `entity_id` in
+  `store._problem_consumables` exactly like `_problem_notes`: `update_task` mirrors
+  them there (and validates the asset/part exists), `reconcile_problem_tasks`
+  re-hydrates them (`consumables_by_entity`). Consumption is **not** on completion
+  (there is none) — it's in the reconcile **`cleared`** branch: `auto` mode calls
+  `assets.consume_part_stock` + `_emit_stock_event`, reusing the existing
+  low/out-of-stock events. A removed asset/part clears dangling links via
+  `store._prune_dangling_consumables` (the counterpart to `reconcile_part_tasks`'s
+  `source.part` cleanup). The panel surfaces where-to-buy (vendor/url) + spares-on-hand
+  and a **Create appliance for this device** shortcut when the sensor's device has no
+  appliance yet.
 - **Options have three editing surfaces that share `options.py`.** Config-entry
   `options` are edited from the **options flow**, the **`home_keeper.set_options`
   service**, AND the panel's **Settings tab** (via `home_keeper/get_options` +

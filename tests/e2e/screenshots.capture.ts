@@ -88,7 +88,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/10-panel-managed-edit-locked.png`, fullPage: true });
   await panel.locator('#f-cancel').click();
-  await panel.locator('#back-btn').click();
+  // Editing from a detail opens the form over the *list* route (detail:null), so
+  // cancelling lands back on the list directly — no Back button to click.
   await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 1e. Tasks grouped by managing integration — managed tasks bucket under their
@@ -177,6 +178,22 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/18-panel-problem-sensor-note.png`, fullPage: true });
   await panel.locator('.d-note-save').click();
   await expect(panel.locator('.d-note-edit')).toBeVisible();
+  // 19. The linked spare part on a synced problem task. A consumable (with a product
+  // link + spares-on-hand) can be attached to the mirror so the task surfaces where to
+  // buy it and how many spares you have — right next to the problem — and, with
+  // consume-on-clear on, draws down a spare when the sensor returns to OK. Seeded here
+  // via the durable side-store (asset_sump_pump · Backup float switch).
+  await expect(panel.locator('.d-consumable-edit')).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/19-panel-problem-sensor-linked-part.png`, fullPage: true });
+  // 19b. The inline attach editor: the part picker + the "Use a spare when the problem
+  // clears" toggle.
+  await panel.locator('.d-consumable-edit').click();
+  await expect(panel.locator('.d-consumable-select')).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/19b-panel-problem-sensor-consumable-editor.png`, fullPage: true });
+  await panel.locator('.d-consumable-cancel').click();
+  await expect(panel.locator('.d-consumable-edit')).toBeVisible();
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 

@@ -119,6 +119,20 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
   - Hook points left in code: `const.SIGNAL_TASK_CONTRIBUTION` (reserved for the
     deferred service).
 
+- **`confirm` consume-on-clear for problem-sensor spare parts.** A problem-sensor
+  task can link a spare consumable part with a `consume_on_clear` mode of `off`
+  (default, informational) or `auto` (draw down a spare when the sensor returns to
+  OK) — see the "Link a spare part" feature. A third **`confirm`** mode was
+  deliberately deferred: on clear, prompt "Did you replace it? Use a spare" and only
+  decrement on confirmation. It's the *correct* semantics (a sensor can clear because
+  it was reset or cleaned, not replaced) but it's the odd one out on cost — `off`/`auto`
+  are a field read plus a branch in the existing reconcile `cleared` path, whereas
+  `confirm` needs new **pending-confirmation** state and a prompt surface on a task
+  type that is otherwise hands-off (no Done button). Add it once there's a place to
+  surface the prompt (a detail-page banner or an actionable notification). The mode
+  enum lives in `const.CONSUME_ON_CLEAR_MODES`; `models.normalize_consume_on_clear`
+  and the panel's toggle would extend to three states.
+
 - **Advanced fixed-schedule rules.** Today fixed schedules are `FREQ` (DAILY/
   WEEKLY/MONTHLY) + `interval` + `anchor`. Add `BYDAY` (e.g. "first Monday"),
   multiple weekdays, `COUNT`/`UNTIL`, and custom durations. Consider adopting

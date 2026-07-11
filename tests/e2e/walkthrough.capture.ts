@@ -87,6 +87,18 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await panel.locator('.d-note-save').click();
     await expect(panel.locator('.d-note-edit')).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
+    // 2c. The same problem task carries a linked spare part: the "Linked part" card
+    //     shows where to buy it and how many spares are on hand, right next to the
+    //     problem. Open the inline editor to reveal the part picker + the "use a spare
+    //     when it clears" toggle, then close it.
+    await expect(panel.locator('.d-consumable-edit')).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('.d-consumable-edit').click();
+    await expect(panel.locator('.d-consumable-select')).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('.d-consumable-cancel').click();
+    await expect(panel.locator('.d-consumable-edit')).toBeVisible();
+    await page.waitForTimeout(BEAT);
     await panel.locator('#back-btn').click();
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);

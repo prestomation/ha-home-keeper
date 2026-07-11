@@ -108,6 +108,13 @@ export interface Task {
     part?: { asset_id: string; part_id: string; manual?: boolean };
     problem_sensor?: { entity_id: string };
   } | null;
+  // Decoupled spare-part link, separate from `source` so it can ride a source-owned
+  // problem-sensor mirror (whose `source` slot is taken). Points at an appliance's
+  // consumable part; the detail surfaces where-to-buy (vendor/url) and spares-on-hand.
+  consumable?: { asset_id: string; part_id: string } | null;
+  // For a problem mirror with a linked spare: whether auto-clearing the task (its
+  // sensor returned to OK) draws down one spare. `off` (default) = informational only.
+  consume_on_clear?: 'off' | 'auto';
   // Well-known ownership block that Home Keeper inspects. See docs/INTEGRATING.md §6.
   managed_by?: ManagedBy | null;
 }

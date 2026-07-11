@@ -1103,3 +1103,68 @@ def test_merge_update_clears_task_chips_when_sent_empty():
 def test_normalize_task_chips_rejects_mdi_empty_suffix():
     with pytest.raises(m.TaskValidationError, match="non-empty name"):
         m.normalize_task_chips([{"label": "x", "icon": "mdi:"}])
+
+
+# ── consumable link + consume_on_clear ──────────────────────────────────────────
+def test_build_task_defaults_consumable_unset():
+    task = m.build_task(
+        {"name": "x", "recurrence_type": "triggered"},
+        now=NOW,
+    )
+    assert task["consumable"] is None
+    assert task["consume_on_clear"] == "off"
+
+
+def test_build_task_normalizes_consumable_and_mode():
+    task = m.build_task(
+        {
+            "name": "x",
+            "recurrence_type": "triggered",
+            "consumable": {"asset_id": " a1 ", "part_id": " p1 "},
+            "consume_on_clear": "auto",
+        },
+        now=NOW,
+    )
+    assert task["consumable"] == {"asset_id": "a1", "part_id": "p1"}
+    assert task["consume_on_clear"] == "auto"
+
+
+def test_normalize_consumable_requires_both_ids():
+    with pytest.raises(m.TaskValidationError, match="both asset_id and part_id"):
+        m.normalize_consumable({"asset_id": "a1"})
+
+
+def test_normalize_consumable_blank_clears():
+    assert m.normalize_consumable(None) is None
+    assert m.normalize_consumable({}) is None
+
+
+def test_normalize_consume_on_clear_rejects_unknown_mode():
+    with pytest.raises(m.TaskValidationError, match="consume_on_clear must be"):
+        m.normalize_consume_on_clear("confirm")  # deferred mode, not yet valid
+
+
+def test_merge_update_sets_and_clears_consumable():
+    task = m.build_task({"name": "x", "recurrence_type": "triggered"}, now=NOW)
+    linked = m.merge_update(
+        task,
+        {"consumable": {"asset_id": "a1", "part_id": "p1"}, "consume_on_clear": "auto"},
+        now=NOW,
+    )
+    assert linked["consumable"] == {"asset_id": "a1", "part_id": "p1"}
+    assert linked["consume_on_clear"] == "auto"
+    cleared = m.merge_update(linked, {"consumable": None}, now=NOW)
+    assert cleared["consumable"] is None
+
+
+def test_merge_update_untouched_consumable_survives_rename():
+    task = m.build_task(
+        {
+            "name": "x",
+            "recurrence_type": "triggered",
+            "consumable": {"asset_id": "a1", "part_id": "p1"},
+        },
+        now=NOW,
+    )
+    renamed = m.merge_update(task, {"name": "y"}, now=NOW)
+    assert renamed["consumable"] == {"asset_id": "a1", "part_id": "p1"}

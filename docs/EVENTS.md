@@ -85,6 +85,13 @@ linked** to a consumable (via `home_keeper.set_task_consumable`). This is how a
 sensor-armed "replace the fridge filter" task draws down inventory and signals a reorder
 when you mark it done.
 
+A **problem-sensor task** with a linked spare part and `consume_on_clear: auto` draws
+down a spare a different way: not on completion (it can't be completed — it clears when
+its sensor returns to OK) but on that **auto-clear**, firing the same stock events. Left
+at the default `off`, the link is informational only and clearing touches no stock. The
+link rides the task's `consumable` field (set via `update_task`), separate from the
+`source.part` link above.
+
 A part with **Auto-create buy task** enabled goes one step further: crossing the reorder
 threshold auto-creates a one-off *"Buy {part}"* task (a `home_keeper_task_created` event)
 and restocking removes it (`home_keeper_task_deleted`) — no new event type, just the
