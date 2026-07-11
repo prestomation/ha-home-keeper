@@ -145,6 +145,11 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         ),
         vol.Optional("source"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
+        # Decoupled spare-part link for a source-owned problem mirror (or null to
+        # clear), plus whether an auto-clear draws down a spare. Validated (asset/part
+        # existence, mode enum) in the store / models.
+        vol.Optional("consumable"): vol.Any(dict, None),
+        vol.Optional("consume_on_clear"): cv.string,
     }
 )
 TASK_ID_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})

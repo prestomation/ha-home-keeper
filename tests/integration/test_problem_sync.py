@@ -86,3 +86,45 @@ def test_synced_problem_task_note_is_editable_and_persists(ha):
     assert again is not None and again["notes"] == note, (
         "note did not persist on the synced task"
     )
+
+
+def test_synced_problem_task_has_hydrated_consumable_link(ha):
+    # The seed links this sensor to the sump-pump appliance's spare float switch via the
+    # durable `problem_consumables` side-store; the sync re-hydrates it onto the mirror,
+    # so the task surfaces the spare part (where-to-buy + stock) despite the mirror being
+    # runtime-created. Proves the decoupled link + hydration end to end.
+    task = _synced_task(ha)
+    assert task is not None
+    assert task.get("consumable") == {
+        "asset_id": "asset_sump_pump",
+        "part_id": "part_float_switch",
+    }, task.get("consumable")
+    assert task.get("consume_on_clear") == "auto"
+
+
+def test_synced_problem_task_consumable_is_editable_via_update_task(ha):
+    # Like the note, the consumable link + its consume-on-clear mode are user-editable on
+    # a synced task (not in locked_fields, not gated by the synced-task guard). Flip the
+    # mode off through update_task and confirm it round-trips on the same mirror.
+    task = _synced_task(ha)
+    assert task is not None
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/update_task",
+        json={"task_id": task["id"], "consume_on_clear": "off"},
+    )
+    assert r.status_code < 400, f"editing consume_on_clear should be allowed, got {r.status_code}"
+    deadline = time.monotonic() + 15
+    again = None
+    while time.monotonic() < deadline:
+        again = _synced_task(ha)
+        if again is not None and again.get("consume_on_clear") == "off":
+            break
+        time.sleep(1)
+    assert again is not None and again.get("consume_on_clear") == "off", (
+        "consume_on_clear did not persist on the synced task"
+    )
+    # The part link itself is untouched by a mode-only edit.
+    assert again.get("consumable") == {
+        "asset_id": "asset_sump_pump",
+        "part_id": "part_float_switch",
+    }

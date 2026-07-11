@@ -4,6 +4,26 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [0.9.0b2]
+
+### Added
+
+- **Link a spare part to a problem-sensor task — track inventory and where to buy
+  it.** When Home Keeper mirrors a `device_class: problem` binary sensor as a task
+  (e.g. an air filter reporting it needs replacing), you can now attach a **spare
+  consumable part** to that task from its detail page (**Attach a spare part**). Once
+  linked, the task surfaces **where to buy it** (the part's vendor and product link)
+  and **how many spares you have on hand**, right next to the problem — closing the gap
+  between "something needs attention" and "here's the part and where to reorder it".
+  If the sensor's device has no appliance in Home Keeper yet, a **Create appliance for
+  this device** shortcut sets one up so you have somewhere to record the part. Like the
+  note, the link sticks with the sensor: it survives the task clearing and re-arming,
+  and even the mirror being removed and recreated. Optionally, turn on **Use a spare
+  when the problem clears** so that resolving the problem (the sensor returning to OK)
+  automatically **draws down one spare** and fires the low/out-of-stock events you can
+  automate a reorder from — off by default, so nothing moves your inventory unless you
+  ask it to.
+
 ## [0.9.0b1]
 
 ### Added

@@ -20,6 +20,8 @@ from .const import (
     COMPLETION_DETAIL_NONE,
     COMPLETION_DETAIL_REQUIRED,
     COMPLETION_METADATA_FIELDS,
+    CONSUME_ON_CLEAR_MODES,
+    CONSUME_ON_CLEAR_OFF,
     FREQS,
     MAX_INTERVAL,
     REC_FLOATING,
@@ -288,6 +290,44 @@ def normalize_task_chips(value: Any) -> list[dict[str, str]]:
     return result
 
 
+def normalize_consumable(value: Any) -> dict[str, str] | None:
+    """Normalize a task's ``consumable`` link — the spare part it draws down.
+
+    A decoupled counterpart to the ``source.part`` manual link, used where the
+    ``source`` slot is already owned (a ``device_class: problem`` mirror) so the user
+    can still attach the spare it consumes and surface where-to-buy / spares-on-hand.
+    Accepts ``{"asset_id", "part_id"}`` (both required, non-empty) or ``None``/blank
+    to clear. Kept a pure shape check — the referenced asset/part are verified against
+    the store at the mutation edge (``store.update_task``), never here, so ``models``
+    stays free of store imports (mirrors ``normalize_card_links``).
+    """
+    if value in (None, "", {}):
+        return None
+    if not isinstance(value, dict):
+        raise TaskValidationError("consumable must be an object or null")
+    asset_id = str(value.get("asset_id", "")).strip()
+    part_id = str(value.get("part_id", "")).strip()
+    if not asset_id or not part_id:
+        raise TaskValidationError("consumable needs both asset_id and part_id")
+    return {"asset_id": asset_id, "part_id": part_id}
+
+
+def normalize_consume_on_clear(value: Any) -> str:
+    """Normalize ``consume_on_clear`` — whether an auto-clear draws down a spare.
+
+    One of :data:`CONSUME_ON_CLEAR_MODES` (``off``/``auto``); blank/``None`` defaults
+    to ``off`` (informational link only). Anything else fails loudly at the edge.
+    """
+    if value in (None, ""):
+        return CONSUME_ON_CLEAR_OFF
+    mode = str(value).strip()
+    if mode not in CONSUME_ON_CLEAR_MODES:
+        raise TaskValidationError(
+            f"consume_on_clear must be one of {CONSUME_ON_CLEAR_MODES}: {mode!r}"
+        )
+    return mode
+
+
 def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     """Validate and normalize the user-supplied fields of a task.
 
@@ -510,6 +550,12 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # dashboard card. Each chip is {label, icon?, url?}. Integration-owned; the
         # panel does not expose an editor for this field.
         "task_chips": normalize_task_chips(data.get("task_chips")),
+        # Optional decoupled link to a spare consumable part (``{asset_id, part_id}``),
+        # separate from ``source`` so it can be attached to a source-owned problem
+        # mirror. ``consume_on_clear`` governs whether an auto-clear draws down a spare.
+        # Both are user-editable (not locked) and durably re-hydrated by the store.
+        "consumable": normalize_consumable(data.get("consumable")),
+        "consume_on_clear": normalize_consume_on_clear(data.get("consume_on_clear")),
         **fields,
     }
     seed = data.get("last_completed")
@@ -614,6 +660,18 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # a routine update_task call can't accidentally clear chips set at creation time.
     if "task_chips" in updates:
         merged["task_chips"] = normalize_task_chips(updates["task_chips"])
+
+    # The consumable link and its consume-on-clear mode are independent of
+    # recurrence/identity (like labels/chips) and user-editable even on an otherwise
+    # source-locked problem mirror — only rewrite when explicitly sent so a plain
+    # rename can't wipe a link. Existence of the referenced asset/part is checked in
+    # store.update_task (models stays store-free).
+    if "consumable" in updates:
+        merged["consumable"] = normalize_consumable(updates["consumable"])
+    if "consume_on_clear" in updates:
+        merged["consume_on_clear"] = normalize_consume_on_clear(
+            updates["consume_on_clear"]
+        )
 
     # A triggered or sensor task has no schedule: its next_due is owned by the arm /
     # complete chokepoints (armed timestamp vs dormant None), so editing

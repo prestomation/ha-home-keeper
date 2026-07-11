@@ -318,6 +318,30 @@ update_task:
             - cost
             - photo
             - who
+    consumable:
+      name: Linked spare part
+      description: >-
+        Attach a spare consumable part to this task (or null to clear). A
+        {asset_id, part_id} object pointing at one of an appliance's consumable
+        parts. Unlike set_task_consumable (which uses the task source), this rides a
+        decoupled field so it works on a source-owned problem-sensor mirror — it
+        surfaces where-to-buy and spares-on-hand and, with consume_on_clear, draws
+        down a spare when the problem clears.
+      advanced: true
+      selector:
+        object:
+    consume_on_clear:
+      name: Consume on clear
+      description: >-
+        For a problem-sensor mirror with a linked spare part: whether auto-clearing
+        the task (its sensor returned to OK) draws down one spare — "off" (default,
+        informational only) or "auto".
+      advanced: true
+      selector:
+        select:
+          options:
+            - "off"
+            - auto
 
 delete_task:
   name: Delete task

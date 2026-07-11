@@ -698,6 +698,10 @@ export class HomeKeeperPanel extends HTMLElement {
   // editor). Null when no note is being edited. The textarea is uncontrolled: its
   // value is read on Save, so typing doesn't trigger a re-render (which would drop focus).
   private _noteEdit: string | null = null;
+  // Task id whose linked spare part is being edited inline on the detail page
+  // (problem-sensor tasks only — their `source` slot is taken so they use a decoupled
+  // `consumable` link + its own inline editor). Null when not editing.
+  private _consumableEdit: string | null = null;
   // Live HA components that need `.hass` refreshed when hass updates.
   private _liveHassEls: Array<{ hass?: Hass }> = [];
 
@@ -738,6 +742,7 @@ export class HomeKeeperPanel extends HTMLElement {
     this._edit = { open: false, task: null };
     this._assetEdit = { open: false, asset: null };
     this._noteEdit = null;
+    this._consumableEdit = null;
     // ...unless this navigation was initiated to open a form (edit from a detail
     // page): re-open it now that the location has settled.
     if (this._pendingEdit) {
@@ -1019,6 +1024,43 @@ export class HomeKeeperPanel extends HTMLElement {
       // eslint-disable-next-line no-console
       console.error('Home Keeper: failed to save note', err);
     }
+  }
+
+  /**
+   * Persist the inline-edited spare-part link on a problem-sensor task. `token` is the
+   * picker's `assetId:partId` value (empty = clear). Reuses the standard `update_task`
+   * path (a partial `{ consumable, consume_on_clear }` update); the store validates the
+   * link, mirrors it into the durable side-store, and — when consume-on-clear is on —
+   * draws down a spare the next time the sensor clears. On failure the editor stays open.
+   */
+  private async _saveConsumable(task: Task, token: string, consumeOnClear: boolean): Promise<void> {
+    if (!this._hass) return;
+    const [assetId, partId] = token ? token.split(':') : ['', ''];
+    const consumable = assetId && partId ? { asset_id: assetId, part_id: partId } : null;
+    try {
+      await api.updateTask(this._hass, task.id, {
+        consumable,
+        // A cleared link is always informational — never leave a dangling `auto`.
+        consume_on_clear: consumable && consumeOnClear ? 'auto' : 'off',
+      });
+      this._consumableEdit = null;
+      await this._refresh();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Home Keeper: failed to save consumable link', err);
+    }
+  }
+
+  /** Open the appliance editor pre-bound to a device (the problem sensor's device), so
+   *  the user can create the appliance + add the spare part, then link it. Option C of
+   *  the reconciliation: the sensor gave us a task but no appliance to hang parts on. */
+  private _openCreateApplianceForDevice(deviceId: string): void {
+    this._pendingAssetEdit = {
+      kind: 'existing',
+      device_id: deviceId,
+      parts: [{ name: '', type: 'consumable' }],
+    };
+    this._navigate({ view: 'appliances', detail: null });
   }
 
   private async _complete(task: Task): Promise<void> {
@@ -2098,9 +2140,112 @@ export class HomeKeeperPanel extends HTMLElement {
         ${this._row(t('detail.nextDue'), due)}
         ${this._row(t('field.consumable_link'), this._consumableLinkLabel(task), true)}
       </div></ha-card>
+      ${isProblemTask ? this._problemConsumableSection(task) : ''}
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>
       ${this._historySection('task', task.id)}`;
+  }
+
+  /**
+   * The "Linked part" card on a problem-sensor task detail: attach a spare consumable
+   * so the task surfaces where-to-buy (vendor/url) and spares-on-hand, and optionally
+   * draws down a spare when the problem clears. The `source` slot is owned by the sync,
+   * so the link rides the decoupled, user-editable `consumable` field (persisted
+   * durably by the store, like the note). Three states: an inline picker while editing,
+   * a linked read view (part + stock + consume toggle), or an unlinked prompt — with a
+   * "Create appliance" shortcut when the sensor's device has no appliance yet.
+   */
+  private _problemConsumableSection(task: Task): string {
+    const heading = `<div class="hk-section">${escapeHTML(t('consumable.section'))}</div>`;
+    if (this._consumableEdit === task.id) {
+      const options = this._consumableOptions(task);
+      const current = task.consumable ? `${task.consumable.asset_id}:${task.consumable.part_id}` : '';
+      // Keep the currently-linked part selectable even if it falls outside the device's
+      // default scope (it may live on a different appliance than the sensor's device),
+      // so editing never silently drops the existing link.
+      if (current && !options.some((o) => o.value === current)) {
+        const label = this._problemConsumableLabel(task).replace(/<[^>]+>/g, '');
+        if (label) options.unshift({ value: current, label });
+      }
+      const opts = [`<option value="">${escapeHTML(t('consumable.none'))}</option>`]
+        .concat(
+          options.map(
+            (o) =>
+              `<option value="${escapeHTML(o.value)}"${o.value === current ? ' selected' : ''}>${escapeHTML(
+                o.label,
+              )}</option>`,
+          ),
+        )
+        .join('');
+      const auto = task.consume_on_clear === 'auto';
+      return `${heading}
+        <ha-card class="hk-detail-card"><div class="hk-detail-inner">
+          <select class="hk-note-input d-consumable-select">${opts}</select>
+          <label class="hk-consume-toggle">
+            <input type="checkbox" class="d-consume-onclear"${auto ? ' checked' : ''} />
+            <span>${escapeHTML(t('consumable.consumeOnClear'))}</span>
+          </label>
+          <div class="hk-muted hk-consume-hint">${escapeHTML(t('consumable.consumeHint'))}</div>
+          <div class="hk-detail-actions">
+            <ha-button raised class="d-consumable-save">${escapeHTML(t('btn.save'))}</ha-button>
+            <ha-button class="d-consumable-cancel">${escapeHTML(t('btn.cancel'))}</ha-button>
+          </div>
+        </div></ha-card>`;
+    }
+    if (task.consumable) {
+      const rows = [
+        this._row(t('consumable.part'), this._problemConsumableLabel(task), true),
+        this._row(
+          t('consumable.onClear'),
+          escapeHTML(t(task.consume_on_clear === 'auto' ? 'consumable.modeAuto' : 'consumable.modeOff')),
+        ),
+      ].join('');
+      return `${heading}
+        <ha-card class="hk-detail-card"><div class="hk-detail-inner">
+          ${rows}
+          <div class="hk-detail-actions">
+            <ha-button class="d-consumable-edit">${escapeHTML(t('consumable.edit'))}</ha-button>
+          </div>
+        </div></ha-card>`;
+    }
+    // Unlinked: offer to attach, or (if the device has no appliance/consumable yet) to
+    // create one for it first.
+    const hasOptions = this._consumableOptions(task).length > 0;
+    const attach = hasOptions
+      ? `<ha-button class="d-consumable-edit">${escapeHTML(t('consumable.attach'))}</ha-button>`
+      : '';
+    const create = task.device_id
+      ? `<ha-button class="d-consumable-create">${escapeHTML(t('consumable.createAppliance'))}</ha-button>`
+      : '';
+    const hint = hasOptions ? '' : `<div class="hk-muted">${escapeHTML(t('consumable.noneHint'))}</div>`;
+    return `${heading}
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">
+        ${hint}
+        <div class="hk-detail-actions">${attach}${create}</div>
+      </div></ha-card>`;
+  }
+
+  /** Resolve a problem task's decoupled `consumable` link to a
+   *  "Appliance · Part · In stock: N" line (part name links to its buy URL). Mirrors
+   *  `_consumableLinkLabel`, but reads `task.consumable` rather than `source.part`. */
+  private _problemConsumableLabel(task: Task): string {
+    const link = task.consumable;
+    if (!link) return '';
+    const asset = this._assets.find((a) => a.id === link.asset_id);
+    const p = asset?.parts?.find((x) => x.id === link.part_id);
+    if (!asset || !p) return '';
+    const stock =
+      p.stock != null
+        ? ` · ${escapeHTML(
+            t(p.reorder_at != null && p.stock <= p.reorder_at ? 'part.lowStock' : 'part.inStock', {
+              n: p.stock,
+            }),
+          )}`
+        : '';
+    const name = p.url
+      ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">${escapeHTML(p.name)}</a>`
+      : escapeHTML(p.name);
+    return `${escapeHTML(asset.name)} · ${name}${stock}`;
   }
 
   private _assetDetail(asset: Asset): string {
@@ -2793,6 +2938,22 @@ export class HomeKeeperPanel extends HTMLElement {
       root.querySelector('.d-note-save')?.addEventListener('click', () => {
         const el = root.querySelector<HTMLTextAreaElement>('.d-note-input');
         void this._saveNote(task, el?.value ?? '');
+      });
+      root.querySelector('.d-consumable-edit')?.addEventListener('click', () => {
+        this._consumableEdit = task.id;
+        this._render();
+      });
+      root.querySelector('.d-consumable-cancel')?.addEventListener('click', () => {
+        this._consumableEdit = null;
+        this._render();
+      });
+      root.querySelector('.d-consumable-save')?.addEventListener('click', () => {
+        const sel = root.querySelector<HTMLSelectElement>('.d-consumable-select');
+        const chk = root.querySelector<HTMLInputElement>('.d-consume-onclear');
+        void this._saveConsumable(task, sel?.value ?? '', Boolean(chk?.checked));
+      });
+      root.querySelector('.d-consumable-create')?.addEventListener('click', () => {
+        if (task.device_id) this._openCreateApplianceForDevice(task.device_id);
       });
       root.querySelector('.d-del')?.addEventListener('click', () => {
         // The detail is about to vanish: replace it with its list so Forward

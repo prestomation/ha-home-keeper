@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.9.0b1"
+PANEL_VERSION = "0.9.0b2"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -137,6 +137,25 @@ TASK_SOURCE_BUY = "buy"
 # back to ``off``), at which point Home Keeper auto-clears the task. See
 # ``problem_tasks.py`` / ``problem_sync.py``.
 TASK_SOURCE_PROBLEM_SENSOR = "problem_sensor"
+
+# A problem-sensor task's slot in ``source`` is taken (and owned by the reconciler),
+# and it is completion-blocked, so the ``source.part`` consumable-link path can't be
+# reused. Instead a user may attach a spare part to a problem task via a decoupled,
+# user-editable ``task["consumable"] = {"asset_id", "part_id"}`` field (kept out of
+# the sync's ``locked_fields``, and durably re-hydrated from the store's
+# ``problem_consumables`` side-store). It surfaces where-to-buy (vendor/url) and
+# spares-on-hand, and — governed by ``consume_on_clear`` — optionally draws down one
+# spare when the problem clears. See ``models.normalize_consumable`` / ``store.py``.
+TASK_CONSUMABLE = "consumable"
+
+# ``task["consume_on_clear"]`` — whether auto-clearing a problem-sensor task (its
+# sensor returned to OK) draws down one spare from the linked ``consumable`` part.
+# ``off`` (default) keeps the link informational; ``auto`` consumes a spare and fires
+# the edge-triggered low/out-of-stock events. (A ``confirm`` mode — prompt on clear —
+# is deferred; see IDEAS.md.)
+CONSUME_ON_CLEAR_OFF = "off"
+CONSUME_ON_CLEAR_AUTO = "auto"
+CONSUME_ON_CLEAR_MODES = [CONSUME_ON_CLEAR_OFF, CONSUME_ON_CLEAR_AUTO]
 
 # Opaque ``origin`` marker the problem-sensor sync passes to ``complete_task`` /
 # ``trigger_task`` to authorize the otherwise-blocked arm/clear of a synced task.

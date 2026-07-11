@@ -19,6 +19,8 @@ from homeassistant.util import dt as dt_util
 from . import assets, events, models, recurrence, sensor_tasks, sensor_watcher
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
+    CONSUME_ON_CLEAR_AUTO,
+    CONSUME_ON_CLEAR_OFF,
     EVENT_ASSET_CREATED,
     EVENT_ASSET_DELETED,
     EVENT_ASSET_UPDATED,
@@ -121,6 +123,13 @@ class HomeKeeperStore:
         # temporarily excluded — and re-hydrates onto the fresh task the next time the
         # same problem fires. See ``reconcile_problem_sensor_tasks`` / ``update_task``.
         self._problem_notes: dict[str, str] = {}
+        # Durable spare-part links for problem-sensor mirrors, keyed by the sensor
+        # ``entity_id`` (like ``_problem_notes``). Each value is ``{"asset_id",
+        # "part_id", "consume_on_clear"}``. Kept outside the task so the link survives
+        # the mirror being deleted/recreated and re-hydrates onto the fresh task the
+        # next time the same problem fires. See ``update_task`` /
+        # ``reconcile_problem_sensor_tasks``.
+        self._problem_consumables: dict[str, dict[str, Any]] = {}
 
     async def load(self) -> None:
         """Load tasks and assets from disk (no-op safe on first run).
@@ -142,6 +151,10 @@ class HomeKeeperStore:
             self._problem_notes = data["problem_notes"]
         else:
             self._problem_notes = {}
+        if data and isinstance(data.get("problem_consumables"), dict):
+            self._problem_consumables = data["problem_consumables"]
+        else:
+            self._problem_consumables = {}
         # Additive migrations (no storage-version bump): fold a legacy
         # ``part_numbers`` string into structured ``parts`` and drop links to
         # assets that no longer exist.
@@ -162,6 +175,7 @@ class HomeKeeperStore:
                 "tasks": self._tasks,
                 "assets": self._assets,
                 "problem_notes": self._problem_notes,
+                "problem_consumables": self._problem_consumables,
             }
         )
 
@@ -180,6 +194,7 @@ class HomeKeeperStore:
         self._tasks = {}
         self._assets = {}
         self._problem_notes = {}
+        self._problem_consumables = {}
 
     # ── reads ────────────────────────────────────────────────────────────────
     def get_tasks(self) -> dict[str, dict[str, Any]]:
@@ -230,6 +245,12 @@ class HomeKeeperStore:
         if existing is None:
             raise KeyError(task_id)
         merged = models.merge_update(existing, updates, now=dt_util.now())
+        # A consumable link touched by this update must point at a real asset/part —
+        # reject a dangling link at the edge rather than persisting a no-op that would
+        # silently fail to draw down stock. Only re-check when the update actually set
+        # it (a plain rename must not re-validate an untouched pre-existing link).
+        if "consumable" in updates:
+            self._validate_consumable(merged.get("consumable"))
         self._tasks[task_id] = merged
         # Mirror a problem-sensor task's note into the durable, entity-keyed side-store
         # so it outlives the task (the mirror is deleted/recreated as the sensor is
@@ -242,6 +263,20 @@ class HomeKeeperStore:
                 self._problem_notes[entity_id] = note
             else:
                 self._problem_notes.pop(entity_id, None)
+            # The spare-part link rides the same durable, entity-keyed side-store so it
+            # survives the mirror being recreated. Store the mode with it so a
+            # re-hydrated link keeps its consume-on-clear behaviour.
+            link = merged.get("consumable")
+            if link:
+                self._problem_consumables[entity_id] = {
+                    "asset_id": link["asset_id"],
+                    "part_id": link["part_id"],
+                    "consume_on_clear": merged.get(
+                        "consume_on_clear", CONSUME_ON_CLEAR_OFF
+                    ),
+                }
+            else:
+                self._problem_consumables.pop(entity_id, None)
         await self._save()
         # Fire only on a real change; carry which fields moved so automations can react
         # selectively (e.g. a rename vs. a schedule change).
@@ -564,12 +599,20 @@ class HomeKeeperStore:
         self._validate_parent(asset_id, prospective_parent)
         merged = assets.merge_update(existing, updates, now=dt_util.now())
         self._assets[asset_id] = merged
+        # Editing an appliance can remove a part; clear any problem-mirror consumable
+        # link that pointed at a now-gone part (and its durable side-store entry).
+        consumable_unlinked = self._prune_dangling_consumables()
         await self._save()
         changed = _changed_fields(existing, merged)
         if changed:
             self._hass.bus.async_fire(
                 EVENT_ASSET_UPDATED,
                 events.asset_event_data(merged, extra={"changed_fields": changed}),
+            )
+        for task in consumable_unlinked:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": ["consumable"]}),
             )
         return merged
 
@@ -724,6 +767,35 @@ class HomeKeeperStore:
                 changed = True
         return changed
 
+    def _prune_dangling_consumables(self) -> list[dict[str, Any]]:
+        """Clear decoupled ``consumable`` links whose target part no longer exists.
+
+        The counterpart to ``reconcile_part_tasks``'s dangling ``source.part`` cleanup,
+        for the separate ``task["consumable"]`` link used on problem mirrors. Called
+        after an asset/part is removed: keeps the task and its history, only dropping
+        the now-dangling link (and resetting ``consume_on_clear`` to off) so it can't
+        silently no-op on the next clear, and evicts the matching durable side-store
+        entry so a recreated mirror doesn't re-hydrate a gone link. Returns the tasks
+        whose link was cleared so the caller can announce the change.
+        """
+        valid = {
+            (a.get("id"), p.get("id"))
+            for a in self._assets.values()
+            for p in a.get("parts", [])
+            if p.get("id")
+        }
+        affected: list[dict[str, Any]] = []
+        for task in self._tasks.values():
+            link = task.get("consumable")
+            if link and (link.get("asset_id"), link.get("part_id")) not in valid:
+                task["consumable"] = None
+                task["consume_on_clear"] = CONSUME_ON_CLEAR_OFF
+                affected.append(task)
+        for eid, link in list(self._problem_consumables.items()):
+            if (link.get("asset_id"), link.get("part_id")) not in valid:
+                self._problem_consumables.pop(eid, None)
+        return affected
+
     async def set_asset_device_id(self, asset_id: str, device_id: str) -> None:
         """Record the registry device id assigned to a provisioned virtual asset."""
         asset = self._assets.get(asset_id)
@@ -768,6 +840,9 @@ class HomeKeeperStore:
         for child in self._assets.values():
             if child.get("parent_asset_id") == asset_id:
                 child["parent_asset_id"] = None
+        # A problem mirror pointing at one of this appliance's parts via the decoupled
+        # ``consumable`` link loses its target too — clear it (keeping the mirror).
+        consumable_unlinked = self._prune_dangling_consumables()
         await self._save()
         # Drop any uploaded-document blobs the appliance owned (best-effort cleanup).
         from . import manuals  # lazy import: avoids a load-time import cycle
@@ -781,6 +856,11 @@ class HomeKeeperStore:
             self._hass.bus.async_fire(
                 EVENT_TASK_UPDATED,
                 events.task_event_data(task, extra={"changed_fields": ["source"]}),
+            )
+        for task in consumable_unlinked:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": ["consumable"]}),
             )
         self._hass.bus.async_fire(EVENT_ASSET_DELETED, events.asset_event_data(asset))
         return asset
@@ -913,12 +993,14 @@ class HomeKeeperStore:
             config_entry_id=config_entry_id,
             now=dt_util.now(),
             notes_by_entity=self._problem_notes,
+            consumables_by_entity=self._problem_consumables,
         )
         if not changed:
             return False
         self._tasks = new_tasks
         await self._save()
         entity_set_changed = False
+        stock_changed = False
         for kind, task in ops:
             if kind == "created":
                 self._hass.bus.async_fire(
@@ -935,12 +1017,22 @@ class HomeKeeperStore:
                     EVENT_TASK_TRIGGERED, events.task_event_data(task)
                 )
             elif kind == "cleared":
+                # The problem resolved (sensor returned to OK). If the user attached a
+                # spare and opted into consume-on-clear, treat the resolution as a
+                # replacement and draw down one spare — firing the edge-triggered
+                # low/out-of-stock events like a wear-part completion does.
+                if self._consume_linked_spare(task):
+                    stock_changed = True
                 self._hass.bus.async_fire(
                     EVENT_TASK_COMPLETED,
                     events.completion_event_data(
                         task, dt_util.now(), ORIGIN_PROBLEM_SENSOR_SYNC
                     ),
                 )
+        if stock_changed:
+            # The consume above mutated an asset's stock in place; persist it (the
+            # earlier save only captured the task diff).
+            await self._save()
         return entity_set_changed
 
     async def complete_task(
@@ -1107,6 +1199,49 @@ class HomeKeeperStore:
         # stale pre-completion baseline — which could otherwise immediately re-arm the
         # task if the meter advanced past target while the entity was unavailable.
         cfg["baseline"] = sensor_watcher.read_sensor_value(self._hass, cfg)
+
+    def _validate_consumable(self, link: dict[str, Any] | None) -> None:
+        """Raise ``TaskValidationError`` if *link* points at a missing asset/part.
+
+        Mirrors ``set_task_consumable``'s existence check for the decoupled
+        ``task["consumable"]`` link (used on source-owned problem mirrors). ``None`` /
+        an already-cleared link is a valid no-op.
+        """
+        if not link:
+            return
+        asset_id = str(link.get("asset_id") or "")
+        part_id = str(link.get("part_id") or "")
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise models.TaskValidationError(f"unknown asset: {asset_id!r}")
+        if not any(p.get("id") == part_id for p in asset.get("parts", [])):
+            raise models.TaskValidationError(
+                f"asset {asset_id!r} has no part {part_id!r}"
+            )
+
+    def _consume_linked_spare(self, task: dict[str, Any]) -> bool:
+        """Draw down one spare from a task's ``consumable`` link, if opted in.
+
+        Used on a problem mirror's auto-clear: when ``consume_on_clear`` is ``auto``
+        and the linked part still exists, consume one spare (``consume_part_stock``)
+        and fire the resulting stock transition. Returns ``True`` when it mutated a
+        part's stock (so the caller persists). A missing asset/part or an ``off`` mode
+        is a silent no-op — an over-eager decrement of a stale link is worse than none.
+        """
+        if task.get("consume_on_clear") != CONSUME_ON_CLEAR_AUTO:
+            return False
+        link = task.get("consumable")
+        if not link:
+            return False
+        asset = self._assets.get(str(link.get("asset_id") or ""))
+        if asset is None:
+            return False
+        part_id = link.get("part_id")
+        for part in asset.get("parts", []):
+            if part.get("id") == part_id:
+                self._emit_stock_event(assets.consume_part_stock(part), asset, part)
+                return True
+        return False
 
     def _stamp_part_replacement(self, task: dict[str, Any], when: Any) -> None:
         src = _part_source(task)

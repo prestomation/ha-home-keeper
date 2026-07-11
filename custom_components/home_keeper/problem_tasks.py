@@ -84,6 +84,7 @@ def _build_task(
     config_entry_id: str,
     now: datetime,
     note: str = "",
+    consumable: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create a fresh synced task dict for *entity_id*, armed per ``is_problem``.
 
@@ -92,7 +93,14 @@ def _build_task(
     a note survives the task being deleted and later recreated — turning the sync off
     and on again, or temporarily excluding the sensor — and reappears the next time
     the problem fires.
+
+    *consumable* re-hydrates the spare-part link (``{asset_id, part_id,
+    consume_on_clear}``) the same way — attached to a problem mirror it surfaces
+    where-to-buy / spares-on-hand and, when ``consume_on_clear`` is ``auto``, draws
+    down a spare on clear. Like the note it is persisted by the store keyed on the
+    sensor entity_id so it survives the mirror being deleted and recreated.
     """
+    consumable = consumable or {}
     task = models.build_task(
         {
             "name": meta["name"],
@@ -102,6 +110,15 @@ def _build_task(
             "area_id": meta.get("area_id"),
             "source": {TASK_SOURCE_PROBLEM_SENSOR: {"entity_id": entity_id}},
             "managed_by": build_managed_by(entity_id, config_entry_id),
+            "consumable": (
+                {
+                    "asset_id": consumable["asset_id"],
+                    "part_id": consumable["part_id"],
+                }
+                if consumable.get("asset_id") and consumable.get("part_id")
+                else None
+            ),
+            "consume_on_clear": consumable.get("consume_on_clear"),
         },
         now=now,
     )
@@ -121,6 +138,7 @@ def reconcile_problem_tasks(
     config_entry_id: str,
     now: datetime,
     notes_by_entity: dict[str, str] | None = None,
+    consumables_by_entity: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[dict[str, dict[str, Any]], list[tuple[str, dict[str, Any]]], bool]:
     """Compute the task map mirroring the eligible problem sensors.
 
@@ -133,6 +151,11 @@ def reconcile_problem_tasks(
     note the user wrote last time reappears when the same problem is mirrored again
     (see :func:`_build_task`). Existing tasks keep their live ``notes`` untouched.
 
+    *consumables_by_entity* maps ``entity_id`` -> the durable spare-part link
+    (``{asset_id, part_id, consume_on_clear}``) the same way, so a freshly created
+    mirror re-hydrates the part the user attached. Existing tasks keep their live
+    ``consumable``/``consume_on_clear`` untouched.
+
     Returns ``(new_tasks, ops, changed)``:
 
     * ``new_tasks`` — a fresh task map (non-synced tasks carried through untouched).
@@ -144,6 +167,7 @@ def reconcile_problem_tasks(
     """
     result = dict(tasks)
     notes_by_entity = notes_by_entity or {}
+    consumables_by_entity = consumables_by_entity or {}
     ops: list[tuple[str, dict[str, Any]]] = []
     changed = False
 
@@ -170,6 +194,7 @@ def reconcile_problem_tasks(
                 config_entry_id=config_entry_id,
                 now=now,
                 note=notes_by_entity.get(entity_id, ""),
+                consumable=consumables_by_entity.get(entity_id),
             )
             result[task["id"]] = task
             ops.append(("created", task))

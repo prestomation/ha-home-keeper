@@ -239,6 +239,34 @@ Add a durable note that reappears the next time the problem fires:
 
 ![Editing the note on a synced problem-sensor task — a textarea seeded with the previous note and Save/Cancel buttons](docs/images/18-panel-problem-sensor-note.png)
 
+### Link a spare part — inventory & where to buy
+
+A problem sensor tells you *something* needs attention (e.g. an air filter reporting it's
+unhealthy), but on its own it doesn't tell you **which part fixes it or where to get one**.
+You can now attach a **spare consumable part** to a synced problem task so the answer sits
+right next to the problem.
+
+- **Attach the part.** Open the problem task and use **Attach a spare part** to link it to
+  one of your appliances' consumables. If the sensor's device doesn't have an appliance in
+  Home Keeper yet, **Create appliance for this device** sets one up so you have somewhere to
+  record the part (its vendor, product link, and spare count).
+- **Where to buy + spares on hand.** Once linked, the task's **Linked part** card shows the
+  part with a clickable link to **where you buy it** and **how many spares you have**, so
+  reordering is one tap away and you know whether you already have one in the drawer.
+- **Optionally draw down stock on its own.** Turn on **Use a spare when the problem clears**
+  and, when the sensor returns to OK (you replaced the filter), Home Keeper **consumes one
+  spare** from that part's stock and fires the same low / out-of-stock events you can automate
+  a reorder from. It's **off by default** — nothing touches your inventory unless you ask it
+  to (a sensor can clear because it was reset or cleaned, not replaced).
+- **Sticks with the sensor.** Like the note, the link survives the task clearing and
+  re-arming — and even the mirror being removed and recreated — so it's there next time.
+
+![A synced problem-sensor task with a linked spare part — the Linked part card shows the appliance and part with a product link and spares on hand, and whether clearing draws down a spare](docs/images/19-panel-problem-sensor-linked-part.png)
+
+Attach or change the part inline, and choose whether clearing the problem uses a spare:
+
+![The inline linked-part editor on a problem-sensor task — a part picker and a "Use a spare when the problem clears" toggle with Save/Cancel](docs/images/19b-panel-problem-sensor-consumable-editor.png)
+
 ## Sensor-based tasks (usage meters & thresholds)
 
 Some maintenance isn't measured in *time* but in *use*: oil every **15,000 km**, a

@@ -210,3 +210,60 @@ def test_note_hydration_only_seeds_new_tasks_not_existing_ones():
     )
     assert tasks2[tid]["notes"] == "edited on the task"
     assert [kind for kind, _ in ops] == ["cleared"]
+
+
+# ── consumable-link hydration ───────────────────────────────────────────────────
+def test_new_task_hydrates_consumable_from_side_store():
+    # A spare-part link the user attached previously (kept in the store's entity-keyed
+    # side-store) re-hydrates onto the freshly created mirror, mode included.
+    tasks, ops, _ = pt.reconcile_problem_tasks(
+        _eligible(is_problem=True),
+        {},
+        config_entry_id=ENTRY,
+        now=NOW,
+        consumables_by_entity={
+            ENTITY: {
+                "asset_id": "asset1",
+                "part_id": "part1",
+                "consume_on_clear": "auto",
+            }
+        },
+    )
+    task = _only(tasks)
+    assert task["consumable"] == {"asset_id": "asset1", "part_id": "part1"}
+    assert task["consume_on_clear"] == "auto"
+    assert [kind for kind, _ in ops] == ["created"]
+
+
+def test_new_task_without_stored_consumable_defaults_unlinked():
+    tasks, _, _ = pt.reconcile_problem_tasks(
+        _eligible(is_problem=True),
+        {},
+        config_entry_id=ENTRY,
+        now=NOW,
+        consumables_by_entity={"binary_sensor.other": {"asset_id": "a", "part_id": "p"}},
+    )
+    task = _only(tasks)
+    assert task["consumable"] is None
+    assert task["consume_on_clear"] == "off"
+
+
+def test_consumable_hydration_only_seeds_new_tasks_not_existing_ones():
+    # An existing mirror keeps its live link; re-reconciling never clobbers it from the
+    # side-store (write-back flows the other way, in the store on update_task).
+    tasks, _, _ = _reconcile(_eligible(is_problem=True))
+    tid = next(iter(tasks))
+    tasks[tid]["consumable"] = {"asset_id": "live", "part_id": "live"}
+    tasks[tid]["consume_on_clear"] = "auto"
+    tasks2, ops, _ = pt.reconcile_problem_tasks(
+        _eligible(is_problem=False),  # sensor clears
+        tasks,
+        config_entry_id=ENTRY,
+        now=NOW + timedelta(hours=1),
+        consumables_by_entity={
+            ENTITY: {"asset_id": "stale", "part_id": "stale", "consume_on_clear": "off"}
+        },
+    )
+    assert tasks2[tid]["consumable"] == {"asset_id": "live", "part_id": "live"}
+    assert tasks2[tid]["consume_on_clear"] == "auto"
+    assert [kind for kind, _ in ops] == ["cleared"]

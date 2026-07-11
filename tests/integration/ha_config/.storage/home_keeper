@@ -462,7 +462,12 @@
         "enabled": true,
         "completion_detail": "none",
         "completion_required_fields": [],
-        "next_due": "2026-06-27T17:47:37.901565-04:00"
+        "next_due": "2026-06-27T17:47:37.901565-04:00",
+        "consumable": {
+          "asset_id": "asset_sump_pump",
+          "part_id": "part_float_switch"
+        },
+        "consume_on_clear": "auto"
       }
     },
     "assets": {
@@ -664,6 +669,53 @@
         "created": "2026-05-01T09:00:00-04:00",
         "metadata": [],
         "documents": []
+      },
+      "asset_sump_pump": {
+        "id": "asset_sump_pump",
+        "kind": "virtual",
+        "name": "Sump pump",
+        "device_id": "b7c1e2f3a4d5e6f7089a1b2c3d4e5f60",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_asset_sump_pump"
+          ]
+        ],
+        "connections": [],
+        "area_id": null,
+        "manufacturer": "Zoeller",
+        "model": "M53",
+        "cost": 189.0,
+        "icon": "mdi:water-pump",
+        "parts": [
+          {
+            "id": "part_float_switch",
+            "name": "Backup float switch",
+            "part_number": "SFS-200",
+            "type": "consumable",
+            "vendor": "Amazon",
+            "cost": 24.0,
+            "url": "https://www.amazon.com/dp/B0FLOATSW1",
+            "notes": "",
+            "last_replaced": null,
+            "stock": 3,
+            "reorder_at": 1
+          }
+        ],
+        "parent_asset_id": null,
+        "related_device_ids": [],
+        "created": "2026-07-01T00:00:00+00:00",
+        "task_history": [],
+        "metadata": [],
+        "documents": [],
+        "serial_number": null
+      }
+    },
+    "problem_consumables": {
+      "binary_sensor.sump_pump_problem": {
+        "asset_id": "asset_sump_pump",
+        "part_id": "part_float_switch",
+        "consume_on_clear": "auto"
       }
     }
   }
