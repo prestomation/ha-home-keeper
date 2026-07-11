@@ -164,17 +164,30 @@ add/extend a regression test where the bug class allows it, and update
 
 ## Maintainability
 
-- [ ] R1. Extract services from `__init__.py` into `services.py`: registration
-  table (teardown derived from it), exception-translation decorator for the
-  copy-pasted `KeyError → task_not_found` blocks, schemas alongside. `__init__.py`
-  keeps only entry lifecycle.
-- [ ] R2. Shared `_coordinator()` lookup helper (used by `websocket_api.py`,
-  `device_trigger.py`, `manuals.py`, `__init__.py`/`services.py`).
-- [ ] R3. Shared registry-prune helper for the four entity platforms + shared part
-  lookup for `number.py`/`binary_sensor.py`. (`sensor.py:73`, `binary_sensor.py:75`,
-  `button.py:39`, `number.py:53`)
-- [ ] R4. Single content-type allowlist in `const.py` (used by `assets.py` and
-  `documents.py`).
+- [x] R1. Extracted the service layer into `services.py`: all schemas, the
+  handlers (now `async def _handle_*(hass, call)`, `hass`-bound at registration),
+  a frozen `_ServiceDef` registration table that drives **both** register and
+  teardown (killing the hand-maintained `_SERVICES` tuple that could drift), and a
+  `_translate_errors` decorator that folds the copy-pasted
+  `KeyError → {task,asset}_not_found` / `TaskValidationError → invalid_task` /
+  `AssetValidationError → invalid_asset` blocks. `__init__.py` now keeps only entry
+  lifecycle (down from ~1140 to ~180 lines). `_delete_asset` moved alongside.
+  (`services.py`, `__init__.py`)
+- [x] R2. Shared coordinator lookup helper in `coordinator.py`: `get_coordinator`
+  (returns `None` when unloaded) and `require_coordinator` (raises the localized
+  `integration_not_loaded`). Replaced the four hand-rolled copies in
+  `websocket_api.py`, `device_trigger.py`, `manuals.py`, and `__init__.py`.
+- [x] R3. `entity.async_prune_platform_entities(hass, entry, domain, is_stale)` folds
+  the identical registry-walk loop out of all four platforms; each passes an
+  `is_stale(uid)` closure holding its own unique-id shape(s) + live sets (behavior
+  unchanged). Shared `assets.find_part(asset, part_id)` replaces the duplicated
+  `_part()` in `number.py`/`binary_sensor.py`. (`entity.py`, `assets.py`, `sensor.py`,
+  `binary_sensor.py`, `button.py`, `number.py`)
+- [x] R4. Single upload allowlist `const.DOCUMENT_CONTENT_TYPES` (content type →
+  canonical extension). `documents.py`'s `TYPE_EXTENSIONS` now aliases it and
+  `assets.py`'s `_ALLOWED_DOC_CONTENT_TYPES = frozenset(DOCUMENT_CONTENT_TYPES)`, so
+  adding a type is a one-line change that covers both the HTTP upload path and the
+  stored-metadata validator. (`const.py`, `documents.py`, `assets.py`)
 - [ ] R5. Panel list-shaping folds onto `card-filter.ts`'s pure functions
   (`statusBucket`/`bucketByKey`/`taskAreaId`) to kill the drift class fixed in N8.
 - [ ] R6. Extract the Settings tab from `panel.ts` into `settings.ts` (profiles /
@@ -182,10 +195,15 @@ add/extend a regression test where the bug class allows it, and update
   `_renderProfiles`/`_renderNotifications` pair.
 - [ ] R7. Extract the asset editor (form + schemas + parts/metadata/documents
   editors) from `panel.ts` into `asset-form.ts`.
-- [ ] R8. Contract hygiene: coordinator returns a copy (or documents the live-dict
-  alias loudly + asserts `always_update`); `problem_tasks` reconciler stops
-  mutating store dicts in place; `transitions.py` uses a public parse helper
-  instead of `recurrence._parse`.
+- [x] R8. Contract hygiene: (a) coordinator now pins `always_update=True` explicitly
+  with a loud note at both `__init__` and the `_async_update_data` return documenting
+  that `self.data` aliases the store's live task map (so base change-detection can't
+  apply); (b) the `problem_tasks` reconciler copies each touched task
+  (`dict(result[tid])`) before mutating, so it no longer mutates the store's live
+  dicts in place — the store adopts the returned map wholesale; (c) `recurrence._parse`
+  promoted to public `recurrence.parse_due`, and `transitions.py` uses it instead of
+  reaching into the private helper. (`coordinator.py`, `problem_tasks.py`,
+  `recurrence.py`, `transitions.py`)
 
 ## Wrap-up
 

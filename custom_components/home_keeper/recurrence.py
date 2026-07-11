@@ -218,8 +218,12 @@ def expand_fixed_occurrences(
     return occurrences
 
 
-def _parse(value: str | datetime | None) -> datetime | None:
-    """Parse an ISO string into an aware datetime (pass-through for datetimes)."""
+def parse_due(value: str | datetime | None) -> datetime | None:
+    """Parse a task's ISO due/anchor string into an aware datetime.
+
+    Public (pass-through for ``datetime``/``None``) so other modules — e.g.
+    ``transitions.py`` computing "due in N hours" — don't reach into a private helper.
+    """
     if value is None or isinstance(value, datetime):
         return value
     return datetime.fromisoformat(value)
@@ -230,13 +234,13 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
     rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FLOATING:
         return compute_floating_next_due(
-            _parse(task.get("last_completed")),
+            parse_due(task.get("last_completed")),
             int(task["interval"]),
             task["unit"],
             now=now,
         )
     if rec_type == REC_FIXED:
-        anchor = _parse(task["anchor"])
+        anchor = parse_due(task["anchor"])
         assert anchor is not None
         return next_fixed_occurrence(
             anchor, task["freq"], int(task["interval"]), after=now
@@ -252,7 +256,7 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
         # A do-once task is due at its stored ``due`` date. Going dormant on
         # completion is ``apply_completion``'s job (next_due -> None); this function
         # only ever (re)arms it back to ``due`` (e.g. when a completion is undone).
-        due = _parse(task["due"])
+        due = parse_due(task["due"])
         assert due is not None
         return due
     raise ValueError(f"unknown recurrence_type: {rec_type!r}")
@@ -317,7 +321,7 @@ def apply_completion(
             completed_at, int(task["interval"]), task["unit"], now=now
         ).isoformat()
     elif rec_type == REC_FIXED:
-        anchor = _parse(task["anchor"])
+        anchor = parse_due(task["anchor"])
         assert anchor is not None
         task["next_due"] = next_fixed_occurrence(
             anchor, task["freq"], int(task["interval"]), after=now
@@ -361,9 +365,9 @@ def skip_occurrence(task: dict, *, now: datetime) -> dict:
             now, int(task["interval"]), task["unit"]
         ).isoformat()
     elif rec_type == REC_FIXED:
-        anchor = _parse(task["anchor"])
+        anchor = parse_due(task["anchor"])
         assert anchor is not None
-        current = _parse(task.get("next_due"))
+        current = parse_due(task.get("next_due"))
         after = max(now, current) if current is not None else now
         task["next_due"] = next_fixed_occurrence(
             anchor, task["freq"], int(task["interval"]), after=after
@@ -460,7 +464,7 @@ def is_overdue(task: dict, *, now: datetime) -> bool:
     different purpose (advancing to the next occurrence); a completion always sets
     ``next_due`` strictly in the future, so a just-completed task is never overdue.
     """
-    next_due = _parse(task.get("next_due"))
+    next_due = parse_due(task.get("next_due"))
     if next_due is None:
         return False
     return now >= next_due
@@ -468,7 +472,7 @@ def is_overdue(task: dict, *, now: datetime) -> bool:
 
 def is_due_soon(task: dict, window: timedelta, *, now: datetime) -> bool:
     """True when the task becomes due within *window* (and is not yet overdue)."""
-    next_due = _parse(task.get("next_due"))
+    next_due = parse_due(task.get("next_due"))
     if next_due is None:
         return False
     return now < next_due <= now + window
@@ -489,7 +493,7 @@ def one_off_expired(task: dict, retention_days: int, *, now: datetime) -> bool:
         return False
     if task.get("next_due") is not None:
         return False
-    completed = _parse(task.get("last_completed"))
+    completed = parse_due(task.get("last_completed"))
     if completed is None:
         return False
     return now >= completed + timedelta(days=retention_days)

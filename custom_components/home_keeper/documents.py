@@ -13,16 +13,11 @@ import re
 from pathlib import Path, PurePath
 
 from .assets import AssetValidationError
-from .const import MAX_DOCUMENT_BYTES
+from .const import DOCUMENT_CONTENT_TYPES, MAX_DOCUMENT_BYTES
 
-# content-type -> canonical extension. The key set is the upload allowlist.
-TYPE_EXTENSIONS = {
-    "application/pdf": ".pdf",
-    "image/png": ".png",
-    "image/jpeg": ".jpg",
-    "image/webp": ".webp",
-    "image/gif": ".gif",
-}
+# content-type -> canonical extension; the key set is the upload allowlist. Sourced
+# from const so ``assets.py`` and this module share one allowlist (see const.py).
+TYPE_EXTENSIONS = DOCUMENT_CONTENT_TYPES
 
 _MAX_FILENAME_LEN = 120
 

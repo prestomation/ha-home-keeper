@@ -176,7 +176,12 @@ def reconcile_problem_tasks(
             changed = True
             continue
 
-        task = result[existing_tid]
+        # Work on a copy so we never mutate the store's live task dict in place — the
+        # store owns whether/when to commit (only when ``changed``). The writes below
+        # and ``apply_completion`` all reassign top-level keys (the latter rebuilds
+        # ``completions`` as a fresh list), so a shallow copy fully isolates the store.
+        task = dict(result[existing_tid])
+        result[existing_tid] = task
         # Re-derive owned metadata that follows the sensor (rename, re-home to a new
         # device/area). Silent churn — not announced as a user-facing update.
         managed_by = build_managed_by(entity_id, config_entry_id)

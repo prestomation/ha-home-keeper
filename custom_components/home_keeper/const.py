@@ -41,6 +41,18 @@ MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
 # of a document id — it lives under the same per-asset directory (asset deletion's
 # rmtree cleans it up for free) and is served by a sibling HTTP view.
 PART_FILE_URL_PREFIX = "/api/home_keeper/part_document"
+# Upload allowlist: content type -> canonical file extension. The single source of
+# truth for both the HTTP upload path (``documents.py`` sniffs magic bytes against
+# these keys and forces the extension) and the stored-metadata validator
+# (``assets.py`` allows only these content types). Add a type here to allow it in
+# both places at once.
+DOCUMENT_CONTENT_TYPES: dict[str, str] = {
+    "application/pdf": ".pdf",
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
 # How many completion timestamps to retain per task. Generous so the panel's task
 # history shows years of cadence (e.g. 500 monthly completions ≈ 40 years) while
 # still bounding the stored list. When a task that belongs to an appliance is

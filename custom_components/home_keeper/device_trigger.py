@@ -45,7 +45,7 @@ from .const import (
     EVENT_TASK_SNOOZED,
     EVENT_TASK_UPDATED,
 )
-from .coordinator import HomeKeeperCoordinator
+from .coordinator import get_coordinator
 
 # trigger_type -> bus event. Task triggers are offered for any device with Home Keeper
 # tasks; appliance (stock) triggers for any Home Keeper appliance device.
@@ -75,14 +75,6 @@ TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(
 )
 
 
-def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        coord = getattr(entry, "runtime_data", None)
-        if isinstance(coord, HomeKeeperCoordinator):
-            return coord
-    return None
-
-
 def _hk_identifier(device: dr.DeviceEntry) -> str | None:
     """Return the Home Keeper registry identifier value for *device*, or None."""
     for domain, value in device.identifiers:
@@ -101,7 +93,7 @@ def _filters(hass: HomeAssistant, device_id: str) -> tuple[dict | None, dict | N
     device = dr.async_get(hass).async_get(device_id)
     if device is None:
         return None, None
-    coord = _coordinator(hass)
+    coord = get_coordinator(hass)
     tasks = list(coord.store.get_tasks().values()) if coord else []
     assets = coord.store.list_assets() if coord else []
     ident = _hk_identifier(device)
