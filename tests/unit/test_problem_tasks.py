@@ -241,7 +241,9 @@ def test_new_task_without_stored_consumable_defaults_unlinked():
         {},
         config_entry_id=ENTRY,
         now=NOW,
-        consumables_by_entity={"binary_sensor.other": {"asset_id": "a", "part_id": "p"}},
+        consumables_by_entity={
+            "binary_sensor.other": {"asset_id": "a", "part_id": "p"}
+        },
     )
     task = _only(tasks)
     assert task["consumable"] is None

@@ -89,10 +89,10 @@ def test_synced_problem_task_note_is_editable_and_persists(ha):
 
 
 def test_synced_problem_task_has_hydrated_consumable_link(ha):
-    # The seed links this sensor to the sump-pump appliance's spare float switch via the
-    # durable `problem_consumables` side-store; the sync re-hydrates it onto the mirror,
-    # so the task surfaces the spare part (where-to-buy + stock) despite the mirror being
-    # runtime-created. Proves the decoupled link + hydration end to end.
+    # The seed links this sensor to the sump-pump appliance's spare float switch via
+    # the durable `problem_consumables` side-store; the sync re-hydrates it onto the
+    # mirror, so the task surfaces the spare part (where-to-buy + stock) despite the
+    # mirror being runtime-created. Proves the decoupled link + hydration end to end.
     task = _synced_task(ha)
     assert task is not None
     assert task.get("consumable") == {
@@ -103,16 +103,18 @@ def test_synced_problem_task_has_hydrated_consumable_link(ha):
 
 
 def test_synced_problem_task_consumable_is_editable_via_update_task(ha):
-    # Like the note, the consumable link + its consume-on-clear mode are user-editable on
-    # a synced task (not in locked_fields, not gated by the synced-task guard). Flip the
-    # mode off through update_task and confirm it round-trips on the same mirror.
+    # Like the note, the consumable link + its consume-on-clear mode are user-editable
+    # on a synced task (not in locked_fields, not gated by the synced-task guard). Flip
+    # the mode off through update_task and confirm it round-trips on the same mirror.
     task = _synced_task(ha)
     assert task is not None
     r = ha.post(
         f"{HA_URL}/api/services/home_keeper/update_task",
         json={"task_id": task["id"], "consume_on_clear": "off"},
     )
-    assert r.status_code < 400, f"editing consume_on_clear should be allowed, got {r.status_code}"
+    assert r.status_code < 400, (
+        f"editing consume_on_clear should be allowed, got {r.status_code}"
+    )
     deadline = time.monotonic() + 15
     again = None
     while time.monotonic() < deadline:
