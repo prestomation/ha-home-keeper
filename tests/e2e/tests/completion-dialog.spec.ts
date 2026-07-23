@@ -38,4 +38,35 @@ test.describe('Home Keeper panel — completion dialog', () => {
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
+
+  test('the move-date dialog renders its action buttons and can be cancelled', async ({
+    page,
+  }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
+    await panel.locator('.hk-hist-move').first().click();
+
+    const dialog = panel.locator('ha-dialog[open]');
+    const dateField = dialog.locator('ha-selector-datetime').first();
+    await dateField.waitFor({ state: 'visible', timeout: 15_000 });
+
+    // Same regression guard as the completion dialog (#144/#147): the move-date
+    // dialog is built by hand alongside it and must wrap its buttons the same way.
+    const footer = dialog.locator('ha-dialog-footer[slot="footer"]');
+    await expect(footer).toHaveCount(1);
+    await expect(footer.locator('ha-button[slot="primaryAction"]')).toHaveCount(1);
+    await expect(footer.locator('ha-button[slot="secondaryAction"]')).toHaveCount(1);
+
+    await expect(dialog.getByRole('button', { name: 'Save' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible();
+
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
 });

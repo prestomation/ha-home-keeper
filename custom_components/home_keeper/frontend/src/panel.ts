@@ -3955,19 +3955,28 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     dialog.appendChild(body);
 
+    // See _renderCompletionDialog: current ha-dialog (backed by wa-dialog) only
+    // exposes a "footer" slot — primaryAction/secondaryAction slotted directly on
+    // <ha-dialog> silently don't render. Fall back to the old direct-slot
+    // convention if ha-dialog-footer isn't registered (older HA frontends).
+    const hasFooter = Boolean(customElements.get('ha-dialog-footer'));
+    const footer: HTMLElement = hasFooter ? document.createElement('ha-dialog-footer') : dialog;
+    if (hasFooter) footer.setAttribute('slot', 'footer');
+
     const primary = document.createElement('ha-button');
     primary.setAttribute('slot', 'primaryAction');
     primary.setAttribute('raised', '');
     primary.textContent = t('btn.save');
     primary.addEventListener('click', () => void this._submitMoveCompletion());
-    dialog.appendChild(primary);
+    footer.appendChild(primary);
 
     const cancel = document.createElement('ha-button');
     cancel.setAttribute('slot', 'secondaryAction');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeMoveCompletion());
-    dialog.appendChild(cancel);
+    footer.appendChild(cancel);
 
+    if (hasFooter) dialog.appendChild(footer);
     host.appendChild(dialog);
   }
 
