@@ -1,0 +1,20 @@
+{
+  "action_complete": "Als klaar markeren",
+  "action_snooze": "{hours} u uitstellen",
+  "action_skip": "Overslaan",
+  "action_open": "Openen",
+  "due_now": "Vervalt nu.",
+  "due_soon": "Vervalt binnenkort.",
+  "overdue.one": "{days} dag te laat.",
+  "overdue.few": "{days} dagen te laat.",
+  "overdue.many": "{days} dagen te laat.",
+  "overdue.other": "{days} dagen te laat.",
+  "digest_title.one": "{count} taak te doen",
+  "digest_title.few": "{count} taken te doen",
+  "digest_title.many": "{count} taken te doen",
+  "digest_title.other": "{count} taken te doen",
+  "digest_item": "• {name}",
+  "digest_more": "…en nog {more}",
+  "all_clear_title": "Helemaal bij",
+  "all_clear_message": "Op dit moment geen taken te doen. 🎉"
+}

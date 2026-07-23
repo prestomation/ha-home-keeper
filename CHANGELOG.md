@@ -8,8 +8,14 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ### Fixed
 
-- **Several user-facing strings weren't localized.** An audit of the whole
-  integration for hardcoded English text found: the websocket API's and
+- **Notification action buttons and text were hardcoded in English.** The "Mark
+  done"/"Snooze"/"Skip"/"Open" action buttons on actionable mobile notifications, and
+  the notification title/body text (overdue/due-soon phrasing, the digest summary, the
+  "All caught up" close-out), are now localized to `hass.config.language` across all
+  16 supported locales, with correct CLDR plural forms (via the new `Babel`
+  dependency) for counts like "N day(s) overdue" or "N task(s) due". (Fixes #150)
+- **Several other user-facing strings weren't localized.** A follow-up audit of the
+  whole integration for hardcoded English text found: the websocket API's and
   document-upload views' error messages (e.g. "Unknown task_id", "Home Keeper is
   not loaded"); the problem-sensor sync's completion explanation; the Battery
   Notes companion suggestion's description; the inventory CSV export's column

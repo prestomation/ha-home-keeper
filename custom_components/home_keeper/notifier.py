@@ -164,13 +164,16 @@ async def _send(
             len(queue),
         )
         return len(queue), None
+    lang = hass.config.language
     if notification["style"] == notifications.STYLE_DIGEST:
-        payload = notifications.build_digest(queue, notification=notification, now=now)
+        payload = notifications.build_digest(
+            queue, notification=notification, now=now, lang=lang
+        )
         sent_id: str | None = None
     else:
         head = queue[0]
         payload = notifications.build_notification(
-            head, notification=notification, now=now
+            head, notification=notification, now=now, lang=lang
         )
         sent_id = head["id"]
     await _send_payload(hass, notification["targets"], payload)
@@ -345,11 +348,10 @@ def async_setup_notifications(
                 hass, coord, notification, reason="walk-advance"
             )
             if matched == 0:
-                await _send_payload(
-                    hass,
-                    notification["targets"],
-                    notifications.build_all_clear(notification),
+                all_clear = notifications.build_all_clear(
+                    notification, lang=hass.config.language
                 )
+                await _send_payload(hass, notification["targets"], all_clear)
 
     @callback
     def _on_action(event: Event) -> None:

@@ -29,8 +29,10 @@ jobs:
         with:
           python-version: "3.13"
       # Install Home Assistant so its own types resolve — strict typing against the
-      # real HA API is the Platinum quality-scale gate (quality_scale.yaml).
-      - name: Install mypy + Home Assistant
-        run: pip install mypy homeassistant
+      # real HA API is the Platinum quality-scale gate (quality_scale.yaml). Also
+      # install the integration's own runtime requirements (manifest.json) so their
+      # imports resolve too.
+      - name: Install mypy + Home Assistant + integration requirements
+        run: pip install mypy homeassistant Babel
       - name: Mypy (strict typing)
         run: mypy custom_components/home_keeper

@@ -1,0 +1,20 @@
+{
+  "action_complete": "标记为完成",
+  "action_snooze": "推迟 {hours} 小时",
+  "action_skip": "跳过",
+  "action_open": "打开",
+  "due_now": "现在到期。",
+  "due_soon": "即将到期。",
+  "overdue.one": "已逾期 {days} 天。",
+  "overdue.few": "已逾期 {days} 天。",
+  "overdue.many": "已逾期 {days} 天。",
+  "overdue.other": "已逾期 {days} 天。",
+  "digest_title.one": "{count} 项任务待办",
+  "digest_title.few": "{count} 项任务待办",
+  "digest_title.many": "{count} 项任务待办",
+  "digest_title.other": "{count} 项任务待办",
+  "digest_item": "• {name}",
+  "digest_more": "…还有 {more} 项",
+  "all_clear_title": "全部完成",
+  "all_clear_message": "目前没有待办任务。🎉"
+}

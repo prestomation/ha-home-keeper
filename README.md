@@ -417,6 +417,12 @@ notification is a named delivery config with:
   one) or a single **digest** summary.
 - **Auto-send** — fire automatically when a matching task becomes overdue / due-soon.
 
+The action buttons and notification text (overdue/due-soon phrasing, the digest
+summary, "All caught up") are localized to your **Home Assistant instance's
+configured language** (Settings → System → General). This is instance-wide, not
+per-user — if your household has members using HA in different languages, everyone
+gets notifications in the same language.
+
 Trigger a notification on demand from any automation with the **`home_keeper.notify`**
 service (`notification:` a saved notification, or `profile:` a saved Profile, optionally
 with a `target:` override); it returns how many tasks matched and which was sent. The

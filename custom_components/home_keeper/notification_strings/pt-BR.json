@@ -1,0 +1,20 @@
+{
+  "action_complete": "Marcar como concluído",
+  "action_snooze": "Adiar {hours} h",
+  "action_skip": "Pular",
+  "action_open": "Abrir",
+  "due_now": "Vence agora.",
+  "due_soon": "Vence em breve.",
+  "overdue.one": "Atrasado há {days} dia.",
+  "overdue.few": "Atrasado há {days} dias.",
+  "overdue.many": "Atrasado há {days} dias.",
+  "overdue.other": "Atrasado há {days} dias.",
+  "digest_title.one": "{count} tarefa pendente",
+  "digest_title.few": "{count} tarefas pendentes",
+  "digest_title.many": "{count} tarefas pendentes",
+  "digest_title.other": "{count} tarefas pendentes",
+  "digest_item": "• {name}",
+  "digest_more": "…e mais {more}",
+  "all_clear_title": "Tudo em dia",
+  "all_clear_message": "Nenhuma tarefa pendente agora. 🎉"
+}

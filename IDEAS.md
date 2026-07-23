@@ -137,10 +137,16 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
   (plus an `entity` section for device-page entity names) and a parity test in
   `tests/unit/test_translations_parity.py`; frontend via a dependency-free
   `frontend/src/i18n.ts` (`t`/`tn`, `Intl.PluralRules`, English fallback) with
-  bundled `src/locales/*.json` and a key-parity test in `test/i18n.test.js`. An
-  audit (issue-driven, see `.amazonq/rules/architecture-and-code.md` → "Eagerly-
-  resolved backend text") found and closed the remaining gaps: the websocket API's
-  and document-upload views' error messages (`backend_i18n.resolve_exception`,
+  bundled `src/locales/*.json` and a key-parity test in `test/i18n.test.js`. Mobile
+  actionable-notification text (action buttons, overdue/digest/all-clear copy) is
+  localized too, resolved eagerly in `notifications.py` since it's delivered outside
+  HA's frontend translation loading — bundled as its own flat-key
+  `notification_strings/<lang>.json` files (hassfest rejects a custom top-level key in
+  `strings.json`), with Babel for correct CLDR plural forms — see
+  `.amazonq/rules/architecture-and-code.md` → "Notification payload text is
+  localized". A follow-up audit (see `.amazonq/rules/architecture-and-code.md` →
+  "Eagerly-resolved backend text") found and closed the remaining gaps: the websocket
+  API's and document-upload views' error messages (`backend_i18n.resolve_exception`,
   reusing `strings.json` `exceptions`), and backend-generated strings with no home
   in `strings.json` — the problem-sensor completion prompt, a companion suggestion's
   description, the inventory CSV headers (`backend_i18n.resolve_string` against a

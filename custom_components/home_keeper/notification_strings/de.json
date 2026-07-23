@@ -1,0 +1,20 @@
+{
+  "action_complete": "Als erledigt markieren",
+  "action_snooze": "{hours} Std. verschieben",
+  "action_skip": "Überspringen",
+  "action_open": "Öffnen",
+  "due_now": "Jetzt fällig.",
+  "due_soon": "Bald fällig.",
+  "overdue.one": "Seit {days} Tag überfällig.",
+  "overdue.few": "Seit {days} Tagen überfällig.",
+  "overdue.many": "Seit {days} Tagen überfällig.",
+  "overdue.other": "Seit {days} Tagen überfällig.",
+  "digest_title.one": "{count} Aufgabe fällig",
+  "digest_title.few": "{count} Aufgaben fällig",
+  "digest_title.many": "{count} Aufgaben fällig",
+  "digest_title.other": "{count} Aufgaben fällig",
+  "digest_item": "• {name}",
+  "digest_more": "…und {more} weitere",
+  "all_clear_title": "Alles erledigt",
+  "all_clear_message": "Gerade sind keine Aufgaben fällig. 🎉"
+}
