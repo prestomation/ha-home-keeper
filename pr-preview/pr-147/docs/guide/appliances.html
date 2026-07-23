@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Appliances | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-147/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-147/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-147/docs/guide/appliances"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Appliances | Home Keeper"><meta data-rh="true" name="description" content="Most appliances you actually maintain — a &quot;dumb&quot; fridge, furnace, or water heater —"><meta data-rh="true" property="og:description" content="Most appliances you actually maintain — a &quot;dumb&quot; fridge, furnace, or water heater —"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-147/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-147/docs/guide/appliances"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-147/docs/guide/appliances" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-147/docs/guide/appliances" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Appliances","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-147/docs/guide/appliances"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-147/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-147/assets/js/runtime~main.46801415.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-147/assets/js/runtime~main.e1e0a6dd.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-147/assets/js/main.e18a2525.js" defer="defer"></script>
 </head>
 <body>
@@ -19,7 +19,10 @@ record their warranty. Home Keeper fills that gap with <strong>appliances</stron
 <li class=""><strong>New appliance</strong> — Home Keeper registers a real <strong>virtual device</strong> for it, so
 multiple tasks share <em>one</em> device page and other integrations can attach to it too.</li>
 <li class=""><strong>Existing device</strong> — point Home Keeper at a device another integration already
-provides and enrich it with the same metadata, without owning it.</li>
+provides and enrich it with the same metadata, without owning it. Picking a device
+prefills manufacturer/model/serial number from its own registry entry when it has
+them (handy since not every integration reports those), and you can fill in or
+correct whatever it&#x27;s missing.</li>
 </ul>
 <p>Either way you record <strong>asset metadata</strong>. A few structured fields wire into Home
 Assistant — manufacturer/model, an mdi icon, a manual link, replacement cost — and
