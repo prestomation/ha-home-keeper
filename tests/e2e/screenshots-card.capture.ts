@@ -88,4 +88,29 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await fillText(form, 0, 'Replace dishwasher filter');
   await page.waitForTimeout(400);
   await shotCard(page, card, `${OUT}/card-add-form.png`);
+
+  // 5. The card's default title fallback (#150 follow-up: was hardcoded English,
+  // S.defaultTitle, now t('tab.tasks')) plus the no-tasks-match-filter message.
+  // Reconfigure the label-filtered card in place (setConfig, no dashboard YAML
+  // change) to a label no seeded task carries, and clear its title. (The *other*
+  // empty-state string this PR fixed, t('card.empty') for zero tasks total rather
+  // than zero filter matches, needs every seeded task gone — not reachable here
+  // without destructively wiping the shared e2e fixture data.)
+  type ConfigurableCard = { setConfig: (c: Record<string, unknown>) => void };
+  await labelCard.evaluate((el: ConfigurableCard) =>
+    el.setConfig({ type: 'custom:home-keeper-card', labels: ['no-such-label-xyz'] }),
+  );
+  await expect(labelCard.locator('.hk-empty')).toBeVisible();
+  await shotCard(page, labelCard, `${OUT}/card-title-fallback.png`);
+
+  // 6. Truncated list ("+N more" — previously an untranslated template literal).
+  // Close the add form from step 4, then reconfigure the default card to a small
+  // max_items so the seeded task set (well over a dozen) overflows.
+  await card.locator('.hk-form ha-button', { hasText: 'Cancel' }).click();
+  await expect(card.locator('.hk-form')).toBeHidden();
+  await card.evaluate((el: ConfigurableCard) =>
+    el.setConfig({ type: 'custom:home-keeper-card', title: 'Home maintenance', max_items: 3 }),
+  );
+  await expect(card.locator('.hk-more')).toBeVisible();
+  await shotCard(page, card, `${OUT}/card-more-hidden.png`);
 });
