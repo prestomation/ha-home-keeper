@@ -82,6 +82,24 @@ Gaps to close:
 - **`move_completion` operates on live tasks only**, matching `update_completion`'s
   restriction — an appliance's *archived* task history (from a deleted task) is not
   user-editable here, consistent with how metadata edits are already scoped.
+- **Known trade-off, accepted:** modeling a move as `task_uncompleted` +
+  `task_completed` means the event stream shows two mutations for what the user
+  experienced as one edit. An integration correlating `origin` to distinguish "the
+  user undid this" from "step 1 of a move" cannot do so — both fire with `origin =
+  None`, identically to a real undo. A dedicated `..._completion_moved` event would
+  avoid this at the cost of a new event type to document/test/version. Reuse is kept
+  because it's the lower-surface-area option and any lifecycle consumer that already
+  treats "uncompleted then completed" as a de-facto move (not a common assumption,
+  but not an unreasonable one either) sees correct data; this can be revisited as a
+  dedicated event later without a breaking change if it proves confusing in practice.
+- **Naming, considered and kept separate from `update_completion`:** the issue's own
+  proposal (and this plan) keeps timestamp edits (`move_completion`) and metadata
+  edits (`update_completion`) as two primitives rather than one `edit_completion(...,
+  new_ts=None, note=None, ...)`. The alternative is a smaller API surface, but the
+  split is what makes "editing a log entry's note can never accidentally reschedule
+  the task" a property enforced by *which function you called* rather than by
+  schema-level mutual-exclusion. Kept as designed; a unified editor remains an option
+  if the two-call UX proves awkward.
 
 ---
 
@@ -94,16 +112,36 @@ New pure function, alongside `apply_completion` / `remove_completion` /
 
 - Locate the entry at `old_ts` (raise `ValueError` if missing — mirrors
   `update_completion`'s missing-`ts` behavior, which `store.py` already knows how to
-  translate into `TaskValidationError`).
-- Remove it, preserving its metadata (note/cost/photo/who).
-- Re-insert at `new_ts`, colliding with an existing entry there the same way
-  `apply_completion` already dedups same-instant completions (replace, not
-  duplicate) — the qualification of a naive `new_ts` against `now`'s tzinfo mirrors
-  `apply_completion`'s existing comment (`recurrence.py:288-294`).
-- Re-derive `last_completed` (max of the resulting history, or `None`) and `next_due`
-  per recurrence type **exactly like `remove_completion`** — not `apply_completion`'s
-  "trust the given timestamp" shortcut, since the moved entry isn't necessarily the
-  new latest.
+  translate into `TaskValidationError`). `new_ts` may arrive naive: the panel's
+  websocket path always sends an aware ISO string (`haDateTimeToIso` builds it from
+  `Date.toISOString()`), but the `home_keeper.move_completion` **service**'s
+  `new_completed_at` field is `cv.datetime`, which (like `complete_task`'s existing
+  `completed_at`) accepts an offset-less YAML/script value — so the naive→`now.tzinfo`
+  qualification is live code, not a dead precaution, exercised by a direct service
+  call.
+- Remove it, preserving its metadata (note/cost/photo/who) — **on a collision with an
+  existing entry at `new_ts`, the moved entry's metadata wins and the entry it
+  collided with is discarded**, matching "the user is intentionally moving this
+  specific entry onto this slot," not a merge of the two.
+- Re-insert at `new_ts` using that same collapse rule (replace, not duplicate — the
+  same shape as `apply_completion`'s same-instant dedup).
+- **Both removal and re-insertion happen before the single re-derive pass** — do not
+  implement this as "run `remove_completion`'s logic, then insert the moved entry
+  afterward." Re-deriving from history *before* the moved entry is back in would
+  break one-off tasks specifically: removing the only completion looks like "history
+  now empty" and re-arms `next_due` to `due`, and if the moved entry is inserted only
+  after that, the task is left incorrectly armed despite still having a completion on
+  record. Re-derive `last_completed` (max of the final history, or `None`) and
+  `next_due` per recurrence type from the **post-insertion** history state — this
+  makes "moving a one-off's only completion" correctly leave `next_due = None`, the
+  same as it was before the move.
+- **Triggered/sensor tasks' `next_due` is left untouched**, same as `remove_completion`
+  — armed/dormant state there is condition-driven, not history-driven. This plan does
+  not validate that the new timestamp is "sane" relative to the task's current armed
+  state (e.g. moving a completion to be newer than an armed `next_due`); like the
+  existing `update_completion`/`delete_completion` surfaces, a manual history edit is
+  not schedule-validated. Called out here as an accepted, unvalidated edge case rather
+  than a gap to close.
 
 ### `store.move_completion(task_id, old_ts, new_ts)`
 
@@ -129,7 +167,12 @@ needed.
   ISO string built client-side by `haDateTimeToIso`, not `cv.datetime`).
 - **Fix `ws_complete_task`** to accept and forward an optional `completed_at` string
   (parsed to a `datetime`), closing gap #2 above — required for part 1 of the
-  feature to have any effect.
+  feature to have any effect. Note this is a **latent gap in existing functionality**
+  (the service has supported `completed_at` since it shipped; the websocket command
+  never got the matching field), not something introduced by this feature — it's
+  bundled here rather than filed as a separate bug because this plan is the first
+  thing that needs it fixed to work, but it's reasonable to land as its own small fix
+  ahead of the rest if a reviewer prefers to keep it decoupled.
 - `api.ts`: extend `completeTask` with an optional `completedAt`; add
   `moveCompletion(hass, taskId, oldTs, newTs)` mirroring `deleteCompletion`.
 
@@ -139,7 +182,10 @@ needed.
   `completedAt` field (via `selDateTime()` + `isoToHaDateTime`/`haDateTimeToIso`) to
   the `ha-form` schema, **only when logging a new completion** (`c.ts == null`) —
   never in the existing edit-metadata mode, which must keep not touching the
-  timestamp. Wire through `_submitCompletion` → `api.completeTask`.
+  timestamp. Wire through `_submitCompletion` → `api.completeTask`. (Considered:
+  always showing the field, read-only in edit mode, for visual consistency between
+  the two dialog states — left as an implementation-time UX call, since it doesn't
+  change the underlying data flow either way.)
 - **History row** (`_historyGroup`, currently ~4637-4685): add a third icon button
   next to the existing edit-metadata / delete buttons, gated the same way as the
   edit button (live, non-archived tasks only). Wire it to a new small dialog (state,
@@ -176,12 +222,16 @@ needed.
 ## 5. Testing strategy
 
 - **Unit (pytest):** floating/fixed/triggered/sensor/one-off re-derive behavior for
-  `move_completion` (mirroring `remove_completion`'s per-type branches), metadata
-  preservation across the move, dedup-collapse onto an existing `new_ts`, and
+  `move_completion` (mirroring `remove_completion`'s per-type branches) — explicitly
+  including **moving a one-off's only completion** (must leave `next_due = None`,
+  not re-arm to `due`) — metadata preservation across the move (including which side
+  wins on a `new_ts` collision), dedup-collapse onto an existing `new_ts`, and
   `ValueError` on an unknown `old_ts`.
 - **Integration (Docker HA):** a `move_completion` service call fires
   `task_uncompleted` then `task_completed` and leaves `next_due`/history correctly
-  re-derived.
+  re-derived; a `complete_task` **websocket** call with `completed_at` set persists
+  the back-dated timestamp (covers the `ws_complete_task` fix specifically, since
+  today only the service path is exercised at this tier).
 - **Frontend (vitest):** `moveCompletion`'s payload shape; `completeTask` sending
   (and omitting) `completed_at`.
 - **Manual E2E (Playwright / `ci/e2e-up.sh`):** back-date a new completion via the
