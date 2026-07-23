@@ -761,5 +761,29 @@
     "integration_not_loaded": {
       "message": "Home Keeper no está cargado en este momento. Vuelve a intentarlo en un momento."
     }
+  },
+  "notifications": {
+    "action_complete": "Marcar como hecho",
+    "action_snooze": "Posponer {hours} h",
+    "action_skip": "Omitir",
+    "action_open": "Abrir",
+    "due_now": "Vence ahora.",
+    "due_soon": "Vence pronto.",
+    "overdue": {
+      "one": "Vencida hace {days} día.",
+      "few": "Vencida hace {days} días.",
+      "many": "Vencida hace {days} días.",
+      "other": "Vencida hace {days} días."
+    },
+    "digest_title": {
+      "one": "{count} tarea pendiente",
+      "few": "{count} tareas pendientes",
+      "many": "{count} tareas pendientes",
+      "other": "{count} tareas pendientes"
+    },
+    "digest_item": "• {name}",
+    "digest_more": "…y {more} más",
+    "all_clear_title": "Todo al día",
+    "all_clear_message": "No hay tareas pendientes ahora mismo. 🎉"
   }
 }

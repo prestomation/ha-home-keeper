@@ -761,5 +761,29 @@
     "integration_not_loaded": {
       "message": "Home Keeper isn't loaded right now. Please try again in a moment."
     }
+  },
+  "notifications": {
+    "action_complete": "Mark done",
+    "action_snooze": "Snooze {hours}h",
+    "action_skip": "Skip",
+    "action_open": "Open",
+    "due_now": "Due now.",
+    "due_soon": "Due soon.",
+    "overdue": {
+      "one": "Overdue by {days} day.",
+      "few": "Overdue by {days} days.",
+      "many": "Overdue by {days} days.",
+      "other": "Overdue by {days} days."
+    },
+    "digest_title": {
+      "one": "{count} task due",
+      "few": "{count} tasks due",
+      "many": "{count} tasks due",
+      "other": "{count} tasks due"
+    },
+    "digest_item": "• {name}",
+    "digest_more": "…and {more} more",
+    "all_clear_title": "All caught up",
+    "all_clear_message": "No tasks due right now. 🎉"
   }
 }

@@ -4,6 +4,18 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [Unreleased]
+
+### Fixed
+
+- **Notification action buttons and text were hardcoded in English.** The "Mark
+  done"/"Snooze"/"Skip"/"Open" action buttons on actionable mobile notifications, and
+  the notification title/body text (overdue/due-soon phrasing, the digest summary, the
+  "All caught up" close-out), are now localized to `hass.config.language` using the
+  same `strings.json`/`translations/<lang>.json` files as the rest of the integration,
+  with correct CLDR plural forms (via the new `Babel` dependency) for counts like
+  "N day(s) overdue" or "N task(s) due". (Fixes #150)
+
 ## [0.9.0] - 2026-07-23
 
 ### Added

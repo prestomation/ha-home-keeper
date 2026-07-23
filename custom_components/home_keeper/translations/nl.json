@@ -761,5 +761,29 @@
     "integration_not_loaded": {
       "message": "Home Keeper is momenteel niet geladen. Probeer het zo meteen opnieuw."
     }
+  },
+  "notifications": {
+    "action_complete": "Als klaar markeren",
+    "action_snooze": "{hours} u uitstellen",
+    "action_skip": "Overslaan",
+    "action_open": "Openen",
+    "due_now": "Nu verschuldigd.",
+    "due_soon": "Binnenkort verschuldigd.",
+    "overdue": {
+      "one": "{days} dag te laat.",
+      "few": "{days} dagen te laat.",
+      "many": "{days} dagen te laat.",
+      "other": "{days} dagen te laat."
+    },
+    "digest_title": {
+      "one": "{count} taak te doen",
+      "few": "{count} taken te doen",
+      "many": "{count} taken te doen",
+      "other": "{count} taken te doen"
+    },
+    "digest_item": "• {name}",
+    "digest_more": "…en nog {more} meer",
+    "all_clear_title": "Helemaal bij",
+    "all_clear_message": "Op dit moment geen taken te doen. 🎉"
   }
 }

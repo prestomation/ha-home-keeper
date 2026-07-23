@@ -761,5 +761,29 @@
     "integration_not_loaded": {
       "message": "Home Keeper 当前未加载。请稍后重试。"
     }
+  },
+  "notifications": {
+    "action_complete": "标记为完成",
+    "action_snooze": "推迟 {hours} 小时",
+    "action_skip": "跳过",
+    "action_open": "打开",
+    "due_now": "现在到期。",
+    "due_soon": "即将到期。",
+    "overdue": {
+      "one": "已逾期 {days} 天。",
+      "few": "已逾期 {days} 天。",
+      "many": "已逾期 {days} 天。",
+      "other": "已逾期 {days} 天。"
+    },
+    "digest_title": {
+      "one": "{count} 项任务待办",
+      "few": "{count} 项任务待办",
+      "many": "{count} 项任务待办",
+      "other": "{count} 项任务待办"
+    },
+    "digest_item": "• {name}",
+    "digest_more": "…还有 {more} 项",
+    "all_clear_title": "全部完成",
+    "all_clear_message": "目前没有待办任务。🎉"
   }
 }

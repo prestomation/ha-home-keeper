@@ -761,5 +761,29 @@
     "integration_not_loaded": {
       "message": "Home Keeper právě není načten. Zkuste to prosím za chvíli znovu."
     }
+  },
+  "notifications": {
+    "action_complete": "Označit jako hotové",
+    "action_snooze": "Odložit o {hours} h",
+    "action_skip": "Přeskočit",
+    "action_open": "Otevřít",
+    "due_now": "Termín je dnes.",
+    "due_soon": "Termín se blíží.",
+    "overdue": {
+      "one": "Po termínu {days} den.",
+      "few": "Po termínu {days} dny.",
+      "many": "Po termínu {days} dní.",
+      "other": "Po termínu {days} dní."
+    },
+    "digest_title": {
+      "one": "{count} úkol ke splnění",
+      "few": "{count} úkoly ke splnění",
+      "many": "{count} úkolů ke splnění",
+      "other": "{count} úkolů ke splnění"
+    },
+    "digest_item": "• {name}",
+    "digest_more": "…a dalších {more}",
+    "all_clear_title": "Vše splněno",
+    "all_clear_message": "Momentálně nejsou žádné úkoly. 🎉"
   }
 }

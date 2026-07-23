@@ -13,9 +13,16 @@ See ``docs/PROFILES_REFACTOR_PLAN.md`` / ``docs/ACTIONABLE_NOTIFICATIONS_PLAN.md
 
 from __future__ import annotations
 
+import functools
+import json
+import re
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any
+
+from babel import Locale
+from babel.core import UnknownLocaleError
 
 # Notification action verbs (the button behaviours). ``open`` is a client-side URI
 # deep-link (no backend callback).
@@ -132,6 +139,73 @@ def resolve_notification(
     return None
 
 
+# ── payload text translation ─────────────────────────────────────────────────────
+#
+# Notification payloads go straight to the mobile app, outside HA's own frontend
+# translation loading, so the strings must be resolved here rather than left for the
+# frontend to localize. ``strings.json`` / ``translations/<lang>.json`` (under the
+# ``notifications`` key) stay the single source of truth — the same files hassfest and
+# ``test_translations_parity.py`` already validate — this just reads them directly
+# instead of going through HA's async translation loader, keeping this module HA-import
+# free. Pluralization uses Babel's CLDR plural rules (one/few/many/other), the same way
+# ``frontend/src/i18n.ts`` uses the browser's ``Intl.PluralRules``.
+
+_DEFAULT_LANG = "en"
+_TRANSLATIONS_DIR = Path(__file__).parent / "translations"
+_TOKEN_RE = re.compile(r"\{(\w+)\}")
+
+
+@functools.cache
+def _notification_strings(lang: str) -> dict[str, Any]:
+    """Load the ``notifications`` string table for *lang*, caching by language."""
+    path = _TRANSLATIONS_DIR / f"{lang}.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    strings = data.get("notifications")
+    return strings if isinstance(strings, dict) else {}
+
+
+@functools.cache
+def _babel_locale(lang: str) -> Locale:
+    try:
+        return Locale.parse(lang.replace("-", "_"))
+    except (UnknownLocaleError, ValueError):
+        return Locale.parse(_DEFAULT_LANG)
+
+
+def _interpolate(template: str, params: dict[str, Any]) -> str:
+    return _TOKEN_RE.sub(
+        lambda m: str(params[m.group(1)]) if m.group(1) in params else m.group(0),
+        template,
+    )
+
+
+def _t(lang: str, key: str, **params: Any) -> str:
+    """Translate a plain (non-plural) string, falling back to English then the key."""
+    template = _notification_strings(lang).get(key) or _notification_strings(
+        _DEFAULT_LANG
+    ).get(key, key)
+    return _interpolate(str(template), params)
+
+
+def _tn(lang: str, key: str, n: int, **params: Any) -> str:
+    """Translate a pluralizable string, selecting the CLDR category for *n*."""
+    category = _babel_locale(lang).plural_form(n)
+    node = _notification_strings(lang).get(key) or {}
+    en_node = _notification_strings(_DEFAULT_LANG).get(key) or {}
+    template = (
+        node.get(category)
+        or node.get("other")
+        or en_node.get(category)
+        or en_node.get("other", key)
+    )
+    return _interpolate(str(template), params)
+
+
 # ── payload building ────────────────────────────────────────────────────────────
 
 
@@ -145,14 +219,16 @@ def notification_tag(notification_id: str) -> str:
     return f"home_keeper_{notification_id}"
 
 
-def _overdue_phrase(task: dict[str, Any], *, now: datetime) -> str:
+def _overdue_phrase(
+    task: dict[str, Any], *, now: datetime, lang: str = _DEFAULT_LANG
+) -> str:
     next_due = datetime.fromisoformat(task["next_due"])
     if now >= next_due:
         days = (now - next_due).days
         if days <= 0:
-            return "Due now."
-        return f"Overdue by {days} day{'s' if days != 1 else ''}."
-    return "Due soon."
+            return _t(lang, "due_now")
+        return _tn(lang, "overdue", days, days=days)
+    return _t(lang, "due_soon")
 
 
 def _open_uri(task: dict[str, Any]) -> str:
@@ -160,28 +236,44 @@ def _open_uri(task: dict[str, Any]) -> str:
 
 
 def _action_button(
-    verb: str, task: dict[str, Any], notification: dict[str, Any]
+    verb: str,
+    task: dict[str, Any],
+    notification: dict[str, Any],
+    *,
+    lang: str = _DEFAULT_LANG,
 ) -> dict[str, Any]:
     """Build one mobile-app action button for *verb* on *task*."""
     action_id = encode_action(verb, task["id"], notification["id"])
     if verb == ACTION_COMPLETE:
-        return {"action": action_id, "title": "Mark done"}
+        return {"action": action_id, "title": _t(lang, "action_complete")}
     if verb == ACTION_SNOOZE:
-        return {"action": action_id, "title": f"Snooze {notification['snooze_hours']}h"}
+        title = _t(lang, "action_snooze", hours=notification["snooze_hours"])
+        return {"action": action_id, "title": title}
     if verb == ACTION_SKIP:
-        return {"action": action_id, "title": "Skip"}
+        return {"action": action_id, "title": _t(lang, "action_skip")}
     # open — a URI deep-link into the panel (handled client-side, no callback).
-    return {"action": action_id, "title": "Open", "uri": _open_uri(task)}
+    return {
+        "action": action_id,
+        "title": _t(lang, "action_open"),
+        "uri": _open_uri(task),
+    }
 
 
 def build_notification(
-    task: dict[str, Any], *, notification: dict[str, Any], now: datetime
+    task: dict[str, Any],
+    *,
+    notification: dict[str, Any],
+    now: datetime,
+    lang: str = _DEFAULT_LANG,
 ) -> dict[str, Any]:
     """Build the ``notify`` service data for a single task in a *walk* notification."""
-    actions = [_action_button(v, task, notification) for v in notification["actions"]]
+    actions = [
+        _action_button(v, task, notification, lang=lang)
+        for v in notification["actions"]
+    ]
     return {
         "title": str(task.get("name") or "Home Keeper"),
-        "message": _overdue_phrase(task, now=now),
+        "message": _overdue_phrase(task, now=now, lang=lang),
         "data": {
             "tag": notification_tag(notification["id"]),
             "group": "home_keeper",
@@ -191,18 +283,22 @@ def build_notification(
 
 
 def build_digest(
-    queue: list[dict[str, Any]], *, notification: dict[str, Any], now: datetime
+    queue: list[dict[str, Any]],
+    *,
+    notification: dict[str, Any],
+    now: datetime,
+    lang: str = _DEFAULT_LANG,
 ) -> dict[str, Any]:
     """Build a single summary ``notify`` payload listing everything due."""
     names = [str(t.get("name") or "?") for t in queue]
     shown = names[:5]
     more = len(names) - len(shown)
-    body = "\n".join(f"• {n}" for n in shown)
+    body = "\n".join(_t(lang, "digest_item", name=n) for n in shown)
     if more > 0:
-        body += f"\n…and {more} more"
+        body += "\n" + _t(lang, "digest_more", more=more)
     count = len(queue)
     return {
-        "title": f"{count} task{'s' if count != 1 else ''} due",
+        "title": _tn(lang, "digest_title", count, count=count),
         "message": body,
         "data": {
             "tag": notification_tag(notification["id"]),
@@ -211,11 +307,13 @@ def build_digest(
     }
 
 
-def build_all_clear(notification: dict[str, Any]) -> dict[str, Any]:
+def build_all_clear(
+    notification: dict[str, Any], *, lang: str = _DEFAULT_LANG
+) -> dict[str, Any]:
     """The closing notification when a walk empties its queue."""
     return {
-        "title": "All caught up",
-        "message": "No tasks due right now. 🎉",
+        "title": _t(lang, "all_clear_title"),
+        "message": _t(lang, "all_clear_message"),
         "data": {
             "tag": notification_tag(notification["id"]),
             "group": "home_keeper",

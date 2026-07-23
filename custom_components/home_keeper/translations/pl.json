@@ -761,5 +761,29 @@
     "integration_not_loaded": {
       "message": "Home Keeper nie jest teraz załadowany. Spróbuj ponownie za chwilę."
     }
+  },
+  "notifications": {
+    "action_complete": "Oznacz jako wykonane",
+    "action_snooze": "Odłóż o {hours} godz.",
+    "action_skip": "Pomiń",
+    "action_open": "Otwórz",
+    "due_now": "Termin dziś.",
+    "due_soon": "Termin wkrótce.",
+    "overdue": {
+      "one": "Zaległe o {days} dzień.",
+      "few": "Zaległe o {days} dni.",
+      "many": "Zaległe o {days} dni.",
+      "other": "Zaległe o {days} dni."
+    },
+    "digest_title": {
+      "one": "{count} zadanie do zrobienia",
+      "few": "{count} zadania do zrobienia",
+      "many": "{count} zadań do zrobienia",
+      "other": "{count} zadań do zrobienia"
+    },
+    "digest_item": "• {name}",
+    "digest_more": "…i jeszcze {more}",
+    "all_clear_title": "Wszystko zrobione",
+    "all_clear_message": "Obecnie brak zadań do zrobienia. 🎉"
   }
 }

@@ -761,5 +761,29 @@
     "integration_not_loaded": {
       "message": "Home Keeper ist derzeit nicht geladen. Bitte versuche es gleich noch einmal."
     }
+  },
+  "notifications": {
+    "action_complete": "Als erledigt markieren",
+    "action_snooze": "{hours} Std. verschieben",
+    "action_skip": "Überspringen",
+    "action_open": "Öffnen",
+    "due_now": "Jetzt fällig.",
+    "due_soon": "Bald fällig.",
+    "overdue": {
+      "one": "Seit {days} Tag überfällig.",
+      "few": "Seit {days} Tagen überfällig.",
+      "many": "Seit {days} Tagen überfällig.",
+      "other": "Seit {days} Tagen überfällig."
+    },
+    "digest_title": {
+      "one": "{count} Aufgabe fällig",
+      "few": "{count} Aufgaben fällig",
+      "many": "{count} Aufgaben fällig",
+      "other": "{count} Aufgaben fällig"
+    },
+    "digest_item": "• {name}",
+    "digest_more": "…und {more} weitere",
+    "all_clear_title": "Alles erledigt",
+    "all_clear_message": "Gerade sind keine Aufgaben fällig. 🎉"
   }
 }

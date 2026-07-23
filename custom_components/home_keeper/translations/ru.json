@@ -761,5 +761,29 @@
     "integration_not_loaded": {
       "message": "Home Keeper сейчас не загружен. Повторите попытку через мгновение."
     }
+  },
+  "notifications": {
+    "action_complete": "Отметить выполненным",
+    "action_snooze": "Отложить на {hours} ч",
+    "action_skip": "Пропустить",
+    "action_open": "Открыть",
+    "due_now": "Срок сегодня.",
+    "due_soon": "Срок скоро.",
+    "overdue": {
+      "one": "Просрочено на {days} день.",
+      "few": "Просрочено на {days} дня.",
+      "many": "Просрочено на {days} дней.",
+      "other": "Просрочено на {days} дней."
+    },
+    "digest_title": {
+      "one": "{count} задача к выполнению",
+      "few": "{count} задачи к выполнению",
+      "many": "{count} задач к выполнению",
+      "other": "{count} задач к выполнению"
+    },
+    "digest_item": "• {name}",
+    "digest_more": "…и ещё {more}",
+    "all_clear_title": "Всё выполнено",
+    "all_clear_message": "Сейчас нет задач. 🎉"
   }
 }

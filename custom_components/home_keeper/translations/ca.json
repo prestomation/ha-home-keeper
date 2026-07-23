@@ -761,5 +761,29 @@
     "integration_not_loaded": {
       "message": "Home Keeper no està carregat en aquest moment. Torneu-ho a provar d'aquí a un moment."
     }
+  },
+  "notifications": {
+    "action_complete": "Marca com a fet",
+    "action_snooze": "Posposa {hours} h",
+    "action_skip": "Omet",
+    "action_open": "Obre",
+    "due_now": "Venç ara.",
+    "due_soon": "Venç aviat.",
+    "overdue": {
+      "one": "Endarrerit {days} dia.",
+      "few": "Endarrerit {days} dies.",
+      "many": "Endarrerit {days} dies.",
+      "other": "Endarrerit {days} dies."
+    },
+    "digest_title": {
+      "one": "{count} tasca pendent",
+      "few": "{count} tasques pendents",
+      "many": "{count} tasques pendents",
+      "other": "{count} tasques pendents"
+    },
+    "digest_item": "• {name}",
+    "digest_more": "…i {more} més",
+    "all_clear_title": "Tot al dia",
+    "all_clear_message": "No hi ha cap tasca pendent ara mateix. 🎉"
   }
 }

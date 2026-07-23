@@ -761,5 +761,29 @@
     "integration_not_loaded": {
       "message": "Home Keeper er ikke lastet inn akkurat nå. Prøv igjen om et øyeblikk."
     }
+  },
+  "notifications": {
+    "action_complete": "Merk som fullført",
+    "action_snooze": "Utsett {hours} t",
+    "action_skip": "Hopp over",
+    "action_open": "Åpne",
+    "due_now": "Forfaller nå.",
+    "due_soon": "Forfaller snart.",
+    "overdue": {
+      "one": "Forfalt med {days} dag.",
+      "few": "Forfalt med {days} dager.",
+      "many": "Forfalt med {days} dager.",
+      "other": "Forfalt med {days} dager."
+    },
+    "digest_title": {
+      "one": "{count} oppgave å gjøre",
+      "few": "{count} oppgaver å gjøre",
+      "many": "{count} oppgaver å gjøre",
+      "other": "{count} oppgaver å gjøre"
+    },
+    "digest_item": "• {name}",
+    "digest_more": "…og {more} til",
+    "all_clear_title": "Alt er unnagjort",
+    "all_clear_message": "Ingen oppgaver akkurat nå. 🎉"
   }
 }
