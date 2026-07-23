@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Notifications | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-151/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-151/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-151/docs/guide/notifications"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Notifications | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper can push a mobile-app notification for what&#x27;s due, with tappable"><meta data-rh="true" property="og:description" content="Home Keeper can push a mobile-app notification for what&#x27;s due, with tappable"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-151/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-151/docs/guide/notifications"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-151/docs/guide/notifications" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-151/docs/guide/notifications" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Notifications","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-151/docs/guide/notifications"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-151/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-151/assets/js/runtime~main.eb9b6570.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-151/assets/js/runtime~main.628bd0d4.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-151/assets/js/main.6cecc38b.js" defer="defer"></script>
 </head>
 <body>
@@ -36,6 +36,11 @@ duration.</li>
 one) or a single <strong>digest</strong> summary.</li>
 <li class=""><strong>Auto-send</strong> — fire automatically when a matching task becomes overdue / due-soon.</li>
 </ul>
+<p>The action buttons and notification text (overdue/due-soon phrasing, the digest
+summary, &quot;All caught up&quot;) are localized to your <strong>Home Assistant instance&#x27;s
+configured language</strong> (Settings → System → General). This is instance-wide, not
+per-user — if your household has members using HA in different languages, everyone
+gets notifications in the same language.</p>
 <p>Trigger a notification on demand from any automation with the <strong><code>home_keeper.notify</code></strong>
 service (<code>notification:</code> a saved notification, or <code>profile:</code> a saved Profile, optionally
 with a <code>target:</code> override); it returns how many tasks matched and which was sent. The
