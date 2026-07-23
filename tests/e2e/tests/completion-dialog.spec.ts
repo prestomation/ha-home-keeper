@@ -21,6 +21,13 @@ test.describe('Home Keeper panel — completion dialog', () => {
     // Regression guard for #144: HA's ha-dialog only exposes a "footer" slot, so
     // the dialog's action buttons must be wrapped in <ha-dialog-footer slot="footer">
     // — buttons slotted straight onto <ha-dialog> silently don't render at all.
+    // Assert the structure, not just visibility, so a future revert back to
+    // slotting directly on <ha-dialog> fails here even before it's visibly broken.
+    const footer = dialog.locator('ha-dialog-footer[slot="footer"]');
+    await expect(footer).toHaveCount(1);
+    await expect(footer.locator('ha-button[slot="primaryAction"]')).toHaveCount(1);
+    await expect(footer.locator('ha-button[slot="secondaryAction"]')).toHaveCount(2);
+
     await expect(dialog.getByRole('button', { name: 'Mark done' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Skip details' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible();
