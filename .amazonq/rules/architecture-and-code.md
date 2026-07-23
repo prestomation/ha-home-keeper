@@ -416,23 +416,29 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
 - Actionable mobile notifications are delivered straight to the mobile app, outside
   HA's own frontend translation loading — so unlike exceptions (which the frontend
   resolves lazily via `translation_key` when it renders them), the button labels,
-  titles, and body text must be resolved **eagerly, in Python, at send time**. Every
-  such string is defined under the `notifications` key in `strings.json` /
-  `translations/<lang>.json` (same parity/placeholder tests as everything else), and
-  `notifications.py`'s private `_t`/`_tn` helpers read those files directly (no HA
-  import — the module stays pure) and interpolate `{token}` placeholders. All the
-  builder functions (`build_notification`, `build_digest`, `build_all_clear`,
-  `_action_button`, `_overdue_phrase`) take a `lang` keyword (default `"en"`, so
-  callers/tests that omit it keep working); `notifier.py` is the only caller that
-  passes a real value, `hass.config.language`.
-- Pluralized strings (`overdue`, `digest_title`, …) are nested objects with
-  `one`/`few`/`many`/`other` children, always all four regardless of whether a given
-  locale's grammar uses them (identical `other` filler for `few`/`many` in an
+  titles, and body text must be resolved **eagerly, in Python, at send time**. These
+  strings do **not** live in `strings.json`/`translations/<lang>.json` — hassfest
+  validates that tree against a fixed set of categories (`config`, `services`,
+  `entity`, …) and rejects an unrecognized top-level key (`extra keys not allowed`),
+  confirmed the hard way in CI. Instead they're bundled as flat dotted-key
+  `notification_strings/<lang>.json` files (one per locale, mirroring
+  `frontend/src/locales/*.json`'s convention for the panel — flat `"key.category":
+  "..."` entries, not nested objects), with their own parity test
+  (`test_notification_strings_parity.py`) rather than `strings.json`'s. Every such
+  string is defined there; `notifications.py`'s private `_t`/`_tn` helpers read the
+  files directly (no HA import — the module stays pure) and interpolate `{token}`
+  placeholders. All the builder functions (`build_notification`, `build_digest`,
+  `build_all_clear`, `_action_button`, `_overdue_phrase`) take a `lang` keyword
+  (default `"en"`, so callers/tests that omit it keep working); `notifier.py` is the
+  only caller that passes a real value, `hass.config.language`.
+- Pluralized strings (`overdue`, `digest_title`, …) are stored as `<key>.one`,
+  `<key>.few`, `<key>.many`, `<key>.other` — always all four regardless of whether a
+  given locale's grammar uses them (identical `other` filler for `few`/`many` in an
   English-shaped locale is fine — it's simply never selected) — this keeps every
-  locale's key structure identical, which `test_locale_key_parity` requires. The
-  category is picked by `_tn` via `Babel`'s CLDR plural rules
-  (`Locale(lang).plural_form(n)`), the backend counterpart to
-  `frontend/src/i18n.ts`'s browser-native `Intl.PluralRules`. Babel is the
+  locale's key set identical, which `test_locale_key_parity` requires. The category
+  is picked by `_tn` via `Babel`'s CLDR plural rules (`Locale(lang).plural_form(n)`),
+  the backend counterpart to `frontend/src/i18n.ts`'s browser-native
+  `Intl.PluralRules`. Babel is the
   integration's **first Python runtime dependency** (`manifest.json` `requirements`),
   a deliberate exception to "ship none" — getting Polish/Russian/Czech plural
   categories right by hand is exactly the kind of thing not worth re-deriving.

@@ -761,29 +761,5 @@
     "integration_not_loaded": {
       "message": "Home Keeper er ikke indlæst lige nu. Prøv igen om et øjeblik."
     }
-  },
-  "notifications": {
-    "action_complete": "Markér som udført",
-    "action_snooze": "Udsæt {hours} t",
-    "action_skip": "Spring over",
-    "action_open": "Åbn",
-    "due_now": "Forfalder nu.",
-    "due_soon": "Forfalder snart.",
-    "overdue": {
-      "one": "Forfalden med {days} dag.",
-      "few": "Forfalden med {days} dage.",
-      "many": "Forfalden med {days} dage.",
-      "other": "Forfalden med {days} dage."
-    },
-    "digest_title": {
-      "one": "{count} opgave skal udføres",
-      "few": "{count} opgaver skal udføres",
-      "many": "{count} opgaver skal udføres",
-      "other": "{count} opgaver skal udføres"
-    },
-    "digest_item": "• {name}",
-    "digest_more": "…og {more} mere",
-    "all_clear_title": "Alt er klaret",
-    "all_clear_message": "Ingen opgaver lige nu. 🎉"
   }
 }

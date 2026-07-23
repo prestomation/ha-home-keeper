@@ -1,0 +1,20 @@
+{
+  "action_complete": "Mark done",
+  "action_snooze": "Snooze {hours}h",
+  "action_skip": "Skip",
+  "action_open": "Open",
+  "due_now": "Due now.",
+  "due_soon": "Due soon.",
+  "overdue.one": "Overdue by {days} day.",
+  "overdue.few": "Overdue by {days} days.",
+  "overdue.many": "Overdue by {days} days.",
+  "overdue.other": "Overdue by {days} days.",
+  "digest_title.one": "{count} task due",
+  "digest_title.few": "{count} tasks due",
+  "digest_title.many": "{count} tasks due",
+  "digest_title.other": "{count} tasks due",
+  "digest_item": "• {name}",
+  "digest_more": "…and {more} more",
+  "all_clear_title": "All caught up",
+  "all_clear_message": "No tasks due right now. 🎉"
+}

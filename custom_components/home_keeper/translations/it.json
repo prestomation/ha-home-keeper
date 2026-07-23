@@ -761,29 +761,5 @@
     "integration_not_loaded": {
       "message": "Home Keeper non è caricato in questo momento. Riprova tra un momento."
     }
-  },
-  "notifications": {
-    "action_complete": "Segna come completata",
-    "action_snooze": "Posponi di {hours} h",
-    "action_skip": "Salta",
-    "action_open": "Apri",
-    "due_now": "Scade ora.",
-    "due_soon": "In scadenza.",
-    "overdue": {
-      "one": "Scaduta da {days} giorno.",
-      "few": "Scaduta da {days} giorni.",
-      "many": "Scaduta da {days} giorni.",
-      "other": "Scaduta da {days} giorni."
-    },
-    "digest_title": {
-      "one": "{count} attività da fare",
-      "few": "{count} attività da fare",
-      "many": "{count} attività da fare",
-      "other": "{count} attività da fare"
-    },
-    "digest_item": "• {name}",
-    "digest_more": "…e altre {more}",
-    "all_clear_title": "Tutto in ordine",
-    "all_clear_message": "Nessuna attività in scadenza al momento. 🎉"
   }
 }

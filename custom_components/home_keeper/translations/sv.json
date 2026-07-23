@@ -761,29 +761,5 @@
     "integration_not_loaded": {
       "message": "Home Keeper är inte inläst just nu. Försök igen om en stund."
     }
-  },
-  "notifications": {
-    "action_complete": "Markera som klar",
-    "action_snooze": "Skjut upp {hours} h",
-    "action_skip": "Hoppa över",
-    "action_open": "Öppna",
-    "due_now": "Ska göras nu.",
-    "due_soon": "Ska snart göras.",
-    "overdue": {
-      "one": "Försenad med {days} dag.",
-      "few": "Försenad med {days} dagar.",
-      "many": "Försenad med {days} dagar.",
-      "other": "Försenad med {days} dagar."
-    },
-    "digest_title": {
-      "one": "{count} uppgift att göra",
-      "few": "{count} uppgifter att göra",
-      "many": "{count} uppgifter att göra",
-      "other": "{count} uppgifter att göra"
-    },
-    "digest_item": "• {name}",
-    "digest_more": "…och {more} till",
-    "all_clear_title": "Allt klart",
-    "all_clear_message": "Inga uppgifter just nu. 🎉"
   }
 }

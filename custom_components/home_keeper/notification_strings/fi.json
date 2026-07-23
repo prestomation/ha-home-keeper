@@ -1,0 +1,20 @@
+{
+  "action_complete": "Merkitse valmiiksi",
+  "action_snooze": "Lykkää {hours} h",
+  "action_skip": "Ohita",
+  "action_open": "Avaa",
+  "due_now": "Erääntyy nyt.",
+  "due_soon": "Erääntyy pian.",
+  "overdue.one": "Myöhässä {days} päivä.",
+  "overdue.few": "Myöhässä {days} päivää.",
+  "overdue.many": "Myöhässä {days} päivää.",
+  "overdue.other": "Myöhässä {days} päivää.",
+  "digest_title.one": "{count} tehtävä tekemättä",
+  "digest_title.few": "{count} tehtävää tekemättä",
+  "digest_title.many": "{count} tehtävää tekemättä",
+  "digest_title.other": "{count} tehtävää tekemättä",
+  "digest_item": "• {name}",
+  "digest_more": "…ja {more} muuta",
+  "all_clear_title": "Kaikki tehty",
+  "all_clear_message": "Ei tehtäviä juuri nyt. 🎉"
+}

@@ -39,7 +39,6 @@ _TRANSLATIONS = _COMPONENT_DIR / "translations"
 _INTENTIONALLY_IDENTICAL: frozenset[str] = frozenset(
     {
         "config.step.user.title",  # "Home Keeper" — product name
-        "notifications.digest_item",  # "• {name}" — bullet + placeholder, no words
     }
 )
 

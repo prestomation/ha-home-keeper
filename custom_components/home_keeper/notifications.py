@@ -143,30 +143,32 @@ def resolve_notification(
 #
 # Notification payloads go straight to the mobile app, outside HA's own frontend
 # translation loading, so the strings must be resolved here rather than left for the
-# frontend to localize. ``strings.json`` / ``translations/<lang>.json`` (under the
-# ``notifications`` key) stay the single source of truth — the same files hassfest and
-# ``test_translations_parity.py`` already validate — this just reads them directly
-# instead of going through HA's async translation loader, keeping this module HA-import
-# free. Pluralization uses Babel's CLDR plural rules (one/few/many/other), the same way
-# ``frontend/src/i18n.ts`` uses the browser's ``Intl.PluralRules``.
+# frontend to localize. They are NOT part of strings.json/translations/<lang>.json —
+# hassfest validates that tree against a fixed set of categories (config, services,
+# entity, ...) and rejects anything else — so they get their own bundled
+# ``notification_strings/<lang>.json`` files, flat dotted-key tables read directly
+# (no HA import, keeping this module pure), the same convention
+# ``frontend/src/locales/*.json`` uses for the panel. Pluralization uses Babel's CLDR
+# plural rules (one/few/many/other) the same way ``frontend/src/i18n.ts`` uses the
+# browser's ``Intl.PluralRules``: a pluralizable key is stored as ``<key>.<category>``
+# and looked up by the category *n* resolves to, falling back to ``<key>.other``.
 
 _DEFAULT_LANG = "en"
-_TRANSLATIONS_DIR = Path(__file__).parent / "translations"
+_STRINGS_DIR = Path(__file__).parent / "notification_strings"
 _TOKEN_RE = re.compile(r"\{(\w+)\}")
 
 
 @functools.cache
-def _notification_strings(lang: str) -> dict[str, Any]:
-    """Load the ``notifications`` string table for *lang*, caching by language."""
-    path = _TRANSLATIONS_DIR / f"{lang}.json"
+def _notification_strings(lang: str) -> dict[str, str]:
+    """Load the flat notification string table for *lang*, caching by language."""
+    path = _STRINGS_DIR / f"{lang}.json"
     if not path.exists():
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
-    strings = data.get("notifications")
-    return strings if isinstance(strings, dict) else {}
+    return data if isinstance(data, dict) else {}
 
 
 @functools.cache
@@ -189,21 +191,21 @@ def _t(lang: str, key: str, **params: Any) -> str:
     template = _notification_strings(lang).get(key) or _notification_strings(
         _DEFAULT_LANG
     ).get(key, key)
-    return _interpolate(str(template), params)
+    return _interpolate(template, params)
 
 
 def _tn(lang: str, key: str, n: int, **params: Any) -> str:
     """Translate a pluralizable string, selecting the CLDR category for *n*."""
     category = _babel_locale(lang).plural_form(n)
-    node = _notification_strings(lang).get(key) or {}
-    en_node = _notification_strings(_DEFAULT_LANG).get(key) or {}
+    strings = _notification_strings(lang)
+    en_strings = _notification_strings(_DEFAULT_LANG)
     template = (
-        node.get(category)
-        or node.get("other")
-        or en_node.get(category)
-        or en_node.get("other", key)
+        strings.get(f"{key}.{category}")
+        or strings.get(f"{key}.other")
+        or en_strings.get(f"{key}.{category}")
+        or en_strings.get(f"{key}.other", key)
     )
-    return _interpolate(str(template), params)
+    return _interpolate(template, params)
 
 
 # ── payload building ────────────────────────────────────────────────────────────

@@ -1,0 +1,20 @@
+{
+  "action_complete": "Označit jako hotové",
+  "action_snooze": "Odložit o {hours} h",
+  "action_skip": "Přeskočit",
+  "action_open": "Otevřít",
+  "due_now": "Termín je dnes.",
+  "due_soon": "Termín se blíží.",
+  "overdue.one": "Po termínu {days} den.",
+  "overdue.few": "Po termínu {days} dny.",
+  "overdue.many": "Po termínu {days} dní.",
+  "overdue.other": "Po termínu {days} dní.",
+  "digest_title.one": "{count} úkol ke splnění",
+  "digest_title.few": "{count} úkoly ke splnění",
+  "digest_title.many": "{count} úkolů ke splnění",
+  "digest_title.other": "{count} úkolů ke splnění",
+  "digest_item": "• {name}",
+  "digest_more": "…a dalších {more}",
+  "all_clear_title": "Vše splněno",
+  "all_clear_message": "Momentálně nejsou žádné úkoly. 🎉"
+}

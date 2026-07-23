@@ -761,29 +761,5 @@
     "integration_not_loaded": {
       "message": "Home Keeper n'est pas chargé pour le moment. Veuillez réessayer dans un instant."
     }
-  },
-  "notifications": {
-    "action_complete": "Marquer comme terminé",
-    "action_snooze": "Reporter de {hours} h",
-    "action_skip": "Ignorer",
-    "action_open": "Ouvrir",
-    "due_now": "À faire maintenant.",
-    "due_soon": "Bientôt à échéance.",
-    "overdue": {
-      "one": "En retard de {days} jour.",
-      "few": "En retard de {days} jours.",
-      "many": "En retard de {days} jours.",
-      "other": "En retard de {days} jours."
-    },
-    "digest_title": {
-      "one": "{count} tâche à faire",
-      "few": "{count} tâches à faire",
-      "many": "{count} tâches à faire",
-      "other": "{count} tâches à faire"
-    },
-    "digest_item": "• {name}",
-    "digest_more": "…et {more} de plus",
-    "all_clear_title": "Tout est à jour",
-    "all_clear_message": "Aucune tâche à faire pour le moment. 🎉"
   }
 }

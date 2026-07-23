@@ -1,0 +1,20 @@
+{
+  "action_complete": "Markera som klar",
+  "action_snooze": "Skjut upp {hours} h",
+  "action_skip": "Hoppa över",
+  "action_open": "Öppna",
+  "due_now": "Ska göras nu.",
+  "due_soon": "Ska snart göras.",
+  "overdue.one": "Försenad med {days} dag.",
+  "overdue.few": "Försenad med {days} dagar.",
+  "overdue.many": "Försenad med {days} dagar.",
+  "overdue.other": "Försenad med {days} dagar.",
+  "digest_title.one": "{count} uppgift att göra",
+  "digest_title.few": "{count} uppgifter att göra",
+  "digest_title.many": "{count} uppgifter att göra",
+  "digest_title.other": "{count} uppgifter att göra",
+  "digest_item": "• {name}",
+  "digest_more": "…och {more} till",
+  "all_clear_title": "Allt klart",
+  "all_clear_message": "Inga uppgifter just nu. 🎉"
+}

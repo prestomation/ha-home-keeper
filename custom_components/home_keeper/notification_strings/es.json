@@ -1,0 +1,20 @@
+{
+  "action_complete": "Marcar como hecho",
+  "action_snooze": "Posponer {hours} h",
+  "action_skip": "Omitir",
+  "action_open": "Abrir",
+  "due_now": "Vence ahora.",
+  "due_soon": "Vence pronto.",
+  "overdue.one": "Vencida hace {days} día.",
+  "overdue.few": "Vencida hace {days} días.",
+  "overdue.many": "Vencida hace {days} días.",
+  "overdue.other": "Vencida hace {days} días.",
+  "digest_title.one": "{count} tarea pendiente",
+  "digest_title.few": "{count} tareas pendientes",
+  "digest_title.many": "{count} tareas pendientes",
+  "digest_title.other": "{count} tareas pendientes",
+  "digest_item": "• {name}",
+  "digest_more": "…y {more} más",
+  "all_clear_title": "Todo al día",
+  "all_clear_message": "No hay tareas pendientes ahora mismo. 🎉"
+}

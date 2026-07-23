@@ -761,29 +761,5 @@
     "integration_not_loaded": {
       "message": "Home Keeper ei ole juuri nyt ladattuna. Yritä hetken kuluttua uudelleen."
     }
-  },
-  "notifications": {
-    "action_complete": "Merkitse valmiiksi",
-    "action_snooze": "Lykkää {hours} h",
-    "action_skip": "Ohita",
-    "action_open": "Avaa",
-    "due_now": "Erääntyy nyt.",
-    "due_soon": "Erääntyy pian.",
-    "overdue": {
-      "one": "Myöhässä {days} päivä.",
-      "few": "Myöhässä {days} päivää.",
-      "many": "Myöhässä {days} päivää.",
-      "other": "Myöhässä {days} päivää."
-    },
-    "digest_title": {
-      "one": "{count} tehtävä tekemättä",
-      "few": "{count} tehtävää tekemättä",
-      "many": "{count} tehtävää tekemättä",
-      "other": "{count} tehtävää tekemättä"
-    },
-    "digest_item": "• {name}",
-    "digest_more": "…ja {more} muuta",
-    "all_clear_title": "Kaikki tehty",
-    "all_clear_message": "Ei tehtäviä juuri nyt. 🎉"
   }
 }

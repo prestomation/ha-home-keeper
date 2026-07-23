@@ -1,0 +1,20 @@
+{
+  "action_complete": "Marca com a fet",
+  "action_snooze": "Posposa {hours} h",
+  "action_skip": "Omet",
+  "action_open": "Obre",
+  "due_now": "Venç ara.",
+  "due_soon": "Venç aviat.",
+  "overdue.one": "Endarrerit {days} dia.",
+  "overdue.few": "Endarrerit {days} dies.",
+  "overdue.many": "Endarrerit {days} dies.",
+  "overdue.other": "Endarrerit {days} dies.",
+  "digest_title.one": "{count} tasca pendent",
+  "digest_title.few": "{count} tasques pendents",
+  "digest_title.many": "{count} tasques pendents",
+  "digest_title.other": "{count} tasques pendents",
+  "digest_item": "• {name}",
+  "digest_more": "…i {more} més",
+  "all_clear_title": "Tot al dia",
+  "all_clear_message": "No hi ha cap tasca pendent ara mateix. 🎉"
+}
