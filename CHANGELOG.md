@@ -17,6 +17,14 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   mirror being removed and recreated (turning problem-sensor sync off and on, or
   temporarily excluding the sensor), so it reappears the next time the same problem
   goes off.
+- **Manufacturer/model/serial number for existing-device appliances.** Attaching an
+  appliance to a device you already have in Home Assistant used to offer only a device
+  picker — none of the catalog fields a fully virtual appliance gets. Those fields
+  (manufacturer, model, serial number, icon) are now available for existing-device
+  appliances too, and picking a device prefills any that are still empty from the
+  device's own registry entry — handy since not every integration reports them. Fields
+  you've already filled in (or the device doesn't know) are never overwritten, so you
+  can freely correct or complete what the device is missing. (Fixes #145)
 
 ## [0.8.0] - 2026-07-04
 

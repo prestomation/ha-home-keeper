@@ -118,6 +118,7 @@ export interface HassDevice {
   name_by_user?: string | null;
   manufacturer?: string | null;
   model?: string | null;
+  serial_number?: string | null;
   area_id?: string | null;
   primary_config_entry?: string | null;
   config_entries?: string[];

@@ -86,6 +86,10 @@ test.describe('Home Keeper panel — smoke', () => {
     // the always-present "Related devices" picker (2 device selectors total).
     await chooseHaSelect(form.locator('ha-select').first(), /Existing device/);
     await expect(panel.locator('#hk-asset-form ha-selector-device')).toHaveCount(2);
+    // An existing-device appliance gets the same manufacturer/model/serial/icon
+    // fields a virtual one does (issue #145) — only its parent-appliance picker is
+    // gone (normalize_fields forces parent_asset_id to None for this kind).
+    await expect(panel.locator('#hk-asset-form ha-selector-icon')).toHaveCount(1);
   });
 
   test('appliance form parts editor adds a part and reveals wear fields', async ({ page }) => {

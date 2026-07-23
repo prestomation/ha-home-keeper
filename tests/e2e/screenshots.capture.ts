@@ -87,8 +87,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-task-form')).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/10-panel-managed-edit-locked.png`, fullPage: true });
+  // Opening the edit form from a detail page already navigates to the list with the
+  // form floating on top (see _openEdit's "leave any open detail page"), so Cancel
+  // lands directly on the list — there's no detail page's #back-btn to click here.
   await panel.locator('#f-cancel').click();
-  await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 1e. Tasks grouped by managing integration — managed tasks bucket under their
@@ -390,6 +392,29 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // assert on the metadata one specifically (it carries the seed buttons we just used).
   await expect(assetForm.locator('.hk-meta-seeds').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/6-panel-appliance-create.png`, fullPage: true });
+
+  // 6b. Appliance create form — existing device. Previously this only offered a
+  // device picker; it now gets the same manufacturer/model/serial/icon fields a
+  // virtual appliance does, and picking a device prefills any that are empty from
+  // its own registry entry (issue #145). Points at the seeded "Radio shade
+  // controller" device — its registry entry already carries a manufacturer/model,
+  // the same way a device reported by any other integration would.
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await panel.locator('#add-btn').click();
+  const existingForm = panel.locator('#hk-asset-form');
+  await expect(existingForm).toBeVisible();
+  await chooseHaSelect(existingForm.locator('ha-select').first(), /Existing device/);
+  await expect(existingForm.locator('ha-selector-icon')).toHaveCount(1);
+  // The device picker is HA's modern searchable picker: a button that opens an
+  // overlay with a search box and a results list (`#list-item-0` is the first hit).
+  await existingForm.locator('ha-selector-device').first().locator('button').click();
+  await page.getByPlaceholder('Search').fill('Radio shade controller');
+  await page.locator('#list-item-0').click();
+  // Manufacturer is the first field after name in the identity schema — confirms the
+  // prefill actually landed before the shot is taken.
+  await expect(existingForm.locator('ha-selector-text').nth(1).locator('input')).toHaveValue('Lutron');
+  await page.screenshot({ path: `${OUT}/6b-panel-appliance-create-existing.png`, fullPage: true });
 
   // 21. Appliance documents (offline manuals) — editing a saved appliance shows the
   // "Manuals & documents" editor: each existing document is a card (name + details)

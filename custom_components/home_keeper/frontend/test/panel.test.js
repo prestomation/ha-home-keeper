@@ -48,6 +48,7 @@ function makeHass() {
   const hass = {
     language: 'en',
     states: {},
+    devices: {},
     callWS(msg) {
       calls[msg.type] = (calls[msg.type] || 0) + 1;
       switch (msg.type) {
@@ -118,5 +119,117 @@ describe('Settings tab — exclusions take effect immediately', () => {
       refreshed,
       'tasks should be re-fetched after saving an exclusion so it takes effect right away',
     ).toBeTruthy();
+  });
+});
+
+// Field names present in an ha-form schema, including those nested in `grid` groups.
+function schemaFieldNames(schema) {
+  const names = [];
+  for (const field of schema) {
+    if (field.name) names.push(field.name);
+    if (field.type === 'grid' && field.schema) names.push(...schemaFieldNames(field.schema));
+  }
+  return names;
+}
+
+// The real `ha-form` updates its own `.data` before emitting `value-changed` (the
+// event carries the form's current snapshot); the `ha-form` stand-in registered in
+// `beforeAll` is a bare custom element that doesn't, so tests simulate that ordering.
+function emitChange(form, value) {
+  form.data = { ...form.data, ...value };
+  form.dispatchEvent(new CustomEvent('value-changed', { detail: { value } }));
+}
+
+describe('Appliance form — existing-device identity fields (issue #145)', () => {
+  it('shows manufacturer/model/serial number for an existing-device appliance, prefilled from the linked HA device without clobbering user input', async () => {
+    const { hass } = makeHass();
+    const panel = document.createElement('home-keeper-panel');
+    panel.route = { prefix: '/home-keeper', path: '/appliances' };
+    document.body.appendChild(panel);
+    panel.hass = hass;
+
+    const addBtn = await waitFor(() => panel.shadowRoot?.querySelector('#add-btn'));
+    expect(addBtn, 'add button should render').toBeTruthy();
+    addBtn.click();
+
+    const identityVirtual = await waitFor(() =>
+      panel.shadowRoot?.querySelector('#hk-asset-form ha-form'),
+    );
+    expect(identityVirtual, 'identity form should render for a new (virtual) appliance').toBeTruthy();
+    const virtualNames = schemaFieldNames(identityVirtual.schema);
+    expect(virtualNames).toContain('parent_asset_id');
+    expect(virtualNames).not.toContain('device_id');
+
+    // Switch to "existing device" — this swaps the schema (a full re-render), so the
+    // form element itself is replaced.
+    emitChange(identityVirtual, {
+      kind: 'existing',
+      name: '',
+      manufacturer: '',
+      model: '',
+      serial_number: '',
+      icon: '',
+      area_id: undefined,
+    });
+
+    const identityExisting = await waitFor(() => {
+      const f = panel.shadowRoot?.querySelector('#hk-asset-form ha-form');
+      return f && schemaFieldNames(f.schema).includes('device_id') ? f : null;
+    });
+    expect(identityExisting, 'identity form should re-render with device_id once kind is existing').toBeTruthy();
+    const existingNames = schemaFieldNames(identityExisting.schema);
+    // The gap issue #145 reports: an existing-device appliance previously only got a
+    // device picker, none of the fields a virtual appliance gets.
+    expect(existingNames).toEqual(
+      expect.arrayContaining(['device_id', 'name', 'manufacturer', 'model', 'serial_number', 'icon']),
+    );
+    // Only a device Home Keeper owns can nest under another via via_device
+    // (normalize_fields forces an existing-device asset's parent_asset_id to None).
+    expect(existingNames).not.toContain('parent_asset_id');
+
+    // Picking a linked device prefills empty manufacturer/model/serial_number from it.
+    hass.devices.device1 = {
+      id: 'device1',
+      name: 'Furnace',
+      manufacturer: 'Acme',
+      model: 'Widget 3000',
+      serial_number: 'SN-123',
+    };
+    emitChange(identityExisting, {
+      kind: 'existing',
+      device_id: 'device1',
+      name: '',
+      manufacturer: '',
+      model: '',
+      serial_number: '',
+      icon: '',
+      area_id: undefined,
+    });
+    expect(identityExisting.data.manufacturer).toBe('Acme');
+    expect(identityExisting.data.model).toBe('Widget 3000');
+    expect(identityExisting.data.serial_number).toBe('SN-123');
+
+    // Re-pointing to a different device never overwrites a value the user already has
+    // set (whether typed manually or kept from the previous device's prefill).
+    hass.devices.device2 = {
+      id: 'device2',
+      name: 'Boiler',
+      manufacturer: 'OtherCo',
+      model: 'Different model',
+      serial_number: 'SN-999',
+    };
+    emitChange(identityExisting, {
+      kind: 'existing',
+      device_id: 'device2',
+      name: '',
+      manufacturer: 'MyCustomMfg',
+      model: 'Widget 3000',
+      serial_number: 'SN-123',
+      icon: '',
+      area_id: undefined,
+    });
+    expect(identityExisting.data.manufacturer).toBe('MyCustomMfg');
+    expect(identityExisting.data.model).toBe('Widget 3000');
+    expect(identityExisting.data.serial_number).toBe('SN-123');
   });
 });
