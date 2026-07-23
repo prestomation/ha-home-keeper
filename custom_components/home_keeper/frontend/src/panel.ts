@@ -2486,21 +2486,29 @@ export class HomeKeeperPanel extends HTMLElement {
         ]),
       });
     }
-    if (x.kind === 'existing') {
-      fields.push({ name: 'device_id', required: true, selector: selDevice() });
+    const existing = x.kind === 'existing';
+    if (existing) fields.push({ name: 'device_id', required: true, selector: selDevice() });
+    // The device supplies its own name for an existing-device asset (normalize_fields
+    // falls back to it), so it's optional there; a virtual asset owns no other name
+    // source, so it's required.
+    fields.push({ name: 'name', required: !existing, selector: selText() });
+    fields.push({
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'manufacturer', selector: selText() },
+        { name: 'model', selector: selText() },
+      ],
+    });
+    // serial_number is first-class (it syncs into the device page's info block), so
+    // it sits with make/model rather than in the free-form custom fields.
+    fields.push({ name: 'serial_number', selector: selText() });
+    if (existing) {
+      // Only a device we own can be a native subdevice of another via via_device
+      // (normalize_fields forces an existing-device asset's parent_asset_id to None),
+      // so there's no parent picker here — just the icon.
+      fields.push({ name: 'icon', selector: selIcon() });
     } else {
-      fields.push({ name: 'name', required: true, selector: selText() });
-      fields.push({
-        name: '',
-        type: 'grid',
-        schema: [
-          { name: 'manufacturer', selector: selText() },
-          { name: 'model', selector: selText() },
-        ],
-      });
-      // serial_number is first-class (it syncs into the device page's info block), so
-      // it sits with make/model rather than in the free-form custom fields.
-      fields.push({ name: 'serial_number', selector: selText() });
       fields.push({
         name: '',
         type: 'grid',
@@ -2512,6 +2520,28 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     fields.push({ name: 'area_id', selector: selArea() });
     return fields;
+  }
+
+  /** Manufacturer/model/serial_number to prefill from a linked HA device, skipping
+   *  any field already set on the asset — this only fills gaps, never overwrites a
+   *  value the user typed (or one already saved from a previous edit). */
+  private _deviceDefaults(
+    deviceId: string,
+    prev: Partial<Asset> | null,
+  ): Record<string, string> | undefined {
+    const dev = this._hass?.devices?.[deviceId];
+    if (!dev) return undefined;
+    const fill: Record<string, string> = {};
+    if (!String(prev?.manufacturer || '').trim() && dev.manufacturer) {
+      fill.manufacturer = dev.manufacturer;
+    }
+    if (!String(prev?.model || '').trim() && dev.model) {
+      fill.model = dev.model;
+    }
+    if (!String(prev?.serial_number || '').trim() && dev.serial_number) {
+      fill.serial_number = dev.serial_number;
+    }
+    return Object.keys(fill).length ? fill : undefined;
   }
 
   /** Structured field that wires into HA: the asset's value (for the inventory). */
@@ -3837,8 +3867,17 @@ export class HomeKeeperPanel extends HTMLElement {
         area_id: x.area_id ?? undefined,
       },
       (value) => {
-        const prevKind = this._assetEdit.asset?.kind;
+        const prevAsset = this._assetEdit.asset;
+        const prevKind = prevAsset?.kind;
+        const prevDeviceId = prevAsset?.device_id;
         mergeAsset(value);
+        if (value.kind === 'existing' && value.device_id && value.device_id !== prevDeviceId) {
+          const fill = this._deviceDefaults(String(value.device_id), prevAsset);
+          if (fill) {
+            mergeAsset(fill);
+            identity.data = { ...identity.data, ...fill };
+          }
+        }
         if (!editing && value.kind !== prevKind) this._render();
       },
     );

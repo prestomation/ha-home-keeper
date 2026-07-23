@@ -489,7 +489,10 @@ record their warranty. Home Keeper fills that gap with **appliances**, managed f
 - **New appliance** — Home Keeper registers a real **virtual device** for it, so
   multiple tasks share *one* device page and other integrations can attach to it too.
 - **Existing device** — point Home Keeper at a device another integration already
-  provides and enrich it with the same metadata, without owning it.
+  provides and enrich it with the same metadata, without owning it. Picking a device
+  prefills manufacturer/model/serial number from its own registry entry when it has
+  them (handy since not every integration reports those), and you can fill in or
+  correct whatever it's missing.
 
 Either way you record **asset metadata**. A few structured fields wire into Home
 Assistant — manufacturer/model, an mdi icon, a manual link, replacement cost — and
