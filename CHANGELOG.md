@@ -4,32 +4,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
-## [0.9.0b2]
-
-### Added
-
-- **Back-date or correct a task completion.** The completion dialog now has an
-  optional **Completed at** date/time field (defaults to now) for logging a
-  completion in the past — so a floating task's next-due date measures from when
-  you actually did it, not from when you got around to logging it. The task
-  history list also gains a **move date** action on each completion row to fix an
-  already-recorded entry's timestamp after the fact, without touching its note,
-  cost, photo, or who. Backed by a new `home_keeper.move_completion` service and
-  matching websocket command; automations that already react to
-  `home_keeper_task_completed` / `home_keeper_task_uncompleted` see a move for
-  free. (Fixes #143)
-
-## [0.9.0b1]
-
-### Fixed
-
-- **The task-completion dialog's Save button was invisible.** For a task set to
-  "Ask for details" or "Require details" on completion, tapping **Done** opened a
-  dialog to log a note/cost/who — but its **Mark done**/**Save**, **Skip details**,
-  and **Cancel** buttons never rendered, in the panel or the mobile app, so there was
-  no way to confirm or dismiss it. Home Assistant's `ha-dialog` component changed its
-  internal slot API (action buttons must now be wrapped in `<ha-dialog-footer>`); the
-  panel's completion dialog hadn't been updated to match. (Fixes #144)
+## [0.10.0] - 2026-07-23
 
 ### Added
 
@@ -50,6 +25,26 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   device's own registry entry — handy since not every integration reports them. Fields
   you've already filled in (or the device doesn't know) are never overwritten, so you
   can freely correct or complete what the device is missing. (Fixes #145)
+- **Back-date or correct a task completion.** The completion dialog now has an
+  optional **Completed at** date/time field (defaults to now) for logging a
+  completion in the past — so a floating task's next-due date measures from when
+  you actually did it, not from when you got around to logging it. The task
+  history list also gains a **move date** action on each completion row to fix an
+  already-recorded entry's timestamp after the fact, without touching its note,
+  cost, photo, or who. Backed by a new `home_keeper.move_completion` service and
+  matching websocket command; automations that already react to
+  `home_keeper_task_completed` / `home_keeper_task_uncompleted` see a move for
+  free. (Fixes #143)
+
+### Fixed
+
+- **The task-completion dialog's Save button was invisible.** For a task set to
+  "Ask for details" or "Require details" on completion, tapping **Done** opened a
+  dialog to log a note/cost/who — but its **Mark done**/**Save**, **Skip details**,
+  and **Cancel** buttons never rendered, in the panel or the mobile app, so there was
+  no way to confirm or dismiss it. Home Assistant's `ha-dialog` component changed its
+  internal slot API (action buttons must now be wrapped in `<ha-dialog-footer>`); the
+  panel's completion dialog hadn't been updated to match. (Fixes #144)
 
 ## [0.8.0] - 2026-07-04
 
