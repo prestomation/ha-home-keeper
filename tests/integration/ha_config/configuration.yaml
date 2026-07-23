@@ -69,6 +69,9 @@ input_text:
   hk_last_low_stock_part:
     name: HK last low-stock part
     max: 255
+  hk_last_uncompleted_ts:
+    name: HK last uncompleted ts
+    max: 255
 
 automation:
   - alias: Capture Home Keeper task completed
@@ -86,6 +89,16 @@ automation:
           entity_id: input_text.hk_last_completed_origin
         data:
           value: "{{ trigger.event.data.origin if trigger.event.data.origin is not none else 'none' }}"
+  - alias: Capture Home Keeper task uncompleted
+    trigger:
+      - platform: event
+        event_type: home_keeper_task_uncompleted
+    action:
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.hk_last_uncompleted_ts
+        data:
+          value: "{{ trigger.event.data.ts if trigger.event.data.ts is not none else 'none' }}"
   - alias: Capture Home Keeper part low stock
     trigger:
       - platform: event

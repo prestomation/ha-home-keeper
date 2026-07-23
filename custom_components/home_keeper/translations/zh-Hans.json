@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "移动完成记录",
+      "description": "为已记录的完成项重新设置时间戳(将其改为更早的日期或更正它),通过其当前时间戳标识。与更新完成记录不同,此操作会更改完成项的日期/时间,并根据结果重新计算任务的上次完成和下次到期日期。",
+      "fields": {
+        "task_id": {
+          "name": "任务 ID",
+          "description": "要移动其完成记录的任务的 id。"
+        },
+        "old_ts": {
+          "name": "当前完成时间戳",
+          "description": "要移动的完成记录条目的 ISO 时间戳 (ts)。"
+        },
+        "new_completed_at": {
+          "name": "新完成时间",
+          "description": "要记录完成的新日期/时间。"
+        }
+      }
+    },
     "delete_completion": {
       "name": "删除完成记录",
       "description": "从任务历史中移除一条完成记录（撤销误点的“完成”），通过其时间戳标识。",

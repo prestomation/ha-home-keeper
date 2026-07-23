@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Mou la realització",
+      "description": "Torna a marcar la data i hora d'una realització ja registrada (retrocedeix-la o corregeix-la), identificada per la seva marca de temps actual. A diferència d'Actualitza la realització, això canvia la data/hora de la realització i torna a calcular les dates de darrera realització i propera venciment de la tasca a partir del resultat.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca la realització de la qual estàs movent."
+        },
+        "old_ts": {
+          "name": "Marca de temps de realització actual",
+          "description": "La marca de temps ISO (ts) de l'entrada de realització a moure."
+        },
+        "new_completed_at": {
+          "name": "Nova data de realització",
+          "description": "La nova data i hora en què es registrarà la realització."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Elimina la realització",
       "description": "Elimina una realització de l'historial d'una tasca (desfés un «fet» accidental), identificada per la seva marca de temps.",

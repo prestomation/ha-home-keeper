@@ -222,6 +222,18 @@ DELETE_COMPLETION_SCHEMA = vol.Schema(
     }
 )
 
+# Re-timestamp a recorded completion (back-date or correct it). Unlike
+# UPDATE_COMPLETION_SCHEMA (metadata only), this moves the completion's ``ts``;
+# ``new_completed_at`` uses ``cv.datetime`` for parity with ``COMPLETE_TASK_SCHEMA``'s
+# ``completed_at`` (accepts an offset-less value, qualified with HA's zone downstream).
+MOVE_COMPLETION_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("old_ts"): cv.string,
+        vol.Required("new_completed_at"): cv.datetime,
+    }
+)
+
 DELETE_ARCHIVED_COMPLETION_SCHEMA = vol.Schema(
     {
         vol.Required("asset_id"): cv.string,
@@ -678,6 +690,28 @@ def _register_services(hass: HomeAssistant) -> None:
             ) from err
         await coord.async_request_refresh()
 
+    async def handle_move_completion(call: ServiceCall) -> None:
+        coord = _coordinator()
+        try:
+            await coord.store.move_completion(
+                call.data["task_id"],
+                call.data["old_ts"],
+                call.data["new_completed_at"].isoformat(),
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await coord.async_request_refresh()
+
     async def handle_delete_archived_completion(call: ServiceCall) -> None:
         coord = _coordinator()
         try:
@@ -975,6 +1009,9 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN, "delete_completion", handle_delete_completion, DELETE_COMPLETION_SCHEMA
     )
     hass.services.async_register(
+        DOMAIN, "move_completion", handle_move_completion, MOVE_COMPLETION_SCHEMA
+    )
+    hass.services.async_register(
         DOMAIN,
         "delete_archived_completion",
         handle_delete_archived_completion,
@@ -1129,6 +1166,7 @@ _SERVICES = (
     "complete_task",
     "update_completion",
     "delete_completion",
+    "move_completion",
     "delete_archived_completion",
     "trigger_task",
     "snooze_task",

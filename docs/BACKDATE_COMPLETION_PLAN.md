@@ -1,7 +1,11 @@
 # Back-Date / Edit a Completion's Timestamp
 
-**Status: proposed.** Design for [issue #143](https://github.com/prestomation/ha-home-keeper/issues/143).
-Not yet implemented — this document is the plan to hand to an implementation PR.
+**Status: implemented (0.9.0b2).** Design for
+[issue #143](https://github.com/prestomation/ha-home-keeper/issues/143), shipped as
+designed below — both panel affordances, `recurrence.move_completion` with the
+one-off re-arm ordering fix from review, the `home_keeper.move_completion` service +
+websocket command, the `ws_complete_task` `completed_at` fix, and full test coverage
+(unit, integration, vitest). Kept for context/rationale.
 
 Today, marking a task **Done** always stamps `completed_at = now`. There is no panel
 affordance to say "I actually did this last Tuesday" — and for a **floating** task

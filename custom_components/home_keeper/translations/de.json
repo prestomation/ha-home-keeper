@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Erledigung verschieben",
+      "description": "Versieht eine bereits erfasste Erledigung mit einem neuen Zeitstempel (rückwirkend datieren oder korrigieren), identifiziert anhand ihres aktuellen Zeitstempels. Im Gegensatz zu Erledigung aktualisieren ändert dies Datum/Uhrzeit der Erledigung und leitet das Datum der letzten Erledigung sowie das nächste Fälligkeitsdatum der Aufgabe aus dem Ergebnis neu ab.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der Aufgabe, deren Erledigung du verschiebst."
+        },
+        "old_ts": {
+          "name": "Aktueller Erledigungszeitstempel",
+          "description": "Der ISO-Zeitstempel (ts) des zu verschiebenden Erledigungseintrags."
+        },
+        "new_completed_at": {
+          "name": "Neu erledigt am",
+          "description": "Das neue Datum/die neue Uhrzeit, zu dem die Erledigung erfasst werden soll."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Erledigung löschen",
       "description": "Entfernt eine Erledigung aus dem Verlauf einer Aufgabe (macht ein versehentliches „Erledigt“ rückgängig), angegeben über ihren Zeitstempel.",

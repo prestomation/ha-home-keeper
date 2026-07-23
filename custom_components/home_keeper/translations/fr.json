@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Déplacer l'achèvement",
+      "description": "Réattribue un nouvel horodatage à un achèvement déjà enregistré (l'antidater ou le corriger), identifié par son horodatage actuel. Contrairement à Mettre à jour l'achèvement, ceci change la date/heure de l'achèvement et recalcule les dates de dernier achèvement et de prochaine échéance de la tâche à partir du résultat.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'id de la tâche dont vous déplacez l'achèvement."
+        },
+        "old_ts": {
+          "name": "Horodatage actuel de l'achèvement",
+          "description": "L'horodatage ISO (ts) de l'entrée d'achèvement à déplacer."
+        },
+        "new_completed_at": {
+          "name": "Nouvel achèvement le",
+          "description": "La nouvelle date/heure à laquelle enregistrer l'achèvement."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Supprimer une réalisation",
       "description": "Supprime une réalisation de l'historique d'une tâche (annuler un « fait » accidentel), identifiée par son horodatage.",

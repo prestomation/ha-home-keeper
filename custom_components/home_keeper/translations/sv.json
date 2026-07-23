@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Flytta slutförande",
+      "description": "Ger ett redan registrerat slutförande en ny tidsstämpel (backdatera eller korrigera det), identifierat med sin nuvarande tidsstämpel. Till skillnad från Uppdatera slutförande ändrar detta slutförandets datum/tid och beräknar om uppgiftens senast slutförda och nästa förfallodatum utifrån resultatet.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID:t för uppgiften vars slutförande du flyttar."
+        },
+        "old_ts": {
+          "name": "Nuvarande tidsstämpel för slutförande",
+          "description": "ISO-tidsstämpeln (ts) för slutförandeposten som ska flyttas."
+        },
+        "new_completed_at": {
+          "name": "Nytt slutfört den",
+          "description": "Det nya datumet/tiden som slutförandet ska registreras på."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Ta bort slutförande",
       "description": "Tar bort ett slutförande från en uppgifts historik (ångra ett oavsiktligt ”klart”), angivet med dess tidsstämpel.",

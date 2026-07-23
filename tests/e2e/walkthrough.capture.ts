@@ -59,6 +59,17 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await taskRow.click();
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
+
+    // 2a. "Move date" on a history row — back-dates/corrects a completion's
+    //     timestamp without touching its note/cost/photo/who. Escape without saving
+    //     so the walkthrough leaves the seeded data untouched.
+    await panel.locator('.hk-hist-move').first().click();
+    await expect(panel.locator('ha-dialog[open] ha-selector-datetime').first()).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await page.keyboard.press('Escape');
+    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+    await page.waitForTimeout(BEAT);
+
     await panel.locator('#back-btn').click();
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);

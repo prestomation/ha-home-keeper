@@ -135,10 +135,12 @@ export async function completeTask(
   hass: Hass,
   taskId: string,
   metadata?: CompletionMetadata,
+  completedAt?: string,
 ): Promise<Task> {
   const res = await hass.callWS<{ task: Task }>({
     type: 'home_keeper/complete_task',
     task_id: taskId,
+    ...(completedAt ? { completed_at: completedAt } : {}),
     ...metadataMsg(metadata),
   });
   return res.task;
@@ -160,6 +162,26 @@ export async function updateCompletion(
     task_id: taskId,
     ts,
     ...metadataMsg(metadata),
+  });
+  return res.task;
+}
+
+/**
+ * Re-timestamp a recorded completion (back-date or correct it), identified by its
+ * current `ts`. Distinct from `updateCompletion`, which edits metadata but never
+ * moves the timestamp.
+ */
+export async function moveCompletion(
+  hass: Hass,
+  taskId: string,
+  oldTs: string,
+  newTs: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/move_completion',
+    task_id: taskId,
+    old_ts: oldTs,
+    new_ts: newTs,
   });
   return res.task;
 }

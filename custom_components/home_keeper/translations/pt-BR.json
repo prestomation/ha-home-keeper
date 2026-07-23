@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Mover conclusão",
+      "description": "Atribui um novo carimbo de data/hora a uma conclusão já registrada (retroagi-la ou corrigi-la), identificada pelo seu carimbo de data/hora atual. Diferente de Atualizar conclusão, isso altera a data/hora da conclusão e recalcula as datas de última conclusão e próximo vencimento da tarefa a partir do resultado.",
+      "fields": {
+        "task_id": {
+          "name": "ID da tarefa",
+          "description": "O id da tarefa cuja conclusão você está movendo."
+        },
+        "old_ts": {
+          "name": "Carimbo de data/hora atual da conclusão",
+          "description": "O carimbo de data/hora ISO (ts) da entrada de conclusão a mover."
+        },
+        "new_completed_at": {
+          "name": "Nova conclusão em",
+          "description": "A nova data/hora em que a conclusão será registrada."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Excluir conclusão",
       "description": "Remove uma conclusão do histórico de uma tarefa (desfazer um “concluído” acidental), identificada pelo seu carimbo de data/hora.",

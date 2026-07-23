@@ -1066,6 +1066,62 @@ class HomeKeeperStore:
         )
         return updated
 
+    async def move_completion(
+        self, task_id: str, old_ts: str, new_ts: str
+    ) -> dict[str, Any]:
+        """Re-timestamp a recorded completion (back-date or correct it).
+
+        Unlike :meth:`update_completion` (metadata only, ``ts`` never moves), this
+        edits the timestamp itself and re-derives ``last_completed``/``next_due``
+        from the resulting history — the same re-derive :meth:`delete_completion`
+        already does, since the moved entry isn't necessarily the new latest.
+
+        Modeled as "undo, then redo at the new time": fires
+        ``home_keeper_task_uncompleted`` then ``home_keeper_task_completed`` so
+        automations/integrations that already react to those two events see the
+        move without a new event type to learn. Raises ``KeyError`` for an unknown
+        task and ``TaskValidationError`` when no completion matches *old_ts*.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        # A synced problem task's history is owned by the sync, not the user.
+        _reject_synced_problem(existing, None)
+        now = dt_util.now()
+        try:
+            updated = recurrence.move_completion(
+                dict(existing), old_ts, new_ts, now=now
+            )
+        except ValueError as err:
+            raise models.TaskValidationError(str(err)) from err
+        self._tasks[task_id] = updated
+        await self._save()
+        # Mirror recurrence.move_completion's own naive-timestamp qualification so
+        # the entry we look up (for the echoed metadata) matches exactly what was
+        # persisted, then use its ``ts`` as the completed-event ``when``.
+        new_dt = dt_util.parse_datetime(new_ts) or now
+        if new_dt.tzinfo is None:
+            new_dt = new_dt.replace(tzinfo=now.tzinfo)
+        when_ts = new_dt.isoformat()
+        moved = next(
+            (e for e in updated.get("completions", []) if e.get("ts") == when_ts),
+            None,
+        )
+        metadata = {
+            key: moved[key]
+            for key in models.COMPLETION_METADATA_FIELDS
+            if moved and key in moved
+        }
+        self._hass.bus.async_fire(
+            EVENT_TASK_UNCOMPLETED,
+            events.task_event_data(updated, extra={"ts": old_ts}),
+        )
+        self._hass.bus.async_fire(
+            EVENT_TASK_COMPLETED,
+            events.completion_event_data(updated, when_ts, None, metadata=metadata),
+        )
+        return updated
+
     async def delete_archived_completion(
         self, asset_id: str, task_id: str, ts: str
     ) -> dict[str, Any]:

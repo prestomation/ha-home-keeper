@@ -432,6 +432,33 @@ update_completion:
           filter:
             domain: person
 
+move_completion:
+  name: Move completion
+  description: >-
+    Re-timestamp an already-recorded completion (back-date or correct it),
+    identified by its current timestamp. Unlike update_completion, this changes
+    the completion's date/time and re-derives the task's last-completed and
+    next-due dates from the result. Fires task_uncompleted then task_completed.
+  fields:
+    task_id:
+      name: Task ID
+      description: The id of the task whose completion you are moving.
+      required: true
+      selector:
+        text:
+    old_ts:
+      name: Current completion timestamp
+      description: The ISO timestamp (ts) of the completion entry to move.
+      required: true
+      selector:
+        text:
+    new_completed_at:
+      name: New completed at
+      description: The new date/time to record the completion at.
+      required: true
+      selector:
+        datetime:
+
 delete_completion:
   name: Delete completion
   description: >-

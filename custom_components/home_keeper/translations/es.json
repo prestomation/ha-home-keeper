@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Mover finalización",
+      "description": "Vuelve a fechar una finalización ya registrada (retrasarla o corregirla), identificada por su marca de tiempo actual. A diferencia de Actualizar finalización, esto cambia la fecha/hora de la finalización y recalcula las fechas de última finalización y próximo vencimiento de la tarea a partir del resultado.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea cuya finalización estás moviendo."
+        },
+        "old_ts": {
+          "name": "Marca de tiempo de finalización actual",
+          "description": "La marca de tiempo ISO (ts) de la entrada de finalización que se va a mover."
+        },
+        "new_completed_at": {
+          "name": "Nueva finalización el",
+          "description": "La nueva fecha/hora en la que se registrará la finalización."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Eliminar finalización",
       "description": "Elimina una finalización del historial de una tarea (deshacer un «hecho» accidental), identificada por su marca de tiempo.",

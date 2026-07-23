@@ -5,9 +5,13 @@ device-attached tasks get per-task device-page entities, and that completing /
 adding tasks flows through the recurrence engine and updates entities.
 """
 
+import json
 import time
 
-from conftest import call_service, get_state, list_states, poll_state
+import websockets.sync.client
+from conftest import HA_URL, call_service, get_state, list_states, poll_state
+
+_WS_URL = HA_URL.replace("http://", "ws://") + "/api/websocket"
 
 
 def _list_tasks(ha):
@@ -200,6 +204,164 @@ def test_complete_task_without_origin_reports_none(ha):
     task_id = next(t["id"] for t in _list_tasks(ha) if t["name"] == "Take medicine")
     call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
     poll_state(ha, "input_text.hk_last_completed_origin", lambda s: s == "none")
+
+
+def _ws_call(ha, payload):
+    """Send one Home Keeper websocket command and return its result payload."""
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    with websockets.sync.client.connect(_WS_URL) as ws:
+        msg = json.loads(ws.recv())
+        assert msg["type"] == "auth_required"
+        ws.send(json.dumps({"type": "auth", "access_token": token}))
+        msg = json.loads(ws.recv())
+        assert msg["type"] == "auth_ok", f"auth failed: {msg}"
+        ws.send(json.dumps({"id": 1, **payload}))
+        msg = json.loads(ws.recv())
+        return msg
+
+
+def test_complete_task_websocket_completed_at_persists(ha):
+    # Regression: ws_complete_task used to drop completed_at entirely even though
+    # the service and store already supported back-dating (issue #143 gap). This
+    # exercises the websocket command directly (not the service) to cover the fix.
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "WS back-date probe",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "days",
+        },
+    )
+    task_id = next(
+        t["id"] for t in _list_tasks(ha) if t["name"] == "WS back-date probe"
+    )
+    try:
+        back_dated = "2026-01-05T09:00:00-04:00"
+        result = _ws_call(
+            ha,
+            {
+                "type": "home_keeper/complete_task",
+                "task_id": task_id,
+                "completed_at": back_dated,
+            },
+        )
+        assert result["success"], result
+        assert result["result"]["task"]["last_completed"] == back_dated
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+
+
+def test_move_completion_websocket_command_persists(ha):
+    old_ts = "2026-01-01T09:00:00-04:00"
+    new_ts = "2026-01-12T09:00:00-04:00"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "WS move completion probe",
+            "recurrence_type": "floating",
+            "interval": 30,
+            "unit": "days",
+            "last_completed": old_ts,
+        },
+    )
+    task_id = next(
+        t["id"] for t in _list_tasks(ha) if t["name"] == "WS move completion probe"
+    )
+    try:
+        result = _ws_call(
+            ha,
+            {
+                "type": "home_keeper/move_completion",
+                "task_id": task_id,
+                "old_ts": old_ts,
+                "new_ts": new_ts,
+            },
+        )
+        assert result["success"], result
+        assert result["result"]["task"]["completions"] == [{"ts": new_ts}]
+        assert result["result"]["task"]["last_completed"] == new_ts
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+
+
+def test_move_completion_service_fires_uncompleted_then_completed(ha):
+    # Modeled as "undo, then redo at the new time": both events fire so existing
+    # automations/integrations that already react to completions/uncompletions see
+    # the move without a new event type to learn (issue #143).
+    old_ts = "2026-01-01T09:00:00-04:00"
+    new_ts = "2026-01-10T09:00:00-04:00"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "Move completion probe",
+            "recurrence_type": "floating",
+            "interval": 30,
+            "unit": "days",
+            "last_completed": old_ts,
+        },
+    )
+    task_id = next(
+        t["id"] for t in _list_tasks(ha) if t["name"] == "Move completion probe"
+    )
+    try:
+        seeded = next(t for t in _list_tasks(ha) if t["id"] == task_id)
+        assert seeded["completions"] == [{"ts": old_ts}]
+
+        call_service(
+            ha,
+            "home_keeper",
+            "move_completion",
+            {"task_id": task_id, "old_ts": old_ts, "new_completed_at": new_ts},
+        )
+
+        # task_uncompleted fired first, carrying the old ts as an extra.
+        poll_state(ha, "input_text.hk_last_uncompleted_ts", lambda s: s == old_ts)
+        # task_completed fired second, with no caller-supplied origin.
+        poll_state(ha, "input_text.hk_last_completed_origin", lambda s: s == "none")
+
+        moved = next(t for t in _list_tasks(ha) if t["id"] == task_id)
+        assert moved["completions"] == [{"ts": new_ts}]
+        assert moved["last_completed"] == new_ts
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+
+
+def test_move_completion_unknown_ts_rejected(ha):
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "Move completion missing ts probe",
+            "recurrence_type": "floating",
+            "interval": 30,
+            "unit": "days",
+        },
+    )
+    task_id = next(
+        t["id"]
+        for t in _list_tasks(ha)
+        if t["name"] == "Move completion missing ts probe"
+    )
+    try:
+        r = ha.post(
+            f"{HA_URL}/api/services/home_keeper/move_completion",
+            json={
+                "task_id": task_id,
+                "old_ts": "2000-01-01T00:00:00+00:00",
+                "new_completed_at": "2026-01-01T00:00:00+00:00",
+            },
+        )
+        assert r.status_code >= 400, "expected rejection for an unknown old_ts"
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
 
 
 def _find_button_by_name(ha, name_substr):
