@@ -18,6 +18,7 @@ from homeassistant.util import dt as dt_util
 
 from . import companions, devices, inventory, manuals, notifier, options
 from .assets import AssetValidationError
+from .backend_i18n import resolve_exception
 from .const import DOMAIN, OPTION_PROFILES
 from .coordinator import HomeKeeperCoordinator, entity_set_key, task_has_entities
 from .models import TaskValidationError
@@ -37,6 +38,33 @@ def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
     return None
 
 
+def _err(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    code: str,
+    key: str,
+    **params: Any,
+) -> None:
+    """Send a websocket error with text localized to ``hass.config.language``.
+
+    ``connection.send_error`` needs the final string immediately — unlike a
+    ``ServiceValidationError``'s ``translation_key``, nothing downstream localizes
+    it later — so it's resolved here from the same ``exceptions`` strings.json
+    category via :func:`backend_i18n.resolve_exception`. See ``backend_i18n.py``.
+    """
+    text = resolve_exception(hass.config.language, key, **params)
+    connection.send_error(msg["id"], code, text)
+
+
+def _not_loaded(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    _err(hass, connection, msg, "not_loaded", "integration_not_loaded")
+
+
 def _area_ok(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -47,7 +75,7 @@ def _area_ok(
     area_id = payload.get("area_id")
     if devices.area_exists(hass, area_id):
         return True
-    connection.send_error(msg["id"], "invalid_area", f"Unknown area_id: {area_id}")
+    _err(hass, connection, msg, "invalid_area", "unknown_area", area_id=area_id)
     return False
 
 
@@ -89,7 +117,7 @@ async def ws_get_tasks(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     connection.send_result(msg["id"], {"tasks": coord.store.list_tasks()})
 
@@ -106,14 +134,14 @@ async def ws_add_task(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     if not _area_ok(hass, connection, msg, msg["task"]):
         return
     try:
         task = await coord.store.add_task(msg["task"])
     except TaskValidationError as err:
-        connection.send_error(msg["id"], "invalid_task", str(err))
+        _err(hass, connection, msg, "invalid_task", "invalid_task", error=str(err))
         return
     # Reload only when the new task owns per-task entities; else a refresh suffices.
     if task_has_entities(task):
@@ -136,7 +164,7 @@ async def ws_update_task(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     if not _area_ok(hass, connection, msg, msg["updates"]):
         return
@@ -144,10 +172,12 @@ async def ws_update_task(
     try:
         task = await coord.store.update_task(msg["task_id"], msg["updates"])
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown task_id")
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
         return
     except TaskValidationError as err:
-        connection.send_error(msg["id"], "invalid_task", str(err))
+        _err(hass, connection, msg, "invalid_task", "invalid_task", error=str(err))
         return
     # Only changes that alter which per-task entities exist (device link or
     # enabled state) need a reload; otherwise a coordinator refresh is enough.
@@ -171,13 +201,13 @@ async def ws_delete_task(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     existing = coord.store.get_task(msg["task_id"])
     try:
         await coord.store.delete_task(msg["task_id"], force=msg.get("force", False))
     except TaskValidationError as err:
-        connection.send_error(msg["id"], "invalid_task", str(err))
+        _err(hass, connection, msg, "invalid_task", "invalid_task", error=str(err))
         return
     # Reload only if the deleted task owned per-task entities that must be removed.
     if task_has_entities(existing):
@@ -202,17 +232,19 @@ async def ws_set_task_consumable(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     try:
         task = await coord.store.set_task_consumable(
             msg["task_id"], msg["asset_id"], msg["part_id"]
         )
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown task_id")
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
         return
     except TaskValidationError as err:
-        connection.send_error(msg["id"], "invalid_task", str(err))
+        _err(hass, connection, msg, "invalid_task", "invalid_task", error=str(err))
         return
     # Linking only rewrites the task's source; the per-task entity set is unchanged,
     # so a refresh is enough (no entry reload).
@@ -242,25 +274,25 @@ async def ws_complete_task(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     completed_at = None
     if "completed_at" in msg:
         completed_at = dt_util.parse_datetime(msg["completed_at"])
         if completed_at is None:
-            connection.send_error(
-                msg["id"], "invalid_format", "Invalid completed_at timestamp"
-            )
+            _err(hass, connection, msg, "invalid_format", "invalid_completed_at")
             return
     try:
         task = await coord.store.complete_task(
             msg["task_id"], completed_at, metadata=_ws_metadata(msg)
         )
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown task_id")
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
         return
     except TaskValidationError as err:
-        connection.send_error(msg["id"], "not_allowed", str(err))
+        _err(hass, connection, msg, "not_allowed", "complete_failed", error=str(err))
         return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
@@ -283,17 +315,19 @@ async def ws_update_completion(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     try:
         task = await coord.store.update_completion(
             msg["task_id"], msg["ts"], _ws_metadata(msg)
         )
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown task_id")
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
         return
     except TaskValidationError as err:
-        connection.send_error(msg["id"], "not_allowed", str(err))
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
         return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
@@ -313,17 +347,19 @@ async def ws_move_completion(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     try:
         task = await coord.store.move_completion(
             msg["task_id"], msg["old_ts"], msg["new_ts"]
         )
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown task_id")
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
         return
     except TaskValidationError as err:
-        connection.send_error(msg["id"], "not_allowed", str(err))
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
         return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
@@ -342,15 +378,17 @@ async def ws_delete_completion(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     try:
         task = await coord.store.delete_completion(msg["task_id"], msg["ts"])
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown task_id")
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
         return
     except TaskValidationError as err:
-        connection.send_error(msg["id"], "not_allowed", str(err))
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
         return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
@@ -370,14 +408,21 @@ async def ws_delete_archived_completion(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     try:
         asset = await coord.store.delete_archived_completion(
             msg["asset_id"], msg["task_id"], msg["ts"]
         )
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown asset_id")
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "asset_not_found",
+            asset_id=msg["asset_id"],
+        )
         return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"asset": asset})
@@ -390,7 +435,7 @@ async def ws_get_assets(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     connection.send_result(msg["id"], {"assets": coord.store.list_assets()})
 
@@ -407,14 +452,14 @@ async def ws_add_asset(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     if not _area_ok(hass, connection, msg, msg["asset"]):
         return
     try:
         asset = await coord.store.add_asset(msg["asset"])
     except AssetValidationError as err:
-        connection.send_error(msg["id"], "invalid_asset", str(err))
+        _err(hass, connection, msg, "invalid_asset", "invalid_asset", error=str(err))
         return
     await devices.async_apply_asset_change(hass, coord.entry, coord.store)
     # Re-read so the response carries the provisioned device_id.
@@ -436,17 +481,24 @@ async def ws_update_asset(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     if not _area_ok(hass, connection, msg, msg["updates"]):
         return
     try:
         asset = await coord.store.update_asset(msg["asset_id"], msg["updates"])
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown asset_id")
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "asset_not_found",
+            asset_id=msg["asset_id"],
+        )
         return
     except AssetValidationError as err:
-        connection.send_error(msg["id"], "invalid_asset", str(err))
+        _err(hass, connection, msg, "invalid_asset", "invalid_asset", error=str(err))
         return
     await devices.async_apply_asset_change(hass, coord.entry, coord.store)
     connection.send_result(
@@ -466,7 +518,7 @@ async def ws_delete_asset(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     asset = await coord.store.delete_asset(msg["asset_id"])
     if asset is not None:
@@ -491,14 +543,22 @@ async def ws_adjust_part_stock(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     try:
         asset = await coord.store.adjust_part_stock(
             msg["asset_id"], msg["part_id"], msg["delta"]
         )
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown asset_id or part_id")
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "unknown_part",
+            asset_id=msg["asset_id"],
+            part_id=msg["part_id"],
+        )
         return
     # A crossing may create/remove an auto-buy task; settle it (reload if a buy task's
     # device entities changed, else refresh).
@@ -519,23 +579,28 @@ async def ws_add_asset_document(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     document = dict(msg["document"])
     # Files are uploaded through the HTTP view; this command only adds links.
     if document.get("kind", "link") != "link":
-        connection.send_error(
-            msg["id"], "invalid_asset", "only link documents can be added here"
-        )
+        _err(hass, connection, msg, "invalid_asset", "link_documents_only")
         return
     document["kind"] = "link"
     try:
         await coord.store.add_asset_document(msg["asset_id"], document)
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown asset_id")
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "asset_not_found",
+            asset_id=msg["asset_id"],
+        )
         return
     except AssetValidationError as err:
-        connection.send_error(msg["id"], "invalid_asset", str(err))
+        _err(hass, connection, msg, "invalid_asset", "invalid_asset", error=str(err))
         return
     # Documents touch no device/entity/task; the store already saved and fired the
     # event, so no device reconcile or entry reload is needed.
@@ -555,14 +620,21 @@ async def ws_remove_asset_document(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     try:
         asset = await coord.store.remove_asset_document(
             msg["asset_id"], msg["document_id"]
         )
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown asset_id or document_id")
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "unknown_document",
+            document_id=msg["document_id"],
+        )
         return
     # Documents touch no device/entity/task; no device reconcile or entry reload needed.
     connection.send_result(msg["id"], {"asset": asset})
@@ -582,17 +654,24 @@ async def ws_update_asset_document(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     try:
         await coord.store.update_asset_document(
             msg["asset_id"], msg["document_id"], msg["changes"]
         )
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown asset_id or document_id")
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "unknown_document",
+            document_id=msg["document_id"],
+        )
         return
     except AssetValidationError as err:
-        connection.send_error(msg["id"], "invalid_asset", str(err))
+        _err(hass, connection, msg, "invalid_asset", "invalid_asset", error=str(err))
         return
     connection.send_result(msg["id"], {"asset": coord.store.get_asset(msg["asset_id"])})
 
@@ -611,7 +690,7 @@ async def ws_sign_document_url(
     """Mint a short-lived signed URL the browser can open for a file document."""
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     asset = coord.store.get_asset(msg["asset_id"])
     document = next(
@@ -623,7 +702,14 @@ async def ws_sign_document_url(
         None,
     )
     if document is None:
-        connection.send_error(msg["id"], "not_found", "Unknown file document")
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "unknown_document",
+            document_id=msg["document_id"],
+        )
         return
     path = manuals.document_path(msg["asset_id"], msg["document_id"])
     signed = async_sign_path(
@@ -648,12 +734,20 @@ async def ws_remove_part_file(
 ) -> None:
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     try:
         asset = await coord.store.remove_part_file(msg["asset_id"], msg["part_id"])
     except KeyError:
-        connection.send_error(msg["id"], "not_found", "Unknown asset_id or part_id")
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "unknown_part",
+            asset_id=msg["asset_id"],
+            part_id=msg["part_id"],
+        )
         return
     connection.send_result(msg["id"], {"asset": asset})
 
@@ -672,7 +766,7 @@ async def ws_sign_part_file_url(
     """Mint a short-lived signed URL the browser can open for a part's file."""
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     asset = coord.store.get_asset(msg["asset_id"])
     part = next(
@@ -684,9 +778,7 @@ async def ws_sign_part_file_url(
         None,
     )
     if part is None:
-        connection.send_error(
-            msg["id"], "not_found", "Unknown part or no attached file"
-        )
+        _err(hass, connection, msg, "not_found", "unknown_part_file")
         return
     path = manuals.part_file_path(msg["asset_id"], msg["part_id"])
     signed = async_sign_path(
@@ -711,17 +803,15 @@ async def ws_export_inventory(
     """
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     report = inventory.build_inventory(
         coord.store.list_assets(),
         area_names=devices.area_names(hass),
         today=dt_util.now().date(),
     )
-    connection.send_result(
-        msg["id"],
-        {"inventory": report, "csv": inventory.inventory_to_csv(report)},
-    )
+    csv = inventory.inventory_to_csv(report, lang=hass.config.language)
+    connection.send_result(msg["id"], {"inventory": report, "csv": csv})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_options"})
@@ -737,7 +827,7 @@ async def ws_get_options(
     """
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     connection.send_result(
         msg["id"],
@@ -769,7 +859,7 @@ async def ws_set_options(
     """
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     merged = await options.async_set_options(hass, coord.entry, msg["options"])
     connection.send_result(msg["id"], {"options": merged})
@@ -787,7 +877,7 @@ async def ws_get_companions(
     companions.py.
     """
     if _coordinator(hass) is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     connection.send_result(
         msg["id"], {"companions": companions.async_list_companions(hass)}
@@ -807,7 +897,7 @@ async def ws_get_profiles(
     """
     coord = _coordinator(hass)
     if coord is None:
-        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        _not_loaded(hass, connection, msg)
         return
     connection.send_result(
         msg["id"],

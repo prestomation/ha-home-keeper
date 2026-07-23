@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "Gesynchroniseerd vanuit {entity_id}. Dit probleem kan niet handmatig worden opgelost in Home Keeper – het wordt automatisch opgelost zodra de bronintegratie het oplost (de sensor keert terug naar OK).",
+  "companion.battery_notes.description": "Je hebt Battery Notes geïnstalleerd. Voeg de Home Keeper – Battery Notes-brug toe om meldingen over lage batterijen om te zetten in geplande “batterij vervangen”-taken, die in beide richtingen gesynchroniseerd blijven.",
+  "inventory.csv.name": "Naam",
+  "inventory.csv.area": "Gebied",
+  "inventory.csv.manufacturer": "Fabrikant",
+  "inventory.csv.model": "Model",
+  "inventory.csv.serial_number": "Serienummer",
+  "inventory.csv.cost": "Kosten",
+  "inventory.csv.spares_value": "Waarde reserveonderdelen",
+  "inventory.csv.details": "Details",
+  "inventory.csv.total": "TOTAAL"
+}

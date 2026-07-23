@@ -340,5 +340,12 @@
   "hint.sensor.thresholdFor": "Tehtävä erääntyy, kun anturi pysyy {comparison} {value} {seconds}s ajan.",
   "error.actionFailed": "Jotain meni vikaan. Yritä uudelleen.",
   "error.loadFailed": "Home Keeperin lataus epäonnistui.",
-  "btn.retry": "Yritä uudelleen"
+  "btn.retry": "Yritä uudelleen",
+  "card.empty": "Ei vielä tehtäviä.",
+  "card.loadError": "Tehtävien lataus epäonnistui. Onko Home Keeper -integraatio määritetty?",
+  "card.moreHidden.one": "+{n} lisää",
+  "card.moreHidden.other": "+{n} lisää",
+  "confirm.completeTask": "Merkitäänkö \"{name}\" valmiiksi?",
+  "profile.defaultName": "Tehtävät",
+  "notify.defaultName": "Ilmoitus"
 }

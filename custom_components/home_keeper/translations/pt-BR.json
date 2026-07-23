@@ -760,6 +760,30 @@
     },
     "integration_not_loaded": {
       "message": "O Home Keeper não está carregado no momento. Tente novamente em instantes."
+    },
+    "invalid_completed_at": {
+      "message": "Timestamp completed_at inválido."
+    },
+    "link_documents_only": {
+      "message": "Aqui só é possível adicionar documentos de link."
+    },
+    "unknown_document": {
+      "message": "Documento desconhecido: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Peça desconhecida ou sem arquivo anexado."
+    },
+    "file_too_large": {
+      "message": "O arquivo excede o limite de {mb} MB."
+    },
+    "expected_multipart_upload": {
+      "message": "Era esperado um upload multipart."
+    },
+    "no_file_in_upload": {
+      "message": "Nenhum arquivo no upload."
+    },
+    "failed_to_store_file": {
+      "message": "Não foi possível salvar o arquivo."
     }
   }
 }

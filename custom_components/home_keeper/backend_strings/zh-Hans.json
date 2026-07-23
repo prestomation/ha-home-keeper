@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "从 {entity_id} 同步而来。此问题无法在 Home Keeper 中手动清除——一旦源集成解决该问题（传感器恢复为正常状态），它会自动清除。",
+  "companion.battery_notes.description": "您已安装 Battery Notes。添加 Home Keeper — Battery Notes 桥接后，可将低电量提醒转换为计划中的“更换电池”任务，并双向保持同步。",
+  "inventory.csv.name": "名称",
+  "inventory.csv.area": "区域",
+  "inventory.csv.manufacturer": "制造商",
+  "inventory.csv.model": "型号",
+  "inventory.csv.serial_number": "序列号",
+  "inventory.csv.cost": "费用",
+  "inventory.csv.spares_value": "备件价值",
+  "inventory.csv.details": "详情",
+  "inventory.csv.total": "总计"
+}

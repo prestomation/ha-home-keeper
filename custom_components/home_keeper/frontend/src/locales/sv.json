@@ -340,5 +340,12 @@
   "hint.sensor.thresholdFor": "Uppgiften förfaller när sensorn förblir {comparison} {value} i {seconds}s.",
   "error.actionFailed": "Något gick fel. Försök igen.",
   "error.loadFailed": "Kunde inte läsa in Home Keeper.",
-  "btn.retry": "Försök igen"
+  "btn.retry": "Försök igen",
+  "card.empty": "Inga uppgifter än.",
+  "card.loadError": "Det gick inte att läsa in uppgifter. Är Home Keeper-integrationen konfigurerad?",
+  "card.moreHidden.one": "+{n} till",
+  "card.moreHidden.other": "+{n} till",
+  "confirm.completeTask": "Markera \"{name}\" som klar?",
+  "profile.defaultName": "Uppgifter",
+  "notify.defaultName": "Avisering"
 }

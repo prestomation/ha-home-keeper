@@ -340,5 +340,12 @@
   "hint.sensor.thresholdFor": "Die Aufgabe wird fällig, wenn der Sensor {seconds}s lang {comparison} {value} bleibt.",
   "error.actionFailed": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
   "error.loadFailed": "Home Keeper konnte nicht geladen werden.",
-  "btn.retry": "Erneut versuchen"
+  "btn.retry": "Erneut versuchen",
+  "card.empty": "Noch keine Aufgaben.",
+  "card.loadError": "Aufgaben konnten nicht geladen werden. Ist die Home Keeper-Integration eingerichtet?",
+  "card.moreHidden.one": "+{n} weitere",
+  "card.moreHidden.other": "+{n} weitere",
+  "confirm.completeTask": "\"{name}\" als erledigt markieren?",
+  "profile.defaultName": "Aufgaben",
+  "notify.defaultName": "Benachrichtigung"
 }

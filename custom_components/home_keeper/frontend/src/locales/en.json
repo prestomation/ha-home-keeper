@@ -340,5 +340,12 @@
   "field.card_links": "Links to show on card",
   "error.actionFailed": "Something went wrong. Please try again.",
   "error.loadFailed": "Couldn't load Home Keeper.",
-  "btn.retry": "Retry"
+  "btn.retry": "Retry",
+  "card.empty": "No tasks yet.",
+  "card.loadError": "Couldn't load tasks. Is the Home Keeper integration set up?",
+  "card.moreHidden.one": "+{n} more",
+  "card.moreHidden.other": "+{n} more",
+  "confirm.completeTask": "Mark \"{name}\" done?",
+  "profile.defaultName": "Tasks",
+  "notify.defaultName": "Notification"
 }

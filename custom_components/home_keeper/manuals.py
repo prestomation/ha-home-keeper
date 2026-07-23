@@ -33,6 +33,7 @@ from homeassistant.helpers.http import KEY_HASS
 
 from . import documents
 from .assets import AssetValidationError
+from .backend_i18n import resolve_exception
 from .const import (
     DOCUMENT_URL_PREFIX,
     DOMAIN,
@@ -187,7 +188,11 @@ def _part_with_file(asset: dict[str, Any] | None, part_id: str) -> dict | None:
 
 
 async def _parse_upload(
-    view: HomeAssistantView, request: web.Request, *, want_name: bool = False
+    hass: HomeAssistant,
+    view: HomeAssistantView,
+    request: web.Request,
+    *,
+    want_name: bool = False,
 ) -> tuple[bytes, str, str] | web.Response:
     """Parse a multipart upload's single file part, streamed with a size cap.
 
@@ -200,14 +205,19 @@ async def _parse_upload(
     ``(data, filename, display_name)`` on success, or an early ``web.Response`` (bad
     request / too large) that the caller should return as-is.
     """
+    lang = hass.config.language
     too_large = view.json_message(
-        f"File exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)} MB limit",
+        resolve_exception(
+            lang, "file_too_large", mb=MAX_DOCUMENT_BYTES // (1024 * 1024)
+        ),
         HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
     )
     try:
         reader = await request.multipart()
     except (ValueError, AssertionError):
-        return view.json_message("Expected a multipart upload", HTTPStatus.BAD_REQUEST)
+        return view.json_message(
+            resolve_exception(lang, "expected_multipart_upload"), HTTPStatus.BAD_REQUEST
+        )
 
     display_name = ""
     filename: str | None = None
@@ -238,7 +248,9 @@ async def _parse_upload(
         return too_large
 
     if filename is None:
-        return view.json_message("No file part in upload", HTTPStatus.BAD_REQUEST)
+        return view.json_message(
+            resolve_exception(lang, "no_file_in_upload"), HTTPStatus.BAD_REQUEST
+        )
     return data, filename, display_name
 
 
@@ -287,20 +299,24 @@ class HomeKeeperDocumentView(HomeAssistantView):
         # Mirrors homeassistant.components.image_upload. We still enforce the real
         # ceiling (with a clear message) while streaming below.
         request._client_max_size = MAX_DOCUMENT_BYTES
+        lang = hass.config.language
         coord = _coordinator(hass)
         if coord is None:
-            return self.json_message("Home Keeper is not loaded", HTTPStatus.NOT_FOUND)
+            message = resolve_exception(lang, "integration_not_loaded")
+            return self.json_message(message, HTTPStatus.NOT_FOUND)
         if coord.store.get_asset(asset_id) is None:
-            return self.json_message("Unknown asset", HTTPStatus.NOT_FOUND)
+            message = resolve_exception(lang, "asset_not_found", asset_id=asset_id)
+            return self.json_message(message, HTTPStatus.NOT_FOUND)
 
-        parsed = await _parse_upload(self, request, want_name=True)
+        parsed = await _parse_upload(hass, self, request, want_name=True)
         if isinstance(parsed, web.Response):
             return parsed
         data, filename, display_name = parsed
         try:
             content_type, safe_name = validate_upload(filename, data)
         except AssetValidationError as err:
-            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+            message = resolve_exception(lang, "invalid_asset", error=str(err))
+            return self.json_message(message, HTTPStatus.BAD_REQUEST)
 
         # Write the blob to disk BEFORE persisting metadata (which fires
         # ``home_keeper_asset_updated``). Otherwise a reader — or an automation reacting
@@ -311,9 +327,8 @@ class HomeKeeperDocumentView(HomeAssistantView):
             await async_save_document(hass, asset_id, document_id, safe_name, data)
         except OSError as err:
             _LOGGER.error("Failed to write document for asset %s: %s", asset_id, err)
-            return self.json_message(
-                "Failed to store the file", HTTPStatus.INTERNAL_SERVER_ERROR
-            )
+            message = resolve_exception(lang, "failed_to_store_file")
+            return self.json_message(message, HTTPStatus.INTERNAL_SERVER_ERROR)
 
         try:
             entry = await coord.store.add_asset_document(
@@ -330,7 +345,8 @@ class HomeKeeperDocumentView(HomeAssistantView):
         except (KeyError, AssetValidationError) as err:
             # Metadata was rejected — don't leave an orphaned blob behind.
             await async_delete_document(hass, asset_id, document_id, safe_name)
-            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+            message = resolve_exception(lang, "invalid_asset", error=str(err))
+            return self.json_message(message, HTTPStatus.BAD_REQUEST)
 
         # The store regenerates a colliding id (a re-used ``document_id``); in that
         # (rare) case move the blob so the served path matches the stored id, then drop
@@ -344,9 +360,8 @@ class HomeKeeperDocumentView(HomeAssistantView):
                 )
                 await coord.store.remove_asset_document(asset_id, entry["id"])
                 await async_delete_document(hass, asset_id, document_id, safe_name)
-                return self.json_message(
-                    "Failed to store the file", HTTPStatus.INTERNAL_SERVER_ERROR
-                )
+                message = resolve_exception(lang, "failed_to_store_file")
+                return self.json_message(message, HTTPStatus.INTERNAL_SERVER_ERROR)
             await async_delete_document(hass, asset_id, document_id, safe_name)
 
         # Documents touch neither the device registry nor any entity/task, so there's
@@ -399,23 +414,30 @@ class HomeKeeperPartFileView(HomeAssistantView):
     ) -> web.Response:
         hass = request.app[KEY_HASS]
         request._client_max_size = MAX_DOCUMENT_BYTES  # see HomeKeeperDocumentView.post
+        lang = hass.config.language
         coord = _coordinator(hass)
         if coord is None:
-            return self.json_message("Home Keeper is not loaded", HTTPStatus.NOT_FOUND)
+            message = resolve_exception(lang, "integration_not_loaded")
+            return self.json_message(message, HTTPStatus.NOT_FOUND)
         asset = coord.store.get_asset(asset_id)
         if asset is None:
-            return self.json_message("Unknown asset", HTTPStatus.NOT_FOUND)
+            message = resolve_exception(lang, "asset_not_found", asset_id=asset_id)
+            return self.json_message(message, HTTPStatus.NOT_FOUND)
         if not any(p.get("id") == part_id for p in asset.get("parts", [])):
-            return self.json_message("Unknown part", HTTPStatus.NOT_FOUND)
+            message = resolve_exception(
+                lang, "unknown_part", asset_id=asset_id, part_id=part_id
+            )
+            return self.json_message(message, HTTPStatus.NOT_FOUND)
 
-        parsed = await _parse_upload(self, request)
+        parsed = await _parse_upload(hass, self, request)
         if isinstance(parsed, web.Response):
             return parsed
         data, filename, _display_name = parsed
         try:
             content_type, safe_name = validate_upload(filename, data)
         except AssetValidationError as err:
-            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+            message = resolve_exception(lang, "invalid_asset", error=str(err))
+            return self.json_message(message, HTTPStatus.BAD_REQUEST)
 
         # A re-upload replaces the existing file (only one slot per part) — remember
         # the old filename so its blob can be cleaned up once the new one lands.
@@ -430,9 +452,8 @@ class HomeKeeperPartFileView(HomeAssistantView):
             await async_save_part_file(hass, asset_id, part_id, safe_name, data)
         except OSError as err:
             _LOGGER.error("Failed to write file for part %s: %s", part_id, err)
-            return self.json_message(
-                "Failed to store the file", HTTPStatus.INTERNAL_SERVER_ERROR
-            )
+            message = resolve_exception(lang, "failed_to_store_file")
+            return self.json_message(message, HTTPStatus.INTERNAL_SERVER_ERROR)
 
         try:
             updated_part = await coord.store.set_part_file(
@@ -450,7 +471,8 @@ class HomeKeeperPartFileView(HomeAssistantView):
             # deleting it would destroy the still-valid previous file instead.
             if safe_name != old_filename:
                 await async_delete_part_file(hass, asset_id, part_id, safe_name)
-            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+            message = resolve_exception(lang, "invalid_asset", error=str(err))
+            return self.json_message(message, HTTPStatus.BAD_REQUEST)
 
         if old_filename and old_filename != safe_name:
             await async_delete_part_file(hass, asset_id, part_id, old_filename)

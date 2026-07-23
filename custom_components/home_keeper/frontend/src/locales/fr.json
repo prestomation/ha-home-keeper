@@ -353,5 +353,13 @@
   "hint.sensor.thresholdFor": "La tâche devient due lorsque le capteur reste {comparison} {value} pendant {seconds} s.",
   "error.actionFailed": "Une erreur s'est produite. Veuillez réessayer.",
   "error.loadFailed": "Impossible de charger Home Keeper.",
-  "btn.retry": "Réessayer"
+  "btn.retry": "Réessayer",
+  "card.empty": "Aucune tâche pour l'instant.",
+  "card.loadError": "Impossible de charger les tâches. L'intégration Home Keeper est-elle configurée ?",
+  "card.moreHidden.one": "+{n} de plus",
+  "card.moreHidden.other": "+{n} de plus",
+  "confirm.completeTask": "Marquer \"{name}\" comme terminé ?",
+  "profile.defaultName": "Tâches",
+  "notify.defaultName": "Notification",
+  "card.moreHidden.many": "+{n} de plus"
 }

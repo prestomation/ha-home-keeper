@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "Synced from {entity_id}. This problem can't be cleared in Home Keeper — it clears automatically once the originating integration resolves it (the sensor returns to OK).",
+  "companion.battery_notes.description": "You have Battery Notes installed. Add the Home Keeper — Battery Notes bridge to turn low-battery alerts into scheduled “replace battery” tasks, kept in sync both ways.",
+  "inventory.csv.name": "Name",
+  "inventory.csv.area": "Area",
+  "inventory.csv.manufacturer": "Manufacturer",
+  "inventory.csv.model": "Model",
+  "inventory.csv.serial_number": "Serial number",
+  "inventory.csv.cost": "Cost",
+  "inventory.csv.spares_value": "Spares value",
+  "inventory.csv.details": "Details",
+  "inventory.csv.total": "TOTAL"
+}

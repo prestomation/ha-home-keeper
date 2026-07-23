@@ -550,7 +550,7 @@ export function profileFormData(p: Profile): Record<string, unknown> {
 export function profileFormToProfile(id: string, data: Record<string, unknown>): Profile {
   return {
     id,
-    name: String(data.name ?? '').trim() || 'Tasks',
+    name: String(data.name ?? '').trim() || t('profile.defaultName'),
     filter: {
       status: (data.status as NotifyStatus) ?? 'overdue',
       labels: strList(data.labels),
@@ -608,7 +608,7 @@ export function notifyFormToNotification(
 ): Notification {
   return {
     id,
-    name: String(data.name ?? '').trim() || 'Notification',
+    name: String(data.name ?? '').trim() || t('notify.defaultName'),
     profile_id: data.profile_id ? String(data.profile_id) : null,
     targets: strList(data.targets),
     actions: strList(data.actions) as NotifyAction[],

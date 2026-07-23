@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "Sincronitzat des de {entity_id}. Aquest problema no es pot resoldre des de Home Keeper: es soluciona automàticament quan la integració d'origen el resol (el sensor torna a l'estat correcte).",
+  "companion.battery_notes.description": "Tens Battery Notes instal·lat. Afegeix el pont Home Keeper – Battery Notes per convertir els avisos de bateria baixa en tasques programades de «substituir la bateria», sincronitzades en ambdós sentits.",
+  "inventory.csv.name": "Nom",
+  "inventory.csv.area": "Àrea",
+  "inventory.csv.manufacturer": "Fabricant",
+  "inventory.csv.model": "Model",
+  "inventory.csv.serial_number": "Número de sèrie",
+  "inventory.csv.cost": "Cost",
+  "inventory.csv.spares_value": "Valor dels recanvis",
+  "inventory.csv.details": "Detalls",
+  "inventory.csv.total": "TOTAL"
+}

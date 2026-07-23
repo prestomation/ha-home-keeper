@@ -340,5 +340,12 @@
   "hint.sensor.thresholdFor": "当传感器持续 {comparison} {value} 达 {seconds} 秒时，任务到期。",
   "error.actionFailed": "出了点问题。请重试。",
   "error.loadFailed": "无法加载 Home Keeper。",
-  "btn.retry": "重试"
+  "btn.retry": "重试",
+  "card.empty": "暂无任务。",
+  "card.loadError": "无法加载任务。Home Keeper 集成是否已设置？",
+  "card.moreHidden.one": "还有 {n} 项",
+  "card.moreHidden.other": "还有 {n} 项",
+  "confirm.completeTask": "将“{name}”标记为完成？",
+  "profile.defaultName": "任务",
+  "notify.defaultName": "通知"
 }

@@ -366,5 +366,14 @@
   "hint.sensor.thresholdFor": "Termín úkolu nastane, když senzor zůstane {comparison} {value} po dobu {seconds}s.",
   "error.actionFailed": "Něco se pokazilo. Zkuste to znovu.",
   "error.loadFailed": "Nepodařilo se načíst Home Keeper.",
-  "btn.retry": "Zkusit znovu"
+  "btn.retry": "Zkusit znovu",
+  "card.empty": "Zatím žádné úkoly.",
+  "card.loadError": "Nepodařilo se načíst úkoly. Je integrace Home Keeper nastavena?",
+  "card.moreHidden.one": "+{n} další",
+  "card.moreHidden.other": "+{n} dalších",
+  "confirm.completeTask": "Označit \"{name}\" jako hotové?",
+  "profile.defaultName": "Úkoly",
+  "notify.defaultName": "Oznámení",
+  "card.moreHidden.many": "+{n} dalších",
+  "card.moreHidden.few": "+{n} další"
 }

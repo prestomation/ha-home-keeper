@@ -760,6 +760,30 @@
     },
     "integration_not_loaded": {
       "message": "Home Keeper právě není načten. Zkuste to prosím za chvíli znovu."
+    },
+    "invalid_completed_at": {
+      "message": "Neplatné časové razítko completed_at."
+    },
+    "link_documents_only": {
+      "message": "Zde lze přidat pouze dokumenty typu odkaz."
+    },
+    "unknown_document": {
+      "message": "Neznámý dokument: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Neznámý díl nebo bez přiloženého souboru."
+    },
+    "file_too_large": {
+      "message": "Soubor přesahuje limit {mb} MB."
+    },
+    "expected_multipart_upload": {
+      "message": "Očekávalo se vícedílné nahrání (multipart)."
+    },
+    "no_file_in_upload": {
+      "message": "V nahrávání chybí soubor."
+    },
+    "failed_to_store_file": {
+      "message": "Soubor se nepodařilo uložit."
     }
   }
 }

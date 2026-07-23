@@ -443,6 +443,35 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   a deliberate exception to "ship none" — getting Polish/Russian/Czech plural
   categories right by hand is exactly the kind of thing not worth re-deriving.
 
+## Eagerly-resolved backend text (backend_i18n.py, backend_strings/)
+- `translation_key` (above) is **lazy** — the frontend resolves it to text only when
+  it renders an error, in the viewer's own language. Two surfaces need the *final
+  string* immediately, server-side, because nothing downstream localizes it later:
+  the websocket API's `connection.send_error(id, code, message)` (`websocket_api.py`)
+  and the document-upload HTTP views' `self.json_message(message, status)`
+  (`manuals.py`) — both display `message` verbatim to the user. Route these through
+  `backend_i18n.resolve_exception(hass.config.language, key, **placeholders)` (reads
+  the *same* `exceptions` category in `strings.json`/`translations/<lang>.json` —
+  reuse an existing key where the concept matches, e.g. `task_not_found`,
+  `invalid_task`) rather than a literal string. `websocket_api.py`'s `_err`/
+  `_not_loaded` helpers do this for every command; never call
+  `connection.send_error`/`json_message` with a bare string — a pure-AST drift-guard
+  (`tests/unit/test_backend_error_surface_translations.py`, mirroring
+  `test_exception_translations.py`) fails the build on one.
+- A handful of backend-generated strings that aren't exceptions at all — the
+  problem-sensor sync's `completion_prompt`, a companion catalog suggestion's
+  `description`, the inventory CSV column headers — have no home in `strings.json`
+  either (hassfest rejects an unrecognized top-level category there). These use
+  `backend_i18n.resolve_string(lang, key, **params)` against a separate flat
+  dotted-key bundle, `backend_strings/<lang>.json` (16 locales, own parity test
+  `tests/unit/test_backend_strings_parity.py`), the same convention
+  `frontend/src/locales/*.json` uses for the panel. A pure module that needs one of
+  these (`problem_tasks.py`, `inventory.py`, `companions_catalog.py` are all
+  HA-import-free) takes `lang: str = "en"` as a plain parameter rather than reading
+  `hass` itself — the HA-aware caller (`store.py`, `websocket_api.py`,
+  `companions.py`) threads `hass.config.language` in, the same pattern
+  `store.reconcile_part_tasks` already established for wear-part task names.
+
 ## Companion discovery (implemented)
 - Home Keeper surfaces integrations that work with it in the panel's **Settings →
   Companions** section. Two paths feed one registry — keep them separate:

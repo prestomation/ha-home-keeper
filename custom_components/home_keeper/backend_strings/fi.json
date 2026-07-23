@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "Synkronoitu lähteestä {entity_id}. Tätä ongelmaa ei voi poistaa Home Keeperissä – se poistuu automaattisesti, kun alkuperäinen integraatio ratkaisee sen (anturi palaa OK-tilaan).",
+  "companion.battery_notes.description": "Sinulla on Battery Notes asennettuna. Lisää Home Keeper – Battery Notes -silta, joka muuttaa alhaisen akun varoitukset ajastetuiksi ”vaihda paristo”-tehtäviksi, jotka pysyvät synkronoituina molempiin suuntiin.",
+  "inventory.csv.name": "Nimi",
+  "inventory.csv.area": "Alue",
+  "inventory.csv.manufacturer": "Valmistaja",
+  "inventory.csv.model": "Malli",
+  "inventory.csv.serial_number": "Sarjanumero",
+  "inventory.csv.cost": "Hinta",
+  "inventory.csv.spares_value": "Varaosien arvo",
+  "inventory.csv.details": "Tiedot",
+  "inventory.csv.total": "YHTEENSÄ"
+}

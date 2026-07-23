@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "Synkroniseret fra {entity_id}. Dette problem kan ikke ryddes i Home Keeper – det ryddes automatisk, når den oprindelige integration løser det (sensoren vender tilbage til OK).",
+  "companion.battery_notes.description": "Du har Battery Notes installeret. Tilføj Home Keeper – Battery Notes-broen for at gøre advarsler om lavt batteri til planlagte “udskift batteri”-opgaver, synkroniseret begge veje.",
+  "inventory.csv.name": "Navn",
+  "inventory.csv.area": "Område",
+  "inventory.csv.manufacturer": "Producent",
+  "inventory.csv.model": "Model",
+  "inventory.csv.serial_number": "Serienummer",
+  "inventory.csv.cost": "Pris",
+  "inventory.csv.spares_value": "Værdi af reservedele",
+  "inventory.csv.details": "Detaljer",
+  "inventory.csv.total": "I ALT"
+}

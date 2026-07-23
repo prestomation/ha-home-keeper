@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "Synchronisiert von {entity_id}. Dieses Problem kann in Home Keeper nicht manuell behoben werden – es wird automatisch gelöst, sobald die ursprüngliche Integration es behebt (der Sensor kehrt zu OK zurück).",
+  "companion.battery_notes.description": "Battery Notes ist installiert. Füge die Home Keeper – Battery Notes-Brücke hinzu, um Warnungen bei niedrigem Akkustand in geplante „Batterie wechseln“-Aufgaben umzuwandeln, die in beide Richtungen synchronisiert werden.",
+  "inventory.csv.name": "Name",
+  "inventory.csv.area": "Bereich",
+  "inventory.csv.manufacturer": "Hersteller",
+  "inventory.csv.model": "Modell",
+  "inventory.csv.serial_number": "Seriennummer",
+  "inventory.csv.cost": "Kosten",
+  "inventory.csv.spares_value": "Ersatzteilwert",
+  "inventory.csv.details": "Details",
+  "inventory.csv.total": "GESAMT"
+}

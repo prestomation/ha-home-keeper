@@ -760,6 +760,30 @@
     },
     "integration_not_loaded": {
       "message": "Home Keeper no està carregat en aquest moment. Torneu-ho a provar d'aquí a un moment."
+    },
+    "invalid_completed_at": {
+      "message": "Marca de temps completed_at no vàlida."
+    },
+    "link_documents_only": {
+      "message": "Aquí només es poden afegir documents d'enllaç."
+    },
+    "unknown_document": {
+      "message": "Document desconegut: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Peça desconeguda o sense fitxer adjunt."
+    },
+    "file_too_large": {
+      "message": "El fitxer supera el límit de {mb} MB."
+    },
+    "expected_multipart_upload": {
+      "message": "S'esperava una pujada multipart."
+    },
+    "no_file_in_upload": {
+      "message": "No hi ha cap fitxer a la pujada."
+    },
+    "failed_to_store_file": {
+      "message": "No s'ha pogut desar el fitxer."
     }
   }
 }

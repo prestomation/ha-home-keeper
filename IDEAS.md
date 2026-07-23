@@ -144,9 +144,21 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
   `notification_strings/<lang>.json` files (hassfest rejects a custom top-level key in
   `strings.json`), with Babel for correct CLDR plural forms — see
   `.amazonq/rules/architecture-and-code.md` → "Notification payload text is
-  localized". Remaining: the `todo`/`calendar` list entity names stay English (they
-  carry the brand name and use `has_entity_name=False`), and developer-facing
-  validation exceptions are intentionally not localized.
+  localized". A follow-up audit (see `.amazonq/rules/architecture-and-code.md` →
+  "Eagerly-resolved backend text") found and closed the remaining gaps: the websocket
+  API's and document-upload views' error messages (`backend_i18n.resolve_exception`,
+  reusing `strings.json` `exceptions`), and backend-generated strings with no home
+  in `strings.json` — the problem-sensor completion prompt, a companion suggestion's
+  description, the inventory CSV headers (`backend_i18n.resolve_string` against a
+  new `backend_strings/<lang>.json` bundle) — plus a handful of frontend runtime
+  strings that had been miscategorized as "editor-only" (`card.ts`'s empty/error/
+  "+N more" text, a card confirm-dialog, and two form default-name fallbacks). Two
+  new pure-AST drift-guards
+  (`tests/unit/test_backend_error_surface_translations.py`) stop a bare-string
+  `connection.send_error`/`json_message` from regressing.
+  Remaining: the `todo`/`calendar` list entity names stay English (they carry the
+  brand name and use `has_entity_name=False`), and developer-facing validation
+  exceptions are intentionally not localized.
 
 ## UX exploration (the whole point of the prototype)
 

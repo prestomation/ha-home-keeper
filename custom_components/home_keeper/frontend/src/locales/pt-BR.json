@@ -353,5 +353,13 @@
   "hint.sensor.thresholdFor": "A tarefa vence quando o sensor permanece {comparison} {value} por {seconds}s.",
   "error.actionFailed": "Algo deu errado. Tente novamente.",
   "error.loadFailed": "Não foi possível carregar o Home Keeper.",
-  "btn.retry": "Tentar novamente"
+  "btn.retry": "Tentar novamente",
+  "card.empty": "Ainda não há tarefas.",
+  "card.loadError": "Não foi possível carregar as tarefas. A integração Home Keeper está configurada?",
+  "card.moreHidden.one": "+{n} mais",
+  "card.moreHidden.other": "+{n} mais",
+  "confirm.completeTask": "Marcar \"{name}\" como concluída?",
+  "profile.defaultName": "Tarefas",
+  "notify.defaultName": "Notificação",
+  "card.moreHidden.many": "+{n} mais"
 }
