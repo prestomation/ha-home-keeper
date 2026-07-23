@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Services | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/services"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Services | Home Keeper"><meta data-rh="true" name="description" content="Every data action is a Home Assistant service, so it&#x27;s usable from automations,"><meta data-rh="true" property="og:description" content="Every data action is a Home Assistant service, so it&#x27;s usable from automations,"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-146/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/services"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/services" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/services" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Services","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/services"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-146/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-146/assets/js/runtime~main.387e137d.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-146/assets/js/runtime~main.3b810664.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-146/assets/js/main.e4130875.js" defer="defer"></script>
 </head>
 <body>
@@ -15,8 +15,11 @@
 scripts, and voice:</p>
 <ul>
 <li class=""><strong>Tasks</strong> — <code>home_keeper.add_task</code>, <code>update_task</code>, <code>delete_task</code>, <code>complete_task</code>
-(with optional <code>note</code>/<code>cost</code>/<code>photo</code>/<code>who</code>), <code>update_completion</code> (amend a recorded
-completion&#x27;s metadata), <code>trigger_task</code> (arm a condition-driven task), <code>snooze_task</code>
+(with optional <code>completed_at</code> to back-date it, plus <code>note</code>/<code>cost</code>/<code>photo</code>/<code>who</code>),
+<code>update_completion</code> (amend a recorded completion&#x27;s metadata), <code>move_completion</code>
+(re-timestamp a recorded completion — back-date or correct it — identified by its
+current <code>old_ts</code>; unlike <code>update_completion</code> this changes the date, not the
+metadata), <code>trigger_task</code> (arm a condition-driven task), <code>snooze_task</code>
 (defer the due date by <code>hours</code> without completing), <code>skip_task</code> (advance to the next
 occurrence without completing), <code>set_task_consumable</code> (link a task to an appliance
 consumable so completing it draws down stock — omit the ids to unlink), and

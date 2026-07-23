@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Logging completions | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/completions"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Logging completions | Home Keeper"><meta data-rh="true" name="description" content="By default marking a task Done is one tap. But for the chores you want a record"><meta data-rh="true" property="og:description" content="By default marking a task Done is one tap. But for the chores you want a record"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-146/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/completions"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/completions" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/completions" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Completions","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/completions"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-146/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-146/assets/js/runtime~main.387e137d.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-146/assets/js/runtime~main.3b810664.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-146/assets/js/main.e4130875.js" defer="defer"></script>
 </head>
 <body>
@@ -34,6 +34,16 @@ note, add a forgotten receipt) without disturbing the schedule. The most recent
 completion&#x27;s details are also exposed on the task&#x27;s <em>next due</em> sensor attributes, and
 the <code>home_keeper.complete_task</code> / <code>home_keeper.update_completion</code> services carry the
 same fields for automations.</p>
+<p><strong>Back-dating a completion, or correcting one after the fact.</strong> The dialog&#x27;s
+<strong>Completed at</strong> field (defaults to now) lets you log a completion for when the work
+actually happened — not when you got around to opening the app. This matters most for
+a <strong>floating</strong> task, whose next-due date measures from the completion: log a 30-day
+task 5 days late and floating math would otherwise push the next occurrence 5 days
+too far out. If you already logged a completion at the wrong time, each history row&#x27;s
+<strong>move date</strong> button (next to edit and delete) re-timestamps that one entry — unlike
+the pencil (edit) button, which only touches note/cost/photo/who and never the date.
+Backed by the <code>home_keeper.move_completion</code> service for automations.</p>
+<p><img decoding="async" loading="lazy" alt="The move-date dialog on a history row — re-timestamps one completion without touching its note, cost, photo, or who" src="/ha-home-keeper/pr-preview/pr-146/assets/images/40-panel-history-move-date-e56085f75e8774ba4a5c9228c4a3f4e1.png" width="1280" height="837" class="img_ev3q"></p>
 <blockquote>
 <p>The set of <em>required</em> fields is stored per task, so a future release can let you
 require specific fields (e.g. always a cost) without any migration.</p>
@@ -50,10 +60,10 @@ deliberate: those surfaces can&#x27;t prompt, and hard-blocking them would make 
 card honours it by sending you to the panel instead of quick-completing. Automations
 that want to record detail can pass <code>note</code> / <code>cost</code> / <code>photo</code> / <code>who</code> to the service.</p>
 </blockquote>
-<p><img decoding="async" loading="lazy" alt="The completion-details dialog — note, cost, who and photo captured when a task is marked done" src="/ha-home-keeper/pr-preview/pr-146/assets/images/11-panel-completion-dialog-3c15ad40d1756ebac0ff0bf3ddc9f906.png" width="1280" height="1664" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The completion-details dialog — note, cost, who and photo captured when a task is marked done" src="/ha-home-keeper/pr-preview/pr-146/assets/images/11-panel-completion-dialog-9c4a9cdfef7ec250ca3479ee410b3260.png" width="1280" height="2636" class="img_ev3q"></p>
 <p>Every completion&#x27;s note and cost (and who/photo) then show in the task&#x27;s history,
 where each entry can be edited or removed:</p>
-<p><img decoding="async" loading="lazy" alt="Task history annotated with per-completion cost and notes, each row editable" src="/ha-home-keeper/pr-preview/pr-146/assets/images/7-panel-task-detail-ebd269657d926be77459793edc400413.png" width="1280" height="911" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="Task history annotated with per-completion cost and notes, each row editable" src="/ha-home-keeper/pr-preview/pr-146/assets/images/7-panel-task-detail-c06002b801e7c9d6d9600bfd9a13c268.png" width="1280" height="837" class="img_ev3q"></p>
 <p>Administration and usage are intentionally <strong>separated</strong>: you <strong>manage</strong> tasks and
 appliances from the <strong>Home Keeper</strong> sidebar panel, and <strong>use</strong> them through native HA
 entities and the dashboard card. The panel list view can group/filter tasks, and
