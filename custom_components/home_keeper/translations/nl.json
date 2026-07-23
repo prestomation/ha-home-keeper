@@ -760,6 +760,30 @@
     },
     "integration_not_loaded": {
       "message": "Home Keeper is momenteel niet geladen. Probeer het zo meteen opnieuw."
+    },
+    "invalid_completed_at": {
+      "message": "Ongeldig completed_at-tijdstempel."
+    },
+    "link_documents_only": {
+      "message": "Hier kunnen alleen linkdocumenten worden toegevoegd."
+    },
+    "unknown_document": {
+      "message": "Onbekend document: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Onbekend onderdeel of geen bijgevoegd bestand."
+    },
+    "file_too_large": {
+      "message": "Bestand overschrijdt de limiet van {mb} MB."
+    },
+    "expected_multipart_upload": {
+      "message": "Er werd een multipart-upload verwacht."
+    },
+    "no_file_in_upload": {
+      "message": "Geen bestand in de upload."
+    },
+    "failed_to_store_file": {
+      "message": "Bestand kon niet worden opgeslagen."
     }
   }
 }

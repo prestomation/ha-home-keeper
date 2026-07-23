@@ -158,6 +158,7 @@ class CompanionRegistry:
             self._registered,
             self._installed_domains(),
             dismissed=self._dismissed(),
+            lang=self._hass.config.language,
         )
 
     @callback

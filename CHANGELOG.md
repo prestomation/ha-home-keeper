@@ -4,6 +4,21 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [Unreleased]
+
+### Fixed
+
+- **Several user-facing strings weren't localized.** An audit of the whole
+  integration for hardcoded English text found: the websocket API's and
+  document-upload views' error messages (e.g. "Unknown task_id", "Home Keeper is
+  not loaded"); the problem-sensor sync's completion explanation; the Battery
+  Notes companion suggestion's description; the inventory CSV export's column
+  headers; and a few panel/dashboard-card runtime strings ("No tasks yet.", the
+  load-failed banner, the "+N more" truncation caption, the quick-complete confirm
+  dialog, and the default name for an unnamed saved profile/notification). All are
+  now localized across the 16 supported locales, with two new drift-guard tests to
+  keep future websocket/upload error messages from shipping unlocalized again.
+
 ## [0.9.0] - 2026-07-23
 
 ### Added

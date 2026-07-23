@@ -74,9 +74,6 @@ const REQUIRED_COMPONENTS = [
 const S: Record<string, string> = {
   name: 'Home Keeper Tasks',
   description: 'A resizable list of Home Keeper maintenance tasks with one-tap completion.',
-  defaultTitle: 'Tasks',
-  empty: 'No tasks yet.',
-  loadError: "Couldn't load tasks. Is the Home Keeper integration set up?",
   // editor field labels (keyed by config field name for computeLabel)
   title: 'Title',
   profile: 'Filter by profile (saved filter)',
@@ -527,7 +524,7 @@ export class HomeKeeperCard extends HTMLElement {
     }
     const prompt = task.managed_by?.completion_prompt;
     if (this._config.confirm_complete || prompt) {
-      const msg = prompt || t('btn.done') + ' — ' + task.name + '?';
+      const msg = prompt || t('confirm.completeTask', { name: task.name });
       if (!window.confirm(msg)) return;
     }
     this._completing.add(task.id);
@@ -577,14 +574,14 @@ export class HomeKeeperCard extends HTMLElement {
   private _render(): void {
     if (!this.shadowRoot) return;
     this._liveHassEls = [];
-    const title = this._config.title ?? S.defaultTitle;
+    const title = this._config.title ?? t('tab.tasks');
     const showAdd = this._config.show_add !== false;
 
     let body: string;
     if (!this._loaded) {
       body = `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
     } else if (this._error) {
-      body = `<div class="hk-empty"><ha-alert alert-type="error">${escapeHTML(S.loadError)}</ha-alert></div>`;
+      body = `<div class="hk-empty"><ha-alert alert-type="error">${escapeHTML(t('card.loadError'))}</ha-alert></div>`;
     } else {
       body = this._listHtml();
     }
@@ -611,7 +608,7 @@ export class HomeKeeperCard extends HTMLElement {
     const now = Date.now();
     const shaped = this._shaped(now);
     if (!shaped.length) {
-      const empty = this._tasks.length ? t('tasks.noMatch') : S.empty;
+      const empty = this._tasks.length ? t('tasks.noMatch') : t('card.empty');
       return `<div class="hk-empty"><ha-alert alert-type="info">${escapeHTML(empty)}</ha-alert></div>`;
     }
     const max = Math.max(0, Number(this._config.max_items) || 0);
@@ -626,7 +623,10 @@ export class HomeKeeperCard extends HTMLElement {
       now,
     );
     const list = this._renderGroups(groups);
-    const more = hidden > 0 ? `<div class="hk-more">${escapeHTML(`+${hidden} more`)}</div>` : '';
+    const more =
+      hidden > 0
+        ? `<div class="hk-more">${escapeHTML(tn('card.moreHidden', hidden, { n: hidden }))}</div>`
+        : '';
     return `${list}${more}`;
   }
 

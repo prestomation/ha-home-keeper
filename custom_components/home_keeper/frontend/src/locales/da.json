@@ -340,5 +340,12 @@
   "hint.sensor.thresholdFor": "Opgaven forfalder, når sensoren forbliver {comparison} {value} i {seconds}s.",
   "error.actionFailed": "Noget gik galt. Prøv igen.",
   "error.loadFailed": "Kunne ikke indlæse Home Keeper.",
-  "btn.retry": "Prøv igen"
+  "btn.retry": "Prøv igen",
+  "card.empty": "Ingen opgaver endnu.",
+  "card.loadError": "Kunne ikke indlæse opgaver. Er Home Keeper-integrationen konfigureret?",
+  "card.moreHidden.one": "+{n} flere",
+  "card.moreHidden.other": "+{n} flere",
+  "confirm.completeTask": "Marker \"{name}\" som udført?",
+  "profile.defaultName": "Opgaver",
+  "notify.defaultName": "Notifikation"
 }

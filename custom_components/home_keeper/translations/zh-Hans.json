@@ -760,6 +760,30 @@
     },
     "integration_not_loaded": {
       "message": "Home Keeper 当前未加载。请稍后重试。"
+    },
+    "invalid_completed_at": {
+      "message": "completed_at 时间戳无效。"
+    },
+    "link_documents_only": {
+      "message": "此处只能添加链接类型的文档。"
+    },
+    "unknown_document": {
+      "message": "未知文档：{document_id}"
+    },
+    "unknown_part_file": {
+      "message": "未知零件或没有附加文件。"
+    },
+    "file_too_large": {
+      "message": "文件超过 {mb} MB 的限制。"
+    },
+    "expected_multipart_upload": {
+      "message": "需要 multipart 上传。"
+    },
+    "no_file_in_upload": {
+      "message": "上传中没有文件。"
+    },
+    "failed_to_store_file": {
+      "message": "无法保存文件。"
     }
   }
 }

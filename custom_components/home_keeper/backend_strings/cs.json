@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "Synchronizováno z {entity_id}. Tento problém nelze v Home Keeperu vyřešit ručně – vyřeší se automaticky, jakmile jej vyřeší zdrojová integrace (senzor se vrátí do stavu OK).",
+  "companion.battery_notes.description": "Máte nainstalováno Battery Notes. Přidejte propojení Home Keeper – Battery Notes a proměňte upozornění na slabou baterii v naplánované úkoly „vyměnit baterii“, synchronizované oběma směry.",
+  "inventory.csv.name": "Název",
+  "inventory.csv.area": "Oblast",
+  "inventory.csv.manufacturer": "Výrobce",
+  "inventory.csv.model": "Model",
+  "inventory.csv.serial_number": "Sériové číslo",
+  "inventory.csv.cost": "Cena",
+  "inventory.csv.spares_value": "Hodnota náhradních dílů",
+  "inventory.csv.details": "Podrobnosti",
+  "inventory.csv.total": "CELKEM"
+}

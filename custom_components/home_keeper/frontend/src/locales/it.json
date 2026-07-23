@@ -353,5 +353,13 @@
   "hint.sensor.thresholdFor": "L'attività diventa dovuta quando il sensore rimane {comparison} {value} per {seconds} s.",
   "error.actionFailed": "Qualcosa è andato storto. Riprova.",
   "error.loadFailed": "Impossibile caricare Home Keeper.",
-  "btn.retry": "Riprova"
+  "btn.retry": "Riprova",
+  "card.empty": "Ancora nessuna attività.",
+  "card.loadError": "Impossibile caricare le attività. L'integrazione Home Keeper è configurata?",
+  "card.moreHidden.one": "+{n} altre",
+  "card.moreHidden.other": "+{n} altre",
+  "confirm.completeTask": "Segnare \"{name}\" come completata?",
+  "profile.defaultName": "Attività",
+  "notify.defaultName": "Notifica",
+  "card.moreHidden.many": "+{n} altre"
 }

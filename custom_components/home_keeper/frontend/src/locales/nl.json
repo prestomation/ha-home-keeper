@@ -340,5 +340,12 @@
   "hint.sensor.thresholdFor": "De taak is aan de beurt wanneer de sensor {seconds}s lang {comparison} {value} blijft.",
   "error.actionFailed": "Er ging iets mis. Probeer het opnieuw.",
   "error.loadFailed": "Home Keeper kon niet worden geladen.",
-  "btn.retry": "Opnieuw"
+  "btn.retry": "Opnieuw",
+  "card.empty": "Nog geen taken.",
+  "card.loadError": "Taken konden niet worden geladen. Is de Home Keeper-integratie ingesteld?",
+  "card.moreHidden.one": "+{n} meer",
+  "card.moreHidden.other": "+{n} meer",
+  "confirm.completeTask": "\"{name}\" als klaar markeren?",
+  "profile.defaultName": "Taken",
+  "notify.defaultName": "Melding"
 }

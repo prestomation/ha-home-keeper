@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "Zsynchronizowano z {entity_id}. Tego problemu nie można ręcznie usunąć w Home Keeper – zniknie automatycznie, gdy integracja źródłowa go rozwiąże (czujnik wróci do stanu OK).",
+  "companion.battery_notes.description": "Masz zainstalowane Battery Notes. Dodaj most Home Keeper – Battery Notes, aby zamienić alerty o niskim poziomie baterii w zaplanowane zadania „wymień baterię”, zsynchronizowane w obie strony.",
+  "inventory.csv.name": "Nazwa",
+  "inventory.csv.area": "Obszar",
+  "inventory.csv.manufacturer": "Producent",
+  "inventory.csv.model": "Model",
+  "inventory.csv.serial_number": "Numer seryjny",
+  "inventory.csv.cost": "Koszt",
+  "inventory.csv.spares_value": "Wartość zapasów",
+  "inventory.csv.details": "Szczegóły",
+  "inventory.csv.total": "SUMA"
+}

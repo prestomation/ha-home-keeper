@@ -760,6 +760,30 @@
     },
     "integration_not_loaded": {
       "message": "Home Keeper ei ole juuri nyt ladattuna. Yritä hetken kuluttua uudelleen."
+    },
+    "invalid_completed_at": {
+      "message": "Virheellinen completed_at-aikaleima."
+    },
+    "link_documents_only": {
+      "message": "Tähän voi lisätä vain linkkiasiakirjoja."
+    },
+    "unknown_document": {
+      "message": "Tuntematon asiakirja: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Tuntematon varaosa tai ei liitettyä tiedostoa."
+    },
+    "file_too_large": {
+      "message": "Tiedosto ylittää {mb} Mt:n rajan."
+    },
+    "expected_multipart_upload": {
+      "message": "Odotettiin moniosaista (multipart) lähetystä."
+    },
+    "no_file_in_upload": {
+      "message": "Lähetyksessä ei ole tiedostoa."
+    },
+    "failed_to_store_file": {
+      "message": "Tiedoston tallentaminen epäonnistui."
     }
   }
 }

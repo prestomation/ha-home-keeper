@@ -16,6 +16,8 @@ import io
 from datetime import date
 from typing import Any
 
+from .backend_i18n import resolve_string
+
 
 def _num(value: Any) -> float:
     """Best-effort float, treating unset / unparseable values as 0."""
@@ -103,19 +105,19 @@ def build_inventory(
     return {"assets": rows, "totals": totals}
 
 
-# (row key, CSV header) — the columns most useful on an insurance schedule.
-# ``serial_number`` is a first-class identity column; the remaining free-form
-# descriptive facts (warranty, dates, provider…) ride in the trailing Details column
-# rather than a fixed column each.
+# (row key, backend_strings header key) — the columns most useful on an insurance
+# schedule. ``serial_number`` is a first-class identity column; the remaining
+# free-form descriptive facts (warranty, dates, provider…) ride in the trailing
+# Details column rather than a fixed column each.
 _CSV_COLUMNS = (
-    ("name", "Name"),
-    ("area", "Area"),
-    ("manufacturer", "Manufacturer"),
-    ("model", "Model"),
-    ("serial_number", "Serial number"),
-    ("cost", "Cost"),
-    ("spares_value", "Spares value"),
-    ("details", "Details"),
+    ("name", "inventory.csv.name"),
+    ("area", "inventory.csv.area"),
+    ("manufacturer", "inventory.csv.manufacturer"),
+    ("model", "inventory.csv.model"),
+    ("serial_number", "inventory.csv.serial_number"),
+    ("cost", "inventory.csv.cost"),
+    ("spares_value", "inventory.csv.spares_value"),
+    ("details", "inventory.csv.details"),
 )
 
 
@@ -135,18 +137,25 @@ def _cell(value: Any) -> str:
     return text
 
 
-def inventory_to_csv(inventory: dict[str, Any]) -> str:
-    """Render :func:`build_inventory` output as CSV (a row per asset + a TOTAL row)."""
+def inventory_to_csv(inventory: dict[str, Any], *, lang: str = "en") -> str:
+    """Render :func:`build_inventory` output as CSV (a row per asset + a TOTAL row).
+
+    Column headers and the ``TOTAL`` row label are localized to *lang* (the
+    caller's ``hass.config.language``) via ``backend_strings/<lang>.json`` — this
+    module has no HA import, so the resolved language is threaded in as a plain
+    string rather than read from ``hass`` directly.
+    """
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow([header for _key, header in _CSV_COLUMNS])
+    headers = [resolve_string(lang, key) for _key, key in _CSV_COLUMNS]
+    writer.writerow(headers)
     for row in inventory.get("assets", []):
-        writer.writerow([_cell(row.get(key)) for key, _header in _CSV_COLUMNS])
+        writer.writerow([_cell(row.get(key)) for key, _header_key in _CSV_COLUMNS])
     totals = inventory.get("totals", {})
     # Blank spacer, then a TOTAL row with the totals placed under their own columns.
-    keys = [key for key, _header in _CSV_COLUMNS]
+    keys = [key for key, _header_key in _CSV_COLUMNS]
     total_row = [""] * len(_CSV_COLUMNS)
-    total_row[0] = "TOTAL"
+    total_row[0] = resolve_string(lang, "inventory.csv.total")
     total_row[keys.index("cost")] = _cell(totals.get("total_cost"))
     total_row[keys.index("spares_value")] = _cell(totals.get("spares_value"))
     writer.writerow([])

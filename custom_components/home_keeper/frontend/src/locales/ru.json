@@ -366,5 +366,14 @@
   "hint.sensor.thresholdFor": "Срок задачи наступает, когда датчик держится {comparison} {value} в течение {seconds}с.",
   "error.actionFailed": "Что-то пошло не так. Повторите попытку.",
   "error.loadFailed": "Не удалось загрузить Home Keeper.",
-  "btn.retry": "Повторить"
+  "btn.retry": "Повторить",
+  "card.empty": "Пока нет задач.",
+  "card.loadError": "Не удалось загрузить задачи. Настроена ли интеграция Home Keeper?",
+  "card.moreHidden.one": "+{n} ещё",
+  "card.moreHidden.other": "+{n} ещё",
+  "confirm.completeTask": "Отметить \"{name}\" как выполненное?",
+  "profile.defaultName": "Задачи",
+  "notify.defaultName": "Уведомление",
+  "card.moreHidden.many": "+{n} ещё",
+  "card.moreHidden.few": "+{n} ещё"
 }

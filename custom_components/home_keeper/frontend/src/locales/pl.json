@@ -366,5 +366,14 @@
   "hint.sensor.thresholdFor": "Termin zadania przypada, gdy czujnik pozostaje {comparison} {value} przez {seconds}s.",
   "error.actionFailed": "Coś poszło nie tak. Spróbuj ponownie.",
   "error.loadFailed": "Nie udało się załadować Home Keeper.",
-  "btn.retry": "Ponów"
+  "btn.retry": "Ponów",
+  "card.empty": "Brak zadań.",
+  "card.loadError": "Nie udało się załadować zadań. Czy integracja Home Keeper jest skonfigurowana?",
+  "card.moreHidden.one": "+{n} więcej",
+  "card.moreHidden.other": "+{n} więcej",
+  "confirm.completeTask": "Oznaczyć \"{name}\" jako wykonane?",
+  "profile.defaultName": "Zadania",
+  "notify.defaultName": "Powiadomienie",
+  "card.moreHidden.many": "+{n} więcej",
+  "card.moreHidden.few": "+{n} więcej"
 }

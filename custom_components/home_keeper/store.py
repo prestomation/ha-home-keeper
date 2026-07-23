@@ -913,6 +913,7 @@ class HomeKeeperStore:
             config_entry_id=config_entry_id,
             now=dt_util.now(),
             notes_by_entity=self._problem_notes,
+            lang=self._hass.config.language,
         )
         if not changed:
             return False

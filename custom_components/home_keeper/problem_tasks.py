@@ -25,6 +25,7 @@ from datetime import datetime
 from typing import Any
 
 from . import models, recurrence
+from .backend_i18n import resolve_string
 from .const import (
     DOMAIN,
     PANEL_TITLE,
@@ -54,13 +55,19 @@ def problem_sensor_entity_id(task: dict[str, Any]) -> str | None:
     return src.get("entity_id") if src else None
 
 
-def build_managed_by(entity_id: str, config_entry_id: str) -> dict[str, Any]:
+def build_managed_by(
+    entity_id: str, config_entry_id: str, *, lang: str = "en"
+) -> dict[str, Any]:
     """Ownership block stamped on a synced task.
 
     ``deletion_protected`` requires ``config_entry_id`` (see
     ``models.validate_managed_by``) so the task stays cleanable if Home Keeper is
     removed. ``completion_blocked`` tells the panel to hide the *Done* action, and
-    ``completion_prompt`` explains how the problem actually clears.
+    ``completion_prompt`` explains how the problem actually clears — localized to
+    *lang* (the caller's ``hass.config.language``) via ``backend_strings/<lang>.json``
+    since this module has no HA import (see ``backend_i18n.py``). Like the wear-part
+    task names, a language change relocalizes it (the caller reloads the entry, which
+    re-reconciles and re-stamps every synced task's ``managed_by``).
     """
     return {
         "integration": DOMAIN,
@@ -69,10 +76,8 @@ def build_managed_by(entity_id: str, config_entry_id: str) -> dict[str, Any]:
         "deletion_protected": True,
         "locked_fields": list(_LOCKED_FIELDS),
         "completion_blocked": True,
-        "completion_prompt": (
-            f"Synced from {entity_id}. This problem can't be cleared in Home "
-            "Keeper — it clears automatically once the originating integration "
-            "resolves it (the sensor returns to OK)."
+        "completion_prompt": resolve_string(
+            lang, "problem_task.completion_prompt", entity_id=entity_id
         ),
     }
 
@@ -84,6 +89,7 @@ def _build_task(
     config_entry_id: str,
     now: datetime,
     note: str = "",
+    lang: str = "en",
 ) -> dict[str, Any]:
     """Create a fresh synced task dict for *entity_id*, armed per ``is_problem``.
 
@@ -101,7 +107,7 @@ def _build_task(
             "device_id": meta.get("device_id"),
             "area_id": meta.get("area_id"),
             "source": {TASK_SOURCE_PROBLEM_SENSOR: {"entity_id": entity_id}},
-            "managed_by": build_managed_by(entity_id, config_entry_id),
+            "managed_by": build_managed_by(entity_id, config_entry_id, lang=lang),
         },
         now=now,
     )
@@ -121,6 +127,7 @@ def reconcile_problem_tasks(
     config_entry_id: str,
     now: datetime,
     notes_by_entity: dict[str, str] | None = None,
+    lang: str = "en",
 ) -> tuple[dict[str, dict[str, Any]], list[tuple[str, dict[str, Any]]], bool]:
     """Compute the task map mirroring the eligible problem sensors.
 
@@ -170,6 +177,7 @@ def reconcile_problem_tasks(
                 config_entry_id=config_entry_id,
                 now=now,
                 note=notes_by_entity.get(entity_id, ""),
+                lang=lang,
             )
             result[task["id"]] = task
             ops.append(("created", task))
@@ -179,7 +187,7 @@ def reconcile_problem_tasks(
         task = result[existing_tid]
         # Re-derive owned metadata that follows the sensor (rename, re-home to a new
         # device/area). Silent churn — not announced as a user-facing update.
-        managed_by = build_managed_by(entity_id, config_entry_id)
+        managed_by = build_managed_by(entity_id, config_entry_id, lang=lang)
         for field, value in (
             ("name", meta["name"]),
             ("device_id", meta.get("device_id")),

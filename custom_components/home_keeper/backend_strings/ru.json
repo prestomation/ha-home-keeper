@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "Синхронизировано из {entity_id}. Эту проблему нельзя устранить вручную в Home Keeper — она устраняется автоматически, когда исходная интеграция её решает (датчик возвращается в состояние ОК).",
+  "companion.battery_notes.description": "У вас установлен Battery Notes. Добавьте мост Home Keeper — Battery Notes, чтобы превращать уведомления о низком заряде батареи в запланированные задачи «заменить батарею», синхронизируемые в обе стороны.",
+  "inventory.csv.name": "Название",
+  "inventory.csv.area": "Зона",
+  "inventory.csv.manufacturer": "Производитель",
+  "inventory.csv.model": "Модель",
+  "inventory.csv.serial_number": "Серийный номер",
+  "inventory.csv.cost": "Стоимость",
+  "inventory.csv.spares_value": "Стоимость запчастей",
+  "inventory.csv.details": "Подробности",
+  "inventory.csv.total": "ИТОГО"
+}

@@ -1,0 +1,13 @@
+{
+  "problem_task.completion_prompt": "Synkroniserad från {entity_id}. Det här problemet kan inte åtgärdas manuellt i Home Keeper – det rensas automatiskt när den ursprungliga integrationen löser det (sensorn återgår till OK).",
+  "companion.battery_notes.description": "Du har Battery Notes installerat. Lägg till bryggan Home Keeper – Battery Notes för att omvandla varningar om lågt batteri till schemalagda “byt batteri”-uppgifter, synkroniserade åt båda hållen.",
+  "inventory.csv.name": "Namn",
+  "inventory.csv.area": "Område",
+  "inventory.csv.manufacturer": "Tillverkare",
+  "inventory.csv.model": "Modell",
+  "inventory.csv.serial_number": "Serienummer",
+  "inventory.csv.cost": "Kostnad",
+  "inventory.csv.spares_value": "Reservdelsvärde",
+  "inventory.csv.details": "Detaljer",
+  "inventory.csv.total": "TOTALT"
+}

@@ -760,6 +760,30 @@
     },
     "integration_not_loaded": {
       "message": "Home Keeper er ikke lastet inn akkurat nå. Prøv igjen om et øyeblikk."
+    },
+    "invalid_completed_at": {
+      "message": "Ugyldig completed_at-tidsstempel."
+    },
+    "link_documents_only": {
+      "message": "Bare lenkedokumenter kan legges til her."
+    },
+    "unknown_document": {
+      "message": "Ukjent dokument: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Ukjent reservedel eller ingen vedlagt fil."
+    },
+    "file_too_large": {
+      "message": "Filen overskrider grensen på {mb} MB."
+    },
+    "expected_multipart_upload": {
+      "message": "Forventet en multipart-opplasting."
+    },
+    "no_file_in_upload": {
+      "message": "Ingen fil i opplastingen."
+    },
+    "failed_to_store_file": {
+      "message": "Kunne ikke lagre filen."
     }
   }
 }

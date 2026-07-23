@@ -760,6 +760,30 @@
     },
     "integration_not_loaded": {
       "message": "Home Keeper ist derzeit nicht geladen. Bitte versuche es gleich noch einmal."
+    },
+    "invalid_completed_at": {
+      "message": "Ungültiger completed_at-Zeitstempel."
+    },
+    "link_documents_only": {
+      "message": "Hier können nur Link-Dokumente hinzugefügt werden."
+    },
+    "unknown_document": {
+      "message": "Unbekanntes Dokument: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Unbekanntes Teil oder keine angehängte Datei."
+    },
+    "file_too_large": {
+      "message": "Datei überschreitet das Limit von {mb} MB."
+    },
+    "expected_multipart_upload": {
+      "message": "Es wurde ein Multipart-Upload erwartet."
+    },
+    "no_file_in_upload": {
+      "message": "Kein Dateiteil im Upload."
+    },
+    "failed_to_store_file": {
+      "message": "Datei konnte nicht gespeichert werden."
     }
   }
 }

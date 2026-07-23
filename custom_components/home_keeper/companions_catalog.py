@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
+from .backend_i18n import resolve_string
+
 
 class CatalogEntry(TypedDict):
     """A detectable upstream integration and the glue that bridges it to Home Keeper."""
@@ -33,7 +35,10 @@ class CatalogEntry(TypedDict):
     glue_domain: str  # the integration that connects it to Home Keeper
     name: str  # display name shown in the suggestion (the upstream the user knows)
     icon: str  # mdi icon for the row
-    description: str  # one line: what installing the glue gets the user
+    # backend_strings/<lang>.json key for the one-line "what you get" description —
+    # not a literal string, since this file is pure (no HA import) and the panel
+    # needs the description in hass.config.language. See backend_i18n.py.
+    description_key: str
     install_url: str  # where to get the glue (HACS / GitHub)
 
 
@@ -45,11 +50,7 @@ CATALOG: list[CatalogEntry] = [
         "glue_domain": "home_keeper_battery_notes",
         "name": "Battery Notes",
         "icon": "mdi:battery-alert-variant-outline",
-        "description": (
-            "You have Battery Notes installed. Add the Home Keeper — Battery "
-            "Notes bridge to turn low-battery alerts into scheduled “replace "
-            "battery” tasks, kept in sync both ways."
-        ),
+        "description_key": "companion.battery_notes.description",
         "install_url": "https://github.com/prestomation/ha-home-keeper-battery-notes",
     },
 ]
@@ -60,13 +61,13 @@ def catalog_by_glue() -> dict[str, CatalogEntry]:
     return {entry["glue_domain"]: entry for entry in CATALOG}
 
 
-def as_public(entry: CatalogEntry) -> dict[str, Any]:
+def as_public(entry: CatalogEntry, *, lang: str = "en") -> dict[str, Any]:
     """Project a catalog entry into the public companion shape (a *suggested* row)."""
     return {
         "domain": entry["glue_domain"],
         "name": entry["name"],
         "icon": entry["icon"],
-        "description": entry["description"],
+        "description": resolve_string(lang, entry["description_key"]),
         "install_url": entry["install_url"],
         "upstream_domain": entry["upstream_domain"],
     }
@@ -116,9 +117,9 @@ def _connected_from_catalog(entry: CatalogEntry) -> dict[str, Any]:
     }
 
 
-def _suggested_from_catalog(entry: CatalogEntry) -> dict[str, Any]:
+def _suggested_from_catalog(entry: CatalogEntry, *, lang: str = "en") -> dict[str, Any]:
     """A *suggested* row: the upstream is installed but the glue isn't."""
-    row = as_public(entry)
+    row = as_public(entry, lang=lang)
     row["status"] = STATUS_SUGGESTED
     return row
 
@@ -128,6 +129,7 @@ def build_companion_list(
     installed_domains: set[str],
     *,
     dismissed: set[str] | None = None,
+    lang: str = "en",
 ) -> list[dict[str, Any]]:
     """Merge self-registered companions and catalog detection into public rows.
 
@@ -159,6 +161,6 @@ def build_companion_list(
         if glue in installed_domains:
             rows.append(_connected_from_catalog(entry))
         elif entry["upstream_domain"] in installed_domains and glue not in dismissed:
-            rows.append(_suggested_from_catalog(entry))
+            rows.append(_suggested_from_catalog(entry, lang=lang))
 
     return rows

@@ -760,6 +760,30 @@
     },
     "integration_not_loaded": {
       "message": "Home Keeper сейчас не загружен. Повторите попытку через мгновение."
+    },
+    "invalid_completed_at": {
+      "message": "Неверная метка времени completed_at."
+    },
+    "link_documents_only": {
+      "message": "Здесь можно добавлять только документы-ссылки."
+    },
+    "unknown_document": {
+      "message": "Неизвестный документ: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Неизвестная запчасть или нет прикреплённого файла."
+    },
+    "file_too_large": {
+      "message": "Файл превышает лимит {mb} МБ."
+    },
+    "expected_multipart_upload": {
+      "message": "Ожидалась многокомпонентная (multipart) загрузка."
+    },
+    "no_file_in_upload": {
+      "message": "В загрузке отсутствует файл."
+    },
+    "failed_to_store_file": {
+      "message": "Не удалось сохранить файл."
     }
   }
 }
