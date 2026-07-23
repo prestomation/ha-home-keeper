@@ -4,7 +4,7 @@
   "action_skip": "Ignorer",
   "action_open": "Ouvrir",
   "due_now": "À faire maintenant.",
-  "due_soon": "Bientôt à échéance.",
+  "due_soon": "À faire bientôt.",
   "overdue.one": "En retard de {days} jour.",
   "overdue.few": "En retard de {days} jours.",
   "overdue.many": "En retard de {days} jours.",

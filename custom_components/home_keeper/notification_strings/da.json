@@ -14,7 +14,7 @@
   "digest_title.many": "{count} opgaver skal udføres",
   "digest_title.other": "{count} opgaver skal udføres",
   "digest_item": "• {name}",
-  "digest_more": "…og {more} mere",
+  "digest_more": "…og {more} flere",
   "all_clear_title": "Alt er klaret",
   "all_clear_message": "Ingen opgaver lige nu. 🎉"
 }
