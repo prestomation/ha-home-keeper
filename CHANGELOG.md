@@ -4,7 +4,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
-## [0.10.0] - 2026-07-23
+## [0.9.0] - 2026-07-23
 
 ### Added
 
