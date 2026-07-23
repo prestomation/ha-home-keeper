@@ -1,0 +1,20 @@
+{
+  "action_complete": "Marquer comme terminé",
+  "action_snooze": "Reporter de {hours} h",
+  "action_skip": "Ignorer",
+  "action_open": "Ouvrir",
+  "due_now": "À faire maintenant.",
+  "due_soon": "À faire bientôt.",
+  "overdue.one": "En retard de {days} jour.",
+  "overdue.few": "En retard de {days} jours.",
+  "overdue.many": "En retard de {days} jours.",
+  "overdue.other": "En retard de {days} jours.",
+  "digest_title.one": "{count} tâche à faire",
+  "digest_title.few": "{count} tâches à faire",
+  "digest_title.many": "{count} tâches à faire",
+  "digest_title.other": "{count} tâches à faire",
+  "digest_item": "• {name}",
+  "digest_more": "…et {more} de plus",
+  "all_clear_title": "Tout est à jour",
+  "all_clear_message": "Aucune tâche à faire pour le moment. 🎉"
+}

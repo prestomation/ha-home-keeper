@@ -5,11 +5,23 @@ a no-op (best-effort, swallowed) — these cover the parts that don't need a pho
 the ``home_keeper.notify`` service resolving a profile and reporting what's due, and
 the ``mobile_app_notification_action`` listener routing a tapped action back into the
 store (completing the task, with the notification origin echoed).
+
+One test (below) *does* have somewhere to actually see delivered text: HA's built-in
+``notify.persistent_notification`` target, which needs no companion app. It's used to
+prove the notification text is localized end-to-end (#150) — through the real
+``hass.config.language`` -> ``notifier.py`` -> ``notifications.py`` path, not just the
+pure builders under a fake ``lang`` kwarg (already covered by
+``tests/unit/test_notifications.py``).
 """
 
+import asyncio
+import json
 import time
 
+import websockets
 from conftest import HA_URL, call_service
+
+WS_URL = "ws://localhost:8123/api/websocket"
 
 
 def _fire_action(ha, action):
@@ -148,3 +160,99 @@ def test_notify_service_and_action_completes(ha, ha_token):
     call_service(
         ha, "home_keeper", "set_options", {"profiles": [], "notifications": []}
     )
+
+
+async def _ws_commands(token, commands):
+    """Open one authed websocket; send each command; return the replies."""
+    results = []
+    async with websockets.connect(WS_URL, max_size=None) as ws:
+        assert json.loads(await ws.recv())["type"] == "auth_required"
+        await ws.send(json.dumps({"type": "auth", "access_token": token}))
+        assert json.loads(await ws.recv())["type"] == "auth_ok"
+        msg_id = 0
+        for command in commands:
+            msg_id += 1
+            await ws.send(json.dumps({"id": msg_id, **command}))
+            reply = json.loads(await ws.recv())
+            results.append(reply)
+    return results
+
+
+def _run_ws(token, commands):
+    return asyncio.run(_ws_commands(token, commands))
+
+
+def test_notify_persistent_notification_is_localized(ha, ha_token):
+    """A translated notification actually lands in a real HA surface (#150).
+
+    ``notify.persistent_notification`` needs no mobile-app companion, so — unlike the
+    mobile_app-targeted test above — the delivered text can be inspected via the
+    ``persistent_notification/get`` websocket command. This exercises the real
+    ``hass.config.language`` -> ``notifier.py`` -> ``notifications.py`` path end to
+    end, not just the pure builders under an explicit ``lang`` kwarg.
+    """
+    label = "hk_notify_i18n_test"
+    task_id = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "Notify i18n integration task",
+            "recurrence_type": "floating",
+            "interval": 7,
+            "unit": "days",
+            "labels": [label],
+        },
+        return_response=True,
+    ).get("service_response", {})["task_id"]
+    call_service(
+        ha,
+        "home_keeper",
+        "set_options",
+        {
+            "profiles": [
+                {
+                    "id": "i18n_testprofile",
+                    "name": "i18n test",
+                    "filter": {"status": "overdue", "labels": [label]},
+                }
+            ],
+        },
+    )
+
+    try:
+        (update_reply,) = _run_ws(
+            ha_token, [{"type": "config/core/update", "language": "es"}]
+        )
+        assert update_reply["success"], update_reply
+        # A language change reloads Home Keeper (it relocalizes generated task names),
+        # which briefly tears down and rebuilds its platforms/services. A service call
+        # that races that reload can 400 transiently; give it a moment to settle.
+        time.sleep(1)
+
+        call_service(ha, "persistent_notification", "dismiss_all", {})
+        call_service(
+            ha,
+            "home_keeper",
+            "notify",
+            {"profile": "i18n_testprofile", "target": ["persistent_notification"]},
+        )
+
+        (get_reply,) = _run_ws(ha_token, [{"type": "persistent_notification/get"}])
+        assert get_reply["success"], get_reply
+        notifications = get_reply["result"]
+        assert len(notifications) == 1, notifications
+        # Spanish overdue phrasing ("Vencida hace N días.") -- not asserting the exact
+        # day count, which drifts with the wall clock; the count/plural-form logic is
+        # already covered by tests/unit/test_notifications.py.
+        assert "Venc" in notifications[0]["message"], notifications[0]
+    finally:
+        # Never let the language flip or a leftover notification/profile leak into
+        # other tests sharing this container.
+        _run_ws(ha_token, [{"type": "config/core/update", "language": "en"}])
+        time.sleep(1)  # let the reload back to English settle (see above)
+        call_service(ha, "persistent_notification", "dismiss_all", {})
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+        call_service(
+            ha, "home_keeper", "set_options", {"profiles": [], "notifications": []}
+        )

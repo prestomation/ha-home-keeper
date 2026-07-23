@@ -1,0 +1,20 @@
+{
+  "action_complete": "Segna come completata",
+  "action_snooze": "Posponi di {hours} h",
+  "action_skip": "Salta",
+  "action_open": "Apri",
+  "due_now": "Scade ora.",
+  "due_soon": "In scadenza.",
+  "overdue.one": "Scaduta da {days} giorno.",
+  "overdue.few": "Scaduta da {days} giorni.",
+  "overdue.many": "Scaduta da {days} giorni.",
+  "overdue.other": "Scaduta da {days} giorni.",
+  "digest_title.one": "{count} attività da fare",
+  "digest_title.few": "{count} attività da fare",
+  "digest_title.many": "{count} attività da fare",
+  "digest_title.other": "{count} attività da fare",
+  "digest_item": "• {name}",
+  "digest_more": "…e altre {more}",
+  "all_clear_title": "Tutto in ordine",
+  "all_clear_message": "Nessuna attività in scadenza al momento. 🎉"
+}

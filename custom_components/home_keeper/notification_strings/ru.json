@@ -1,0 +1,20 @@
+{
+  "action_complete": "Отметить выполненным",
+  "action_snooze": "Отложить на {hours} ч",
+  "action_skip": "Пропустить",
+  "action_open": "Открыть",
+  "due_now": "Срок сегодня.",
+  "due_soon": "Срок скоро истекает.",
+  "overdue.one": "Просрочено на {days} день.",
+  "overdue.few": "Просрочено на {days} дня.",
+  "overdue.many": "Просрочено на {days} дней.",
+  "overdue.other": "Просрочено на {days} дней.",
+  "digest_title.one": "{count} задача на сегодня",
+  "digest_title.few": "{count} задачи на сегодня",
+  "digest_title.many": "{count} задач на сегодня",
+  "digest_title.other": "{count} задач на сегодня",
+  "digest_item": "• {name}",
+  "digest_more": "…и ещё {more}",
+  "all_clear_title": "Всё выполнено",
+  "all_clear_message": "Сейчас нет задач. 🎉"
+}

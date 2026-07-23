@@ -124,3 +124,75 @@ def test_build_digest_lists_and_truncates():
     assert payload["title"] == "7 tasks due"
     assert "…and 2 more" in payload["message"]
     assert payload["data"]["tag"] == "home_keeper_p"
+
+
+def test_build_all_clear_default_english():
+    notif = n.normalize_notification({"id": "p"})
+    payload = n.build_all_clear(notif)
+    assert payload["title"] == "All caught up"
+    assert payload["message"] == "No tasks due right now. 🎉"
+    assert payload["data"]["tag"] == "home_keeper_p"
+
+
+# ── translated payload text (#150) ──────────────────────────────────────────
+
+
+def test_action_titles_translate_by_lang():
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification(
+        {
+            "id": "n1",
+            "actions": ["complete", "snooze", "skip", "open"],
+            "snooze_hours": 6,
+        }
+    )
+    t = task("t1", "Furnace filter", dt(2026, 6, 10))
+    payload = n.build_notification(t, notification=notif, now=now, lang="es")
+    titles = [a["title"] for a in payload["data"]["actions"]]
+    assert titles == ["Marcar como hecho", "Posponer 6 h", "Omitir", "Abrir"]
+
+
+def test_overdue_phrase_translates_and_pluralizes():
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+    one = n.build_notification(
+        task("t", "X", dt(2026, 6, 12, 12)), notification=notif, now=now, lang="es"
+    )
+    assert one["message"] == "Vencida hace 1 día."
+    many = n.build_notification(
+        task("t", "X", dt(2026, 6, 10, 12)), notification=notif, now=now, lang="es"
+    )
+    assert many["message"] == "Vencida hace 3 días."
+
+
+def test_digest_and_all_clear_translate():
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "style": "digest"})
+    q = [task("t", "X", dt(2026, 6, 1))]
+    payload = n.build_digest(q, notification=notif, now=now, lang="es")
+    assert payload["title"] == "1 tarea pendiente"
+    clear = n.build_all_clear(notif, lang="es")
+    assert clear["title"] == "Todo al día"
+
+
+def test_unknown_language_falls_back_to_english():
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+    payload = n.build_notification(
+        task("t", "X", dt(2026, 6, 13, 12)),
+        notification=notif,
+        now=now,
+        lang="xx-not-real",
+    )
+    assert payload["message"] == "Due now."
+    assert payload["data"]["actions"][0]["title"] == "Mark done"
+
+
+def test_plural_category_boundaries_match_cldr():
+    # Polish: one / few (2-4) / many (5+, 11-14, ...) — a real 3-way plural split,
+    # distinct from the English one/other binary.
+    assert n._tn("pl", "digest_title", 1, count=1) == "1 zadanie do zrobienia"
+    assert n._tn("pl", "digest_title", 2, count=2) == "2 zadania do zrobienia"
+    assert n._tn("pl", "digest_title", 5, count=5) == "5 zadań do zrobienia"
+    assert n._tn("pl", "digest_title", 12, count=12) == "12 zadań do zrobienia"
+    assert n._tn("pl", "digest_title", 22, count=22) == "22 zadania do zrobienia"

@@ -1,0 +1,20 @@
+{
+  "action_complete": "Oznacz jako wykonane",
+  "action_snooze": "Odłóż o {hours} godz.",
+  "action_skip": "Pomiń",
+  "action_open": "Otwórz",
+  "due_now": "Termin dziś.",
+  "due_soon": "Termin wkrótce.",
+  "overdue.one": "Zaległe o {days} dzień.",
+  "overdue.few": "Zaległe o {days} dni.",
+  "overdue.many": "Zaległe o {days} dni.",
+  "overdue.other": "Zaległe o {days} dni.",
+  "digest_title.one": "{count} zadanie do zrobienia",
+  "digest_title.few": "{count} zadania do zrobienia",
+  "digest_title.many": "{count} zadań do zrobienia",
+  "digest_title.other": "{count} zadań do zrobienia",
+  "digest_item": "• {name}",
+  "digest_more": "…i jeszcze {more}",
+  "all_clear_title": "Wszystko zrobione",
+  "all_clear_message": "Obecnie brak zadań do zrobienia. 🎉"
+}

@@ -137,10 +137,16 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
   (plus an `entity` section for device-page entity names) and a parity test in
   `tests/unit/test_translations_parity.py`; frontend via a dependency-free
   `frontend/src/i18n.ts` (`t`/`tn`, `Intl.PluralRules`, English fallback) with
-  bundled `src/locales/*.json` and a key-parity test in `test/i18n.test.js`.
-  Remaining: the `todo`/`calendar` list entity names stay English (they carry the
-  brand name and use `has_entity_name=False`), and developer-facing validation
-  exceptions are intentionally not localized.
+  bundled `src/locales/*.json` and a key-parity test in `test/i18n.test.js`. Mobile
+  actionable-notification text (action buttons, overdue/digest/all-clear copy) is
+  localized too, resolved eagerly in `notifications.py` since it's delivered outside
+  HA's frontend translation loading — bundled as its own flat-key
+  `notification_strings/<lang>.json` files (hassfest rejects a custom top-level key in
+  `strings.json`), with Babel for correct CLDR plural forms — see
+  `.amazonq/rules/architecture-and-code.md` → "Notification payload text is
+  localized". Remaining: the `todo`/`calendar` list entity names stay English (they
+  carry the brand name and use `has_entity_name=False`), and developer-facing
+  validation exceptions are intentionally not localized.
 
 ## UX exploration (the whole point of the prototype)
 

@@ -1,0 +1,20 @@
+{
+  "action_complete": "Merk som fullført",
+  "action_snooze": "Utsett {hours} t",
+  "action_skip": "Hopp over",
+  "action_open": "Åpne",
+  "due_now": "Forfaller nå.",
+  "due_soon": "Forfaller snart.",
+  "overdue.one": "Forfalt med {days} dag.",
+  "overdue.few": "Forfalt med {days} dager.",
+  "overdue.many": "Forfalt med {days} dager.",
+  "overdue.other": "Forfalt med {days} dager.",
+  "digest_title.one": "{count} oppgave å gjøre",
+  "digest_title.few": "{count} oppgaver å gjøre",
+  "digest_title.many": "{count} oppgaver å gjøre",
+  "digest_title.other": "{count} oppgaver å gjøre",
+  "digest_item": "• {name}",
+  "digest_more": "…og {more} til",
+  "all_clear_title": "Alt er unnagjort",
+  "all_clear_message": "Ingen oppgaver akkurat nå. 🎉"
+}
