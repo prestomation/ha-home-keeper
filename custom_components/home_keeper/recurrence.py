@@ -500,17 +500,18 @@ def move_completion(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> d
         history.append(entry)
     task["completions"] = history
 
-    if history:
-        latest = max(history, key=lambda e: datetime.fromisoformat(e["ts"]))
-        task["last_completed"] = latest["ts"]
-    else:
-        task["last_completed"] = None
+    # Unlike remove_completion, history can never be empty here: removing old_ts
+    # always re-inserts (or collapses) exactly one entry, so there's always a
+    # latest to derive last_completed from.
+    latest = max(history, key=lambda e: datetime.fromisoformat(e["ts"]))
+    task["last_completed"] = latest["ts"]
 
     rec_type = task.get("recurrence_type")
     if rec_type == REC_ONE_OFF:
-        task["next_due"] = (
-            compute_next_due(task, now=now).isoformat() if not history else None
-        )
+        # A moved completion is still a completion: history is never empty here
+        # (see above), so a one-off always stays dormant post-move — it only
+        # re-arms via remove_completion, which can genuinely empty history.
+        task["next_due"] = None
     elif rec_type not in (REC_TRIGGERED, REC_SENSOR):
         task["next_due"] = compute_next_due(task, now=now).isoformat()
     return task
