@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Appliances | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/appliances"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Appliances | Home Keeper"><meta data-rh="true" name="description" content="Most appliances you actually maintain — a &quot;dumb&quot; fridge, furnace, or water heater —"><meta data-rh="true" property="og:description" content="Most appliances you actually maintain — a &quot;dumb&quot; fridge, furnace, or water heater —"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-146/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/appliances"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/appliances" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/appliances" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Appliances","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-146/docs/guide/appliances"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-146/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-146/assets/js/runtime~main.3b810664.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-146/assets/js/runtime~main.cc663719.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-146/assets/js/main.e4130875.js" defer="defer"></script>
 </head>
 <body>
@@ -19,7 +19,10 @@ record their warranty. Home Keeper fills that gap with <strong>appliances</stron
 <li class=""><strong>New appliance</strong> — Home Keeper registers a real <strong>virtual device</strong> for it, so
 multiple tasks share <em>one</em> device page and other integrations can attach to it too.</li>
 <li class=""><strong>Existing device</strong> — point Home Keeper at a device another integration already
-provides and enrich it with the same metadata, without owning it.</li>
+provides and enrich it with the same metadata, without owning it. Picking a device
+prefills manufacturer/model/serial number from its own registry entry when it has
+them (handy since not every integration reports those), and you can fill in or
+correct whatever it&#x27;s missing.</li>
 </ul>
 <p>Either way you record <strong>asset metadata</strong>. A few structured fields wire into Home
 Assistant — manufacturer/model, an mdi icon, a manual link, replacement cost — and
@@ -34,7 +37,7 @@ deleted while still assigned to it). The tab also has an <strong>Export inventor
 that downloads a CSV <strong>home inventory</strong> — make/model, replacement cost, value of spares
 on hand (with a grand total), and a Details column flattening each appliance&#x27;s custom
 fields. It&#x27;s the grab-and-go record you want for an insurance claim.</p>
-<p><img decoding="async" loading="lazy" alt="Appliance detail page" src="/ha-home-keeper/pr-preview/pr-146/assets/images/8-panel-appliance-detail-eee4cf0086666d324d28b4ece6cd1dd9.png" width="1280" height="1959" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="Appliance detail page" src="/ha-home-keeper/pr-preview/pr-146/assets/images/8-panel-appliance-detail-e17f37e29b837a75386b15a12a472ab9.png" width="1280" height="1959" class="img_ev3q"></p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="parts--wear-items">Parts &amp; wear items<a href="#parts--wear-items" class="hash-link" aria-label="Direct link to Parts &amp; wear items" title="Direct link to Parts &amp; wear items" translate="no">​</a></h3>
 <p>Each appliance has a structured <strong>parts</strong> list — name, part number, vendor, cost, and a
 type of <em>consumable</em> (a stocked spare) or <em>wear item</em>. Give a wear item a <strong>replacement
@@ -75,7 +78,7 @@ threshold and clears the reminder in the same step. So the whole loop —
 <em>low → buy → restocked</em> — closes with a single tap and no automation to write. (Set the
 restock quantity high enough to clear the threshold; if it isn&#x27;t, the completed reminder
 stays put until you actually restock.)</p>
-<p><img decoding="async" loading="lazy" alt="A part editor with Auto-create buy task enabled and a Restock quantity field" src="/ha-home-keeper/pr-preview/pr-146/assets/images/39-panel-part-auto-buy-e94b922b09ecd0419f213f05c0b37cac.png" width="886" height="660" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="A part editor with Auto-create buy task enabled and a Restock quantity field" src="/ha-home-keeper/pr-preview/pr-146/assets/images/39-panel-part-auto-buy-e2766173db1482efd07f23e2ffbb7877.png" width="886" height="660" class="img_ev3q"></p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="offline-manuals--documents">Offline manuals &amp; documents<a href="#offline-manuals--documents" class="hash-link" aria-label="Direct link to Offline manuals &amp; documents" title="Direct link to Offline manuals &amp; documents" translate="no">​</a></h3>
 <p>Every appliance keeps a list of <strong>documents</strong> — manuals, warranties, receipts. Each is
 either an external <strong>link</strong> (a URL) or an <strong>uploaded file</strong> (a PDF or image) stored
@@ -95,7 +98,7 @@ appliance; uploading a file waits until the appliance is saved (the file is keye
 <code>home_keeper.update_asset_document</code> and <code>home_keeper.remove_asset_document</code> (links; files
 upload from the panel) — so automations can attach, rename or detach a receipt or manual
 link too.</p>
-<p><img decoding="async" loading="lazy" alt="The appliance Manuals &amp;amp; documents editor — existing documents as cards with Open / Edit / Remove actions, plus an add-a-document area with add-link and upload-file controls" src="/ha-home-keeper/pr-preview/pr-146/assets/images/32-panel-appliance-documents-de93efb639a280390f7200306d5e682a.png" width="1280" height="5235" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The appliance Manuals &amp;amp; documents editor — existing documents as cards with Open / Edit / Remove actions, plus an add-a-document area with add-link and upload-file controls" src="/ha-home-keeper/pr-preview/pr-146/assets/images/32-panel-appliance-documents-b930f7bcb3df53b124a7477b33cdc7cd.png" width="1280" height="5839" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="large-uploads-413">Large uploads (413)<a href="#large-uploads-413" class="hash-link" aria-label="Direct link to Large uploads (413)" title="Direct link to Large uploads (413)" translate="no">​</a></h4>
 <p>Home Keeper accepts uploads up to <strong>25 MB</strong>. If an upload fails with <strong>HTTP 413</strong> —
 especially the panel showing <em>&quot;Upload too large…&quot;</em> — the file was almost certainly
