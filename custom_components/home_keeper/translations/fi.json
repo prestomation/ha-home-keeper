@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Siirrä suoritus",
+      "description": "Antaa jo tallennetulle suoritukselle uuden aikaleiman (siirtää sen menneisyyteen tai korjaa sen), tunnistettuna nykyisestä aikaleimasta. Toisin kuin Päivitä suoritus, tämä muuttaa suorituksen päivämäärää/aikaa ja laskee tehtävän viimeisimmän suorituksen ja seuraavan eräpäivän uudelleen tuloksen perusteella.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Sen tehtävän tunnus, jonka suoritusta siirrät."
+        },
+        "old_ts": {
+          "name": "Nykyinen suorituksen aikaleima",
+          "description": "Siirrettävän suoritusmerkinnän ISO-aikaleima (ts)."
+        },
+        "new_completed_at": {
+          "name": "Uusi suoritusaika",
+          "description": "Uusi päivämäärä/aika, jolle suoritus kirjataan."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Poista suoritus",
       "description": "Poistaa yhden suorituksen tehtävän historiasta (kumoaa vahingossa tehdyn ”valmis”), tunnistettuna aikaleimalla.",

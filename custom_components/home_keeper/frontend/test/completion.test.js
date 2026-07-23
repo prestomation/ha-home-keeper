@@ -87,4 +87,41 @@ describe('api completion metadata', () => {
     await api.completeTask(hass, 't1', { cost: Number.NaN });
     expect(hass.calls[0]).toEqual({ type: 'home_keeper/complete_task', task_id: 't1' });
   });
+
+  it('completeTask sends completed_at when set', async () => {
+    const hass = fakeHass();
+    await api.completeTask(hass, 't1', { note: 'done' }, '2026-01-05T09:00:00-04:00');
+    expect(hass.calls[0]).toEqual({
+      type: 'home_keeper/complete_task',
+      task_id: 't1',
+      completed_at: '2026-01-05T09:00:00-04:00',
+      note: 'done',
+    });
+  });
+
+  it('completeTask omits completed_at when unset', async () => {
+    const hass = fakeHass();
+    await api.completeTask(hass, 't1', { note: 'done' });
+    expect(hass.calls[0]).toEqual({
+      type: 'home_keeper/complete_task',
+      task_id: 't1',
+      note: 'done',
+    });
+  });
+
+  it('moveCompletion sends old_ts and new_ts', async () => {
+    const hass = fakeHass();
+    await api.moveCompletion(
+      hass,
+      't1',
+      '2026-01-01T00:00:00+00:00',
+      '2026-01-05T00:00:00+00:00',
+    );
+    expect(hass.calls[0]).toEqual({
+      type: 'home_keeper/move_completion',
+      task_id: 't1',
+      old_ts: '2026-01-01T00:00:00+00:00',
+      new_ts: '2026-01-05T00:00:00+00:00',
+    });
+  });
 });

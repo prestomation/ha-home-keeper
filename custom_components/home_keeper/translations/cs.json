@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Přesunout dokončení",
+      "description": "Znovu časově označí již zaznamenané dokončení (posune jej do minulosti nebo jej opraví), určené podle aktuálního časového razítka. Na rozdíl od Upravit dokončení tato akce mění datum/čas dokončení a znovu odvozuje datum posledního dokončení a dalšího termínu úkolu z výsledku.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu, jehož dokončení přesouváte."
+        },
+        "old_ts": {
+          "name": "Aktuální časové razítko dokončení",
+          "description": "Časové razítko ISO (ts) položky dokončení, kterou chcete přesunout."
+        },
+        "new_completed_at": {
+          "name": "Nové dokončeno v",
+          "description": "Nové datum a čas, kdy má být dokončení zaznamenáno."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Smazat dokončení",
       "description": "Odebere jedno dokončení z historie úkolu (vrátí náhodné „hotovo“), určené jeho časovým razítkem.",

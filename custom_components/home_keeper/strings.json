@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Move completion",
+      "description": "Re-timestamp an already-recorded completion (back-date or correct it), identified by its current timestamp. Unlike Update completion, this changes the completion's date/time and re-derives the task's last-completed and next-due dates from the result.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the task whose completion you are moving."
+        },
+        "old_ts": {
+          "name": "Current completion timestamp",
+          "description": "The ISO timestamp (ts) of the completion entry to move."
+        },
+        "new_completed_at": {
+          "name": "New completed at",
+          "description": "The new date/time to record the completion at."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Delete completion",
       "description": "Remove one completion from a task's history (undo an accidental “done”), identified by its timestamp.",

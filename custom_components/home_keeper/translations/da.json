@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Flyt fuldførelse",
+      "description": "Giver et allerede registreret fuldførelse et nyt tidsstempel (bagdatér eller ret det), identificeret ved dets nuværende tidsstempel. Til forskel fra Opdater fuldførelse ændrer dette fuldførelsens dato/klokkeslæt og genudleder opgavens sidst fuldført- og forfaldsdato ud fra resultatet.",
+      "fields": {
+        "task_id": {
+          "name": "Opgave-ID",
+          "description": "ID'et på opgaven, hvis fuldførelse du flytter."
+        },
+        "old_ts": {
+          "name": "Nuværende tidsstempel for fuldførelse",
+          "description": "ISO-tidsstemplet (ts) for den fuldførelsespost, der skal flyttes."
+        },
+        "new_completed_at": {
+          "name": "Ny fuldført den",
+          "description": "Den nye dato/klokkeslæt, fuldførelsen skal registreres på."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Slet gennemførelse",
       "description": "Fjern én gennemførelse fra en opgaves historik (fortryd en utilsigtet ”færdig“), angivet ved dens tidsstempel.",

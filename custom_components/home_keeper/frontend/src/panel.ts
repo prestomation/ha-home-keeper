@@ -12,9 +12,12 @@ import {
   buildTaskPayload,
   cardLinkTokens,
   consumableLinkToken,
+  haDateTimeToIso,
+  isoToHaDateTime,
   selArea,
   selBool,
   selDate,
+  selDateTime,
   generalSchema,
   notificationSchema,
   notifyFormData,
@@ -139,6 +142,13 @@ const MDI_EDIT =
 const MDI_OPEN_IN_NEW =
   'M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,' +
   '3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z';
+
+// mdi:calendar-edit — move (re-timestamp) a single completion entry.
+const MDI_MOVE_DATE =
+  'M19,19H5V8H19M16,1V3H8V1H6V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,' +
+  '19V5C21,3.89 20.1,3 19,3H18V1M12.78,11.09L9,14.87L9,17H11.13L14.91,13.22L12.78,' +
+  '11.09M16.31,10.44C16.5,10.25 16.5,9.94 16.31,9.75L15.16,8.6C14.97,8.41 14.66,8.41 ' +
+  '14.47,8.6L13.44,9.63L15.28,11.47L16.31,10.44Z';
 
 // mdi:autorenew — a wear item (replaced on a recurring schedule).
 const MDI_WEAR =
@@ -539,7 +549,7 @@ const STYLES = `
   ul.hk-hist-list .date { flex: 1; min-width: 0; }
   ul.hk-hist-list .when { color: var(--secondary-text-color); font-size: 0.85rem; white-space: nowrap; }
   .hk-hist-actions { display: flex; align-items: center; }
-  ha-icon-button.hk-hist-del, ha-icon-button.hk-hist-edit {
+  ha-icon-button.hk-hist-del, ha-icon-button.hk-hist-edit, ha-icon-button.hk-hist-move {
     --mdc-icon-button-size: 36px; color: var(--secondary-text-color);
   }
   .hk-hist-meta {
@@ -589,8 +599,20 @@ interface CompletionDialogState {
   open: boolean;
   task: Task | null;
   ts?: string;
-  data: { note?: string; cost?: number; photo?: string; who?: string };
+  data: { completedAt?: string; note?: string; cost?: number; photo?: string; who?: string };
   required: string[];
+  error?: string;
+}
+/**
+ * The "move completion date" dialog state — re-timestamps an already-recorded
+ * completion (identified by `ts`), distinct from `CompletionDialogState`'s
+ * edit-metadata mode, which never touches the timestamp.
+ */
+interface MoveCompletionDialogState {
+  open: boolean;
+  task: Task | null;
+  ts: string;
+  newTs?: string;
   error?: string;
 }
 /** One task's completion list within a history dialog (live or archived). */
@@ -635,6 +657,11 @@ export class HomeKeeperPanel extends HTMLElement {
     task: null,
     data: {},
     required: [],
+  };
+  private _moveCompletion: MoveCompletionDialogState = {
+    open: false,
+    task: null,
+    ts: '',
   };
   private _confirmDelete: { open: boolean; label: string; onConfirm: (() => void) | null } = {
     open: false,
@@ -1067,6 +1094,34 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
 
+  /**
+   * Open the "move date" dialog to re-timestamp an already-recorded completion.
+   * Distinct from `_openCompletionEdit` (metadata only) — this changes `ts` itself
+   * via `api.moveCompletion`, never `api.updateCompletion`.
+   */
+  private _openMoveCompletion(task: Task, ts: string): void {
+    this._moveCompletion = { open: true, task, ts, newTs: ts };
+    this._render();
+  }
+
+  private _closeMoveCompletion(): void {
+    this._moveCompletion = { open: false, task: null, ts: '' };
+    this._render();
+  }
+
+  private async _submitMoveCompletion(): Promise<void> {
+    const m = this._moveCompletion;
+    if (!this._hass || !m.task || !m.newTs) return;
+    try {
+      await api.moveCompletion(this._hass, m.task.id, m.ts, m.newTs);
+      this._closeMoveCompletion();
+      await this._refresh();
+    } catch (err) {
+      m.error = String((err as { message?: string })?.message || err);
+      this._render();
+    }
+  }
+
   private _openConfirmDialog(label: string, onConfirm: () => void): void {
     // Drop any prior scrim (and its keydown listener) before opening a new one, so a
     // second open — or a stale scrim — can't orphan the earlier overlay + handler.
@@ -1192,7 +1247,7 @@ export class HomeKeeperPanel extends HTMLElement {
       if (c.ts != null) {
         await api.updateCompletion(this._hass, c.task.id, c.ts, c.data);
       } else {
-        await api.completeTask(this._hass, c.task.id, c.data);
+        await api.completeTask(this._hass, c.task.id, c.data, c.data.completedAt);
       }
       this._closeCompletionDialog();
       await this._refresh();
@@ -2650,6 +2705,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // The completion-details dialog overlays any view, so build it first.
     const dialogHost = root.getElementById('hk-dialog-host');
     if (dialogHost && this._completion.open) this._renderCompletionDialog(dialogHost);
+    if (dialogHost && this._moveCompletion.open) this._renderMoveCompletionDialog(dialogHost);
     // _renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
     // Header sidebar toggle.
@@ -3756,19 +3812,32 @@ export class HomeKeeperPanel extends HTMLElement {
     const body = document.createElement('div');
     body.className = 'hk-completion-body';
 
-    // note / cost / who via ha-form; required fields get the asterisk cue.
+    // note / cost / who via ha-form; required fields get the asterisk cue. Logging a
+    // *new* completion also offers an optional "Completed at" date/time (defaults to
+    // now server-side when left blank) — never shown in edit-metadata mode, which
+    // must never touch the timestamp (see MoveCompletionDialogState for that).
     const req = new Set(c.required);
-    const schema: FormField[] = [
+    const schema: FormField[] = [];
+    if (!editing) {
+      schema.push({ name: 'completedAt', selector: selDateTime() });
+    }
+    schema.push(
       { name: 'note', required: req.has('note'), selector: selText(true) },
       { name: 'cost', required: req.has('cost'), selector: selNumber(0) },
       { name: 'who', required: req.has('who'), selector: selEntity({ domain: 'person' }) },
-    ];
+    );
     const form = this._makeForm(
       schema,
-      { note: c.data.note ?? '', cost: c.data.cost ?? undefined, who: c.data.who ?? undefined },
+      {
+        completedAt: isoToHaDateTime(c.data.completedAt),
+        note: c.data.note ?? '',
+        cost: c.data.cost ?? undefined,
+        who: c.data.who ?? undefined,
+      },
       (value) => {
         this._completion.data = {
           ...this._completion.data,
+          completedAt: editing ? c.data.completedAt : haDateTimeToIso(value.completedAt as string),
           note: (value.note as string) || undefined,
           cost: value.cost == null || value.cost === '' ? undefined : Number(value.cost),
           who: (value.who as string) || undefined,
@@ -3841,6 +3910,70 @@ export class HomeKeeperPanel extends HTMLElement {
     cancel.setAttribute('slot', 'secondaryAction');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeCompletionDialog());
+    footer.appendChild(cancel);
+
+    if (hasFooter) dialog.appendChild(footer);
+    host.appendChild(dialog);
+  }
+
+  /**
+   * Build the "move completion date" dialog — re-timestamps one already-recorded
+   * completion via `api.moveCompletion`. Deliberately minimal (one date/time field)
+   * and separate from `_renderCompletionDialog`'s edit-metadata mode.
+   */
+  private _renderMoveCompletionDialog(host: HTMLElement): void {
+    const m = this._moveCompletion;
+    if (!m.task) return;
+    const dialog = document.createElement('ha-dialog') as HTMLElement & {
+      heading?: string;
+    };
+    dialog.setAttribute('open', '');
+    dialog.setAttribute('heading', t('completion.moveDate'));
+    dialog.addEventListener('closed', () => {
+      if (this._moveCompletion.open) this._closeMoveCompletion();
+    });
+
+    const body = document.createElement('div');
+    body.className = 'hk-completion-body';
+
+    const schema: FormField[] = [{ name: 'completedAt', required: true, selector: selDateTime() }];
+    const form = this._makeForm(
+      schema,
+      { completedAt: isoToHaDateTime(m.newTs) },
+      (value) => {
+        this._moveCompletion.newTs = haDateTimeToIso(value.completedAt as string);
+        this._moveCompletion.error = undefined;
+      },
+    );
+    body.appendChild(form);
+
+    if (m.error) {
+      const err = document.createElement('ha-alert');
+      err.setAttribute('alert-type', 'error');
+      err.textContent = m.error;
+      body.appendChild(err);
+    }
+    dialog.appendChild(body);
+
+    // See _renderCompletionDialog: current ha-dialog (backed by wa-dialog) only
+    // exposes a "footer" slot — primaryAction/secondaryAction slotted directly on
+    // <ha-dialog> silently don't render. Fall back to the old direct-slot
+    // convention if ha-dialog-footer isn't registered (older HA frontends).
+    const hasFooter = Boolean(customElements.get('ha-dialog-footer'));
+    const footer: HTMLElement = hasFooter ? document.createElement('ha-dialog-footer') : dialog;
+    if (hasFooter) footer.setAttribute('slot', 'footer');
+
+    const primary = document.createElement('ha-button');
+    primary.setAttribute('slot', 'primaryAction');
+    primary.setAttribute('raised', '');
+    primary.textContent = t('btn.save');
+    primary.addEventListener('click', () => void this._submitMoveCompletion());
+    footer.appendChild(primary);
+
+    const cancel = document.createElement('ha-button');
+    cancel.setAttribute('slot', 'secondaryAction');
+    cancel.textContent = t('btn.cancel');
+    cancel.addEventListener('click', () => this._closeMoveCompletion());
     footer.appendChild(cancel);
 
     if (hasFooter) dialog.appendChild(footer);
@@ -4722,11 +4855,16 @@ export class HomeKeeperPanel extends HTMLElement {
         const editBtn = editTask
           ? `<ha-icon-button class="hk-hist-edit" data-edit-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>`
           : '';
+        // Moving a completion's date only applies to a live task, same as editing
+        // its metadata — move_completion doesn't operate on archived history.
+        const moveBtn = editTask
+          ? `<ha-icon-button class="hk-hist-move" data-move-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.moveDate'))}"></ha-icon-button>`
+          : '';
         return `<li>
             <div class="hk-hist-row">
               <span class="date">${escapeHTML(date)}</span>
               <span class="when">${escapeHTML(this._relativeDay(d))}</span>
-              <span class="hk-hist-actions">${editBtn}<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button></span>
+              <span class="hk-hist-actions">${moveBtn}${editBtn}<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button></span>
             </div>
             ${this._completionMeta(c)}
           </li>`;
@@ -4799,6 +4937,16 @@ export class HomeKeeperPanel extends HTMLElement {
         const task = this._tasks.find((x) => x.id === taskId);
         const comp = task?.completions?.find((c) => c.ts === ts);
         if (task && comp) this._openCompletionEdit(task, comp);
+      });
+    });
+    root.querySelectorAll<HTMLElement>('.hk-hist-move').forEach((b) => {
+      this._setIcon(b, MDI_MOVE_DATE);
+      b.addEventListener('click', () => {
+        const ts = b.dataset.ts;
+        const taskId = b.dataset.moveTask;
+        if (!ts || !taskId) return;
+        const task = this._tasks.find((x) => x.id === taskId);
+        if (task) this._openMoveCompletion(task, ts);
       });
     });
   }

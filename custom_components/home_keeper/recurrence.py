@@ -450,6 +450,73 @@ def update_completion(
     return task, replaced_photo
 
 
+def move_completion(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> dict:
+    """Return *task* with the completion at *old_ts* re-timestamped to *new_ts*.
+
+    Back-dates (or corrects) an already-recorded completion — distinct from
+    ``update_completion`` (which edits metadata but never ``ts``) and from deleting
+    and re-adding (which would lose the entry's metadata and re-stamp it at "now").
+    A caller-supplied *new_ts* may be naive (the ``move_completion`` service's
+    ``new_completed_at`` field is ``cv.datetime``, which — like ``complete_task``'s
+    ``completed_at`` — accepts an offset-less value); it is qualified with *now*'s
+    zone the same way ``apply_completion`` does.
+
+    Removes the entry at *old_ts* (raising ``ValueError`` if none matches — mirrors
+    ``update_completion``'s missing-``ts`` behaviour) and re-inserts it at *new_ts*,
+    preserving its metadata. Colliding with an existing entry already at *new_ts*
+    replaces it (the same same-instant dedup ``apply_completion`` does); the moved
+    entry's metadata wins and the entry it collided with is discarded.
+
+    Both the removal and the re-insertion happen *before* ``last_completed``/
+    ``next_due`` are re-derived — re-deriving in between (as if this were
+    ``remove_completion`` followed by a separate insert) would misfire for a one-off
+    task: removing its only completion looks like "history now empty" and re-arms
+    ``next_due`` to ``due``, which would be wrong once the moved entry lands back in
+    history. Deriving once from the final, post-move history avoids that: a one-off
+    with its only completion moved stays dormant (``next_due = None``), exactly as it
+    was before the move. Triggered/sensor tasks' ``next_due`` is left untouched, same
+    as ``remove_completion`` — their armed/dormant state is condition-driven, not
+    history-driven, and this function does not validate the new timestamp against it
+    (a manual history edit is not schedule-validated, same as ``update_completion``/
+    ``remove_completion`` today).
+    """
+    history = list(task.get("completions", []))
+    index = next((i for i, e in enumerate(history) if e.get("ts") == old_ts), None)
+    if index is None:
+        raise ValueError(f"no completion at {old_ts!r}")
+    entry = dict(history[index])
+    del history[index]
+
+    new_dt = _parse(new_ts)
+    assert new_dt is not None
+    if new_dt.tzinfo is None:
+        new_dt = new_dt.replace(tzinfo=now.tzinfo)
+    new_ts_iso = new_dt.isoformat()
+    entry["ts"] = new_ts_iso
+    dup = next((i for i, e in enumerate(history) if e.get("ts") == new_ts_iso), None)
+    if dup is not None:
+        history[dup] = entry
+    else:
+        history.append(entry)
+    task["completions"] = history
+
+    # Unlike remove_completion, history can never be empty here: removing old_ts
+    # always re-inserts (or collapses) exactly one entry, so there's always a
+    # latest to derive last_completed from.
+    latest = max(history, key=lambda e: datetime.fromisoformat(e["ts"]))
+    task["last_completed"] = latest["ts"]
+
+    rec_type = task.get("recurrence_type")
+    if rec_type == REC_ONE_OFF:
+        # A moved completion is still a completion: history is never empty here
+        # (see above), so a one-off always stays dormant post-move — it only
+        # re-arms via remove_completion, which can genuinely empty history.
+        task["next_due"] = None
+    elif rec_type not in (REC_TRIGGERED, REC_SENSOR):
+        task["next_due"] = compute_next_due(task, now=now).isoformat()
+    return task
+
+
 def is_overdue(task: dict, *, now: datetime) -> bool:
     """True when the task's next due date is at or before *now*.
 

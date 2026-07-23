@@ -61,6 +61,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_set_task_consumable)
     websocket_api.async_register_command(hass, ws_complete_task)
     websocket_api.async_register_command(hass, ws_update_completion)
+    websocket_api.async_register_command(hass, ws_move_completion)
     websocket_api.async_register_command(hass, ws_delete_completion)
     websocket_api.async_register_command(hass, ws_delete_archived_completion)
     websocket_api.async_register_command(hass, ws_get_assets)
@@ -228,6 +229,7 @@ def _ws_metadata(msg: dict[str, Any]) -> dict[str, Any]:
     {
         vol.Required("type"): "home_keeper/complete_task",
         vol.Required("task_id"): str,
+        vol.Optional("completed_at"): str,
         vol.Optional("note"): str,
         vol.Optional("cost"): vol.Coerce(float),
         vol.Optional("photo"): str,
@@ -242,9 +244,17 @@ async def ws_complete_task(
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
         return
+    completed_at = None
+    if "completed_at" in msg:
+        completed_at = dt_util.parse_datetime(msg["completed_at"])
+        if completed_at is None:
+            connection.send_error(
+                msg["id"], "invalid_format", "Invalid completed_at timestamp"
+            )
+            return
     try:
         task = await coord.store.complete_task(
-            msg["task_id"], metadata=_ws_metadata(msg)
+            msg["task_id"], completed_at, metadata=_ws_metadata(msg)
         )
     except KeyError:
         connection.send_error(msg["id"], "not_found", "Unknown task_id")
@@ -278,6 +288,36 @@ async def ws_update_completion(
     try:
         task = await coord.store.update_completion(
             msg["task_id"], msg["ts"], _ws_metadata(msg)
+        )
+    except KeyError:
+        connection.send_error(msg["id"], "not_found", "Unknown task_id")
+        return
+    except TaskValidationError as err:
+        connection.send_error(msg["id"], "not_allowed", str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/move_completion",
+        vol.Required("task_id"): str,
+        vol.Required("old_ts"): str,
+        vol.Required("new_ts"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_move_completion(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        connection.send_error(msg["id"], "not_loaded", "Home Keeper is not loaded")
+        return
+    try:
+        task = await coord.store.move_completion(
+            msg["task_id"], msg["old_ts"], msg["new_ts"]
         )
     except KeyError:
         connection.send_error(msg["id"], "not_found", "Unknown task_id")

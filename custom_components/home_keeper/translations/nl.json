@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Voltooiing verplaatsen",
+      "description": "Geeft een al vastgelegde voltooiing een nieuw tijdstempel (dateer het terug of corrigeer het), geïdentificeerd door het huidige tijdstempel. In tegenstelling tot Voltooiing bijwerken verandert dit de datum/tijd van de voltooiing en berekent het de laatst-voltooid- en volgende-vervaldatum van de taak opnieuw op basis van het resultaat.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "De id van de taak waarvan je de voltooiing verplaatst."
+        },
+        "old_ts": {
+          "name": "Huidig tijdstempel van voltooiing",
+          "description": "Het ISO-tijdstempel (ts) van het te verplaatsen voltooiingsitem."
+        },
+        "new_completed_at": {
+          "name": "Nieuw voltooid op",
+          "description": "De nieuwe datum/tijd waarop de voltooiing moet worden geregistreerd."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Voltooiing verwijderen",
       "description": "Verwijdert één voltooiing uit de geschiedenis van een taak (een per ongeluk “gedaan” ongedaan maken), aangeduid met de tijdstempel.",

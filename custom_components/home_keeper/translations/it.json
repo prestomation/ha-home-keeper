@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Sposta completamento",
+      "description": "Assegna una nuova marca temporale a un completamento già registrato (retrodatandolo o correggendolo), identificato dalla sua marca temporale attuale. A differenza di Aggiorna completamento, questo modifica la data/ora del completamento e ricalcola le date dell'ultimo completamento e della prossima scadenza dell'attività a partire dal risultato.",
+      "fields": {
+        "task_id": {
+          "name": "ID attività",
+          "description": "L'id dell'attività di cui stai spostando il completamento."
+        },
+        "old_ts": {
+          "name": "Marca temporale attuale del completamento",
+          "description": "La marca temporale ISO (ts) della voce di completamento da spostare."
+        },
+        "new_completed_at": {
+          "name": "Nuovo completamento il",
+          "description": "La nuova data/ora in cui registrare il completamento."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Elimina completamento",
       "description": "Rimuove un completamento dalla cronologia di un'attività (annulla un «fatto» accidentale), identificato dal suo timestamp.",

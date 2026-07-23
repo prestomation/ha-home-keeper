@@ -69,6 +69,20 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/7-panel-task-detail.png`, fullPage: true });
+
+  // 1b2. "Move date" dialog — corrects an already-recorded completion's timestamp
+  // from the history list, distinct from the pencil (edit-metadata) button next to it.
+  await panel.locator('.hk-hist-move').first().click();
+  const moveDateField = panel
+    .locator('ha-dialog[open] ha-selector-datetime')
+    .first();
+  await moveDateField.waitFor({ state: 'visible', timeout: 15_000 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/40-panel-history-move-date.png`, fullPage: true });
+  // Dismiss via Escape so the capture records no actual move.
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 

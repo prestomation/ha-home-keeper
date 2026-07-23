@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Flytt fullføring",
+      "description": "Gir en allerede registrert fullføring et nytt tidsstempel (sett den tilbake i tid eller korriger den), identifisert med gjeldende tidsstempel. I motsetning til Oppdater fullføring endrer dette fullføringens dato/klokkeslett og beregner oppgavens sist fullført- og forfallsdato på nytt ut fra resultatet.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til oppgaven du flytter fullføringen for."
+        },
+        "old_ts": {
+          "name": "Gjeldende tidsstempel for fullføring",
+          "description": "ISO-tidsstempelet (ts) for fullføringsoppføringen som skal flyttes."
+        },
+        "new_completed_at": {
+          "name": "Nytt fullført-tidspunkt",
+          "description": "Det nye tidspunktet fullføringen skal registreres på."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Slett fullføring",
       "description": "Fjern én fullføring fra en oppgaves historikk (angre en utilsiktet «ferdig»), angitt med tidsstempelet.",

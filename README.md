@@ -130,6 +130,18 @@ completion's details are also exposed on the task's *next due* sensor attributes
 the `home_keeper.complete_task` / `home_keeper.update_completion` services carry the
 same fields for automations.
 
+**Back-dating a completion, or correcting one after the fact.** The dialog's
+**Completed at** field (defaults to now) lets you log a completion for when the work
+actually happened — not when you got around to opening the app. This matters most for
+a **floating** task, whose next-due date measures from the completion: log a 30-day
+task 5 days late and floating math would otherwise push the next occurrence 5 days
+too far out. If you already logged a completion at the wrong time, each history row's
+**move date** button (next to edit and delete) re-timestamps that one entry — unlike
+the pencil (edit) button, which only touches note/cost/photo/who and never the date.
+Backed by the `home_keeper.move_completion` service for automations.
+
+![The move-date dialog on a history row — re-timestamps one completion without touching its note, cost, photo, or who](docs/images/40-panel-history-move-date.png)
+
 > The set of *required* fields is stored per task, so a future release can let you
 > require specific fields (e.g. always a cost) without any migration.
 
@@ -627,8 +639,11 @@ Every data action is a Home Assistant service, so it's usable from automations,
 scripts, and voice:
 
 - **Tasks** — `home_keeper.add_task`, `update_task`, `delete_task`, `complete_task`
-  (with optional `note`/`cost`/`photo`/`who`), `update_completion` (amend a recorded
-  completion's metadata), `trigger_task` (arm a condition-driven task), `snooze_task`
+  (with optional `completed_at` to back-date it, plus `note`/`cost`/`photo`/`who`),
+  `update_completion` (amend a recorded completion's metadata), `move_completion`
+  (re-timestamp a recorded completion — back-date or correct it — identified by its
+  current `old_ts`; unlike `update_completion` this changes the date, not the
+  metadata), `trigger_task` (arm a condition-driven task), `snooze_task`
   (defer the due date by `hours` without completing), `skip_task` (advance to the next
   occurrence without completing), `set_task_consumable` (link a task to an appliance
   consumable so completing it draws down stock — omit the ids to unlink), and

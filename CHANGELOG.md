@@ -4,6 +4,21 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
 
+## [0.9.0b2]
+
+### Added
+
+- **Back-date or correct a task completion.** The completion dialog now has an
+  optional **Completed at** date/time field (defaults to now) for logging a
+  completion in the past — so a floating task's next-due date measures from when
+  you actually did it, not from when you got around to logging it. The task
+  history list also gains a **move date** action on each completion row to fix an
+  already-recorded entry's timestamp after the fact, without touching its note,
+  cost, photo, or who. Backed by a new `home_keeper.move_completion` service and
+  matching websocket command; automations that already react to
+  `home_keeper_task_completed` / `home_keeper_task_uncompleted` see a move for
+  free. (Fixes #143)
+
 ## [0.9.0b1]
 
 ### Fixed

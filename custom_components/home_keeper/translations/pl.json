@@ -599,6 +599,24 @@
         }
       }
     },
+    "move_completion": {
+      "name": "Przenieś ukończenie",
+      "description": "Nadaje już zapisanemu ukończeniu nowy znacznik czasu (cofa jego datę lub go koryguje), identyfikowane po bieżącym znaczniku czasu. W przeciwieństwie do Aktualizuj ukończenie, zmienia to datę/godzinę ukończenia i ponownie oblicza daty ostatniego ukończenia i najbliższego terminu zadania na podstawie wyniku.",
+      "fields": {
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator zadania, którego ukończenie przenosisz."
+        },
+        "old_ts": {
+          "name": "Bieżący znacznik czasu ukończenia",
+          "description": "Znacznik czasu ISO (ts) wpisu ukończenia do przeniesienia."
+        },
+        "new_completed_at": {
+          "name": "Nowe ukończono o",
+          "description": "Nowa data/godzina, na którą ma zostać zapisane ukończenie."
+        }
+      }
+    },
     "delete_completion": {
       "name": "Usuń wykonanie",
       "description": "Usuwa jedno wykonanie z historii zadania (cofa przypadkowe „gotowe”), określone jego znacznikiem czasu.",
