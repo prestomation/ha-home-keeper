@@ -3807,6 +3807,17 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     dialog.appendChild(body);
 
+    // Action buttons must be wrapped in <ha-dialog-footer slot="footer"> — current
+    // ha-dialog (backed by wa-dialog) only exposes a "footer" slot; primaryAction/
+    // secondaryAction slotted directly on <ha-dialog> silently don't render. Fall
+    // back to slotting straight on <ha-dialog> (the pre-wa-dialog convention) if
+    // ha-dialog-footer isn't registered, so older HA frontends keep working too.
+    const hasFooter = Boolean(customElements.get('ha-dialog-footer'));
+    const footer: HTMLElement = hasFooter
+      ? document.createElement('ha-dialog-footer')
+      : dialog;
+    if (hasFooter) footer.setAttribute('slot', 'footer');
+
     // Primary action: log (or save edit). Optional-mode logging also offers "skip
     // details" to complete with nothing recorded.
     const primary = document.createElement('ha-button');
@@ -3814,7 +3825,7 @@ export class HomeKeeperPanel extends HTMLElement {
     primary.setAttribute('raised', '');
     primary.textContent = editing ? t('btn.save') : t('completion.markDone');
     primary.addEventListener('click', () => void this._submitCompletion());
-    dialog.appendChild(primary);
+    footer.appendChild(primary);
 
     if (!editing && c.task.completion_detail === 'optional') {
       const skip = document.createElement('ha-button');
@@ -3824,14 +3835,15 @@ export class HomeKeeperPanel extends HTMLElement {
         this._completion.data = {};
         void this._submitCompletion();
       });
-      dialog.appendChild(skip);
+      footer.appendChild(skip);
     }
     const cancel = document.createElement('ha-button');
     cancel.setAttribute('slot', 'secondaryAction');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeCompletionDialog());
-    dialog.appendChild(cancel);
+    footer.appendChild(cancel);
 
+    if (hasFooter) dialog.appendChild(footer);
     host.appendChild(dialog);
   }
 

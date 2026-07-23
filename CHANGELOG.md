@@ -6,6 +6,16 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [0.9.0b1]
 
+### Fixed
+
+- **The task-completion dialog's Save button was invisible.** For a task set to
+  "Ask for details" or "Require details" on completion, tapping **Done** opened a
+  dialog to log a note/cost/who — but its **Mark done**/**Save**, **Skip details**,
+  and **Cancel** buttons never rendered, in the panel or the mobile app, so there was
+  no way to confirm or dismiss it. Home Assistant's `ha-dialog` component changed its
+  internal slot API (action buttons must now be wrapped in `<ha-dialog-footer>`); the
+  panel's completion dialog hadn't been updated to match. (Fixes #144)
+
 ### Added
 
 - **Notes on problem-sensor tasks — remembered for next time.** When Home Keeper
