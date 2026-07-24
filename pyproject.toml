@@ -2,7 +2,7 @@
 name = "home_keeper"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["Babel>=2.12"]
+dependencies = ["Babel>=2.18.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "requests>=2.34.2"]
