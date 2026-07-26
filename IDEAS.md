@@ -3,6 +3,18 @@
 A running list of things we deliberately deferred from the first UX prototype, plus
 ideas worth exploring. Nothing here is committed scope; it's a parking lot.
 
+## TypeScript 7 upgrade (blocked on upstream)
+
+> **Status: blocked.** `.github/dependabot.yml` ignores `typescript` major-version
+> bumps in the frontend package until this is resolved.
+
+TypeScript 7.0.2's native-rewrite ("tsgo") release changed the shape of the `ts`
+module's exported enums, which crashes `@rollup/plugin-typescript@12.3.0` (latest
+published as of PR #155) with `Cannot read properties of undefined (reading
+'ES2015')` during `rollup -c`. Revisit once `@rollup/plugin-typescript` publishes a
+release with TS 7 support (`npm view @rollup/plugin-typescript versions`), then
+remove the ignore rule and retry the Dependabot bump.
+
 ## Appliances / assets & device metadata (implemented — see docs/DESIGN.md)
 
 **Status: shipped.** Built as `assets.py` (pure model) + `devices.py` (registry

@@ -17,6 +17,15 @@ updates:
     schedule:
       interval: weekly
     labels: ["dependencies"]
+    ignore:
+      # TypeScript 7's native-rewrite release changed the shape of the `ts`
+      # module namespace (e.g. `ts.ScriptTarget` enums), which crashes
+      # @rollup/plugin-typescript@12.3.0 (the latest release as of this
+      # writing) with "Cannot read properties of undefined (reading
+      # 'ES2015')" during `rollup -c`. See PR #155 and the "TypeScript 7
+      # upgrade" entry in IDEAS.md for the condition to remove this rule.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: "/"
