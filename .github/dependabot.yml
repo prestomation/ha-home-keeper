@@ -22,8 +22,8 @@ updates:
       # module namespace (e.g. `ts.ScriptTarget` enums), which crashes
       # @rollup/plugin-typescript@12.3.0 (the latest release as of this
       # writing) with "Cannot read properties of undefined (reading
-      # 'ES2015')" during `rollup -c`. See PR #155. Drop this once
-      # @rollup/plugin-typescript ships TS 7 support, then retry the bump.
+      # 'ES2015')" during `rollup -c`. See PR #155 and the "TypeScript 7
+      # upgrade" entry in IDEAS.md for the condition to remove this rule.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
 
