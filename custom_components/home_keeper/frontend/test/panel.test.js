@@ -516,3 +516,129 @@ describe('Markdown preview teardown (issue #163)', () => {
     expect(panel.shadowRoot.innerHTML).toBe(htmlAtUnmount);
   });
 });
+
+// An appliance with one of each openable thing: an external link document, an uploaded
+// file document, and a part carrying an attached file.
+const DOC_ASSET = {
+  id: 'a1',
+  name: 'Garage water heater',
+  kind: 'virtual',
+  documents: [
+    { id: 'd1', kind: 'link', name: "Owner's manual", url: 'https://example.com/manual' },
+    { id: 'd2', kind: 'file', name: 'Installation guide', filename: 'guide.pdf' },
+  ],
+  parts: [{ id: 'p1', name: 'Anode rod', type: 'wear', file_name: 'receipt.pdf' }],
+};
+
+// hass stub serving that appliance, counting the signing round-trips.
+function makeDocHass(overrides = {}) {
+  const { hass, calls } = makeHass();
+  const signed = { document: 0, part: 0 };
+  const base = hass.callWS.bind(hass);
+  hass.callWS = (msg) => {
+    switch (msg.type) {
+      case 'home_keeper/get_assets':
+        return Promise.resolve({ assets: [DOC_ASSET] });
+      case 'home_keeper/sign_document_url':
+        signed.document++;
+        if (overrides.failDocumentSign) return Promise.reject(new Error('nope'));
+        return Promise.resolve({ url: `/api/home_keeper/document/a1/${msg.document_id}?authSig=abc&x=1` });
+      case 'home_keeper/sign_part_file_url':
+        signed.part++;
+        return Promise.resolve({ url: `/api/home_keeper/part_file/a1/${msg.part_id}?authSig=def` });
+      default:
+        return base(msg);
+    }
+  };
+  return { hass, calls, signed };
+}
+
+// Open the appliance detail page and wait for its documents card to render.
+async function openApplianceDetail(hass) {
+  const panel = document.createElement('home-keeper-panel');
+  panel.route = { prefix: '/home-keeper', path: '/appliances/a1' };
+  document.body.appendChild(panel);
+  panel.hass = hass;
+  const link = await waitFor(() => panel.shadowRoot?.querySelector('a.hk-doc-file'));
+  expect(link, 'the documents section should render').toBeTruthy();
+  return panel;
+}
+
+describe('Appliance detail — file links are real, pre-signed anchors (issue #164)', () => {
+  it('renders an uploaded document as an anchor whose href is a pre-signed URL', async () => {
+    const { hass, signed } = makeDocHass();
+    const panel = await openApplianceDetail(hass);
+
+    const file = await waitFor(() => {
+      const el = panel.shadowRoot?.querySelector('a.hk-doc-file[data-doc="d2"]');
+      return el?.getAttribute('href') ? el : null;
+    });
+    // The bug: tapping did nothing on mobile because the anchor had no href and the
+    // click handler ran `window.open` *after* an async sign — which WKWebView blocks.
+    expect(file, 'the file document should end up with a signed href').toBeTruthy();
+    expect(file.getAttribute('href')).toBe('/api/home_keeper/document/a1/d2?authSig=abc&x=1');
+    expect(file.getAttribute('target')).toBe('_blank');
+    expect(file.getAttribute('rel')).toContain('noopener');
+    // A link masquerading as a button is what lost the native affordances.
+    expect(file.getAttribute('role'), 'a real link, not role=button').toBeNull();
+    expect(signed.document, 'the URL was minted ahead of the click').toBe(1);
+  });
+
+  it('renders an external link document as a plain anchor to its own URL', async () => {
+    const { hass } = makeDocHass();
+    const panel = await openApplianceDetail(hass);
+    const link = panel.shadowRoot.querySelector('a.hk-doc-file:not([data-doc])');
+    expect(link.getAttribute('href')).toBe('https://example.com/manual');
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
+
+  it("gives a part's attached file a pre-signed href too", async () => {
+    const { hass, signed } = makeDocHass();
+    const panel = await openApplianceDetail(hass);
+    const clip = await waitFor(() => {
+      const el = panel.shadowRoot?.querySelector('a.hk-part-file[data-part="p1"]');
+      return el?.getAttribute('href') ? el : null;
+    });
+    expect(clip, "the part's paperclip should end up with a signed href").toBeTruthy();
+    expect(clip.getAttribute('href')).toBe('/api/home_keeper/part_file/a1/p1?authSig=def');
+    expect(signed.part).toBe(1);
+  });
+
+  it('keeps a JS fallback only while the href is missing (a failed sign)', async () => {
+    const { hass } = makeDocHass({ failDocumentSign: true });
+    const panel = await openApplianceDetail(hass);
+    const file = panel.shadowRoot.querySelector('a.hk-doc-file[data-doc="d2"]');
+    // Signing failed, so there is no href — the anchor still has to be focusable and
+    // clickable rather than becoming dead text.
+    expect(file.getAttribute('href')).toBeNull();
+    expect(file.getAttribute('tabindex')).toBe('0');
+    let opened = 0;
+    const realOpen = window.open;
+    window.open = () => {
+      opened++;
+      return null;
+    };
+    try {
+      // The fallback signs on demand; the stub rejects, so nothing opens — what matters
+      // is that the click is still handled (preventDefault) rather than navigating away.
+      const evt = new MouseEvent('click', { bubbles: true, cancelable: true });
+      file.dispatchEvent(evt);
+      expect(evt.defaultPrevented, 'the fallback handles the click').toBe(true);
+    } finally {
+      window.open = realOpen;
+      void opened;
+    }
+  });
+
+  it('does not double-open once the anchor is signed (native navigation owns the tap)', async () => {
+    const { hass } = makeDocHass();
+    const panel = await openApplianceDetail(hass);
+    const file = await waitFor(() => {
+      const el = panel.shadowRoot?.querySelector('a.hk-doc-file[data-doc="d2"]');
+      return el?.getAttribute('href') ? el : null;
+    });
+    const evt = new MouseEvent('click', { bubbles: true, cancelable: true });
+    file.dispatchEvent(evt);
+    expect(evt.defaultPrevented, 'the browser follows the href itself').toBe(false);
+  });
+});

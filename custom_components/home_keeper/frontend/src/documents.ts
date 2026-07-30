@@ -13,6 +13,14 @@ import type { AssetDocument, Hass, Part } from './types';
  * add a kind here and both surfaces follow, instead of each re-deriving it (which is
  * how uploaded files were first missed on the card). Pair this with the discriminated
  * `AssetDocument` union in `types.ts`, which makes a forgotten kind a compile error.
+ *
+ * **A file is opened by a native `<a href>` tap, never by a JS `window.open`.** The
+ * signed URL is minted *ahead* of the click (`SignedUrlCache` below) so the anchor is
+ * already href-bearing when the user taps it: the iOS companion app's WKWebView blocks
+ * a `window.open` issued after an async signing round-trip, so a "sign on click" handler
+ * silently does nothing there (issue #164). A native anchor also restores the affordances
+ * the JS handler threw away — hover/cursor, long-press "open in new tab", middle-click,
+ * and keyboard activation.
  */
 
 /** Exhaustiveness guard: a `default:` calling this turns a new, unhandled
@@ -58,10 +66,116 @@ export function documentIcon(doc: AssetDocument): string {
   }
 }
 
+// ── pre-signed file URLs ─────────────────────────────────────────────────────
+
+/** A stored blob whose openable URL has to be signed: an uploaded asset document, or
+ *  a part's single attached file. `id` is the document id / part id respectively. */
+export interface SignedFileRef {
+  kind: 'document' | 'part';
+  assetId: string;
+  id: string;
+}
+
+/** The cache key for a ref — also what a surface stamps on its anchor (`data-sign`)
+ *  so the href can be filled in later without re-deriving which file it points at. */
+export function signedFileKey(ref: SignedFileRef): string {
+  return `${ref.kind}:${ref.assetId}:${ref.id}`;
+}
+
+/** Re-sign comfortably before the backend's 1h TTL (`_DOCUMENT_URL_TTL`) so an idle
+ *  page's hrefs stay valid, while a fresh entry is reused across renders. */
+const RESIGN_AFTER_MS = 45 * 60 * 1000;
+
+/**
+ * Short-lived signed URLs for file documents / part files, minted *ahead of the click*
+ * so every file renders as a plain `<a href>` (see the module header — a `window.open`
+ * after the async sign is blocked in the iOS app's WKWebView).
+ *
+ * Shared by the panel and the dashboard card so the caching rules live in one place:
+ * an entry is reused until it goes stale, entries for files the surface no longer shows
+ * are dropped, and a failed sign keeps whatever URL was there before.
+ */
+export class SignedUrlCache {
+  private _entries = new Map<string, { url: string; signedAt: number }>();
+
+  /** The cached URL for a key, or undefined if it hasn't been signed yet. */
+  getByKey(key: string): string | undefined {
+    return this._entries.get(key)?.url;
+  }
+
+  /** The cached URL for a ref, or undefined if it hasn't been signed yet. */
+  get(ref: SignedFileRef): string | undefined {
+    return this.getByKey(signedFileKey(ref));
+  }
+
+  /**
+   * Make sure every ref in *refs* has a fresh signed URL, dropping entries for
+   * anything no longer referenced (so a long-lived panel/card doesn't accumulate
+   * URLs for files it stopped showing). Call it with the complete set the surface
+   * currently renders — a partial set evicts the rest.
+   *
+   * Resolves to true when at least one URL was (re-)minted, so a caller that renders
+   * hrefs inline can decide whether a re-render is worth it. Best-effort: a failed
+   * sign leaves that file unsigned (its anchor keeps the JS fallback) and is retried
+   * on the next call.
+   */
+  async ensure(hass: Hass, refs: SignedFileRef[]): Promise<boolean> {
+    const now = Date.now();
+    const needed = new Map<string, SignedFileRef>();
+    for (const ref of refs) needed.set(signedFileKey(ref), ref);
+    for (const key of [...this._entries.keys()]) {
+      if (!needed.has(key)) this._entries.delete(key);
+    }
+    let signed = false;
+    await Promise.all(
+      [...needed].map(async ([key, ref]) => {
+        const cached = this._entries.get(key);
+        if (cached && now - cached.signedAt < RESIGN_AFTER_MS) return;
+        try {
+          const url =
+            ref.kind === 'document'
+              ? await api.signDocumentUrl(hass, ref.assetId, ref.id)
+              : await api.signPartFileUrl(hass, ref.assetId, ref.id);
+          this._entries.set(key, { url, signedAt: Date.now() });
+          signed = true;
+        } catch {
+          // Keep any prior URL; a failed sign just won't refresh it this round.
+        }
+      }),
+    );
+    return signed;
+  }
+}
+
+/** Every file on an appliance that needs a signed URL — its uploaded documents plus
+ *  any part with an attached file. The single place a surface derives "what to sign"
+ *  for an appliance, so the panel's detail page and its edit form agree. */
+export function assetFileRefs(asset: {
+  id?: string;
+  documents?: AssetDocument[];
+  parts?: Part[];
+}): SignedFileRef[] {
+  const assetId = asset.id;
+  if (!assetId) return [];
+  const refs: SignedFileRef[] = [];
+  for (const doc of asset.documents || []) {
+    if (doc.kind === 'file' && doc.id) refs.push({ kind: 'document', assetId, id: doc.id });
+  }
+  for (const part of asset.parts || []) {
+    if (part.file_name && part.id) refs.push({ kind: 'part', assetId, id: part.id });
+  }
+  return refs;
+}
+
 /**
  * Open a document in a new tab: a link goes straight to its URL; a file is signed
  * on demand (`home_keeper/sign_document_url`) so the short-lived URL is always fresh.
  * Best-effort — a missing asset/document (or a blocked popup) is simply a no-op.
+ *
+ * **Fallback only.** Every surface renders a pre-signed anchor (see `SignedUrlCache`);
+ * this covers the brief window before the first sign resolves, and the case where
+ * signing failed outright. On iOS the `window.open` may well be swallowed — which is
+ * exactly why it isn't the primary path.
  */
 export async function openDocument(
   hass: Hass,
@@ -90,7 +204,8 @@ export async function openDocument(
 /**
  * Open a part's attached file in a new tab — always the "file" branch (a part has no
  * link kind; that's the part's own `url` field), signed on demand
- * (`home_keeper/sign_part_file_url`). Best-effort, same as `openDocument`.
+ * (`home_keeper/sign_part_file_url`). Best-effort, and a fallback only, same as
+ * `openDocument`.
  */
 export async function openPartFile(hass: Hass, assetId: string, part: Part): Promise<void> {
   try {

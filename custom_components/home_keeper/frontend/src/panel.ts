@@ -1,12 +1,16 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
 import { profileMatches } from './card-filter';
+import type { SignedFileRef } from './documents';
 import {
+  SignedUrlCache,
+  assetFileRefs,
   documentIcon,
   documentLabel,
   isDisplayableDocument,
   openDocument,
   openPartFile,
+  signedFileKey,
 } from './documents';
 import {
   buildTaskPayload,
@@ -145,6 +149,10 @@ const MDI_DELETE =
 const MDI_EDIT =
   'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,' +
   '3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z';
+
+// `ha-icon` name for the same glyph, used as the trailing "opens in a new tab" hint on
+// a document row's link (the string-template rows take an icon name, not a path).
+const MDI_OPEN_IN_NEW_ICON = 'mdi:open-in-new';
 
 // mdi:open-in-new — open a document (link or signed file URL) in a new tab.
 const MDI_OPEN_IN_NEW =
@@ -427,9 +435,12 @@ const STYLES = `
     color: var(--primary-color);
     border-color: color-mix(in srgb, var(--primary-color) 50%, transparent);
   }
+  /* A part's attached-file paperclip. The negative block margin keeps the 44px touch
+     target (WCAG 2.5.5) from stretching the part row around a 16px icon. */
   .hk-part-file {
-    display: inline-flex; align-items: center; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
     color: var(--secondary-text-color);
+    min-width: 44px; min-height: 44px; margin: -14px 0;
   }
   .hk-part-file ha-icon { --mdc-icon-size: 16px; }
   .hk-part-file:hover { color: var(--primary-color); }
@@ -520,7 +531,30 @@ const STYLES = `
     font-size: 0.85rem;
   }
   .hk-detail-row .v { flex: 1; min-width: 0; word-break: break-word; }
-  .hk-detail-row .v a { color: var(--primary-color); }
+  /* Anything linked from a detail row must *look* clickable — an anchor whose href is
+     filled in asynchronously (a signed file URL) gets no default affordance, which is
+     what made document links read as dead text (issue #164). */
+  .hk-detail-row .v a { color: var(--primary-color); cursor: pointer; }
+  .hk-detail-row .v a:hover { text-decoration: underline; }
+  /* Documents (manuals/warranties/receipts) sit in their own card, one row each. Both
+     kinds — external link and uploaded file — render identically, with a comfortable
+     touch target (>=44px, WCAG 2.5.5) so they're tappable on a phone. */
+  .hk-doc-row .v a.hk-doc-file {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 44px; padding: 2px 0;
+  }
+  .hk-doc-file .hk-doc-ext {
+    --mdc-icon-size: 15px; flex: none; color: var(--secondary-text-color);
+  }
+  .hk-doc-file:hover .hk-doc-ext { color: var(--primary-color); }
+  /* The editor's "Open" action is an anchor (a native navigation), sized and coloured
+     to sit flush with the ha-icon-buttons — Edit, Remove — beside it. */
+  .hk-doc-open {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 48px; height: 48px; flex: none; border-radius: 50%;
+    color: var(--secondary-text-color); --mdc-icon-size: 24px;
+  }
+  .hk-doc-open:hover { color: var(--primary-color); }
   .hk-muted { color: var(--secondary-text-color); }
   .hk-note-input {
     width: 100%; box-sizing: border-box; resize: vertical; min-height: 72px;
@@ -748,6 +782,10 @@ export class HomeKeeperPanel extends HTMLElement {
   private _itemExpanded = new Set<string>();
   // The object whose full detail page is open, or null for the list view.
   private _detail: { kind: 'task' | 'asset'; id: string } | null = null;
+  // Short-lived signed URLs for the uploaded files on screen, minted ahead of the click
+  // so every file is opened by a native anchor tap rather than a JS `window.open` the
+  // iOS app's WKWebView would swallow (issue #164). Filled by `_signFiles`.
+  private _signedFiles = new SignedUrlCache();
   // The panel's URL prefix (e.g. `/home-keeper`), supplied by HA via `route`.
   // Navigation builds absolute paths from it; falls back until the first route.
   private _routePrefix = '/home-keeper';
@@ -2416,21 +2454,37 @@ export class HomeKeeperPanel extends HTMLElement {
       ${this._historySection('asset', asset.id)}`;
   }
 
-  /** The appliance's documents (manuals/warranties/receipts): external links open
-   *  directly; uploaded files open via a signed URL wired in `_wireDetailActions`. */
+  /** The appliance's documents (manuals/warranties/receipts). Both kinds render as a
+   *  real anchor that opens in a new tab: an external link uses its own URL, an
+   *  uploaded file a **pre-signed** one (`_signFiles` mints it and fills the `href` in;
+   *  the `data-sign` key says which file the anchor points at). Never a JS-only handler
+   *  — see the `documents.ts` header for why (issue #164). */
   private _documentsSection(asset: Asset): string {
     const docs = asset.documents || [];
     if (!docs.length) return '';
     const rows = docs
       .map((d) => {
         const name = escapeHTML(documentLabel(d));
-        const inner =
-          d.kind === 'file'
-            ? `<a class="hk-doc-file" role="button" tabindex="0" data-doc="${escapeHTML(
-                d.id || '',
-              )}">${name}</a>`
-            : `<a href="${safeHref(d.url)}" target="_blank" rel="noopener">${name}</a>`;
-        return `<div class="hk-detail-row"><span class="k"><ha-icon
+        const open = `<ha-icon class="hk-doc-ext" icon="${MDI_OPEN_IN_NEW_ICON}"></ha-icon>`;
+        let inner: string;
+        if (d.kind === 'file') {
+          // The signed href may not be minted yet on a first paint; until it lands the
+          // anchor keeps `tabindex` + the JS fallback wired in `_wireDetailActions`.
+          const key = signedFileKey({ kind: 'document', assetId: asset.id, id: d.id || '' });
+          const href = this._signedFiles.getByKey(key);
+          inner = `<a class="hk-doc-file" tabindex="0" data-sign="${escapeHTML(key)}" data-doc="${escapeHTML(
+            d.id || '',
+          )}"${href ? ` href="${escapeHTML(href)}"` : ''} target="_blank" rel="noopener noreferrer" title="${name}">${name}${open}</a>`;
+        } else {
+          // A link with no usable URL renders as plain text rather than an anchor to
+          // nowhere: now that these *look* clickable, an empty href would reload the
+          // panel on tap, which is worse than obviously-inert text.
+          const href = safeHref(d.url);
+          inner = href
+            ? `<a class="hk-doc-file" href="${href}" target="_blank" rel="noopener noreferrer" title="${name}">${name}${open}</a>`
+            : name;
+        }
+        return `<div class="hk-detail-row hk-doc-row"><span class="k"><ha-icon
           icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}</span></div>`;
       })
       .join('');
@@ -2488,12 +2542,18 @@ export class HomeKeeperPanel extends HTMLElement {
         const name = p.url
           ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">${escapeHTML(p.name)}</a>`
           : escapeHTML(p.name);
-        // An attached file (receipt/spec sheet/photo) opens via a signed URL, wired
-        // in `_wireDetailActions` alongside the same pattern for asset documents.
+        // An attached file (receipt/spec sheet/photo) opens via a **pre-signed** URL
+        // filled in by `_signFiles`, the same native-anchor pattern asset documents use.
+        const fileKey = signedFileKey({ kind: 'part', assetId: asset.id, id: p.id || '' });
+        const fileHref = this._signedFiles.getByKey(fileKey);
         const fileLink = p.file_name
-          ? `<a class="hk-part-file" role="button" tabindex="0" data-part="${escapeHTML(
-              p.id || '',
-            )}" title="${escapeHTML(p.file_name)}"><ha-icon icon="mdi:paperclip"></ha-icon></a>`
+          ? `<a class="hk-part-file" tabindex="0" data-sign="${escapeHTML(
+              fileKey,
+            )}" data-part="${escapeHTML(p.id || '')}"${
+              fileHref ? ` href="${escapeHTML(fileHref)}"` : ''
+            } target="_blank" rel="noopener noreferrer" title="${escapeHTML(
+              p.file_name,
+            )}"><ha-icon icon="mdi:paperclip"></ha-icon></a>`
           : '';
         // A part's notes render as Markdown like every other note, but read-only:
         // parts are edited as a whole in the appliance's parts editor, so letting one
@@ -2923,6 +2983,12 @@ export class HomeKeeperPanel extends HTMLElement {
     // has to be assigned after the markup lands in the DOM.
     wireMarkdown(root);
 
+    // Mint/refresh the signed URLs for any uploaded file this render put on screen and
+    // fill them into their anchors. Async, but it lands within a round-trip — long
+    // before a user can reach for a link — and the anchors carry a JS fallback until
+    // it does.
+    void this._signFiles();
+
     // The completion-details dialog overlays any view, so build it first.
     const dialogHost = root.getElementById('hk-dialog-host');
     if (dialogHost && this._completion.open) this._renderCompletionDialog(dialogHost);
@@ -3116,33 +3182,72 @@ export class HomeKeeperPanel extends HTMLElement {
       this._navigate({ view: 'appliances', detail: null }, true);
       void this._deleteAsset(asset);
     });
-    // File documents open via a short-lived signed URL (no auth header on a tab open).
-    root.querySelectorAll<HTMLElement>('.hk-doc-file').forEach((el) => {
-      const open = (): void => {
+    // Uploaded files (asset documents and part attachments) open via a short-lived
+    // signed URL carried on the anchor's `href` — `_signFiles` mints it right after
+    // this render. These handlers are the **fallback** for the window before that
+    // lands (and for a sign that failed outright); once the anchor has an href the
+    // browser's native navigation owns the click, so they stand down.
+    const fallback = (el: HTMLElement, open: () => void): void => {
+      const run = (e: Event): void => {
+        if (el.getAttribute('href')) return; // native tap — don't double-open
+        e.preventDefault();
+        open();
+      };
+      el.addEventListener('click', run);
+      el.addEventListener('keydown', (e) => {
+        if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') run(e);
+      });
+    };
+    root.querySelectorAll<HTMLElement>('a.hk-doc-file[data-doc]').forEach((el) => {
+      fallback(el, () => {
         const doc = asset.documents?.find((d) => d.id === el.dataset.doc);
         if (doc && this._hass) void openDocument(this._hass, asset.id, doc);
-      };
-      el.addEventListener('click', open);
-      el.addEventListener('keydown', (e) => {
-        if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') {
-          e.preventDefault();
-          open();
-        }
       });
     });
-    // A part's attached file, same signed-URL pattern.
-    root.querySelectorAll<HTMLElement>('.hk-part-file').forEach((el) => {
-      const open = (): void => {
+    root.querySelectorAll<HTMLElement>('a.hk-part-file[data-part]').forEach((el) => {
+      fallback(el, () => {
         const part = asset.parts?.find((p) => p.id === el.dataset.part);
         if (part && this._hass) void openPartFile(this._hass, asset.id, part);
-      };
-      el.addEventListener('click', open);
-      el.addEventListener('keydown', (e) => {
-        if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') {
-          e.preventDefault();
-          open();
-        }
       });
+    });
+  }
+
+  /**
+   * Mint the signed URLs for every uploaded file the current screen shows and fill them
+   * into the anchors that are waiting for one (`data-sign` carries the cache key).
+   *
+   * The single signing chokepoint for the panel, run after every render: a file must be
+   * openable by a *native* anchor tap, because a `window.open` issued after the async
+   * sign is swallowed by the iOS app's WKWebView (issue #164). Because `ensure` also
+   * evicts what isn't passed, this collects the whole set the panel currently renders —
+   * the appliance detail page or the appliance edit form, which are never both up.
+   */
+  private async _signFiles(): Promise<void> {
+    const hass = this._hass;
+    if (!hass) return;
+    const detailAsset =
+      this._detail?.kind === 'asset'
+        ? this._assets.find((a) => a.id === this._detail?.id)
+        : undefined;
+    const refs = [
+      ...assetFileRefs(detailAsset ?? {}),
+      ...assetFileRefs(this._assetEdit.asset ?? {}),
+    ];
+    // A screen with no uploaded files still calls through, so the cache drops the URLs
+    // of whatever was on the previous one.
+    await this._signedFiles.ensure(hass, refs);
+    this._applySignedHrefs();
+  }
+
+  /** Point every `data-sign` anchor at its freshly-minted URL. Anchors are matched by
+   *  cache key, so this is safe to run against whatever the DOM currently holds (a
+   *  re-render mid-sign just means the new nodes get the hrefs). */
+  private _applySignedHrefs(): void {
+    const root = this.shadowRoot;
+    if (!root) return;
+    root.querySelectorAll<HTMLAnchorElement>('a[data-sign]').forEach((el) => {
+      const url = this._signedFiles.getByKey(el.dataset.sign || '');
+      if (url && el.getAttribute('href') !== url) el.setAttribute('href', url);
     });
   }
 
@@ -4374,11 +4479,16 @@ export class HomeKeeperPanel extends HTMLElement {
     // a blob keyed by its id — a brand-new asset's links have no file to open).
     const canOpen = d.kind === 'file' ? Boolean(d.id) : Boolean(d.url);
     if (canOpen) {
-      const open = document.createElement('ha-icon-button');
-      open.setAttribute('label', t('btn.openDocument'));
-      this._setIcon(open, MDI_OPEN_IN_NEW);
-      open.addEventListener('click', () => this._openDocument(d));
-      actions.appendChild(open);
+      // A real link for the same reason the detail page's rows are — a `window.open`
+      // after the async sign never fires in the iOS app's WKWebView.
+      const assetId = this._assetEdit.asset?.id;
+      const target: SignedFileRef | string | undefined =
+        d.kind === 'file'
+          ? assetId && d.id
+            ? { kind: 'document', assetId, id: d.id }
+            : undefined
+          : d.url;
+      actions.appendChild(this._openFileAnchor(target, () => this._openDocument(d)));
     }
     const edit = document.createElement('ha-icon-button');
     edit.setAttribute('label', t('btn.edit'));
@@ -4543,9 +4653,53 @@ export class HomeKeeperPanel extends HTMLElement {
     return subtype.split(';')[0].trim().toUpperCase();
   }
 
+  /**
+   * The editor's "Open" affordance: an anchor styled like the icon-buttons beside it,
+   * so activating it is a native navigation rather than a scripted one (the same reason
+   * the detail page's document rows are anchors — see `documents.ts`). It carries the
+   * icon *itself* rather than wrapping an `ha-icon-button`: nesting one interactive
+   * control inside another leaves it to the browser whether the click reaches the link,
+   * and "it depends on the browser" is precisely the bug being fixed here.
+   *
+   * *target* is the stored URL of a link document, a `SignedFileRef` for an uploaded
+   * file (the href is stamped on by `_signFiles` once minted — the anchor carries the
+   * cache key meanwhile), or undefined when neither is available. *fallback* covers the
+   * window before a signed href lands, and stands down as soon as there is one.
+   */
+  private _openFileAnchor(
+    target: SignedFileRef | string | undefined,
+    fallback: () => void,
+  ): HTMLAnchorElement {
+    const a = document.createElement('a');
+    a.className = 'hk-doc-open';
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.title = t('btn.openDocument');
+    a.setAttribute('aria-label', a.title);
+    if (typeof target === 'string') {
+      // Set as a property, so the raw URL (not the HTML-escaped `safeHref` form) lands
+      // on the anchor — same validation, no double-escaping of `&` in a query string.
+      if (isHttpUrl(target)) a.href = target;
+    } else if (target) {
+      const key = signedFileKey(target);
+      a.dataset.sign = key;
+      const href = this._signedFiles.getByKey(key);
+      if (href) a.href = href;
+    }
+    a.addEventListener('click', (e) => {
+      if (a.getAttribute('href')) return; // native tap — don't double-open
+      e.preventDefault();
+      fallback();
+    });
+    const icon = document.createElement('ha-svg-icon');
+    this._setIcon(icon, MDI_OPEN_IN_NEW);
+    a.appendChild(icon);
+    return a;
+  }
+
   /** Open a document from the editor: a link opens its URL; a file opens via a signed
    *  URL. A link needs no asset id (it carries its own URL), so an unsaved asset's
-   *  links still open. */
+   *  links still open. Fallback only — `_openFileAnchor` is the primary path. */
   private _openDocument(d: AssetDocument): void {
     if (this._hass) void openDocument(this._hass, this._assetEdit.asset?.id ?? '', d);
   }
@@ -4927,15 +5081,17 @@ export class HomeKeeperPanel extends HTMLElement {
 
       const actions = document.createElement('div');
       actions.className = 'hk-doc-actions';
-      const open = document.createElement('ha-icon-button');
-      open.setAttribute('label', t('btn.openDocument'));
-      this._setIcon(open, MDI_OPEN_IN_NEW);
-      open.addEventListener('click', () => this._openPartFile(p));
       const del = document.createElement('ha-icon-button');
       del.setAttribute('label', t('btn.removePartFile'));
       this._setIcon(del, MDI_DELETE);
       del.addEventListener('click', () => void this._removePartFile(p, i));
-      actions.append(open, del);
+      // Same native-anchor treatment as an uploaded document (see `_openFileAnchor`).
+      actions.append(
+        this._openFileAnchor(assetId && p.id ? { kind: 'part', assetId, id: p.id } : undefined, () =>
+          this._openPartFile(p),
+        ),
+        del,
+      );
 
       card.append(ic, main, actions);
       box.appendChild(card);

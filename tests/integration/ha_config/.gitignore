@@ -9,8 +9,14 @@
 blueprints/
 tts/
 deps/
-# Uploaded asset-document blobs the integration writes under the config dir at runtime.
-home_keeper/
+# Uploaded asset-document blobs the integration writes under the config dir at runtime
+# — except the seeded ones for asset_water_heater, whose metadata the .storage fixture
+# below already declares. Those blobs have to exist on disk for a signed document URL
+# to actually serve something (see tests/e2e/tests/documents.spec.ts).
+home_keeper/*
+!home_keeper/documents/
+home_keeper/documents/*
+!home_keeper/documents/asset_water_heater/
 
 # Ignore all generated .storage entries except the seeded fixtures.
 .storage/*

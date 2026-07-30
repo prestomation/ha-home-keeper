@@ -211,8 +211,23 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   (`isDisplayableDocument` / `documentLabel` / `documentIcon` / `openDocument`, plus
   `assertNever` for exhaustiveness) rather than re-deriving the link-vs-file branch.
   Add a new kind, or change how files open, in `documents.ts` once and both surfaces
-  follow. (A link opens its URL directly; a file is signed on click via
-  `sign_document_url`.) Don't hand-roll `doc.kind === 'file' ? … : …` at call sites.
+  follow. Don't hand-roll `doc.kind === 'file' ? … : …` at call sites.
+- **A file is opened by a native `<a href>` tap — never by a JS `window.open` after an
+  `await`.** The iOS companion app's WKWebView blocks a `window.open` issued once the
+  user gesture has been consumed by an async round-trip, so a "sign the URL on click"
+  handler silently does nothing there (issue #164, after the same bug on the card).
+  Every surface therefore **pre-mints** the signed URL — `SignedUrlCache` in
+  `documents.ts`, shared by the panel and the card — and renders a real anchor whose
+  `href` is already set (or gets set by the panel's `_signFiles` chokepoint, keyed by
+  the `data-sign` cache key on the anchor) before the user can reach it. A link
+  document just uses its own URL; both kinds get `target="_blank"`
+  `rel="noopener noreferrer"`. `openDocument` / `openPartFile` remain **only** as the
+  fallback for the window before the first sign lands, and stand down as soon as the
+  anchor has an href (otherwise a click both navigates *and* opens a second tab).
+  The affordances this preserves are the point: hover/cursor, long-press "open in new
+  tab", middle-click, and keyboard activation are all things a `role="button"` anchor
+  with no `href` throws away. New openable-file surface? Pre-sign it, and make its tap
+  target at least 44px (WCAG 2.5.5) — these live on phones.
 - **A part's single attached file is a smaller sibling of the document pattern
   above, not a second implementation of it.** A part has exactly one optional file
   slot (`file_name`/`file_content_type`/`file_size` — no list, no link kind, since a

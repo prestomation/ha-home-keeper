@@ -49,7 +49,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "3a079e891f193ac058370f0324282d74",
+        "device_id": "5ff1f1bb41a19a763aa4ab750cd37c97",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -120,7 +120,7 @@
         "recurrence_type": "floating",
         "interval": 1,
         "unit": "months",
-        "device_id": "f1686d32f46b6db6d4975fcb68483755",
+        "device_id": "5ff1f1bb41a19a763aa4ab750cd37c97",
         "area_id": null,
         "enabled": true,
         "created": "2026-03-20T12:00:00-04:00",
@@ -420,7 +420,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "3a079e891f193ac058370f0324282d74",
+        "device_id": "5ff1f1bb41a19a763aa4ab750cd37c97",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -429,9 +429,9 @@
         "unit": "months",
         "next_due": "2026-06-27T17:47:36.205398-04:00"
       },
-      "a8806a02-3b82-4137-9aeb-290e9be1a601": {
-        "id": "a8806a02-3b82-4137-9aeb-290e9be1a601",
-        "created": "2026-06-27T17:47:36.207568-04:00",
+      "49528fb6-c37d-4ddb-8402-4decc73eecee": {
+        "id": "49528fb6-c37d-4ddb-8402-4decc73eecee",
+        "created": "2026-07-30T10:15:17.888802-04:00",
         "last_completed": null,
         "completions": [],
         "source": {
@@ -454,15 +454,119 @@
           "completion_prompt": "Synced from binary_sensor.sump_pump_problem. This problem can't be cleared in Home Keeper — it clears automatically once the originating integration resolves it (the sensor returns to OK)."
         },
         "labels": [],
+        "card_links": [],
+        "task_chips": [],
         "name": "Sump pump problem",
-        "notes": "",
+        "notes": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer.",
         "recurrence_type": "triggered",
         "device_id": null,
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
         "completion_required_fields": [],
-        "next_due": "2026-06-27T17:47:37.901565-04:00"
+        "next_due": "2026-07-30T10:15:17.888802-04:00"
+      },
+      "cf8b5f1d-2a0f-4fd9-8b24-1e68b2fea896": {
+        "id": "cf8b5f1d-2a0f-4fd9-8b24-1e68b2fea896",
+        "created": "2026-07-30T10:19:31.762068-04:00",
+        "last_completed": "2026-07-30T10:19:32.042256-04:00",
+        "completions": [
+          {
+            "ts": "2026-07-30T10:19:32.042256-04:00"
+          }
+        ],
+        "source": null,
+        "managed_by": null,
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "name": "E2E card task 1785421171378",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "interval": 1,
+        "unit": "months",
+        "next_due": "2026-08-30T10:19:32.042256-04:00"
+      },
+      "18955f5f-acf0-4548-aad3-7688e3f4b07e": {
+        "id": "18955f5f-acf0-4548-aad3-7688e3f4b07e",
+        "created": "2026-07-30T10:19:46.712290-04:00",
+        "last_completed": "2026-07-30T10:19:46.860476-04:00",
+        "completions": [
+          {
+            "ts": "2026-07-30T10:19:46.860476-04:00"
+          }
+        ],
+        "source": null,
+        "managed_by": null,
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "name": "E2E one-off 1785421186075",
+        "notes": "",
+        "recurrence_type": "one-off",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "due": "2026-07-30T14:19:46+00:00",
+        "next_due": null
+      },
+      "619f55d5-e567-4a2f-9af7-90ea77e437cc": {
+        "id": "619f55d5-e567-4a2f-9af7-90ea77e437cc",
+        "created": "2026-07-30T10:28:45.141546-04:00",
+        "last_completed": "2026-07-30T10:28:45.455746-04:00",
+        "completions": [
+          {
+            "ts": "2026-07-30T10:28:45.455746-04:00"
+          }
+        ],
+        "source": null,
+        "managed_by": null,
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "name": "E2E card task 1785421724764",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "interval": 1,
+        "unit": "months",
+        "next_due": "2026-08-30T10:28:45.455746-04:00"
+      },
+      "799a9646-45cf-43a1-b205-317bf04264fd": {
+        "id": "799a9646-45cf-43a1-b205-317bf04264fd",
+        "created": "2026-07-30T10:29:02.195085-04:00",
+        "last_completed": "2026-07-30T10:29:02.322768-04:00",
+        "completions": [
+          {
+            "ts": "2026-07-30T10:29:02.322768-04:00"
+          }
+        ],
+        "source": null,
+        "managed_by": null,
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "name": "E2E one-off 1785421741548",
+        "notes": "",
+        "recurrence_type": "one-off",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "due": "2026-07-30T14:29:01+00:00",
+        "next_due": null
       }
     },
     "assets": {
@@ -470,7 +574,7 @@
         "id": "asset_water_heater",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "3a079e891f193ac058370f0324282d74",
+        "device_id": "5ff1f1bb41a19a763aa4ab750cd37c97",
         "identifiers": [
           [
             "home_keeper",
@@ -493,7 +597,7 @@
             "cost": 35.0,
             "file_name": "anode-rod-receipt.pdf",
             "file_content_type": "application/pdf",
-            "file_size": 84213,
+            "file_size": 591,
             "notes": "Torque to **40 Nm**. Needs a 1‑1/16\" socket and a breaker bar.",
             "replace_interval": 12,
             "replace_unit": "months",
@@ -612,7 +716,7 @@
             "created": "",
             "filename": "manual.pdf",
             "content_type": "application/pdf",
-            "size": 193
+            "size": 605
           }
         ],
         "serial_number": "RH-2021-0099823",
@@ -622,7 +726,7 @@
         "id": "asset_shades",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "26043258feecbac1154dce4beabe4c4a",
+        "device_id": "c3f907bcc81b6bb6a877dde270a8de74",
         "identifiers": [
           [
             "home_keeper",
@@ -647,7 +751,7 @@
         "id": "asset_radio_shade",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "511563cfece17ec4ac33223b52ec5f48",
+        "device_id": "8b05d32c1cf00b88b9c1e8e037f87263",
         "identifiers": [
           [
             "home_keeper",
@@ -668,6 +772,9 @@
         "documents": [],
         "notes": ""
       }
+    },
+    "problem_notes": {
+      "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer."
     }
   }
 }
