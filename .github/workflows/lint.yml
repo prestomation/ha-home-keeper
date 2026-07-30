@@ -39,9 +39,13 @@ jobs:
 
   vale:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
-      - uses: errata-ai/vale-action@v2
+      # errata-ai renamed this org to vale-cli; SHA-pinned to v2.1.2.
+      - uses: vale-cli/vale-action@85f9f7f2c5f449ac0ae5b66662961bae3f77ca6a # v2.1.2
         with:
           fail_on_error: true
           reporter: github-pr-review

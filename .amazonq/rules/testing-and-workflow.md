@@ -33,7 +33,13 @@
   so only new/changed lines can fail CI. The existing corpus is cleaned up
   separately. Run locally with `vale sync && vale <paths>`. Disable an accepted false
   positive per-file in `.vale.ini` (`ai-tells.RuleName = NO`) or inline with
-  `<!-- vale ai-tells.RuleName = NO -->` / `... = YES -->`.
+  `<!-- vale ai-tells.RuleName = NO -->` / `... = YES -->`. For example,
+  `services.yaml` disables `ColonUsage`, which otherwise fires on every unquoted
+  YAML `key: Value` line. Diff-scoping misses pre-existing hits on lines a
+  full-file prose rewrite happens to move, so run `vale <file>` yourself first for
+  that case. The pinned `ai-tells.zip` version has no bump automation
+  (Dependabot/Renovate don't track raw release URLs), so bump it by hand
+  periodically.
 
 ## Tests (run locally before pushing — never use CI as the test runner)
 - The recurrence engine and model are the correctness core: keep them HA-free and

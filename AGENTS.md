@@ -53,6 +53,13 @@
   For an accepted false positive, either disable the rule for that file in
   `.vale.ini` (`ai-tells.RuleName = NO`) or wrap the exception inline with
   `<!-- vale ai-tells.RuleName = NO -->` / `<!-- vale ai-tells.RuleName = YES -->`.
+  Diff-scoping only checks added/changed lines, so a wholesale rewrite of a file's
+  prose (not just a small edit) can surface pre-existing hits on lines that just
+  moved. Run `vale <file>` on the whole file yourself before a rewrite-style PR to
+  catch those ahead of CI. There's no automated version-bump for the pinned
+  `ai-tells.zip` release in `.vale.ini` (Dependabot/Renovate don't track raw
+  GitHub release URLs), so bump it by hand occasionally, e.g. alongside the next
+  full-corpus cleanup pass.
 - **Every PR that touches the panel UI MUST include screenshots — no exceptions.**
   This is a hard gate: a UI change is not reviewable (or mergeable) until the PR
   body embeds current screenshots of the changed surface. The capture harness is
