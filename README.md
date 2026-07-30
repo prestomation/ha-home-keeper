@@ -4,8 +4,8 @@
 
 | Name                                                   |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |------------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
-| custom\_components/home\_keeper/\_\_init\_\_.py        |      369 |      369 |       28 |        0 |      0% |    8-1221 |
-| custom\_components/home\_keeper/assets.py              |      447 |       24 |      208 |       22 |     93% |118, 147, 166, 171, 178, 211, 235, 238, 241, 264-265, 302, 304, 309, 323-\>322, 371-372, 374, 410, 471, 506-\>508, 508-\>515, 683, 796-797, 821-822, 824-\>837, 870-\>872 |
+| custom\_components/home\_keeper/\_\_init\_\_.py        |      369 |      369 |       28 |        0 |      0% |    8-1222 |
+| custom\_components/home\_keeper/assets.py              |      449 |       24 |      208 |       22 |     93% |128, 157, 176, 181, 188, 221, 245, 248, 251, 274-275, 312, 314, 319, 333-\>332, 381-382, 384, 420, 481, 516-\>518, 518-\>525, 693, 806-807, 831-832, 834-\>847, 880-\>882 |
 | custom\_components/home\_keeper/backend\_i18n.py       |       42 |       16 |        6 |        1 |     56% |60-70, 79-80, 88, 91-92 |
 | custom\_components/home\_keeper/binary\_sensor.py      |       89 |       89 |       18 |        0 |      0% |    12-167 |
 | custom\_components/home\_keeper/button.py              |       34 |       34 |        6 |        0 |      0% |      8-77 |
@@ -42,7 +42,7 @@
 | custom\_components/home\_keeper/todo.py                |       61 |       61 |       18 |        0 |      0% |    10-130 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py      |      440 |      440 |       86 |        0 |      0% |     8-902 |
-| **TOTAL**                                              | **4734** | **2872** | **1602** |   **57** | **41%** |           |
+| **TOTAL**                                              | **4736** | **2872** | **1602** |   **57** | **41%** |           |
 
 
 ## Setup coverage badge
