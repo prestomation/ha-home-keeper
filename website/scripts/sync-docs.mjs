@@ -40,8 +40,8 @@ const ANCHOR_ROUTES = {
   '#notes-are-markdown': '/docs/guide/markdown-notes',
   // The "Companions" subsection lives under the Settings section (→ settings page).
   '#companions': '/docs/guide/settings#companions',
-  '#notifications--actionable-reminders-on-your-phone': '/docs/guide/notifications',
-  '#profiles--saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
+  '#notifications-actionable-reminders-on-your-phone': '/docs/guide/notifications',
+  '#profiles-saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
   // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
   // section (→ sensor-tasks page); "Parts & wear items" under Appliances.
   '#link-a-task-to-a-consumable-auto-reorder':
