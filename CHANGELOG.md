@@ -6,6 +6,17 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sending an actionable notification blocked the event loop.** Building a
+  notification's payload resolves translated button/message strings and, for
+  multi-day-overdue phrasing, Babel's CLDR plural rules — both of which read files
+  from disk on first use per language. That read was happening directly on Home
+  Assistant's event loop (from the `home_keeper.notify` service and the auto/walk
+  notification paths), which Home Assistant's own blocking-call detector flags as a
+  bug. The lookup now runs through `hass.async_add_executor_job`, off the event
+  loop, like any other blocking I/O. (Fixes #150)
+
 ## [0.10.0b2]
 
 ### Added
