@@ -67,8 +67,31 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // completion note and cost recorded at Done time).
   await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
   await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
+  // The note is Markdown (issue #163). Assert it actually rendered — `ha-markdown`
+  // is one of HA's lazily-loaded elements, so a regression here silently degrades to
+  // escaped plain text rather than failing loudly.
+  await expect(panel.locator('.hk-detail-inner ha-markdown strong').first()).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(panel.locator('.hk-detail-inner ha-markdown ol li').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/7-panel-task-detail.png`, fullPage: true });
+
+  // 1b1. The inline notes editor, open, with its live Markdown preview. Every task
+  // gets this now (it used to be problem-sensor tasks only) — notes are prose, so
+  // they're authored in a full-width box that previews as you type.
+  await panel.locator('.d-note-edit').click();
+  const taskNote = panel.locator('.d-note-input');
+  await expect(taskNote).toBeVisible();
+  await taskNote.fill(
+    '## Next time\n\n- Order **two** cartridges (`ULTRAWF`)\n- Check the door gasket while the panel is off\n',
+  );
+  // The preview is debounced, so wait for the rendered output rather than a timeout.
+  await expect(panel.locator('.hk-md-preview ha-markdown h2')).toBeVisible({ timeout: 15_000 });
+  await page.screenshot({ path: `${OUT}/41-panel-note-editor-preview.png`, fullPage: true });
+  // Cancel so the capture leaves the seeded note untouched for later shots.
+  await panel.locator('.d-note-cancel').click();
+  await expect(panel.locator('.d-note-edit')).toBeVisible();
 
   // 1b2. "Move date" dialog — corrects an already-recorded completion's timestamp
   // from the history list, distinct from the pencil (edit-metadata) button next to it.
@@ -173,26 +196,31 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.d-done-blocked-wrap')).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/16-panel-problem-sensor-detail.png`, fullPage: true });
-  // Tapping the disabled Done surfaces a toast explaining why it can't be completed
-  // here (best-effort capture — the toast is transient).
-  await panel.locator('.d-done-blocked-wrap').click();
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/16b-panel-problem-sensor-blocked-toast.png`, fullPage: true });
   // 18b. A durable note on the synced problem task. There's no device to model here,
   // so the note is the place to jot what to remember next time this problem fires; it
   // persists across the mirror clearing/re-arming (and even being recreated). Open the
   // inline editor and seed a note for the shot.
-  await page.waitForTimeout(600); // let the transient toast fade
+  //
+  // This runs *before* the blocked-Done toast below: the editor's Markdown preview
+  // sits between the textarea and the Save/Cancel row, which puts those buttons right
+  // where HA parks its toast — capturing them while one is up hides the buttons.
   await panel.locator('.d-note-edit').click();
   const noteInput = panel.locator('.d-note-input');
   await expect(noteInput).toBeVisible();
   await noteInput.fill(
     'Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer.',
   );
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(400); // the preview is debounced
   await page.screenshot({ path: `${OUT}/18-panel-problem-sensor-note.png`, fullPage: true });
   await panel.locator('.d-note-save').click();
   await expect(panel.locator('.d-note-edit')).toBeVisible();
+
+  // Tapping the disabled Done surfaces a toast explaining why it can't be completed
+  // here (best-effort capture — the toast is transient).
+  await panel.locator('.d-done-blocked-wrap').click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/16b-panel-problem-sensor-blocked-toast.png`, fullPage: true });
+
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
@@ -355,6 +383,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // deleted while still assigned to it).
   await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
   await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
+  // Appliances carry notes of their own now (issue #163) — a Markdown card with the
+  // same inline editor as a task, plus per-part notes in the Parts section.
+  await expect(panel.locator('ha-markdown table').first()).toBeVisible({ timeout: 15_000 });
+  await expect(panel.locator('.hk-part-notes ha-markdown strong').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/8-panel-appliance-detail.png`, fullPage: true });
   await panel.locator('#back-btn').click();

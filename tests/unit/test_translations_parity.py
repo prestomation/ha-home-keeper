@@ -53,6 +53,7 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.add_asset.fields.cost.name",
             "services.add_asset.fields.documents.name",
             "services.add_asset.fields.model.name",
+            "services.add_asset.fields.notes.name",  # "Notes" — CA cognate
             "services.add_asset_document.fields.document.name",
             "services.add_task.fields.interval.name",
             "services.add_task.fields.notes.name",
@@ -61,6 +62,7 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.update_asset.fields.cost.name",
             "services.update_asset.fields.documents.name",  # "Documents" — CA cognate
             "services.update_asset.fields.model.name",
+            "services.update_asset.fields.notes.name",  # "Notes" — CA cognate
             "services.update_completion.fields.cost.name",  # "Cost" — CA cognate
             "services.update_task.fields.interval.name",
             "services.update_task.fields.notes.name",
@@ -105,6 +107,7 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     "fr": frozenset(
         {
             "services.add_asset.fields.documents.name",  # "Documents" — FR cognate
+            "services.add_asset.fields.notes.name",  # "Notes" — FR cognate
             "services.add_asset_document.fields.document.name",
             "services.add_task.fields.notes.name",
             "services.add_task.fields.source.name",  # "Source" — FR cognate
@@ -113,6 +116,7 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.notify.fields.notification.name",  # "Notification" — FR cognate
             "services.register_companion.fields.description.name",  # FR cognate
             "services.update_asset.fields.documents.name",  # "Documents" — FR cognate
+            "services.update_asset.fields.notes.name",  # "Notes" — FR cognate
             "services.update_completion.fields.note.name",  # "Note" — FR cognate
             "services.update_completion.fields.photo.name",  # "Photo" — FR cognate
             "services.update_task.fields.notes.name",

@@ -47,6 +47,51 @@ def test_serial_number_defaults_empty_when_absent():
     assert asset["serial_number"] == ""
 
 
+def test_notes_normalize_and_round_trip():
+    # Appliance notes are free-form prose (rendered as Markdown in the panel), stripped
+    # and round-tripped like the other verbatim text fields — but deliberately *not*
+    # synced into the device registry the way manufacturer/model/serial_number are.
+    asset = a.build_asset(
+        {"name": "Water heater", "notes": "  Anode rod is **behind** the top cap.  "},
+        now=NOW,
+    )
+    assert asset["notes"] == "Anode rod is **behind** the top cap."
+
+    updated = a.merge_update(asset, {"notes": "- drain yearly\n- check anode"}, now=NOW)
+    assert updated["notes"] == "- drain yearly\n- check anode"
+
+    # Omitted on update -> preserved (read from existing, like the other text fields).
+    untouched = a.merge_update(updated, {"model": "XE50"}, now=NOW)
+    assert untouched["notes"] == "- drain yearly\n- check anode"
+
+    # Explicitly emptied -> cleared.
+    cleared = a.merge_update(untouched, {"notes": ""}, now=NOW)
+    assert cleared["notes"] == ""
+
+
+def test_notes_default_empty_when_absent():
+    # Assets stored before this field existed simply normalize to "" — no migration.
+    asset = a.build_asset({"name": "No notes"}, now=NOW)
+    assert asset["notes"] == ""
+
+
+def test_notes_preserve_internal_newlines_for_markdown():
+    # Only the outer whitespace is stripped: Markdown is line-oriented, so collapsing
+    # the interior would destroy list items and paragraph breaks.
+    body = "# Steps\n\n1. Shut off water\n2. Drain tank"
+    asset = a.build_asset({"name": "WH", "notes": f"\n{body}\n"}, now=NOW)
+    assert asset["notes"] == body
+
+
+def test_notes_are_not_synced_into_device_identity_fields():
+    # Guard the separation _PROSE_FIELDS exists to express: notes must never leak into
+    # the registry-synced identity fields.
+    asset = a.build_asset({"name": "WH", "notes": "some prose"}, now=NOW)
+    assert asset["manufacturer"] == ""
+    assert asset["model"] == ""
+    assert asset["serial_number"] == ""
+
+
 def test_asset_device_identifier_is_prefixed():
     # Must not collide with a per-task self-owned device (bare task id).
     domain, ident = a.asset_device_identifier("abc-123")
@@ -679,6 +724,64 @@ def test_merge_update_cannot_inject_or_clear_part_file():
         now=NOW,
     )
     assert injected["parts"][0]["file_name"] is None
+
+
+def test_part_notes_edit_preserves_backend_managed_fields():
+    """Editing a part's notes must not orphan its file or reset its cadence.
+
+    The panel has no per-part save: changing one field re-submits the whole ``parts``
+    array. Now that parts have an editable notes field, that round-trip is reachable
+    from a note edit, so pin the fields the backend owns (the upload-only attached
+    file, and a ``last_replaced`` stamped by a completion rather than typed).
+    """
+    asset = a.build_asset(
+        {
+            "name": "Water heater",
+            "parts": [{"name": "Anode rod", "type": "wear", "replace_interval": 12}],
+        },
+        now=NOW,
+    )
+    pid = asset["parts"][0]["id"]
+    a.set_part_file(
+        asset,
+        pid,
+        {"filename": "receipt.pdf", "content_type": "application/pdf", "size": 4096},
+    )
+    asset["parts"][0]["last_replaced"] = "2025-05-01"  # stamped by a completion
+
+    # The panel re-submits every part field it knows about, plus the new note.
+    updated = a.merge_update(
+        asset,
+        {
+            "parts": [
+                {
+                    "id": pid,
+                    "name": "Anode rod",
+                    "type": "wear",
+                    "replace_interval": 12,
+                    "notes": "Torque to **40 Nm**.",
+                }
+            ]
+        },
+        now=NOW,
+    )
+    part = updated["parts"][0]
+    assert part["notes"] == "Torque to **40 Nm**."
+    assert part["file_name"] == "receipt.pdf"
+    assert part["file_content_type"] == "application/pdf"
+    assert part["file_size"] == 4096
+    assert part["last_replaced"] == "2025-05-01"
+
+
+def test_part_notes_normalize_like_asset_notes():
+    asset = a.build_asset(
+        {"name": "Water heater", "parts": [{"name": "Anode", "notes": "  a **b**  "}]},
+        now=NOW,
+    )
+    assert asset["parts"][0]["notes"] == "a **b**"
+    # Absent -> "" (parts stored before the field was editable).
+    bare = a.build_asset({"name": "Fridge", "parts": [{"name": "Bulb"}]}, now=NOW)
+    assert bare["parts"][0]["notes"] == ""
 
 
 def test_migrate_legacy_part_numbers():

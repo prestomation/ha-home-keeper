@@ -46,6 +46,11 @@ if hass.services.has_service(DOMAIN_HK, "add_task"):
         "add_task",
         {
             "name": "Replace smoke-detector battery",
+            # Optional free text. The panel renders `notes` as **Markdown** (GFM), so
+            # a procedure, a part number in `code`, or a link to your docs all format
+            # properly. Send the Markdown *source* — Home Keeper stores it verbatim and
+            # hands the same raw text to the todo/calendar item descriptions.
+            "notes": "Uses a **9V** battery.\n\nSee [our docs](https://example.com).",
             # floating: every N days/weeks/months, measured from completion
             "recurrence_type": "floating",
             "interval": 6,

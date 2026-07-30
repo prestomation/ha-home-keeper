@@ -7,7 +7,7 @@
       "task_fridge_filter": {
         "id": "task_fridge_filter",
         "name": "Replace fridge filter",
-        "notes": "PureSource Ultra II",
+        "notes": "Cartridge: **PureSource Ultra II** (`ULTRAWF`)\n\n1. Twist the old cartridge a quarter turn and pull it straight out\n2. Seat the new one and twist until it clicks\n3. Run ~2 gal through the dispenser to purge the air\n\n> Spare cartridges live in the garage cabinet.\n\n[Manual](https://www.frigidaire.com/)",
         "recurrence_type": "floating",
         "interval": 1,
         "unit": "months",
@@ -494,7 +494,7 @@
             "file_name": "anode-rod-receipt.pdf",
             "file_content_type": "application/pdf",
             "file_size": 84213,
-            "notes": "",
+            "notes": "Torque to **40 Nm**. Needs a 1‑1/16\" socket and a breaker bar.",
             "replace_interval": 12,
             "replace_unit": "months",
             "last_replaced": "2025-05-01",
@@ -587,7 +587,7 @@
           {
             "id": "asset_water_heater_meta_notes",
             "type": "text",
-            "label": "Notes",
+            "label": "Location",
             "value": "Garage corner, behind the shelving"
           },
           {
@@ -615,7 +615,8 @@
             "size": 193
           }
         ],
-        "serial_number": "RH-2021-0099823"
+        "serial_number": "RH-2021-0099823",
+        "notes": "Shut-off is the **red lever** on the cold inlet, above the tank.\n\n| Setting | Value |\n| --- | --- |\n| Thermostat | 120 °F |\n| Capacity | 50 gal |\n\nDrain the tank yearly — hose bib is at the *front left*."
       },
       "asset_shades": {
         "id": "asset_shades",
@@ -639,7 +640,8 @@
         "related_device_ids": [],
         "created": "2026-05-01T09:00:00-04:00",
         "metadata": [],
-        "documents": []
+        "documents": [],
+        "notes": ""
       },
       "asset_radio_shade": {
         "id": "asset_radio_shade",
@@ -663,7 +665,8 @@
         "related_device_ids": [],
         "created": "2026-05-01T09:00:00-04:00",
         "metadata": [],
-        "documents": []
+        "documents": [],
+        "notes": ""
       }
     }
   }

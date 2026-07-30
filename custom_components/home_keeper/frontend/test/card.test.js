@@ -253,3 +253,43 @@ describe('HomeKeeperCard document chips', () => {
     expect(sr(card).querySelector('a.hk-link-chip')).toBeNull();
   });
 });
+
+describe('Card notes render as Markdown (issue #163)', () => {
+  beforeAll(() => {
+    if (!customElements.get('ha-markdown')) {
+      customElements.define('ha-markdown', class extends HTMLElement {});
+    }
+  });
+
+  const noted = [{ ...sampleTasks[0], notes: 'Use a **HEPA** filter' }];
+
+  it('renders the note through ha-markdown when show_notes is on', async () => {
+    const card = makeCard({ type: 'custom:home-keeper-card', show_notes: true });
+    card.hass = { callWS: async () => ({ tasks: noted }), language: 'en' };
+
+    const shown = await waitFor(() => sr(card)?.querySelector('.hk-notes ha-markdown'));
+    expect(shown).toBe(true);
+    // `content` is a property, so `_hydrate` has to move `data-md` onto it.
+    expect(sr(card).querySelector('.hk-notes ha-markdown').content).toBe('Use a **HEPA** filter');
+  });
+
+  it('still honours show_notes being off', async () => {
+    const card = makeCard({ type: 'custom:home-keeper-card' });
+    card.hass = { callWS: async () => ({ tasks: noted }), language: 'en' };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(sr(card).querySelector('.hk-notes')).toBeNull();
+  });
+
+  it('does not inject the note as raw markup', async () => {
+    const nasty = [{ ...sampleTasks[0], notes: '<img src=x onerror=alert(1)>' }];
+    const card = makeCard({ type: 'custom:home-keeper-card', show_notes: true });
+    card.hass = { callWS: async () => ({ tasks: nasty }), language: 'en' };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-notes ha-markdown'));
+    expect(sr(card).querySelector('img')).toBeNull();
+    expect(sr(card).querySelector('.hk-notes ha-markdown').content).toBe(
+      '<img src=x onerror=alert(1)>',
+    );
+  });
+});

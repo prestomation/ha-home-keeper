@@ -43,6 +43,7 @@ export const USER_SECTIONS = [
   {h: 'Installation', slug: 'installation', title: 'Installation'},
   {h: 'Concepts', slug: 'concepts', title: 'Core concepts', label: 'Concepts'},
   {h: 'One-off (do-once) tasks', slug: 'one-off-tasks', title: 'One-off tasks', label: 'One-off tasks'},
+  {h: 'Notes are Markdown', slug: 'markdown-notes', title: 'Markdown notes', label: 'Markdown notes'},
   {h: 'Logging completions (note, cost, photo, who)', slug: 'completions', title: 'Logging completions', label: 'Completions'},
   {h: 'Condition-driven (triggered) tasks', slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks'},
   {h: 'Sensor-based tasks (usage meters & thresholds)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks'},

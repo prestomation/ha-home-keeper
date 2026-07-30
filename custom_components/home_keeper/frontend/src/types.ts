@@ -302,6 +302,9 @@ export interface Asset {
   manufacturer?: string;
   model?: string;
   serial_number?: string;
+  // Free-form prose about the appliance, rendered as Markdown in the panel. Unlike
+  // manufacturer/model/serial_number it is never synced into the device registry.
+  notes?: string;
   cost?: number | null;
   documents?: AssetDocument[];
   metadata?: MetadataEntry[];

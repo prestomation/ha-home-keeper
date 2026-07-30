@@ -6,6 +6,30 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ## [Unreleased]
 
+## [0.10.0b2]
+
+### Added
+
+- **Notes render as Markdown.** Every "Notes" field — on a task, on an appliance, on a
+  part, and on each logged completion — now renders as GitHub-flavoured Markdown, so a
+  note can carry a numbered procedure, a part number in `code`, a link to the manual, a
+  small table of settings, or a `>` callout instead of one unformatted run of text.
+  (Previously the task detail page didn't even preserve line breaks.) Rendering and
+  sanitizing are done by Home Assistant's own `ha-markdown` component, so notes match
+  your theme and no Markdown parser is bundled into the panel. (Fixes #163)
+- **Inline note editor with a live preview.** A task's or an appliance's Notes card has
+  an **Edit note** button that opens a full-width editor previewing the formatting as
+  you type; the task, appliance, part, and completion edit forms gained the same live
+  preview. The preview appears only once the text actually contains Markdown.
+  (The inline editor previously existed only for synced problem-sensor tasks.)
+- **Appliances have a Notes field.** A first-class free-text field for prose about the
+  appliance ("the shut-off is the red lever above the tank"), separate from the
+  label/value custom metadata fields, and settable via `home_keeper.add_asset` /
+  `home_keeper.update_asset`.
+- **Part notes are editable and visible.** Parts have always stored notes, but the panel
+  offered no way to enter them and never showed them. They now appear in the part editor
+  and render under the part in an appliance's Parts list.
+
 ## [0.10.0b1]
 
 ### Fixed

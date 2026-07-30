@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "Notities",
-          "description": "Optionele vrije tekstnotities."
+          "description": "Optionele vrije tekstnotities. Markdown wordt opgemaakt weergegeven in het Home Keeper-paneel."
         },
         "recurrence_type": {
           "name": "Herhalingstype",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "Notities",
-          "description": "Nieuwe notities."
+          "description": "Nieuwe notities. Markdown wordt opgemaakt weergegeven in het Home Keeper-paneel."
         },
         "recurrence_type": {
           "name": "Herhalingstype",
@@ -382,6 +382,10 @@
           "name": "Serienummer",
           "description": "Serienummer (getoond in het infoblok van de apparaatpagina)."
         },
+        "notes": {
+          "name": "Notities",
+          "description": "Optionele vrije tekstnotities over het apparaat. Markdown wordt opgemaakt weergegeven in het Home Keeper-paneel."
+        },
         "cost": {
           "name": "Kosten",
           "description": "Aankoopprijs."
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "Serienummer",
           "description": "Serienummer (getoond in het infoblok van de apparaatpagina)."
+        },
+        "notes": {
+          "name": "Notities",
+          "description": "Nieuwe notities. Markdown wordt opgemaakt weergegeven in het Home Keeper-paneel."
         },
         "cost": {
           "name": "Kosten",

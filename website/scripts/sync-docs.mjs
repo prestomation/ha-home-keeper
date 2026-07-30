@@ -37,6 +37,7 @@ const ANCHOR_ROUTES = {
   '#one-off-do-once-tasks': '/docs/guide/one-off-tasks',
   '#sensor-based-tasks-usage-meters--thresholds': '/docs/guide/sensor-tasks',
   '#appliances--virtual-devices': '/docs/guide/appliances',
+  '#notes-are-markdown': '/docs/guide/markdown-notes',
   // The "Companions" subsection lives under the Settings section (→ settings page).
   '#companions': '/docs/guide/settings#companions',
   '#notifications--actionable-reminders-on-your-phone': '/docs/guide/notifications',

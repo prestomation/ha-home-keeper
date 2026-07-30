@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "Notes",
-          "description": "Notes opcionals de text lliure."
+          "description": "Notes opcionals de text lliure. El Markdown es representa al plafó de Home Keeper."
         },
         "recurrence_type": {
           "name": "Tipus de recurrència",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "Notes",
-          "description": "Notes noves."
+          "description": "Notes noves. El Markdown es representa al plafó de Home Keeper."
         },
         "recurrence_type": {
           "name": "Tipus de recurrència",
@@ -382,6 +382,10 @@
           "name": "Número de sèrie",
           "description": "Número de sèrie (es mostra al bloc d'informació de la pàgina del dispositiu)."
         },
+        "notes": {
+          "name": "Notes",
+          "description": "Notes opcionals de text lliure sobre l'electrodomèstic. El Markdown es representa al plafó de Home Keeper."
+        },
         "cost": {
           "name": "Cost",
           "description": "Preu de compra."
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "Número de sèrie",
           "description": "Número de sèrie (es mostra al bloc d'informació de la pàgina del dispositiu)."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Notes noves. El Markdown es representa al plafó de Home Keeper."
         },
         "cost": {
           "name": "Cost",

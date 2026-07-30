@@ -70,6 +70,25 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
     await page.waitForTimeout(BEAT);
 
+    // 2a2. Notes are Markdown. The seeded note already renders as headings, a
+    //      numbered list, a quote and a link; open the inline editor to show it
+    //      being authored, with the live preview updating as the text is typed.
+    await panel.locator('.d-note-edit').click();
+    const walkNote = panel.locator('.d-note-input');
+    await expect(walkNote).toBeVisible();
+    await page.waitForTimeout(BEAT);
+    // Type rather than fill so the preview visibly catches up — that's the point.
+    await walkNote.fill('');
+    await walkNote.pressSequentially('## Next time\n\n- Order **two** cartridges\n', {
+      delay: 28,
+    });
+    await expect(panel.locator('.hk-md-preview ha-markdown h2')).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    // Cancel — the tour must leave the seeded note as it found it.
+    await panel.locator('.d-note-cancel').click();
+    await expect(panel.locator('.d-note-edit')).toBeVisible();
+    await page.waitForTimeout(BEAT);
+
     await panel.locator('#back-btn').click();
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);
@@ -132,6 +151,12 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(applianceRow).toBeVisible();
     await applianceRow.click();
     await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+
+    // 4a. Appliances carry Markdown notes of their own — the shut-off location, a
+    //     spec table, the yearly drain — plus per-part notes down in Parts.
+    await expect(panel.locator('ha-markdown table').first()).toBeVisible();
+    await panel.locator('ha-markdown table').first().scrollIntoViewIfNeeded();
     await page.waitForTimeout(BEAT * 2);
 
     // 4b. Auto-buy — open the editor, reveal the Parts section, and flip on

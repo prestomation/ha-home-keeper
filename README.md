@@ -33,6 +33,8 @@ changes, water filters, taking medicine, and anything else that recurs.
   device page.
 - **Dashboard task card** — a bundled, auto-registered `custom:home-keeper-card` with
   one-tap **Done**, inline add/edit, and rich filtering/grouping.
+- **Markdown notes** — every notes field (task, appliance, part, completion) renders
+  as Markdown, authored with a live preview.
 - **Appliances & virtual devices** — give "dumb" appliances a real device page,
   structured metadata (with optional tracked-date sensors), **parts & wear items**,
   **spare-part inventory**, **offline manuals & documents** (link or upload a PDF), and a
@@ -101,6 +103,44 @@ completion record. Undoing the completion brings it right back to its due date.
 **One-off retention (days)** in the panel's **Settings** tab (or via the
 `home_keeper.set_options` service): a completed one-off is deleted that many days
 after it's done. The default — `0` — keeps them forever.
+
+## Notes are Markdown
+
+Every **Notes** field in Home Keeper renders as **Markdown** — on a task, on an
+appliance, on a part, and on each logged completion. Notes are where the real
+knowledge lives, and a wall of unformatted text is the wrong shape for it.
+
+**Use cases.** The three-step procedure you always half-remember, as a numbered list.
+The part number in `code` so it stands out from the prose. The link to the manual page
+you actually need. A little table of settings — thermostat temperature, filter size,
+torque spec. A `> ` callout for the thing that bit you last time.
+
+**How you use it.** Write Markdown in any notes field — headings, **bold**, *italic*,
+lists, links, tables, quotes, and code all work (GitHub-flavoured Markdown). Two ways
+in:
+
+- **Inline on the detail page.** A task's or appliance's Notes card has an **Edit
+  note** button that opens a full-width editor with a **live preview** underneath, so
+  you see the formatting as you type. The preview appears only once the text actually
+  contains Markdown — plain prose isn't worth previewing.
+- **In the edit form.** The task, appliance, part, and completion editors all have a
+  notes field with the same live preview.
+
+<img src="docs/images/41-panel-note-editor-preview.png" alt="The inline note editor on a task detail page: a textarea containing Markdown, with a live preview below it rendering the heading and bullet list" width="820">
+
+Notes are stored as **Markdown source**, not HTML — so the raw text is what other
+surfaces receive: the `todo` item description, the `calendar` event description, and
+anything reading a task through the services or events. Home Assistant renders those
+descriptions with its own Markdown support where it has it.
+
+**Appliance and part notes.** Appliances now have a first-class **Notes** field of
+their own (`home_keeper.add_asset` / `update_asset`), separate from the custom
+metadata fields — use it for prose about the appliance ("*the shut-off is the red
+lever above the tank*"), and leave the custom fields for label/value facts. Each
+**part** has notes too, shown under it in the appliance's Parts list.
+
+Rendering and sanitizing are done by Home Assistant's own `ha-markdown` component, so
+notes are sanitized before display and match your theme.
 
 ## Logging completions (note, cost, photo, who)
 
@@ -513,8 +553,10 @@ record their warranty. Home Keeper fills that gap with **appliances**, managed f
   correct whatever it's missing.
 
 Either way you record **asset metadata**. A few structured fields wire into Home
-Assistant — manufacturer/model, an mdi icon, a manual link, replacement cost — and
-beyond that you add free-form **custom fields**, each a label with a value typed as
+Assistant — manufacturer/model, an mdi icon, a manual link, replacement cost — plus a
+free-form **Notes** field for prose about the appliance, which renders as
+[Markdown](#notes-are-markdown). Beyond that you add **custom fields**, each a label
+with a value typed as
 **text**, **link**, or **date** (seeded with common ones like serial number, warranty
 expiry, purchase/install dates). Tick **track** on a date and it becomes a real `date`
 **sensor** on the device page, so it's automatable natively (e.g. *"warranty expiring
@@ -531,7 +573,9 @@ fields. It's the grab-and-go record you want for an insurance claim.
 
 ### Parts & wear items
 
-Each appliance has a structured **parts** list — name, part number, vendor, cost, and a
+Each appliance has a structured **parts** list — name, part number, vendor, cost,
+free-form **notes** (rendered as [Markdown](#notes-are-markdown) under the part, for
+the torque spec or the socket size you always forget), and a
 type of *consumable* (a stocked spare) or *wear item*. Give a wear item a **replacement
 interval** and Home Keeper automatically creates a maintenance **task** for it, attached
 to the appliance's device — so it shows up in your to-do list and calendar, gets a

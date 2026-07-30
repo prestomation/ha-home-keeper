@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "Noter",
-          "description": "Valgfrie fritekstnoter."
+          "description": "Valgfrie fritekstnoter. Markdown vises formateret i Home Keeper-panelet."
         },
         "recurrence_type": {
           "name": "Gentagelsestype",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "Noter",
-          "description": "Nye noter."
+          "description": "Nye noter. Markdown vises formateret i Home Keeper-panelet."
         },
         "recurrence_type": {
           "name": "Gentagelsestype",
@@ -382,6 +382,10 @@
           "name": "Serienummer",
           "description": "Serienummer (vises i enhedssidens informationsblok)."
         },
+        "notes": {
+          "name": "Noter",
+          "description": "Valgfrie fritekstnoter om apparatet. Markdown vises formateret i Home Keeper-panelet."
+        },
         "cost": {
           "name": "Pris",
           "description": "Købspris."
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "Serienummer",
           "description": "Serienummer (vises i enhedssidens informationsblok)."
+        },
+        "notes": {
+          "name": "Noter",
+          "description": "Nye noter. Markdown vises formateret i Home Keeper-panelet."
         },
         "cost": {
           "name": "Pris",

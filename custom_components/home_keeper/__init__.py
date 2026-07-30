@@ -313,6 +313,7 @@ _ASSET_FIELDS: dict[Any, Any] = {
     vol.Optional("manufacturer"): cv.string,
     vol.Optional("model"): cv.string,
     vol.Optional("serial_number"): cv.string,
+    vol.Optional("notes"): cv.string,
     vol.Optional("cost"): vol.Coerce(float),
     vol.Optional("documents"): [_DOCUMENT_SCHEMA],
     vol.Optional("metadata"): [_METADATA_SCHEMA],

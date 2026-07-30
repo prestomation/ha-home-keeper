@@ -63,6 +63,16 @@ _TEXT_FIELDS = (
     "serial_number",
 )
 
+# Free-form prose about the appliance ("the filter is behind the kick plate…").
+# Normalized exactly like ``_TEXT_FIELDS`` — stripped, absent becomes ``""`` — but kept
+# in its own tuple because it deliberately does *not* sync into the device registry:
+# it is long-form text the panel renders as Markdown, not an identity field that
+# belongs on the device card.
+_PROSE_FIELDS = ("notes",)
+
+# Every verbatim-kept text field, in the order they are normalized.
+_ALL_TEXT_FIELDS = (*_TEXT_FIELDS, *_PROSE_FIELDS)
+
 # Free-form metadata: an ordered list of typed entries the user can shape however
 # they like (serial numbers, warranty/purchase/install dates, provider, links…),
 # replacing the old prescriptive per-field set. Each entry is
@@ -690,7 +700,7 @@ def normalize_fields(data: dict, *, today: date | None = None) -> dict:
         fields["device_id"] = _require(data, "device_id")
         fields["parent_asset_id"] = None
 
-    for key in _TEXT_FIELDS:
+    for key in _ALL_TEXT_FIELDS:
         value = data.get(key)
         fields[key] = str(value).strip() if value not in (None, "") else ""
 
@@ -754,7 +764,7 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
             "related_device_ids", existing.get("related_device_ids", [])
         ),
     }
-    for key in _TEXT_FIELDS:
+    for key in _ALL_TEXT_FIELDS:
         candidate[key] = updates.get(key, existing.get(key))
 
     fields = normalize_fields(candidate, today=now.date())

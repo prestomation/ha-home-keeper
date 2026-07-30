@@ -233,3 +233,286 @@ describe('Appliance form — existing-device identity fields (issue #145)', () =
     expect(identityExisting.data.serial_number).toBe('SN-123');
   });
 });
+
+// ── Markdown notes (issue #163) ──────────────────────────────────────────────
+// `ha-markdown` is one of HA's lazily-loaded elements, so the panel renders an
+// escaped `pre-wrap` fallback until it registers. Both branches are exercised: the
+// panel tests below register a stand-in so the `ha-markdown` path is the live one.
+
+/** Build a hass whose get_tasks/get_assets return the supplied fixtures. */
+function makeHassWith({ tasks = [], assets = [] } = {}) {
+  const { hass, calls } = makeHass();
+  const inner = hass.callWS.bind(hass);
+  hass.callWS = (msg) => {
+    if (msg.type === 'home_keeper/get_tasks') return Promise.resolve({ tasks });
+    if (msg.type === 'home_keeper/get_assets') return Promise.resolve({ assets });
+    if (msg.type === 'home_keeper/update_task' || msg.type === 'home_keeper/update_asset') {
+      calls[msg.type] = (calls[msg.type] || 0) + 1;
+      calls.lastUpdate = msg;
+      return Promise.resolve({ task: tasks[0], asset: assets[0] });
+    }
+    return inner(msg);
+  };
+  return { hass, calls };
+}
+
+async function mountPanel(hass, path) {
+  const panel = document.createElement('home-keeper-panel');
+  panel.route = { prefix: '/home-keeper', path };
+  document.body.appendChild(panel);
+  panel.hass = hass;
+  return panel;
+}
+
+describe('Notes render as Markdown (issue #163)', () => {
+  beforeAll(() => {
+    if (!customElements.get('ha-markdown')) {
+      customElements.define('ha-markdown', class extends HTMLElement {});
+    }
+  });
+
+  it('renders a task note through ha-markdown, with the source on .content', async () => {
+    const task = {
+      id: 't1',
+      name: 'Replace filter',
+      notes: '**Bold** and a [link](https://example.com)',
+      recurrence_type: 'floating',
+      interval: 3,
+      unit: 'months',
+      next_due: '2030-01-01T00:00:00+00:00',
+      completions: [],
+    };
+    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1');
+
+    const md = await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
+    expect(md, 'the note should render through ha-markdown').toBeTruthy();
+    // `content` is a property, so `_hydrate` must move `data-md` onto it — otherwise
+    // ha-markdown renders nothing at all.
+    expect(md.content).toBe('**Bold** and a [link](https://example.com)');
+  });
+
+  it('never injects the note as raw markup', async () => {
+    const task = {
+      id: 't1',
+      name: 'Nasty',
+      notes: '<img src=x onerror=alert(1)>',
+      recurrence_type: 'floating',
+      interval: 1,
+      unit: 'days',
+      completions: [],
+    };
+    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1');
+
+    const md = await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
+    expect(md).toBeTruthy();
+    // The payload survives verbatim as *text* on the property (ha-markdown sanitizes
+    // when it renders) but never becomes an element in our shadow root.
+    expect(md.content).toBe('<img src=x onerror=alert(1)>');
+    expect(panel.shadowRoot.querySelector('img')).toBeNull();
+  });
+
+  it('offers an inline note editor on an ordinary task, and saves via update_task', async () => {
+    const task = {
+      id: 't1',
+      name: 'Replace filter',
+      notes: 'old note',
+      recurrence_type: 'floating',
+      interval: 3,
+      unit: 'months',
+      completions: [],
+    };
+    const { hass, calls } = makeHassWith({ tasks: [task] });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    // Previously this affordance existed only for problem-sensor tasks.
+    const edit = await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'));
+    expect(edit, 'every task detail should offer an inline note editor').toBeTruthy();
+    edit.click();
+
+    const input = await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
+    expect(input, 'the editor should open a textarea').toBeTruthy();
+    expect(input.value).toBe('old note');
+    // The live preview lives directly under the textarea.
+    expect(panel.shadowRoot.querySelector('.d-note-preview .hk-md-preview')).toBeTruthy();
+
+    input.value = '# new note';
+    panel.shadowRoot.querySelector('.d-note-save').click();
+
+    const saved = await waitFor(() => calls['home_keeper/update_task']);
+    expect(saved, 'saving should go through the ordinary partial update path').toBeTruthy();
+    expect(calls.lastUpdate.updates).toEqual({ notes: '# new note' });
+  });
+
+  it('keeps a source-locked note read-only', async () => {
+    const task = {
+      id: 't1',
+      name: 'Replace battery',
+      notes: 'managed note',
+      recurrence_type: 'triggered',
+      completions: [],
+      managed_by: { domain: 'battery_notes', display_name: 'Battery Notes', locked_fields: ['notes'] },
+    };
+    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
+    expect(
+      panel.shadowRoot.querySelector('.d-note-edit'),
+      'a note its integration locks must not be editable',
+    ).toBeNull();
+  });
+
+  it('gives an appliance its own Notes card, saved via update_asset', async () => {
+    const asset = { id: 'a1', kind: 'virtual', name: 'Fridge', notes: 'Filter is *behind* the kick plate' };
+    const { hass, calls } = makeHassWith({ assets: [asset] });
+    const panel = await mountPanel(hass, '/appliances/a1');
+
+    const md = await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
+    expect(md, 'the appliance detail should render its notes').toBeTruthy();
+    expect(md.content).toBe('Filter is *behind* the kick plate');
+
+    panel.shadowRoot.querySelector('.d-note-edit').click();
+    const input = await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
+    input.value = 'behind the kick plate';
+    panel.shadowRoot.querySelector('.d-note-save').click();
+
+    const saved = await waitFor(() => calls['home_keeper/update_asset']);
+    expect(saved).toBeTruthy();
+    // A partial update — `merge_update` carries every other field through untouched.
+    expect(calls.lastUpdate.updates).toEqual({ notes: 'behind the kick plate' });
+    expect(calls.lastUpdate.asset_id).toBe('a1');
+  });
+
+  it('renders a part note as Markdown on the appliance detail page', async () => {
+    const asset = {
+      id: 'a1',
+      kind: 'virtual',
+      name: 'Water heater',
+      notes: '',
+      parts: [{ id: 'p1', name: 'Anode rod', type: 'wear', notes: 'Torque to **40 Nm**' }],
+    };
+    const panel = await mountPanel(makeHassWith({ assets: [asset] }).hass, '/appliances/a1');
+
+    const partNote = await waitFor(() =>
+      panel.shadowRoot?.querySelector('.hk-part-notes ha-markdown'),
+    );
+    expect(partNote, 'a part with notes should render them').toBeTruthy();
+    expect(partNote.content).toBe('Torque to **40 Nm**');
+  });
+
+  it('exposes a notes field in the part editor (it had none before)', async () => {
+    const asset = {
+      id: 'a1',
+      kind: 'virtual',
+      name: 'Water heater',
+      parts: [{ id: 'p1', name: 'Anode rod', type: 'wear', notes: 'Torque to 40 Nm' }],
+    };
+    const panel = await mountPanel(makeHassWith({ assets: [asset] }).hass, '/appliances/a1');
+
+    const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
+    editBtn.click();
+    // Editing from a detail page navigates to the owning list and re-opens the form
+    // there. `_navigate` only fires `location-changed`; in the real app HA's router
+    // answers by pushing a new `route` down. Nothing does that in jsdom, so stand in
+    // for the router here.
+    panel.route = { prefix: '/home-keeper', path: '/appliances' };
+
+    const partForm = await waitFor(() => {
+      const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];
+      return forms.find((f) => schemaFieldNames(f.schema).includes('part_name'));
+    });
+    expect(partForm, 'the part editor should render').toBeTruthy();
+    expect(schemaFieldNames(partForm.schema)).toContain('notes');
+    expect(partForm.data.notes).toBe('Torque to 40 Nm');
+  });
+});
+
+describe('Markdown preview teardown (issue #163)', () => {
+  beforeAll(() => {
+    if (!customElements.get('ha-markdown')) {
+      customElements.define('ha-markdown', class extends HTMLElement {});
+    }
+  });
+
+  const noted = {
+    id: 't1',
+    name: 'Replace filter',
+    notes: '**bold**',
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'months',
+    completions: [],
+  };
+
+  it('cancels a pending preview render when the panel unmounts mid-typing', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'))).click();
+    const input = await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
+
+    // Type Markdown, then unmount before the debounce elapses. Nothing should fire
+    // against the detached subtree afterwards.
+    input.value = '## typing';
+    input.dispatchEvent(new Event('input'));
+    const preview = panel.shadowRoot.querySelector('.d-note-preview .hk-md-preview');
+    expect(preview, 'the editor should have a preview attached').toBeTruthy();
+
+    panel.remove(); // disconnectedCallback
+
+    await new Promise((r) => setTimeout(r, 400)); // longer than the 200ms debounce
+    expect(
+      preview.querySelector('ha-markdown'),
+      'a disposed preview must not render after unmount',
+    ).toBeNull();
+  });
+
+  it('disposes previews when navigating away with a preview timer armed', async () => {
+    // The unmount case isn't the only teardown path: a view change re-renders, which
+    // detaches every preview. Pin the integration, not just `dispose()` in isolation.
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'))).click();
+    const input = await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
+
+    input.value = '## typing';
+    input.dispatchEvent(new Event('input'));
+    const preview = panel.shadowRoot.querySelector('.d-note-preview .hk-md-preview');
+    expect(preview).toBeTruthy();
+
+    // Navigate to the list — HA drives this by pushing a new `route`.
+    panel.route = { prefix: '/home-keeper', path: '/tasks' };
+    await waitFor(() => panel.shadowRoot?.querySelector('#add-btn'));
+
+    await new Promise((r) => setTimeout(r, 400)); // past the 200ms debounce
+    expect(
+      preview.querySelector('ha-markdown'),
+      'the detached preview must not render after the view changed',
+    ).toBeNull();
+  });
+
+  it('registers every preview it builds so one teardown covers them all', async () => {
+    // `_attachNotePreview` is the only constructor precisely so that disposal is a
+    // single loop. If a future path builds one directly it escapes that teardown, so
+    // pin the count against what is actually on screen.
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'))).click();
+    await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
+
+    const onScreen = panel.shadowRoot.querySelectorAll('.hk-md-preview').length;
+    expect(onScreen).toBeGreaterThan(0);
+    expect(panel._previews.length).toBe(onScreen);
+
+    panel.remove();
+    expect(panel._previews.length, 'teardown should clear the registry').toBe(0);
+  });
+
+  it('does not re-render onto a detached panel when ha-markdown registers late', async () => {
+    // `ensureMarkdown()` awaits a lazy chunk load, so it can settle after unmount.
+    // The callback must check isConnected — otherwise it rebuilds the whole panel,
+    // and the previews it creates would never be torn down.
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
+
+    panel.remove();
+    const htmlAtUnmount = panel.shadowRoot.innerHTML;
+    await new Promise((r) => setTimeout(r, 300));
+    expect(panel.shadowRoot.innerHTML).toBe(htmlAtUnmount);
+  });
+});
