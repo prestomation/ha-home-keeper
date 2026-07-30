@@ -123,6 +123,23 @@ def test_purge_stale_temps_ignores_foreign_files_and_missing_dir(tmp_path):
     d.purge_stale_temps(tmp_path / "nope", max_age_s=0)
 
 
+def test_purge_stale_temps_survives_an_unremovable_entry(tmp_path):
+    # An entry that can't be deleted (here a directory, which unlink refuses) must not
+    # abort the sweep — the real-world version is losing a race with the upload that
+    # owns the file, and the rest of the strays still need reclaiming.
+    blocker = tmp_path / "upload-directory"
+    blocker.mkdir()
+    os.utime(blocker, (0, 0))
+    stale = tmp_path / "upload-stale"
+    stale.write_bytes(b"leftover")
+    os.utime(stale, (0, 0))
+
+    d.purge_stale_temps(tmp_path, max_age_s=0)
+
+    assert blocker.is_dir(), "an undeletable entry is skipped, not fatal"
+    assert not stale.exists(), "the sweep continues past it"
+
+
 def test_safe_segment_reduces_or_rejects():
     assert d.safe_segment("abc-123") == "abc-123"
     # Separators are reduced to the basename (never escape via the path).
