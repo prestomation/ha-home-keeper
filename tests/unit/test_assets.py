@@ -726,6 +726,64 @@ def test_merge_update_cannot_inject_or_clear_part_file():
     assert injected["parts"][0]["file_name"] is None
 
 
+def test_part_notes_edit_preserves_backend_managed_fields():
+    """Editing a part's notes must not orphan its file or reset its cadence.
+
+    The panel has no per-part save: changing one field re-submits the whole ``parts``
+    array. Now that parts have an editable notes field, that round-trip is reachable
+    from a note edit, so pin the fields the backend owns (the upload-only attached
+    file, and a ``last_replaced`` stamped by a completion rather than typed).
+    """
+    asset = a.build_asset(
+        {
+            "name": "Water heater",
+            "parts": [{"name": "Anode rod", "type": "wear", "replace_interval": 12}],
+        },
+        now=NOW,
+    )
+    pid = asset["parts"][0]["id"]
+    a.set_part_file(
+        asset,
+        pid,
+        {"filename": "receipt.pdf", "content_type": "application/pdf", "size": 4096},
+    )
+    asset["parts"][0]["last_replaced"] = "2025-05-01"  # stamped by a completion
+
+    # The panel re-submits every part field it knows about, plus the new note.
+    updated = a.merge_update(
+        asset,
+        {
+            "parts": [
+                {
+                    "id": pid,
+                    "name": "Anode rod",
+                    "type": "wear",
+                    "replace_interval": 12,
+                    "notes": "Torque to **40 Nm**.",
+                }
+            ]
+        },
+        now=NOW,
+    )
+    part = updated["parts"][0]
+    assert part["notes"] == "Torque to **40 Nm**."
+    assert part["file_name"] == "receipt.pdf"
+    assert part["file_content_type"] == "application/pdf"
+    assert part["file_size"] == 4096
+    assert part["last_replaced"] == "2025-05-01"
+
+
+def test_part_notes_normalize_like_asset_notes():
+    asset = a.build_asset(
+        {"name": "Water heater", "parts": [{"name": "Anode", "notes": "  a **b**  "}]},
+        now=NOW,
+    )
+    assert asset["parts"][0]["notes"] == "a **b**"
+    # Absent -> "" (parts stored before the field was editable).
+    bare = a.build_asset({"name": "Fridge", "parts": [{"name": "Bulb"}]}, now=NOW)
+    assert bare["parts"][0]["notes"] == ""
+
+
 def test_migrate_legacy_part_numbers():
     legacy = {
         "id": "x",

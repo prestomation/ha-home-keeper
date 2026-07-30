@@ -876,6 +876,13 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     for (const id of Object.values(this._persistTimers)) clearTimeout(id);
     this._persistTimers = {};
+    // Markdown previews hold a debounce timer that would otherwise fire against a
+    // detached subtree after unmount.
+    this._notePreview?.dispose();
+    this._notePreview = null;
+    this._taskNotePreview = null;
+    this._formPreviews.forEach((p) => p.dispose());
+    this._formPreviews = [];
   }
 
   /** Restore the persisted group-by / filter choices (best-effort). */
