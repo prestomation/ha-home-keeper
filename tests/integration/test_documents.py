@@ -7,9 +7,11 @@ download → removal deletes the stored copy), plus the upload allowlist.
 
 import time
 import uuid
+from pathlib import Path
 
 import requests
 from conftest import HA_URL, call_service
+from hk_const import MAX_DOCUMENT_BYTES
 
 PDF_BYTES = b"%PDF-1.7\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
 
@@ -34,6 +36,16 @@ def _provision(ha, name):
 
 def _bearer(ha):
     return {"Authorization": ha.headers["Authorization"]}
+
+
+def _incoming_temps():
+    """Names of temp uploads currently spooled in the streaming staging area."""
+    incoming = (
+        Path(__file__).parent / "ha_config" / "home_keeper" / "documents" / ".incoming"
+    )
+    return (
+        sorted(p.name for p in incoming.glob("upload-*")) if incoming.is_dir() else []
+    )
 
 
 def test_add_and_remove_link_document(ha):
@@ -302,8 +314,9 @@ def test_update_asset_preserves_uploaded_file_document(ha):
 
 def test_upload_larger_than_ha_app_limit_succeeds(ha):
     # Regression: HA's global aiohttp body cap (MAX_CLIENT_SIZE, 16 MB) is below our
-    # 25 MB document ceiling, so the view must raise the per-request cap — otherwise a
-    # 16-25 MB manual is rejected with a bare 413 before our handler runs.
+    # document ceiling, so the view must raise the per-request cap — otherwise a
+    # manual above 16 MB is rejected with a bare 413 before our handler runs. This
+    # also exercises the streaming write path across many flush batches.
     name = f"Doc big probe {uuid.uuid4().hex[:8]}"
     asset = _provision(ha, name)
     big = b"%PDF-1.7\n" + b"0" * (17 * 1024 * 1024) + b"\n%%EOF"
@@ -320,6 +333,102 @@ def test_upload_larger_than_ha_app_limit_succeeds(ha):
     assert doc["size"] == len(big)
     dl = ha.get(f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc['id']}")
     assert dl.status_code == 200 and len(dl.content) == len(big)
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_upload_at_exactly_the_limit_round_trips(ha):
+    # The boundary the panel's pre-check promises is usable: a file of *exactly*
+    # MAX_DOCUMENT_BYTES must be accepted, stored whole and served back byte-for-byte.
+    # This is the real proof of the streaming write — the body arrives in hundreds of
+    # chunks across ~100 flush batches, and a bug in the buffering would corrupt the
+    # length. It also pins the multipart framing overhead as *not* counting against
+    # the view's raised `_client_max_size`, which would otherwise reject a file the
+    # panel just told the user was fine.
+    name = f"Doc at-limit probe {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    head = b"%PDF-1.7\n"
+    exact = head + b"0" * (MAX_DOCUMENT_BYTES - len(head))
+    assert len(exact) == MAX_DOCUMENT_BYTES
+    doc_id = uuid.uuid4().hex
+    r = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc_id}",
+        files={"file": ("at-limit-manual.pdf", exact, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=180,
+    )
+    assert r.status_code == 200, (
+        f"at-limit upload rejected: {r.status_code} {r.text[:200]}"
+    )
+    doc = r.json()["document"]
+    assert doc["size"] == MAX_DOCUMENT_BYTES
+    dl = ha.get(f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc['id']}")
+    assert dl.status_code == 200
+    assert len(dl.content) == MAX_DOCUMENT_BYTES
+    assert dl.content[: len(head)] == head
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_upload_leaves_no_temp_files_behind(ha):
+    # Uploads spool through <documents root>/.incoming/; every exit path must clear
+    # that file, or a busy install slowly fills the config dir with 100 MB orphans.
+    name = f"Doc temp probe {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    url = f"{HA_URL}/api/home_keeper/document/{asset['id']}/{uuid.uuid4().hex}"
+    # One accepted upload...
+    ok = requests.post(
+        url,
+        files={"file": ("kept.pdf", PDF_BYTES, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=30,
+    )
+    assert ok.status_code == 200, ok.text
+    # ...and one rejected for type, which bails after the body is already on disk.
+    bad = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{uuid.uuid4().hex}",
+        files={
+            "file": ("evil.exe", b"MZ\x90\x00not a pdf", "application/octet-stream")
+        },
+        headers=_bearer(ha),
+        timeout=30,
+    )
+    assert bad.status_code == 400, bad.text
+    # ...and a malformed body carrying two file parts, where the first temp file would
+    # otherwise be orphaned when the second overwrites it.
+    two = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{uuid.uuid4().hex}",
+        files=[
+            ("file", ("first.pdf", PDF_BYTES, "application/pdf")),
+            ("file", ("second.pdf", PDF_BYTES, "application/pdf")),
+        ],
+        headers=_bearer(ha),
+        timeout=30,
+    )
+    assert two.status_code == 200, two.text
+    assert two.json()["document"]["filename"] == "second.pdf", "the last file wins"
+
+    assert _incoming_temps() == [], f"temp uploads leaked: {_incoming_temps()}"
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_upload_over_document_limit_is_rejected(ha):
+    # The other side of the ceiling: over the limit must come back as a 413 carrying a
+    # JSON {message} that names it. The panel keys off exactly that — a JSON body means
+    # "Home Keeper rejected this", while a non-JSON one means a proxy in front of HA
+    # did, and the two get different advice (issue #159).
+    name = f"Doc over-limit probe {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    too_big = b"%PDF-1.7\n" + b"0" * (MAX_DOCUMENT_BYTES + 1024) + b"\n%%EOF"
+    r = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{uuid.uuid4().hex}",
+        files={"file": ("huge-manual.pdf", too_big, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=120,
+    )
+    assert r.status_code == 413, f"expected 413, got {r.status_code} {r.text[:200]}"
+    assert f"{MAX_DOCUMENT_BYTES // (1024 * 1024)} MB" in r.json()["message"]
+    # Nothing was stored.
+    after = next(a for a in _assets(ha) if a["id"] == asset["id"])
+    assert not [d for d in after.get("documents", []) if d["kind"] == "file"]
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 

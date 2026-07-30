@@ -6,6 +6,7 @@ path-traversal guard. The HA-bound storage/HTTP wiring lives in ``manuals.py`` a
 exercised by the Docker integration tests.
 """
 
+import os
 from pathlib import Path
 
 import hk_documents as d
@@ -61,9 +62,82 @@ def test_validate_upload_rejects_empty_oversized_and_unknown():
         d.validate_upload("x.pdf", b"")
     with pytest.raises(AssetValidationError):
         d.validate_upload("x.exe", b"MZ\x90\x00garbage")
-    big = PDF + b"0" * (25 * 1024 * 1024 + 1)
+    # Declared via the stream variant so the ceiling can be exercised without
+    # allocating MAX_DOCUMENT_BYTES of ballast in the test process.
     with pytest.raises(AssetValidationError):
-        d.validate_upload("big.pdf", big)
+        d.validate_upload_stream("big.pdf", PDF, d.MAX_DOCUMENT_BYTES + 1)
+
+
+def test_validate_upload_stream_matches_the_in_memory_variant():
+    # The HTTP path never holds the file, so it validates from (header, size) instead
+    # of the whole blob — the two must agree on type, name and every rejection.
+    assert d.validate_upload_stream("manual.pdf", PDF, len(PDF)) == d.validate_upload(
+        "manual.pdf", PDF
+    )
+    with pytest.raises(AssetValidationError):
+        d.validate_upload_stream("x.pdf", PDF, 0)
+    with pytest.raises(AssetValidationError):
+        d.validate_upload_stream("x.exe", b"MZ\x90\x00garbage", 64)
+
+
+def test_validate_upload_stream_accepts_exactly_the_ceiling():
+    content_type, filename = d.validate_upload_stream(
+        "huge.pdf", PDF, d.MAX_DOCUMENT_BYTES
+    )
+    assert (content_type, filename) == ("application/pdf", "huge.pdf")
+
+
+def test_sniff_bytes_covers_every_signature():
+    # validate_upload_stream only ever sees SNIFF_BYTES of the file, so a signature
+    # that reads past it would silently stop matching.
+    for sample in (PDF, PNG, JPEG, GIF, WEBP):
+        assert d.sniff_content_type(sample[: d.SNIFF_BYTES]) == d.sniff_content_type(
+            sample
+        )
+
+
+def test_purge_stale_temps_spares_uploads_still_in_flight(tmp_path):
+    # The whole reason this is age-based: setup re-runs on a config entry reload while
+    # the upload view stays registered, so a blanket wipe would delete the temp file a
+    # live upload is still writing. A fresh file must survive; an old one must not.
+    fresh = tmp_path / "upload-live"
+    fresh.write_bytes(b"partial")
+    stale = tmp_path / "upload-abandoned"
+    stale.write_bytes(b"leftover from a crash")
+    os.utime(stale, (0, 0))  # epoch — unambiguously older than any cutoff
+
+    d.purge_stale_temps(tmp_path, max_age_s=3600)
+
+    assert fresh.exists(), "an in-flight upload must not be deleted"
+    assert not stale.exists(), "a stray temp upload must be reclaimed"
+
+
+def test_purge_stale_temps_ignores_foreign_files_and_missing_dir(tmp_path):
+    # Only our own upload-* temps are ours to delete...
+    other = tmp_path / "something-else"
+    other.write_bytes(b"not ours")
+    os.utime(other, (0, 0))
+    d.purge_stale_temps(tmp_path, max_age_s=0)
+    assert other.exists()
+    # ...and a missing directory (nothing uploaded yet) is not an error.
+    d.purge_stale_temps(tmp_path / "nope", max_age_s=0)
+
+
+def test_purge_stale_temps_survives_an_unremovable_entry(tmp_path):
+    # An entry that can't be deleted (here a directory, which unlink refuses) must not
+    # abort the sweep — the real-world version is losing a race with the upload that
+    # owns the file, and the rest of the strays still need reclaiming.
+    blocker = tmp_path / "upload-directory"
+    blocker.mkdir()
+    os.utime(blocker, (0, 0))
+    stale = tmp_path / "upload-stale"
+    stale.write_bytes(b"leftover")
+    os.utime(stale, (0, 0))
+
+    d.purge_stale_temps(tmp_path, max_age_s=0)
+
+    assert blocker.is_dir(), "an undeletable entry is skipped, not fatal"
+    assert not stale.exists(), "the sweep continues past it"
 
 
 def test_safe_segment_reduces_or_rejects():

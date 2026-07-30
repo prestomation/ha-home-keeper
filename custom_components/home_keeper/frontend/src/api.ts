@@ -321,6 +321,141 @@ export async function signDocumentUrl(
   return res.url;
 }
 
+/** Progress of an in-flight upload, reported to `UploadOptions.onProgress`. */
+export interface UploadProgress {
+  /** Bytes of the request body sent so far. */
+  loaded: number;
+  /** Total bytes to send; 0 when the browser can't compute it. */
+  total: number;
+  /** No byte counts available (yet) — show an indeterminate bar. */
+  indeterminate: boolean;
+  /** The body is fully sent and we're now waiting on the server to store it. */
+  sent: boolean;
+}
+
+/** Per-request upload options: progress reporting and cancellation. */
+export interface UploadOptions {
+  onProgress?: (progress: UploadProgress) => void;
+  signal?: AbortSignal;
+}
+
+/** An upload failure, tagged with the HTTP status and whether Home Keeper (vs a proxy
+ *  in front of HA) produced the message. `aborted` marks a user cancellation (nothing
+ *  to report); `bytesSent` is how far the body got, which distinguishes a connection
+ *  dropped *mid-body* (a proxy's size limit) from one that never opened. */
+export interface UploadError extends Error {
+  status?: number;
+  serverMessage?: boolean;
+  aborted?: boolean;
+  bytesSent?: number;
+}
+
+/**
+ * POST a multipart body to a Home Keeper upload view, reporting byte progress.
+ *
+ * Deliberately `XMLHttpRequest` and not `fetch`: the Fetch spec exposes progress only
+ * for the *response* body, so a `fetch` upload is a black box until it finishes. (The
+ * `ReadableStream` + `duplex: 'half'` workaround is Chromium-only and needs HTTP/2 or
+ * HTTPS — no good for a panel plenty of people open over plain http on the LAN.)
+ * `xhr.upload.onprogress` is still the only portable way to drive a progress bar.
+ *
+ * No `xhr.timeout` is set (0 = none) on purpose: a 20 MB upload over a slow WAN link
+ * must not be killed by a client-side timer. Cancellation is explicit, via `signal`.
+ */
+function postUpload<T>(
+  url: string,
+  token: string | undefined,
+  body: FormData,
+  opts?: UploadOptions,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let bytesSent = 0;
+
+    const fail = (message: string, extra: Partial<UploadError> = {}): void => {
+      const error = new Error(message) as UploadError;
+      error.bytesSent = bytesSent;
+      Object.assign(error, extra);
+      reject(error);
+    };
+
+    xhr.open('POST', url, true);
+    // Unlike fetch's options object, headers can only be set after open().
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    // Leave responseType as text: the proxy detection below relies on JSON.parse
+    // *throwing* for a non-JSON error body. Setting 'json' would silently null it out.
+
+    // Always tracked, even with no onProgress callback: `bytesSent` is what tells a
+    // failed upload apart from one cut off mid-body (a proxy's size limit).
+    xhr.upload.addEventListener('progress', (e) => {
+      bytesSent = e.loaded;
+      opts?.onProgress?.({
+        loaded: e.loaded,
+        total: e.lengthComputable ? e.total : 0,
+        indeterminate: !e.lengthComputable,
+        sent: false,
+      });
+    });
+    // The last byte is on the wire, but the server still has to validate the bytes,
+    // write the blob and save the store — a real pause for a large file. Flag it so
+    // the UI can say "saving" instead of sitting at 100% looking hung.
+    xhr.upload.addEventListener('load', () => {
+      opts?.onProgress?.({ loaded: bytesSent, total: bytesSent, indeterminate: true, sent: true });
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as T);
+        } catch {
+          fail(`Upload failed (${xhr.status})`, { status: xhr.status, serverMessage: false });
+        }
+        return;
+      }
+      // Only a JSON {message} is a real Home Keeper error. A non-JSON body (e.g. an
+      // nginx HTML "413 Request Entity Too Large") means something *in front of* HA
+      // rejected the upload — surface that distinctly so the panel can guide the user.
+      let detail = '';
+      try {
+        detail = (JSON.parse(xhr.responseText) as { message?: string }).message ?? '';
+      } catch {
+        /* non-JSON body (a proxy's error page) — leave detail empty */
+      }
+      fail(detail || `Upload failed (${xhr.status})`, {
+        status: xhr.status,
+        serverMessage: !!detail,
+      });
+    });
+
+    // A transport-level failure has no status. Whether the body was still in flight
+    // tells the panel whether to suspect a proxy body limit that cut the connection.
+    xhr.addEventListener('error', () => {
+      fail(`Upload failed (${xhr.status || 0})`, { status: xhr.status || 0, serverMessage: false });
+    });
+    xhr.addEventListener('abort', () => {
+      fail('Upload cancelled', { aborted: true });
+    });
+
+    if (opts?.signal) {
+      if (opts.signal.aborted) {
+        fail('Upload cancelled', { aborted: true });
+        return;
+      }
+      opts.signal.addEventListener('abort', () => xhr.abort(), { once: true });
+    }
+
+    xhr.send(body);
+  });
+}
+
+/** Build the multipart body shared by both upload views. */
+function uploadBody(file: File, name?: string): FormData {
+  const body = new FormData();
+  body.append('file', file, file.name);
+  if (name) body.append('name', name);
+  return body;
+}
+
 /**
  * Upload a file document to an appliance via the Home Keeper HTTP view. The binary
  * can't ride the websocket, so this POSTs multipart with the auth token. `documentId`
@@ -332,39 +467,15 @@ export async function uploadAssetDocument(
   documentId: string,
   file: File,
   name?: string,
+  opts?: UploadOptions,
 ): Promise<Asset> {
-  const body = new FormData();
-  body.append('file', file, file.name);
-  if (name) body.append('name', name);
-  const token = hass.auth?.data?.access_token;
-  const res = await fetch(`/api/home_keeper/document/${assetId}/${documentId}`, {
-    method: 'POST',
-    body,
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
-  if (!res.ok) {
-    // Only a JSON {message} is a real Home Keeper error. A non-JSON body (e.g. an
-    // nginx HTML "413 Request Entity Too Large") means something *in front of* HA
-    // rejected the upload — surface that distinctly so the panel can guide the user.
-    let detail = '';
-    try {
-      detail = ((await res.json()) as { message?: string }).message ?? '';
-    } catch {
-      /* non-JSON body (a proxy's error page) — leave detail empty */
-    }
-    const error = new Error(detail || `Upload failed (${res.status})`) as UploadError;
-    error.status = res.status;
-    error.serverMessage = !!detail;
-    throw error;
-  }
-  return ((await res.json()) as { asset: Asset }).asset;
-}
-
-/** An upload failure, tagged with the HTTP status and whether Home Keeper (vs a proxy
- *  in front of HA) produced the message. */
-export interface UploadError extends Error {
-  status?: number;
-  serverMessage?: boolean;
+  const res = await postUpload<{ asset: Asset }>(
+    `/api/home_keeper/document/${assetId}/${documentId}`,
+    hass.auth?.data?.access_token,
+    uploadBody(file, name),
+    opts,
+  );
+  return res.asset;
 }
 
 /**
@@ -384,29 +495,15 @@ export async function uploadPartFile(
   partId: string,
   file: File,
   name?: string,
+  opts?: UploadOptions,
 ): Promise<Part> {
-  const body = new FormData();
-  body.append('file', file, file.name);
-  if (name) body.append('name', name);
-  const token = hass.auth?.data?.access_token;
-  const res = await fetch(`/api/home_keeper/part_document/${assetId}/${partId}`, {
-    method: 'POST',
-    body,
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
-  if (!res.ok) {
-    let detail = '';
-    try {
-      detail = ((await res.json()) as { message?: string }).message ?? '';
-    } catch {
-      /* non-JSON body (a proxy's error page) — leave detail empty */
-    }
-    const error = new Error(detail || `Upload failed (${res.status})`) as UploadError;
-    error.status = res.status;
-    error.serverMessage = !!detail;
-    throw error;
-  }
-  return ((await res.json()) as { part: Part }).part;
+  const res = await postUpload<{ part: Part }>(
+    `/api/home_keeper/part_document/${assetId}/${partId}`,
+    hass.auth?.data?.access_token,
+    uploadBody(file, name),
+    opts,
+  );
+  return res.part;
 }
 
 /** Detach a part's attached file; its on-disk blob is deleted. */
