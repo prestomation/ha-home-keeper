@@ -22,10 +22,10 @@ add_task:
       name: Recurrence type
       description: >-
         floating (measured from completion), fixed (anchored schedule), one-off
-        (do-once — uses "due", goes dormant when completed), triggered
-        (condition-driven — no schedule; an owning integration arms it via trigger_task
+        (do-once, uses "due", goes dormant when completed), triggered
+        (condition-driven, no schedule; an owning integration arms it via trigger_task
         and clears it via complete_task), or sensor (due-state derived from a bound
-        numeric sensor — uses "sensor"). interval/unit/freq/anchor are N/A for one-off,
+        numeric sensor, uses "sensor"). interval/unit/freq/anchor are N/A for one-off,
         triggered, and sensor.
       selector:
         select:
@@ -37,7 +37,7 @@ add_task:
             - sensor
     interval:
       name: Interval
-      description: Repeat every N units/steps (floating/fixed only; N/A for triggered).
+      description: Repeat every N units/steps (floating/fixed only, N/A for triggered).
       example: 1
       selector:
         number:
@@ -152,7 +152,7 @@ add_task:
         How much context to capture when this task is completed: "none" (mark done
         with no prompt), "optional" (offer the note/cost/photo/who fields), or
         "required" (require the fields listed in completion_required_fields before the
-        task can be marked done). Panel-only capture prompt; defaults to "optional".
+        task can be marked done). Panel-only capture prompt. Defaults to "optional".
       advanced: true
       selector:
         select:
@@ -164,7 +164,7 @@ add_task:
       name: Required completion fields
       description: >-
         Which completion-metadata fields the panel makes mandatory when
-        completion_detail is "required" — any of note, cost, photo, who.
+        completion_detail is "required": any of note, cost, photo, who.
       advanced: true
       selector:
         select:
@@ -310,7 +310,7 @@ update_task:
       name: Required completion fields
       description: >-
         Which completion-metadata fields the panel makes mandatory when
-        completion_detail is "required" — any of note, cost, photo, who.
+        completion_detail is "required": any of note, cost, photo, who.
       advanced: true
       selector:
         select:
@@ -357,9 +357,9 @@ complete_task:
     origin:
       name: Origin
       description: >-
-        Optional free-form marker echoed back in the home_keeper_task_completed event,
+        Optional free-form marker echoed back in the home_keeper_task_completed event
         so a contributing integration can recognise and ignore the completion it
-        triggered (loop prevention). Home Keeper does not interpret it.
+        triggered (loop prevention), and Home Keeper never interprets it.
       selector:
         text:
     note:
@@ -484,7 +484,7 @@ delete_completion:
 delete_archived_completion:
   name: Delete archived completion
   description: >-
-    Remove one completion from an appliance's archived task history — the history
+    Remove one completion from an appliance's archived task history: the history
     kept on the asset after its task was deleted. Identified by the originating task
     id and the completion timestamp.
   fields:
@@ -510,10 +510,10 @@ delete_archived_completion:
 trigger_task:
   name: Trigger task
   description: >-
-    Arm a condition-driven (triggered) task so it reads as due now — the owner-facing
-    counterpart to complete_task (which clears it back to dormant). Call it when the
-    condition you monitor becomes true again (e.g. a battery drops low after a prior
-    replacement). Idempotent; only valid for triggered tasks.
+    Arm a condition-driven (triggered) task so it reads as due now. This is the
+    owner-facing counterpart to complete_task (which clears it back to dormant).
+    Call it when the condition you monitor becomes true again (e.g. a battery drops
+    low after a prior replacement). Idempotent. Only valid for triggered tasks.
   fields:
     task_id:
       name: Task ID
@@ -526,7 +526,7 @@ snooze_task:
   name: Snooze task
   description: >-
     Defer a task's due date by a number of hours without recording a completion or
-    advancing its recurrence — "remind me later". A fresh overdue/due-soon reminder
+    advancing its recurrence: "remind me later". A fresh overdue/due-soon reminder
     fires when the snooze lapses.
   fields:
     task_id:
@@ -548,18 +548,18 @@ snooze_task:
     origin:
       name: Origin
       description: >-
-        Optional free-form marker echoed back in the home_keeper_task_snoozed event,
+        Optional free-form marker echoed back in the home_keeper_task_snoozed event
         so a contributing integration can recognise and ignore the snooze it triggered
-        (loop prevention). Home Keeper does not interpret it.
+        (loop prevention), and Home Keeper never interprets it.
       selector:
         text:
 
 skip_task:
   name: Skip task
   description: >-
-    Advance a task to its next occurrence without recording a completion — "skip this
-    one". A floating task jumps a fresh interval, a fixed task advances one scheduled
-    occurrence, and a one-off/triggered/sensor task goes dormant.
+    Advance a task to its next occurrence without recording a completion: "skip this
+    one". Floating tasks jump a fresh interval and fixed tasks advance one scheduled
+    occurrence. Other task types (one-off, triggered, or sensor) simply go dormant.
   fields:
     task_id:
       name: Task ID
@@ -570,9 +570,9 @@ skip_task:
     origin:
       name: Origin
       description: >-
-        Optional free-form marker echoed back in the home_keeper_task_skipped event,
+        Optional free-form marker echoed back in the home_keeper_task_skipped event
         so a contributing integration can recognise and ignore the skip it triggered
-        (loop prevention). Home Keeper does not interpret it.
+        (loop prevention), and Home Keeper never interprets it.
       selector:
         text:
 
@@ -580,9 +580,9 @@ set_task_consumable:
   name: Link task to a consumable
   description: >-
     Link a task to an appliance consumable/part so completing the task consumes one
-    spare from the part's stock — and fires a home_keeper_part_low_stock event when
+    spare from the part's stock, and fires a home_keeper_part_low_stock event when
     the count crosses the part's reorder threshold, so you can automate a
-    shopping-list add or reorder. Use it to wire any task (for example a sensor task
+    shopping-list add or reorder. Use it to wire any task (e.g. a sensor task
     armed by a fridge's filter-life entity) to the consumable it depletes. Omit both
     asset_id and part_id to clear the link.
   fields:
@@ -704,7 +704,7 @@ add_asset:
       description: >-
         Manuals / warranties / receipts: a list of entries, each either a link
         (kind: link, with a url) or an uploaded file. Add file documents from the
-        panel — this service handles link documents only.
+        panel. This service handles link documents only.
       selector:
         object:
     icon:
@@ -716,9 +716,10 @@ add_asset:
       name: Metadata
       description: >-
         Free-form metadata: a list of entries, each with a label, a type
-        (text/link/date) and a value — e.g. serial number, warranty expiry,
-        purchase date, provider, links. A date entry with track: true also becomes
-        a date sensor on the device (for automations like "warranty expiring soon").
+        (text/link/date) and a value, e.g. serial number, warranty expiry,
+        purchase date, provider, links. A date entry with track set to true also
+        becomes a date sensor on the device (for automations like "warranty
+        expiring soon").
       selector:
         object:
     parts:
@@ -895,7 +896,7 @@ add_asset_document:
   name: Add appliance document
   description: >-
     Attach a link document (manual / warranty / receipt) to an appliance. Upload
-    file documents from the panel; this service handles links only.
+    file documents from the panel. This service handles links only.
   fields:
     asset_id:
       name: Asset ID
@@ -906,7 +907,7 @@ add_asset_document:
     document:
       name: Document
       description: >-
-        The document to add: an object with name and url (kind defaults to link).
+        The document to add is an object with name and url (kind defaults to link).
       required: true
       example: '{"name": "Manual", "url": "https://example.com/manual.pdf"}'
       selector:
@@ -934,7 +935,7 @@ remove_asset_document:
 update_asset_document:
   name: Update appliance document
   description: >-
-    Edit an existing document on an appliance — rename it, or (for link
+    Edit an existing document on an appliance: rename it, or (for link
     documents) change its URL. Uploaded file documents can only be renamed.
   fields:
     asset_id:
@@ -952,7 +953,7 @@ update_asset_document:
     changes:
       name: Changes
       description: >-
-        The fields to change: an object with an optional name and (for link
+        The fields to change are an object with an optional name and (for link
         documents) an optional url.
       required: true
       example: '{"name": "Owner''s manual", "url": "https://example.com/manual.pdf"}'
@@ -962,7 +963,7 @@ update_asset_document:
 export_inventory:
   name: Export inventory
   description: >-
-    Return a home inventory for insurance as a response — one row per appliance
+    Return a home inventory for insurance as a response: one row per appliance
     (make/model/serial, purchase + warranty dates, replacement cost, on-hand spares
     value) with rolled-up totals, plus a ready-to-save CSV under the "csv" key.
 
