@@ -13,8 +13,9 @@ See ``docs/PROFILES_REFACTOR_PLAN.md`` / ``docs/ACTIONABLE_NOTIFICATIONS_PLAN.md
 
 from __future__ import annotations
 
+import functools
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
@@ -134,6 +135,46 @@ async def _send_payload(
             _LOGGER.debug("Home Keeper notify target %r failed: %s", target, err)
 
 
+async def _build_payload(
+    hass: HomeAssistant,
+    notification: dict[str, Any],
+    queue: list[dict[str, Any]],
+    *,
+    now: datetime,
+    lang: str,
+) -> tuple[dict[str, Any], str | None]:
+    """Build the ``notify`` payload for *queue*, off the event loop.
+
+    ``notifications.build_notification``/``build_digest`` resolve translated strings
+    and Babel CLDR plural rules, which do blocking file I/O on first use per language
+    (``notifications.py`` stays HA-free on purpose — see its module docstring — so it
+    can't call ``hass.async_add_executor_job`` itself). Running that inline here trips
+    Home Assistant's blocking-call detector (#150).
+    """
+    if notification["style"] == notifications.STYLE_DIGEST:
+        payload = await hass.async_add_executor_job(
+            functools.partial(
+                notifications.build_digest,
+                queue,
+                notification=notification,
+                now=now,
+                lang=lang,
+            )
+        )
+        return payload, None
+    head = queue[0]
+    payload = await hass.async_add_executor_job(
+        functools.partial(
+            notifications.build_notification,
+            head,
+            notification=notification,
+            now=now,
+            lang=lang,
+        )
+    )
+    return payload, head["id"]
+
+
 async def _send(
     hass: HomeAssistant,
     coord: HomeKeeperCoordinator,
@@ -165,17 +206,9 @@ async def _send(
         )
         return len(queue), None
     lang = hass.config.language
-    if notification["style"] == notifications.STYLE_DIGEST:
-        payload = notifications.build_digest(
-            queue, notification=notification, now=now, lang=lang
-        )
-        sent_id: str | None = None
-    else:
-        head = queue[0]
-        payload = notifications.build_notification(
-            head, notification=notification, now=now, lang=lang
-        )
-        sent_id = head["id"]
+    payload, sent_id = await _build_payload(
+        hass, notification, queue, now=now, lang=lang
+    )
     await _send_payload(hass, notification["targets"], payload)
     _LOGGER.debug(
         "Home Keeper sent %s notification %r (%d due, reason=%s)",
@@ -348,8 +381,12 @@ def async_setup_notifications(
                 hass, coord, notification, reason="walk-advance"
             )
             if matched == 0:
-                all_clear = notifications.build_all_clear(
-                    notification, lang=hass.config.language
+                all_clear = await hass.async_add_executor_job(
+                    functools.partial(
+                        notifications.build_all_clear,
+                        notification,
+                        lang=hass.config.language,
+                    )
                 )
                 await _send_payload(hass, notification["targets"], all_clear)
 
