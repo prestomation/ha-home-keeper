@@ -118,6 +118,16 @@ def _load_notifier():
     sys.modules["hk.notifier"] = module
     spec.loader.exec_module(module)
     module.dt_util = types.SimpleNamespace(now=lambda: NOW)
+    # Our fake tasks carry no device_id/area_id, so the registries themselves are
+    # never consulted — but when *real* HA is installed (as in CI, via
+    # pytest-homeassistant-custom-component), the real ``device_registry``/
+    # ``area_registry`` ``async_get`` are HA's ``@singleton``-decorated helpers,
+    # which need a real ``hass.data`` dict our minimal ``_FakeHass`` doesn't have.
+    # Overriding the names notifier.py bound (``dr``/``ar``) sidesteps that
+    # regardless of whether real HA is present, the same way ``dt_util`` is pinned
+    # above.
+    module.dr = types.SimpleNamespace(async_get=lambda hass: None)
+    module.ar = types.SimpleNamespace(async_get=lambda hass: None)
     return module
 
 
