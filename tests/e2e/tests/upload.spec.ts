@@ -24,7 +24,7 @@ async function openApplianceEditor(page) {
 
 /**
  * Put a file on the documents picker without shipping its bytes through CDP.
- * `setInputFiles` with 26 MB is slow and pointless — the pre-check only reads
+ * `setInputFiles` with 100+ MB is slow and pointless — the pre-check only reads
  * `file.size`, and a real oversized upload would take minutes to be refused.
  */
 async function pickFile(panel, sizeBytes: number, filename: string) {
@@ -44,13 +44,13 @@ async function pickFile(panel, sizeBytes: number, filename: string) {
 
 test('an oversized file fails visibly, next to the upload button', async ({ page }) => {
   const panel = await openApplianceEditor(page);
-  await pickFile(panel, 26 * 1024 * 1024, 'huge-manual.pdf');
+  await pickFile(panel, 101 * 1024 * 1024, 'huge-manual.pdf');
 
   const alert = panel.locator('.hk-doc-add ha-alert[alert-type="error"]');
   await expect(alert).toBeVisible();
   // The regression assertion for #159: visible *without scrolling*.
   await expect(alert).toBeInViewport();
-  await expect(alert).toContainText('25 MB');
+  await expect(alert).toContainText('100 MB');
 
   // ...and it sits next to the control that caused it, not hundreds of px away.
   const button = panel.locator('.hk-doc-add ha-button', { hasText: 'Upload file' });

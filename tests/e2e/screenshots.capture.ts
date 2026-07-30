@@ -484,7 +484,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     fullPage: true,
   });
 
-  // 32b. Upload rejected before it starts — picking a file over the 25 MB ceiling
+  // 32b. Upload rejected before it starts — picking a file over the 100 MB ceiling
   // fails instantly, and the error renders right under the Upload file button
   // instead of in the form-level banner far below the fold (issue #159).
   await docForm
@@ -493,7 +493,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
       const file = new File([new Uint8Array(8)], 'water-heater-manual.pdf', {
         type: 'application/pdf',
       });
-      Object.defineProperty(file, 'size', { value: 26 * 1024 * 1024 });
+      Object.defineProperty(file, 'size', { value: 101 * 1024 * 1024 });
       const dt = new DataTransfer();
       dt.items.add(file);
       Object.defineProperty(picker, 'files', { value: dt.files, configurable: true });
@@ -501,7 +501,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     });
   const uploadError = docForm.locator('.hk-doc-add ha-alert[alert-type="error"]');
   await expect(uploadError).toBeVisible();
-  await expect(uploadError).toContainText('25 MB');
+  await expect(uploadError).toContainText('100 MB');
   // Viewport-framed on the documents area: a fullPage shot of this very long form
   // shrinks the error to a few unreadable pixels.
   await docForm.locator('.hk-doc-add').scrollIntoViewIfNeeded();

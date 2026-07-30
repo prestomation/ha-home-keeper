@@ -179,7 +179,7 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(buyPart.getByText('Restock quantity', { exact: false })).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
 
-    // 4c. Uploading a manual — the documents editor. Picking a file over the 25 MB
+    // 4c. Uploading a manual — the documents editor. Picking a file over the 100 MB
     //     ceiling is refused instantly, with the reason right under the button that
     //     was pressed (rather than in a banner far below the fold), then a real
     //     upload runs with a progress bar, percentage and byte counter.
@@ -190,7 +190,7 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
       const file = new File([new Uint8Array(8)], 'water-heater-manual.pdf', {
         type: 'application/pdf',
       });
-      Object.defineProperty(file, 'size', { value: 26 * 1024 * 1024 });
+      Object.defineProperty(file, 'size', { value: 101 * 1024 * 1024 });
       const dt = new DataTransfer();
       dt.items.add(file);
       Object.defineProperty(picker, 'files', { value: dt.files, configurable: true });

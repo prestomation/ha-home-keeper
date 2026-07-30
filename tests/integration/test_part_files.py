@@ -11,6 +11,7 @@ import uuid
 
 import requests
 from conftest import HA_URL, call_service
+from hk_const import MAX_DOCUMENT_BYTES
 
 PDF_BYTES = b"%PDF-1.7\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"0" * 32
@@ -107,19 +108,19 @@ def test_upload_rejects_non_allowlisted_type(ha):
 
 def test_upload_over_document_limit_is_rejected(ha):
     # The part-file view raises aiohttp's per-request cap the same way the document
-    # view does, so it must enforce the same 25 MB ceiling itself — with a JSON body
-    # the panel can tell apart from a reverse proxy's 413 (issue #159).
+    # view does, so it must enforce the same ceiling itself — with a JSON body the
+    # panel can tell apart from a reverse proxy's 413 (issue #159).
     name = f"Part file over-limit {uuid.uuid4().hex[:8]}"
     asset, part_id = _provision_with_part(ha, name)
-    too_big = b"%PDF-1.7\n" + b"0" * (26 * 1024 * 1024) + b"\n%%EOF"
+    too_big = b"%PDF-1.7\n" + b"0" * (MAX_DOCUMENT_BYTES + 1024) + b"\n%%EOF"
     r = requests.post(
         f"{HA_URL}/api/home_keeper/part_document/{asset['id']}/{part_id}",
         files={"file": ("huge-receipt.pdf", too_big, "application/pdf")},
         headers=_bearer(ha),
-        timeout=60,
+        timeout=120,
     )
     assert r.status_code == 413, f"expected 413, got {r.status_code} {r.text[:200]}"
-    assert "25 MB" in r.json()["message"]
+    assert f"{MAX_DOCUMENT_BYTES // (1024 * 1024)} MB" in r.json()["message"]
     assert _part(ha, asset["id"], part_id)["file_name"] is None
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 

@@ -5025,7 +5025,7 @@ export class HomeKeeperPanel extends HTMLElement {
       indeterminate: p.indeterminate,
       sent: p.sent,
     });
-    // Whole-percent changes only; a 25 MB upload fires progress events far more often
+    // Whole-percent changes only; a large upload fires progress events far more often
     // than the bar can meaningfully move.
     if (!p.sent && this._uploadPercent(state) === before) return;
     const host = this.shadowRoot?.getElementById('hk-upload');

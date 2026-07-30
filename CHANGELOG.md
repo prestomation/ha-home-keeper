@@ -8,6 +8,12 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 ### Added
 
+- **The upload limit is now 100 MB (was 25 MB).** Uploads are streamed straight to
+  disk as they arrive instead of being held in memory, so a large scanned manual no
+  longer costs Home Assistant hundreds of megabytes of RAM to accept — peak memory is
+  now a fixed ~1 MB buffer no matter how big the file is. Note that a reverse proxy
+  in front of Home Assistant enforces its own body limit (nginx defaults to just
+  1 MB), so raise that too if you upload remotely — see the README.
 - **Upload progress for appliance documents and part files.** Attaching a manual,
   receipt or photo now shows a progress bar with the percentage and byte count
   (`manual.pdf · 42% · 4.2 MB of 10 MB`), a **Cancel upload** button, and a

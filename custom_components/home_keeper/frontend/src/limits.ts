@@ -11,4 +11,4 @@
  */
 
 /** Hard per-file upload ceiling — mirrors MAX_DOCUMENT_BYTES in const.py. */
-export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
+export const MAX_DOCUMENT_BYTES = 100 * 1024 * 1024;

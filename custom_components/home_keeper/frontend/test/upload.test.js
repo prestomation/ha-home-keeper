@@ -74,7 +74,7 @@ class FakeXHR {
 const HASS = { auth: { data: { access_token: 'tok-123' } } };
 
 function makeFile(name, size, type = 'application/pdf') {
-  // A real File of 26 MB would be slow and pointless — only `.size` is read.
+  // A real File over the ceiling would be slow and pointless — only `.size` is read.
   const file = new File(['x'], name, { type });
   Object.defineProperty(file, 'size', { value: size });
   return file;
@@ -152,11 +152,11 @@ describe('api upload transport', () => {
 
   it('surfaces a Home Keeper 413 with its JSON message (serverMessage: true)', async () => {
     const p = api.uploadAssetDocument(HASS, 'a', 'd', makeFile('big.pdf', 1));
-    only().respond(413, JSON.stringify({ message: 'File exceeds the 25 MB limit.' }));
+    only().respond(413, JSON.stringify({ message: 'File exceeds the 100 MB limit.' }));
     await expect(p).rejects.toMatchObject({
       status: 413,
       serverMessage: true,
-      message: 'File exceeds the 25 MB limit.',
+      message: 'File exceeds the 100 MB limit.',
     });
   });
 
@@ -309,11 +309,11 @@ describe('oversized file is refused before it is uploaded (issue #159)', () => {
       panel.shadowRoot.querySelector('.hk-doc-add ha-alert[alert-type="error"]'),
     );
     expect(alert, 'error should render next to the upload control').toBeTruthy();
-    expect(alert.textContent).toContain('25 MB');
+    expect(alert.textContent).toContain('100 MB');
 
     // ...and HA's snackbar fires too, so it is visible at any scroll position.
     expect(toasts).toHaveLength(1);
-    expect(toasts[0]).toContain('25 MB');
+    expect(toasts[0]).toContain('100 MB');
   });
 
   it('does the same for a part file', async () => {
@@ -330,7 +330,7 @@ describe('oversized file is refused before it is uploaded (issue #159)', () => {
       panel.shadowRoot.querySelector('.hk-part ha-alert[alert-type="error"]'),
     );
     expect(alert, 'error should render next to the attach control').toBeTruthy();
-    expect(toasts[0]).toContain('25 MB');
+    expect(toasts[0]).toContain('100 MB');
   });
 
   it('accepts a file exactly at the limit', async () => {

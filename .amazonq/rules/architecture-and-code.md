@@ -320,6 +320,18 @@ related-devices sections, which is why upload failures read as "nothing happened
 checking "an error exists" during render, since `mergeAsset` clears the error on every
 keystroke — and clear a stale error when the next attempt succeeds.
 
+### Uploads stream to disk — never buffer a whole file in memory
+`manuals._parse_upload` spools each multipart file part to a temp file under
+`<documents root>/.incoming/`, flushing at most `_FLUSH_BYTES` at a time, then moves it
+into place with an atomic same-filesystem rename. Peak memory is therefore independent
+of `MAX_DOCUMENT_BYTES` — the reason that ceiling can be 100 MB at all. Consequences to
+preserve: validation works from `(header, size)` via `documents.validate_upload_stream`
+(only `SNIFF_BYTES` are ever kept); the caller **owns the temp file** and must always
+finish with `async_discard_upload` (a no-op after the move); downloads use
+`web.FileResponse`, never a full read; and setup calls `async_cleanup_temp_uploads` so a
+restart mid-upload can't strand a partial file. Don't reintroduce a `bytes`-returning
+read/write on this path.
+
 ### Backend constants the panel needs live in `frontend/src/limits.ts`
 TypeScript can't import a Python constant, so a limit the panel must enforce
 client-side (e.g. `MAX_DOCUMENT_BYTES`, checked before uploading so an oversized file

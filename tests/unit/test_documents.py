@@ -61,9 +61,38 @@ def test_validate_upload_rejects_empty_oversized_and_unknown():
         d.validate_upload("x.pdf", b"")
     with pytest.raises(AssetValidationError):
         d.validate_upload("x.exe", b"MZ\x90\x00garbage")
-    big = PDF + b"0" * (25 * 1024 * 1024 + 1)
+    # Declared via the stream variant so the ceiling can be exercised without
+    # allocating MAX_DOCUMENT_BYTES of ballast in the test process.
     with pytest.raises(AssetValidationError):
-        d.validate_upload("big.pdf", big)
+        d.validate_upload_stream("big.pdf", PDF, d.MAX_DOCUMENT_BYTES + 1)
+
+
+def test_validate_upload_stream_matches_the_in_memory_variant():
+    # The HTTP path never holds the file, so it validates from (header, size) instead
+    # of the whole blob — the two must agree on type, name and every rejection.
+    assert d.validate_upload_stream("manual.pdf", PDF, len(PDF)) == d.validate_upload(
+        "manual.pdf", PDF
+    )
+    with pytest.raises(AssetValidationError):
+        d.validate_upload_stream("x.pdf", PDF, 0)
+    with pytest.raises(AssetValidationError):
+        d.validate_upload_stream("x.exe", b"MZ\x90\x00garbage", 64)
+
+
+def test_validate_upload_stream_accepts_exactly_the_ceiling():
+    content_type, filename = d.validate_upload_stream(
+        "huge.pdf", PDF, d.MAX_DOCUMENT_BYTES
+    )
+    assert (content_type, filename) == ("application/pdf", "huge.pdf")
+
+
+def test_sniff_bytes_covers_every_signature():
+    # validate_upload_stream only ever sees SNIFF_BYTES of the file, so a signature
+    # that reads past it would silently stop matching.
+    for sample in (PDF, PNG, JPEG, GIF, WEBP):
+        assert d.sniff_content_type(sample[: d.SNIFF_BYTES]) == d.sniff_content_type(
+            sample
+        )
 
 
 def test_safe_segment_reduces_or_rejects():
