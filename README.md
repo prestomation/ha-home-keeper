@@ -26,7 +26,7 @@
 | custom\_components/home\_keeper/manuals.py             |      299 |      299 |       72 |        0 |      0% |    21-664 |
 | custom\_components/home\_keeper/models.py              |      284 |        8 |      158 |        4 |     97% |177-178, 205, 304, 308, 392, 396-397 |
 | custom\_components/home\_keeper/notifications.py       |      133 |        8 |       40 |        1 |     94% |122-124, 169-170, 178-179, 233 |
-| custom\_components/home\_keeper/notifier.py            |      144 |      144 |       56 |        0 |      0% |    14-364 |
+| custom\_components/home\_keeper/notifier.py            |      147 |       91 |       56 |        5 |     32% |57-58, 62-63, 67-68, 94-96, 98-100, 118-124, 134-135, 155-164, 195, 201-207, 235-244, 257-262, 279-323, 331-401 |
 | custom\_components/home\_keeper/number.py              |       68 |       68 |       16 |        0 |      0% |    11-130 |
 | custom\_components/home\_keeper/options.py             |       47 |       47 |       16 |        0 |      0% |    15-135 |
 | custom\_components/home\_keeper/panel.py               |       29 |       29 |        4 |        0 |      0% |     10-92 |
@@ -42,7 +42,7 @@
 | custom\_components/home\_keeper/todo.py                |       61 |       61 |       18 |        0 |      0% |    10-130 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py      |      440 |      440 |       86 |        0 |      0% |     8-902 |
-| **TOTAL**                                              | **4818** | **2940** | **1624** |   **57** | **41%** |           |
+| **TOTAL**                                              | **4821** | **2887** | **1624** |   **62** | **42%** |           |
 
 
 ## Setup coverage badge
