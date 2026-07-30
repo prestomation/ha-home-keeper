@@ -36,3 +36,13 @@ jobs:
         run: pip install mypy homeassistant Babel
       - name: Mypy (strict typing)
         run: mypy custom_components/home_keeper
+
+  vale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: errata-ai/vale-action@v2
+        with:
+          fail_on_error: true
+          reporter: github-pr-review
+          filter_mode: added

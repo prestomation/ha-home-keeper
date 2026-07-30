@@ -40,6 +40,19 @@
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only `pip install pytest`: `pytest tests/unit -v`.
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
+- **User-facing prose is linted for AI-tell phrasing.** `lint.yml`'s `vale` job runs
+  the [vale-ai-tells](https://github.com/tbhb/vale-ai-tells) Vale style (pinned in
+  `.vale.ini`) over `README.md`, `CHANGELOG.md`, the canonical `docs/*.md` (not the
+  scratch `*_PLAN.md`/research docs), `website/docs/intro.md`, `strings.json`,
+  `services.yaml`, and the English frontend locale (`locales/en.json`), catching
+  things like "delve", "it's important to note", em-dash overuse, and other
+  AI-writing tells. **It's diff-scoped** (`filter_mode: added`): only lines your PR
+  touches are checked, so it's a real gate on new prose without failing on the
+  existing backlog. Run it locally with `vale sync && vale <paths>` (Vale CLI from
+  [github.com/errata-ai/vale releases](https://github.com/errata-ai/vale/releases)).
+  For an accepted false positive, either disable the rule for that file in
+  `.vale.ini` (`ai-tells.RuleName = NO`) or wrap the exception inline with
+  `<!-- vale ai-tells.RuleName = NO -->` / `<!-- vale ai-tells.RuleName = YES -->`.
 - **Every PR that touches the panel UI MUST include screenshots — no exceptions.**
   This is a hard gate: a UI change is not reviewable (or mergeable) until the PR
   body embeds current screenshots of the changed surface. The capture harness is
