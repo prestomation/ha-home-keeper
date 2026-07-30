@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Appliances | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-168/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-168/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-168/docs/guide/appliances"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Appliances | Home Keeper"><meta data-rh="true" name="description" content="Most appliances you actually maintain — a &quot;dumb&quot; fridge, furnace, or water heater —"><meta data-rh="true" property="og:description" content="Most appliances you actually maintain — a &quot;dumb&quot; fridge, furnace, or water heater —"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-168/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-168/docs/guide/appliances"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-168/docs/guide/appliances" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-168/docs/guide/appliances" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Appliances","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-168/docs/guide/appliances"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-168/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-168/assets/js/runtime~main.733db164.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-168/assets/js/runtime~main.2e4f2893.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-168/assets/js/main.4a0a25bb.js" defer="defer"></script>
 </head>
 <body>
@@ -103,21 +103,35 @@ appliance; uploading a file waits until the appliance is saved (the file is keye
 upload from the panel) — so automations can attach, rename or detach a receipt or manual
 link too.</p>
 <p><img decoding="async" loading="lazy" alt="The appliance Manuals &amp;amp; documents editor — existing documents as cards with Open / Edit / Remove actions, plus an add-a-document area with add-link and upload-file controls" src="/ha-home-keeper/pr-preview/pr-168/assets/images/32-panel-appliance-documents-39a64102619a6ebf5e35b00b8283076b.png" width="1280" height="6711" class="img_ev3q"></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="upload-progress-and-failures">Upload progress and failures<a href="#upload-progress-and-failures" class="hash-link" aria-label="Direct link to Upload progress and failures" title="Direct link to Upload progress and failures" translate="no">​</a></h4>
+<p>An upload shows a <strong>progress bar</strong> with the percentage and byte count while it runs,
+plus a <strong>Cancel upload</strong> button; once the last byte is sent it switches to <em>&quot;Saving…&quot;</em>
+for the moment Home Assistant takes to store the file. The upload and <strong>Save</strong> buttons
+are disabled meanwhile, so a save can&#x27;t race an upload in flight.</p>
+<p>If an upload fails, the reason appears <strong>right under the button you pressed</strong> and as a
+Home Assistant notification toast — no hunting for it.</p>
+<p><img decoding="async" loading="lazy" alt="An upload rejected for exceeding the 100 MB limit — the error appears directly under the Upload file button, and as a notification toast" src="/ha-home-keeper/pr-preview/pr-168/assets/images/32b-panel-appliance-upload-error-5d80b894d4362e161528d7dc360c995c.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="An upload in progress — a progress bar with percentage and byte count, and a Cancel upload button" src="/ha-home-keeper/pr-preview/pr-168/assets/images/32c-panel-appliance-upload-progress-40cf12c6c0f685a5d2d499c61daf1033.png" width="1280" height="720" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="large-uploads-413">Large uploads (413)<a href="#large-uploads-413" class="hash-link" aria-label="Direct link to Large uploads (413)" title="Direct link to Large uploads (413)" translate="no">​</a></h4>
-<p>Home Keeper accepts uploads up to <strong>25 MB</strong>. If an upload fails with <strong>HTTP 413</strong> —
-especially the panel showing <em>&quot;Upload too large…&quot;</em> — the file was almost certainly
-rejected by a <strong>reverse proxy in front of Home Assistant</strong>, before it ever reached the
-integration. The usual cause is the proxy&#x27;s request-body limit (nginx defaults
+<p>Home Keeper accepts uploads up to <strong>100 MB</strong>, and the panel checks the file&#x27;s size
+<em>before</em> uploading — so an oversized file is refused immediately, naming the file, its
+size and the limit, rather than transferring in full only to be rejected at the end.
+Uploads are streamed straight to disk, so a large manual doesn&#x27;t load into Home
+Assistant&#x27;s memory.</p>
+<p>If an upload still fails with <strong>HTTP 413</strong> — or the panel says the upload was <em>cut off
+before it finished</em> — the file was rejected by a <strong>reverse proxy in front of Home
+Assistant</strong>, before it ever reached the integration. The usual cause is the proxy&#x27;s
+request-body limit (nginx defaults
 <code>client_max_body_size</code> to just <strong>1 MB</strong>). Raise it above your largest manual:</p>
 <ul>
-<li class=""><strong>nginx</strong> (manual config): add <code>client_max_body_size 30M;</code> to the <code>server</code> (or
+<li class=""><strong>nginx</strong> (manual config): add <code>client_max_body_size 110M;</code> to the <code>server</code> (or
 <code>location /</code>) block, then <code>nginx -t &amp;&amp; nginx -s reload</code>.</li>
 <li class=""><strong>Nginx Proxy Manager</strong>: Proxy Host → <strong>Advanced</strong> → <em>Custom Nginx Configuration</em> →
-add <code>client_max_body_size 30M;</code> → Save.</li>
+add <code>client_max_body_size 110M;</code> → Save.</li>
 <li class=""><strong>&quot;NGINX Home Assistant SSL proxy&quot; add-on</strong>: create <code>/share/nginx_proxy_default.conf</code>
-containing <code>client_max_body_size 30M;</code>, set <code>customize.active: true</code> in the add-on
+containing <code>client_max_body_size 110M;</code>, set <code>customize.active: true</code> in the add-on
 options, and restart the add-on.</li>
-<li class=""><strong>Caddy</strong>: <code>request_body { max_size 30MB }</code>. <strong>Traefik</strong>: a <code>buffering</code> middleware with
+<li class=""><strong>Caddy</strong>: <code>request_body { max_size 110MB }</code>. <strong>Traefik</strong>: a <code>buffering</code> middleware with
 <code>maxRequestBodyBytes</code>.</li>
 <li class=""><strong>Nabu Casa / HA Cloud Remote UI</strong> has its own limit — if you hit it, upload from your
 <strong>local network</strong> instead.</li>
