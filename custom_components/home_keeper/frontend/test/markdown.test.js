@@ -242,6 +242,22 @@ describe('createPreview', () => {
     expect(preview.el.style.display).toBe('none');
   });
 
+  it('dispose is permanent — a stale reference cannot re-arm a timer', () => {
+    vi.useFakeTimers();
+    stubRegistry({ hasMarkdown: true });
+    const preview = createPreview('Preview', 200);
+    preview.dispose();
+
+    // A handler still bound to a detached form could call update() after teardown.
+    // It must be inert, or it would render against DOM nobody will clean up again.
+    preview.update('**bold**');
+    vi.advanceTimersByTime(500);
+    expect(preview.el.querySelector('ha-markdown')).toBeNull();
+
+    // And dispose stays safe to call again.
+    expect(() => preview.dispose()).not.toThrow();
+  });
+
   it('dispose cancels a pending render', () => {
     vi.useFakeTimers();
     stubRegistry({ hasMarkdown: true });

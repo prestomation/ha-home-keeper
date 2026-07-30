@@ -878,8 +878,20 @@ export class HomeKeeperPanel extends HTMLElement {
     for (const id of Object.values(this._persistTimers)) clearTimeout(id);
     this._persistTimers = {};
     // Markdown previews hold a debounce timer that would otherwise fire against a
-    // detached subtree after unmount. `_attachNotePreview` is the only constructor and
-    // registers every preview here, so this one loop covers all of them.
+    // detached subtree after unmount.
+    this._disposeAllPreviews();
+  }
+
+  /**
+   * Tear down every live Markdown preview and drop the references to them.
+   *
+   * `_attachNotePreview` is the only constructor and registers each preview in
+   * `_previews`, so this covers all of them — including `_taskNotePreview`, which is
+   * only ever a second reference to one of them. Called from both the render reset and
+   * `disconnectedCallback`; keep it the single teardown path so a future third caller
+   * can't half-clean and leave a reference dangling.
+   */
+  private _disposeAllPreviews(): void {
     this._previews.forEach((p) => p.dispose());
     this._previews = [];
     this._taskNotePreview = null;
@@ -1682,9 +1694,7 @@ export class HomeKeeperPanel extends HTMLElement {
     this._liveHassEls = [];
     // Everything below is rebuilt from scratch, so every preview on screen is about to
     // be detached — cancel its pending debounce rather than leaking a timer.
-    this._previews.forEach((p) => p.dispose());
-    this._previews = [];
-    this._taskNotePreview = null;
+    this._disposeAllPreviews();
     const onTasks = this._view === 'tasks';
 
     let inner: string;

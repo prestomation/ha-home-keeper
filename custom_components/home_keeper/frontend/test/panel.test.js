@@ -464,6 +464,45 @@ describe('Markdown preview teardown (issue #163)', () => {
     ).toBeNull();
   });
 
+  it('disposes previews when navigating away with a preview timer armed', async () => {
+    // The unmount case isn't the only teardown path: a view change re-renders, which
+    // detaches every preview. Pin the integration, not just `dispose()` in isolation.
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'))).click();
+    const input = await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
+
+    input.value = '## typing';
+    input.dispatchEvent(new Event('input'));
+    const preview = panel.shadowRoot.querySelector('.d-note-preview .hk-md-preview');
+    expect(preview).toBeTruthy();
+
+    // Navigate to the list — HA drives this by pushing a new `route`.
+    panel.route = { prefix: '/home-keeper', path: '/tasks' };
+    await waitFor(() => panel.shadowRoot?.querySelector('#add-btn'));
+
+    await new Promise((r) => setTimeout(r, 400)); // past the 200ms debounce
+    expect(
+      preview.querySelector('ha-markdown'),
+      'the detached preview must not render after the view changed',
+    ).toBeNull();
+  });
+
+  it('registers every preview it builds so one teardown covers them all', async () => {
+    // `_attachNotePreview` is the only constructor precisely so that disposal is a
+    // single loop. If a future path builds one directly it escapes that teardown, so
+    // pin the count against what is actually on screen.
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'))).click();
+    await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
+
+    const onScreen = panel.shadowRoot.querySelectorAll('.hk-md-preview').length;
+    expect(onScreen).toBeGreaterThan(0);
+    expect(panel._previews.length).toBe(onScreen);
+
+    panel.remove();
+    expect(panel._previews.length, 'teardown should clear the registry').toBe(0);
+  });
+
   it('does not re-render onto a detached panel when ha-markdown registers late', async () => {
     // `ensureMarkdown()` awaits a lazy chunk load, so it can settle after unmount.
     // The callback must check isConnected — otherwise it rebuilds the whole panel,

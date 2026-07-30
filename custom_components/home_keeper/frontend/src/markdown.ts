@@ -155,6 +155,7 @@ export function createPreview(caption: string, debounceMs = 200): MarkdownPrevie
   el.appendChild(body);
 
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
 
   const paint = (text: string): void => {
     if (!text) {
@@ -170,6 +171,10 @@ export function createPreview(caption: string, debounceMs = 200): MarkdownPrevie
   return {
     el,
     update(text: string): void {
+      // Disposal is permanent: once the owner has torn this preview down, a stale
+      // reference (an event handler still bound to a detached form, say) must not be
+      // able to arm a fresh timer against DOM nobody will clean up again.
+      if (disposed) return;
       if (timer) clearTimeout(timer);
       const value = String(text ?? '');
       // Collapse immediately when there's nothing to preview — waiting out the
@@ -180,7 +185,9 @@ export function createPreview(caption: string, debounceMs = 200): MarkdownPrevie
       }
       timer = setTimeout(() => paint(value), debounceMs);
     },
+    /** Cancel any pending render and permanently deactivate this preview. Idempotent. */
     dispose(): void {
+      disposed = true;
       if (timer) clearTimeout(timer);
       timer = undefined;
     },
