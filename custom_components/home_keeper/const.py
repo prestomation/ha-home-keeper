@@ -35,7 +35,7 @@ STORAGE_VERSION = 1
 #   • MAX_DOCUMENT_BYTES  — hard per-file upload ceiling.
 MANUALS_SUBDIR = "home_keeper/documents"
 DOCUMENT_URL_PREFIX = "/api/home_keeper/document"
-MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
+MAX_DOCUMENT_BYTES = 100 * 1024 * 1024
 # A part's single attached file (receipt / spec sheet / photo) reuses the same
 # documents.py/manuals.py storage and validation, keyed by the part's own id instead
 # of a document id — it lives under the same per-asset directory (asset deletion's

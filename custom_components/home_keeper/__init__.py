@@ -441,6 +441,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await panel.async_register_panel(hass)
     await card.async_register_card(hass)
     manuals.async_register_http(hass)
+    # Uploads spool to a temp file; a restart mid-upload would otherwise strand it.
+    await manuals.async_cleanup_temp_uploads(hass)
     websocket_api.async_register(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Platforms have removed entities for deleted/excluded tasks; drop Home Keeper

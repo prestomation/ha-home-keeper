@@ -648,22 +648,42 @@ link too.
 
 ![The appliance Manuals & documents editor — existing documents as cards with Open / Edit / Remove actions, plus an add-a-document area with add-link and upload-file controls](docs/images/32-panel-appliance-documents.png)
 
+#### Upload progress and failures
+
+An upload shows a **progress bar** with the percentage and byte count while it runs,
+plus a **Cancel upload** button; once the last byte is sent it switches to *"Saving…"*
+for the moment Home Assistant takes to store the file. The upload and **Save** buttons
+are disabled meanwhile, so a save can't race an upload in flight.
+
+If an upload fails, the reason appears **right under the button you pressed** and as a
+Home Assistant notification toast — no hunting for it.
+
+![An upload rejected for exceeding the 100 MB limit — the error appears directly under the Upload file button, and as a notification toast](docs/images/32b-panel-appliance-upload-error.png)
+
+![An upload in progress — a progress bar with percentage and byte count, and a Cancel upload button](docs/images/32c-panel-appliance-upload-progress.png)
+
 #### Large uploads (413)
 
-Home Keeper accepts uploads up to **25 MB**. If an upload fails with **HTTP 413** —
-especially the panel showing *"Upload too large…"* — the file was almost certainly
-rejected by a **reverse proxy in front of Home Assistant**, before it ever reached the
-integration. The usual cause is the proxy's request-body limit (nginx defaults
+Home Keeper accepts uploads up to **100 MB**, and the panel checks the file's size
+*before* uploading — so an oversized file is refused immediately, naming the file, its
+size and the limit, rather than transferring in full only to be rejected at the end.
+Uploads are streamed straight to disk, so a large manual doesn't load into Home
+Assistant's memory.
+
+If an upload still fails with **HTTP 413** — or the panel says the upload was *cut off
+before it finished* — the file was rejected by a **reverse proxy in front of Home
+Assistant**, before it ever reached the integration. The usual cause is the proxy's
+request-body limit (nginx defaults
 `client_max_body_size` to just **1 MB**). Raise it above your largest manual:
 
-- **nginx** (manual config): add `client_max_body_size 30M;` to the `server` (or
+- **nginx** (manual config): add `client_max_body_size 110M;` to the `server` (or
   `location /`) block, then `nginx -t && nginx -s reload`.
 - **Nginx Proxy Manager**: Proxy Host → **Advanced** → *Custom Nginx Configuration* →
-  add `client_max_body_size 30M;` → Save.
+  add `client_max_body_size 110M;` → Save.
 - **"NGINX Home Assistant SSL proxy" add-on**: create `/share/nginx_proxy_default.conf`
-  containing `client_max_body_size 30M;`, set `customize.active: true` in the add-on
+  containing `client_max_body_size 110M;`, set `customize.active: true` in the add-on
   options, and restart the add-on.
-- **Caddy**: `request_body { max_size 30MB }`. **Traefik**: a `buffering` middleware with
+- **Caddy**: `request_body { max_size 110MB }`. **Traefik**: a `buffering` middleware with
   `maxRequestBodyBytes`.
 - **Nabu Casa / HA Cloud Remote UI** has its own limit — if you hit it, upload from your
   **local network** instead.

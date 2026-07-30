@@ -10,6 +10,7 @@ live here so they stay unit-testable without an HA runtime (see
 from __future__ import annotations
 
 import re
+import time
 from pathlib import Path, PurePath
 
 from .assets import AssetValidationError
@@ -25,6 +26,11 @@ TYPE_EXTENSIONS = {
 }
 
 _MAX_FILENAME_LEN = 120
+
+# How many leading bytes ``sniff_content_type`` needs. The longest signature check
+# reads ``data[8:12]`` (WebP), so 16 is comfortably enough — uploads are streamed to
+# disk, and this is all that's kept in memory to identify the type.
+SNIFF_BYTES = 16
 
 
 def sniff_content_type(data: bytes) -> str | None:
@@ -56,26 +62,61 @@ def safe_filename(name: str, content_type: str) -> str:
     return f"{stem}{TYPE_EXTENSIONS[content_type]}"
 
 
-def validate_upload(filename: str, data: bytes) -> tuple[str, str]:
-    """Validate an uploaded blob; return ``(content_type, safe_filename)``.
+def validate_upload_stream(filename: str, header: bytes, size: int) -> tuple[str, str]:
+    """Validate a streamed upload from its first bytes and total size.
+
+    The counterpart to :func:`validate_upload` for uploads that are written straight
+    to disk and never held in memory (see ``manuals._parse_upload``): everything the
+    checks need is the leading ``header`` (at least :data:`SNIFF_BYTES`) and the byte
+    count. Returns ``(content_type, safe_filename)``.
 
     Raises :class:`AssetValidationError` when the file is empty, over the size ceiling,
     or not a recognized allowlisted type (sniffed by magic bytes — any client-declared
     MIME is ignored entirely). The returned content type is the sniffed one, so the
     stored metadata can't be spoofed by a misleading client header.
     """
-    if not data:
+    if size <= 0:
         raise AssetValidationError("uploaded file is empty")
-    if len(data) > MAX_DOCUMENT_BYTES:
+    if size > MAX_DOCUMENT_BYTES:
         raise AssetValidationError(
             f"file exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)} MB limit"
         )
-    content_type = sniff_content_type(data)
+    content_type = sniff_content_type(header)
     if content_type is None:
         raise AssetValidationError(
             "unsupported file type (allowed: PDF, PNG, JPEG, WebP, GIF)"
         )
     return content_type, safe_filename(filename, content_type)
+
+
+def validate_upload(filename: str, data: bytes) -> tuple[str, str]:
+    """Validate an in-memory uploaded blob; return ``(content_type, safe_filename)``.
+
+    Thin wrapper over :func:`validate_upload_stream` for callers that already hold the
+    whole file. The HTTP upload path does *not* — it streams to disk — so prefer the
+    stream variant for anything that could be large.
+    """
+    return validate_upload_stream(filename, data[:SNIFF_BYTES], len(data))
+
+
+def purge_stale_temps(tmp_root: Path, max_age_s: float) -> None:
+    """Delete temp uploads old enough that no request can still be writing them.
+
+    Deliberately age-based rather than a blanket wipe of *tmp_root*: the caller runs
+    this at setup, which re-runs on every config entry *reload* while the upload view
+    stays registered — clearing the directory outright could delete the temp file an
+    in-flight upload is still writing, turning it into a 500 mid-transfer.
+    """
+    if not tmp_root.is_dir():
+        return
+    cutoff = time.time() - max_age_s
+    for path in tmp_root.glob("upload-*"):
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink(missing_ok=True)
+        except OSError:
+            # Raced with the upload that owns it, or it vanished — try again next time.
+            continue
 
 
 def safe_segment(value: str) -> str:
