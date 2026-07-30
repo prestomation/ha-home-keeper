@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "Notatki",
-          "description": "Opcjonalne notatki w postaci dowolnego tekstu."
+          "description": "Opcjonalne notatki w postaci dowolnego tekstu. Markdown jest renderowany w panelu Home Keeper."
         },
         "recurrence_type": {
           "name": "Typ powtarzania",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "Notatki",
-          "description": "Nowe notatki."
+          "description": "Nowe notatki. Markdown jest renderowany w panelu Home Keeper."
         },
         "recurrence_type": {
           "name": "Typ powtarzania",
@@ -382,6 +382,10 @@
           "name": "Numer seryjny",
           "description": "Numer seryjny (wyświetlany w bloku informacji na stronie urządzenia)."
         },
+        "notes": {
+          "name": "Notatki",
+          "description": "Opcjonalne notatki w postaci dowolnego tekstu o urządzeniu. Markdown jest renderowany w panelu Home Keeper."
+        },
         "cost": {
           "name": "Koszt",
           "description": "Cena zakupu."
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "Numer seryjny",
           "description": "Numer seryjny (wyświetlany w bloku informacji na stronie urządzenia)."
+        },
+        "notes": {
+          "name": "Notatki",
+          "description": "Nowe notatki. Markdown jest renderowany w panelu Home Keeper."
         },
         "cost": {
           "name": "Koszt",

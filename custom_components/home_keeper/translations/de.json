@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "Notizen",
-          "description": "Optionale Freitextnotizen."
+          "description": "Optionale Freitextnotizen. Markdown wird im Home-Keeper-Panel formatiert dargestellt."
         },
         "recurrence_type": {
           "name": "Wiederholungstyp",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "Notizen",
-          "description": "Neue Notizen."
+          "description": "Neue Notizen. Markdown wird im Home-Keeper-Panel formatiert dargestellt."
         },
         "recurrence_type": {
           "name": "Wiederholungstyp",
@@ -382,6 +382,10 @@
           "name": "Seriennummer",
           "description": "Seriennummer (wird im Infobereich der Geräteseite angezeigt)."
         },
+        "notes": {
+          "name": "Notizen",
+          "description": "Optionale Freitextnotizen zum Gerät. Markdown wird im Home-Keeper-Panel formatiert dargestellt."
+        },
         "cost": {
           "name": "Kosten",
           "description": "Kaufpreis."
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "Seriennummer",
           "description": "Seriennummer (wird im Infobereich der Geräteseite angezeigt)."
+        },
+        "notes": {
+          "name": "Notizen",
+          "description": "Neue Notizen. Markdown wird im Home-Keeper-Panel formatiert dargestellt."
         },
         "cost": {
           "name": "Kosten",

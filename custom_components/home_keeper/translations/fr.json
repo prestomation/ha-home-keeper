@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "Notes",
-          "description": "Notes facultatives en texte libre."
+          "description": "Notes facultatives en texte libre. Le Markdown est affiché mis en forme dans le panneau Home Keeper."
         },
         "recurrence_type": {
           "name": "Type de récurrence",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "Notes",
-          "description": "Nouvelles notes."
+          "description": "Nouvelles notes. Le Markdown est affiché mis en forme dans le panneau Home Keeper."
         },
         "recurrence_type": {
           "name": "Type de récurrence",
@@ -382,6 +382,10 @@
           "name": "Numéro de série",
           "description": "Numéro de série (affiché dans le bloc d'informations de la page de l'appareil)."
         },
+        "notes": {
+          "name": "Notes",
+          "description": "Notes facultatives en texte libre sur l'appareil. Le Markdown est affiché mis en forme dans le panneau Home Keeper."
+        },
         "cost": {
           "name": "Coût",
           "description": "Prix d'achat."
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "Numéro de série",
           "description": "Numéro de série (affiché dans le bloc d'informations de la page de l'appareil)."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Nouvelles notes. Le Markdown est affiché mis en forme dans le panneau Home Keeper."
         },
         "cost": {
           "name": "Coût",

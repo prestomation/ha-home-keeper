@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "Note",
-          "description": "Note facoltative in testo libero."
+          "description": "Note facoltative in testo libero. Il Markdown viene visualizzato formattato nel pannello Home Keeper."
         },
         "recurrence_type": {
           "name": "Tipo di ricorrenza",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "Note",
-          "description": "Nuove note."
+          "description": "Nuove note. Il Markdown viene visualizzato formattato nel pannello Home Keeper."
         },
         "recurrence_type": {
           "name": "Tipo di ricorrenza",
@@ -382,6 +382,10 @@
           "name": "Numero di serie",
           "description": "Numero di serie (mostrato nel blocco informazioni della pagina del dispositivo)."
         },
+        "notes": {
+          "name": "Note",
+          "description": "Note facoltative in testo libero sull'elettrodomestico. Il Markdown viene visualizzato formattato nel pannello Home Keeper."
+        },
         "cost": {
           "name": "Costo",
           "description": "Prezzo di acquisto."
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "Numero di serie",
           "description": "Numero di serie (mostrato nel blocco informazioni della pagina del dispositivo)."
+        },
+        "notes": {
+          "name": "Note",
+          "description": "Nuove note. Il Markdown viene visualizzato formattato nel pannello Home Keeper."
         },
         "cost": {
           "name": "Costo",

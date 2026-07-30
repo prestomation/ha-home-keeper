@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "Notes",
-          "description": "Optional free-text notes."
+          "description": "Optional free-text notes. Markdown is rendered in the Home Keeper panel."
         },
         "recurrence_type": {
           "name": "Recurrence type",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "Notes",
-          "description": "New notes."
+          "description": "New notes. Markdown is rendered in the Home Keeper panel."
         },
         "recurrence_type": {
           "name": "Recurrence type",
@@ -382,6 +382,10 @@
           "name": "Serial number",
           "description": "Serial number (shown in the appliance's device-page info block)."
         },
+        "notes": {
+          "name": "Notes",
+          "description": "Optional free-text notes about the appliance. Markdown is rendered in the Home Keeper panel."
+        },
         "cost": {
           "name": "Cost",
           "description": "Replacement cost (feeds the insurance inventory value rollup)."
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "Serial number",
           "description": "Serial number (shown in the appliance's device-page info block)."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "New notes. Markdown is rendered in the Home Keeper panel."
         },
         "cost": {
           "name": "Cost",

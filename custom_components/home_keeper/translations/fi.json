@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "Muistiinpanot",
-          "description": "Valinnaiset vapaamuotoiset muistiinpanot."
+          "description": "Valinnaiset vapaamuotoiset muistiinpanot. Markdown näytetään muotoiltuna Home Keeper -paneelissa."
         },
         "recurrence_type": {
           "name": "Toistuvuuden tyyppi",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "Muistiinpanot",
-          "description": "Uudet muistiinpanot."
+          "description": "Uudet muistiinpanot. Markdown näytetään muotoiltuna Home Keeper -paneelissa."
         },
         "recurrence_type": {
           "name": "Toistuvuuden tyyppi",
@@ -382,6 +382,10 @@
           "name": "Sarjanumero",
           "description": "Sarjanumero (näkyy laitesivun tietolohkossa)."
         },
+        "notes": {
+          "name": "Muistiinpanot",
+          "description": "Valinnaiset vapaamuotoiset muistiinpanot laitteesta. Markdown näytetään muotoiltuna Home Keeper -paneelissa."
+        },
         "cost": {
           "name": "Hinta",
           "description": "Ostohinta."
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "Sarjanumero",
           "description": "Sarjanumero (näkyy laitesivun tietolohkossa)."
+        },
+        "notes": {
+          "name": "Muistiinpanot",
+          "description": "Uudet muistiinpanot. Markdown näytetään muotoiltuna Home Keeper -paneelissa."
         },
         "cost": {
           "name": "Hinta",

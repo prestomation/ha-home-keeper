@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "备注",
-          "description": "可选的自由文本备注。"
+          "description": "可选的自由文本备注。 Markdown 会在 Home Keeper 面板中渲染显示。"
         },
         "recurrence_type": {
           "name": "重复类型",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "备注",
-          "description": "新的备注。"
+          "description": "新的备注。 Markdown 会在 Home Keeper 面板中渲染显示。"
         },
         "recurrence_type": {
           "name": "重复类型",
@@ -382,6 +382,10 @@
           "name": "序列号",
           "description": "序列号（显示在设备页面的信息栏中）。"
         },
+        "notes": {
+          "name": "备注",
+          "description": "关于该电器的可选自由文本备注。 Markdown 会在 Home Keeper 面板中渲染显示。"
+        },
         "cost": {
           "name": "费用",
           "description": "购买价格。"
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "序列号",
           "description": "序列号（显示在设备页面的信息栏中）。"
+        },
+        "notes": {
+          "name": "备注",
+          "description": "新的备注。 Markdown 会在 Home Keeper 面板中渲染显示。"
         },
         "cost": {
           "name": "费用",

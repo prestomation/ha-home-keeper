@@ -40,7 +40,7 @@
         },
         "notes": {
           "name": "Poznámky",
-          "description": "Volitelné poznámky ve volném textu."
+          "description": "Volitelné poznámky ve volném textu. Markdown se v panelu Home Keeper vykresluje formátovaně."
         },
         "recurrence_type": {
           "name": "Typ opakování",
@@ -122,7 +122,7 @@
         },
         "notes": {
           "name": "Poznámky",
-          "description": "Nové poznámky."
+          "description": "Nové poznámky. Markdown se v panelu Home Keeper vykresluje formátovaně."
         },
         "recurrence_type": {
           "name": "Typ opakování",
@@ -382,6 +382,10 @@
           "name": "Sériové číslo",
           "description": "Sériové číslo (zobrazuje se v informačním bloku na stránce zařízení)."
         },
+        "notes": {
+          "name": "Poznámky",
+          "description": "Volitelné poznámky ve volném textu ke spotřebiči. Markdown se v panelu Home Keeper vykresluje formátovaně."
+        },
         "cost": {
           "name": "Cena",
           "description": "Pořizovací cena."
@@ -443,6 +447,10 @@
         "serial_number": {
           "name": "Sériové číslo",
           "description": "Sériové číslo (zobrazuje se v informačním bloku na stránce zařízení)."
+        },
+        "notes": {
+          "name": "Poznámky",
+          "description": "Nové poznámky. Markdown se v panelu Home Keeper vykresluje formátovaně."
         },
         "cost": {
           "name": "Cena",

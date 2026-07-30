@@ -13,7 +13,8 @@ add_task:
         text:
     notes:
       name: Notes
-      description: Optional free-text notes.
+      description: >-
+        Optional free-text notes. Markdown is rendered in the Home Keeper panel.
       selector:
         text:
           multiline: true
@@ -191,7 +192,8 @@ update_task:
         text:
     notes:
       name: Notes
-      description: New notes.
+      description: >-
+        New notes. Markdown is rendered in the Home Keeper panel.
       selector:
         text:
           multiline: true
@@ -681,6 +683,14 @@ add_asset:
       description: Serial number (shown in the appliance's device-page info block).
       selector:
         text:
+    notes:
+      name: Notes
+      description: >-
+        Optional free-text notes about the appliance. Markdown is rendered in the
+        Home Keeper panel.
+      selector:
+        text:
+          multiline: true
     cost:
       name: Cost
       description: Replacement cost (feeds the insurance inventory value rollup).
@@ -771,6 +781,12 @@ update_asset:
       description: Serial number (shown in the appliance's device-page info block).
       selector:
         text:
+    notes:
+      name: Notes
+      description: New notes. Markdown is rendered in the Home Keeper panel.
+      selector:
+        text:
+          multiline: true
     cost:
       name: Cost
       selector:

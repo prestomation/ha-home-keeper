@@ -26,6 +26,7 @@ import {
 } from './forms';
 import { documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
+import { ensureMarkdown, markdownBlock, markdownReady, wireMarkdown } from './markdown';
 import type { Asset, Hass, HassLabel, Profile, Task } from './types';
 import {
   areaName,
@@ -152,6 +153,17 @@ const STYLES = `
     overflow: hidden; text-overflow: ellipsis;
   }
   .hk-notes { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
+  /* Notes render as Markdown via HA's ha-markdown (see markdown.ts); .hk-md-plain
+     is the escaped-text fallback. Inside a compact card row the block margins and
+     heading sizes have to be reined in so a note still reads as a subtitle. */
+  .hk-notes .hk-md { min-width: 0; word-break: break-word; }
+  .hk-notes .hk-md-plain { white-space: pre-wrap; }
+  .hk-notes p, .hk-notes ul, .hk-notes ol { margin: 2px 0; }
+  .hk-notes ul, .hk-notes ol { padding-inline-start: 20px; }
+  .hk-notes h1, .hk-notes h2, .hk-notes h3,
+  .hk-notes h4, .hk-notes h5, .hk-notes h6 { font-size: 0.9rem; margin: 4px 0 2px; }
+  .hk-notes ha-markdown-element > :first-child { margin-top: 0; }
+  .hk-notes ha-markdown-element > :last-child { margin-bottom: 0; }
   .hk-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
   .hk-chip-ic { width: 16px; height: 16px; --mdc-icon-size: 16px; color: inherit; }
   /* A chip that wraps an <a>: the anchor is invisible (display:contents) so the chip
@@ -571,8 +583,20 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   // ── rendering ───────────────────────────────────────────────────────────────
+  /** See the panel's `_ensureMarkdown` — register HA's lazy `ha-markdown`, then
+   *  re-render so notes upgrade from the escaped-text fallback. Inside a dashboard
+   *  `window.loadCardHelpers` is always present, so this normally settles on the
+   *  first paint. */
+  private _ensureMarkdown(): void {
+    if (markdownReady()) return;
+    void ensureMarkdown(2000).then((ok) => {
+      if (ok) this._render();
+    });
+  }
+
   private _render(): void {
     if (!this.shadowRoot) return;
+    this._ensureMarkdown();
     this._liveHassEls = [];
     const title = this._config.title ?? t('tab.tasks');
     const showAdd = this._config.show_add !== false;
@@ -801,7 +825,7 @@ export class HomeKeeperCard extends HTMLElement {
     const meta = `${escapeHTML(recurrenceSummary(task))}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}`;
     const notes =
       this._config.show_notes && task.notes
-        ? `<div class="hk-notes">${escapeHTML(task.notes)}</div>`
+        ? `<div class="hk-notes">${markdownBlock(task.notes)}</div>`
         : '';
     // Integration-provided metadata chips (e.g. battery type from Battery Notes).
     // Chips with a URL become links; icon slot is populated when present.
@@ -851,6 +875,10 @@ export class HomeKeeperCard extends HTMLElement {
   private _hydrate(): void {
     const root = this.shadowRoot;
     if (!root) return;
+
+    // `markdownBlock` carries its text in `data-md`; `content` is a property, so it
+    // has to be assigned after the markup lands in the DOM.
+    wireMarkdown(root);
 
     const add = root.getElementById('hk-add');
     if (add) {

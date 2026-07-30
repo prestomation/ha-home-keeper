@@ -39,6 +39,14 @@ import {
 } from './forms';
 import { selEntity } from './forms';
 import { setLanguage, t, tn } from './i18n';
+import {
+  createPreview,
+  ensureMarkdown,
+  markdownBlock,
+  markdownReady,
+  wireMarkdown,
+  type MarkdownPreview,
+} from './markdown';
 import type {
   Asset,
   AssetDocument,
@@ -431,6 +439,7 @@ const STYLES = `
   }
   .hk-part-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
   .hk-part-chips ha-assist-chip { --ha-assist-chip-container-height: 28px; }
+  .hk-part-notes { color: var(--secondary-text-color); margin-top: 6px; }
   .hk-form-actions { display: flex; gap: 8px; margin-top: 20px; }
   .hk-loading { display: flex; justify-content: center; padding: 48px 0; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
@@ -520,6 +529,38 @@ const STYLES = `
     border: 1px solid var(--divider-color);
   }
   .hk-note-input:focus { outline: none; border-color: var(--primary-color); }
+
+  /* Markdown-rendered free text (notes, per-completion notes). ha-markdown brings
+     its own theme-aware styles for links/code/pre; we only trim the outer margins so
+     a note sits flush in its card, and cap heading sizes so a stray "# " in a note
+     can't tower over the surrounding UI. .hk-md-plain is the escaped-text fallback
+     used when ha-markdown could not be registered (see markdown.ts). */
+  .hk-md { min-width: 0; word-break: break-word; }
+  .hk-md-plain { white-space: pre-wrap; }
+  .hk-md h1, .hk-md h2, .hk-md h3,
+  .hk-md h4, .hk-md h5, .hk-md h6 { font-size: 1.05rem; margin: 12px 0 4px; }
+  .hk-md > :first-child, .hk-md ha-markdown-element > :first-child { margin-top: 0; }
+  .hk-md > :last-child, .hk-md ha-markdown-element > :last-child { margin-bottom: 0; }
+  .hk-md ul, .hk-md ol { padding-inline-start: 24px; }
+  .hk-md table { border-collapse: collapse; }
+  .hk-md th, .hk-md td { border: 1px solid var(--divider-color); padding: 4px 8px; }
+  /* Secondary-text density for notes shown as a subtitle (history rows, part rows). */
+  .hk-md-compact { font-size: 0.9rem; }
+  .hk-md-compact p, .hk-md-compact ul, .hk-md-compact ol { margin: 2px 0; }
+  .hk-md-compact h1, .hk-md-compact h2, .hk-md-compact h3,
+  .hk-md-compact h4, .hk-md-compact h5, .hk-md-compact h6 {
+    font-size: 0.95rem; margin: 6px 0 2px;
+  }
+  /* Live preview under a notes editor — same visual language as .hk-form-hint. */
+  .hk-md-preview {
+    margin-top: 8px; padding: 8px 12px; border-radius: 8px;
+    background: var(--secondary-background-color);
+    border-left: 3px solid var(--primary-color);
+  }
+  .hk-md-preview-caption {
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--secondary-text-color); margin-bottom: 4px;
+  }
   .hk-rel {
     display: flex; align-items: center; gap: 12px; padding: 8px 0;
     border-bottom: 1px solid var(--divider-color); cursor: pointer;
@@ -557,7 +598,9 @@ const STYLES = `
     margin: 0 0 6px 2px;
   }
   .hk-hist-chips { color: var(--secondary-text-color); font-size: 0.85rem; }
-  .hk-hist-note { font-size: 0.9rem; white-space: pre-wrap; }
+  /* Notes render as Markdown (a block), so give one its own full-width line under
+     the cost/who chips rather than letting it share the flex row. */
+  .hk-hist-note { font-size: 0.9rem; flex: 1 1 100%; min-width: 0; }
   .hk-hist-photo {
     height: 56px; width: 56px; object-fit: cover; border-radius: 8px;
     border: 1px solid var(--divider-color);
@@ -566,6 +609,9 @@ const STYLES = `
   .hk-completion-body { display: flex; flex-direction: column; gap: 12px; min-width: 320px; }
   .hk-completion-photo-label { font-weight: 500; font-size: 0.9rem; }
 `;
+
+/** What the inline notes editor on a detail page is currently editing. */
+type NoteTarget = { kind: 'task' | 'asset'; id: string };
 
 interface EditState {
   open: boolean;
@@ -720,11 +766,20 @@ export class HomeKeeperPanel extends HTMLElement {
   // an edit form from a detail page changes the URL, which would otherwise clear it).
   private _pendingEdit: Partial<Task> | null = null;
   private _pendingAssetEdit: Partial<Asset> | null = null;
-  // Task id whose notes are being edited inline on the detail page (problem-sensor
-  // tasks only — their full edit dialog is suppressed, so notes get their own inline
-  // editor). Null when no note is being edited. The textarea is uncontrolled: its
-  // value is read on Save, so typing doesn't trigger a re-render (which would drop focus).
-  private _noteEdit: string | null = null;
+  // What is being note-edited inline on a detail page, or null. Notes are long-form
+  // prose that renders as Markdown, so both tasks and appliances get a dedicated
+  // full-width editor on their detail page rather than a cramped row in the edit form
+  // (parts keep theirs in the appliance's parts editor, alongside their other fields).
+  // The textarea is uncontrolled: its value is read on Save, so typing doesn't trigger
+  // a re-render (which would drop focus) — only the live preview updates, in place.
+  private _noteEdit: NoteTarget | null = null;
+  // Live Markdown preview under the open inline editor; disposed when it closes.
+  private _notePreview: MarkdownPreview | null = null;
+  // Live Markdown previews attached to notes fields in the edit forms/dialogs. Rebuilt
+  // every render pass (the forms are), so the old ones are disposed first.
+  private _formPreviews: MarkdownPreview[] = [];
+  // The task form's notes preview, fed from that form's value-changed handler.
+  private _taskNotePreview: MarkdownPreview | null = null;
   // Live HA components that need `.hass` refreshed when hass updates.
   private _liveHassEls: Array<{ hass?: Hass }> = [];
 
@@ -1030,22 +1085,132 @@ export class HomeKeeperPanel extends HTMLElement {
     }
   }
 
+  /** True when the inline notes editor is open on *target*. */
+  private _editingNote(target: NoteTarget): boolean {
+    return this._noteEdit?.kind === target.kind && this._noteEdit.id === target.id;
+  }
+
+  /** Open the inline notes editor on *target* (closing any other one). */
+  private _openNoteEditor(target: NoteTarget): void {
+    this._noteEdit = target;
+    this._render();
+  }
+
+  /** Close the inline notes editor, discarding whatever was typed. */
+  private _closeNoteEditor(): void {
+    this._noteEdit = null;
+    this._render();
+  }
+
   /**
-   * Persist the inline-edited note on a problem-sensor task. Reuses the standard
-   * `update_task` path (a partial `{ notes }` update); the store mirrors it into the
-   * durable, entity-keyed side-store so it outlives the mirror. On failure the editor
-   * stays open with the typed text so the user can retry.
+   * Persist an inline-edited note.
+   *
+   * Both kinds reuse the ordinary partial-update path — `update_task` for a task
+   * (the store also mirrors a problem-sensor task's note into the durable,
+   * entity-keyed side-store so it outlives the mirror) and `update_asset` for an
+   * appliance (`merge_update` carries every unmentioned field through). On failure
+   * the editor stays open with the typed text so the user can retry.
    */
-  private async _saveNote(task: Task, notes: string): Promise<void> {
+  private async _saveNote(target: NoteTarget, notes: string): Promise<void> {
     if (!this._hass) return;
     try {
-      await api.updateTask(this._hass, task.id, { notes });
+      if (target.kind === 'task') {
+        await api.updateTask(this._hass, target.id, { notes });
+      } else {
+        await api.updateAsset(this._hass, target.id, { notes });
+      }
       this._noteEdit = null;
       await this._refresh();
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Home Keeper: failed to save note', err);
+      this._toast(t('error.actionFailed'));
     }
+  }
+
+  /**
+   * The body of a detail page's Notes card: rendered Markdown plus an Edit button,
+   * or — when this target is the one being edited — a textarea with a live preview.
+   *
+   * *editable* is false for a note the panel doesn't own (a source-managed task whose
+   * `notes` field is locked by its integration), which keeps the read-only rendering.
+   * *placeholder* lets a problem-sensor task keep its more pointed prompt.
+   */
+  private _notesCardBody(
+    target: NoteTarget,
+    text: string,
+    editable: boolean,
+    placeholder: string = t('note.placeholderMd'),
+  ): string {
+    const rendered = text
+      ? markdownBlock(text)
+      : `<span class="hk-muted">${escapeHTML(t('detail.noNotes'))}</span>`;
+    if (!editable) return rendered;
+    if (this._editingNote(target)) {
+      // The preview is appended into `.d-note-preview` by `_wireNoteEditor` — it is a
+      // live element driven by `input`, so it can't be part of this HTML string.
+      return `
+        <textarea class="hk-note-input d-note-input" rows="5"
+          placeholder="${escapeHTML(placeholder)}">${escapeHTML(text)}</textarea>
+        <div class="d-note-preview"></div>
+        <div class="hk-detail-actions">
+          <ha-button raised class="d-note-save">${escapeHTML(t('btn.save'))}</ha-button>
+          <ha-button class="d-note-cancel">${escapeHTML(t('btn.cancel'))}</ha-button>
+        </div>`;
+    }
+    const label = text ? t('note.edit') : t('note.add');
+    return `${rendered}
+      <div class="hk-detail-actions">
+        <ha-button class="d-note-edit">${escapeHTML(label)}</ha-button>
+      </div>`;
+  }
+
+  /** A whole Notes section (heading + card) for a detail page. */
+  private _notesSection(target: NoteTarget, text: string, editable: boolean): string {
+    return `<div class="hk-section">${escapeHTML(t('field.notes'))}</div>
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${this._notesCardBody(
+        target,
+        text,
+        editable,
+      )}</div></ha-card>`;
+  }
+
+  /**
+   * Append a live Markdown preview for a notes field to *host*, seeded with *initial*.
+   *
+   * The caller feeds it from its form's existing `value-changed` handler — updating the
+   * preview in place rather than re-rendering, so the field keeps focus while typing
+   * (the same technique `_updateSensorHint` uses for the sensor primer).
+   */
+  private _attachNotePreview(host: HTMLElement, initial: string): MarkdownPreview {
+    const preview = createPreview(t('note.preview'));
+    this._formPreviews.push(preview);
+    host.appendChild(preview.el);
+    preview.update(initial);
+    return preview;
+  }
+
+  /** Wire the inline notes editor's buttons and its live preview. */
+  private _wireNoteEditor(root: ShadowRoot, target: NoteTarget): void {
+    root
+      .querySelector('.d-note-edit')
+      ?.addEventListener('click', () => this._openNoteEditor(target));
+    root
+      .querySelector('.d-note-cancel')
+      ?.addEventListener('click', () => this._closeNoteEditor());
+    const input = root.querySelector<HTMLTextAreaElement>('.d-note-input');
+    root.querySelector('.d-note-save')?.addEventListener('click', () => {
+      void this._saveNote(target, input?.value ?? '');
+    });
+    const host = root.querySelector('.d-note-preview');
+    if (!input || !host) return;
+    // A fresh preview per render pass — the previous one's DOM is already gone.
+    this._notePreview?.dispose();
+    const preview = createPreview(t('note.preview'));
+    this._notePreview = preview;
+    host.appendChild(preview.el);
+    preview.update(input.value);
+    input.addEventListener('input', () => preview.update(input.value));
   }
 
   private async _complete(task: Task): Promise<void> {
@@ -1479,10 +1644,32 @@ export class HomeKeeperPanel extends HTMLElement {
     await this._refresh();
   }
 
+  /**
+   * Keep trying to register HA's lazy `<ha-markdown>` until it sticks, re-rendering
+   * once it does so notes upgrade from the escaped-text fallback to real Markdown.
+   *
+   * The retry matters for a cold deep-link to `/home-keeper`: `window.loadCardHelpers`
+   * is installed by HA's Lovelace chunk, so it can be absent at first paint and appear
+   * later once the user has visited a dashboard. Each attempt is a cheap no-op when
+   * the helper is still missing, and `markdownReady()` short-circuits it forever after
+   * the element registers — so this cannot loop.
+   */
+  private _ensureMarkdown(): void {
+    if (markdownReady()) return;
+    void ensureMarkdown().then((ok) => {
+      if (ok) this._render();
+    });
+  }
+
   // ── rendering ───────────────────────────────────────────────────────────────
   private _render(): void {
     if (!this.shadowRoot) return;
+    this._ensureMarkdown();
     this._liveHassEls = [];
+    // The forms below are rebuilt from scratch, so any preview they owned is about to
+    // be detached — cancel its pending debounce rather than leaking a timer.
+    this._formPreviews.forEach((p) => p.dispose());
+    this._formPreviews = [];
     const onTasks = this._view === 'tasks';
 
     let inner: string;
@@ -2109,33 +2296,20 @@ export class HomeKeeperPanel extends HTMLElement {
       : mb?.completion_blocked
         ? this._blockedDone('d-done-blocked-wrap', task, true)
         : `<ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
-    const notesBody = task.notes
-      ? escapeHTML(task.notes)
-      : `<span class="hk-muted">${escapeHTML(t('detail.noNotes'))}</span>`;
-    // A problem-sensor task carries no other user-owned metadata (name/schedule are
-    // locked, and the full edit dialog is suppressed for it), so its note gets a
-    // dedicated inline editor here. The note persists across the mirror being cleared
-    // and re-armed — and even deleted and recreated — so it's there next time the
-    // problem fires. Other source-owned tasks keep the read-only rendering.
-    const isProblemTask = Boolean(task.source?.problem_sensor);
-    let notes: string;
-    if (isProblemTask && this._noteEdit === task.id) {
-      notes = `
-        <textarea class="hk-note-input d-note-input" rows="3"
-          placeholder="${escapeHTML(t('note.placeholder'))}">${escapeHTML(task.notes || '')}</textarea>
-        <div class="hk-detail-actions">
-          <ha-button raised class="d-note-save">${escapeHTML(t('btn.save'))}</ha-button>
-          <ha-button class="d-note-cancel">${escapeHTML(t('btn.cancel'))}</ha-button>
-        </div>`;
-    } else if (isProblemTask) {
-      const label = task.notes ? t('note.edit') : t('note.add');
-      notes = `${notesBody}
-        <div class="hk-detail-actions">
-          <ha-button class="d-note-edit">${escapeHTML(label)}</ha-button>
-        </div>`;
-    } else {
-      notes = notesBody;
-    }
+    // Notes get an inline editor right on the detail page: they're long-form prose
+    // that renders as Markdown, so authoring deserves a full-width box with a live
+    // preview rather than one cramped row among the schedule fields. (For a
+    // problem-sensor task it's the *only* way in — its full edit dialog is
+    // suppressed — and the note persists across the mirror being cleared, re-armed,
+    // even deleted and recreated, so it's there next time the problem fires.) A note
+    // its owning integration has locked stays read-only.
+    const notesEditable = !(mb?.locked_fields ?? []).includes('notes');
+    const notes = this._notesCardBody(
+      { kind: 'task', id: task.id },
+      task.notes || '',
+      notesEditable,
+      task.source?.problem_sensor ? t('note.placeholder') : t('note.placeholderMd'),
+    );
     return `
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
@@ -2156,6 +2330,12 @@ export class HomeKeeperPanel extends HTMLElement {
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>
       ${this._historySection('task', task.id)}`;
+  }
+
+  /** Appliance notes — always present (even when empty) so the Edit affordance is
+   *  discoverable, matching the task detail page. */
+  private _assetNotesSection(asset: Asset): string {
+    return this._notesSection({ kind: 'asset', id: asset.id }, asset.notes || '', true);
   }
 
   private _assetDetail(asset: Asset): string {
@@ -2203,6 +2383,7 @@ export class HomeKeeperPanel extends HTMLElement {
         </div>
       </div></ha-card>
       ${detailsCard}
+      ${this._assetNotesSection(asset)}
       ${this._documentsSection(asset)}
       ${this._partsSection(asset)}
       ${this._relatedTasksSection(asset)}
@@ -2289,6 +2470,12 @@ export class HomeKeeperPanel extends HTMLElement {
               p.id || '',
             )}" title="${escapeHTML(p.file_name)}"><ha-icon icon="mdi:paperclip"></ha-icon></a>`
           : '';
+        // A part's notes render as Markdown like every other note, but read-only:
+        // parts are edited as a whole in the appliance's parts editor, so letting one
+        // field be edited inline while its siblings aren't would be inconsistent.
+        const partNotes = p.notes
+          ? `<div class="hk-part-notes">${markdownBlock(p.notes, 'hk-md-compact')}</div>`
+          : '';
         return `
           <div class="hk-part-row ${isWear ? 'wear' : 'consumable'}">
             <div class="hk-part-ic">
@@ -2298,6 +2485,7 @@ export class HomeKeeperPanel extends HTMLElement {
               <div class="hk-part-name">${name}${badge}${fileLink}</div>
               ${subLine}
               ${chipRow}
+              ${partNotes}
             </div>
           </div>`;
       })
@@ -2657,6 +2845,10 @@ export class HomeKeeperPanel extends HTMLElement {
         ],
       },
       { name: 'part_url', selector: selText() },
+      // Free-form notes about this part (rendered as Markdown on the appliance's
+      // detail page) — the field has always existed in the stored model but had no
+      // editor until now.
+      { name: 'notes', selector: selText(true) },
       {
         name: '',
         type: 'grid',
@@ -2701,6 +2893,10 @@ export class HomeKeeperPanel extends HTMLElement {
   private _hydrate(): void {
     const root = this.shadowRoot;
     if (!root) return;
+
+    // `markdownBlock` carries its text in `data-md`; `content` is a property, so it
+    // has to be assigned after the markup lands in the DOM.
+    wireMarkdown(root);
 
     // The completion-details dialog overlays any view, so build it first.
     const dialogHost = root.getElementById('hk-dialog-host');
@@ -2868,18 +3064,7 @@ export class HomeKeeperPanel extends HTMLElement {
         .querySelector('.d-done-blocked-wrap')
         ?.addEventListener('click', () => this._notifyBlocked(task));
       root.querySelector('.d-edit')?.addEventListener('click', () => this._openEdit(task));
-      root.querySelector('.d-note-edit')?.addEventListener('click', () => {
-        this._noteEdit = task.id;
-        this._render();
-      });
-      root.querySelector('.d-note-cancel')?.addEventListener('click', () => {
-        this._noteEdit = null;
-        this._render();
-      });
-      root.querySelector('.d-note-save')?.addEventListener('click', () => {
-        const el = root.querySelector<HTMLTextAreaElement>('.d-note-input');
-        void this._saveNote(task, el?.value ?? '');
-      });
+      this._wireNoteEditor(root, { kind: 'task', id: task.id });
       root.querySelector('.d-del')?.addEventListener('click', () => {
         // The detail is about to vanish: replace it with its list so Forward
         // can't return to a deleted task.
@@ -2899,6 +3084,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const asset = this._assets.find((x) => x.id === d.id);
     if (!asset) return;
     root.querySelector('.d-edit')?.addEventListener('click', () => this._openEditAsset(asset));
+    this._wireNoteEditor(root, { kind: 'asset', id: asset.id });
     root.querySelector('.d-del')?.addEventListener('click', () => {
       // The detail is about to vanish: replace it with its list so Forward
       // can't return to a deleted appliance.
@@ -3713,6 +3899,9 @@ export class HomeKeeperPanel extends HTMLElement {
           interval: Number(value.interval) || 1,
         } as Partial<Task>;
         this._edit.error = undefined;
+        // Refresh the notes preview in place — a re-render here would drop focus from
+        // the textarea mid-word.
+        this._taskNotePreview?.update(String(value.notes ?? ''));
         // Changing the attached device re-scopes the consumable picker; drop a link
         // that no longer belongs to the newly-attached appliance.
         if (value.device_id !== prevDevice) {
@@ -3754,6 +3943,13 @@ export class HomeKeeperPanel extends HTMLElement {
       return h === 'help.' + s.name ? '' : h;
     };
     inner.appendChild(form);
+
+    // Live Markdown preview of the notes field. It sits after the whole form rather
+    // than directly under the field: the task schema is one `ha-form` (name, notes,
+    // recurrence, sensor…), and splitting it just to interleave a preview would fork a
+    // pure, well-tested schema builder. The preview only shows once there's something
+    // to preview, so it stays out of the way for the common no-notes task.
+    this._taskNotePreview = this._attachNotePreview(inner, String(task.notes ?? ''));
 
     // Live, computed hint for a sensor task: reads the bound entity's current value
     // and spells out the next due point ("reads 660 h -> first due at 760 h").
@@ -3826,6 +4022,9 @@ export class HomeKeeperPanel extends HTMLElement {
       { name: 'cost', required: req.has('cost'), selector: selNumber(0) },
       { name: 'who', required: req.has('who'), selector: selEntity({ domain: 'person' }) },
     );
+    // A completion note renders as Markdown in the history list, so it gets the same
+    // live preview as every other notes field.
+    let notePreview: MarkdownPreview | null = null;
     const form = this._makeForm(
       schema,
       {
@@ -3843,9 +4042,11 @@ export class HomeKeeperPanel extends HTMLElement {
           who: (value.who as string) || undefined,
         };
         this._completion.error = undefined;
+        notePreview?.update(String(value.note ?? ''));
       },
     );
     body.appendChild(form);
+    notePreview = this._attachNotePreview(body, String(c.data.note ?? ''));
 
     // Photo upload via HA's native picture-upload, if the element is available in
     // this frontend build (degrade gracefully if not — the rest still works).
@@ -4036,6 +4237,19 @@ export class HomeKeeperPanel extends HTMLElement {
         mergeAsset,
       ),
     );
+
+    // Notes get their own section so the live Markdown preview can sit directly under
+    // the field it previews (the appliance form is already section-split, unlike the
+    // task form's single `ha-form`).
+    inner.appendChild(this._section(t('section.notes')));
+    let assetNotePreview: MarkdownPreview | null = null;
+    inner.appendChild(
+      this._makeForm([{ name: 'notes', selector: selText(true) }], { notes: x.notes ?? '' }, (value) => {
+        mergeAsset(value);
+        assetNotePreview?.update(String(value.notes ?? ''));
+      }),
+    );
+    assetNotePreview = this._attachNotePreview(inner, String(x.notes ?? ''));
 
     this._renderDocumentsEditor(inner);
 
@@ -4541,6 +4755,9 @@ export class HomeKeeperPanel extends HTMLElement {
       head.appendChild(del);
       box.appendChild(head);
 
+      // Declared before the form so its value-changed handler can feed it; attached
+      // below, after the form, so it renders directly under the part's fields.
+      let partNotePreview: MarkdownPreview | null = null;
       const form = this._makeForm(
         this._partSchema(p),
         {
@@ -4550,6 +4767,7 @@ export class HomeKeeperPanel extends HTMLElement {
           vendor: p.vendor ?? '',
           cost: p.cost ?? undefined,
           part_url: p.url ?? '',
+          notes: p.notes ?? '',
           stock: p.stock ?? undefined,
           reorder_at: p.reorder_at ?? undefined,
           create_buy_task: p.create_buy_task ?? false,
@@ -4566,6 +4784,7 @@ export class HomeKeeperPanel extends HTMLElement {
           // quantity. Re-render when one of them flips so the dependent field appears.
           const prevHasReorder = prevPart?.reorder_at != null;
           const prevBuy = Boolean(prevPart?.create_buy_task);
+          partNotePreview?.update(String(value.notes ?? ''));
           const updated: Part = {
             id: p.id,
             // The last-replaced date is only editable for wear items; preserve any
@@ -4582,6 +4801,7 @@ export class HomeKeeperPanel extends HTMLElement {
             vendor: String(value.vendor ?? ''),
             cost: value.cost != null && value.cost !== '' ? Number(value.cost) : null,
             url: String(value.part_url ?? '').trim(),
+            notes: String(value.notes ?? ''),
             stock: value.stock != null && value.stock !== '' ? Number(value.stock) : null,
             reorder_at:
               value.reorder_at != null && value.reorder_at !== ''
@@ -4626,6 +4846,7 @@ export class HomeKeeperPanel extends HTMLElement {
         },
       );
       box.appendChild(form);
+      partNotePreview = this._attachNotePreview(box, String(p.notes ?? ''));
       this._renderPartFile(box, p, i);
 
       if (p.type === 'wear') {
@@ -4881,7 +5102,11 @@ export class HomeKeeperPanel extends HTMLElement {
     const line = bits.length
       ? `<span class="hk-hist-chips">${bits.join(' · ')}</span>`
       : '';
-    const note = c.note ? `<span class="hk-hist-note">${escapeHTML(c.note)}</span>` : '';
+    // A completion note renders as Markdown too, so it's a block (not a span) and
+    // takes its own line under the cost/who chips.
+    const note = c.note
+      ? `<div class="hk-hist-note">${markdownBlock(c.note, 'hk-md-compact')}</div>`
+      : '';
     // `photo` is caller-supplied (any string via home_keeper/complete_task) and was
     // rendered as a raw href — escapeHTML can't neutralise a `javascript:` URI in an
     // href, so a non-admin could plant a stored-XSS payload an admin clicks. Only

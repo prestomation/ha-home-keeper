@@ -47,6 +47,51 @@ def test_serial_number_defaults_empty_when_absent():
     assert asset["serial_number"] == ""
 
 
+def test_notes_normalize_and_round_trip():
+    # Appliance notes are free-form prose (rendered as Markdown in the panel), stripped
+    # and round-tripped like the other verbatim text fields — but deliberately *not*
+    # synced into the device registry the way manufacturer/model/serial_number are.
+    asset = a.build_asset(
+        {"name": "Water heater", "notes": "  Anode rod is **behind** the top cap.  "},
+        now=NOW,
+    )
+    assert asset["notes"] == "Anode rod is **behind** the top cap."
+
+    updated = a.merge_update(asset, {"notes": "- drain yearly\n- check anode"}, now=NOW)
+    assert updated["notes"] == "- drain yearly\n- check anode"
+
+    # Omitted on update -> preserved (read from existing, like the other text fields).
+    untouched = a.merge_update(updated, {"model": "XE50"}, now=NOW)
+    assert untouched["notes"] == "- drain yearly\n- check anode"
+
+    # Explicitly emptied -> cleared.
+    cleared = a.merge_update(untouched, {"notes": ""}, now=NOW)
+    assert cleared["notes"] == ""
+
+
+def test_notes_default_empty_when_absent():
+    # Assets stored before this field existed simply normalize to "" — no migration.
+    asset = a.build_asset({"name": "No notes"}, now=NOW)
+    assert asset["notes"] == ""
+
+
+def test_notes_preserve_internal_newlines_for_markdown():
+    # Only the outer whitespace is stripped: Markdown is line-oriented, so collapsing
+    # the interior would destroy list items and paragraph breaks.
+    body = "# Steps\n\n1. Shut off water\n2. Drain tank"
+    asset = a.build_asset({"name": "WH", "notes": f"\n{body}\n"}, now=NOW)
+    assert asset["notes"] == body
+
+
+def test_notes_are_not_synced_into_device_identity_fields():
+    # Guard the separation _PROSE_FIELDS exists to express: notes must never leak into
+    # the registry-synced identity fields.
+    asset = a.build_asset({"name": "WH", "notes": "some prose"}, now=NOW)
+    assert asset["manufacturer"] == ""
+    assert asset["model"] == ""
+    assert asset["serial_number"] == ""
+
+
 def test_asset_device_identifier_is_prefixed():
     # Must not collide with a per-task self-owned device (bare task id).
     domain, ident = a.asset_device_identifier("abc-123")

@@ -257,6 +257,42 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   Websocket commands return structured errors via `connection.send_error`.
 - Escape all user-provided content before injecting it into `innerHTML` in the
   panel frontend (`escapeHTML`).
+- **User free text that should render rich goes through `markdown.ts`, never raw
+  `innerHTML`.** `markdownBlock()` emits an `<ha-markdown>` carrying the *escaped*
+  source in `data-md`; `wireMarkdown()` moves it onto the element's `content`
+  property after insertion (it's a property, not an attribute), and must run in
+  every render pass's wiring step. Everything else still goes through `escapeHTML`.
+  See "Markdown notes" below.
+
+## Markdown notes (implemented)
+Every notes field — task, appliance, part, and per-completion — renders as Markdown.
+- **Render with HA's own `ha-markdown`; never bundle a parser.** It parses with
+  `marked` (GFM) and sanitizes with DOMPurify *in a Web Worker*, retargets off-host
+  anchors, and brings theme-aware styles. Hand-rolling that means maintaining
+  sanitizer-adjacent code; bundling `marked`+DOMPurify means ~70 KB and two
+  supply-chain deps in a frontend that ships **zero** JS runtime dependencies. The
+  frontend Rollup config deliberately has no `node-resolve` plugin — keep it that way.
+- **`ha-markdown` is lazily loaded** and absent from HA's eager entrypoints.
+  `ensureMarkdown()` registers it by asking `window.loadCardHelpers()` to build a
+  markdown card (the chunk that defines `hui-markdown-card` also defines
+  `ha-markdown`). `window.loadCardHelpers` itself comes from the Lovelace chunk, so a
+  cold deep-link straight to `/home-keeper` may not have it — `markdownBlock` then
+  falls back to escaped text with `white-space: pre-wrap`, and `_ensureMarkdown()`
+  retries on later renders so the panel upgrades once a dashboard has been visited.
+  **Never assume the element is registered; always keep the fallback path working.**
+- **Authoring**: a detail page's Notes card has an inline editor (`_noteEdit` /
+  `_saveNote` / `_notesCardBody`) and every notes field in a form gets a live
+  `createPreview()`. Previews are **debounced** (each render round-trips through the
+  worker) and driven from the form's existing `value-changed` handler — update in
+  place, never re-render, or the field loses focus mid-word (same technique as
+  `_updateSensorHint`). The preview stays hidden until `looksLikeMarkdown()` is true:
+  echoing plain prose back at the author is noise.
+- **Storage is Markdown source, not HTML.** The raw text is what `todo`/`calendar`
+  item descriptions and the services/events hand out; only the panel renders it.
+- Appliance `notes` lives in `assets._PROSE_FIELDS`, deliberately **separate** from
+  `_TEXT_FIELDS` — the latter documents "these sync into the device registry"
+  (`manufacturer`/`model`/`serial_number`), and notes must never leak into the
+  device card.
 
 ## Assets: metadata decoupled from device creation (implemented)
 The appliance/asset feature lives in `assets.py` (pure model — no HA imports, like
