@@ -44,6 +44,7 @@ import {
 } from './forms';
 import { selEntity } from './forms';
 import { setLanguage, t, tn } from './i18n';
+import { MAX_DOCUMENT_BYTES } from './limits';
 import {
   createPreview,
   ensureMarkdown,
@@ -402,6 +403,31 @@ const STYLES = `
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
     margin: 10px 0 2px;
   }
+  /* In-flight upload: progress bar, byte counter and a cancel button, rendered
+     directly under the upload control that started it. The bar is plain DOM on
+     theme variables — HA's own ha-progress-bar lives in a lazy-loaded chunk that
+     isn't registered on a custom panel's page, so it would render as an invisible
+     un-upgraded element. */
+  .hk-upload { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 4px; }
+  .hk-upload-track {
+    height: 4px; width: 100%; border-radius: 2px; overflow: hidden;
+    background: var(--divider-color);
+  }
+  .hk-upload-fill {
+    height: 100%; width: 0; border-radius: 2px;
+    background: var(--primary-color); transition: width 120ms linear;
+  }
+  /* Indeterminate: a stripe that sweeps while we have no byte counts (before the
+     first progress event, and while the server stores an already-sent file). */
+  .hk-upload-track.indeterminate .hk-upload-fill {
+    width: 30%; transition: none; animation: hk-upload-sweep 1.1s ease-in-out infinite;
+  }
+  @keyframes hk-upload-sweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(433%); }
+  }
+  .hk-upload-label { font-size: 0.82rem; color: var(--secondary-text-color); }
+  .hk-upload ha-button { align-self: flex-start; --mdc-typography-button-font-size: 0.8rem; }
 
   /* Parts list on the appliance detail page */
   .hk-parts { display: flex; flex-direction: column; }
@@ -670,7 +696,36 @@ interface AssetEditState {
   // "parts"), preserved across re-renders so an expanded section doesn't snap shut
   // when an unrelated edit re-renders the form. Unset → defaults to "open if non-empty".
   openSections?: Record<string, boolean>;
+  // The single in-flight upload, if any (one at a time — every upload button is
+  // disabled while this is set). Lives in state, not just the DOM, so a re-render
+  // mid-upload rebuilds the progress bar instead of dropping it.
+  upload?: UploadState;
+  // An upload failure rendered *inline*, next to the control that caused it. The
+  // form-level `error` above is hundreds of pixels away from the upload buttons, which
+  // is what made these failures look silent (issue #159).
+  uploadError?: { key: string; message: string; link?: string };
 }
+
+/** Progress of the in-flight upload. `key` scopes it to the control that started it:
+ *  "document" for the appliance's documents section, `part:<id>` for a part's file. */
+interface UploadState {
+  key: string;
+  filename: string;
+  loaded: number;
+  total: number;
+  indeterminate: boolean;
+  sent: boolean;
+  /** Set once the upload has run long enough to be worth showing a bar for. */
+  visible: boolean;
+}
+
+/** Upload state key for the appliance-documents upload control. */
+const UPLOAD_KEY_DOCUMENT = 'document';
+/** Upload state key for a given part's file control. */
+const uploadKeyPart = (partId: string): string => `part:${partId}`;
+/** How long an upload must run before the progress bar appears, so a small file that
+ *  finishes almost immediately doesn't flash a bar on screen. */
+const UPLOAD_BAR_DELAY_MS = 150;
 
 // Docs section explaining a 413 from a reverse proxy in front of HA (see README
 // "Large uploads (413)"). Linked from the upload error so users can self-serve the fix.
@@ -765,6 +820,11 @@ export class HomeKeeperPanel extends HTMLElement {
   private _loadedEntryIds: Set<string> = new Set();
   private _edit: EditState = { open: false, task: null };
   private _assetEdit: AssetEditState = { open: false, asset: null };
+  // Cancels the in-flight upload (see `_runUpload`); undefined when none is running.
+  private _uploadAbort?: AbortController;
+  private _uploadShowTimer?: ReturnType<typeof setTimeout>;
+  // One-shot: the upload-error key to scroll to on the next render.
+  private _scrollToError?: string;
   private _view: 'tasks' | 'appliances' | 'settings' = 'tasks';
   // Integration options for the Settings tab (loaded lazily with the rest).
   private _options: HomeKeeperOptions | null = null;
@@ -4430,19 +4490,7 @@ export class HomeKeeperPanel extends HTMLElement {
     );
 
     if (this._assetEdit.error) {
-      const err = document.createElement('ha-alert');
-      err.setAttribute('alert-type', 'error');
-      err.textContent = this._assetEdit.error;
-      if (this._assetEdit.errorLink) {
-        const link = document.createElement('a');
-        link.href = this._assetEdit.errorLink;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = t('btn.learnMore');
-        link.style.marginInlineStart = '8px';
-        err.appendChild(link);
-      }
-      inner.appendChild(err);
+      inner.appendChild(this._errorAlert(this._assetEdit.error, this._assetEdit.errorLink));
     }
 
     const actions = document.createElement('div');
@@ -4451,6 +4499,9 @@ export class HomeKeeperPanel extends HTMLElement {
     save.setAttribute('raised', '');
     save.id = 'a-save';
     save.textContent = editing ? t('btn.save') : t('btn.create');
+    // Saving mid-upload would PUT the client draft over the asset the upload response
+    // is about to rewrite, losing the new document.
+    if (this._assetEdit.upload) save.setAttribute('disabled', '');
     save.addEventListener('click', () => void this._submitAssetForm());
     const cancel = document.createElement('ha-button');
     cancel.id = 'a-cancel';
@@ -4461,6 +4512,23 @@ export class HomeKeeperPanel extends HTMLElement {
 
     card.appendChild(inner);
     host.appendChild(card);
+
+    // An upload failure is reported inline, but the control that failed can be well
+    // below the fold in a long form — bring it into view. Driven by a one-shot flag
+    // set in `_failUpload`, never by "an error exists": `mergeAsset` clears the error
+    // on every keystroke, so a state check here would re-scroll on unrelated renders.
+    if (this._scrollToError) {
+      const key = this._scrollToError;
+      this._scrollToError = undefined;
+      requestAnimationFrame(() => {
+        const el = this.shadowRoot?.getElementById(`hk-upload-err-${key}`);
+        // Guarded: scrollIntoView is missing in jsdom, and the node is gone if a
+        // later render dropped the alert before the frame ran.
+        if (typeof el?.scrollIntoView === 'function') {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      });
+    }
   }
 
   /** Documents editor: list existing docs with a remove button, plus controls to add
@@ -4628,7 +4696,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // A file can only be uploaded once the appliance exists (its id keys the blob).
     if (assetId) {
       const upload = document.createElement('ha-button');
-      upload.textContent = t('btn.uploadFile');
+      upload.textContent = this._uploadButtonLabel(UPLOAD_KEY_DOCUMENT, t('btn.uploadFile'));
       const picker = document.createElement('input');
       picker.type = 'file';
       picker.accept = 'application/pdf,image/png,image/jpeg,image/webp,image/gif';
@@ -4639,9 +4707,12 @@ export class HomeKeeperPanel extends HTMLElement {
         picker.value = '';
       });
       upload.addEventListener('click', () => picker.click());
+      if (this._assetEdit.upload) upload.setAttribute('disabled', '');
       seedRow.append(upload, picker);
     }
     add.appendChild(seedRow);
+    // Progress / failure for this control, right where the user pressed the button.
+    this._renderUploadStatus(add, UPLOAD_KEY_DOCUMENT);
 
     if (!assetId) {
       const hint = document.createElement('div');
@@ -4826,20 +4897,242 @@ export class HomeKeeperPanel extends HTMLElement {
     const assetId = this._assetEdit.asset?.id;
     if (!this._hass || !assetId) return;
     const documentId = randomId();
+    const hass = this._hass;
+    const asset = await this._runUpload(UPLOAD_KEY_DOCUMENT, file, (opts) =>
+      api.uploadAssetDocument(hass, assetId, documentId, file, undefined, opts),
+    );
+    if (asset) this._setEditDocuments(asset);
+  }
+
+  /**
+   * Run an upload with a size pre-check, progress reporting and visible failures.
+   *
+   * Shared by the appliance-documents and part-file controls so both behave
+   * identically. Returns the upload's result, or `undefined` if it failed or was
+   * cancelled — the caller only grafts its own state on success.
+   */
+  private async _runUpload<T>(
+    key: string,
+    file: File,
+    run: (opts: api.UploadOptions) => Promise<T>,
+  ): Promise<T | undefined> {
+    // A previous failure is stale the moment a new upload starts.
+    this._assetEdit.uploadError = undefined;
+    this._setAssetError(undefined);
+
+    // Refuse an oversized file *here*: uploading 30 MB just to have the backend 413 it
+    // wastes minutes, and on a slow link looks like a hang.
+    const tooLarge = this._uploadSizeError(file);
+    if (tooLarge) {
+      this._failUpload(key, tooLarge);
+      return undefined;
+    }
+
+    this._assetEdit.upload = {
+      key,
+      filename: file.name,
+      loaded: 0,
+      total: file.size,
+      indeterminate: true,
+      sent: false,
+      visible: false,
+    };
+    this._uploadAbort = new AbortController();
+    // Small files finish before this fires, so they never flash a progress bar — the
+    // disabled "Uploading…" button is the only affordance they need.
+    this._uploadShowTimer = setTimeout(() => {
+      if (this._assetEdit.upload) {
+        this._assetEdit.upload.visible = true;
+        this._render();
+      }
+    }, UPLOAD_BAR_DELAY_MS);
+    this._render();
+
     try {
-      const asset = await api.uploadAssetDocument(this._hass, assetId, documentId, file);
-      this._setEditDocuments(asset);
+      const result = await run({
+        onProgress: (p) => this._onUploadProgress(key, p),
+        signal: this._uploadAbort.signal,
+      });
+      this._toast(t('doc.uploadComplete', { name: file.name }));
+      return result;
     } catch (err) {
       const e = err as api.UploadError;
-      // A 413 with no Home Keeper message body means a reverse proxy in front of HA
-      // rejected the upload (its request-body limit) — guide the user to the fix.
-      if (e?.status === 413 && !e.serverMessage) {
-        this._setAssetError(t('doc.uploadTooLargeProxy'), DOCS_UPLOAD_413_URL);
-      } else {
-        this._setAssetError(String(e?.message || err));
+      // A cancellation is the user's own doing — no error to report.
+      if (!e?.aborted) {
+        const { message, link } = this._uploadErrorMessage(e, file);
+        this._failUpload(key, message, link);
       }
+      return undefined;
+    } finally {
+      if (this._uploadShowTimer) clearTimeout(this._uploadShowTimer);
+      this._uploadShowTimer = undefined;
+      this._uploadAbort = undefined;
+      this._assetEdit.upload = undefined;
       this._render();
     }
+  }
+
+  /** The pre-check message for a file over the shared ceiling, else undefined. */
+  private _uploadSizeError(file: File): string | undefined {
+    if (file.size <= MAX_DOCUMENT_BYTES) return undefined;
+    return t('doc.uploadTooLargeLocal', {
+      name: file.name,
+      size: this._formatBytes(file.size),
+      limit: this._formatBytes(MAX_DOCUMENT_BYTES),
+    });
+  }
+
+  /** Map an upload failure onto localized user-facing text (plus an optional docs link). */
+  private _uploadErrorMessage(
+    e: api.UploadError,
+    file: File,
+  ): { message: string; link?: string } {
+    // A 413 with no Home Keeper message body means a reverse proxy in front of HA
+    // rejected the upload (its request-body limit) — guide the user to the fix.
+    if (e?.status === 413 && !e.serverMessage) {
+      return { message: t('doc.uploadTooLargeProxy'), link: DOCS_UPLOAD_413_URL };
+    }
+    if (!e?.status) {
+      // No HTTP status at all. If the body was still going out, the connection was cut
+      // mid-upload — classically a proxy body limit, which closes rather than replying,
+      // so the browser never sees the 413. Offer that fix without asserting it.
+      if ((e?.bytesSent ?? 0) > 0 && e.bytesSent! < file.size) {
+        return { message: t('doc.uploadNetworkOrProxy'), link: DOCS_UPLOAD_413_URL };
+      }
+      return { message: t('doc.uploadNetworkError') };
+    }
+    return { message: t('doc.uploadFailed', { error: String(e?.message ?? '') }) };
+  }
+
+  /** Report an upload failure where the user is actually looking: inline next to the
+   *  control, plus HA's toast (viewport-fixed, so it can't scroll out of sight). */
+  private _failUpload(key: string, message: string, link?: string): void {
+    this._assetEdit.uploadError = { key, message, link };
+    this._toast(message);
+    this._scrollToError = key;
+    this._render();
+  }
+
+  /** Patch the live progress bar in place. Deliberately does *not* re-render: a render
+   *  replaces the whole shadow root, which would thrash on every progress event. */
+  private _onUploadProgress(key: string, p: api.UploadProgress): void {
+    const state = this._assetEdit.upload;
+    if (!state || state.key !== key) return;
+    const before = this._uploadPercent(state);
+    Object.assign(state, {
+      loaded: p.loaded,
+      total: p.total || state.total,
+      indeterminate: p.indeterminate,
+      sent: p.sent,
+    });
+    // Whole-percent changes only; a 25 MB upload fires progress events far more often
+    // than the bar can meaningfully move.
+    if (!p.sent && this._uploadPercent(state) === before) return;
+    const host = this.shadowRoot?.getElementById('hk-upload');
+    // Gone — a re-render happened. State is authoritative; the next render rebuilds it.
+    if (!host) return;
+    this._applyUploadProgress(host, state);
+  }
+
+  /** Percent complete, or undefined while indeterminate. */
+  private _uploadPercent(state: UploadState): number | undefined {
+    if (state.indeterminate || !state.total) return undefined;
+    return Math.min(100, Math.round((state.loaded / state.total) * 100));
+  }
+
+  /** Write a progress state onto an existing bar (shared by first render and updates). */
+  private _applyUploadProgress(host: HTMLElement, state: UploadState): void {
+    const pct = this._uploadPercent(state);
+    const track = host.querySelector('.hk-upload-track');
+    const fill = host.querySelector<HTMLElement>('.hk-upload-fill');
+    const label = host.querySelector('.hk-upload-label');
+    const bar = host.querySelector('#hk-upload-bar');
+    if (track) track.classList.toggle('indeterminate', pct === undefined);
+    if (fill && pct !== undefined) fill.style.width = `${pct}%`;
+    if (bar) {
+      // Screen readers announce a determinate bar by value; while indeterminate there
+      // is no value to announce, so drop it and mark the region busy instead.
+      if (pct === undefined) {
+        bar.removeAttribute('aria-valuenow');
+        bar.setAttribute('aria-busy', 'true');
+      } else {
+        bar.setAttribute('aria-valuenow', String(pct));
+        bar.removeAttribute('aria-busy');
+      }
+    }
+    if (label) label.textContent = this._uploadLabel(state);
+  }
+
+  /** The line under the bar: "manual.pdf · 42% · 4.2 MB of 10 MB", or a phase message
+   *  while there's no percentage to show. */
+  private _uploadLabel(state: UploadState): string {
+    if (state.sent) return t('doc.uploadFinishing', { name: state.filename });
+    const pct = this._uploadPercent(state);
+    if (pct === undefined) return t('doc.uploadPreparing', { name: state.filename });
+    return t('doc.uploadProgress', {
+      name: state.filename,
+      pct: String(pct),
+      done: this._formatBytes(state.loaded),
+      total: this._formatBytes(state.total),
+    });
+  }
+
+  /** Render the progress bar and/or the inline error for one upload control. Called
+   *  from both upload call sites so they stay identical. */
+  private _renderUploadStatus(host: HTMLElement, key: string): void {
+    const state = this._assetEdit.upload;
+    if (state?.key === key && state.visible) {
+      const wrap = document.createElement('div');
+      wrap.className = 'hk-upload';
+      wrap.id = 'hk-upload';
+      const bar = document.createElement('div');
+      bar.id = 'hk-upload-bar';
+      bar.setAttribute('role', 'progressbar');
+      bar.setAttribute('aria-valuemin', '0');
+      bar.setAttribute('aria-valuemax', '100');
+      bar.setAttribute('aria-label', t('doc.uploadPreparing', { name: state.filename }));
+      const track = document.createElement('div');
+      track.className = 'hk-upload-track';
+      const fill = document.createElement('div');
+      fill.className = 'hk-upload-fill';
+      track.appendChild(fill);
+      bar.appendChild(track);
+      // No aria-live on the bar: announcing every percent tick would flood a screen
+      // reader. The completion toast and the role="alert" error carry the outcome.
+      const label = document.createElement('div');
+      label.className = 'hk-upload-label';
+      const cancel = document.createElement('ha-button');
+      cancel.textContent = t('btn.cancelUpload');
+      // Safe at any point: the backend only writes the blob once the whole body has
+      // been parsed, so an aborted upload leaves nothing behind.
+      cancel.addEventListener('click', () => this._uploadAbort?.abort());
+      wrap.append(bar, label, cancel);
+      this._applyUploadProgress(wrap, state);
+      host.appendChild(wrap);
+    }
+    const failure = this._assetEdit.uploadError;
+    if (failure?.key === key) {
+      const alert = this._errorAlert(failure.message, failure.link);
+      alert.id = `hk-upload-err-${key}`;
+      host.appendChild(alert);
+    }
+  }
+
+  /** An error alert with an optional "Learn more" link. */
+  private _errorAlert(message: string, link?: string): HTMLElement {
+    const err = document.createElement('ha-alert');
+    err.setAttribute('alert-type', 'error');
+    err.textContent = message;
+    if (link) {
+      const a = document.createElement('a');
+      a.href = link;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = t('btn.learnMore');
+      a.style.marginInlineStart = '8px';
+      err.appendChild(a);
+    }
+    return err;
   }
 
   private _renderMetadataEditor(inner: HTMLElement): void {
@@ -5131,8 +5424,9 @@ export class HomeKeeperPanel extends HTMLElement {
       return;
     }
     if (!assetId || !p.id) return;
+    const key = uploadKeyPart(p.id);
     const upload = document.createElement('ha-button');
-    upload.textContent = t('btn.attachFile');
+    upload.textContent = this._uploadButtonLabel(key, t('btn.attachFile'));
     const picker = document.createElement('input');
     picker.type = 'file';
     picker.accept = 'application/pdf,image/png,image/jpeg,image/webp,image/gif';
@@ -5143,10 +5437,18 @@ export class HomeKeeperPanel extends HTMLElement {
       picker.value = '';
     });
     upload.addEventListener('click', () => picker.click());
+    if (this._assetEdit.upload) upload.setAttribute('disabled', '');
     const row = document.createElement('div');
     row.className = 'hk-meta-seeds';
     row.append(upload, picker);
     box.appendChild(row);
+    this._renderUploadStatus(box, key);
+  }
+
+  /** An upload button reads "Uploading…" while it owns the in-flight upload. Every
+   *  upload button is disabled meanwhile — only one upload runs at a time. */
+  private _uploadButtonLabel(key: string, idle: string): string {
+    return this._assetEdit.upload?.key === key ? t('btn.uploading') : idle;
   }
 
   /** Details line for a part's attached file: filename · size · type. */
@@ -5167,26 +5469,21 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _uploadPartFile(p: Part, i: number, file: File): Promise<void> {
     const assetId = this._assetEdit.asset?.id;
     if (!this._hass || !assetId || !p.id) return;
-    try {
-      const updated = await api.uploadPartFile(this._hass, assetId, p.id, file);
-      const list = [...(this._assetEdit.asset?.parts || [])];
-      list[i] = {
-        ...list[i],
-        file_name: updated.file_name,
-        file_content_type: updated.file_content_type,
-        file_size: updated.file_size,
-      };
-      this._assetEdit.asset!.parts = list;
-      this._render();
-    } catch (err) {
-      const e = err as api.UploadError;
-      if (e?.status === 413 && !e.serverMessage) {
-        this._setAssetError(t('doc.uploadTooLargeProxy'), DOCS_UPLOAD_413_URL);
-      } else {
-        this._setAssetError(String(e?.message || err));
-      }
-      this._render();
-    }
+    const hass = this._hass;
+    const partId = p.id;
+    const updated = await this._runUpload(uploadKeyPart(partId), file, (opts) =>
+      api.uploadPartFile(hass, assetId, partId, file, undefined, opts),
+    );
+    if (!updated) return;
+    const list = [...(this._assetEdit.asset?.parts || [])];
+    list[i] = {
+      ...list[i],
+      file_name: updated.file_name,
+      file_content_type: updated.file_content_type,
+      file_size: updated.file_size,
+    };
+    this._assetEdit.asset!.parts = list;
+    this._render();
   }
 
   private async _removePartFile(p: Part, i: number): Promise<void> {

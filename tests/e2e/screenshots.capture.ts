@@ -484,6 +484,67 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     fullPage: true,
   });
 
+  // 32b. Upload rejected before it starts — picking a file over the 25 MB ceiling
+  // fails instantly, and the error renders right under the Upload file button
+  // instead of in the form-level banner far below the fold (issue #159).
+  await docForm
+    .locator('.hk-doc-add input[type="file"]')
+    .evaluate((picker: HTMLInputElement) => {
+      const file = new File([new Uint8Array(8)], 'water-heater-manual.pdf', {
+        type: 'application/pdf',
+      });
+      Object.defineProperty(file, 'size', { value: 26 * 1024 * 1024 });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      Object.defineProperty(picker, 'files', { value: dt.files, configurable: true });
+      picker.dispatchEvent(new Event('change'));
+    });
+  const uploadError = docForm.locator('.hk-doc-add ha-alert[alert-type="error"]');
+  await expect(uploadError).toBeVisible();
+  await expect(uploadError).toContainText('25 MB');
+  // Viewport-framed on the documents area: a fullPage shot of this very long form
+  // shrinks the error to a few unreadable pixels.
+  await docForm.locator('.hk-doc-add').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/32b-panel-appliance-upload-error.png` });
+
+  // 32c. Upload in progress — the bar, percentage/byte counter and Cancel upload.
+  // Upload throughput is throttled via CDP and the file is ~2 MB, so the bar shows
+  // real byte progress rather than a synthesized state (a loopback upload of a small
+  // file completes before a single progress event lands).
+  // Let the previous step's toast expire so it doesn't bleed into this shot.
+  await page.waitForTimeout(6000);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Network.enable');
+  await cdp.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 0,
+    downloadThroughput: -1,
+    uploadThroughput: 256 * 1024, // bytes/s
+  });
+  const uploadChooser = page.waitForEvent('filechooser');
+  await docForm.locator('ha-button', { hasText: 'Upload file' }).click();
+  await (await uploadChooser).setFiles({
+    name: 'water-heater-manual.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.concat([
+      Buffer.from('%PDF-1.7\n'),
+      Buffer.alloc(2 * 1024 * 1024, 0x30),
+      Buffer.from('\n%%EOF\n'),
+    ]),
+  });
+  const uploadLabel = docForm.locator('.hk-upload-label');
+  await expect(uploadLabel).toContainText('%', { timeout: 20_000 });
+  await docForm.locator('.hk-doc-add').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${OUT}/32c-panel-appliance-upload-progress.png` });
+  await cdp.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 0,
+    downloadThroughput: -1,
+    uploadThroughput: -1,
+  });
+  await expect(docForm.locator('#hk-upload')).toHaveCount(0, { timeout: 30_000 });
+
   // 35. Part delete confirmation dialog — clicking the trash icon on a part now
   // shows a confirmation dialog before removing it (previously the icon was
   // invisible and deletion was immediate). Navigate to the water heater edit form,

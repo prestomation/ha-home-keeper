@@ -648,12 +648,30 @@ link too.
 
 ![The appliance Manuals & documents editor — existing documents as cards with Open / Edit / Remove actions, plus an add-a-document area with add-link and upload-file controls](docs/images/32-panel-appliance-documents.png)
 
+#### Upload progress and failures
+
+An upload shows a **progress bar** with the percentage and byte count while it runs,
+plus a **Cancel upload** button; once the last byte is sent it switches to *"Saving…"*
+for the moment Home Assistant takes to store the file. The upload and **Save** buttons
+are disabled meanwhile, so a save can't race an upload in flight.
+
+If an upload fails, the reason appears **right under the button you pressed** and as a
+Home Assistant notification toast — no hunting for it.
+
+![An upload rejected for exceeding the 25 MB limit — the error appears directly under the Upload file button, and as a notification toast](docs/images/32b-panel-appliance-upload-error.png)
+
+![An upload in progress — a progress bar with percentage and byte count, and a Cancel upload button](docs/images/32c-panel-appliance-upload-progress.png)
+
 #### Large uploads (413)
 
-Home Keeper accepts uploads up to **25 MB**. If an upload fails with **HTTP 413** —
-especially the panel showing *"Upload too large…"* — the file was almost certainly
-rejected by a **reverse proxy in front of Home Assistant**, before it ever reached the
-integration. The usual cause is the proxy's request-body limit (nginx defaults
+Home Keeper accepts uploads up to **25 MB**, and the panel checks the file's size
+*before* uploading — so an oversized file is refused immediately, naming the file, its
+size and the limit, rather than transferring in full only to be rejected at the end.
+
+If an upload still fails with **HTTP 413** — or the panel says the upload was *cut off
+before it finished* — the file was rejected by a **reverse proxy in front of Home
+Assistant**, before it ever reached the integration. The usual cause is the proxy's
+request-body limit (nginx defaults
 `client_max_body_size` to just **1 MB**). Raise it above your largest manual:
 
 - **nginx** (manual config): add `client_max_body_size 30M;` to the `server` (or

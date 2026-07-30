@@ -178,6 +178,60 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await buyPart.locator('ha-switch').first().click();
     await expect(buyPart.getByText('Restock quantity', { exact: false })).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
+
+    // 4c. Uploading a manual — the documents editor. Picking a file over the 25 MB
+    //     ceiling is refused instantly, with the reason right under the button that
+    //     was pressed (rather than in a banner far below the fold), then a real
+    //     upload runs with a progress bar, percentage and byte counter.
+    const docAdd = assetForm.locator('.hk-doc-add');
+    await docAdd.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(BEAT);
+    await docAdd.locator('input[type="file"]').evaluate((picker: HTMLInputElement) => {
+      const file = new File([new Uint8Array(8)], 'water-heater-manual.pdf', {
+        type: 'application/pdf',
+      });
+      Object.defineProperty(file, 'size', { value: 26 * 1024 * 1024 });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      Object.defineProperty(picker, 'files', { value: dt.files, configurable: true });
+      picker.dispatchEvent(new Event('change'));
+    });
+    await expect(docAdd.locator('ha-alert[alert-type="error"]')).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+
+    // Throttle the upload so the bar's motion is actually visible in the recording.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Network.enable');
+    await cdp.send('Network.emulateNetworkConditions', {
+      offline: false,
+      latency: 0,
+      downloadThroughput: -1,
+      uploadThroughput: 512 * 1024,
+    });
+    const chooser = page.waitForEvent('filechooser');
+    await docAdd.locator('ha-button', { hasText: 'Upload file' }).click();
+    await (await chooser).setFiles({
+      name: 'water-heater-manual.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.concat([
+        Buffer.from('%PDF-1.7\n'),
+        Buffer.alloc(2 * 1024 * 1024, 0x30),
+        Buffer.from('\n%%EOF\n'),
+      ]),
+    });
+    await expect(assetForm.locator('.hk-upload-label')).toContainText('%', {
+      timeout: 20_000,
+    });
+    await page.waitForTimeout(BEAT * 3);
+    await cdp.send('Network.emulateNetworkConditions', {
+      offline: false,
+      latency: 0,
+      downloadThroughput: -1,
+      uploadThroughput: -1,
+    });
+    await expect(assetForm.locator('#hk-upload')).toHaveCount(0, { timeout: 30_000 });
+    await page.waitForTimeout(BEAT);
+
     // Discard the unsaved toggle and return to the appliances list — a stable
     // top-level surface — for the next scene (``_closeAssetForm`` only re-renders,
     // so re-selecting the tab is the reliable way back to the list).

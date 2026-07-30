@@ -323,6 +323,28 @@ def test_upload_larger_than_ha_app_limit_succeeds(ha):
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
+def test_upload_over_document_limit_is_rejected(ha):
+    # The other side of the ceiling: over 25 MB must come back as a 413 carrying a
+    # JSON {message} that names the limit. The panel keys off exactly that — a JSON
+    # body means "Home Keeper rejected this", while a non-JSON one means a proxy in
+    # front of HA did, and the two get different advice (issue #159).
+    name = f"Doc over-limit probe {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    too_big = b"%PDF-1.7\n" + b"0" * (26 * 1024 * 1024) + b"\n%%EOF"
+    r = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{uuid.uuid4().hex}",
+        files={"file": ("huge-manual.pdf", too_big, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=60,
+    )
+    assert r.status_code == 413, f"expected 413, got {r.status_code} {r.text[:200]}"
+    assert "25 MB" in r.json()["message"]
+    # Nothing was stored.
+    after = next(a for a in _assets(ha) if a["id"] == asset["id"])
+    assert not [d for d in after.get("documents", []) if d["kind"] == "file"]
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
 def test_document_view_requires_auth(ha):
     # The view is auth-gated: an unauthenticated GET is rejected.
     r = requests.get(f"{HA_URL}/api/home_keeper/document/whatever/whatever", timeout=10)

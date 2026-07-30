@@ -309,6 +309,36 @@ Every notes field — task, appliance, part, and per-completion — renders as M
   (`manufacturer`/`model`/`serial_number`), and notes must never leak into the
   device card.
 
+### A failed action reports itself where the user is looking
+An action's failure must surface **inline, next to the control that triggered it**, and
+also via `_toast(...)` (HA's `hass-notification` snackbar, which is viewport-fixed and
+so can't scroll out of sight). A single form-level error banner is **not** sufficient on
+a long form: the appliance editor's banner sits below the documents, metadata, parts and
+related-devices sections, which is why upload failures read as "nothing happened"
+(issue #159). Scope the inline error to the control with a key (`document`,
+`part:<id>`), scroll it into view via a one-shot flag set at failure time — never by
+checking "an error exists" during render, since `mergeAsset` clears the error on every
+keystroke — and clear a stale error when the next attempt succeeds.
+
+### Backend constants the panel needs live in `frontend/src/limits.ts`
+TypeScript can't import a Python constant, so a limit the panel must enforce
+client-side (e.g. `MAX_DOCUMENT_BYTES`, checked before uploading so an oversized file
+fails instantly instead of after a long transfer) is mirrored in
+`frontend/src/limits.ts` and drift-guarded by a pytest test
+(`tests/unit/test_upload_limit_parity.py`). The backend stays the authority — the
+client check is a fast path, never the enforcement.
+
+### Don't build on lazily-loaded HA components
+Only use an HA custom element that is registered on a *custom panel's* page. Several
+(`ha-progress-bar`, `ha-progress-ring`) exist in HA's frontend but only inside
+lazy-loaded chunks, so they never upgrade for us and would render as invisible empty
+elements; `REQUIRED_COMPONENTS` only *waits* for a registration, it can't cause one.
+Verify with `customElements.get('<tag>')` on `/home-keeper` in the e2e container before
+depending on one, and otherwise build the element from plain DOM plus theme CSS
+variables (`var(--primary-color)`, `var(--divider-color)`) — see the upload progress
+bar (`.hk-upload`). HA has broken us this way before (issue #144, `ha-dialog`'s slot
+API).
+
 ## Assets: metadata decoupled from device creation (implemented)
 The appliance/asset feature lives in `assets.py` (pure model — no HA imports, like
 `models.py`) and `devices.py` (registry provisioning). Keep the two concerns separate:
