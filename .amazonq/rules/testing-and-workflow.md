@@ -24,6 +24,22 @@
   commit under `docs/images/`, embed in the README with a relative `docs/images/…`
   path). A new headline feature isn't "done" until the README shows it. (The moving
   walkthrough is **not** committed to the README — it's the per-PR CI comment above.)
+- **User-facing prose is linted for AI-tell phrasing.** `lint.yml`'s `vale` job runs
+  the [vale-ai-tells](https://github.com/tbhb/vale-ai-tells) style (pinned version in
+  `.vale.ini`) over `README.md`, `CHANGELOG.md`, the canonical `docs/*.md` (excludes
+  `*_PLAN.md`/research scratch docs), `website/docs/intro.md`, `strings.json`,
+  `services.yaml`, and `locales/en.json` (not the other locales or `translations/`,
+  since the rules are English-phrase regexes). It's diff-scoped (`filter_mode: added`),
+  so only new/changed lines can fail CI. The existing corpus is cleaned up
+  separately. Run locally with `vale sync && vale <paths>`. Disable an accepted false
+  positive per-file in `.vale.ini` (`ai-tells.RuleName = NO`) or inline with
+  `<!-- vale ai-tells.RuleName = NO -->` / `... = YES -->`. For example,
+  `services.yaml` disables `ColonUsage`, which otherwise fires on every unquoted
+  YAML `key: Value` line. Diff-scoping misses pre-existing hits on lines a
+  full-file prose rewrite happens to move, so run `vale <file>` yourself first for
+  that case. The pinned `ai-tells.zip` version has no bump automation
+  (Dependabot/Renovate don't track raw release URLs), so bump it by hand
+  periodically.
 
 ## Tests (run locally before pushing — never use CI as the test runner)
 - The recurrence engine and model are the correctness core: keep them HA-free and

@@ -26,3 +26,7 @@ docs/videos/
 # e2e: Docker creates this dir as the bind-mount target for the integration under
 # test and the stub companion integrations (see tests/integration/docker-compose.yml).
 tests/integration/ha_config/custom_components/
+
+# Vale style packages fetched by `vale sync` per .vale.ini. This is a synced
+# dependency, not source: errata-ai/vale-action fetches its own copy in CI.
+styles/
