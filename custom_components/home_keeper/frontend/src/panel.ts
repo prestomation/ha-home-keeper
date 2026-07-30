@@ -773,12 +773,13 @@ export class HomeKeeperPanel extends HTMLElement {
   // The textarea is uncontrolled: its value is read on Save, so typing doesn't trigger
   // a re-render (which would drop focus) — only the live preview updates, in place.
   private _noteEdit: NoteTarget | null = null;
-  // Live Markdown preview under the open inline editor; disposed when it closes.
-  private _notePreview: MarkdownPreview | null = null;
-  // Live Markdown previews attached to notes fields in the edit forms/dialogs. Rebuilt
-  // every render pass (the forms are), so the old ones are disposed first.
-  private _formPreviews: MarkdownPreview[] = [];
-  // The task form's notes preview, fed from that form's value-changed handler.
+  // Every live Markdown preview on screen — the inline note editors and the notes
+  // fields in the edit forms/dialogs. All are built by `_attachNotePreview` (the only
+  // constructor) and torn down together: they're rebuilt each render pass, and each
+  // holds a debounce timer that must not outlive its DOM.
+  private _previews: MarkdownPreview[] = [];
+  // The task form's notes preview, so that form's value-changed handler can feed it.
+  // Owned by `_previews` for disposal — this is only a reference.
   private _taskNotePreview: MarkdownPreview | null = null;
   // Live HA components that need `.hass` refreshed when hass updates.
   private _liveHassEls: Array<{ hass?: Hass }> = [];
@@ -877,16 +878,11 @@ export class HomeKeeperPanel extends HTMLElement {
     for (const id of Object.values(this._persistTimers)) clearTimeout(id);
     this._persistTimers = {};
     // Markdown previews hold a debounce timer that would otherwise fire against a
-    // detached subtree after unmount. `_formPreviews` owns every preview built by
-    // `_attachNotePreview` (which registers each one as it creates it), so disposing
-    // that list covers `_taskNotePreview` too — it is only ever assigned from there.
-    // `_notePreview` is the exception: `_wireNoteEditor` builds it directly, so it
-    // needs its own dispose. Dispose everything first, then drop the references.
-    this._notePreview?.dispose();
-    this._formPreviews.forEach((p) => p.dispose());
-    this._notePreview = null;
+    // detached subtree after unmount. `_attachNotePreview` is the only constructor and
+    // registers every preview here, so this one loop covers all of them.
+    this._previews.forEach((p) => p.dispose());
+    this._previews = [];
     this._taskNotePreview = null;
-    this._formPreviews = [];
   }
 
   /** Restore the persisted group-by / filter choices (best-effort). */
@@ -1192,10 +1188,15 @@ export class HomeKeeperPanel extends HTMLElement {
    * The caller feeds it from its form's existing `value-changed` handler — updating the
    * preview in place rather than re-rendering, so the field keeps focus while typing
    * (the same technique `_updateSensorHint` uses for the sensor primer).
+   *
+   * **This is the only way to build a preview.** Every one is registered in
+   * `_previews`, which `_render` and `disconnectedCallback` dispose wholesale, so a
+   * preview can never outlive its DOM with a debounce timer still armed. Constructing
+   * one directly with `createPreview` would leak — don't.
    */
   private _attachNotePreview(host: HTMLElement, initial: string): MarkdownPreview {
     const preview = createPreview(t('note.preview'));
-    this._formPreviews.push(preview);
+    this._previews.push(preview);
     host.appendChild(preview.el);
     preview.update(initial);
     return preview;
@@ -1213,14 +1214,11 @@ export class HomeKeeperPanel extends HTMLElement {
     root.querySelector('.d-note-save')?.addEventListener('click', () => {
       void this._saveNote(target, input?.value ?? '');
     });
-    const host = root.querySelector('.d-note-preview');
+    const host = root.querySelector<HTMLElement>('.d-note-preview');
     if (!input || !host) return;
-    // A fresh preview per render pass — the previous one's DOM is already gone.
-    this._notePreview?.dispose();
-    const preview = createPreview(t('note.preview'));
-    this._notePreview = preview;
-    host.appendChild(preview.el);
-    preview.update(input.value);
+    // A fresh preview per render pass — `_render` disposed the previous one and its
+    // DOM is already gone. This runs from `_hydrate`, i.e. after that reset.
+    const preview = this._attachNotePreview(host, input.value);
     input.addEventListener('input', () => preview.update(input.value));
   }
 
@@ -1664,11 +1662,16 @@ export class HomeKeeperPanel extends HTMLElement {
    * later once the user has visited a dashboard. Each attempt is a cheap no-op when
    * the helper is still missing, and `markdownReady()` short-circuits it forever after
    * the element registers — so this cannot loop.
+   *
+   * The registration attempt outlives a single render (it awaits a lazy chunk load), so
+   * the callback checks `isConnected` before re-rendering: without that, unmounting
+   * while one is in flight would rebuild the whole panel — forms, previews and their
+   * debounce timers — onto a detached element that nothing will ever tear down again.
    */
   private _ensureMarkdown(): void {
     if (markdownReady()) return;
     void ensureMarkdown().then((ok) => {
-      if (ok) this._render();
+      if (ok && this.isConnected) this._render();
     });
   }
 
@@ -1677,10 +1680,11 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!this.shadowRoot) return;
     this._ensureMarkdown();
     this._liveHassEls = [];
-    // The forms below are rebuilt from scratch, so any preview they owned is about to
+    // Everything below is rebuilt from scratch, so every preview on screen is about to
     // be detached — cancel its pending debounce rather than leaking a timer.
-    this._formPreviews.forEach((p) => p.dispose());
-    this._formPreviews = [];
+    this._previews.forEach((p) => p.dispose());
+    this._previews = [];
+    this._taskNotePreview = null;
     const onTasks = this._view === 'tasks';
 
     let inner: string;

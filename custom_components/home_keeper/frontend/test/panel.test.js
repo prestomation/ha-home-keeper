@@ -425,3 +425,55 @@ describe('Notes render as Markdown (issue #163)', () => {
     expect(partForm.data.notes).toBe('Torque to 40 Nm');
   });
 });
+
+describe('Markdown preview teardown (issue #163)', () => {
+  beforeAll(() => {
+    if (!customElements.get('ha-markdown')) {
+      customElements.define('ha-markdown', class extends HTMLElement {});
+    }
+  });
+
+  const noted = {
+    id: 't1',
+    name: 'Replace filter',
+    notes: '**bold**',
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'months',
+    completions: [],
+  };
+
+  it('cancels a pending preview render when the panel unmounts mid-typing', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'))).click();
+    const input = await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
+
+    // Type Markdown, then unmount before the debounce elapses. Nothing should fire
+    // against the detached subtree afterwards.
+    input.value = '## typing';
+    input.dispatchEvent(new Event('input'));
+    const preview = panel.shadowRoot.querySelector('.d-note-preview .hk-md-preview');
+    expect(preview, 'the editor should have a preview attached').toBeTruthy();
+
+    panel.remove(); // disconnectedCallback
+
+    await new Promise((r) => setTimeout(r, 400)); // longer than the 200ms debounce
+    expect(
+      preview.querySelector('ha-markdown'),
+      'a disposed preview must not render after unmount',
+    ).toBeNull();
+  });
+
+  it('does not re-render onto a detached panel when ha-markdown registers late', async () => {
+    // `ensureMarkdown()` awaits a lazy chunk load, so it can settle after unmount.
+    // The callback must check isConnected — otherwise it rebuilds the whole panel,
+    // and the previews it creates would never be torn down.
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
+
+    panel.remove();
+    const htmlAtUnmount = panel.shadowRoot.innerHTML;
+    await new Promise((r) => setTimeout(r, 300));
+    expect(panel.shadowRoot.innerHTML).toBe(htmlAtUnmount);
+  });
+});
