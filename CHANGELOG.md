@@ -1,8 +1,10 @@
 # Changelog
 
+<!-- vale ai-tells.OverusedVocabulary = NO -->
 All notable changes to Home Keeper are documented here. The format follows
+<!-- vale ai-tells.OverusedVocabulary = YES -->
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
-versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas).
+versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ## [Unreleased]
 
@@ -10,23 +12,25 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
 
 - **The upload limit is now 100 MB (was 25 MB).** Uploads are streamed straight to
   disk as they arrive instead of being held in memory, so a large scanned manual no
-  longer costs Home Assistant hundreds of megabytes of RAM to accept — peak memory is
+  longer costs Home Assistant hundreds of megabytes of RAM to accept. Peak memory is
   now a fixed ~1 MB buffer no matter how big the file is. Note that a reverse proxy
   in front of Home Assistant enforces its own body limit (nginx defaults to just
-  1 MB), so raise that too if you upload remotely — see the README.
+  1 MB), so raise that too if you upload remotely (see the README).
 - **Upload progress for appliance documents and part files.** Attaching a manual,
   receipt or photo now shows a progress bar with the percentage and byte count
   (`manual.pdf · 42% · 4.2 MB of 10 MB`), a **Cancel upload** button, and a
   "Saving…" phase for the stretch after the last byte is sent while Home Assistant
-  stores the file. Previously a large upload gave no feedback at all — the button
+  stores the file. Previously a large upload gave no feedback at all. The button
   stayed idle and nothing moved until it finished. The upload and **Save** buttons
   are disabled while an upload is in flight, so a save can no longer race it.
 
 ### Fixed
 
+<!-- vale ai-tells.OverusedVocabulary = NO -->
 - **Sending an actionable notification blocked the event loop.** Building a
+<!-- vale ai-tells.OverusedVocabulary = YES -->
   notification's payload resolves translated button/message strings and, for
-  multi-day-overdue phrasing, Babel's CLDR plural rules — both of which read files
+  multi-day-overdue phrasing, Babel's CLDR plural rules, both of which read files
   from disk on first use per language. That read was happening directly on Home
   Assistant's event loop (from the `home_keeper.notify` service and the auto/walk
   notification paths), which Home Assistant's own blocking-call detector flags as a
@@ -34,15 +38,15 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   loop, like any other blocking I/O. (Fixes #150)
 - **A failed upload looked like nothing happened.** An upload error was only ever
   rendered in the appliance form's error banner, which sits below the documents,
-  metadata, parts and related-devices sections — hundreds of pixels beneath the
-  **Upload file** button that triggered it, so the failure was invisible without
+  metadata, parts and related-devices sections (hundreds of pixels beneath the
+  **Upload file** button that triggered it), so the failure was invisible without
   scrolling. Upload failures now appear *inline, next to the control that failed*,
   and also fire a Home Assistant notification toast, which can't scroll out of
   view. The panel scrolls the error into view, and a previous failure is cleared
   when the next upload succeeds. (Fixes #159)
 - **A file over the 25 MB limit is now refused instantly.** The panel checks the
   file's size before uploading, so an oversized file fails immediately with a
-  message naming the file, its size and the limit — instead of being streamed to
+  message naming the file, its size and the limit, instead of being streamed to
   Home Assistant in full only to be rejected at the end, which on a slow
   connection looked like a hang.
 - **Better wording when an upload is cut off mid-transfer.** A reverse proxy that
