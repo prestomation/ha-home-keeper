@@ -877,11 +877,15 @@ export class HomeKeeperPanel extends HTMLElement {
     for (const id of Object.values(this._persistTimers)) clearTimeout(id);
     this._persistTimers = {};
     // Markdown previews hold a debounce timer that would otherwise fire against a
-    // detached subtree after unmount.
+    // detached subtree after unmount. `_formPreviews` owns every preview built by
+    // `_attachNotePreview` (which registers each one as it creates it), so disposing
+    // that list covers `_taskNotePreview` too — it is only ever assigned from there.
+    // `_notePreview` is the exception: `_wireNoteEditor` builds it directly, so it
+    // needs its own dispose. Dispose everything first, then drop the references.
     this._notePreview?.dispose();
+    this._formPreviews.forEach((p) => p.dispose());
     this._notePreview = null;
     this._taskNotePreview = null;
-    this._formPreviews.forEach((p) => p.dispose());
     this._formPreviews = [];
   }
 
