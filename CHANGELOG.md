@@ -30,6 +30,19 @@ versioning (with PEP 440 pre-release suffixes — `bN`/`aN`/`rcN` — for betas)
   offered no way to enter them and never showed them. They now appear in the part editor
   and render under the part in an appliance's Parts list.
 
+### Fixed
+
+- **Uploaded manuals and receipts couldn't be opened on mobile, and looked like dead
+  text on desktop.** On an appliance's page, tapping a document you'd uploaded (or a
+  part's attached file) did nothing at all in the Home Assistant companion app: the
+  link was built as a script-driven click that fetched a download URL first, and the
+  app's browser blocks a new tab opened that late. They're now ordinary links whose
+  URL is ready before you tap — so they open on mobile, react to hover with a pointer
+  and underline on desktop, and support long-press "open in new tab", middle-click and
+  keyboard activation like any other link. Document rows and the part-attachment
+  paperclip also got a full-size touch target, so they're no longer a pixel hunt on a
+  phone. (Fixes #164)
+
 ## [0.10.0b1]
 
 ### Fixed

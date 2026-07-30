@@ -24,7 +24,8 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
-import { documentLabel, isDisplayableDocument } from './documents';
+import type { SignedFileRef } from './documents';
+import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
 import { ensureMarkdown, markdownBlock, markdownReady, wireMarkdown } from './markdown';
 import type { Asset, Hass, HassLabel, Profile, Task } from './types';
@@ -259,10 +260,11 @@ export class HomeKeeperCard extends HTMLElement {
   // Appliance data, loaded only when a task references "show on card" links, so the
   // card can resolve those references to live document/metadata names + URLs.
   private _assets: Asset[] = [];
-  // Short-lived signed URLs for pinned *file* documents, keyed `assetId:docId`, minted
-  // at refresh so a file chip can be a plain <a href> (a native tap — the iOS app's
-  // WKWebView blocks an async window.open). Re-signed before expiry; see _signDocuments.
-  private _signedDocs = new Map<string, { url: string; signedAt: number }>();
+  // Short-lived signed URLs for pinned *file* documents, minted at refresh so a file
+  // chip can be a plain <a href> (a native tap — the iOS app's WKWebView blocks an
+  // async window.open). The caching/expiry rules are shared with the panel; see
+  // `SignedUrlCache` in documents.ts.
+  private _signedDocs = new SignedUrlCache();
   // HA label registry (id -> entry), fetched once so label chips can show real
   // names rather than raw ids. Empty until loaded; lookups fall back to the id.
   private _labels: Record<string, HassLabel> = {};
@@ -677,46 +679,24 @@ export class HomeKeeperCard extends HTMLElement {
    * Pre-mint signed URLs for every pinned **file** document so its chip can be a plain
    * `<a href>` opened by a native tap. This sidesteps the iOS app's WKWebView, which
    * blocks a `window.open` issued after the async signing round-trip (links open fine
-   * because they're native anchors with no async gap). Cached and only re-signed when
-   * stale, so frequent dashboard refreshes don't spam the signing command; entries for
-   * no-longer-referenced files are dropped. Best-effort — a failed sign just leaves that
-   * chip out until the next refresh.
+   * because they're native anchors with no async gap). The caching, expiry and eviction
+   * rules live in `SignedUrlCache`; this just says *which* files the card shows.
+   * Best-effort — a failed sign just leaves that chip out until the next refresh.
    */
   private async _signDocuments(): Promise<void> {
     if (!this._hass) return;
-    // Re-sign comfortably before the backend's 1h TTL so an idle dashboard's hrefs
-    // stay valid; a fresh cache entry is reused across refreshes until then.
-    const RESIGN_AFTER_MS = 45 * 60 * 1000;
-    const now = Date.now();
-    const needed = new Map<string, { assetId: string; docId: string }>();
+    const needed: SignedFileRef[] = [];
     for (const task of this._tasks) {
       for (const ref of task.card_links ?? []) {
         const doc = this._assets
           .find((a) => a.id === ref.asset_id)
           ?.documents?.find((d) => d.id === ref.entry_id);
         if (doc?.kind === 'file' && doc.filename) {
-          needed.set(`${ref.asset_id}:${ref.entry_id}`, {
-            assetId: ref.asset_id,
-            docId: ref.entry_id,
-          });
+          needed.push({ kind: 'document', assetId: ref.asset_id, id: ref.entry_id });
         }
       }
     }
-    for (const key of [...this._signedDocs.keys()]) {
-      if (!needed.has(key)) this._signedDocs.delete(key);
-    }
-    await Promise.all(
-      [...needed].map(async ([key, { assetId, docId }]) => {
-        const cached = this._signedDocs.get(key);
-        if (cached && now - cached.signedAt < RESIGN_AFTER_MS) return;
-        try {
-          const url = await api.signDocumentUrl(this._hass!, assetId, docId);
-          this._signedDocs.set(key, { url, signedAt: now });
-        } catch {
-          // Keep any prior URL; a failed sign just won't refresh it this round.
-        }
-      }),
-    );
+    await this._signedDocs.ensure(this._hass, needed);
   }
 
   /**
@@ -742,10 +722,12 @@ export class HomeKeeperCard extends HTMLElement {
         if (!isDisplayableDocument(doc)) continue;
         if (doc.kind === 'file') {
           // Use the signed URL pre-minted at refresh; skip until it's available.
-          const signed = this._signedDocs.get(`${ref.asset_id}:${ref.entry_id}`);
-          if (signed) {
-            out.push({ name: documentLabel(doc), url: signed.url, icon: MDI_FILE });
-          }
+          const signed = this._signedDocs.get({
+            kind: 'document',
+            assetId: ref.asset_id,
+            id: ref.entry_id,
+          });
+          if (signed) out.push({ name: documentLabel(doc), url: signed, icon: MDI_FILE });
         } else if (doc.url && isHttp(doc.url)) {
           out.push({ name: documentLabel(doc), url: doc.url, icon: MDI_OPEN_IN_NEW });
         }
