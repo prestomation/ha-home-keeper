@@ -83,8 +83,11 @@ export function signedFileKey(ref: SignedFileRef): string {
 }
 
 /** Re-sign comfortably before the backend's 1h TTL (`_DOCUMENT_URL_TTL`) so an idle
- *  page's hrefs stay valid, while a fresh entry is reused across renders. */
-const RESIGN_AFTER_MS = 45 * 60 * 1000;
+ *  page's hrefs stay valid, while a fresh entry is reused across renders. Exported so a
+ *  surface that isn't re-rendered by anything else can wake up and refresh on the same
+ *  clock — an href that outlives the TTL is a 403 waiting to happen. */
+export const SIGNED_URL_REFRESH_MS = 45 * 60 * 1000;
+const RESIGN_AFTER_MS = SIGNED_URL_REFRESH_MS;
 
 /**
  * Short-lived signed URLs for file documents / part files, minted *ahead of the click*
@@ -97,6 +100,10 @@ const RESIGN_AFTER_MS = 45 * 60 * 1000;
  */
 export class SignedUrlCache {
   private _entries = new Map<string, { url: string; signedAt: number }>();
+  // Signs currently in flight, keyed the same way. A surface can call `ensure` again
+  // before an earlier call has resolved (the panel signs after *every* render), and
+  // without this each overlapping call would mint its own URL for the same file.
+  private _pending = new Map<string, Promise<void>>();
 
   /** The cached URL for a key, or undefined if it hasn't been signed yet. */
   getByKey(key: string): string | undefined {
@@ -113,6 +120,9 @@ export class SignedUrlCache {
    * anything no longer referenced (so a long-lived panel/card doesn't accumulate
    * URLs for files it stopped showing). Call it with the complete set the surface
    * currently renders — a partial set evicts the rest.
+   *
+   * Overlapping calls share one round-trip per file: a key already being signed is
+   * awaited rather than signed again.
    *
    * Resolves to true when at least one URL was (re-)minted, so a caller that renders
    * hrefs inline can decide whether a re-render is worth it. Best-effort: a failed
@@ -131,16 +141,25 @@ export class SignedUrlCache {
       [...needed].map(async ([key, ref]) => {
         const cached = this._entries.get(key);
         if (cached && now - cached.signedAt < RESIGN_AFTER_MS) return;
-        try {
-          const url =
-            ref.kind === 'document'
-              ? await api.signDocumentUrl(hass, ref.assetId, ref.id)
-              : await api.signPartFileUrl(hass, ref.assetId, ref.id);
-          this._entries.set(key, { url, signedAt: Date.now() });
-          signed = true;
-        } catch {
-          // Keep any prior URL; a failed sign just won't refresh it this round.
-        }
+        // Join an in-flight sign for this file instead of starting a second one.
+        const inFlight = this._pending.get(key);
+        if (inFlight) return inFlight;
+        const sign = (async (): Promise<void> => {
+          try {
+            const url =
+              ref.kind === 'document'
+                ? await api.signDocumentUrl(hass, ref.assetId, ref.id)
+                : await api.signPartFileUrl(hass, ref.assetId, ref.id);
+            this._entries.set(key, { url, signedAt: Date.now() });
+            signed = true;
+          } catch {
+            // Keep any prior URL; a failed sign just won't refresh it this round.
+          } finally {
+            this._pending.delete(key);
+          }
+        })();
+        this._pending.set(key, sign);
+        return sign;
       }),
     );
     return signed;

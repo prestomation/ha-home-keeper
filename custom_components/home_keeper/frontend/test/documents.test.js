@@ -42,6 +42,28 @@ describe('SignedUrlCache', () => {
     expect(calls).toEqual({ document: 1, part: 1 });
   });
 
+  it('shares one round-trip when overlapping calls want the same file', async () => {
+    const { hass, calls } = makeHass();
+    const cache = new SignedUrlCache();
+
+    // The panel signs after *every* render, so a second call routinely starts before
+    // the first has resolved. Without joining the in-flight sign, each would mint its
+    // own URL for the same file.
+    await Promise.all([cache.ensure(hass, [DOC]), cache.ensure(hass, [DOC])]);
+    expect(calls.document).toBe(1);
+    expect(cache.get(DOC)).toBe('/doc/d1?sig=1');
+
+    // And the join is not sticky: once settled, a later stale entry still re-signs.
+    const realNow = Date.now;
+    Date.now = () => realNow() + 46 * 60 * 1000;
+    try {
+      await cache.ensure(hass, [DOC]);
+    } finally {
+      Date.now = realNow;
+    }
+    expect(calls.document).toBe(2);
+  });
+
   it('re-signs once the URL approaches the backend TTL', async () => {
     const { hass, calls } = makeHass();
     const cache = new SignedUrlCache();

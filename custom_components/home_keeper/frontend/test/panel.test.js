@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { HomeKeeperPanel } from '../src/panel.ts';
 
 // The panel waits for HA's lazy components before first paint. Register
@@ -542,7 +542,10 @@ function makeDocHass(overrides = {}) {
       case 'home_keeper/sign_document_url':
         signed.document++;
         if (overrides.failDocumentSign) return Promise.reject(new Error('nope'));
-        return Promise.resolve({ url: `/api/home_keeper/document/a1/${msg.document_id}?authSig=abc&x=1` });
+        // The signature varies per mint, so a re-sign is observable on the anchor.
+        return Promise.resolve({
+          url: `/api/home_keeper/document/a1/${msg.document_id}?authSig=abc${signed.document}&x=1`,
+        });
       case 'home_keeper/sign_part_file_url':
         signed.part++;
         return Promise.resolve({ url: `/api/home_keeper/part_file/a1/${msg.part_id}?authSig=def` });
@@ -576,7 +579,7 @@ describe('Appliance detail — file links are real, pre-signed anchors (issue #1
     // The bug: tapping did nothing on mobile because the anchor had no href and the
     // click handler ran `window.open` *after* an async sign — which WKWebView blocks.
     expect(file, 'the file document should end up with a signed href').toBeTruthy();
-    expect(file.getAttribute('href')).toBe('/api/home_keeper/document/a1/d2?authSig=abc&x=1');
+    expect(file.getAttribute('href')).toBe('/api/home_keeper/document/a1/d2?authSig=abc1&x=1');
     expect(file.getAttribute('target')).toBe('_blank');
     expect(file.getAttribute('rel')).toContain('noopener');
     // A link masquerading as a button is what lost the native affordances.
@@ -640,5 +643,35 @@ describe('Appliance detail — file links are real, pre-signed anchors (issue #1
     const evt = new MouseEvent('click', { bubbles: true, cancelable: true });
     file.dispatchEvent(evt);
     expect(evt.defaultPrevented, 'the browser follows the href itself').toBe(false);
+  });
+});
+
+describe('Appliance detail — signed hrefs are refreshed before they expire', () => {
+  it('re-signs an open appliance page on a timer, so a long-lived tab never clicks into a 403', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { hass, signed } = makeDocHass();
+      const panel = await openApplianceDetail(hass);
+      const file = await waitFor(() => {
+        const el = panel.shadowRoot?.querySelector('a.hk-doc-file[data-doc="d2"]');
+        return el?.getAttribute('href') ? el : null;
+      });
+      expect(signed.document).toBe(1);
+      const first = file.getAttribute('href');
+
+      // Unlike the dashboard card, the panel doesn't re-render on hass updates — it
+      // renders on navigation. Left alone, the href would outlive the backend's 1h TTL.
+      await vi.advanceTimersByTimeAsync(46 * 60 * 1000);
+      await vi.waitFor(() => expect(signed.document).toBe(2));
+
+      // The refreshed URL is stamped onto the live anchor, not just the cache.
+      await vi.waitFor(() =>
+        expect(
+          panel.shadowRoot.querySelector('a.hk-doc-file[data-doc="d2"]').getAttribute('href'),
+        ).not.toBe(first),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

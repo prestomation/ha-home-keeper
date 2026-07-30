@@ -567,6 +567,108 @@
         "completion_required_fields": [],
         "due": "2026-07-30T14:29:01+00:00",
         "next_due": null
+      },
+      "08e4ef4d-31ce-4b92-8708-02cb62a3332a": {
+        "id": "08e4ef4d-31ce-4b92-8708-02cb62a3332a",
+        "created": "2026-07-30T10:50:12.058953-04:00",
+        "last_completed": "2026-07-30T10:50:12.349367-04:00",
+        "completions": [
+          {
+            "ts": "2026-07-30T10:50:12.349367-04:00"
+          }
+        ],
+        "source": null,
+        "managed_by": null,
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "name": "E2E card task 1785423011646",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "interval": 1,
+        "unit": "months",
+        "next_due": "2026-08-30T10:50:12.349367-04:00"
+      },
+      "3708c60f-a094-491e-8446-3133263e1b51": {
+        "id": "3708c60f-a094-491e-8446-3133263e1b51",
+        "created": "2026-07-30T10:50:28.188774-04:00",
+        "last_completed": "2026-07-30T10:50:28.319379-04:00",
+        "completions": [
+          {
+            "ts": "2026-07-30T10:50:28.319379-04:00"
+          }
+        ],
+        "source": null,
+        "managed_by": null,
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "name": "E2E one-off 1785423027572",
+        "notes": "",
+        "recurrence_type": "one-off",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "due": "2026-07-30T14:50:27+00:00",
+        "next_due": null
+      },
+      "d97e27df-b9a7-46df-89e2-3c4e5c568094": {
+        "id": "d97e27df-b9a7-46df-89e2-3c4e5c568094",
+        "created": "2026-07-30T12:32:57.189401-04:00",
+        "last_completed": "2026-07-30T12:32:57.559063-04:00",
+        "completions": [
+          {
+            "ts": "2026-07-30T12:32:57.559063-04:00"
+          }
+        ],
+        "source": null,
+        "managed_by": null,
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "name": "E2E card task 1785429176693",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "interval": 1,
+        "unit": "months",
+        "next_due": "2026-08-30T12:32:57.559063-04:00"
+      },
+      "beb4af1e-a3be-46f4-a2ae-8870b8c086d6": {
+        "id": "beb4af1e-a3be-46f4-a2ae-8870b8c086d6",
+        "created": "2026-07-30T12:33:16.374614-04:00",
+        "last_completed": "2026-07-30T12:33:16.561020-04:00",
+        "completions": [
+          {
+            "ts": "2026-07-30T12:33:16.561020-04:00"
+          }
+        ],
+        "source": null,
+        "managed_by": null,
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "name": "E2E one-off 1785429195454",
+        "notes": "",
+        "recurrence_type": "one-off",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "due": "2026-07-30T16:33:15+00:00",
+        "next_due": null
       }
     },
     "assets": {

@@ -3,6 +3,7 @@ import * as api from './api';
 import { profileMatches } from './card-filter';
 import type { SignedFileRef } from './documents';
 import {
+  SIGNED_URL_REFRESH_MS,
   SignedUrlCache,
   assetFileRefs,
   documentIcon,
@@ -543,6 +544,11 @@ const STYLES = `
     display: inline-flex; align-items: center; gap: 6px;
     min-height: 44px; padding: 2px 0;
   }
+  /* The glyphs inside a link are decoration — never a separate hit target that could
+     swallow the tap meant for the anchor. */
+  .hk-doc-file ha-icon, .hk-part-file ha-icon, .hk-doc-open ha-svg-icon {
+    pointer-events: none;
+  }
   .hk-doc-file .hk-doc-ext {
     --mdc-icon-size: 15px; flex: none; color: var(--secondary-text-color);
   }
@@ -786,6 +792,8 @@ export class HomeKeeperPanel extends HTMLElement {
   // so every file is opened by a native anchor tap rather than a JS `window.open` the
   // iOS app's WKWebView would swallow (issue #164). Filled by `_signFiles`.
   private _signedFiles = new SignedUrlCache();
+  // Pending re-sign of the on-screen files' URLs before they expire; see `_armResign`.
+  private _resignTimer: ReturnType<typeof setTimeout> | null = null;
   // The panel's URL prefix (e.g. `/home-keeper`), supplied by HA via `route`.
   // Navigation builds absolute paths from it; falls back until the first route.
   private _routePrefix = '/home-keeper';
@@ -918,6 +926,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // Markdown previews hold a debounce timer that would otherwise fire against a
     // detached subtree after unmount.
     this._disposeAllPreviews();
+    this._armResign(false);
   }
 
   /**
@@ -2465,7 +2474,10 @@ export class HomeKeeperPanel extends HTMLElement {
     const rows = docs
       .map((d) => {
         const name = escapeHTML(documentLabel(d));
-        const open = `<ha-icon class="hk-doc-ext" icon="${MDI_OPEN_IN_NEW_ICON}"></ha-icon>`;
+        // Decorative: the anchor's text already names the document, and `pointer-events:
+        // none` keeps the glyph from being anything a tap could land on *instead* of the
+        // link.
+        const open = `<ha-icon class="hk-doc-ext" icon="${MDI_OPEN_IN_NEW_ICON}" aria-hidden="true"></ha-icon>`;
         let inner: string;
         if (d.kind === 'file') {
           // The signed href may not be minted yet on a first paint; until it lands the
@@ -2553,7 +2565,7 @@ export class HomeKeeperPanel extends HTMLElement {
               fileHref ? ` href="${escapeHTML(fileHref)}"` : ''
             } target="_blank" rel="noopener noreferrer" title="${escapeHTML(
               p.file_name,
-            )}"><ha-icon icon="mdi:paperclip"></ha-icon></a>`
+            )}"><ha-icon icon="mdi:paperclip" aria-hidden="true"></ha-icon></a>`
           : '';
         // A part's notes render as Markdown like every other note, but read-only:
         // parts are edited as a whole in the appliance's parts editor, so letting one
@@ -3237,6 +3249,27 @@ export class HomeKeeperPanel extends HTMLElement {
     // of whatever was on the previous one.
     await this._signedFiles.ensure(hass, refs);
     this._applySignedHrefs();
+    this._armResign(refs.length > 0);
+  }
+
+  /**
+   * Keep a long-lived screen's hrefs valid. Unlike the dashboard card — which re-signs
+   * on every data refresh — the panel only renders on navigation and data changes, so
+   * an appliance page left open (a wall tablet, a forgotten tab) would sail past the
+   * backend's 1h URL TTL and every document link would 403 on click. A single timer
+   * re-runs the signing pass on the same clock the cache re-mints on, updating the live
+   * anchors in place. Disarmed as soon as the screen has no files, and on unmount.
+   */
+  private _armResign(needed: boolean): void {
+    if (this._resignTimer) {
+      clearTimeout(this._resignTimer);
+      this._resignTimer = null;
+    }
+    if (!needed) return;
+    this._resignTimer = setTimeout(() => {
+      this._resignTimer = null;
+      void this._signFiles();
+    }, SIGNED_URL_REFRESH_MS);
   }
 
   /** Point every `data-sign` anchor at its freshly-minted URL. Anchors are matched by
