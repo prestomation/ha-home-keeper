@@ -71,10 +71,13 @@ test('a valid upload shows progress and adds the document', async ({ page }) => 
     await route.continue();
   });
 
+  // A unique name per run: this uploads to the *seeded* appliance, so a fixed name
+  // would collide with a leftover from an earlier local run and match two cards.
+  const filename = `e2e-upload-${process.pid}-${Date.now()}.pdf`;
   const chooser = page.waitForEvent('filechooser');
   await panel.locator('.hk-doc-add ha-button', { hasText: 'Upload file' }).click();
   await (await chooser).setFiles({
-    name: 'e2e-manual.pdf',
+    name: filename,
     mimeType: 'application/pdf',
     buffer: Buffer.from('%PDF-1.7\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n'),
   });
@@ -93,6 +96,12 @@ test('a valid upload shows progress and adds the document', async ({ page }) => 
   release();
   // Done: progress torn down, the document is listed, and no error is left behind.
   await expect(panel.locator('#hk-upload')).toHaveCount(0);
-  await expect(panel.locator('.hk-doc-card', { hasText: 'e2e-manual.pdf' })).toBeVisible();
+  const card = panel.locator('.hk-doc-card', { hasText: filename });
+  await expect(card).toBeVisible();
   await expect(panel.locator('ha-alert[alert-type="error"]')).toHaveCount(0);
+
+  // Put the seeded appliance back: this test uploads to shared fixture data, and a
+  // document left behind changes what the other appliance specs see.
+  await card.locator('ha-icon-button[label="Remove document"]').click();
+  await expect(card).toHaveCount(0);
 });
