@@ -6,6 +6,7 @@ path-traversal guard. The HA-bound storage/HTTP wiring lives in ``manuals.py`` a
 exercised by the Docker integration tests.
 """
 
+import os
 from pathlib import Path
 
 import hk_documents as d
@@ -93,6 +94,33 @@ def test_sniff_bytes_covers_every_signature():
         assert d.sniff_content_type(sample[: d.SNIFF_BYTES]) == d.sniff_content_type(
             sample
         )
+
+
+def test_purge_stale_temps_spares_uploads_still_in_flight(tmp_path):
+    # The whole reason this is age-based: setup re-runs on a config entry reload while
+    # the upload view stays registered, so a blanket wipe would delete the temp file a
+    # live upload is still writing. A fresh file must survive; an old one must not.
+    fresh = tmp_path / "upload-live"
+    fresh.write_bytes(b"partial")
+    stale = tmp_path / "upload-abandoned"
+    stale.write_bytes(b"leftover from a crash")
+    os.utime(stale, (0, 0))  # epoch — unambiguously older than any cutoff
+
+    d.purge_stale_temps(tmp_path, max_age_s=3600)
+
+    assert fresh.exists(), "an in-flight upload must not be deleted"
+    assert not stale.exists(), "a stray temp upload must be reclaimed"
+
+
+def test_purge_stale_temps_ignores_foreign_files_and_missing_dir(tmp_path):
+    # Only our own upload-* temps are ours to delete...
+    other = tmp_path / "something-else"
+    other.write_bytes(b"not ours")
+    os.utime(other, (0, 0))
+    d.purge_stale_temps(tmp_path, max_age_s=0)
+    assert other.exists()
+    # ...and a missing directory (nothing uploaded yet) is not an error.
+    d.purge_stale_temps(tmp_path / "nope", max_age_s=0)
 
 
 def test_safe_segment_reduces_or_rejects():

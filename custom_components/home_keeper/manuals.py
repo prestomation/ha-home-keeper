@@ -56,6 +56,10 @@ _FLUSH_BYTES = 1024 * 1024
 # out of reach of ``documents.safe_segment`` (which strips leading dots), so no asset
 # id can ever resolve into it.
 _TMP_SUBDIR = ".incoming"
+# How old a temp upload must be before setup treats it as stray (see
+# ``async_cleanup_temp_uploads``). Generous: a big upload over a slow link can run for
+# a long time, and deleting a live one is far worse than keeping a stray for a day.
+_TEMP_MAX_AGE_S = 24 * 60 * 60
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -167,12 +171,19 @@ async def async_discard_upload(hass: HomeAssistant, uploaded: UploadedFile) -> N
 
 
 async def async_cleanup_temp_uploads(hass: HomeAssistant) -> None:
-    """Clear the temp upload area (called at setup).
+    """Drop stray temp uploads (called at setup).
 
     An upload interrupted by a restart leaves its temp file behind; at up to 100 MB
     apiece those would quietly accumulate in the config directory forever.
+
+    Deliberately age-based rather than a blanket wipe: setup re-runs on every config
+    entry *reload* (an options change, say) while the HTTP view stays registered, so
+    clearing the whole directory could delete a temp file an in-flight upload is
+    still writing — turning someone's upload into a 500 mid-transfer.
     """
-    await hass.async_add_executor_job(_rmtree, _tmp_root(hass))
+    await hass.async_add_executor_job(
+        documents.purge_stale_temps, _tmp_root(hass), _TEMP_MAX_AGE_S
+    )
 
 
 async def async_delete_document(
@@ -331,6 +342,13 @@ async def _parse_upload(
             if not part.filename:
                 continue
             filename = part.filename
+            # One file per request. A malformed body with several file parts keeps the
+            # last, but the previous temp has to go first — otherwise it is orphaned on
+            # disk, and reassigning would lose the only reference to it (including when
+            # the next part is rejected as too large and this becomes None).
+            if uploaded is not None:
+                await async_discard_upload(hass, uploaded)
+                uploaded = None
             uploaded = await _stream_to_temp(hass, part)
             if uploaded is None:
                 return too_large

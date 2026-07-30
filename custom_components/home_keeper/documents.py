@@ -10,6 +10,7 @@ live here so they stay unit-testable without an HA runtime (see
 from __future__ import annotations
 
 import re
+import time
 from pathlib import Path, PurePath
 
 from .assets import AssetValidationError
@@ -96,6 +97,26 @@ def validate_upload(filename: str, data: bytes) -> tuple[str, str]:
     stream variant for anything that could be large.
     """
     return validate_upload_stream(filename, data[:SNIFF_BYTES], len(data))
+
+
+def purge_stale_temps(tmp_root: Path, max_age_s: float) -> None:
+    """Delete temp uploads old enough that no request can still be writing them.
+
+    Deliberately age-based rather than a blanket wipe of *tmp_root*: the caller runs
+    this at setup, which re-runs on every config entry *reload* while the upload view
+    stays registered — clearing the directory outright could delete the temp file an
+    in-flight upload is still writing, turning it into a 500 mid-transfer.
+    """
+    if not tmp_root.is_dir():
+        return
+    cutoff = time.time() - max_age_s
+    for path in tmp_root.glob("upload-*"):
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink(missing_ok=True)
+        except OSError:
+            # Raced with the upload that owns it, or it vanished — try again next time.
+            continue
 
 
 def safe_segment(value: str) -> str:

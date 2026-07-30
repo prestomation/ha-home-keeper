@@ -38,6 +38,16 @@ def _bearer(ha):
     return {"Authorization": ha.headers["Authorization"]}
 
 
+def _incoming_temps():
+    """Names of temp uploads currently spooled in the streaming staging area."""
+    incoming = (
+        Path(__file__).parent / "ha_config" / "home_keeper" / "documents" / ".incoming"
+    )
+    return (
+        sorted(p.name for p in incoming.glob("upload-*")) if incoming.is_dir() else []
+    )
+
+
 def test_add_and_remove_link_document(ha):
     name = f"Doc link probe {uuid.uuid4().hex[:8]}"
     asset = _provision(ha, name)
@@ -382,13 +392,21 @@ def test_upload_leaves_no_temp_files_behind(ha):
         timeout=30,
     )
     assert bad.status_code == 400, bad.text
-    incoming = (
-        Path(__file__).parent / "ha_config" / "home_keeper" / "documents" / ".incoming"
+    # ...and a malformed body carrying two file parts, where the first temp file would
+    # otherwise be orphaned when the second overwrites it.
+    two = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{uuid.uuid4().hex}",
+        files=[
+            ("file", ("first.pdf", PDF_BYTES, "application/pdf")),
+            ("file", ("second.pdf", PDF_BYTES, "application/pdf")),
+        ],
+        headers=_bearer(ha),
+        timeout=30,
     )
-    leftovers = (
-        sorted(p.name for p in incoming.glob("upload-*")) if incoming.is_dir() else []
-    )
-    assert leftovers == [], f"temp uploads leaked: {leftovers}"
+    assert two.status_code == 200, two.text
+    assert two.json()["document"]["filename"] == "second.pdf", "the last file wins"
+
+    assert _incoming_temps() == [], f"temp uploads leaked: {_incoming_temps()}"
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
