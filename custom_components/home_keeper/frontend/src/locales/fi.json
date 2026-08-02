@@ -232,6 +232,7 @@
   "meta.seed.install_date": "Asennuspäivä",
   "meta.seed.warranty_provider": "Takuun tarjoaja",
   "meta.seed.vendor": "Toimittaja",
+  "meta.seed.product_link": "Tuotteen linkki",
   "meta.seed.notes": "Muistiinpanot",
   "tab.settings": "Asetukset",
   "settings.heading": "Ongelma-anturien synkronointi",

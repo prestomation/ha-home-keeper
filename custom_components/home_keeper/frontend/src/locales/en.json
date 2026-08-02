@@ -146,6 +146,7 @@
   "meta.seed.install_date": "Install date",
   "meta.seed.warranty_provider": "Warranty provider",
   "meta.seed.vendor": "Vendor",
+  "meta.seed.product_link": "Product link",
   "meta.seed.notes": "Notes",
   "chip.overdue": "Overdue",
   "chip.archived": "Archived",

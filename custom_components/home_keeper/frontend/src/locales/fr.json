@@ -230,6 +230,7 @@
   "meta.seed.install_date": "Date d'installation",
   "meta.seed.warranty_provider": "Fournisseur de la garantie",
   "meta.seed.vendor": "Vendeur",
+  "meta.seed.product_link": "Lien du produit",
   "meta.seed.notes": "Notes",
   "asset.parts.many": "{n} pièces",
   "asset.related.many": "{n} associés",

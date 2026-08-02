@@ -232,6 +232,7 @@
   "meta.seed.install_date": "Einbaudatum",
   "meta.seed.warranty_provider": "Garantiegeber",
   "meta.seed.vendor": "Anbieter",
+  "meta.seed.product_link": "Produktlink",
   "meta.seed.notes": "Notizen",
   "tab.settings": "Einstellungen",
   "settings.heading": "Problemsensor-Synchronisierung",

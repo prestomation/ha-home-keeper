@@ -232,6 +232,7 @@
   "meta.seed.install_date": "安装日期",
   "meta.seed.warranty_provider": "保修提供方",
   "meta.seed.vendor": "供应商",
+  "meta.seed.product_link": "产品链接",
   "meta.seed.notes": "备注",
   "tab.settings": "设置",
   "settings.heading": "问题传感器同步",

@@ -232,6 +232,7 @@
   "meta.seed.install_date": "Installationsdato",
   "meta.seed.warranty_provider": "Garantiudbyder",
   "meta.seed.vendor": "Leverandør",
+  "meta.seed.product_link": "Produktlink",
   "meta.seed.notes": "Noter",
   "tab.settings": "Indstillinger",
   "settings.heading": "Synkronisering af problemsensorer",

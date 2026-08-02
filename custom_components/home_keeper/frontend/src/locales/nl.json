@@ -232,6 +232,7 @@
   "meta.seed.install_date": "Installatiedatum",
   "meta.seed.warranty_provider": "Garantieverstrekker",
   "meta.seed.vendor": "Leverancier",
+  "meta.seed.product_link": "Productlink",
   "meta.seed.notes": "Notities",
   "tab.settings": "Instellingen",
   "settings.heading": "Probleemsensor-synchronisatie",

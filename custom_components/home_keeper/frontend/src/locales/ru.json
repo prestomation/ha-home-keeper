@@ -254,6 +254,7 @@
   "meta.seed.install_date": "Дата установки",
   "meta.seed.warranty_provider": "Поставщик гарантии",
   "meta.seed.vendor": "Поставщик",
+  "meta.seed.product_link": "Ссылка на товар",
   "meta.seed.notes": "Заметки",
   "history.count.few": "{n} выполнения",
   "history.count.many": "{n} выполнений",

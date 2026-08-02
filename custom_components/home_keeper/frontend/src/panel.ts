@@ -5298,6 +5298,7 @@ export class HomeKeeperPanel extends HTMLElement {
       { label: t('meta.seed.install_date'), type: 'date' },
       { label: t('meta.seed.warranty_provider'), type: 'text' },
       { label: t('meta.seed.vendor'), type: 'text' },
+      { label: t('meta.seed.product_link'), type: 'link' },
       { label: t('meta.seed.notes'), type: 'text' },
     ];
     const addEntry = (entry: MetadataEntry): void => {
