@@ -254,6 +254,7 @@
   "meta.seed.install_date": "Data instalacji",
   "meta.seed.warranty_provider": "Gwarant",
   "meta.seed.vendor": "Dostawca",
+  "meta.seed.product_link": "Link do produktu",
   "meta.seed.notes": "Notatki",
   "history.count.few": "{n} ukończenia",
   "history.count.many": "{n} ukończeń",

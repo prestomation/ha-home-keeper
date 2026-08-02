@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.10.0b3]
+## [0.10.0] - 2026-08-02
 
 ### Added
 
@@ -29,9 +29,62 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   stores the file. Previously a large upload gave no feedback at all. The button
   stayed idle and nothing moved until it finished. The upload and **Save** buttons
   are disabled while an upload is in flight, so a save can no longer race it.
+- **Notes render as Markdown.** Every "Notes" field (on a task, on an appliance, on a
+  part, and on each logged completion) now renders as GitHub-flavoured Markdown, so a
+  note can carry a numbered procedure, a part number in `code`, a link to the manual, a
+  small table of settings, or a `>` callout instead of one unformatted run of text.
+  (Previously the task detail page didn't even preserve line breaks.) Rendering and
+  sanitizing are done by Home Assistant's own `ha-markdown` component, so notes match
+  your theme and no Markdown parser is bundled into the panel. (Fixes #163)
+- **Inline note editor with a live preview.** A task's or an appliance's Notes card has
+  an **Edit note** button that opens a full-width editor previewing the formatting as
+  you type; the task, appliance, part, and completion edit forms gained the same live
+  preview. The preview appears only once the text actually contains Markdown.
+  (The inline editor previously existed only for synced problem-sensor tasks.)
+- **Appliances have a Notes field.** A first-class free-text field for prose about the
+  appliance ("the shut-off is the red lever above the tank"), separate from the
+  label/value custom metadata fields, and settable via `home_keeper.add_asset` /
+  `home_keeper.update_asset`.
+- **Part notes are editable and visible.** Parts have always stored notes, but the panel
+  offered no way to enter them and never showed them. They now appear in the part editor
+  and render under the part in an appliance's Parts list.
+- **Quick-add a "Product link" custom field.** A one-click seed (next to the existing
+  Vendor field, in the appliance's Custom fields editor) fills in a `link`-typed
+  custom field for the page you bought an appliance from. Separate from Vendor
+  (which is free text), it renders as a clickable link on the appliance's detail
+  page, same as any other `link` metadata entry. (Fixes #160)
 
 ### Fixed
 
+<!-- vale ai-tells.OverusedVocabulary = NO -->
+- **Notification action buttons and text were hardcoded in English.** The "Mark
+  done"/"Snooze"/"Skip"/"Open" action buttons on actionable mobile notifications, and
+  the notification title/body text (overdue/due-soon phrasing, the digest summary, the
+  "All caught up" close-out), are now localized to `hass.config.language` across all
+  16 supported locales, with correct CLDR plural forms (via the new `Babel`
+  dependency) for counts like "N day(s) overdue" or "N task(s) due". (Fixes #150)
+<!-- vale ai-tells.OverusedVocabulary = YES -->
+- **Several other user-facing strings weren't localized.** A follow-up audit of the
+  whole integration for hardcoded English text found several gaps: the websocket
+  API's and document-upload views' error messages (e.g. "Unknown task_id", "Home
+  Keeper is not loaded"), the problem-sensor sync's completion explanation, the
+  Battery Notes companion suggestion's description, the inventory CSV export's
+  column headers, and a few panel/dashboard-card runtime strings ("No tasks yet.",
+  the load-failed banner, the "+N more" truncation caption, the quick-complete
+  confirm dialog, and the default name for an unnamed saved profile/notification).
+  All are now localized across the 16 supported locales, with two new drift-guard
+  tests to keep future websocket/upload error messages from landing unlocalized
+  again.
+- **Uploaded manuals and receipts couldn't be opened on mobile, and looked like dead
+  text on desktop.** On an appliance's page, tapping a document you'd uploaded (or a
+  part's attached file) did nothing at all in the Home Assistant companion app: the
+  link was built as a script-driven click that fetched a download URL first, and the
+  app's browser blocks a new tab opened that late. They're now ordinary links whose
+  URL is ready before you tap, so they open on mobile, react to hover with a pointer
+  and underline on desktop, and support long-press "open in new tab", middle-click and
+  keyboard activation like any other link. Document rows and the part-attachment
+  paperclip also got a full-size touch target, so they're no longer a pixel hunt on a
+  phone. (Fixes #164)
 - **Deleting a task or appliance now asks for confirmation.** The Delete button on a
   task/appliance detail page previously looked identical to Edit and deleted
   immediately on click, with no way to recover the appliance's history (documents,
@@ -66,64 +119,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   so the browser never sees a 413. That case is now recognized (the body stopped
   short) and reported as a possible proxy limit, with a link to the docs, instead
   of a bare "Upload failed (0)".
-
-## [0.10.0b2]
-
-### Added
-
-- **Notes render as Markdown.** Every "Notes" field — on a task, on an appliance, on a
-  part, and on each logged completion — now renders as GitHub-flavoured Markdown, so a
-  note can carry a numbered procedure, a part number in `code`, a link to the manual, a
-  small table of settings, or a `>` callout instead of one unformatted run of text.
-  (Previously the task detail page didn't even preserve line breaks.) Rendering and
-  sanitizing are done by Home Assistant's own `ha-markdown` component, so notes match
-  your theme and no Markdown parser is bundled into the panel. (Fixes #163)
-- **Inline note editor with a live preview.** A task's or an appliance's Notes card has
-  an **Edit note** button that opens a full-width editor previewing the formatting as
-  you type; the task, appliance, part, and completion edit forms gained the same live
-  preview. The preview appears only once the text actually contains Markdown.
-  (The inline editor previously existed only for synced problem-sensor tasks.)
-- **Appliances have a Notes field.** A first-class free-text field for prose about the
-  appliance ("the shut-off is the red lever above the tank"), separate from the
-  label/value custom metadata fields, and settable via `home_keeper.add_asset` /
-  `home_keeper.update_asset`.
-- **Part notes are editable and visible.** Parts have always stored notes, but the panel
-  offered no way to enter them and never showed them. They now appear in the part editor
-  and render under the part in an appliance's Parts list.
-
-### Fixed
-
-- **Uploaded manuals and receipts couldn't be opened on mobile, and looked like dead
-  text on desktop.** On an appliance's page, tapping a document you'd uploaded (or a
-  part's attached file) did nothing at all in the Home Assistant companion app: the
-  link was built as a script-driven click that fetched a download URL first, and the
-  app's browser blocks a new tab opened that late. They're now ordinary links whose
-  URL is ready before you tap — so they open on mobile, react to hover with a pointer
-  and underline on desktop, and support long-press "open in new tab", middle-click and
-  keyboard activation like any other link. Document rows and the part-attachment
-  paperclip also got a full-size touch target, so they're no longer a pixel hunt on a
-  phone. (Fixes #164)
-
-## [0.10.0b1]
-
-### Fixed
-
-- **Notification action buttons and text were hardcoded in English.** The "Mark
-  done"/"Snooze"/"Skip"/"Open" action buttons on actionable mobile notifications, and
-  the notification title/body text (overdue/due-soon phrasing, the digest summary, the
-  "All caught up" close-out), are now localized to `hass.config.language` across all
-  16 supported locales, with correct CLDR plural forms (via the new `Babel`
-  dependency) for counts like "N day(s) overdue" or "N task(s) due". (Fixes #150)
-- **Several other user-facing strings weren't localized.** A follow-up audit of the
-  whole integration for hardcoded English text found: the websocket API's and
-  document-upload views' error messages (e.g. "Unknown task_id", "Home Keeper is
-  not loaded"); the problem-sensor sync's completion explanation; the Battery
-  Notes companion suggestion's description; the inventory CSV export's column
-  headers; and a few panel/dashboard-card runtime strings ("No tasks yet.", the
-  load-failed banner, the "+N more" truncation caption, the quick-complete confirm
-  dialog, and the default name for an unnamed saved profile/notification). All are
-  now localized across the 16 supported locales, with two new drift-guard tests to
-  keep future websocket/upload error messages from shipping unlocalized again.
 
 ## [0.9.0] - 2026-07-23
 

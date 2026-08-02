@@ -254,6 +254,7 @@
   "meta.seed.install_date": "Datum instalace",
   "meta.seed.warranty_provider": "Poskytovatel záruky",
   "meta.seed.vendor": "Dodavatel",
+  "meta.seed.product_link": "Odkaz na produkt",
   "meta.seed.notes": "Poznámky",
   "history.count.few": "{n} dokončení",
   "history.count.many": "{n} dokončení",

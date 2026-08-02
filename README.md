@@ -563,8 +563,9 @@ Assistant (manufacturer/model, an mdi icon, a manual link, replacement cost), pl
 free-form **Notes** field for prose about the appliance, which renders as
 [Markdown](#notes-are-markdown). Beyond that you add **custom fields**, each a label
 with a value typed as
-**text**, **link**, or **date** (seeded with common ones like serial number, warranty
-expiry, purchase/install dates). Tick **track** on a date and it becomes a real `date`
+**text**, **link**, or **date** (seeded with common ones like serial number, vendor,
+product link, warranty expiry, purchase/install dates). Tick **track** on a date and
+it becomes a real `date`
 **sensor** on the device page, so it's automatable natively (e.g. *"warranty expiring
 in 30 days → notify me"*). Untracked dates stay display-only.
 
