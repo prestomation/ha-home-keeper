@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Archive appliance",
+      "description": "Hide an appliance/asset from the default view without deleting its data. Its device, entities, and attached tasks are left untouched. restore_asset undoes it.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the asset to archive."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Restore appliance",
+      "description": "Undo archive_asset, returning an archived appliance to the default view.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset ID",
+          "description": "The id of the asset to restore."
+        }
+      }
+    },
     "list_assets": {
       "name": "List appliances",
       "description": "Return all appliances/assets as a response."

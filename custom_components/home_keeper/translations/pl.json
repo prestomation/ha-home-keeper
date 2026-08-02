@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Zarchiwizuj urządzenie",
+      "description": "Ukryj urządzenie/zasób z domyślnego widoku bez usuwania jego danych. Jego urządzenie, encje i przypisane zadania pozostają nietknięte; restore_asset to cofa.",
+      "fields": {
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator zasobu do zarchiwizowania."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Przywróć urządzenie",
+      "description": "Cofa archive_asset, przywracając zarchiwizowane urządzenie do domyślnego widoku.",
+      "fields": {
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator zasobu do przywrócenia."
+        }
+      }
+    },
     "list_assets": {
       "name": "Wyświetl urządzenia",
       "description": "Zwróć wszystkie urządzenia/zasoby jako odpowiedź."

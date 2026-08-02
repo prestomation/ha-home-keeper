@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Apparaat archiveren",
+      "description": "Verberg een apparaat/asset uit de standaardweergave zonder de gegevens te verwijderen. Het apparaat, de entiteiten en gekoppelde taken blijven ongewijzigd; restore_asset maakt dit ongedaan.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "De id van het te archiveren asset."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Apparaat herstellen",
+      "description": "Maakt archive_asset ongedaan en brengt een gearchiveerd apparaat terug naar de standaardweergave.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "De id van het te herstellen asset."
+        }
+      }
+    },
     "list_assets": {
       "name": "Apparaten weergeven",
       "description": "Geeft alle apparaten/assets als antwoord terug."

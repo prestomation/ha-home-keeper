@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Arkiver apparat",
+      "description": "Skjul et apparat/en eiendel fra standardvisningen uten å slette dataene. Enheten, entitetene og tilknyttede oppgaver berøres ikke; restore_asset angrer dette.",
+      "fields": {
+        "asset_id": {
+          "name": "Eiendels-ID",
+          "description": "ID-en til eiendelen som skal arkiveres."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Gjenopprett apparat",
+      "description": "Angrer archive_asset, og bringer et arkivert apparat tilbake til standardvisningen.",
+      "fields": {
+        "asset_id": {
+          "name": "Eiendels-ID",
+          "description": "ID-en til eiendelen som skal gjenopprettes."
+        }
+      }
+    },
     "list_assets": {
       "name": "Vis apparater",
       "description": "Returner alle apparater/eiendeler som et svar."

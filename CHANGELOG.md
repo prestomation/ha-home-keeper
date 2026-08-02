@@ -6,10 +6,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [Unreleased]
+## [0.10.0b3]
 
 ### Added
 
+- **Archive an appliance instead of deleting it.** An appliance that's been replaced
+  can now be archived: its documents, parts, metadata and maintenance history all
+  stay intact, and its device page and entities keep working, but it's tucked out of
+  the default Appliances list. An **Active / Archived** toggle switches between the
+  two views, and an archived appliance can be restored, or permanently deleted, from
+  its own detail page.
 - **The upload limit is now 100 MB (was 25 MB).** Uploads are streamed straight to
   disk as they arrive instead of being held in memory, so a large scanned manual no
   longer costs Home Assistant hundreds of megabytes of RAM to accept. Peak memory is
@@ -26,6 +32,12 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
+- **Deleting a task or appliance now asks for confirmation.** The Delete button on a
+  task/appliance detail page previously looked identical to Edit and deleted
+  immediately on click, with no way to recover the appliance's history (documents,
+  parts, metadata). It now opens the same confirmation dialog already used elsewhere
+  in the panel and is styled as a destructive action, so it can no longer be
+  mistaken for Edit. (Fixes #173)
 <!-- vale ai-tells.OverusedVocabulary = NO -->
 - **Sending an actionable notification blocked the event loop.** Building a
 <!-- vale ai-tells.OverusedVocabulary = YES -->

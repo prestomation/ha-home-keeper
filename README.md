@@ -577,6 +577,24 @@ fields. It's the grab-and-go record you want for an insurance claim.
 
 ![Appliance detail page](docs/images/8-panel-appliance-detail.png)
 
+### Archiving appliances
+
+Replaced an appliance but don't want to lose its history? **Archive** it instead of
+deleting it: its documents, parts, metadata and maintenance history all stay intact,
+and its device page and entities keep working (Home Keeper just tucks it out of the
+default appliance list). An **Active / Archived** toggle at the top of the Appliances
+tab switches between the two views, and an archived appliance can be **restored** any
+time, or permanently **deleted** from its own detail page.
+
+![Archived appliance detail page](docs/images/8c-panel-appliance-archived-detail.png)
+
+**Delete** now asks for confirmation too, on both appliances and tasks, and is styled
+as a clearly destructive action, so a stray click can no longer wipe out an
+appliance's history
+([#173](https://github.com/prestomation/ha-home-keeper/issues/173)).
+
+![Delete confirmation dialog](docs/images/8b-panel-appliance-delete-confirm.png)
+
 ### Parts & wear items
 
 Each appliance has a structured **parts** list, name, part number, vendor, cost,

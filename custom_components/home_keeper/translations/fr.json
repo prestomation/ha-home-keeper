@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Archiver l'appareil",
+      "description": "Masquer un appareil/actif de la vue par défaut sans supprimer ses données. Son appareil, ses entités et les tâches qui y sont rattachées restent intacts ; restore_asset annule cette action.",
+      "fields": {
+        "asset_id": {
+          "name": "ID de l'actif",
+          "description": "L'id de l'actif à archiver."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Restaurer l'appareil",
+      "description": "Annule archive_asset, en ramenant un appareil archivé dans la vue par défaut.",
+      "fields": {
+        "asset_id": {
+          "name": "ID de l'actif",
+          "description": "L'id de l'actif à restaurer."
+        }
+      }
+    },
     "list_assets": {
       "name": "Lister les appareils",
       "description": "Renvoyer tous les appareils/actifs en réponse."

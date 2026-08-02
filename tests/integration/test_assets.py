@@ -416,6 +416,44 @@ def test_delete_asset_removes_it_from_listing(ha):
     assert all(a["id"] != target["id"] for a in payload["assets"])
 
 
+def test_archive_asset_hides_data_without_deleting_it(ha):
+    # Archiving is reversible and non-destructive: the record (and its provisioned
+    # device) stay put, only ``archived_at`` gets stamped.
+    call_service(ha, "home_keeper", "add_asset", {"name": "Temp asset to archive"})
+    asset = next(a for a in _assets(ha) if a["name"] == "Temp asset to archive")
+    assert not asset.get("archived_at")
+    device_id = asset["device_id"]
+
+    call_service(ha, "home_keeper", "archive_asset", {"asset_id": asset["id"]})
+
+    archived = next(a for a in _assets(ha) if a["id"] == asset["id"])
+    assert archived["archived_at"]
+    # Still the same record, still provisioned on the same device — not deleted.
+    assert archived["device_id"] == device_id
+
+
+def test_restore_asset_undoes_archive(ha):
+    call_service(ha, "home_keeper", "add_asset", {"name": "Temp asset to restore"})
+    asset = next(a for a in _assets(ha) if a["name"] == "Temp asset to restore")
+    call_service(ha, "home_keeper", "archive_asset", {"asset_id": asset["id"]})
+    assert next(a for a in _assets(ha) if a["id"] == asset["id"])["archived_at"]
+
+    call_service(ha, "home_keeper", "restore_asset", {"asset_id": asset["id"]})
+
+    restored = next(a for a in _assets(ha) if a["id"] == asset["id"])
+    assert not restored.get("archived_at")
+
+
+def test_archive_asset_rejects_unknown_id(ha):
+    from conftest import HA_URL
+
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/archive_asset",
+        json={"asset_id": "does-not-exist"},
+    )
+    assert r.status_code >= 400
+
+
 def _assets(ha):
     resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
     return resp.get("service_response", resp)["assets"]

@@ -103,6 +103,8 @@ just the ordinary task lifecycle. Completing that buy task restocks the part by 
 | `home_keeper_asset_created` | an appliance is created |
 | `home_keeper_asset_updated` | an appliance changes; payload adds `changed_fields` |
 | `home_keeper_asset_deleted` | an appliance is removed |
+| `home_keeper_asset_archived` | an appliance is archived (hidden without deleting its data) |
+| `home_keeper_asset_restored` | an archived appliance is restored |
 
 Attaching or removing an appliance **document** (a manual/warranty/receipt link, or an
 uploaded file) is an appliance change, so it surfaces as `home_keeper_asset_updated`
@@ -113,6 +115,12 @@ or removing a **part's** single file works the same way, with
 Deleting an entry from an appliance's **archived task history** (via
 `home_keeper.delete_archived_completion`) also surfaces as
 `home_keeper_asset_updated` with `changed_fields: ["archived_history"]`.
+
+Archiving (`home_keeper.archive_asset`) and restoring (`home_keeper.restore_asset`)
+an appliance fire their own dedicated events rather than `home_keeper_asset_updated`,
+since they're a distinct lifecycle action of their own. Archiving only hides the
+appliance from the panel's default list; its device, entities, and any attached
+tasks are left running untouched, and `home_keeper_asset_deleted` never fires for it.
 
 ### Companion discovery (edge-triggered, baselined on startup)
 

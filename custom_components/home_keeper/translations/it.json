@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Archivia elettrodomestico",
+      "description": "Nasconde un elettrodomestico/asset dalla vista predefinita senza eliminarne i dati. Il suo dispositivo, le entità e le attività collegate restano intatti; restore_asset annulla l'operazione.",
+      "fields": {
+        "asset_id": {
+          "name": "ID asset",
+          "description": "L'id dell'asset da archiviare."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Ripristina elettrodomestico",
+      "description": "Annulla archive_asset, riportando un elettrodomestico archiviato nella vista predefinita.",
+      "fields": {
+        "asset_id": {
+          "name": "ID asset",
+          "description": "L'id dell'asset da ripristinare."
+        }
+      }
+    },
     "list_assets": {
       "name": "Elenca elettrodomestici",
       "description": "Restituisce tutti gli elettrodomestici/asset come risposta."

@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Arkivera apparat",
+      "description": "Dölj en apparat/tillgång från standardvyn utan att radera dess data. Dess enhet, entiteter och kopplade uppgifter berörs inte; restore_asset ångrar detta.",
+      "fields": {
+        "asset_id": {
+          "name": "Tillgångs-ID",
+          "description": "ID:t för tillgången som ska arkiveras."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Återställ apparat",
+      "description": "Ångrar archive_asset och för tillbaka en arkiverad apparat till standardvyn.",
+      "fields": {
+        "asset_id": {
+          "name": "Tillgångs-ID",
+          "description": "ID:t för tillgången som ska återställas."
+        }
+      }
+    },
     "list_assets": {
       "name": "Lista apparater",
       "description": "Returnera alla apparater/tillgångar som ett svar."

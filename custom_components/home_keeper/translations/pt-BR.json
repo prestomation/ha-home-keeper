@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Arquivar eletrodoméstico",
+      "description": "Ocultar um eletrodoméstico/ativo da visualização padrão sem excluir seus dados. Seu dispositivo, entidades e tarefas anexadas permanecem intactos; restore_asset desfaz isso.",
+      "fields": {
+        "asset_id": {
+          "name": "ID do ativo",
+          "description": "O id do ativo a arquivar."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Restaurar eletrodoméstico",
+      "description": "Desfaz archive_asset, trazendo um eletrodoméstico arquivado de volta à visualização padrão.",
+      "fields": {
+        "asset_id": {
+          "name": "ID do ativo",
+          "description": "O id do ativo a restaurar."
+        }
+      }
+    },
     "list_assets": {
       "name": "Listar eletrodomésticos",
       "description": "Retornar todos os eletrodomésticos/ativos como resposta."

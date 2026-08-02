@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Archivar electrodoméstico",
+      "description": "Ocultar un electrodoméstico/activo de la vista predeterminada sin eliminar sus datos. Su dispositivo, entidades y tareas adjuntas no se modifican; restore_asset lo deshace.",
+      "fields": {
+        "asset_id": {
+          "name": "ID del activo",
+          "description": "El id del activo a archivar."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Restaurar electrodoméstico",
+      "description": "Deshacer archive_asset, devolviendo un electrodoméstico archivado a la vista predeterminada.",
+      "fields": {
+        "asset_id": {
+          "name": "ID del activo",
+          "description": "El id del activo a restaurar."
+        }
+      }
+    },
     "list_assets": {
       "name": "Listar electrodomésticos",
       "description": "Devolver todos los electrodomésticos/activos como respuesta."

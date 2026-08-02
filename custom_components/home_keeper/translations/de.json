@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Gerät archivieren",
+      "description": "Ein Gerät/Asset aus der Standardansicht ausblenden, ohne seine Daten zu löschen. Sein Gerät, seine Entitäten und daran angehängte Aufgaben bleiben unangetastet; restore_asset macht dies rückgängig.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "Die ID des zu archivierenden Assets."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Gerät wiederherstellen",
+      "description": "Macht archive_asset rückgängig und bringt ein archiviertes Gerät zurück in die Standardansicht.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "Die ID des wiederherzustellenden Assets."
+        }
+      }
+    },
     "list_assets": {
       "name": "Geräte auflisten",
       "description": "Gibt alle Geräte/Assets als Antwort zurück."

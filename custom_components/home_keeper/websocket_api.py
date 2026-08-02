@@ -96,6 +96,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_add_asset)
     websocket_api.async_register_command(hass, ws_update_asset)
     websocket_api.async_register_command(hass, ws_delete_asset)
+    websocket_api.async_register_command(hass, ws_archive_asset)
+    websocket_api.async_register_command(hass, ws_restore_asset)
     websocket_api.async_register_command(hass, ws_adjust_part_stock)
     websocket_api.async_register_command(hass, ws_add_asset_document)
     websocket_api.async_register_command(hass, ws_remove_asset_document)
@@ -527,6 +529,62 @@ async def ws_delete_asset(
             await coord.store.detach_tasks_from_device(removed_device_id)
         await hass.config_entries.async_reload(coord.entry.entry_id)
     connection.send_result(msg["id"], {"ok": True})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/archive_asset",
+        vol.Required("asset_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_archive_asset(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    asset = await coord.store.archive_asset(msg["asset_id"])
+    if asset is None:
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "asset_not_found",
+            asset_id=msg["asset_id"],
+        )
+        return
+    connection.send_result(msg["id"], {"asset": asset})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/restore_asset",
+        vol.Required("asset_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_restore_asset(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    asset = await coord.store.restore_asset(msg["asset_id"])
+    if asset is None:
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "asset_not_found",
+            asset_id=msg["asset_id"],
+        )
+        return
+    connection.send_result(msg["id"], {"asset": asset})
 
 
 @websocket_api.websocket_command(

@@ -246,6 +246,22 @@ export async function deleteAsset(hass: Hass, assetId: string): Promise<void> {
   await hass.callWS({ type: 'home_keeper/delete_asset', asset_id: assetId });
 }
 
+export async function archiveAsset(hass: Hass, assetId: string): Promise<Asset> {
+  const res = await hass.callWS<{ asset: Asset }>({
+    type: 'home_keeper/archive_asset',
+    asset_id: assetId,
+  });
+  return res.asset;
+}
+
+export async function restoreAsset(hass: Hass, assetId: string): Promise<Asset> {
+  const res = await hass.callWS<{ asset: Asset }>({
+    type: 'home_keeper/restore_asset',
+    asset_id: assetId,
+  });
+  return res.asset;
+}
+
 /** Adjust a part's on-hand spare count by `delta` (clamped at zero server-side). */
 export async function adjustPartStock(
   hass: Hass,
