@@ -15,7 +15,11 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          # jsdom 30 (bumped in #171) requires Node's worker_threads.markAsUncloneable,
+          # which only exists from ^22.22.2 || ^24.15.0 || >=26.0.0 (jsdom's own
+          # `engines` floor) — Node 20 makes `require('jsdom')` throw before any test
+          # runs. Keep this at or above jsdom's floor whenever jsdom is bumped again.
+          node-version: "22.22.2"
           cache: npm
           cache-dependency-path: package-lock.json
 
