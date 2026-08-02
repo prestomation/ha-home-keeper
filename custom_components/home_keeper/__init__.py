@@ -875,6 +875,28 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         await _delete_asset(hass, coord, call.data["asset_id"])
 
+    async def handle_archive_asset(call: ServiceCall) -> None:
+        coord = _coordinator()
+        asset_id = call.data["asset_id"]
+        asset = await coord.store.archive_asset(asset_id)
+        if asset is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="asset_not_found",
+                translation_placeholders={"asset_id": asset_id},
+            )
+
+    async def handle_restore_asset(call: ServiceCall) -> None:
+        coord = _coordinator()
+        asset_id = call.data["asset_id"]
+        asset = await coord.store.restore_asset(asset_id)
+        if asset is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="asset_not_found",
+                translation_placeholders={"asset_id": asset_id},
+            )
+
     async def handle_list_assets(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
         return {"assets": coord.store.list_assets()}
@@ -1066,6 +1088,12 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN, "delete_asset", handle_delete_asset, ASSET_ID_SCHEMA
     )
     hass.services.async_register(
+        DOMAIN, "archive_asset", handle_archive_asset, ASSET_ID_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "restore_asset", handle_restore_asset, ASSET_ID_SCHEMA
+    )
+    hass.services.async_register(
         DOMAIN,
         "list_assets",
         handle_list_assets,
@@ -1181,6 +1209,8 @@ _SERVICES = (
     "add_asset",
     "update_asset",
     "delete_asset",
+    "archive_asset",
+    "restore_asset",
     "list_assets",
     "adjust_part_stock",
     "remove_part_file",

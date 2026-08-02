@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Arxivar electrodomèstic",
+      "description": "Amaga un electrodomèstic/actiu de la vista predeterminada sense eliminar-ne les dades. El seu dispositiu, entitats i tasques vinculades no es toquen; restore_asset ho desfà.",
+      "fields": {
+        "asset_id": {
+          "name": "ID d'actiu",
+          "description": "L'id de l'actiu a arxivar."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Restaurar electrodomèstic",
+      "description": "Desfà archive_asset, tornant un electrodomèstic arxivat a la vista predeterminada.",
+      "fields": {
+        "asset_id": {
+          "name": "ID d'actiu",
+          "description": "L'id de l'actiu a restaurar."
+        }
+      }
+    },
     "list_assets": {
       "name": "Llistar electrodomèstics",
       "description": "Retornar tots els electrodomèstics/actius com a resposta."

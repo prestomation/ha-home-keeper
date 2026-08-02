@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.10.0b2"
+PANEL_VERSION = "0.10.0b3"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -99,6 +99,8 @@ EVENT_TASK_COMPLETION_UPDATED = f"{DOMAIN}_task_completion_updated"
 EVENT_ASSET_CREATED = f"{DOMAIN}_asset_created"
 EVENT_ASSET_UPDATED = f"{DOMAIN}_asset_updated"  # payload carries ``changed_fields``
 EVENT_ASSET_DELETED = f"{DOMAIN}_asset_deleted"
+EVENT_ASSET_ARCHIVED = f"{DOMAIN}_asset_archived"  # hidden without deleting its data
+EVENT_ASSET_RESTORED = f"{DOMAIN}_asset_restored"  # an archived appliance is restored
 
 # Assets / appliances (virtual devices + asset metadata).
 # A virtual asset device is registered with identifier

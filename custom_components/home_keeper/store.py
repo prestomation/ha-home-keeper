@@ -19,8 +19,10 @@ from homeassistant.util import dt as dt_util
 from . import assets, events, models, recurrence, sensor_tasks, sensor_watcher
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
+    EVENT_ASSET_ARCHIVED,
     EVENT_ASSET_CREATED,
     EVENT_ASSET_DELETED,
+    EVENT_ASSET_RESTORED,
     EVENT_ASSET_UPDATED,
     EVENT_PART_LOW_STOCK,
     EVENT_PART_OUT_OF_STOCK,
@@ -783,6 +785,31 @@ class HomeKeeperStore:
                 events.task_event_data(task, extra={"changed_fields": ["source"]}),
             )
         self._hass.bus.async_fire(EVENT_ASSET_DELETED, events.asset_event_data(asset))
+        return asset
+
+    async def archive_asset(self, asset_id: str) -> dict[str, Any] | None:
+        """Hide an asset from the default view without deleting its data.
+
+        Unlike ``delete_asset`` this leaves the device registry entry, its
+        entities, and any attached tasks untouched — archiving is reversible via
+        ``restore_asset``.
+        """
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            return None
+        asset["archived_at"] = dt_util.utcnow().isoformat()
+        await self._save()
+        self._hass.bus.async_fire(EVENT_ASSET_ARCHIVED, events.asset_event_data(asset))
+        return asset
+
+    async def restore_asset(self, asset_id: str) -> dict[str, Any] | None:
+        """Undo ``archive_asset``, returning the asset to the default view."""
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            return None
+        asset["archived_at"] = None
+        await self._save()
+        self._hass.bus.async_fire(EVENT_ASSET_RESTORED, events.asset_event_data(asset))
         return asset
 
     async def reconcile_part_tasks(self) -> bool:

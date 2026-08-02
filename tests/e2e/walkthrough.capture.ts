@@ -159,6 +159,44 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await panel.locator('ha-markdown table').first().scrollIntoViewIfNeeded();
     await page.waitForTimeout(BEAT * 2);
 
+    // 4a2. Delete now confirms before doing anything, and is styled as a destructive
+    //      action — cancel it to show it's a safe, reversible click.
+    await panel.locator('.d-del').scrollIntoViewIfNeeded();
+    await panel.locator('.d-del').click();
+    await expect(page.locator('.hk-confirm-scrim ha-button[variant="danger"]')).toBeAttached();
+    await page.waitForTimeout(BEAT * 2);
+    await page.locator('.hk-confirm-scrim ha-button').filter({ hasText: 'Cancel' }).click();
+    await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0);
+    await page.waitForTimeout(BEAT);
+
+    // 4a3. Archive — an appliance that was replaced can be tucked out of the default
+    //      list without losing its documents/parts/history, and brought back any time.
+    await panel.locator('.d-archive').click();
+    await expect(panel.locator('.d-restore')).toBeVisible();
+    await expect(panel.locator('.hk-managed-prompt')).toContainText('Archived');
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('#back-btn').click();
+    await expect(panel.locator('.hk-seg[data-seg="assetFilter"]')).toBeVisible();
+    await panel
+      .locator('.hk-seg[data-seg="assetFilter"] button', { hasText: 'Archived' })
+      .click();
+    await expect(panel.locator('ha-assist-chip.hk-archived').first()).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await expect(panel.locator('.d-restore')).toBeVisible();
+    await page.waitForTimeout(BEAT);
+    // Restore it so the rest of the tour finds it back on the active list.
+    await panel.locator('.d-restore').click();
+    await expect(panel.locator('.d-archive')).toBeVisible();
+    await page.waitForTimeout(BEAT);
+    await panel.locator('#back-btn').click();
+    await panel
+      .locator('.hk-seg[data-seg="assetFilter"] button', { hasText: 'Active' })
+      .click();
+    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await expect(panel.locator('.d-archive')).toBeVisible();
+    await page.waitForTimeout(BEAT);
+
     // 4b. Auto-buy — open the editor, reveal the Parts section, and flip on
     //     "Auto-create buy task" for a stocked consumable so its Restock quantity
     //     appears: the low → buy → restocked loop, configured in a single toggle.

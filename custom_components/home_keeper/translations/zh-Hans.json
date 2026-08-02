@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "归档电器",
+      "description": "从默认视图中隐藏电器/资产，但不删除其数据。其设备、实体和关联的任务保持不变；restore_asset 可撤销此操作。",
+      "fields": {
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "要归档的资产的 id。"
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "恢复电器",
+      "description": "撤销 archive_asset，将已归档的电器恢复到默认视图。",
+      "fields": {
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "要恢复的资产的 id。"
+        }
+      }
+    },
     "list_assets": {
       "name": "列出电器",
       "description": "以响应形式返回所有电器/资产。"

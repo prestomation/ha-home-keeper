@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Archivovat spotřebič",
+      "description": "Skrýt spotřebič/majetek z výchozího zobrazení bez smazání jeho dat. Jeho zařízení, entity a připojené úkoly zůstanou nedotčené; restore_asset to vrátí zpět.",
+      "fields": {
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "ID majetku, který se má archivovat."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Obnovit spotřebič",
+      "description": "Vrátí zpět archive_asset a vrátí archivovaný spotřebič do výchozího zobrazení.",
+      "fields": {
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "ID majetku, který se má obnovit."
+        }
+      }
+    },
     "list_assets": {
       "name": "Vypsat spotřebiče",
       "description": "Vrátit všechny spotřebiče/majetek jako odpověď."

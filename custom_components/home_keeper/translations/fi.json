@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Arkistoi laite",
+      "description": "Piilota laite/kohde oletusnäkymästä poistamatta sen tietoja. Sen laite, entiteetit ja liitetyt tehtävät pysyvät koskemattomina; restore_asset kumoaa tämän.",
+      "fields": {
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Arkistoitavan kohteen tunnus."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Palauta laite",
+      "description": "Kumoaa archive_asset-toiminnon ja palauttaa arkistoidun laitteen oletusnäkymään.",
+      "fields": {
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Palautettavan kohteen tunnus."
+        }
+      }
+    },
     "list_assets": {
       "name": "Luettele laitteet",
       "description": "Palauta kaikki laitteet/kohteet vastauksena."

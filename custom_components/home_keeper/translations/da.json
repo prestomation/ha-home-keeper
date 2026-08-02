@@ -492,6 +492,26 @@
         }
       }
     },
+    "archive_asset": {
+      "name": "Arkivér apparat",
+      "description": "Skjul et apparat/aktiv fra standardvisningen uden at slette dets data. Dets enhed, entiteter og tilknyttede opgaver berøres ikke; restore_asset fortryder det.",
+      "fields": {
+        "asset_id": {
+          "name": "Aktiv-ID",
+          "description": "ID'et på aktivet, der skal arkiveres."
+        }
+      }
+    },
+    "restore_asset": {
+      "name": "Gendan apparat",
+      "description": "Fortryd archive_asset og bring et arkiveret apparat tilbage til standardvisningen.",
+      "fields": {
+        "asset_id": {
+          "name": "Aktiv-ID",
+          "description": "ID'et på aktivet, der skal gendannes."
+        }
+      }
+    },
     "list_assets": {
       "name": "Vis apparater",
       "description": "Returner alle apparater/aktiver som et svar."

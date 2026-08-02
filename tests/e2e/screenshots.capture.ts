@@ -389,8 +389,53 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-part-notes ha-markdown strong').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/8-panel-appliance-detail.png`, fullPage: true });
+
+  // 8b. Delete now asks for confirmation and is styled as a destructive action
+  // (issue #173) — no more one-click loss of an appliance's documents/parts/history.
+  await panel.locator('.d-del').click();
+  await expect(page.locator('.hk-confirm-scrim ha-button[destructive]')).toBeAttached({
+    timeout: 5_000,
+  });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/8b-panel-appliance-delete-confirm.png`, fullPage: false });
+  // Dismiss via Escape so the seeded appliance survives for later shots.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
+
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
+
+  // 8c + 5b. Archive/restore — an appliance that was replaced can be archived instead
+  // of deleted, keeping its documents/parts/history but tucking it out of the default
+  // list. A throwaway appliance (not the seeded water heater other shots depend on)
+  // demonstrates the flow.
+  await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'add_asset', { name: 'Old chest freezer' });
+  });
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await panel.locator('.detail-open', { hasText: 'Old chest freezer' }).click();
+  await expect(panel.locator('.d-archive')).toBeVisible();
+  await panel.locator('.d-archive').click();
+  await expect(panel.locator('.d-restore')).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/8c-panel-appliance-archived-detail.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+
+  // The Active filter hides the archived appliance; switching to Archived shows it
+  // with its "Archived" chip.
+  await expect(panel.locator('.hk-seg[data-seg="assetFilter"]')).toBeVisible();
+  await panel
+    .locator('.hk-seg[data-seg="assetFilter"] button', { hasText: 'Archived' })
+    .click();
+  await expect(panel.locator('ha-assist-chip.hk-archived').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/5b-panel-appliances-archived-list.png`, fullPage: true });
+  // Reset to Active so the remaining appliance shots see the normal list.
+  await panel.locator('.hk-seg[data-seg="assetFilter"] button', { hasText: 'Active' }).click();
 
   // 6. Appliance create form — virtual device, metadata, parts and relationships.
   await panel.locator('#add-btn').click();

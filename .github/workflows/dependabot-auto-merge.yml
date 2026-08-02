@@ -1,12 +1,18 @@
 name: Dependabot auto-merge
 
 # Auto-merges Dependabot PRs (github-actions, pip, npm — see .github/dependabot.yml)
-# once CI is green, for any bump including majors — we trust CI to catch breakage.
+# once EVERY check on the PR is green, for any bump including majors — we trust CI to
+# catch breakage.
 #
-# Requires the repo setting Settings → General → Pull Requests → "Allow auto-merge"
-# to be enabled (one-time, repo-admin action; not settable via this workflow).
-# gh pr merge --auto queues the merge — GitHub performs it once all required status
-# checks pass, so this doesn't bypass CI.
+# `gh pr checks --watch --fail-fast` polls until all checks on the PR finish (exiting
+# as soon as the first one fails) and exits non-zero on any failure, so the merge
+# step below only runs when everything is actually green.
+# This does NOT rely on GitHub's branch-protection "required status checks" list —
+# unlike the previous `gh pr merge --auto`, which only waits for whichever checks are
+# marked required there. That list had drifted out of sync with test.yml's actual
+# jobs and let PR #171 (the jsdom 30 bump) merge 65 seconds after its own `test` job
+# failed. Keep required status checks configured too (Settings → Branches) as
+# defense-in-depth for human squash-merges, but don't depend on it here.
 
 on:
   pull_request:
@@ -20,9 +26,12 @@ jobs:
   dependabot:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
+    timeout-minutes: 20
     steps:
-      - name: Enable auto-merge
-        run: gh pr merge --auto --squash "$PR_URL"
+      - name: Wait for all checks, then merge
+        run: |
+          gh pr checks "$PR_URL" --watch --fail-fast --interval 15
+          gh pr merge --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

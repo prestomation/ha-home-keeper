@@ -231,6 +231,12 @@ const STYLES = `
     --ha-assist-chip-label-text-color: #fff;
     --md-assist-chip-outline-color: transparent;
   }
+  ha-assist-chip.hk-archived {
+    --ha-assist-chip-container-color: var(--disabled-color, #9E9E9E);
+    --md-assist-chip-label-text-color: #fff;
+    --ha-assist-chip-label-text-color: #fff;
+    --md-assist-chip-outline-color: transparent;
+  }
   .hk-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .hk-task-chip-link { display: contents; }
   ha-assist-chip.hk-device-chip { cursor: pointer; }
@@ -771,6 +777,8 @@ interface HistoryGroup {
 type GroupBy = 'none' | 'status' | 'area' | 'device' | 'integration';
 /** Task-list quick filter. */
 type TaskFilter = 'all' | 'overdue' | 'soon';
+/** Appliance-list quick filter. */
+type AssetFilter = 'active' | 'archived';
 /** One bucket of rows rendered under a collapsible section header. */
 interface Group<T> {
   /** Stable key for remembering collapse state, e.g. "status:overdue". */
@@ -783,6 +791,7 @@ interface Group<T> {
 const SOON_DAYS = 7;
 const LS_GROUP = 'home-keeper.groupBy';
 const LS_FILTER = 'home-keeper.filter';
+const LS_ASSET_FILTER = 'home-keeper.assetFilter';
 const LS_PROFILE = 'home-keeper.profile';
 // Set once the user dismisses the first-run orientation banner on the Tasks tab.
 const LS_INTRO = 'home-keeper.introDismissed';
@@ -835,6 +844,7 @@ export class HomeKeeperPanel extends HTMLElement {
   // List controls (persisted in localStorage).
   private _groupBy: GroupBy = 'status';
   private _filter: TaskFilter = 'all';
+  private _assetFilter: AssetFilter = 'active';
   // Selected saved Profile id to filter the task list by ('' = no profile).
   private _profile = '';
   // Group sections collapsed by the user, keyed by "<group>:<bucket>".
@@ -1012,6 +1022,8 @@ export class HomeKeeperPanel extends HTMLElement {
         this._groupBy = g;
       const f = localStorage.getItem(LS_FILTER);
       if (f === 'all' || f === 'overdue' || f === 'soon') this._filter = f;
+      const af = localStorage.getItem(LS_ASSET_FILTER);
+      if (af === 'active' || af === 'archived') this._assetFilter = af;
       this._profile = localStorage.getItem(LS_PROFILE) ?? '';
     } catch {
       // localStorage unavailable (e.g. private mode) — fall back to defaults.
@@ -1034,6 +1046,17 @@ export class HomeKeeperPanel extends HTMLElement {
     this._filter = value;
     try {
       localStorage.setItem(LS_FILTER, value);
+    } catch {
+      /* ignore */
+    }
+    this._render();
+  }
+
+  private _setAssetFilter(value: AssetFilter): void {
+    if (this._assetFilter === value) return;
+    this._assetFilter = value;
+    try {
+      localStorage.setItem(LS_ASSET_FILTER, value);
     } catch {
       /* ignore */
     }
@@ -1491,6 +1514,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const del = document.createElement('ha-button');
     del.setAttribute('raised', '');
     del.setAttribute('destructive', '');
+    del.setAttribute('variant', 'danger');
     del.textContent = t('btn.delete');
     del.addEventListener('click', () => {
       onConfirm?.();
@@ -1655,6 +1679,30 @@ export class HomeKeeperPanel extends HTMLElement {
       this._toast(t('error.actionFailed'));
     }
     await this._refresh();
+  }
+
+  /** Hide an appliance from the default list without deleting its data;
+   *  reversible via {@link _restoreAsset}. */
+  private async _archiveAsset(asset: Asset): Promise<void> {
+    if (!this._hass) return;
+    try {
+      await api.archiveAsset(this._hass, asset.id);
+      await this._refresh();
+    } catch (err) {
+      console.error('home-keeper: archive appliance failed', err);
+      this._toast(t('error.actionFailed'));
+    }
+  }
+
+  private async _restoreAsset(asset: Asset): Promise<void> {
+    if (!this._hass) return;
+    try {
+      await api.restoreAsset(this._hass, asset.id);
+      await this._refresh();
+    } catch (err) {
+      console.error('home-keeper: restore appliance failed', err);
+      this._toast(t('error.actionFailed'));
+    }
   }
 
   /**
@@ -1902,7 +1950,14 @@ export class HomeKeeperPanel extends HTMLElement {
             { value: 'soon', label: t('filter.soon') },
           ])}</div>`
         : '';
-    return `<div class="hk-controls">${filterControl}${this._profileControl()}${groupControl}</div>`;
+    const assetFilterControl =
+      this._view === 'appliances'
+        ? `<div class="hk-control">${this._seg('assetFilter', this._assetFilter, [
+            { value: 'active', label: t('filter.active') },
+            { value: 'archived', label: t('filter.archived') },
+          ])}</div>`
+        : '';
+    return `<div class="hk-controls">${filterControl}${assetFilterControl}${this._profileControl()}${groupControl}</div>`;
   }
 
   /** The saved Profile currently selected for the list filter, or null. */
@@ -2194,7 +2249,13 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!this._assets.length) {
       return `<ha-alert alert-type="info">${escapeHTML(t('appliances.empty'))}</ha-alert>`;
     }
-    const assets = [...this._assets].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const archived = this._assetFilter === 'archived';
+    const filtered = this._assets.filter((a) => Boolean(a.archived_at) === archived);
+    if (!filtered.length) {
+      const emptyKey = archived ? 'appliances.archivedEmpty' : 'appliances.noMatch';
+      return `<ha-alert alert-type="info">${escapeHTML(t(emptyKey))}</ha-alert>`;
+    }
+    const assets = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     return this._renderGroups(this._groupAssets(assets), (asset) => this._assetCard(asset));
   }
 
@@ -2274,6 +2335,9 @@ export class HomeKeeperPanel extends HTMLElement {
         ? `<ha-assist-chip label="${escapeHTML(
             t('chip.subdeviceOf', { name: this._assetName(x.parent_asset_id) }),
           )}"></ha-assist-chip>`
+        : '',
+      x.archived_at
+        ? `<ha-assist-chip class="hk-archived" label="${escapeHTML(t('chip.archived'))}"></ha-assist-chip>`
         : '',
     ].join('');
     return `
@@ -2390,7 +2454,7 @@ export class HomeKeeperPanel extends HTMLElement {
       const deleteBtn =
         mb?.deletion_protected && !orphaned
           ? `<span class="hk-managed-info">${escapeHTML(t('managed.deleteBlocked', { name: mb.display_name }))}</span>`
-          : `<ha-button class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
+          : `<ha-button destructive class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
       // "Edit in X" deep link when config_entry_id resolves to a loaded domain.
       const domain = mb?.config_entry_id ? this._entryDomains[mb.config_entry_id] : null;
       const openInBtn = domain && !orphaned
@@ -2505,13 +2569,24 @@ export class HomeKeeperPanel extends HTMLElement {
       ? `<div class="hk-section">${escapeHTML(t('detail.about'))}</div>
          <ha-card class="hk-detail-card"><div class="hk-detail-inner">${details}</div></ha-card>`
       : '';
+    const archived = Boolean(asset.archived_at);
+    const archiveOrRestoreBtn = archived
+      ? `<ha-button class="d-restore">${escapeHTML(t('btn.restore'))}</ha-button>`
+      : `<ha-button class="d-archive">${escapeHTML(t('btn.archive'))}</ha-button>`;
+    const archivedNote = archived
+      ? `<div class="hk-managed-prompt">${escapeHTML(
+          t('detail.archivedOn', { date: new Date(asset.archived_at as string).toLocaleDateString() }),
+        )}</div>`
+      : '';
     return `
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(title)}</div>
         <div class="hk-chips">${kindChip}${parentChip}</div>
+        ${archivedNote}
         <div class="hk-detail-actions">
           <ha-button raised class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>
-          <ha-button class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>
+          ${archiveOrRestoreBtn}
+          <ha-button destructive class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>
         </div>
       </div></ha-card>
       ${detailsCard}
@@ -3133,6 +3208,7 @@ export class HomeKeeperPanel extends HTMLElement {
         if (!val) return;
         if (seg === 'group') this._setGroupBy(val as GroupBy);
         else if (seg === 'filter') this._setFilter(val as TaskFilter);
+        else if (seg === 'assetFilter') this._setAssetFilter(val as AssetFilter);
       }),
     );
     // Saved-Profile filter dropdown.
@@ -3219,6 +3295,10 @@ export class HomeKeeperPanel extends HTMLElement {
   private _wireDetailActions(root: ShadowRoot): void {
     const d = this._detail;
     if (!d) return;
+    // `destructive` alone doesn't reflect into ha-button's Web Awesome variant when
+    // set as static markup (only when applied to an already-upgraded element), so
+    // force the red "danger" variant here rather than in the template string.
+    root.querySelector('.d-del')?.setAttribute('variant', 'danger');
     if (d.kind === 'task') {
       const task = this._tasks.find((x) => x.id === d.id);
       if (!task) return;
@@ -3229,10 +3309,12 @@ export class HomeKeeperPanel extends HTMLElement {
       root.querySelector('.d-edit')?.addEventListener('click', () => this._openEdit(task));
       this._wireNoteEditor(root, { kind: 'task', id: task.id });
       root.querySelector('.d-del')?.addEventListener('click', () => {
-        // The detail is about to vanish: replace it with its list so Forward
-        // can't return to a deleted task.
-        this._navigate({ view: 'tasks', detail: null }, true);
-        void this._delete(task);
+        this._openConfirmDialog(t('confirm.deleteTask', { name: task.name }), () => {
+          // The detail is about to vanish: replace it with its list so Forward
+          // can't return to a deleted task.
+          this._navigate({ view: 'tasks', detail: null }, true);
+          void this._delete(task);
+        });
       });
       // "Edit in X" deep link: navigate to the managing integration's config page
       // (same helper the Companions "Configure" button uses).
@@ -3248,11 +3330,17 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!asset) return;
     root.querySelector('.d-edit')?.addEventListener('click', () => this._openEditAsset(asset));
     this._wireNoteEditor(root, { kind: 'asset', id: asset.id });
+    root.querySelector('.d-archive')?.addEventListener('click', () => void this._archiveAsset(asset));
+    root.querySelector('.d-restore')?.addEventListener('click', () => void this._restoreAsset(asset));
     root.querySelector('.d-del')?.addEventListener('click', () => {
-      // The detail is about to vanish: replace it with its list so Forward
-      // can't return to a deleted appliance.
-      this._navigate({ view: 'appliances', detail: null }, true);
-      void this._deleteAsset(asset);
+      const name =
+        asset.name || deviceName(this._hass?.devices, asset.device_id) || t('appliance.fallbackName');
+      this._openConfirmDialog(t('confirm.deleteAsset', { name }), () => {
+        // The detail is about to vanish: replace it with its list so Forward
+        // can't return to a deleted appliance.
+        this._navigate({ view: 'appliances', detail: null }, true);
+        void this._deleteAsset(asset);
+      });
     });
     // Uploaded files (asset documents and part attachments) open via a short-lived
     // signed URL carried on the anchor's `href` — `_signFiles` mints it right after

@@ -491,6 +491,20 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   physical); DO set `configuration_url` (an `appliances/<asset_id>` deep link — see
   "Entities & devices"). Validate `area_id` at the HA boundary (`devices.area_exists`),
   never in the pure model. See `IDEAS.md` / `docs/DESIGN.md`.
+- **Archiving is a visibility flag, not a device/entity teardown.** `archived_at`
+  (an ISO timestamp, `None` when active) is a **backend-managed** field on the asset
+  dict — like `created`/`identifiers` — so it's set only by `store.archive_asset`/
+  `restore_asset`, never through `_ASSET_FIELDS`/`normalize_fields`/`merge_update`
+  (the generic `add_asset`/`update_asset` field set). It gets its own dedicated
+  service + websocket-command pair and its own events
+  (`home_keeper_asset_archived`/`_restored`), exactly like `delete_asset` is
+  dedicated rather than routed through `update_asset` — archiving is a distinct
+  lifecycle action, not a field edit. Archiving does **not** remove the device
+  registry entry, its entities, or affect attached tasks — those keep running so
+  history stays intact; the panel just filters archived assets out of the default
+  Appliances list (an `active`/`archived` toggle, mirroring the task filter
+  segment). `delete_asset` remains available on an archived asset for permanent
+  removal.
 
 ## Exceptions are localized (exception-translations)
 - Every user-facing exception raised from a service handler or entity

@@ -312,6 +312,10 @@ export interface Asset {
   parent_asset_id?: string | null;
   related_device_ids?: string[];
   task_history?: TaskHistoryEntry[];
+  // Backend-managed: set only via the archive_asset/restore_asset service+ws
+  // commands, never through add_asset/update_asset. Hides the appliance from the
+  // panel's default list without touching its device, entities, or tasks.
+  archived_at?: string | null;
 }
 
 export interface PanelInfo {
