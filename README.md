@@ -493,7 +493,7 @@ reflects completions made anywhere else in real time.
 
 **Hide card when empty** makes the card disappear from the dashboard entirely
 (header and all) instead of showing a "No tasks match this filter." message when its
-filter matches nothing — handy for a dashboard built from several per-subject cards
+filter matches nothing, handy for a dashboard built from several per-subject cards
 (the dog, the car, each kid) where you only want to see the ones with something due.
 
 ![Home Keeper task card grouped into status sections](docs/images/card-grouped.png)
