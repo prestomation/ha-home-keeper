@@ -103,6 +103,51 @@ describe('HomeKeeperCard load states', () => {
   });
 });
 
+describe('HomeKeeperCard hide_when_empty', () => {
+  it('stays visible and shows the "no match" alert by default', async () => {
+    const card = makeCard({ type: 'custom:home-keeper-card', labels: ['no-such-label'] });
+    card.hass = { callWS: async () => ({ tasks: sampleTasks }), language: 'en' };
+
+    const shown = await waitFor(() => sr(card)?.querySelector('.hk-empty'));
+    expect(shown).toBe(true);
+    expect(card.style.display).toBe('');
+  });
+
+  it('hides the whole card when configured and nothing matches, and reappears once a task matches', async () => {
+    let tasks = [];
+    const card = makeCard({
+      type: 'custom:home-keeper-card',
+      labels: ['no-such-label'],
+      hide_when_empty: true,
+    });
+    card.hass = { callWS: async () => ({ tasks }), language: 'en' };
+
+    await waitFor(() => card.style.display === 'none');
+    expect(card.style.display, 'card should collapse when its filter matches nothing').toBe(
+      'none',
+    );
+
+    // A later hass update whose tasks satisfy the filter should reveal the card again.
+    tasks = [{ ...sampleTasks[0], labels: ['no-such-label'] }];
+    card.hass = {
+      callWS: async () => ({ tasks }),
+      language: 'en',
+      states: {
+        'todo.home_keeper_tasks': {
+          entity_id: 'todo.home_keeper_tasks',
+          state: '1',
+          last_updated: new Date().toISOString(),
+          attributes: {},
+        },
+      },
+    };
+
+    await waitFor(() => card.style.display === '');
+    expect(card.style.display, 'card should reappear once a task matches').toBe('');
+    expect(sr(card).querySelector('.hk-row')).not.toBeNull();
+  });
+});
+
 describe('HomeKeeperCard completion guard', () => {
   it('ignores a re-entrant complete while one is already in flight', async () => {
     const card = makeCard();

@@ -491,6 +491,11 @@ saved [Profile](#profiles-saved-filters-you-reuse-everywhere)), sort, group, cap
 and toggle what each row shows. It's built from HA's own components and theme and
 reflects completions made anywhere else in real time.
 
+**Hide card when empty** makes the card disappear from the dashboard entirely
+(header and all) instead of showing a "No tasks match this filter." message when its
+filter matches nothing, handy for a dashboard built from several per-subject cards
+(the dog, the car, each kid) where you only want to see the ones with something due.
+
 ![Home Keeper task card grouped into status sections](docs/images/card-grouped.png)
 
 ### Show a task's appliance documents on the card

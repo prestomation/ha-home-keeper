@@ -97,6 +97,7 @@ const S: Record<string, string> = {
   hide_managed: 'Hide integration-managed tasks',
   show_disabled: 'Include disabled tasks',
   confirm_complete: 'Confirm before completing',
+  hide_when_empty: 'Hide card when empty',
 };
 
 const FILTER_OPTS: { value: CardFilter; label: string }[] = [
@@ -309,7 +310,9 @@ export class HomeKeeperCard extends HTMLElement {
 
   /** Estimated height in masonry/legacy views (≈ one unit per visible row). */
   getCardSize(): number {
-    const n = this._loaded ? this._visibleCount() : 3;
+    if (!this._loaded) return 3;
+    const n = this._visibleCount();
+    if (this._isHiddenEmpty(n)) return 0;
     return Math.max(3, Math.min(n + 1, 12));
   }
 
@@ -493,6 +496,15 @@ export class HomeKeeperCard extends HTMLElement {
     return max > 0 ? Math.min(shaped.length, max) : shaped.length;
   }
 
+  /** Whether `hide_when_empty` should collapse the card given `n` visible rows —
+   *  only once loaded without error, and only when nothing matches the
+   *  configured filter (loading/error states always stay visible). Takes `n`
+   *  rather than calling `_visibleCount()` itself so callers that already
+   *  computed it (getCardSize, _render) don't re-run `_shaped()`. */
+  private _isHiddenEmpty(n: number): boolean {
+    return !!this._config.hide_when_empty && this._loaded && !this._error && n === 0;
+  }
+
   // ── completion / CRUD ───────────────────────────────────────────────────────
   /** Surface a transient message via HA's toast notification. */
   private _toast(message: string): void {
@@ -598,6 +610,10 @@ export class HomeKeeperCard extends HTMLElement {
 
   private _render(): void {
     if (!this.shadowRoot) return;
+    // Collapse the whole card out of masonry/grid layouts when configured to
+    // hide on an empty result (see getCardSize) — re-evaluated on every render
+    // so the card reappears as soon as a task matches again.
+    this.style.display = this._loaded && this._isHiddenEmpty(this._visibleCount()) ? 'none' : '';
     this._ensureMarkdown();
     this._liveHassEls = [];
     const title = this._config.title ?? t('tab.tasks');
@@ -1017,6 +1033,7 @@ export class HomeKeeperCardEditor extends HTMLElement {
           { name: 'hide_managed', selector: selBool() },
           { name: 'show_disabled', selector: selBool() },
           { name: 'confirm_complete', selector: selBool() },
+          { name: 'hide_when_empty', selector: selBool() },
         ],
       },
     ];
