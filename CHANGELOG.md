@@ -6,6 +6,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.11.0b1]
+
+### Added
+
+- **The dashboard task card can hide itself when its filter matches nothing.** A
+  new **Hide card when empty** toggle collapses the card out of the dashboard
+  layout entirely, instead of showing "No tasks match this filter.", handy for a
+  dashboard built from several per-subject cards (the dog, the car, each kid)
+  where only the ones with something due should show.
+
 ## [0.10.0] - 2026-08-02
 
 ### Added

@@ -103,6 +103,20 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await expect(labelCard.locator('.hk-empty')).toBeVisible();
   await shotCard(page, labelCard, `${OUT}/card-title-fallback.png`);
 
+  // 5b. Same non-matching filter, but with hide_when_empty: true — the card
+  // collapses out of the dashboard layout entirely instead of showing the "No
+  // tasks match" alert. Capture the whole view to show it's gone (compare against
+  // card-dashboard.png, which shows all three cards present).
+  await labelCard.evaluate((el: ConfigurableCard) =>
+    el.setConfig({
+      type: 'custom:home-keeper-card',
+      labels: ['no-such-label-xyz'],
+      hide_when_empty: true,
+    }),
+  );
+  await expect(labelCard).toBeHidden();
+  await page.screenshot({ path: `${OUT}/card-hide-empty.png`, fullPage: true });
+
   // 6. Truncated list ("+N more" — previously an untranslated template literal).
   // Close the add form from step 4, then reconfigure the default card to a small
   // max_items so the seeded task set (well over a dozen) overflows.

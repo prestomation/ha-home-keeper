@@ -58,6 +58,11 @@ export interface HomeKeeperCardConfig {
   show_labels?: boolean;
   /** Ask for confirmation before completing a task. Default false. */
   confirm_complete?: boolean;
+  /** Hide the entire card (header included) instead of showing "No tasks match
+   *  this filter." when nothing matches. Default false. Handy for a dashboard
+   *  built from several per-subject cards where only the ones with something due
+   *  should show. */
+  hide_when_empty?: boolean;
 }
 
 /** Tasks due within this many days (and not overdue) count as "due soon". */

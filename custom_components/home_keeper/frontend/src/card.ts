@@ -97,6 +97,7 @@ const S: Record<string, string> = {
   hide_managed: 'Hide integration-managed tasks',
   show_disabled: 'Include disabled tasks',
   confirm_complete: 'Confirm before completing',
+  hide_when_empty: 'Hide card when empty',
 };
 
 const FILTER_OPTS: { value: CardFilter; label: string }[] = [
@@ -309,6 +310,7 @@ export class HomeKeeperCard extends HTMLElement {
 
   /** Estimated height in masonry/legacy views (≈ one unit per visible row). */
   getCardSize(): number {
+    if (this._isHiddenEmpty()) return 0;
     const n = this._loaded ? this._visibleCount() : 3;
     return Math.max(3, Math.min(n + 1, 12));
   }
@@ -493,6 +495,18 @@ export class HomeKeeperCard extends HTMLElement {
     return max > 0 ? Math.min(shaped.length, max) : shaped.length;
   }
 
+  /** Whether `hide_when_empty` should collapse the card right now — only once
+   *  loaded without error, and only when nothing matches the configured filter
+   *  (loading/error states always stay visible). */
+  private _isHiddenEmpty(): boolean {
+    return (
+      !!this._config.hide_when_empty &&
+      this._loaded &&
+      !this._error &&
+      this._visibleCount() === 0
+    );
+  }
+
   // ── completion / CRUD ───────────────────────────────────────────────────────
   /** Surface a transient message via HA's toast notification. */
   private _toast(message: string): void {
@@ -598,6 +612,10 @@ export class HomeKeeperCard extends HTMLElement {
 
   private _render(): void {
     if (!this.shadowRoot) return;
+    // Collapse the whole card out of masonry/grid layouts when configured to
+    // hide on an empty result (see getCardSize) — re-evaluated on every render
+    // so the card reappears as soon as a task matches again.
+    this.style.display = this._isHiddenEmpty() ? 'none' : '';
     this._ensureMarkdown();
     this._liveHassEls = [];
     const title = this._config.title ?? t('tab.tasks');
@@ -1017,6 +1035,7 @@ export class HomeKeeperCardEditor extends HTMLElement {
           { name: 'hide_managed', selector: selBool() },
           { name: 'show_disabled', selector: selBool() },
           { name: 'confirm_complete', selector: selBool() },
+          { name: 'hide_when_empty', selector: selBool() },
         ],
       },
     ];
