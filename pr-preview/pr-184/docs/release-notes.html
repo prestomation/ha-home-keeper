@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-184/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-184/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-184/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-184/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-184/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-184/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-184/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-184/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-184/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-184/assets/js/runtime~main.dd871ecf.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-184/assets/js/runtime~main.266eecc1.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-184/assets/js/main.7670c784.js" defer="defer"></script>
 </head>
 <body>
@@ -18,11 +18,11 @@ versioning, with PEP 440 pre-release suffixes (<code>bN</code>/<code>aN</code>/<
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed">Fixed<a href="#fixed" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>The &quot;Welcome to Home Keeper&quot; banner reappeared on every new browser or device.</strong>
-Dismissing it was stored in <code>localStorage</code>, which is scoped to a single browser.
-Switching devices, using a private window, or clearing site data brought it back.
-The dismissed state now persists server-side per Home Assistant user (via HA&#x27;s own
-frontend user-data store), so dismissing it once keeps it dismissed everywhere
-you&#x27;re signed in. (Fixes #182)</li>
+Dismissing it was stored in <code>localStorage</code>, which is scoped to a single browser: a
+different device, a private window, or a cleared site data store all brought it
+back. The dismissed state now persists server-side per Home Assistant user (via
+HA&#x27;s own frontend user-data store), so dismissing it once keeps it dismissed
+everywhere you&#x27;re signed in. (Fixes #182)</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0110---2026-08-03">[0.11.0] - 2026-08-03<a href="#0110---2026-08-03" class="hash-link" aria-label="Direct link to [0.11.0] - 2026-08-03" title="Direct link to [0.11.0] - 2026-08-03" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added">Added<a href="#added" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
