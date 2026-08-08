@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "Wyświetl towarzyszy",
       "description": "Zwróć jako odpowiedź scaloną listę towarzyszy (samodzielnie zarejestrowane integracje oraz wykryte integracje nadrzędne, których łącznik nie jest jeszcze zainstalowany)."
+    },
+    "sign_document_url": {
+      "name": "Podpisz URL dokumentu",
+      "description": "Generuje krótkotrwały URL (bez potrzeby nagłówka uwierzytelniania), z którego zewnętrzny wywołujący może pobrać bajty dokumentu, np. agent połączony przez MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy dokument."
+        },
+        "document_id": {
+          "name": "Identyfikator dokumentu",
+          "description": "Identyfikator dokumentu, dla którego ma zostać podpisany URL."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Podpisz URL pliku części",
+      "description": "Generuje krótkotrwały URL (bez potrzeby nagłówka uwierzytelniania), z którego zewnętrzny wywołujący może pobrać bajty załączonego pliku części, np. agent połączony przez MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "Identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy część."
+        },
+        "part_id": {
+          "name": "Identyfikator części",
+          "description": "Identyfikator części, dla której załączonego pliku ma zostać podpisany URL."
+        }
+      }
     }
   },
   "entity": {

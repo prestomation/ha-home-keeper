@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "列出搭档",
       "description": "以响应形式返回合并后的搭档列表（自注册的集成，加上已检测到但其粘合尚未安装的上游集成）。"
+    },
+    "sign_document_url": {
+      "name": "签署文档 URL",
+      "description": "生成一个短期有效的 URL（无需身份验证标头），外部调用方可通过它获取文档的字节数据，例如通过 MCP 连接的智能体。",
+      "fields": {
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "文档所属设备的 id。"
+        },
+        "document_id": {
+          "name": "文档 ID",
+          "description": "要为其签署 URL 的文档的 ID。"
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "签署零件文件 URL",
+      "description": "生成一个短期有效的 URL（无需身份验证标头），外部调用方可通过它获取零件附件文件的字节数据，例如通过 MCP 连接的智能体。",
+      "fields": {
+        "asset_id": {
+          "name": "资产 ID",
+          "description": "该零件所属设备的 ID。"
+        },
+        "part_id": {
+          "name": "零件 ID",
+          "description": "要签署其附件文件 URL 的零件的 ID。"
+        }
+      }
     }
   },
   "entity": {

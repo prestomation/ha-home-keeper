@@ -436,3 +436,49 @@ def test_document_view_requires_auth(ha):
     # The view is auth-gated: an unauthenticated GET is rejected.
     r = requests.get(f"{HA_URL}/api/home_keeper/document/whatever/whatever", timeout=10)
     assert r.status_code in (401, 403)
+
+
+def test_sign_document_url_downloads_without_auth_header(ha):
+    # Issue #161: sign_document_url is a *service*, unlike the existing
+    # sign_document_url websocket command — the intended caller has no browser
+    # session or websocket connection of its own (e.g. an MCP-connected agent).
+    # The signed URL it returns must be fetchable with a bare, unauthenticated GET.
+    name = f"Doc sign probe {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    doc_id = uuid.uuid4().hex
+    up = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc_id}",
+        files={"file": ("manual.pdf", PDF_BYTES, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=30,
+    )
+    assert up.status_code == 200, up.text
+
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "sign_document_url",
+        {"asset_id": asset["id"], "document_id": doc_id},
+        return_response=True,
+    )
+    result = resp.get("service_response", resp)
+    signed_url = result["url"]
+    assert signed_url.startswith(HA_URL)
+    assert result["expires_in"] > 0
+
+    # No Authorization header — a signed URL must not need one.
+    dl = requests.get(signed_url, timeout=10)
+    assert dl.status_code == 200
+    assert dl.content == PDF_BYTES
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_sign_document_url_unknown_document_errors(ha):
+    name = f"Doc sign missing {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/sign_document_url",
+        json={"asset_id": asset["id"], "document_id": "does-not-exist"},
+    )
+    assert r.status_code >= 400, "signing an unknown document must fail"
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})

@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "Vis ledsagere",
       "description": "Returnér den sammenlagte ledsagerliste (selvregistrerede integrationer plus detekterede upstreams, hvis glue endnu ikke er installeret) som et svar."
+    },
+    "sign_document_url": {
+      "name": "Signér dokument-URL",
+      "description": "Opret en kortvarig URL (uden behov for godkendelsesheader), som en ekstern kalder kan hente dokumentets bytes fra, f.eks. en MCP-forbundet agent.",
+      "fields": {
+        "asset_id": {
+          "name": "Aktiv-ID",
+          "description": "Id'et på apparatet, dokumentet tilhører."
+        },
+        "document_id": {
+          "name": "Dokument-id",
+          "description": "ID'et på det dokument, der skal signeres en URL for."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Signér reservedelsfil-URL",
+      "description": "Opret en kortvarig URL (uden behov for godkendelsesheader), som en ekstern kalder kan hente en reservedels vedhæftede filbytes fra, f.eks. en MCP-forbundet agent.",
+      "fields": {
+        "asset_id": {
+          "name": "Aktiv-ID",
+          "description": "ID'et på det apparat, som reservedelen tilhører."
+        },
+        "part_id": {
+          "name": "Reservedels-ID",
+          "description": "ID'et på den reservedel, hvis vedhæftede fil der skal signeres en URL for."
+        }
+      }
     }
   },
   "entity": {

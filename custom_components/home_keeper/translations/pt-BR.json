@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "Listar companions",
       "description": "Retorna como resposta a lista combinada de companions (integrações auto-registradas mais upstreams detectados cuja conexão ainda não está instalada)."
+    },
+    "sign_document_url": {
+      "name": "Assinar URL do documento",
+      "description": "Gera uma URL de curta duração (sem necessidade de cabeçalho de autenticação) da qual um chamador externo pode obter os bytes do documento, por exemplo, um agente conectado via MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "ID do ativo",
+          "description": "O id do eletrodoméstico ao qual o documento pertence."
+        },
+        "document_id": {
+          "name": "ID do documento",
+          "description": "O id do documento para o qual assinar uma URL."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Assinar URL do arquivo da peça",
+      "description": "Gera uma URL de curta duração (sem necessidade de cabeçalho de autenticação) da qual um chamador externo pode obter os bytes do arquivo anexado de uma peça, por exemplo, um agente conectado via MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "ID do ativo",
+          "description": "O id do eletrodoméstico ao qual a peça pertence."
+        },
+        "part_id": {
+          "name": "ID da peça",
+          "description": "O id da peça cujo arquivo anexado deve ser assinado."
+        }
+      }
     }
   },
   "entity": {

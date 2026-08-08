@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "Lister les companions",
       "description": "Renvoie en réponse la liste fusionnée des companions (intégrations auto-enregistrées plus upstreams détectés dont la liaison n'est pas encore installée)."
+    },
+    "sign_document_url": {
+      "name": "Signer l'URL du document",
+      "description": "Génère une URL de courte durée (sans en-tête d'authentification nécessaire) permettant à un appelant externe de récupérer les octets du document, par exemple un agent connecté via MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "ID de l'actif",
+          "description": "L'id de l'appareil auquel appartient le document."
+        },
+        "document_id": {
+          "name": "ID du document",
+          "description": "L'identifiant du document pour lequel signer une URL."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Signer l'URL du fichier de la pièce",
+      "description": "Génère une URL de courte durée (sans en-tête d'authentification nécessaire) permettant à un appelant externe de récupérer les octets du fichier joint d'une pièce, par exemple un agent connecté via MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "ID du bien",
+          "description": "L'identifiant de l'appareil auquel la pièce appartient."
+        },
+        "part_id": {
+          "name": "ID de la pièce",
+          "description": "L'identifiant de la pièce dont le fichier joint doit être signé."
+        }
+      }
     }
   },
   "entity": {

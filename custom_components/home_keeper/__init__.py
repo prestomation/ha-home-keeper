@@ -23,6 +23,7 @@ from homeassistant.core import (
 )
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.network import get_url
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
@@ -359,6 +360,22 @@ ADJUST_PART_STOCK_SCHEMA = vol.Schema(
 # Detach a part's attached file (upload is HTTP-only — see manuals.py — since a
 # service call can't carry binary bytes; removal needs none, so it's a service too).
 REMOVE_PART_FILE_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("part_id"): cv.string,
+    }
+)
+# Mint a short-lived signed URL for a file document/part file — no auth header
+# needed to fetch it (issue #161: lets a caller with no interactive session of its
+# own, e.g. an MCP-connected agent, download the actual bytes instead of only
+# metadata). See manuals.async_sign_document_url for the signing-identity choice.
+SIGN_DOCUMENT_URL_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("document_id"): cv.string,
+    }
+)
+SIGN_PART_FILE_URL_SCHEMA = vol.Schema(
     {
         vol.Required("asset_id"): cv.string,
         vol.Required("part_id"): cv.string,
@@ -1002,6 +1019,47 @@ def _register_services(hass: HomeAssistant) -> None:
             ) from err
         # Documents touch no device/entity/task; the store save + event is the job.
 
+    async def handle_sign_document_url(call: ServiceCall) -> dict[str, Any]:
+        """Mint a short-lived signed URL for a file document (issue #161).
+
+        Unlike ``add_asset_document``/``remove_asset_document`` this reaches actual
+        file bytes, not metadata — the missing piece for an MCP-connected agent (or
+        any caller with no interactive browser session) to download a manual or
+        receipt rather than only list that it exists.
+        """
+        signed = await manuals.async_sign_document_url(
+            hass, call.data["asset_id"], call.data["document_id"]
+        )
+        if signed is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="unknown_document",
+                translation_placeholders={"document_id": call.data["document_id"]},
+            )
+        return {
+            "url": f"{get_url(hass)}{signed}",
+            "expires_in": int(manuals.DOCUMENT_URL_TTL.total_seconds()),
+        }
+
+    async def handle_sign_part_file_url(call: ServiceCall) -> dict[str, Any]:
+        """Mint a short-lived signed URL for a part's attached file (issue #161).
+
+        See ``handle_sign_document_url`` — same rationale, for a part's single file
+        slot instead of an asset document.
+        """
+        signed = await manuals.async_sign_part_file_url(
+            hass, call.data["asset_id"], call.data["part_id"]
+        )
+        if signed is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="unknown_part_file",
+            )
+        return {
+            "url": f"{get_url(hass)}{signed}",
+            "expires_in": int(manuals.DOCUMENT_URL_TTL.total_seconds()),
+        }
+
     async def handle_export_inventory(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
         report = inventory.build_inventory(
@@ -1127,6 +1185,20 @@ def _register_services(hass: HomeAssistant) -> None:
         handle_update_asset_document,
         UPDATE_ASSET_DOCUMENT_SCHEMA,
     )
+    hass.services.async_register(
+        DOMAIN,
+        "sign_document_url",
+        handle_sign_document_url,
+        SIGN_DOCUMENT_URL_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "sign_part_file_url",
+        handle_sign_part_file_url,
+        SIGN_PART_FILE_URL_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
 
     async def handle_set_options(call: ServiceCall) -> None:
         coord = _coordinator()
@@ -1217,6 +1289,8 @@ _SERVICES = (
     "add_asset_document",
     "remove_asset_document",
     "update_asset_document",
+    "sign_document_url",
+    "sign_part_file_url",
     "export_inventory",
     "set_options",
     "register_companion",

@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "Luettele kumppanit",
       "description": "Palauta yhdistetty kumppaniluettelo (itserekisteröidyt integraatiot sekä havaitut upstream-lähteet, joiden glue-liitäntää ei ole vielä asennettu) vastauksena."
+    },
+    "sign_document_url": {
+      "name": "Allekirjoita asiakirjan URL",
+      "description": "Luo lyhytikäisen URL-osoitteen (ei vaadi todennusotsaketta), josta ulkoinen kutsuja voi noutaa asiakirjan tavut, esim. MCP-yhdistetty agentti.",
+      "fields": {
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Sen laitteen tunnus, johon asiakirja kuuluu."
+        },
+        "document_id": {
+          "name": "Asiakirjan tunnus",
+          "description": "Sen asiakirjan tunnus, jolle URL allekirjoitetaan."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Allekirjoita varaosan tiedoston URL",
+      "description": "Luo lyhytikäisen URL-osoitteen (ei vaadi todennusotsaketta), josta ulkoinen kutsuja voi noutaa varaosan liitetyn tiedoston tavut, esim. MCP-yhdistetty agentti.",
+      "fields": {
+        "asset_id": {
+          "name": "Kohteen tunnus",
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu."
+        },
+        "part_id": {
+          "name": "Varaosan tunnus",
+          "description": "Sen varaosan tunnus, jonka liitetylle tiedostolle URL allekirjoitetaan."
+        }
+      }
     }
   },
   "entity": {

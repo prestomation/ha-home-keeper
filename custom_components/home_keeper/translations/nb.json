@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "List opp følgesvenner",
       "description": "Returner den sammenslåtte følgesvennlisten (selvregistrerte integrasjoner pluss oppdagede upstreams hvis glue ennå ikke er installert) som et svar."
+    },
+    "sign_document_url": {
+      "name": "Signer dokument-URL",
+      "description": "Oppretter en kortvarig URL (ingen autentiseringsheader nødvendig) som en ekstern kaller kan hente dokumentets bytes fra, f.eks. en MCP-tilkoblet agent.",
+      "fields": {
+        "asset_id": {
+          "name": "Eiendels-ID",
+          "description": "Id-en til apparatet dokumentet tilhører."
+        },
+        "document_id": {
+          "name": "Dokument-id",
+          "description": "ID-en til dokumentet det skal signeres en URL for."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Signer reservedelsfil-URL",
+      "description": "Oppretter en kortvarig URL (ingen autentiseringsheader nødvendig) som en ekstern kaller kan hente en reservedels vedlagte filbytes fra, f.eks. en MCP-tilkoblet agent.",
+      "fields": {
+        "asset_id": {
+          "name": "Eiendels-ID",
+          "description": "ID-en til apparatet som reservedelen tilhører."
+        },
+        "part_id": {
+          "name": "Reservedels-ID",
+          "description": "ID-en til reservedelen hvis vedlagte fil det skal signeres en URL for."
+        }
+      }
     }
   },
   "entity": {
