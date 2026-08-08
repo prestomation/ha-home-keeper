@@ -68,6 +68,27 @@ export async function setOptions(
   return res.options;
 }
 
+const INTRO_DISMISSED_KEY = 'home_keeper_intro_dismissed';
+
+/** Whether the current user has dismissed the first-run intro banner — stored
+ *  server-side per-user via HA's own frontend user-data store, so it follows the
+ *  user across browsers/devices instead of being pinned to one localStorage. */
+export async function getIntroDismissed(hass: Hass): Promise<boolean> {
+  const res = await hass.callWS<{ value: boolean | null }>({
+    type: 'frontend/get_user_data',
+    key: INTRO_DISMISSED_KEY,
+  });
+  return res.value === true;
+}
+
+export async function setIntroDismissed(hass: Hass): Promise<void> {
+  await hass.callWS({
+    type: 'frontend/set_user_data',
+    key: INTRO_DISMISSED_KEY,
+    value: true,
+  });
+}
+
 export async function addTask(hass: Hass, task: Partial<Task>): Promise<Task> {
   const res = await hass.callWS<{ task: Task }>({
     type: 'home_keeper/add_task',

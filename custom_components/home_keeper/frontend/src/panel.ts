@@ -793,8 +793,6 @@ const LS_GROUP = 'home-keeper.groupBy';
 const LS_FILTER = 'home-keeper.filter';
 const LS_ASSET_FILTER = 'home-keeper.assetFilter';
 const LS_PROFILE = 'home-keeper.profile';
-// Set once the user dismisses the first-run orientation banner on the Tasks tab.
-const LS_INTRO = 'home-keeper.introDismissed';
 
 export class HomeKeeperPanel extends HTMLElement {
   private _hass?: Hass;
@@ -869,6 +867,9 @@ export class HomeKeeperPanel extends HTMLElement {
   private _routePrefix = '/home-keeper';
   private _loaded = false;
   private _loadError = false;
+  // Whether the current user has dismissed the first-run intro banner — loaded from
+  // HA's per-user frontend data store in `_reload` (see `_introCard`).
+  private _introDismissed = false;
   // In-flight refresh, shared by overlapping callers. Both `set hass` (first update)
   // and `_init` gate on `!this._loaded`, and `_loaded` only flips true after the awaited
   // reload — so without coalescing they can pass the check and run two concurrent full
@@ -1111,7 +1112,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _reload(): Promise<void> {
     if (!this._hass) return;
     try {
-      const [tasks, assets, entryDomains, loadedEntryIds, options, companions] =
+      const [tasks, assets, entryDomains, loadedEntryIds, options, companions, introDismissed] =
         await Promise.all([
           api.getTasks(this._hass),
           api.getAssets(this._hass),
@@ -1119,6 +1120,7 @@ export class HomeKeeperPanel extends HTMLElement {
           api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
           api.getOptions(this._hass).catch(() => null),
           api.getCompanions(this._hass).catch(() => [] as Companion[]),
+          api.getIntroDismissed(this._hass).catch(() => false),
         ]);
       this._tasks = tasks;
       this._assets = assets;
@@ -1127,6 +1129,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._options = options?.options ?? null;
       this._notifyTargets = options?.notifyTargets ?? [];
       this._companions = companions ?? [];
+      this._introDismissed = introDismissed;
       // Drop a remembered Profile filter that no longer exists (deleted since), so the
       // Tasks-tab dropdown and the stored id can't disagree.
       if (this._profile && !(this._options?.profiles ?? []).some((p) => p.id === this._profile)) {
@@ -2156,15 +2159,10 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /** One-time orientation banner that explains the kinds of tasks a newcomer will see
-   *  mixed in the list. Dismissed permanently via localStorage. Empty once dismissed. */
+   *  mixed in the list. Dismissed permanently, server-side per-user (see
+   *  `_introDismissed`). Empty once dismissed. */
   private _introCard(): string {
-    let dismissed = false;
-    try {
-      dismissed = localStorage.getItem(LS_INTRO) === '1';
-    } catch {
-      // localStorage unavailable (e.g. private mode) — just show the banner.
-    }
-    if (dismissed) return '';
+    if (this._introDismissed) return '';
     return `
       <div class="hk-intro">
         <div class="hk-intro-head">
@@ -3252,12 +3250,13 @@ export class HomeKeeperPanel extends HTMLElement {
       );
       root.querySelectorAll<HTMLElement>('.hk-intro-dismiss').forEach((b) =>
         b.addEventListener('click', () => {
-          try {
-            localStorage.setItem(LS_INTRO, '1');
-          } catch {
-            // localStorage unavailable — the banner simply reappears next load.
-          }
+          this._introDismissed = true;
           this._render();
+          if (this._hass) {
+            void api.setIntroDismissed(this._hass).catch(() => {
+              // best-effort — if this fails the banner simply reappears next load.
+            });
+          }
         }),
       );
     }

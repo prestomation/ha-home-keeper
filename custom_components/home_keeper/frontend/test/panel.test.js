@@ -37,7 +37,12 @@ async function waitFor(fn, timeout = 2000) {
 }
 
 // Mock hass whose callWS records how many times each command type was invoked.
-function makeHass() {
+//
+// `userDataStore` optionally backs HA's per-user `frontend/get_user_data` /
+// `frontend/set_user_data` commands with a shared object, so two `makeHass()` mocks
+// (simulating the same HA user on two different browsers/devices) can see each
+// other's writes — the fixture used to reproduce issue #182.
+function makeHass(userDataStore = {}) {
   const calls = {};
   const options = {
     sync_problem_sensors: true,
@@ -65,6 +70,11 @@ function makeHass() {
         case 'home_keeper/set_options':
           Object.assign(options, msg.options);
           return Promise.resolve({ options });
+        case 'frontend/get_user_data':
+          return Promise.resolve({ value: userDataStore[msg.key] ?? null });
+        case 'frontend/set_user_data':
+          userDataStore[msg.key] = msg.value;
+          return Promise.resolve({});
         default:
           return Promise.resolve({});
       }
@@ -119,6 +129,53 @@ describe('Settings tab — exclusions take effect immediately', () => {
       refreshed,
       'tasks should be re-fetched after saving an exclusion so it takes effect right away',
     ).toBeTruthy();
+  });
+});
+
+describe('first-run intro banner — dismissal persists server-side per-user (#182)', () => {
+  it('stays dismissed for the same user on a different browser/device', async () => {
+    // A shared per-user data store, standing in for HA's server-side storage that a
+    // real user's account keeps regardless of which browser/device talks to it.
+    const userDataStore = {};
+
+    // "Device A": banner shows, user dismisses it.
+    const a = makeHass(userDataStore);
+    const panelA = document.createElement('home-keeper-panel');
+    panelA.route = { prefix: '/home-keeper', path: '/tasks' };
+    document.body.appendChild(panelA);
+    panelA.hass = a.hass;
+
+    const introA = await waitFor(() => panelA.shadowRoot?.querySelector('.hk-intro'));
+    expect(introA, 'intro banner should render on first load').toBeTruthy();
+
+    panelA.shadowRoot.querySelector('ha-button.hk-intro-dismiss').click();
+
+    const dismissedRemotely = await waitFor(
+      () => (a.calls['frontend/set_user_data'] || 0) > 0,
+    );
+    expect(dismissedRemotely, 'dismissing should persist via frontend/set_user_data').toBeTruthy();
+    expect(userDataStore['home_keeper_intro_dismissed']).toBe(true);
+    panelA.remove();
+
+    // "Device B": a fresh panel instance for the same user (no shared localStorage —
+    // only the shared per-user data store) should never show the banner.
+    const b = makeHass(userDataStore);
+    const panelB = document.createElement('home-keeper-panel');
+    panelB.route = { prefix: '/home-keeper', path: '/tasks' };
+    document.body.appendChild(panelB);
+    panelB.hass = b.hass;
+
+    const loadedB = await waitFor(() => (b.calls['frontend/get_user_data'] || 0) > 0);
+    expect(loadedB, 'the new device should query the per-user dismissed state').toBeTruthy();
+    // Wait for the initial load to finish rendering (the add-task button only
+    // appears once `_reload` — which fetched the dismissed state — has resolved).
+    const addBtnB = await waitFor(() => panelB.shadowRoot?.querySelector('#add-btn'));
+    expect(addBtnB, 'panel should finish its initial load').toBeTruthy();
+    expect(
+      panelB.shadowRoot?.querySelector('.hk-intro'),
+      'the banner must not reappear on a new device once dismissed',
+    ).toBeFalsy();
+    panelB.remove();
   });
 });
 
