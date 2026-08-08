@@ -19,11 +19,14 @@ test.describe('Home Keeper panel — synced problem task', () => {
     await expect(blocked).toBeVisible();
     await expect(blocked).toContainText(/clears automatically/i);
 
-    // Clicking it surfaces the explanation toast …
+    // Clicking it surfaces the explanation toast … scoped to the toast's visible
+    // `.message` span, not the page-wide text search, which also matches HA's hidden
+    // `assistive-message` echo of the same text (rendered for screen readers) and
+    // trips Playwright's strict-mode "multiple elements matched" check.
     await blocked.click();
-    await expect(
-      page.getByText(/clears automatically once the originating integration/i),
-    ).toBeVisible();
+    const toast = page.locator('.message');
+    await expect(toast).toBeVisible();
+    await expect(toast).toContainText(/clears automatically once the originating integration/i);
     // … and does NOT complete the task — its card is still in the list afterwards.
     await expect(card).toBeVisible();
 
