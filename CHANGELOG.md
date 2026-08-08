@@ -11,8 +11,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Fixed
 
 - **The "Welcome to Home Keeper" banner reappeared on every new browser or device.**
-  Dismissing it was stored in `localStorage`, which is scoped to a single browser —
-  switching devices, using a private window, or clearing site data brought it back.
+  Dismissing it was stored in `localStorage`, which is scoped to a single browser.
+  Switching devices, using a private window, or clearing site data brought it back.
   The dismissed state now persists server-side per Home Assistant user (via HA's own
   frontend user-data store), so dismissing it once keeps it dismissed everywhere
   you're signed in. (Fixes #182)
