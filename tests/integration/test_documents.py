@@ -8,6 +8,7 @@ download → removal deletes the stored copy), plus the upload allowlist.
 import time
 import uuid
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 from conftest import HA_URL, call_service
@@ -463,11 +464,22 @@ def test_sign_document_url_downloads_without_auth_header(ha):
     )
     result = resp.get("service_response", resp)
     signed_url = result["url"]
-    assert signed_url.startswith(HA_URL)
     assert result["expires_in"] > 0
+    # get_url(hass) resolves to whatever address HA considers itself reachable at
+    # (e.g. the container's internal network IP), which the *test harness* may not
+    # be able to reach directly even though a real client on HA's own network can.
+    # Swap in the host/port this test suite talks to HA over (HA_URL) but keep the
+    # signed path/query byte-for-byte, so the actual signature under test is
+    # untouched — this is a test-harness networking detail, not part of what's
+    # being verified.
+    parsed = urlsplit(signed_url)
+    assert parsed.scheme in ("http", "https")
+    assert parsed.path == f"/api/home_keeper/document/{asset['id']}/{doc_id}"
+    assert "authSig=" in parsed.query
+    reachable_url = urlunsplit(urlsplit(HA_URL)[:2] + parsed[2:])
 
     # No Authorization header — a signed URL must not need one.
-    dl = requests.get(signed_url, timeout=10)
+    dl = requests.get(reachable_url, timeout=10)
     assert dl.status_code == 200
     assert dl.content == PDF_BYTES
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})

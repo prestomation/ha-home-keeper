@@ -8,6 +8,7 @@ file's coverage — plus isolation from the generic update_asset write path.
 
 import time
 import uuid
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 from conftest import HA_URL, call_service
@@ -257,10 +258,16 @@ def test_sign_part_file_url_downloads_without_auth_header(ha):
     )
     result = resp.get("service_response", resp)
     signed_url = result["url"]
-    assert signed_url.startswith(HA_URL)
     assert result["expires_in"] > 0
+    # See test_sign_document_url_downloads_without_auth_header in test_documents.py
+    # for why the URL's host is swapped for HA_URL before fetching.
+    parsed = urlsplit(signed_url)
+    assert parsed.scheme in ("http", "https")
+    assert parsed.path == f"/api/home_keeper/part_document/{asset['id']}/{part_id}"
+    assert "authSig=" in parsed.query
+    reachable_url = urlunsplit(urlsplit(HA_URL)[:2] + parsed[2:])
 
-    dl = requests.get(signed_url, timeout=10)
+    dl = requests.get(reachable_url, timeout=10)
     assert dl.status_code == 200
     assert dl.content == PDF_BYTES
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
@@ -268,7 +275,7 @@ def test_sign_part_file_url_downloads_without_auth_header(ha):
 
 def test_sign_part_file_url_unknown_part_errors(ha):
     name = f"Part file sign missing {uuid.uuid4().hex[:8]}"
-    asset, part_id = _provision_with_part(ha, name)
+    asset, _part_id = _provision_with_part(ha, name)
     r = ha.post(
         f"{HA_URL}/api/services/home_keeper/sign_part_file_url",
         json={"asset_id": asset["id"], "part_id": "does-not-exist"},
