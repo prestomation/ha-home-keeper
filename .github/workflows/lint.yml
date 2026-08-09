@@ -44,9 +44,13 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v7
-      # errata-ai renamed this org to vale-cli; SHA-pinned to v2.1.2.
-      - uses: vale-cli/vale-action@85f9f7f2c5f449ac0ae5b66662961bae3f77ca6a # v2.1.2
+      # errata-ai renamed this org to vale-cli; SHA-pinned to v3.0.0.
+      - uses: vale-cli/vale-action@518a9136acc6e6668ce7c00d367051e0941e87ff # v3.0.0
         with:
           fail_on_error: true
+          # v3.0.0 changed fail_on_error to fail only on `error`-severity
+          # findings (previously any severity). fail_level: any restores the
+          # old, stricter behavior this gate relies on.
+          fail_level: any
           reporter: github-pr-review
           filter_mode: added

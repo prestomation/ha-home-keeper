@@ -23,6 +23,6 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "jsdom": "^30.0.0"
+    "jsdom": "^30.0.1"
   }
 }
