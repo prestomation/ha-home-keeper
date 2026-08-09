@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "Elenca companion",
       "description": "Restituisce come risposta l'elenco unificato dei companion (integrazioni auto-registrate più upstream rilevati il cui collegamento non è ancora installato)."
+    },
+    "sign_document_url": {
+      "name": "Firma URL documento",
+      "description": "Genera un URL di breve durata (senza bisogno di intestazione di autenticazione) da cui un chiamante esterno può recuperare i byte del documento, ad es. un agente connesso tramite MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "ID asset",
+          "description": "L'id dell'elettrodomestico a cui appartiene il documento."
+        },
+        "document_id": {
+          "name": "ID documento",
+          "description": "L'id del documento per cui firmare un URL."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Firma URL file del ricambio",
+      "description": "Genera un URL di breve durata (senza bisogno di intestazione di autenticazione) da cui un chiamante esterno può recuperare i byte del file allegato di un ricambio, ad es. un agente connesso tramite MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "ID risorsa",
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio."
+        },
+        "part_id": {
+          "name": "ID ricambio",
+          "description": "L'id del ricambio il cui file allegato va firmato."
+        }
+      }
     }
   },
   "entity": {
@@ -800,6 +828,9 @@
     },
     "unknown_part_file": {
       "message": "Ricambio sconosciuto o nessun file allegato."
+    },
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
     },
     "file_too_large": {
       "message": "Il file supera il limite di {mb} MB."

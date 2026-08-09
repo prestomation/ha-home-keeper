@@ -7,12 +7,10 @@ reloads the entry on add/delete so per-task entities appear/disappear).
 
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
-from homeassistant.components.http.auth import async_sign_path
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
@@ -22,12 +20,6 @@ from .backend_i18n import resolve_exception
 from .const import DOMAIN, OPTION_PROFILES
 from .coordinator import HomeKeeperCoordinator, entity_set_key, task_has_entities
 from .models import TaskValidationError
-
-# How long a signed document URL stays valid. The dashboard card pre-signs file
-# documents and embeds the URL as a plain <a href> (so a tap opens natively — the iOS
-# app's WKWebView blocks an async window.open), so the URL must outlive a reasonably
-# idle dashboard, not just a click. The card re-signs well before this on refresh.
-_DOCUMENT_URL_TTL = timedelta(hours=1)
 
 
 def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
@@ -750,16 +742,10 @@ async def ws_sign_document_url(
     if coord is None:
         _not_loaded(hass, connection, msg)
         return
-    asset = coord.store.get_asset(msg["asset_id"])
-    document = next(
-        (
-            d
-            for d in (asset or {}).get("documents", [])
-            if d.get("id") == msg["document_id"] and d.get("kind") == "file"
-        ),
-        None,
+    signed = await manuals.async_sign_document_url(
+        hass, msg["asset_id"], msg["document_id"]
     )
-    if document is None:
+    if signed is None:
         _err(
             hass,
             connection,
@@ -769,13 +755,6 @@ async def ws_sign_document_url(
             document_id=msg["document_id"],
         )
         return
-    path = manuals.document_path(msg["asset_id"], msg["document_id"])
-    signed = async_sign_path(
-        hass,
-        path,
-        _DOCUMENT_URL_TTL,
-        refresh_token_id=connection.refresh_token_id,
-    )
     connection.send_result(msg["id"], {"url": signed})
 
 
@@ -826,25 +805,12 @@ async def ws_sign_part_file_url(
     if coord is None:
         _not_loaded(hass, connection, msg)
         return
-    asset = coord.store.get_asset(msg["asset_id"])
-    part = next(
-        (
-            p
-            for p in (asset or {}).get("parts", [])
-            if p.get("id") == msg["part_id"] and p.get("file_name")
-        ),
-        None,
+    signed = await manuals.async_sign_part_file_url(
+        hass, msg["asset_id"], msg["part_id"]
     )
-    if part is None:
+    if signed is None:
         _err(hass, connection, msg, "not_found", "unknown_part_file")
         return
-    path = manuals.part_file_path(msg["asset_id"], msg["part_id"])
-    signed = async_sign_path(
-        hass,
-        path,
-        _DOCUMENT_URL_TTL,
-        refresh_token_id=connection.refresh_token_id,
-    )
     connection.send_result(msg["id"], {"url": signed})
 
 

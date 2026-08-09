@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "Companions weergeven",
       "description": "Geeft de samengevoegde companion-lijst als antwoord terug (zelf-geregistreerde integraties plus gedetecteerde upstreams waarvan de glue nog niet is geïnstalleerd)."
+    },
+    "sign_document_url": {
+      "name": "Document-URL ondertekenen",
+      "description": "Genereert een kortstondige URL (geen auth-header nodig) waarmee een externe aanroeper de bytes van het document kan ophalen, bijv. een via MCP verbonden agent.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "De id van het apparaat waartoe het document behoort."
+        },
+        "document_id": {
+          "name": "Document-id",
+          "description": "De id van het document waarvoor een URL moet worden ondertekend."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Onderdeelbestand-URL ondertekenen",
+      "description": "Genereert een kortstondige URL (geen auth-header nodig) waarmee een externe aanroeper de bytes van het bijgevoegde bestand van een onderdeel kan ophalen, bijv. een via MCP verbonden agent.",
+      "fields": {
+        "asset_id": {
+          "name": "Object-ID",
+          "description": "De id van het apparaat waartoe het onderdeel behoort."
+        },
+        "part_id": {
+          "name": "Onderdeel-ID",
+          "description": "De id van het onderdeel waarvan het bijgevoegde bestand moet worden ondertekend."
+        }
+      }
     }
   },
   "entity": {
@@ -800,6 +828,9 @@
     },
     "unknown_part_file": {
       "message": "Onbekend onderdeel of geen bijgevoegd bestand."
+    },
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
     },
     "file_too_large": {
       "message": "Bestand overschrijdt de limiet van {mb} MB."

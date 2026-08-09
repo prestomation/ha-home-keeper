@@ -982,6 +982,44 @@ update_asset_document:
       selector:
         object:
 
+sign_document_url:
+  name: Sign document URL
+  description: >-
+    Mint a short-lived URL (no auth header needed) an external caller can fetch
+    the file document's bytes from, e.g. an MCP-connected agent.
+  fields:
+    asset_id:
+      name: Asset ID
+      description: The id of the appliance the document belongs to.
+      required: true
+      selector:
+        text:
+    document_id:
+      name: Document ID
+      description: The id of the document to sign a URL for.
+      required: true
+      selector:
+        text:
+
+sign_part_file_url:
+  name: Sign part file URL
+  description: >-
+    Mint a short-lived URL (no auth header needed) an external caller can fetch
+    a part's attached file bytes from, e.g. an MCP-connected agent.
+  fields:
+    asset_id:
+      name: Asset ID
+      description: The id of the appliance the part belongs to.
+      required: true
+      selector:
+        text:
+    part_id:
+      name: Part ID
+      description: The id of the part whose attached file to sign a URL for.
+      required: true
+      selector:
+        text:
+
 export_inventory:
   name: Export inventory
   description: >-

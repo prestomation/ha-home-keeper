@@ -8,6 +8,7 @@ file's coverage — plus isolation from the generic update_asset write path.
 
 import time
 import uuid
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 from conftest import HA_URL, call_service
@@ -232,3 +233,54 @@ def test_part_file_view_requires_auth(ha):
         f"{HA_URL}/api/home_keeper/part_document/whatever/whatever", timeout=10
     )
     assert r.status_code in (401, 403)
+
+
+def test_sign_part_file_url_downloads_without_auth_header(ha):
+    # Issue #161: same rationale as test_sign_document_url_downloads_without_auth_header
+    # in test_documents.py — a service caller has no browser/websocket session, so the
+    # signed URL must be fetchable with a bare, unauthenticated GET.
+    name = f"Part file sign probe {uuid.uuid4().hex[:8]}"
+    asset, part_id = _provision_with_part(ha, name)
+    up = requests.post(
+        f"{HA_URL}/api/home_keeper/part_document/{asset['id']}/{part_id}",
+        files={"file": ("receipt.pdf", PDF_BYTES, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=30,
+    )
+    assert up.status_code == 200, up.text
+
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "sign_part_file_url",
+        {"asset_id": asset["id"], "part_id": part_id},
+        return_response=True,
+    )
+    result = resp.get("service_response", resp)
+    signed_url = result["url"]
+    # See the matching comment in test_sign_document_url_downloads_without_auth_header
+    # (test_documents.py) for why this differs from the websocket-command TTL.
+    assert result["expires_in"] == 15 * 60
+    # See test_sign_document_url_downloads_without_auth_header in test_documents.py
+    # for why the URL's host is swapped for HA_URL before fetching.
+    parsed = urlsplit(signed_url)
+    assert parsed.scheme in ("http", "https")
+    assert parsed.path == f"/api/home_keeper/part_document/{asset['id']}/{part_id}"
+    assert "authSig=" in parsed.query
+    reachable_url = urlunsplit(urlsplit(HA_URL)[:2] + parsed[2:])
+
+    dl = requests.get(reachable_url, timeout=10)
+    assert dl.status_code == 200
+    assert dl.content == PDF_BYTES
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_sign_part_file_url_unknown_part_errors(ha):
+    name = f"Part file sign missing {uuid.uuid4().hex[:8]}"
+    asset, _part_id = _provision_with_part(ha, name)
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/sign_part_file_url",
+        json={"asset_id": asset["id"], "part_id": "does-not-exist"},
+    )
+    assert r.status_code >= 400, "signing an unknown part's file must fail"
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})

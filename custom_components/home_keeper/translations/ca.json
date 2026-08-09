@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "Llista els companys",
       "description": "Retorna la llista combinada de companys (integracions autoregistrades més upstreams detectats el connector dels quals encara no està instal·lat) com a resposta."
+    },
+    "sign_document_url": {
+      "name": "Signa l'URL del document",
+      "description": "Genera un URL de curta durada (sense necessitat de capçalera d'autenticació) des del qual un servei extern pot obtenir els bytes del document, p. ex. un agent connectat per MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany el document."
+        },
+        "document_id": {
+          "name": "ID del document",
+          "description": "L'id del document per al qual signar un URL."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Signa l'URL del fitxer de la peça",
+      "description": "Genera un URL de curta durada (sense necessitat de capçalera d'autenticació) des del qual un servei extern pot obtenir els bytes del fitxer adjunt d'una peça, p. ex. un agent connectat per MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "ID de l'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany la peça."
+        },
+        "part_id": {
+          "name": "ID de la peça",
+          "description": "L'id de la peça el fitxer adjunt de la qual s'ha de signar."
+        }
+      }
     }
   },
   "entity": {
@@ -800,6 +828,9 @@
     },
     "unknown_part_file": {
       "message": "Peça desconeguda o sense fitxer adjunt."
+    },
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
     },
     "file_too_large": {
       "message": "El fitxer supera el límit de {mb} MB."

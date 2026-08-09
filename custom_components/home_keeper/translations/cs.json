@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "Vypsat společníky",
       "description": "Vrátí sloučený seznam společníků (samostatně zaregistrované integrace plus zjištěné upstreamy, jejichž propojení ještě není nainstalováno) jako odpověď."
+    },
+    "sign_document_url": {
+      "name": "Podepsat URL dokumentu",
+      "description": "Vytvoří krátkodobou URL adresu (bez potřeby autentizační hlavičky), ze které může externí volající stáhnout bajty dokumentu, např. agent připojený přes MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "ID spotřebiče, ke kterému dokument patří."
+        },
+        "document_id": {
+          "name": "ID dokumentu",
+          "description": "Id dokumentu, pro který se má podepsat URL."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Podepsat URL souboru dílu",
+      "description": "Vytvoří krátkodobou URL adresu (bez potřeby autentizační hlavičky), ze které může externí volající stáhnout bajty přiloženého souboru dílu, např. agent připojený přes MCP.",
+      "fields": {
+        "asset_id": {
+          "name": "ID majetku",
+          "description": "Id spotřebiče, ke kterému díl patří."
+        },
+        "part_id": {
+          "name": "ID dílu",
+          "description": "Id dílu, jehož přiložený soubor se má podepsat."
+        }
+      }
     }
   },
   "entity": {
@@ -800,6 +828,9 @@
     },
     "unknown_part_file": {
       "message": "Neznámý díl nebo bez přiloženého souboru."
+    },
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
     },
     "file_too_large": {
       "message": "Soubor přesahuje limit {mb} MB."

@@ -714,6 +714,34 @@
     "list_companions": {
       "name": "Companions auflisten",
       "description": "Gibt die zusammengeführte Companion-Liste als Antwort zurück (selbst registrierte Integrationen plus erkannte Upstreams, deren Glue noch nicht installiert ist)."
+    },
+    "sign_document_url": {
+      "name": "Dokument-URL signieren",
+      "description": "Erstellt eine kurzlebige URL (kein Auth-Header nötig), über die ein externer Aufrufer die Bytes des Dokuments abrufen kann, z. B. ein per MCP verbundener Agent.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-ID",
+          "description": "Die ID des Geräts, zu dem das Dokument gehört."
+        },
+        "document_id": {
+          "name": "Dokument-ID",
+          "description": "Die ID des Dokuments, für das eine URL signiert werden soll."
+        }
+      }
+    },
+    "sign_part_file_url": {
+      "name": "Teildatei-URL signieren",
+      "description": "Erstellt eine kurzlebige URL (kein Auth-Header nötig), über die ein externer Aufrufer die Bytes der angehängten Datei eines Teils abrufen kann, z. B. ein per MCP verbundener Agent.",
+      "fields": {
+        "asset_id": {
+          "name": "Objekt-ID",
+          "description": "Die ID des Geräts, zu dem das Teil gehört."
+        },
+        "part_id": {
+          "name": "Teile-ID",
+          "description": "Die ID des Teils, dessen angehängte Datei signiert werden soll."
+        }
+      }
     }
   },
   "entity": {
@@ -800,6 +828,9 @@
     },
     "unknown_part_file": {
       "message": "Unbekanntes Teil oder keine angehängte Datei."
+    },
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
     },
     "file_too_large": {
       "message": "Datei überschreitet das Limit von {mb} MB."
