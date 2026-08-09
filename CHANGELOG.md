@@ -12,15 +12,15 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 - **New services `sign_document_url` and `sign_part_file_url` mint a short-lived,
   no-auth-header-needed URL for an asset document or a part's attached file.** A
-  caller with no interactive browser session of its own — for example an
-  MCP-connected agent — can now download the actual file bytes (a manual, receipt,
-  or warranty PDF) instead of only listing that the document exists. Previously the
-  only way to fetch a file's bytes was the `sign_document_url`/`sign_part_file_url`
-  **websocket** commands, which sign using the calling connection's own identity —
+  caller with no interactive browser session of its own (e.g. an MCP-connected
+  agent) can now download the actual file bytes (a manual, receipt, or warranty
+  PDF) instead of only listing that the document exists. Previously the only way
+  to fetch a file's bytes was the `sign_document_url`/`sign_part_file_url`
+  **websocket** commands, which sign using the calling connection's own identity:
   fine for a real browser session, but not resolvable for a caller with no such
   session. Both services share their signing logic with the existing websocket
   commands (which now sign with no caller-specific identity either, using Home
-  Assistant's built-in read-only "Home Assistant Content" user — the same mechanism
+  Assistant's built-in read-only "Home Assistant Content" user, the same mechanism
   HA core uses for externally-fetchable media URLs), so browser-opened links keep
   working exactly as before. (Related to #161)
 

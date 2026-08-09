@@ -829,6 +829,9 @@
     "unknown_part_file": {
       "message": "Pièce inconnue ou aucun fichier joint."
     },
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
+    },
     "file_too_large": {
       "message": "Le fichier dépasse la limite de {mb} Mo."
     },

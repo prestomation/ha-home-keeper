@@ -258,7 +258,9 @@ def test_sign_part_file_url_downloads_without_auth_header(ha):
     )
     result = resp.get("service_response", resp)
     signed_url = result["url"]
-    assert result["expires_in"] > 0
+    # See the matching comment in test_sign_document_url_downloads_without_auth_header
+    # (test_documents.py) for why this differs from the websocket-command TTL.
+    assert result["expires_in"] == 15 * 60
     # See test_sign_document_url_downloads_without_auth_header in test_documents.py
     # for why the URL's host is swapped for HA_URL before fetching.
     parsed = urlsplit(signed_url)

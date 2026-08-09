@@ -464,7 +464,11 @@ def test_sign_document_url_downloads_without_auth_header(ha):
     )
     result = resp.get("service_response", resp)
     signed_url = result["url"]
-    assert result["expires_in"] > 0
+    # Services use a shorter, service-specific TTL than the websocket-command/
+    # dashboard-card path (1 hour): this URL needs no auth header, so it can end
+    # up sitting in a model provider's request logs; 15 minutes is plenty for an
+    # agent to fetch the file shortly after the service response.
+    assert result["expires_in"] == 15 * 60
     # get_url(hass) resolves to whatever address HA considers itself reachable at
     # (e.g. the container's internal network IP), which the *test harness* may not
     # be able to reach directly even though a real client on HA's own network can.

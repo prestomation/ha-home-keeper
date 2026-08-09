@@ -829,6 +829,9 @@
     "unknown_part_file": {
       "message": "Tuntematon varaosa tai ei liitettyä tiedostoa."
     },
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
+    },
     "file_too_large": {
       "message": "Tiedosto ylittää {mb} Mt:n rajan."
     },

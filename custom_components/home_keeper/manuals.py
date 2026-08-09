@@ -62,20 +62,26 @@ _TMP_SUBDIR = ".incoming"
 # ``async_cleanup_temp_uploads``). Generous: a big upload over a slow link can run for
 # a long time, and deleting a live one is far worse than keeping a stray for a day.
 _TEMP_MAX_AGE_S = 24 * 60 * 60
-# How long a signed document/part-file URL stays valid. The dashboard card pre-signs
-# file documents and embeds the URL as a plain <a href> (so a tap opens natively —
-# the iOS app's WKWebView blocks an async window.open), so the URL must outlive a
-# reasonably idle dashboard, not just a click; the card re-signs well before this on
-# refresh. Also the TTL for URLs minted by the sign_document_url/sign_part_file_url
-# *services* (issue #161), for a non-browser caller — e.g. an MCP-connected agent —
-# to fetch the file after receiving the service response.
+# How long a signed document/part-file URL stays valid for the dashboard card,
+# which pre-signs file documents and embeds the URL as a plain <a href> (so a tap
+# opens natively; the iOS app's WKWebView blocks an async window.open). The URL
+# must outlive a reasonably idle dashboard, not just a click; the card re-signs
+# well before this on refresh.
 DOCUMENT_URL_TTL = timedelta(hours=1)
+# TTL for URLs minted by the sign_document_url/sign_part_file_url *services*
+# (issue #161), for a non-browser caller (e.g. an MCP-connected agent) to fetch
+# the file shortly after receiving the service response. Much shorter than
+# DOCUMENT_URL_TTL: this URL needs no auth header to use, so it can end up
+# sitting in a model provider's request logs, and unlike the dashboard card it
+# has no "idle page" to outlive.
+SERVICE_DOCUMENT_URL_TTL = timedelta(minutes=15)
 
 
 _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     "DOCUMENT_URL_TTL",
+    "SERVICE_DOCUMENT_URL_TTL",
     "HomeKeeperDocumentView",
     "HomeKeeperPartFileView",
     "async_cleanup_temp_uploads",
@@ -303,27 +309,34 @@ def _part_with_file(asset: dict[str, Any] | None, part_id: str) -> dict | None:
 
 
 async def async_sign_document_url(
-    hass: HomeAssistant, asset_id: str, document_id: str
+    hass: HomeAssistant,
+    asset_id: str,
+    document_id: str,
+    *,
+    ttl: timedelta = DOCUMENT_URL_TTL,
 ) -> str | None:
     """Mint a short-lived signed URL for a file document, or None if not found.
 
     Shared by the ``sign_document_url`` websocket command (a real user's browser
-    session) and service (issue #161: any caller that can invoke a Home Assistant
-    service, including an MCP-connected agent with no websocket connection or
-    interactive session of its own) — one implementation, matching the
-    service-first rule in the architecture doc.
+    session, ``ttl`` defaults to ``DOCUMENT_URL_TTL``) and service (issue #161:
+    any caller that can invoke a Home Assistant service, including an
+    MCP-connected agent with no websocket connection or interactive session of
+    its own; passes the shorter ``SERVICE_DOCUMENT_URL_TTL``), one
+    implementation, matching the service-first rule in the architecture doc.
 
-    Deliberately signs with no caller-specific identity (no ``refresh_token_id``
-    passed to ``async_sign_path``), so it falls back to Home Assistant's built-in
-    read-only "Home Assistant Content" system user rather than the calling
-    connection's own token. That fallback is what HA core itself uses for
-    externally-fetchable signed URLs (e.g. camera/media proxies) — unlike a
-    per-connection token, it doesn't depend on the caller having a "normal" browser
-    auth session, so it resolves the same way for a browser tab, a service call
-    from an automation, or a service call relayed by an MCP server (which may
-    itself be authenticated to Home Assistant through a proxied/system connection
-    whose own ``refresh_token_id`` does not resolve the same way a browser
-    session's does).
+    Explicitly signs as Home Assistant's built-in read-only "Home Assistant
+    Content" system user (``use_content_user=True``) rather than the calling
+    connection's own token. That's the mechanism HA core itself uses for
+    externally-fetchable signed URLs (e.g. camera/media proxies): unlike a
+    per-connection token, it doesn't depend on the caller having a "normal"
+    browser auth session, so it resolves the same way for a browser tab, a
+    service call from an automation, or a service call relayed by an MCP
+    server. ``use_content_user=True`` must be explicit, not just an omitted
+    ``refresh_token_id`` — ``async_sign_path`` only falls back to the content
+    user as a last resort, after checking the current websocket connection and
+    then the current HTTP request, so an omitted ``refresh_token_id`` would
+    still pick up the calling connection's identity when one is live (e.g. a
+    service invoked over the REST API within the same request).
     """
     coord = _coordinator(hass)
     document = _file_document(
@@ -332,22 +345,26 @@ async def async_sign_document_url(
     if document is None:
         return None
     path = document_path(asset_id, document_id)
-    return async_sign_path(hass, path, DOCUMENT_URL_TTL)
+    return async_sign_path(hass, path, ttl, use_content_user=True)
 
 
 async def async_sign_part_file_url(
-    hass: HomeAssistant, asset_id: str, part_id: str
+    hass: HomeAssistant,
+    asset_id: str,
+    part_id: str,
+    *,
+    ttl: timedelta = DOCUMENT_URL_TTL,
 ) -> str | None:
     """Mint a short-lived signed URL for a part's attached file, or None if not found.
 
-    See :func:`async_sign_document_url` for why no caller-specific identity is used.
+    See :func:`async_sign_document_url` for the signing-identity and ``ttl`` rationale.
     """
     coord = _coordinator(hass)
     part = _part_with_file(coord.store.get_asset(asset_id) if coord else None, part_id)
     if part is None:
         return None
     path = part_file_path(asset_id, part_id)
-    return async_sign_path(hass, path, DOCUMENT_URL_TTL)
+    return async_sign_path(hass, path, ttl, use_content_user=True)
 
 
 async def _parse_upload(

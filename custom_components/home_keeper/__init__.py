@@ -23,7 +23,7 @@ from homeassistant.core import (
 )
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.network import get_url
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
@@ -545,6 +545,27 @@ async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> Non
     await hass.config_entries.async_reload(entry.entry_id)
 
 
+def _instance_base_url(hass: HomeAssistant) -> str:
+    """The base URL to prepend to a signed path for the sign_*_url services.
+
+    Prefers an externally-reachable URL: an MCP-connected agent (issue #161)
+    typically isn't on the instance's own network, unlike the frontend, which
+    already runs from wherever the browser loaded it and has no such preference.
+    ``get_url``'s own internal-vs-external precedence still applies otherwise
+    (this only nudges the preference, it doesn't require an external URL to
+    exist), so a purely-internal instance keeps working exactly as before —
+    the returned URL simply isn't reachable by an off-network caller, same as
+    today.
+    """
+    try:
+        return get_url(hass, prefer_external=True)
+    except NoURLAvailableError as err:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="no_instance_url",
+        ) from err
+
+
 def _register_services(hass: HomeAssistant) -> None:
     """Register Home Keeper services (idempotent across reloads).
 
@@ -1023,12 +1044,15 @@ def _register_services(hass: HomeAssistant) -> None:
         """Mint a short-lived signed URL for a file document (issue #161).
 
         Unlike ``add_asset_document``/``remove_asset_document`` this reaches actual
-        file bytes, not metadata — the missing piece for an MCP-connected agent (or
+        file bytes, not metadata: the missing piece for an MCP-connected agent (or
         any caller with no interactive browser session) to download a manual or
         receipt rather than only list that it exists.
         """
         signed = await manuals.async_sign_document_url(
-            hass, call.data["asset_id"], call.data["document_id"]
+            hass,
+            call.data["asset_id"],
+            call.data["document_id"],
+            ttl=manuals.SERVICE_DOCUMENT_URL_TTL,
         )
         if signed is None:
             raise ServiceValidationError(
@@ -1037,18 +1061,21 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_placeholders={"document_id": call.data["document_id"]},
             )
         return {
-            "url": f"{get_url(hass)}{signed}",
-            "expires_in": int(manuals.DOCUMENT_URL_TTL.total_seconds()),
+            "url": f"{_instance_base_url(hass)}{signed}",
+            "expires_in": int(manuals.SERVICE_DOCUMENT_URL_TTL.total_seconds()),
         }
 
     async def handle_sign_part_file_url(call: ServiceCall) -> dict[str, Any]:
         """Mint a short-lived signed URL for a part's attached file (issue #161).
 
-        See ``handle_sign_document_url`` — same rationale, for a part's single file
+        See ``handle_sign_document_url``: same rationale, for a part's single file
         slot instead of an asset document.
         """
         signed = await manuals.async_sign_part_file_url(
-            hass, call.data["asset_id"], call.data["part_id"]
+            hass,
+            call.data["asset_id"],
+            call.data["part_id"],
+            ttl=manuals.SERVICE_DOCUMENT_URL_TTL,
         )
         if signed is None:
             raise ServiceValidationError(
@@ -1056,8 +1083,8 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_key="unknown_part_file",
             )
         return {
-            "url": f"{get_url(hass)}{signed}",
-            "expires_in": int(manuals.DOCUMENT_URL_TTL.total_seconds()),
+            "url": f"{_instance_base_url(hass)}{signed}",
+            "expires_in": int(manuals.SERVICE_DOCUMENT_URL_TTL.total_seconds()),
         }
 
     async def handle_export_inventory(call: ServiceCall) -> dict[str, Any]:
