@@ -394,6 +394,48 @@ baseline so the next interval is measured from the reading at completion. You do
 arm/clear it yourself; this is internal to Home Keeper, so no contribution API is
 involved.
 
+#### Usage meters: the full binding
+
+A `usage` binding takes four more optional keys, all of which a glue integration is
+expected to set when it knows the answer better than the user does:
+
+```python
+{"recurrence_type": "sensor",
+ "sensor": {
+     "entity_id": "sensor.x1c_total_usage_hours",
+     "mode": "usage",
+     "target": 300,
+     # Display label for the target. Purely cosmetic (the meter arithmetic is
+     # unit-agnostic), but it turns a bare "300" into "300 h" in the panel and rides
+     # along as the ``usage_unit`` attribute for dashboards.
+     "unit": "h",
+     # The time backstop: the "or every 6 months" half of a real service interval,
+     # measured from the last completion (or the task's creation before the first).
+     "also_every": {"interval": 6, "unit": "months"},
+     # "any" (default) = whichever comes first; "all" = both must be met.
+     "combinator": "any",
+     # Start the meter somewhere other than the live reading, e.g. you already know
+     # the machine was serviced 40 hours ago. Omit it and the watcher anchors to the
+     # first valid reading it sees.
+     "baseline": 660,
+ }}
+```
+
+The backstop is evaluated **even when the bound entity is unavailable**, so a device
+that has been offline for a year still comes due for its annual service. Both halves
+reset together on completion.
+
+> **Forward compatibility.** `also_every` / `unit` / `combinator` landed in 0.12.0.
+> `normalize_sensor` builds its result from known keys only, so an older Home Keeper
+> silently drops them and the task still works as a plain meter, so a glue can send
+> them unconditionally rather than version-gating.
+
+If you need to move a usage task's baseline *after* creation (the user serviced the
+machine outside Home Keeper, or the meter itself was replaced), call
+`home_keeper.set_task_meter` with `{"task_id": ..., "baseline": 660}` (omit `baseline`
+to anchor to the live reading). It records no completion, and fires
+`home_keeper_task_updated` with `changed_fields: ["sensor"]`.
+
 ### Linking a task to a consumable (draw down stock on completion)
 
 Any task (sensor-armed or not) can be **linked to an appliance consumable/part** so

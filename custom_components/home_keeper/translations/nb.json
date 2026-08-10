@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Angi oppgavemåler",
+      "description": "Forankrer utgangsverdien til en bruksbasert (måler-) sensoroppgave på nytt uten å registrere en fullføring. Bruk den når arbeidet ble gjort før Home Keeper fulgte med, eller når den tilknyttede måleren er byttet ut eller nullstilt. Utelates utgangsverdien, forankres det til sensorens gjeldende avlesning. Gjelder bare en sensoroppgave i bruksmodus.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgave-ID",
+          "description": "ID-en til den bruksbaserte sensoroppgaven som skal forankres på nytt."
+        },
+        "baseline": {
+          "name": "Utgangsverdi",
+          "description": "Måleravlesningen det skal telles fra. La stå tom for å bruke den tilknyttede sensorens gjeldende avlesning."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Utsett oppgave",
       "description": "Utsett en oppgaves forfallsdato uten å registrere en fullføring eller flytte gjentakelsen fremover.",

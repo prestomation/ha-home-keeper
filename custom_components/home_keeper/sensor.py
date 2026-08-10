@@ -24,9 +24,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from . import sensor_tasks
+from .const import DOMAIN, SENSOR_MODE_USAGE
 from .coordinator import HomeKeeperCoordinator
 from .entity import HomeKeeperTaskEntity
+from .sensor_watcher import read_sensor_value
 
 # Default icon for a tracked-date sensor when the asset has no custom icon.
 _DATE_ICON = "mdi:calendar-clock"
@@ -133,6 +135,35 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
             for key in ("note", "cost", "photo", "who"):
                 if key in latest:
                     attrs[f"last_completion_{key}"] = latest[key]
+        attrs.update(self._usage_attributes(task))
+        return attrs
+
+    def _usage_attributes(self, task: dict[str, Any]) -> dict[str, Any]:
+        """Meter progress for a usage sensor task, so automations can read it.
+
+        A usage task's whole state is "how far through the interval am I" — the same
+        figures a dedicated maintenance helper would expose as separate entities. They
+        ride on this task's existing next-due sensor instead, which keeps one entity per
+        task (Home Keeper's model) while still making the numbers automatable and
+        templatable. Absent entirely for non-usage tasks.
+        """
+        cfg = sensor_tasks.sensor_config(task)
+        if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
+            return {}
+        target = float(cfg["target"])
+        attrs: dict[str, Any] = {"usage_target": target}
+        if unit := cfg.get("unit"):
+            attrs["usage_unit"] = unit
+        reading = read_sensor_value(self.hass, cfg)
+        baseline = cfg.get("baseline")
+        if reading is not None and baseline is not None:
+            consumed = max(0.0, reading - float(baseline))
+            attrs["usage_consumed"] = round(consumed, 3)
+            attrs["usage_remaining"] = round(target - consumed, 3)
+            attrs["usage_percent"] = round(min(100.0, consumed / target * 100), 1)
+        due_at = sensor_tasks.backstop_due(task, cfg)
+        if due_at is not None:
+            attrs["backstop_due"] = due_at.isoformat()
         return attrs
 
 

@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Establecer contador de la tarea",
+      "description": "Vuelve a anclar la línea base de una tarea de sensor de uso (contador) sin registrar una finalización. Úsala cuando el trabajo se hizo antes de que Home Keeper lo vigilara, o cuando el contador vinculado se sustituyó o se puso a cero. Si omites la línea base, se ancla a la lectura actual del sensor. Solo es válida para tareas de sensor en modo de uso.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tarea",
+          "description": "El id de la tarea de sensor de uso que se va a volver a anclar."
+        },
+        "baseline": {
+          "name": "Línea base",
+          "description": "La lectura del contador desde la que contar. Déjalo vacío para usar la lectura actual del sensor vinculado."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Posponer tarea",
       "description": "Aplazar la fecha de vencimiento de una tarea sin registrar una finalización ni avanzar su recurrencia.",

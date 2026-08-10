@@ -13,6 +13,19 @@ import { openPanel, openDashboard } from './tests/helpers';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
+/**
+ * Expand a collapsed `<details>` group, leaving an already-open one alone.
+ *
+ * Toggling a `<details>` is not idempotent, and several steps below reach into the
+ * same Monitored group: a blind `summary.click()` in a later step closes what an
+ * earlier one opened, and the shot silently captures a collapsed group.
+ */
+async function expandGroup(group: Locator): Promise<void> {
+  if (!(await group.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await group.locator('summary').click();
+  }
+}
+
 /** Fill the input of the nth ha-form text selector within a scope. */
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
   await scope.locator('ha-selector-text').nth(nth).locator('input, textarea').fill(value);
@@ -22,6 +35,27 @@ async function fillText(scope: Locator, nth: number, value: string): Promise<voi
 async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Promise<void> {
   await select.click();
   await select.page().getByRole('menuitem', { name: optionLabel }).first().click();
+}
+
+/**
+ * Put the usage form's "Also come due on a schedule" switch into a known state.
+ *
+ * Driven by its *effect* — the backstop adds a second number selector ("Or every")
+ * next to Target — rather than by reading the switch widget's internals, which live
+ * behind `ha-switch`'s shadow root and aren't a native checkbox. Reading the effect
+ * also makes the helper idempotent and self-verifying: it clicks only when the form
+ * isn't already in the wanted state, and waits for the schema to actually change.
+ */
+async function setBackstop(panel: Locator, on: boolean): Promise<void> {
+  const numbers = panel.locator('#hk-task-form ha-selector-number');
+  const wanted = on ? 2 : 1;
+  if ((await numbers.count()) !== wanted) {
+    // Click the switch itself, not its `ha-selector-boolean` wrapper: the wrapper
+    // spans the full row, so a centred click lands in the dead space between the
+    // label and the control and toggles nothing.
+    await panel.locator('#hk-task-form ha-selector-boolean ha-switch').first().click();
+  }
+  await expect(numbers).toHaveCount(wanted);
 }
 
 /** Fill the input of the nth ha-form number selector within a scope. */
@@ -170,6 +204,24 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
+  // 1h3. Usage-meter task detail with a time backstop. The seeded "Replace printer
+  // nozzle" task meters `sensor.demo_printer_hours` (a fixed 780 h) against a
+  // baseline of 660 with a 300 h target, so it renders a deterministic "120 of 300 h
+  // used" with the progress bar, the "180 h to go" line, and the "also due every 6
+  // months" backstop note.
+  // It's dormant (the meter hasn't reached its target), so it lives in the collapsed
+  // Monitored group — expand that before clicking through.
+  const monitoredForUsage = panel.locator(
+    'details.hk-group[data-group-key="status:monitored"]',
+  );
+  await expandGroup(monitoredForUsage);
+  await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
+  await expect(panel.locator('.hk-meter').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/14b-panel-usage-progress.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
   // 37. Battery type chip on the task list — the active battery task shows its
   // "2× AAA" chip (set by the Battery Notes glue as task_chips) right in the card row.
   const batteryCard = panel.locator('.hk-card[data-id="task_door_battery"]');
@@ -233,9 +285,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/18-panel-tasks-blocked-done.png`, fullPage: true });
   // (healthy batteries) — collapsed by default to stay out of the way, one click
-  // to browse. Expand it for the shot.
+  // to browse. Expand it for the shot — guarded, because step 14b above already
+  // expands this same group to reach the usage task and a blind click would close
+  // it again (a `<details>` toggle is not idempotent).
   const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');
-  await monitored.locator('summary').click();
+  await expandGroup(monitored);
   await expect(monitored.locator('.hk-card').first()).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/15-panel-monitored-section.png`, fullPage: true });
@@ -244,7 +298,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // leaving the active list but keeping its completion history. Collapsed by default
   // (like Monitored); expand it for the shot.
   const completed = panel.locator('details.hk-group[data-group-key="status:completed"]');
-  await completed.locator('summary').click();
+  await expandGroup(completed);
   await expect(completed.locator('.hk-card').first()).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/19-panel-completed-section.png`, fullPage: true });
@@ -287,6 +341,26 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/30-panel-create-sensor-task.png`, fullPage: true });
+
+  // 30b. The same usage form with a **time backstop** — "every 100 h, or every 6
+  // months, whichever comes first", which is how manufacturers actually write a
+  // service interval. It lives behind the "Also come due on a schedule" switch, which
+  // reveals the interval, its unit and the combinator; switching it on seeds a usable
+  // interval so the revealed fields describe a real rule straight away.
+  await setBackstop(panel, true);
+  await fillNumber(panel.locator('#hk-task-form'), 1, '6');
+  await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
+  // The summary strip above the submit button states the assembled rule in one
+  // sentence. Several fields add up to it and none of them says it, so this is the
+  // shot that has to prove the wording — assert it, don't just photograph it.
+  await expect(panel.locator('#hk-form-summary-value')).toHaveText(
+    'Every 100 of use, or every 6 months',
+  );
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/30b-panel-sensor-backstop.png`, fullPage: true });
+  // Put it back to a pure meter so the threshold shot below starts from a clean form.
+  await setBackstop(panel, false);
 
   // 31. The same form switched to threshold mode — a comparison + value, plus an
   // optional hold (seconds) to debounce. The task arms on the crossing. (The sensor

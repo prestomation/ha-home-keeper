@@ -151,6 +151,31 @@ The most technically sophisticated HA maintenance integration. Positioned agains
 
 ---
 
+### Maintenance Tracker
+**Repo:** [BambamNZ/maintenance-tracker](https://github.com/BambamNZ/maintenance-tracker) | **Status:** New (2026) | Author: David Venter
+
+A deliberately small, generic helper: *"usage-based maintenance reminders"* wrapping **any** monotonically increasing sensor. Follows HA's own Threshold / Utility Meter **helper pattern** — one config entry per schedule, not one per device — so several schedules can hang off the same sensor. The author's worked example is a Bambu Lab printer (*"P2S Nozzle Clean"*).
+
+**What it does:**
+- Wraps a cumulative sensor and persists its own **baseline** per schedule (`.storage`, one file per entry) — explicitly because recorder history and `RestoreState` are the wrong tools for an indefinitely growing service log
+- **Hours threshold and/or days threshold**, combined by an `and`/`or` **logic** option — the "every 300 h *or* 6 months, whichever first" service interval
+- Entities per schedule: `sensor.*_hours_since_service`, `sensor.*_days_since_service`, `sensor.*_hours_remaining`, `sensor.*_days_remaining`, `binary_sensor.*_service_due` (device_class `problem`, with every raw figure as attributes), `button.*_reset_service`
+- Optional persistent notification, edge-triggered once on becoming due and dismissed on reset
+- Options flow to retune thresholds without recreating the schedule
+- Reacts to source-sensor state changes (no polling)
+
+**Limitations:**
+- No task model at all — no completion history, no notes/cost/photo, no appliance metadata, no panel; it is a *signal*, and you bring your own automation to act on it
+- Reset is a button press only: no record that the service happened, no "when did I last do this"
+- One config entry per schedule means the helpers list grows one row per maintenance item
+- Baseline re-anchors only on an explicit reset — a meter that is replaced or rolls over leaves the schedule stuck until someone presses the button
+- No calendar / to-do surface, no mobile actionable notifications
+
+**Why it exists (and what we took from it):**
+Home Keeper already had usage meters (`recurrence_type: "sensor"`, `mode: "usage"`) and beats this on history, ownership, and surfaces — but it could not express **"hours *or* months, whichever first"**, and its progress was a bare unlabelled string. Both are closed in **0.12.0** (`sensor.also_every` + `combinator`; the `usage_*` attributes and panel meter bar). Full teardown, remaining gaps, and the use cases they unlock: `docs/USAGE_MAINTENANCE_GAP_ANALYSIS.md`.
+
+---
+
 ### Device Maintenance Monitor
 **Repo:** [rafael-zilberman/device-maintenance-monitor-custom-component](https://github.com/rafael-zilberman/device-maintenance-monitor-custom-component) | **Status:** Active | 11 open issues
 

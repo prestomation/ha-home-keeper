@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Aufgabenzähler setzen",
+      "description": "Setzt den Ausgangswert einer verbrauchsbasierten Aufgabe (Zähler) neu, ohne eine Erledigung zu erfassen. Nützlich, wenn die Arbeit schon vor der Überwachung durch Home Keeper erledigt wurde oder der verknüpfte Zähler ausgetauscht bzw. auf null gesetzt wurde. Ohne Ausgangswert wird der aktuelle Messwert des Sensors verwendet. Nur für Sensoraufgaben im Verbrauchsmodus gültig.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgaben-ID",
+          "description": "Die ID der verbrauchsbasierten Sensoraufgabe, die neu verankert werden soll."
+        },
+        "baseline": {
+          "name": "Ausgangswert",
+          "description": "Der Zählerstand, ab dem gezählt wird. Leer lassen, um den aktuellen Messwert des verknüpften Sensors zu verwenden."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Aufgabe zurückstellen",
       "description": "Das Fälligkeitsdatum einer Aufgabe verschieben, ohne einen Abschluss zu erfassen oder die Wiederholung vorzurücken.",

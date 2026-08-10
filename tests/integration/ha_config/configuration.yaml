@@ -30,6 +30,17 @@ template:
         unique_id: sump_pump_problem
         device_class: problem
         state: "{{ true }}"
+  # A fixed cumulative run-hours counter, standing in for the kind of
+  # ``total_usage_hours`` sensor an appliance integration exposes. Constant so the
+  # seeded usage task's progress ("120 of 300 h used") renders identically on every
+  # screenshot run — unlike ``input_number.hk_demo_meter``, which the integration
+  # tests drive up and down.
+  - sensor:
+      - name: "Demo printer hours"
+        unique_id: demo_printer_hours
+        unit_of_measurement: "h"
+        state_class: total_increasing
+        state: "{{ 780 }}"
 
 # Dedicated YAML dashboard used by the Playwright e2e suite. The default
 # (storage-mode) dashboard from onboarding is left untouched. The Home Keeper

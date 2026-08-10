@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Aseta tehtävän mittari",
+      "description": "Ankkuroi käyttöön perustuvan (mittari-) anturitehtävän lähtöarvon uudelleen kirjaamatta suoritusta. Käytä sitä, kun työ tehtiin ennen kuin Home Keeper seurasi sitä, tai kun sidottu mittari vaihdettiin tai nollattiin. Jos jätät lähtöarvon pois, ankkurointi tehdään anturin nykyiseen lukemaan. Pätee vain käyttötilassa olevaan anturitehtävään.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän tunnus",
+          "description": "Uudelleen ankkuroitavan käyttöanturitehtävän tunnus."
+        },
+        "baseline": {
+          "name": "Lähtöarvo",
+          "description": "Mittarilukema, josta lasketaan. Jätä tyhjäksi käyttääksesi sidotun anturin nykyistä lukemaa."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Lykkää tehtävää",
       "description": "Lykkää tehtävän eräpäivää tallentamatta suoritusta tai siirtämättä sen toistoa.",

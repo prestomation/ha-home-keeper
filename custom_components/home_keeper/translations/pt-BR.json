@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Definir medidor da tarefa",
+      "description": "Reancora o valor inicial de uma tarefa de sensor de uso (medidor) sem registrar uma conclusão. Use quando o serviço foi feito antes de o Home Keeper acompanhar, ou quando o medidor vinculado foi trocado ou zerado. Se o valor inicial for omitido, a âncora usa a leitura atual do sensor. Válido apenas para tarefas de sensor no modo de uso.",
+      "fields": {
+        "task_id": {
+          "name": "ID da tarefa",
+          "description": "O id da tarefa de sensor de uso a ser reancorada."
+        },
+        "baseline": {
+          "name": "Valor inicial",
+          "description": "A leitura do medidor a partir da qual contar. Deixe vazio para usar a leitura atual do sensor vinculado."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Adiar tarefa",
       "description": "Adiar a data de vencimento de uma tarefa sem registrar uma conclusão ou avançar sua recorrência.",

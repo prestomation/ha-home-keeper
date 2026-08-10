@@ -36,6 +36,9 @@ import {
   selNumber,
   selSelect,
   selText,
+  DEFAULT_BACKSTOP_INTERVAL,
+  backstopEnabled,
+  formRecurrenceSummary,
   sensorHintText,
   taskFormData,
   taskSchema,
@@ -85,6 +88,7 @@ import {
   isSafeImageUrl,
   parseRoute,
   randomId,
+  round1,
   safeHref,
   recurrenceSummary,
   tasksForAsset,
@@ -484,6 +488,29 @@ const STYLES = `
   .hk-part-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
   .hk-part-chips ha-assist-chip { --ha-assist-chip-container-height: 28px; }
   .hk-part-notes { color: var(--secondary-text-color); margin-top: 6px; }
+  /* The rule the form currently describes, in one sentence, immediately above the
+     submit button — the last thing read before committing. Louder than .hk-form-hint
+     on purpose: the hint explains, this one states the outcome. */
+  .hk-form-summary {
+    margin-top: 16px; padding: 10px 12px;
+    background: var(--secondary-background-color);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary-color);
+    font-size: 0.95rem; line-height: 1.4;
+  }
+  .hk-form-summary-label {
+    display: block;
+    color: var(--secondary-text-color);
+    font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+  .hk-form-summary-value { color: var(--primary-text-color); font-weight: 500; }
+  /* The live arithmetic under the headline (sensor tasks only): quieter, because it
+     elaborates the rule rather than restating it. */
+  .hk-form-summary-detail {
+    display: block; margin-top: 6px;
+    color: var(--secondary-text-color); font-size: 0.85rem; line-height: 1.4;
+  }
   .hk-form-actions { display: flex; gap: 8px; margin-top: 20px; }
   .hk-loading { display: flex; justify-content: center; padding: 48px 0; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
@@ -564,6 +591,16 @@ const STYLES = `
     font-size: 0.85rem;
   }
   .hk-detail-row .v { flex: 1; min-width: 0; word-break: break-word; }
+  /* Usage-meter progress: how far through the service interval this task is. */
+  .hk-meter {
+    height: 6px; border-radius: 3px; margin: 10px 0 4px;
+    background: var(--divider-color); overflow: hidden;
+  }
+  .hk-meter > span {
+    display: block; height: 100%; border-radius: 3px;
+    background: var(--primary-color);
+  }
+  .hk-meter-note { color: var(--secondary-text-color); font-size: 0.85rem; }
   /* Anything linked from a detail row must *look* clickable — an anchor whose href is
      filled in asynchronously (a signed file URL) gets no default affordance, which is
      what made document links read as dead text (issue #164). */
@@ -1332,7 +1369,7 @@ export class HomeKeeperPanel extends HTMLElement {
    *
    * The caller feeds it from its form's existing `value-changed` handler — updating the
    * preview in place rather than re-rendering, so the field keeps focus while typing
-   * (the same technique `_updateSensorHint` uses for the sensor primer).
+   * (the same technique `_updateFormHints` uses for the sensor primer).
    *
    * **This is the only way to build a preview.** Every one is registered in
    * `_previews`, which `_render` and `disconnectedCallback` dispose wholesale, so a
@@ -2410,11 +2447,56 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     // usage / meter
     const target = s.target ?? 0;
+    const unit = s.unit ? ` ${s.unit}` : '';
     if (!Number.isNaN(reading) && s.baseline != null) {
       const consumed = Math.max(0, reading - s.baseline);
-      return t('sensor.usageProgress', { consumed, target, entity });
+      return t('sensor.usageProgress', {
+        consumed: `${round1(consumed)}${unit}`,
+        target: `${target}${unit}`,
+        entity,
+      });
     }
-    return t('sensor.usageTarget', { target, entity });
+    return t('sensor.usageTarget', { target: `${target}${unit}`, entity });
+  }
+
+  /** The meter's fill as an accessible bar, plus the time-backstop line when the
+   *  task carries one. Rendered as HTML under the sensor row on the detail page:
+   *  "how far through the interval am I" is the whole state of a usage task, and a
+   *  bar reads it at a glance in a way "120 of 300 used" does not. Empty for a
+   *  threshold task (there is no interval to be partway through) or when the bound
+   *  entity has no numeric reading. */
+  private _sensorProgressBar(task: Task): string {
+    const s = task.sensor;
+    if (!s || s.mode === 'threshold') return '';
+    const parts: string[] = [];
+    const state = this._hass?.states?.[s.entity_id];
+    const raw = state ? (s.attribute ? state.attributes?.[s.attribute] : state.state) : undefined;
+    const reading = raw == null || raw === '' ? NaN : Number(raw);
+    const target = Number(s.target) || 0;
+    if (!Number.isNaN(reading) && s.baseline != null && target > 0) {
+      const consumed = Math.max(0, reading - s.baseline);
+      const pct = Math.max(0, Math.min(100, (consumed / target) * 100));
+      const label = t('sensor.usageRemaining', {
+        remaining: `${round1(target - consumed)}${s.unit ? ` ${s.unit}` : ''}`,
+      });
+      parts.push(
+        `<div class="hk-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(
+          pct,
+        )}" aria-label="${escapeHTML(label)}"><span style="width:${pct.toFixed(1)}%"></span></div>` +
+          `<div class="hk-meter-note">${escapeHTML(label)}</div>`,
+      );
+    }
+    if (s.also_every) {
+      const every = `${s.also_every.interval} ${t(`opt.unit.${s.also_every.unit}`)}`;
+      parts.push(
+        `<div class="hk-meter-note">${escapeHTML(
+          s.combinator === 'all'
+            ? t('sensor.backstopAll', { every })
+            : t('sensor.backstopAny', { every }),
+        )}</div>`,
+      );
+    }
+    return parts.join('');
   }
 
   private _historySection(kind: 'task' | 'asset', id: string): string {
@@ -2518,6 +2600,7 @@ export class HomeKeeperPanel extends HTMLElement {
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         ${this._row(t('field.recurrence_type'), recurrenceSummary(task))}
         ${task.recurrence_type === 'sensor' ? this._row(t('field.sensor_entity_id'), this._sensorProgress(task)) : ''}
+        ${task.recurrence_type === 'sensor' ? this._sensorProgressBar(task) : ''}
         ${this._row(t('detail.nextDue'), due)}
         ${this._row(t('field.consumable_link'), this._consumableLinkLabel(task), true)}
       </div></ha-card>
@@ -4161,14 +4244,37 @@ export class HomeKeeperPanel extends HTMLElement {
     return { reading: Number.isNaN(num) ? undefined : num, unit };
   }
 
-  /** Refresh the sensor task-form hint in place (no re-render → keeps input focus). */
-  private _updateSensorHint(): void {
-    const hint = this.shadowRoot?.getElementById('hk-sensor-hint');
-    if (!hint) return;
+  /**
+   * Refresh the task form's live copy in place (no re-render → keeps input focus).
+   *
+   * Two pieces: the sensor primer (only on sensor tasks, explains the baseline model)
+   * and the rule summary above the submit button (every task kind). Both are pure
+   * text derived from the current edit state, so this runs on any field change.
+   */
+  private _updateFormHints(box?: HTMLElement): void {
+    // `box` is passed while the form is still being assembled (before it's in the
+    // shadow root); afterwards we look it up. Same code either way, so the first
+    // paint and every keystroke can't disagree about what the strip says.
+    const root: ParentNode | null | undefined =
+      box ?? this.shadowRoot?.querySelector('.hk-form-summary');
+    if (!root) return;
     const task = this._edit.task || {};
-    const text = sensorHintText(task, this._sensorLive(task));
-    hint.textContent = text;
-    (hint as HTMLElement).style.display = text ? '' : 'none';
+
+    const value = root.querySelector('#hk-form-summary-value') as HTMLElement | null;
+    const ruleText = formRecurrenceSummary(task);
+    if (value) value.textContent = ruleText;
+
+    const detail = root.querySelector('#hk-sensor-hint') as HTMLElement | null;
+    const detailText =
+      task.recurrence_type === 'sensor' ? sensorHintText(task, this._sensorLive(task)) : '';
+    if (detail) {
+      detail.textContent = detailText;
+      detail.style.display = detailText ? '' : 'none';
+    }
+
+    // Hide the whole strip only when it has nothing at all to say — a form with a
+    // recurrence type but no sensor detail still shows its rule.
+    (root as HTMLElement).style.display = ruleText || detailText ? '' : 'none';
   }
 
   private _renderTaskForm(host: HTMLElement): void {
@@ -4202,6 +4308,10 @@ export class HomeKeeperPanel extends HTMLElement {
         const prevType = this._edit.task?.recurrence_type;
         const prevSensorMode = (this._edit.task as Record<string, unknown> | undefined)
           ?.sensor_mode;
+        // Compared as booleans: the previous value may be undefined on the first edit
+        // (the form seeds it from the loaded task), and `undefined !== false` would
+        // otherwise re-render on the first unrelated keystroke.
+        const prevBackstop = backstopEnabled(this._edit.task ?? {});
         const prevDevice = this._edit.task?.device_id;
         this._edit.task = {
           ...this._edit.task,
@@ -4227,20 +4337,45 @@ export class HomeKeeperPanel extends HTMLElement {
             this._edit.task,
           ).filter((tok) => docOpts.some((o) => o.value === tok));
         }
+        // Picking a meter entity prefills the unit label from the entity itself, so
+        // "300" reads as "300 h" without anyone typing it. Only when still blank —
+        // a label the user (or a managing integration) chose is never overwritten.
+        if (
+          this._edit.task?.recurrence_type === 'sensor' &&
+          !String(value.sensor_unit ?? '').trim()
+        ) {
+          const live = this._sensorLive(this._edit.task);
+          if (live.unit) {
+            (this._edit.task as Record<string, unknown>).sensor_unit = live.unit;
+          }
+        }
+        // Switching the time backstop on with a blank or zeroed interval seeds a
+        // working default, so the three fields it reveals describe a real rule
+        // immediately instead of sitting at "every 0" and being silently dropped.
+        if (
+          Boolean(value.sensor_backstop_on) &&
+          !(Number((this._edit.task as Record<string, unknown>).sensor_also_every) > 0)
+        ) {
+          (this._edit.task as Record<string, unknown>).sensor_also_every =
+            DEFAULT_BACKSTOP_INTERVAL;
+        }
         // The recurrence type (cadence/sensor fields), the sensor mode (usage vs.
-        // threshold), and the attached device (which scopes the consumable picker)
-        // each toggle the visible schema -> re-render.
+        // threshold), the time-backstop switch (which reveals or hides its three
+        // fields), and the attached device (which scopes the consumable picker) each
+        // toggle the visible schema -> re-render.
         if (
           value.recurrence_type !== prevType ||
           value.sensor_mode !== prevSensorMode ||
+          Boolean(value.sensor_backstop_on) !== prevBackstop ||
           value.device_id !== prevDevice
         ) {
           this._render();
-        } else if (this._edit.task?.recurrence_type === 'sensor') {
-          // A sensor entity/target/value edit doesn't change the visible schema, so
-          // refresh the live hint in place (a full re-render would drop focus from
-          // the number box the user is typing in).
-          this._updateSensorHint();
+        } else {
+          // The edit didn't change the visible schema, so refresh the live copy in
+          // place — a full re-render would drop focus from the box being typed in.
+          // Every task kind, not just sensor: the rule summary above the submit
+          // button has to track an interval or a unit change too.
+          this._updateFormHints();
         }
       },
     );
@@ -4261,17 +4396,20 @@ export class HomeKeeperPanel extends HTMLElement {
     // to preview, so it stays out of the way for the common no-notes task.
     this._taskNotePreview = this._attachNotePreview(inner, String(task.notes ?? ''));
 
-    // Live, computed hint for a sensor task: reads the bound entity's current value
-    // and spells out the next due point ("reads 660 h -> first due at 760 h").
-    if (task.recurrence_type === 'sensor') {
-      const hint = document.createElement('div');
-      hint.className = 'hk-form-hint';
-      hint.id = 'hk-sensor-hint';
-      const text = sensorHintText(task, this._sensorLive(task));
-      hint.textContent = text;
-      hint.style.display = text ? '' : 'none';
-      inner.appendChild(hint);
-    }
+    // One box, directly above the submit button, answering "what did I just build?"
+    // in two registers: the rule as a headline, and — for a sensor task — the live
+    // arithmetic underneath ("reads 660 h, so first due at 760 h"). These used to be
+    // two separate panels stacked on each other, which meant two places to look for
+    // one answer; the headline is the same sentence the saved task's card will show,
+    // because it comes from the same formatter.
+    const summary = document.createElement('div');
+    summary.className = 'hk-form-summary';
+    summary.innerHTML =
+      `<span class="hk-form-summary-label">${escapeHTML(t('form.summary.label'))}</span>` +
+      `<span class="hk-form-summary-value" id="hk-form-summary-value"></span>` +
+      `<span class="hk-form-summary-detail" id="hk-sensor-hint"></span>`;
+    inner.appendChild(summary);
+    this._updateFormHints(summary);
 
     if (this._edit.error) {
       const err = document.createElement('ha-alert');

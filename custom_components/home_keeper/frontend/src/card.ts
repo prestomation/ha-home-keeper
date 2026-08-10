@@ -123,6 +123,8 @@ const RECURRENCE_OPTS = [
   { value: 'floating', label: 'Floating' },
   { value: 'fixed', label: 'Fixed' },
   { value: 'triggered', label: 'Triggered (monitored)' },
+  { value: 'one-off', label: 'One-off' },
+  { value: 'sensor', label: 'Sensor (usage / threshold)' },
 ];
 const LABEL_MATCH_OPTS = [
   { value: 'any', label: 'Any selected label' },

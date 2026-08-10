@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Estableix el comptador de la tasca",
+      "description": "Torna a ancorar la línia base d'una tasca de sensor d'ús (comptador) sense registrar cap compleció. Fes-la servir quan la feina ja estigués feta abans que Home Keeper ho vigilés, o quan el comptador vinculat s'hagi substituït o posat a zero. Ometent la línia base, s'ancora a la lectura actual del sensor. Només és vàlida per a tasques de sensor en mode d'ús.",
+      "fields": {
+        "task_id": {
+          "name": "ID de tasca",
+          "description": "L'id de la tasca de sensor d'ús que s'ha de tornar a ancorar."
+        },
+        "baseline": {
+          "name": "Línia base",
+          "description": "La lectura del comptador des d'on comptar. Deixa-ho buit per fer servir la lectura actual del sensor vinculat."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Posposa la tasca",
       "description": "Ajorna la data de venciment d'una tasca sense registrar una compleció ni avançar-ne la recurrència.",

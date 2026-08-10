@@ -135,10 +135,56 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await page.getByRole('menuitem', { name: /fixed schedule/i }).first().click();
     await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
+
+    // 3a. Switch the same form to a **sensor** task and build the shape a real service
+    //     interval has: a meter target plus a time backstop. Typing the target, then
+    //     the "Or every" months, makes the live hint *and* the rule summary above the
+    //     submit button rewrite themselves — watching "Every 300 of use" become
+    //     "Every 300 of use, or every 6 months" as you type is the whole argument for
+    //     that strip, and a still screenshot can't show it. Give each field a beat.
+    await recurrence.click();
+    await page.getByRole('menuitem', { name: /based on a sensor/i }).first().click();
+    await expect(panel.locator('#hk-task-form ha-selector-entity').first()).toBeVisible();
+    await page.waitForTimeout(BEAT);
+    const numberAt = (nth: number) =>
+      panel.locator('#hk-task-form ha-selector-number').nth(nth).locator('input');
+    await numberAt(0).fill('300'); // Target (units of use)
+    await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    // Flip "Also come due on a schedule" — the three backstop fields appear, already
+    // seeded, and the summary gains its second half. That reveal is the beat.
+    await panel.locator('#hk-task-form ha-selector-boolean ha-switch').first().click();
+    await expect(panel.locator('#hk-task-form ha-selector-number')).toHaveCount(2);
+    await page.waitForTimeout(BEAT);
+    await numberAt(1).fill('6'); // Or every … (the time backstop)
+    await expect(panel.locator('#hk-form-summary-value')).toHaveText(
+      'Every 300 of use, or every 6 months',
+    );
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(BEAT * 3); // linger on the summary + "whichever comes first"
+
     // Reset by re-opening the panel fresh — closing the create form does a full
     // route change back to /home-keeper that can race a click (the screenshots
     // harness resets the create form the same way).
     await openPanel(page);
+    await expect(panel.locator('#add-btn')).toBeVisible();
+    await page.waitForTimeout(BEAT);
+
+    // 3b. A usage task in flight: the seeded nozzle task meters printer hours against
+    //     a 300 h target with a 6-month backstop, so its detail page shows the progress
+    //     bar filling and the "180 h to go" line. It's dormant, so it lives in the
+    //     collapsed Monitored group.
+    const monitoredGroup = panel.locator(
+      'details.hk-group[data-group-key="status:monitored"]',
+    );
+    if (!(await monitoredGroup.evaluate((el: HTMLDetailsElement) => el.open))) {
+      await monitoredGroup.locator('summary').click();
+      await page.waitForTimeout(BEAT);
+    }
+    await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
+    await expect(panel.locator('.hk-meter').first()).toBeVisible();
+    await page.waitForTimeout(BEAT * 3);
+    await panel.locator('#back-btn').click();
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);
 

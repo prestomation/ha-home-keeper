@@ -85,6 +85,26 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   on startup** (`async_baseline`) so a restart never replays a spurious arm — the same
   discipline as `transitions.py`. The coordinator's periodic tick calls
   `sensor_watcher.async_evaluate(refresh=False)` before transition detection.
+- **The `sensor` block is the extension point for new recurrence dimensions.** When a
+  usage task needs to be due on something *other* than its meter, add a key to
+  `task["sensor"]` and a branch to the pure evaluator — don't reach for the top-level
+  `interval`/`unit`/`freq` fields, which `normalize_fields` deliberately skips for
+  `REC_SENSOR`. The shipped example is the **time backstop** (`also_every` +
+  `combinator`): "every 300 h *or* every 6 months, whichever comes first". Two rules
+  that generalize to whatever comes next:
+  - **Anchor a time dimension to `last_completed`, falling back to `created`** — never
+    to the meter baseline. A meter reset (a replaced controller, a rolled-over counter)
+    is bookkeeping, not a service, and must not move the calendar.
+  - **A dimension that doesn't need the live reading must still be evaluated without
+    one.** The watcher skips a task whose bound entity is unavailable; a usage task
+    carrying `also_every` is exempt, because an idle or unplugged machine is exactly
+    the one whose annual service you most want to hear about.
+- **Glue integrations own their default intervals, but never lock them.** A companion
+  that pushes maintenance tasks (see `docs/GLUE_INTEGRATIONS.md`) should set a sourced
+  default and leave `sensor` out of `managed_by.locked_fields`, so the panel's edit form
+  can retune it — `merge_update` preserves the accumulated `baseline` when only `target`
+  changes. Reserve `completion_blocked` for read-only mirrors (firmware, problem
+  sensors); a task a human physically performs must stay completable.
 - `labels[]` are **Home Assistant label-registry ids** (the same registry as device/
   area/entity labels), normalized in `models.normalize_labels` (de-duped, blank-
   stripped). `merge_update` only rewrites `labels` when the caller sends the key, so a

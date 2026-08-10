@@ -415,14 +415,19 @@ class HomeKeeperStore:
         return updated
 
     async def set_sensor_baseline(
-        self, task_id: str, baseline: float
+        self, task_id: str, baseline: float, *, silent: bool = True
     ) -> dict[str, Any]:
-        """Stamp a usage sensor task's meter ``baseline`` (silent bookkeeping).
+        """Stamp a usage sensor task's meter ``baseline``.
 
         Called by the sensor watcher to anchor a fresh usage task to its first live
-        reading and to re-anchor after a meter reset. This is internal state, not a
+        reading and to re-anchor after a meter reset. That is internal state, not a
         user action, so it persists without firing a lifecycle event (mirroring the
-        wear-part reconcile edits). A no-op for a non-sensor task or an unchanged value.
+        wear-part reconcile edits) — hence ``silent`` defaulting to true.
+
+        The ``set_task_meter`` service passes ``silent=False``: re-anchoring a meter by
+        hand *is* a user action ("I serviced this last month, start counting from
+        there"), so it fires ``home_keeper_task_updated`` like any other edit.
+        A no-op for a non-sensor task or an unchanged value.
         """
         task = self._tasks.get(task_id)
         if task is None:
@@ -434,6 +439,11 @@ class HomeKeeperStore:
             cfg["baseline"] = baseline
             await self._save()
             _LOGGER.debug("Set usage baseline for task %s -> %s", task_id, baseline)
+            if not silent:
+                self._hass.bus.async_fire(
+                    EVENT_TASK_UPDATED,
+                    events.task_event_data(task, extra={"changed_fields": ["sensor"]}),
+                )
         return task
 
     async def delete_task(self, task_id: str, *, force: bool = False) -> None:

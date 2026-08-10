@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Set task meter",
+      "description": "Re-anchor a usage (meter) sensor task's baseline without recording a completion. Use it when the work was done before Home Keeper was watching, or when the bound meter itself was replaced or zeroed. Omit baseline to anchor to the sensor's current reading. Only valid for a sensor task in usage mode.",
+      "fields": {
+        "task_id": {
+          "name": "Task ID",
+          "description": "The id of the usage sensor task to re-anchor."
+        },
+        "baseline": {
+          "name": "Baseline",
+          "description": "The meter reading to count from. Leave empty to use the bound sensor's current reading."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Snooze task",
       "description": "Defer a task's due date without recording a completion or advancing its recurrence.",

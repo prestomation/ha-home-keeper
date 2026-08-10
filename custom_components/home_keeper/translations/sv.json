@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Ange uppgiftsmätare",
+      "description": "Förankrar utgångsvärdet för en förbrukningsuppgift (mätare) på nytt utan att registrera ett utförande. Använd den när arbetet gjordes innan Home Keeper bevakade det, eller när den kopplade mätaren har bytts ut eller nollställts. Utelämnas utgångsvärdet förankras det till sensorns aktuella avläsning. Gäller endast en sensoruppgift i förbrukningsläge.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgifts-ID",
+          "description": "ID:t för den förbrukningssensoruppgift som ska förankras på nytt."
+        },
+        "baseline": {
+          "name": "Utgångsvärde",
+          "description": "Mätarställningen som räkningen utgår från. Lämna tomt för att använda den kopplade sensorns aktuella avläsning."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Skjut upp uppgift",
       "description": "Skjut upp en uppgifts förfallodatum utan att registrera ett slutförande eller flytta fram dess upprepning.",

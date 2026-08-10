@@ -46,7 +46,15 @@ All event names follow `home_keeper_<noun>_<verb>`. Task events share a common
 `home_keeper_task_triggered` when a bound numeric sensor meets the task's condition (a
 usage meter passing its target, or a threshold crossing), the task then crosses to
 `home_keeper_task_overdue` like any due task, and a normal user `home_keeper_task_completed`
-clears it (resetting a usage meter's baseline). No new event types are introduced.
+clears it (resetting a usage meter's baseline). A usage meter carrying a **time backstop**
+(`sensor.also_every`) arms on whichever half lands first (including while the bound
+entity is unavailable) through the same `home_keeper_task_triggered`. No new event types
+are introduced.
+
+The watcher's own baseline bookkeeping (anchoring a fresh meter, re-anchoring after a
+meter reset) stays **silent**, because it is internal state, not a user action. A baseline moved
+by hand through the `set_task_meter` service does fire `home_keeper_task_updated` with
+`changed_fields: ["sensor"]`.
 
 **Synced `problem` binary sensors** (when *Sync problem sensors* is on) ride these same
 events: a mirror task is `created` for each `device_class: problem` sensor, `triggered`

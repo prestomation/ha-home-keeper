@@ -1,4 +1,5 @@
 import { t } from './i18n';
+import { recurrenceSummary } from './utils';
 import type {
   Hass,
   Notification,
@@ -7,9 +8,11 @@ import type {
   NotifyStyle,
   Profile,
   SensorBinding,
+  SensorCombinator,
   SensorComparison,
   SensorMode,
   Task,
+  Unit,
 } from './types';
 
 /**
@@ -92,6 +95,23 @@ export function haDateTimeToIso(value?: string | null): string | undefined {
  * triggered (condition-driven) task offers only its descriptive fields (it has
  * no schedule to edit).
  */
+/** The interval seeded when the time backstop is first switched on. */
+export const DEFAULT_BACKSTOP_INTERVAL = 6;
+
+/**
+ * Whether a usage task's **time backstop** is in play, from either representation.
+ *
+ * The form holds it as a flat `sensor_backstop_on` switch; a task loaded for editing
+ * holds it as the presence of `sensor.also_every`. One predicate over both keeps the
+ * schema, the payload and the hint from ever disagreeing about whether the backstop
+ * fields count — the sort of split that shows a switched-off backstop still applying.
+ */
+export function backstopEnabled(task: Partial<Task>): boolean {
+  const flag = (task as Record<string, unknown>).sensor_backstop_on;
+  if (flag !== undefined && flag !== null) return Boolean(flag);
+  return Boolean(task.sensor?.also_every);
+}
+
 export function taskSchema(
   task: Partial<Task>,
   consumables: { value: string; label: string }[] = [],
@@ -175,6 +195,10 @@ export function taskSchema(
   const sd = task as Record<string, unknown>;
   const sensorMode =
     (sd.sensor_mode as string | undefined) ?? task.sensor?.mode ?? 'usage';
+  // Whether the time backstop's fields are showing. The live switch wins; a task
+  // loaded for editing infers it from whether it actually carries a backstop, so an
+  // existing "every 300 h or 6 months" task opens with the switch already on.
+  const backstopOn = backstopEnabled(task);
   const sensorFields: FormField[] = isSensor
     ? [
         { name: 'sensor_entity_id', required: true, selector: selEntity({}) },
@@ -201,7 +225,38 @@ export function taskSchema(
               { name: 'sensor_value', required: true, selector: { number: { mode: 'box' } } },
               { name: 'sensor_for', selector: selNumber(0) },
             ]
-          : [{ name: 'sensor_target', required: true, selector: selNumber(0) } as FormField]),
+          : [
+              { name: 'sensor_target', required: true, selector: selNumber(0) } as FormField,
+              { name: 'sensor_unit', selector: selText() } as FormField,
+              // The time backstop, behind its own switch. A real service interval is
+              // usually "every N hours *or* every M months", and without the second
+              // half a machine that sits idle never comes due — but a pure meter is
+              // just as legitimate, so the three fields only appear once you ask for
+              // them. (They used to be always-visible with the interval doubling as
+              // its own off switch at 0, which read as three mandatory fields you had
+              // to know to neutralise.)
+              { name: 'sensor_backstop_on', selector: selBool() } as FormField,
+              ...(backstopOn
+                ? [
+                    { name: 'sensor_also_every', selector: selNumber(1) } as FormField,
+                    {
+                      name: 'sensor_also_unit',
+                      selector: selSelect([
+                        { value: 'days', label: t('opt.unit.days') },
+                        { value: 'weeks', label: t('opt.unit.weeks') },
+                        { value: 'months', label: t('opt.unit.months') },
+                      ]),
+                    } as FormField,
+                    {
+                      name: 'sensor_combinator',
+                      selector: selSelect([
+                        { value: 'any', label: t('opt.sensor_combinator.any') },
+                        { value: 'all', label: t('opt.sensor_combinator.all') },
+                      ]),
+                    } as FormField,
+                  ]
+                : []),
+            ]),
         { name: 'sensor_attribute', selector: selText() },
       ]
     : [];
@@ -295,6 +350,15 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     sensor_comparison: sd.sensor_comparison ?? task.sensor?.comparison ?? '>=',
     sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
     sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
+    sensor_unit: sd.sensor_unit ?? task.sensor?.unit ?? '',
+    sensor_backstop_on: backstopEnabled(task),
+    // Seeded rather than left at 0 so switching the backstop on gives a working rule
+    // straight away instead of three fields that quietly do nothing until you notice
+    // the interval is zero.
+    sensor_also_every:
+      sd.sensor_also_every ?? task.sensor?.also_every?.interval ?? DEFAULT_BACKSTOP_INTERVAL,
+    sensor_also_unit: sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months',
+    sensor_combinator: sd.sensor_combinator ?? task.sensor?.combinator ?? 'any',
     device_id: task.device_id ?? undefined,
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
@@ -375,6 +439,21 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     if (attribute) sensor.attribute = attribute;
     if (mode === 'usage') {
       sensor.target = Number(sd.sensor_target ?? task.sensor?.target) || 0;
+      const unit = String(sd.sensor_unit ?? task.sensor?.unit ?? '').trim();
+      if (unit) sensor.unit = unit;
+      // The backstop applies only when its switch is on; a blank or zero interval
+      // still drops it, so a half-filled form can't save a meaningless "every 0".
+      const alsoEvery = Number(sd.sensor_also_every ?? task.sensor?.also_every?.interval) || 0;
+      if (backstopEnabled(task) && alsoEvery > 0) {
+        sensor.also_every = {
+          interval: alsoEvery,
+          unit: (String(sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months') ||
+            'months') as Unit,
+        };
+        sensor.combinator = (String(
+          sd.sensor_combinator ?? task.sensor?.combinator ?? 'any',
+        ) || 'any') as SensorCombinator;
+      }
     } else {
       sensor.comparison = (sd.sensor_comparison as SensorComparison) ||
         task.sensor?.comparison ||
@@ -427,6 +506,38 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   return payload;
 }
 
+/**
+ * The rule the form currently describes, in the *same words the saved task will use*.
+ *
+ * The recurrence fields are individually clear and collectively opaque: a target, a
+ * unit, a backstop interval and a combinator are four boxes that add up to "every 100 h
+ * of use, or every month, whichever lands first", and nothing on screen said that
+ * sentence until the task existed. So the form renders it live, right above the submit
+ * button, and you read the rule before you commit to it.
+ *
+ * Deliberately built by running the edit state through `buildTaskPayload` and handing
+ * the result to `recurrenceSummary` — the very functions that produce the payload and
+ * the card's caption. A separate "preview formatter" would be free to drift from what
+ * the task actually becomes, which is the one thing a preview must never do.
+ *
+ * Returns `''` when the type isn't chosen yet, so the caller can hide the strip.
+ */
+export function formRecurrenceSummary(task: Partial<Task>): string {
+  if (!task.recurrence_type) return '';
+  try {
+    // `recurrence_type` is re-attached because the triggered branch of
+    // buildTaskPayload deliberately omits it (the managing integration owns the
+    // kind, so the update need not carry it). Without this a triggered task would
+    // fall through to the clock branch and the preview would read "every day" —
+    // the exact class of confident-but-wrong copy this strip exists to prevent.
+    const payload = { ...buildTaskPayload(task), recurrence_type: task.recurrence_type };
+    return recurrenceSummary(payload as Task);
+  } catch {
+    // A half-typed form is not an error state; say nothing until it parses.
+    return '';
+  }
+}
+
 /** Stored sensor comparisons rendered as their human symbol for help/hint copy. */
 const COMPARISON_SYMBOLS: Record<string, string> = {
   '>=': '≥',
@@ -474,14 +585,24 @@ export function sensorHintText(
   const target = Number(rawTarget);
   if (rawTarget == null || rawTarget === '' || Number.isNaN(target) || target <= 0) return '';
   const targetStr = `${target}${unit}`;
-  if (ctx.reading == null || Number.isNaN(ctx.reading)) {
-    return t('hint.sensor.usageNoReading', { target: targetStr });
-  }
-  return t('hint.sensor.usage', {
-    reading: `${ctx.reading}${unit}`,
-    due: `${ctx.reading + target}${unit}`,
-    target: targetStr,
-  });
+  const base =
+    ctx.reading == null || Number.isNaN(ctx.reading)
+      ? t('hint.sensor.usageNoReading', { target: targetStr })
+      : t('hint.sensor.usage', {
+          reading: `${ctx.reading}${unit}`,
+          due: `${ctx.reading + target}${unit}`,
+          target: targetStr,
+        });
+  const alsoEvery = Number(sd.sensor_also_every ?? task.sensor?.also_every?.interval) || 0;
+  if (!backstopEnabled(task) || alsoEvery <= 0) return base;
+  const alsoUnit = String(sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months');
+  const every = `${alsoEvery} ${t(`opt.unit.${alsoUnit}`)}`;
+  const combinator = String(sd.sensor_combinator ?? task.sensor?.combinator ?? 'any');
+  return `${base} ${
+    combinator === 'all'
+      ? t('hint.sensor.backstopAll', { every })
+      : t('hint.sensor.backstopAny', { every })
+  }`;
 }
 
 /**

@@ -43,6 +43,8 @@ from .const import (
     EVENT_TASK_DELETED,
     EVENT_TASK_TRIGGERED,
     EVENT_TASK_UPDATED,
+    REC_SENSOR,
+    REC_TRIGGERED,
 )
 from .store import _changed_fields as _store_changed_fields
 
@@ -101,15 +103,17 @@ class FakeHomeKeeper:
         )
 
     async def _trigger_task(self, call: ServiceCall) -> None:
-        # Arm a triggered (condition-driven) task: next_due -> now (due). Mirrors the
-        # real store.trigger_task — including rejecting non-triggered tasks — so glue
-        # tests catch a caller that arms a floating/fixed task by mistake.
+        # Arm a condition-driven task: next_due -> now (due). Mirrors the real
+        # store.trigger_task — including which recurrence types it accepts — so glue
+        # tests catch a caller that arms a floating/fixed task by mistake. Sensor tasks
+        # are accepted for the same reason the real store accepts them: Home Keeper's
+        # own watcher arms them through this path.
         task = self.tasks.get(call.data["task_id"])
         if task is None:
             return
-        if task.get("recurrence_type") != "triggered":
+        if task.get("recurrence_type") not in (REC_TRIGGERED, REC_SENSOR):
             raise models.TaskValidationError(
-                "trigger_task is only valid for triggered (condition-driven) tasks"
+                "trigger_task is only valid for triggered or sensor-based tasks"
             )
         task["next_due"] = dt_util.now().isoformat()
         self.hass.bus.async_fire(EVENT_TASK_TRIGGERED, events.task_event_data(task))

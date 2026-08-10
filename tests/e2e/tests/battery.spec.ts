@@ -29,11 +29,15 @@ test.describe('Home Keeper panel — triggered / battery tasks', () => {
     await expect(monitored).toBeVisible();
     // Collapsed by default (out of the way), so its cards aren't visible yet.
     await expect(monitored).not.toHaveAttribute('open', /.*/);
-    // The section count reflects the two dormant battery tasks.
-    await expect(monitored.locator('.hk-group-count')).toHaveText('2');
     // Expanding reveals the dormant tasks; a dormant one shows "Monitored" and has
     // no quick "Done" action (nothing to mark done until its battery goes low).
     await monitored.locator('summary').click();
+    // The badge counts what's actually in the section. Asserted against the rendered
+    // cards rather than a hard-coded number, so seeding an unrelated dormant task
+    // (e.g. a usage-meter task) doesn't fail this battery test.
+    const cardCount = await monitored.locator('ha-card.hk-card').count();
+    expect(cardCount).toBeGreaterThanOrEqual(2);
+    await expect(monitored.locator('.hk-group-count')).toHaveText(String(cardCount));
     const smoke = monitored.locator('ha-card.hk-card', { hasText: 'smoke alarm' }).first();
     await expect(smoke).toBeVisible();
     await expect(smoke).toContainText('Monitored');

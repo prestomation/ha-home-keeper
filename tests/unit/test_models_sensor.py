@@ -184,3 +184,133 @@ def test_convert_floating_to_sensor():
     assert updated["sensor"]["comparison"] == ">"
     # Converting to a sensor task leaves it dormant (no schedule-driven due date).
     assert updated["next_due"] is None
+
+
+# ── time backstop / unit label ───────────────────────────────────────────────
+def test_usage_accepts_time_backstop_and_unit_label():
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.printer_hours",
+            "mode": "usage",
+            "target": 300,
+            "unit": "h",
+            "also_every": {"interval": "6", "unit": "months"},
+        }
+    )
+    assert cfg["unit"] == "h"
+    assert cfg["also_every"] == {"interval": 6, "unit": "months"}
+    # Combinator defaults to "whichever comes first" — the common service interval.
+    assert cfg["combinator"] == "any"
+
+
+def test_usage_backstop_combinator_all_is_kept():
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.engine_hours",
+            "mode": "usage",
+            "target": 100,
+            "also_every": {"interval": 1, "unit": "months"},
+            "combinator": "all",
+        }
+    )
+    assert cfg["combinator"] == "all"
+
+
+def test_backstop_absent_leaves_no_keys():
+    cfg = m.normalize_sensor(
+        {"entity_id": "sensor.x", "mode": "usage", "target": 10, "also_every": None}
+    )
+    assert "also_every" not in cfg
+    assert "combinator" not in cfg
+
+
+@pytest.mark.parametrize(
+    "sensor",
+    [
+        # Backstop shape errors.
+        {"entity_id": "s.x", "mode": "usage", "target": 1, "also_every": "6 months"},
+        {"entity_id": "s.x", "mode": "usage", "target": 1, "also_every": {"unit": "x"}},
+        {
+            "entity_id": "s.x",
+            "mode": "usage",
+            "target": 1,
+            "also_every": {"interval": 0, "unit": "months"},
+        },
+        {
+            "entity_id": "s.x",
+            "mode": "usage",
+            "target": 1,
+            "also_every": {"interval": 1, "unit": "months"},
+            "combinator": "either",
+        },
+        # A unit label longer than the cap.
+        {"entity_id": "s.x", "mode": "usage", "target": 1, "unit": "x" * 17},
+        # Usage-only fields on a threshold binding.
+        {
+            "entity_id": "s.x",
+            "mode": "threshold",
+            "comparison": ">",
+            "value": 1,
+            "also_every": {"interval": 1, "unit": "months"},
+        },
+        {
+            "entity_id": "s.x",
+            "mode": "threshold",
+            "comparison": ">",
+            "value": 1,
+            "unit": "h",
+        },
+    ],
+)
+def test_invalid_backstop_rejected(sensor):
+    with pytest.raises(m.TaskValidationError):
+        m.normalize_sensor(sensor)
+
+
+def test_adding_a_backstop_preserves_the_accumulated_baseline():
+    task = m.build_task(
+        {
+            "name": "Nozzle",
+            "recurrence_type": "sensor",
+            "sensor": {"entity_id": "sensor.hrs", "mode": "usage", "target": 300},
+        },
+        now=NOW,
+    )
+    task["sensor"]["baseline"] = 660
+    updated = m.merge_update(
+        task,
+        {
+            "sensor": {
+                "entity_id": "sensor.hrs",
+                "mode": "usage",
+                "target": 300,
+                "also_every": {"interval": 6, "unit": "months"},
+            }
+        },
+        now=NOW + timedelta(days=1),
+    )
+    # Adding the calendar half must not zero the hours already accumulated.
+    assert updated["sensor"]["baseline"] == 660
+    assert updated["sensor"]["also_every"] == {"interval": 6, "unit": "months"}
+
+
+def test_sensor_task_accepts_a_seeded_last_completed_without_arming():
+    task = m.build_task(
+        {
+            "name": "Nozzle",
+            "recurrence_type": "sensor",
+            "sensor": {
+                "entity_id": "sensor.hrs",
+                "mode": "usage",
+                "target": 300,
+                "also_every": {"interval": 6, "unit": "months"},
+            },
+            "last_completed": NOW - timedelta(days=90),
+        },
+        now=NOW,
+    )
+    # The seed anchors the backstop clock (and shows in history) but must not arm it —
+    # only the watcher does that, once a half of the condition is actually met.
+    assert task["next_due"] is None
+    assert task["last_completed"] is not None
+    assert len(task["completions"]) == 1

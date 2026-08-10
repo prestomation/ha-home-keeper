@@ -174,12 +174,18 @@ class SensorTaskWatcher:
             if cfg is None:
                 continue
             reading = read_sensor_value(self._hass, cfg)
-            if reading is None:
-                continue  # unavailable / non-numeric — never arm on bad data
             if cfg.get("mode") == SENSOR_MODE_USAGE:
+                # A usage task with a time backstop must still be evaluable with no
+                # reading — an appliance that's been offline for a year still owes its
+                # annual service. Without one there's nothing a missing reading can
+                # decide, so skip rather than churn.
+                if reading is None and not cfg.get("also_every"):
+                    continue
                 if await self._evaluate_usage(tid, task, reading=reading, now=now):
                     armed_any = True
             else:
+                if reading is None:
+                    continue  # unavailable / non-numeric — never arm on bad data
                 if await self._evaluate_threshold(tid, task, reading=reading, now=now):
                     armed_any = True
         # Drop edge state for tasks that no longer exist so it can't leak.
@@ -192,7 +198,7 @@ class SensorTaskWatcher:
             await self._coordinator.async_request_refresh()
 
     async def _evaluate_usage(
-        self, tid: str, task: dict[str, Any], *, reading: float, now: Any
+        self, tid: str, task: dict[str, Any], *, reading: float | None, now: Any
     ) -> bool:
         decision = sensor_tasks.evaluate_usage(
             task,
