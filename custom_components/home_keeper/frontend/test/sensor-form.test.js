@@ -281,6 +281,56 @@ describe('usage tasks with a time backstop', () => {
     expect(taskSchema(meter).map((f) => f.name)).not.toContain('sensor_also_every');
   });
 
+  // The migration risk in one test: a task stored before the switch existed must open
+  // and re-save byte-identically if nobody touches it. Load -> form -> payload is the
+  // exact path an "open the edit form, change the name, save" edit takes, and it is
+  // where a wrong default silently rewrites someone's schedule.
+  it.each([
+    [
+      'a task with a backstop',
+      {
+        entity_id: 'sensor.printer_hours',
+        mode: 'usage',
+        target: 300,
+        unit: 'h',
+        also_every: { interval: 6, unit: 'months' },
+        combinator: 'all',
+      },
+    ],
+    [
+      'a pure meter with no backstop',
+      { entity_id: 'sensor.printer_hours', mode: 'usage', target: 300, unit: 'h' },
+    ],
+  ])('round-trips %s through the form untouched', (_label, sensor) => {
+    const stored = { id: 't1', name: 'Service', recurrence_type: 'sensor', sensor };
+    // taskFormData is what the form is seeded with; buildTaskPayload is what Save sends.
+    const reopened = { ...stored, ...taskFormData(stored) };
+    expect(buildTaskPayload(reopened).sensor).toEqual(sensor);
+  });
+
+  it('stops saving the backstop once the switch is turned off', () => {
+    // Turning the switch off only hides the interval, so the stale value is still in
+    // the edit state. Reading it instead of the switch would re-save the backstop the
+    // user just removed — the whole reason the switch is authoritative.
+    const stored = {
+      id: 't1',
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.printer_hours',
+        mode: 'usage',
+        target: 300,
+        also_every: { interval: 6, unit: 'months' },
+        combinator: 'any',
+      },
+    };
+    const edited = { ...stored, ...taskFormData(stored), sensor_backstop_on: false };
+    expect(edited.sensor_also_every).toBe(6); // the stale interval really is still there
+    const { sensor } = buildTaskPayload(edited);
+    expect(sensor.also_every).toBeUndefined();
+    expect(sensor.combinator).toBeUndefined();
+    expect(sensor.target).toBe(300);
+  });
+
   it('seeds a usable interval rather than zero for a fresh form', () => {
     // Switching the backstop on must not reveal three fields that describe nothing.
     expect(taskFormData({ recurrence_type: 'sensor' }).sensor_also_every).toBeGreaterThan(0);
