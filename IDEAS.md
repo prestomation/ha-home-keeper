@@ -401,6 +401,16 @@ lists were checked against each integration's HA docs page, not assumed.
   well-known maintenance items the hobbyist community already tracks by print-hours —
   closer to the existing *usage-based recurrence* idea above (seed a recurring task from
   cumulative print time) than a sensor-triggered glue.
+  **Correction (2026-08): ha-bambulab does expose a cumulative counter.**
+  `sensor.<printer>_total_usage_hours` is `TOTAL_INCREASING`, `DURATION`/hours,
+  `EntityCategory.DIAGNOSTIC`, and has no per-model `exists_fn` gate (it is only
+  `available_fn`-gated on the printer reporting `info.usage_hours`). It counts *printer
+  usage* hours rather than strictly print hours, which is close enough for a service
+  interval and is exactly what the third-party
+  [`maintenance-tracker`](https://github.com/BambamNZ/maintenance-tracker) wraps. So no
+  synthesized `utility_meter`/`history_stats` helper is needed — the glue can bind a
+  `recurrence_type: "sensor"` / `mode: "usage"` task straight to it. See
+  `docs/USAGE_MAINTENANCE_GAP_ANALYSIS.md`.
   Marketing target: ["3D Printer Maintenance
   Reminder"](https://community.home-assistant.io/t/3d-printer-maintenance-reminder/643313)
   — someone already asking for exactly this; Bambu Lab owners cluster in
@@ -557,6 +567,23 @@ preserved.
     scan-to-complete. Feature requests still open: multi-stage filters (multiple
     components with different intervals on one unit) and numeric countdown entities for
     dashboard progress bars.
+  - [`maintenance-tracker` — BambamNZ](https://github.com/BambamNZ/maintenance-tracker):
+    a leaner take on the same pattern — wrap any cumulative sensor, set an hours **and/or**
+    days threshold with an AND/OR combinator, get a *service due* binary sensor, four
+    numeric sensors (hours/days since, hours/days remaining) and a reset button, one
+    config entry per schedule. Its two ideas Home Keeper lacked are now shipped in
+    0.12.0: the **hours-or-days combinator** (`sensor.also_every` + `combinator`) and
+    **progress as data** (`usage_*` attributes + the panel's meter bar). See
+    `docs/USAGE_MAINTENANCE_GAP_ANALYSIS.md` for the full teardown, the remaining gaps
+    (predicted `next_due`, `mode: "count"`), and the use cases each would unlock.
+  - **Multi-stage filters** — Maintenance Supporter's open ask above — is *already*
+    expressible in Home Keeper: several tasks can bind to the same meter entity with
+    different targets, which is one of the things a one-entry-per-schedule design makes
+    awkward. Worth saying out loud in marketing copy.
+  - **Numeric countdown entities for dashboard progress bars** — the other open ask — is
+    partly answered by the `usage_remaining` / `usage_percent` attributes on a task's
+    next-due sensor. If people want them as first-class *entities* rather than
+    attributes, that's a small, well-scoped follow-up.
 
 - **Long-term test-date tracking where `last_changed` is unreliable.**
   ["Smoke detector test reminder (how to perform long-term state monitoring)?" — Configuration](https://community.home-assistant.io/t/smoke-detector-test-reminder-how-to-perform-long-term-state-monitoring/440461):

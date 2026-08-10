@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.11.0"
+PANEL_VERSION = "0.12.0b1"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -210,6 +210,18 @@ RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED, REC_TRIGGERED, REC_ONE_OFF, REC_SEN
 SENSOR_MODE_USAGE = "usage"  # meter: arm when reading - baseline >= target
 SENSOR_MODE_THRESHOLD = "threshold"  # arm on a numeric crossing of value
 SENSOR_MODES = [SENSOR_MODE_USAGE, SENSOR_MODE_THRESHOLD]
+
+# How a usage task's meter target combines with its optional time backstop
+# (``sensor["also_every"]``): ``any`` = whichever comes first (the common
+# "every 300 hours or 6 months" service interval), ``all`` = both must be met
+# (a "no earlier than" floor, e.g. a monthly test run that also needs 100 hours).
+SENSOR_COMBINATOR_ANY = "any"
+SENSOR_COMBINATOR_ALL = "all"
+SENSOR_COMBINATORS = [SENSOR_COMBINATOR_ANY, SENSOR_COMBINATOR_ALL]
+
+# Max length of a usage binding's optional ``unit`` (a display label only — the
+# meter arithmetic is unit-agnostic, so this exists to caption "300" as "300 h").
+MAX_SENSOR_UNIT_LEN = 16
 
 # Threshold comparison operators (stored verbatim in ``task["sensor"]["comparison"]``).
 SENSOR_CMP_GE = ">="

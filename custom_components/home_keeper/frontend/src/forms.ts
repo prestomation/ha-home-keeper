@@ -7,9 +7,11 @@ import type {
   NotifyStyle,
   Profile,
   SensorBinding,
+  SensorCombinator,
   SensorComparison,
   SensorMode,
   Task,
+  Unit,
 } from './types';
 
 /**
@@ -201,7 +203,29 @@ export function taskSchema(
               { name: 'sensor_value', required: true, selector: { number: { mode: 'box' } } },
               { name: 'sensor_for', selector: selNumber(0) },
             ]
-          : [{ name: 'sensor_target', required: true, selector: selNumber(0) } as FormField]),
+          : [
+              { name: 'sensor_target', required: true, selector: selNumber(0) } as FormField,
+              { name: 'sensor_unit', selector: selText() } as FormField,
+              // The time backstop: leave the interval at 0 for a pure meter. A real
+              // service interval is usually "every N hours *or* every M months",
+              // and without this half a machine that sits idle never comes due.
+              { name: 'sensor_also_every', selector: selNumber(0) } as FormField,
+              {
+                name: 'sensor_also_unit',
+                selector: selSelect([
+                  { value: 'days', label: t('opt.unit.days') },
+                  { value: 'weeks', label: t('opt.unit.weeks') },
+                  { value: 'months', label: t('opt.unit.months') },
+                ]),
+              } as FormField,
+              {
+                name: 'sensor_combinator',
+                selector: selSelect([
+                  { value: 'any', label: t('opt.sensor_combinator.any') },
+                  { value: 'all', label: t('opt.sensor_combinator.all') },
+                ]),
+              } as FormField,
+            ]),
         { name: 'sensor_attribute', selector: selText() },
       ]
     : [];
@@ -295,6 +319,10 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     sensor_comparison: sd.sensor_comparison ?? task.sensor?.comparison ?? '>=',
     sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
     sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
+    sensor_unit: sd.sensor_unit ?? task.sensor?.unit ?? '',
+    sensor_also_every: sd.sensor_also_every ?? task.sensor?.also_every?.interval ?? 0,
+    sensor_also_unit: sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months',
+    sensor_combinator: sd.sensor_combinator ?? task.sensor?.combinator ?? 'any',
     device_id: task.device_id ?? undefined,
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
@@ -375,6 +403,21 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     if (attribute) sensor.attribute = attribute;
     if (mode === 'usage') {
       sensor.target = Number(sd.sensor_target ?? task.sensor?.target) || 0;
+      const unit = String(sd.sensor_unit ?? task.sensor?.unit ?? '').trim();
+      if (unit) sensor.unit = unit;
+      // 0 (or blank) means "no time backstop" — the field doubles as its own toggle,
+      // so the form stays a flat list rather than growing a checkbox to hide a pair.
+      const alsoEvery = Number(sd.sensor_also_every ?? task.sensor?.also_every?.interval) || 0;
+      if (alsoEvery > 0) {
+        sensor.also_every = {
+          interval: alsoEvery,
+          unit: (String(sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months') ||
+            'months') as Unit,
+        };
+        sensor.combinator = (String(
+          sd.sensor_combinator ?? task.sensor?.combinator ?? 'any',
+        ) || 'any') as SensorCombinator;
+      }
     } else {
       sensor.comparison = (sd.sensor_comparison as SensorComparison) ||
         task.sensor?.comparison ||
@@ -474,14 +517,24 @@ export function sensorHintText(
   const target = Number(rawTarget);
   if (rawTarget == null || rawTarget === '' || Number.isNaN(target) || target <= 0) return '';
   const targetStr = `${target}${unit}`;
-  if (ctx.reading == null || Number.isNaN(ctx.reading)) {
-    return t('hint.sensor.usageNoReading', { target: targetStr });
-  }
-  return t('hint.sensor.usage', {
-    reading: `${ctx.reading}${unit}`,
-    due: `${ctx.reading + target}${unit}`,
-    target: targetStr,
-  });
+  const base =
+    ctx.reading == null || Number.isNaN(ctx.reading)
+      ? t('hint.sensor.usageNoReading', { target: targetStr })
+      : t('hint.sensor.usage', {
+          reading: `${ctx.reading}${unit}`,
+          due: `${ctx.reading + target}${unit}`,
+          target: targetStr,
+        });
+  const alsoEvery = Number(sd.sensor_also_every ?? task.sensor?.also_every?.interval) || 0;
+  if (alsoEvery <= 0) return base;
+  const alsoUnit = String(sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months');
+  const every = `${alsoEvery} ${t(`opt.unit.${alsoUnit}`)}`;
+  const combinator = String(sd.sensor_combinator ?? task.sensor?.combinator ?? 'any');
+  return `${base} ${
+    combinator === 'all'
+      ? t('hint.sensor.backstopAll', { every })
+      : t('hint.sensor.backstopAny', { every })
+  }`;
 }
 
 /**

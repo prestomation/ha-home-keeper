@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Définir le compteur de la tâche",
+      "description": "Réancre la valeur de départ d'une tâche de capteur d'usage (compteur) sans enregistrer d'exécution. À utiliser quand l'entretien a été fait avant que Home Keeper ne le surveille, ou quand le compteur associé a été remplacé ou remis à zéro. Sans valeur de départ, l'ancrage se fait sur la mesure actuelle du capteur. Valable uniquement pour une tâche de capteur en mode usage.",
+      "fields": {
+        "task_id": {
+          "name": "ID de la tâche",
+          "description": "L'id de la tâche de capteur d'usage à réancrer."
+        },
+        "baseline": {
+          "name": "Valeur de départ",
+          "description": "La valeur du compteur à partir de laquelle compter. Laissez vide pour utiliser la mesure actuelle du capteur associé."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Reporter la tâche",
       "description": "Reporter la date d'échéance d'une tâche sans enregistrer d'achèvement ni avancer sa récurrence.",

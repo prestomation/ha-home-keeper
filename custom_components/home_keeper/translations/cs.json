@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Nastavit měřidlo úkolu",
+      "description": "Znovu ukotví výchozí hodnotu úkolu se snímačem spotřeby (měřidlem), aniž by zaznamenal splnění. Použijte ji, když byla práce hotová dřív, než ji Home Keeper sledoval, nebo když bylo připojené měřidlo vyměněno či vynulováno. Vynecháte-li výchozí hodnotu, ukotví se na aktuální hodnotu snímače. Platí pouze pro úkol se snímačem v režimu spotřeby.",
+      "fields": {
+        "task_id": {
+          "name": "ID úkolu",
+          "description": "ID úkolu se snímačem spotřeby, který se má znovu ukotvit."
+        },
+        "baseline": {
+          "name": "Výchozí hodnota",
+          "description": "Hodnota měřidla, od které se počítá. Ponechte prázdné pro použití aktuální hodnoty připojeného snímače."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Odložit úkol",
       "description": "Odložit datum splatnosti úkolu bez zaznamenání dokončení nebo posunutí jeho opakování.",

@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Angiv opgavemåler",
+      "description": "Forankrer en forbrugsopgaves (målers) udgangspunkt på ny uden at registrere en udførelse. Brug den, når arbejdet blev udført, før Home Keeper holdt øje, eller når selve den tilknyttede måler er udskiftet eller nulstillet. Udelades udgangspunktet, forankres der til sensorens aktuelle aflæsning. Gælder kun for en sensoropgave i forbrugstilstand.",
+      "fields": {
+        "task_id": {
+          "name": "Opgave-ID",
+          "description": "ID'et på den forbrugsopgave, der skal forankres på ny."
+        },
+        "baseline": {
+          "name": "Udgangspunkt",
+          "description": "Måleraflæsningen, der tælles fra. Lad feltet stå tomt for at bruge den tilknyttede sensors aktuelle aflæsning."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Udsæt opgave",
       "description": "Udskyd en opgaves forfaldsdato uden at registrere en fuldførelse eller fremrykke dens gentagelse.",

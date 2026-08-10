@@ -192,3 +192,112 @@ describe('sensorHintText — live "when is it due" primer', () => {
     ).toBe('');
   });
 });
+
+describe('usage tasks with a time backstop', () => {
+  const backstopTask = {
+    recurrence_type: 'sensor',
+    sensor_mode: 'usage',
+    sensor_entity_id: 'sensor.printer_hours',
+    sensor_target: 300,
+    sensor_unit: 'h',
+    sensor_also_every: 6,
+    sensor_also_unit: 'months',
+    sensor_combinator: 'any',
+  };
+
+  it('offers the unit label and backstop fields in usage mode only', () => {
+    const usage = taskSchema({ recurrence_type: 'sensor' }).map((f) => f.name);
+    expect(usage).toContain('sensor_unit');
+    expect(usage).toContain('sensor_also_every');
+    expect(usage).toContain('sensor_also_unit');
+    expect(usage).toContain('sensor_combinator');
+    const threshold = taskSchema({
+      recurrence_type: 'sensor',
+      sensor_mode: 'threshold',
+    }).map((f) => f.name);
+    expect(threshold).not.toContain('sensor_also_every');
+    expect(threshold).not.toContain('sensor_unit');
+  });
+
+  it('assembles the backstop into the payload', () => {
+    const { sensor } = buildTaskPayload(backstopTask);
+    expect(sensor).toEqual({
+      entity_id: 'sensor.printer_hours',
+      mode: 'usage',
+      target: 300,
+      unit: 'h',
+      also_every: { interval: 6, unit: 'months' },
+      combinator: 'any',
+    });
+  });
+
+  it('treats a zero interval as "no backstop"', () => {
+    const { sensor } = buildTaskPayload({ ...backstopTask, sensor_also_every: 0 });
+    expect(sensor.also_every).toBeUndefined();
+    expect(sensor.combinator).toBeUndefined();
+  });
+
+  it('flattens a loaded backstop binding back into form fields', () => {
+    const data = taskFormData({
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.printer_hours',
+        mode: 'usage',
+        target: 300,
+        unit: 'h',
+        also_every: { interval: 6, unit: 'months' },
+        combinator: 'all',
+      },
+    });
+    expect(data.sensor_unit).toBe('h');
+    expect(data.sensor_also_every).toBe(6);
+    expect(data.sensor_also_unit).toBe('months');
+    expect(data.sensor_combinator).toBe('all');
+  });
+
+  it('summarises "every N units of use, or every M months"', () => {
+    const summary = recurrenceSummary({
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.printer_hours',
+        mode: 'usage',
+        target: 300,
+        unit: 'h',
+        also_every: { interval: 6, unit: 'months' },
+        combinator: 'any',
+      },
+    });
+    expect(summary).toContain('300 h');
+    expect(summary).toContain('6 months');
+    expect(summary).toContain('or');
+  });
+
+  it('summarises the "both must be met" variant differently', () => {
+    const summary = recurrenceSummary({
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.engine_hours',
+        mode: 'usage',
+        target: 100,
+        also_every: { interval: 1, unit: 'months' },
+        combinator: 'all',
+      },
+    });
+    expect(summary).toContain('and every 1 months');
+  });
+
+  it('extends the live hint with the backstop clause', () => {
+    const hint = sensorHintText(backstopTask, { reading: 660, unit: 'h' });
+    expect(hint).toContain('960');
+    expect(hint).toContain('6 months');
+    expect(hint).toContain('whichever comes first');
+  });
+
+  it('leaves the hint alone when there is no backstop', () => {
+    const hint = sensorHintText(
+      { ...backstopTask, sensor_also_every: 0 },
+      { reading: 660, unit: 'h' },
+    );
+    expect(hint).not.toContain('whichever comes first');
+  });
+});

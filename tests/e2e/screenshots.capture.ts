@@ -170,6 +170,26 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
+  // 1h3. Usage-meter task detail with a time backstop. The seeded "Replace printer
+  // nozzle" task meters `sensor.demo_printer_hours` (a fixed 780 h) against a
+  // baseline of 660 with a 300 h target, so it renders a deterministic "120 of 300 h
+  // used" with the progress bar, the "180 h to go" line, and the "also due every 6
+  // months" backstop note.
+  // It's dormant (the meter hasn't reached its target), so it lives in the collapsed
+  // Monitored group — expand that before clicking through.
+  const monitoredForUsage = panel.locator(
+    'details.hk-group[data-group-key="status:monitored"]',
+  );
+  if (!(await monitoredForUsage.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await monitoredForUsage.locator('summary').click();
+  }
+  await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
+  await expect(panel.locator('.hk-meter').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/14b-panel-usage-progress.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
   // 37. Battery type chip on the task list — the active battery task shows its
   // "2× AAA" chip (set by the Battery Notes glue as task_chips) right in the card row.
   const batteryCard = panel.locator('.hk-card[data-id="task_door_battery"]');
@@ -287,6 +307,18 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/30-panel-create-sensor-task.png`, fullPage: true });
+
+  // 30b. The same usage form with a **time backstop** — "every 100 h, or every 6
+  // months, whichever comes first", which is how manufacturers actually write a
+  // service interval. The "Or every" number is the 2nd number selector (after
+  // Target); leaving it at 0 keeps the task a pure meter.
+  await fillNumber(panel.locator('#hk-task-form'), 1, '6');
+  await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/30b-panel-sensor-backstop.png`, fullPage: true });
+  // Put it back to a pure meter so the threshold shot below starts from a clean form.
+  await fillNumber(panel.locator('#hk-task-form'), 1, '0');
 
   // 31. The same form switched to threshold mode — a comparison + value, plus an
   // optional hold (seconds) to debounce. The task arms on the crossing. (The sensor

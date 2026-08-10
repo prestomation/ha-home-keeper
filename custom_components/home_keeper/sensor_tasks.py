@@ -15,7 +15,10 @@ Two modes:
   sensor *units*: armed when ``reading - baseline >= target``. ``baseline`` is the
   reading captured at creation / last completion (the store resets it on completion);
   a reading below the baseline means the meter was reset/replaced, so we re-baseline
-  rather than stay stuck. Stateless beyond the persisted ``baseline``.
+  rather than stay stuck. Stateless beyond the persisted ``baseline``. An optional
+  ``also_every`` adds a **time backstop** so a usage task can express a real service
+  interval — "every 300 hours *or* 6 months, whichever comes first" — with
+  ``combinator`` choosing whichever-first (``any``) or both-required (``all``).
 * ``threshold`` — armed on the ``false -> true`` rising edge of a comparison against
   a fixed value, after an optional ``for_seconds`` hold. The "was the condition true
   last tick" flag and the crossing timestamp are carried by the caller (held in
@@ -27,6 +30,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from . import recurrence
 from .const import (
     REC_SENSOR,
     SENSOR_CMP_EQ,
@@ -35,6 +39,7 @@ from .const import (
     SENSOR_CMP_LE,
     SENSOR_CMP_LT,
     SENSOR_CMP_NE,
+    SENSOR_COMBINATOR_ALL,
 )
 
 # Decision actions returned by the evaluators (the store/watcher dispatches on these):
@@ -88,10 +93,36 @@ def compare(reading: float, comparison: str, value: float) -> bool:
     raise ValueError(f"unknown comparison: {comparison!r}")
 
 
+def backstop_due(task: dict[str, Any], cfg: dict[str, Any]) -> datetime | None:
+    """When a usage task's time backstop comes due, or ``None`` if it has none.
+
+    The backstop measures time **since the last service**, so it is anchored to
+    ``last_completed`` and falls back to the task's ``created`` timestamp while it has
+    never been completed. (It is deliberately *not* anchored to the meter baseline: a
+    meter reset — a replaced controller, a rolled-over counter — is not a service, and
+    must not silently push the calendar half of the interval out.)
+    """
+    also_every = cfg.get("also_every")
+    if not isinstance(also_every, dict):
+        return None
+    raw_anchor = task.get("last_completed") or task.get("created")
+    if not raw_anchor:
+        return None
+    try:
+        anchor = recurrence._parse(raw_anchor)
+    except ValueError:
+        return None
+    if anchor is None:
+        return None
+    return recurrence.add_interval(
+        anchor, int(also_every["interval"]), str(also_every["unit"])
+    )
+
+
 def evaluate_usage(
     task: dict[str, Any],
     *,
-    reading: float,
+    reading: float | None,
     reset_candidate: float | None = None,
     now: datetime,
 ) -> dict[str, Any]:
@@ -108,41 +139,63 @@ def evaluate_usage(
     * ``{"action": None, "reset_candidate": <reading>}`` — a *first* below-baseline
       reading. Don't re-baseline yet: a momentary sensor blip to 0 (or any transient
       dip) looks identical to a real reset, so we require it to persist for two ticks.
-    * ``{"action": "arm", "reset_candidate": None}`` — dormant and the meter has
-      advanced ``target`` units past the baseline.
+    * ``{"action": "arm", "reset_candidate": None}`` — dormant and the task's condition
+      is met: the meter advanced ``target`` units past the baseline, and/or the time
+      backstop elapsed, per ``combinator``.
     * ``{"action": None, "reset_candidate": None}`` — nothing to do; any pending
       reset candidate is cleared because this reading is at/above the baseline.
 
     Re-baselining is checked before arming, so a meter reset can never both reset and
     arm in the same evaluation.
+
+    ``reading`` is **optional**: a task carrying a time backstop must still be able to
+    come due while its bound entity is unavailable (a printer that's been unplugged for
+    a year still needs its annual service). With no reading, the meter half simply can't
+    be met and the baseline is left alone.
     """
     cfg = sensor_config(task)
     assert cfg is not None
     target = float(cfg["target"])
     raw_baseline = cfg.get("baseline")
-    if raw_baseline is None:
-        return {
-            "action": ACTION_REBASELINE,
-            "baseline": reading,
-            "reset_candidate": None,
-        }
-    baseline = float(raw_baseline)
-    if reading < baseline:
-        # Meter reset / rolled over / part replaced — but debounce it: a single
-        # below-baseline reading may be a transient blip. Only re-anchor once a
-        # prior tick already saw a below-baseline reading.
-        if reset_candidate is not None:
+    if reading is not None:
+        if raw_baseline is None:
             return {
                 "action": ACTION_REBASELINE,
                 "baseline": reading,
                 "reset_candidate": None,
             }
-        return {"action": None, "reset_candidate": reading}
-    # At/above baseline: any pending reset candidate was a blip — clear it.
+        if reading < float(raw_baseline):
+            # Meter reset / rolled over / part replaced — but debounce it: a single
+            # below-baseline reading may be a transient blip. Only re-anchor once a
+            # prior tick already saw a below-baseline reading.
+            if reset_candidate is not None:
+                return {
+                    "action": ACTION_REBASELINE,
+                    "baseline": reading,
+                    "reset_candidate": None,
+                }
+            return {"action": None, "reset_candidate": reading}
+        # At/above baseline: any pending reset candidate was a blip — clear it.
+        reset_candidate = None
+
+    usage_met = (
+        reading is not None
+        and raw_baseline is not None
+        and (reading - float(raw_baseline)) >= target
+    )
+    due_at = backstop_due(task, cfg)
+    time_met = due_at is not None and now >= due_at
+    if due_at is None:
+        met = usage_met
+    elif cfg.get("combinator") == SENSOR_COMBINATOR_ALL:
+        met = usage_met and time_met
+    else:
+        met = usage_met or time_met
+
     armed = task.get("next_due") is not None
-    if not armed and (reading - baseline) >= target:
+    if not armed and met:
         return {"action": ACTION_ARM, "reset_candidate": None}
-    return {"action": None, "reset_candidate": None}
+    return {"action": None, "reset_candidate": reset_candidate}
 
 
 def evaluate_threshold(

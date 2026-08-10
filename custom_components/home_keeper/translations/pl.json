@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Ustaw licznik zadania",
+      "description": "Ponownie zakotwicza wartość początkową zadania z czujnikiem zużycia (licznikiem) bez zapisywania wykonania. Przydatne, gdy pracę wykonano, zanim Home Keeper zaczął ją śledzić, albo gdy powiązany licznik wymieniono lub wyzerowano. Pominięcie wartości początkowej zakotwicza ją na bieżącym odczycie czujnika. Działa wyłącznie dla zadania z czujnikiem w trybie zużycia.",
+      "fields": {
+        "task_id": {
+          "name": "Identyfikator zadania",
+          "description": "Identyfikator zadania z czujnikiem zużycia do ponownego zakotwiczenia."
+        },
+        "baseline": {
+          "name": "Wartość początkowa",
+          "description": "Odczyt licznika, od którego liczone jest zużycie. Pozostaw puste, aby użyć bieżącego odczytu powiązanego czujnika."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Odłóż zadanie",
       "description": "Odrocz termin zadania bez zapisywania ukończenia ani przesuwania jego powtarzania.",

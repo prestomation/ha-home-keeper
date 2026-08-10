@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Imposta contatore attività",
+      "description": "Riancora il valore di partenza di un'attività con sensore di utilizzo (contatore) senza registrare un completamento. Utile quando il lavoro è stato svolto prima che Home Keeper lo monitorasse, o quando il contatore collegato è stato sostituito o azzerato. Omettendo il valore di partenza si ancora alla lettura attuale del sensore. Valido solo per un'attività con sensore in modalità utilizzo.",
+      "fields": {
+        "task_id": {
+          "name": "ID attività",
+          "description": "L'id dell'attività con sensore di utilizzo da riancorare."
+        },
+        "baseline": {
+          "name": "Valore di partenza",
+          "description": "La lettura del contatore da cui contare. Lascia vuoto per usare la lettura attuale del sensore collegato."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Posponi attività",
       "description": "Rinvia la data di scadenza di un'attività senza registrare un completamento né far avanzare la ricorrenza.",

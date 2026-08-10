@@ -9,6 +9,7 @@ subscription + evaluation path that the pure unit tests can't.
 """
 
 import time
+from datetime import UTC, datetime, timedelta
 
 from conftest import HA_URL, call_service
 
@@ -132,3 +133,174 @@ def test_sensor_task_completable_unlike_problem_sync(ha):
         )
     finally:
         _delete(ha, task_id)
+
+
+def _add_backstop_task(ha, *, target, also_every, combinator, last_completed=None):
+    payload = {
+        "name": "Backstop test",
+        "recurrence_type": "sensor",
+        "sensor": {
+            "entity_id": METER,
+            "mode": "usage",
+            "target": target,
+            "unit": "h",
+            "also_every": also_every,
+            "combinator": combinator,
+        },
+    }
+    if last_completed:
+        payload["last_completed"] = last_completed
+    resp = call_service(ha, "home_keeper", "add_task", payload, return_response=True)
+    return resp.get("service_response", resp)["task_id"]
+
+
+def test_time_backstop_arms_without_the_meter_moving(ha):
+    # Seed "last serviced two days ago" against a one-day backstop, so the calendar
+    # half is already elapsed at creation. The meter never advances: only the time
+    # half can arm this task.
+    _set_meter(ha, 500)
+    stale = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+    task_id = _add_backstop_task(
+        ha,
+        target=100000,  # unreachable by the meter within the test
+        also_every={"interval": 1, "unit": "days"},
+        combinator="any",
+        last_completed=stale,
+    )
+    try:
+        # Two nudges, both far below target. A usage task created *after* Home Keeper
+        # started has no meter baseline yet — the first evaluation of the bound sensor
+        # stamps it (and does nothing else), so it takes a second state change to reach
+        # the arming branch. Neither nudge comes close to the target, so if the task
+        # arms it can only be the backstop that did it.
+        _set_meter(ha, 501)
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 501)
+        _set_meter(ha, 502)
+        armed = _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+        assert armed["sensor"]["also_every"] == {"interval": 1, "unit": "days"}
+        assert armed["sensor"]["unit"] == "h"
+
+        # Completing it re-anchors both halves: dormant again, baseline at the reading.
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        cleared = _poll_task(ha, task_id, lambda t: t.get("next_due") is None)
+        assert cleared["sensor"]["baseline"] == 502
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)
+
+
+def test_combinator_all_holds_the_task_until_both_halves_are_met(ha):
+    # Meter target is trivially reachable, but the calendar half is a year out, so
+    # "both must be met" keeps it dormant.
+    _set_meter(ha, 0)
+    task_id = _add_backstop_task(
+        ha,
+        target=10,
+        also_every={"interval": 12, "unit": "months"},
+        combinator="all",
+    )
+    try:
+        _poll_task(
+            ha, task_id, lambda t: t.get("sensor", {}).get("baseline") is not None
+        )
+        _set_meter(ha, 100)  # meter half satisfied several times over
+        # Give the watcher time to see it and (correctly) do nothing.
+        time.sleep(5)
+        task = _get_task(ha, task_id)
+        assert task is not None and task["next_due"] is None, (
+            "combinator 'all' must not arm on the meter alone"
+        )
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)
+
+
+def test_set_task_meter_reanchors_without_recording_a_completion(ha):
+    _set_meter(ha, 1000)
+    task_id = _add_sensor_task(ha, {"entity_id": METER, "mode": "usage", "target": 50})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 1000)
+        # Re-anchor explicitly (as if the work was done before Home Keeper watched).
+        call_service(
+            ha, "home_keeper", "set_task_meter", {"task_id": task_id, "baseline": 900}
+        )
+        moved = _poll_task(ha, task_id, lambda t: t["sensor"].get("baseline") == 900)
+        assert moved["completions"] == []  # no completion was recorded
+        assert moved["last_completed"] is None
+
+        # Omitting the baseline anchors to the sensor's live reading instead.
+        call_service(ha, "home_keeper", "set_task_meter", {"task_id": task_id})
+        live = _poll_task(ha, task_id, lambda t: t["sensor"].get("baseline") == 1000)
+        assert live["completions"] == []
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)
+
+
+def _a_seeded_device_id(ha):
+    """A device_id from a seeded task, so ours can own per-task entities.
+
+    Home Keeper creates the per-task ``sensor.*_next_due`` entity only for a
+    device-attached task (``coordinator.task_has_entities``), which is where the usage
+    attributes ride. Rather than hard-code a registry id, reuse whatever device the
+    seeded fixtures already attached a task to.
+    """
+    for task in _list_tasks(ha):
+        if task.get("device_id"):
+            return task["device_id"]
+    raise AssertionError("no seeded device-attached task to borrow a device from")
+
+
+def test_usage_progress_attributes_land_on_the_next_due_sensor(ha):
+    _set_meter(ha, 1000)
+    device_id = _a_seeded_device_id(ha)
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "Usage attributes test",
+            "recurrence_type": "sensor",
+            "device_id": device_id,
+            "sensor": {
+                "entity_id": METER,
+                "mode": "usage",
+                "target": 200,
+                "unit": "h",
+                "also_every": {"interval": 6, "unit": "months"},
+                "combinator": "any",
+            },
+        },
+        return_response=True,
+    )
+    task_id = resp.get("service_response", resp)["task_id"]
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 1000)
+        _set_meter(ha, 1050)  # 50 of 200 used
+
+        def _attrs():
+            for state in ha.get(f"{HA_URL}/api/states").json():
+                attrs = state.get("attributes", {})
+                if attrs.get("task_id") == task_id and state["entity_id"].startswith(
+                    "sensor."
+                ):
+                    return attrs
+            return None
+
+        deadline = time.monotonic() + 60
+        attrs = None
+        while time.monotonic() < deadline:
+            attrs = _attrs()
+            if attrs and attrs.get("usage_consumed") == 50:
+                break
+            time.sleep(1)
+        assert attrs is not None, "no next-due sensor found for the task"
+        assert attrs["usage_target"] == 200
+        assert attrs["usage_consumed"] == 50
+        assert attrs["usage_remaining"] == 150
+        assert attrs["usage_percent"] == 25.0
+        assert attrs["usage_unit"] == "h"
+        assert attrs["backstop_due"]  # a real projected timestamp
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)

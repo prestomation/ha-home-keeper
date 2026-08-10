@@ -36,6 +36,7 @@ from . import (
     notifier,
     options,
     panel,
+    sensor_tasks,
     websocket_api,
 )
 from .assets import AssetValidationError
@@ -51,6 +52,7 @@ from .const import (
     OPTION_PROFILES,
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
+    SENSOR_MODE_USAGE,
 )
 from .coordinator import (
     HomeKeeperCoordinator,
@@ -60,7 +62,7 @@ from .coordinator import (
 )
 from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
-from .sensor_watcher import SensorTaskWatcher
+from .sensor_watcher import SensorTaskWatcher, read_sensor_value
 from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -152,6 +154,15 @@ TASK_ID_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
 # Arm a condition-driven (triggered) task so it reads as due-now. The owner-facing
 # counterpart to complete_task (which clears it back to dormant). See INTEGRATING.md.
 TRIGGER_TASK_SCHEMA = vol.Schema({vol.Required("task_id"): cv.string})
+# Re-anchor a usage (meter) task's baseline without recording a completion — the
+# "I already did this before Home Keeper was watching" / "the meter was replaced"
+# escape hatch. Omitting ``baseline`` re-anchors to the bound entity's live reading.
+SET_TASK_METER_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Optional("baseline"): vol.Coerce(float),
+    }
+)
 # Snooze: defer a task's next due date without recording a completion or advancing
 # recurrence. ``hours`` is the deferral (defaults to a day). ``origin`` is echoed in
 # the home_keeper_task_snoozed event for loop prevention (e.g. an actionable
@@ -787,6 +798,43 @@ def _register_services(hass: HomeAssistant) -> None:
         # unchanged, so a refresh is enough — no entry reload (mirrors complete_task).
         await coord.async_request_refresh()
 
+    async def handle_set_task_meter(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task = coord.store.get_tasks().get(call.data["task_id"])
+        if task is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": call.data["task_id"]},
+            )
+        cfg = sensor_tasks.sensor_config(task)
+        if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={
+                    "error": "set_task_meter is only valid for a usage sensor task"
+                },
+            )
+        baseline = call.data.get("baseline")
+        if baseline is None:
+            baseline = read_sensor_value(hass, cfg)
+            if baseline is None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="invalid_task",
+                    translation_placeholders={
+                        "error": (
+                            "the bound sensor has no numeric reading right now; "
+                            "pass an explicit baseline"
+                        )
+                    },
+                )
+        await coord.store.set_sensor_baseline(
+            call.data["task_id"], float(baseline), silent=False
+        )
+        await coord.async_request_refresh()
+
     async def handle_set_task_consumable(call: ServiceCall) -> None:
         coord = _coordinator()
         try:
@@ -1129,6 +1177,9 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, "trigger_task", handle_trigger_task, TRIGGER_TASK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "set_task_meter", handle_set_task_meter, SET_TASK_METER_SCHEMA
     )
     hass.services.async_register(
         DOMAIN, "snooze_task", handle_snooze_task, SNOOZE_TASK_SCHEMA

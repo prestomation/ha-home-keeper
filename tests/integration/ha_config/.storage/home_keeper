@@ -669,6 +669,42 @@
         "completion_required_fields": [],
         "due": "2026-07-30T16:33:15+00:00",
         "next_due": null
+      },
+      "task_nozzle_usage": {
+        "id": "task_nozzle_usage",
+        "name": "Replace printer nozzle",
+        "notes": "Every 300 print hours, or every 6 months — whichever comes first.",
+        "recurrence_type": "sensor",
+        "sensor": {
+          "entity_id": "sensor.demo_printer_hours",
+          "mode": "usage",
+          "target": 300.0,
+          "unit": "h",
+          "baseline": 660.0,
+          "also_every": {
+            "interval": 6,
+            "unit": "months"
+          },
+          "combinator": "any"
+        },
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2026-06-01T09:00:00-04:00",
+        "last_completed": "2026-06-01T09:00:00-04:00",
+        "next_due": null,
+        "completions": [
+          {
+            "ts": "2026-06-01T09:00:00-04:00"
+          }
+        ],
+        "labels": [],
+        "card_links": [],
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "source": null,
+        "managed_by": null,
+        "task_chips": []
       }
     },
     "assets": {

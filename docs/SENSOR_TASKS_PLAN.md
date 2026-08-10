@@ -305,15 +305,26 @@ Kept out of v1 to keep it reviewable; each has a natural seam:
 - **Predicted `next_due` for usage** — derive a real future due date from the
   historical rate of change (using `completions[]` cadence) so usage tasks feed
   "due-soon"/calendar like time-based ones. Pure addition to the evaluator.
+  *Now the highest-value remaining gap*: with `also_every` shipped, a usage task's
+  time half already has a computable due date (`backstop_due`), so the calendar /
+  due-soon exclusion is the last thing keeping these tasks invisible until the
+  instant they fire. See `docs/USAGE_MAINTENANCE_GAP_ANALYSIS.md`.
+
+- **State-change counting** is the next-largest unlock after that — see the same
+  analysis for the use cases it gates ("descale every 50 cycles").
 - **`clear_on_recover`** — opt a threshold task into mirror-style behaviour
   (auto-clear when the reading recovers), bridging toward how the problem-sensor
   sync behaves. One flag + one evaluator branch.
 - **Unavailable-entity repair issues** — surface a Home Assistant repair when a
   bound entity goes missing past a grace period (reuse the `managed_by` orphan
   spirit).
-- **Time-based fallback safety net** — let a sensor task also carry a
-  floating/fixed cadence as a backstop ("or every 12 months, whichever first").
-  Additive on top of the `sensor` block.
+- ~~**Time-based fallback safety net**~~ — **shipped in 0.12.0** as
+  `sensor.also_every` + `sensor.combinator` ("every 300 h *or* every 6 months,
+  whichever first"; `combinator: "all"` for both-required). Anchored to
+  `last_completed`, falling back to the task's `created` — deliberately *not* to the
+  meter baseline, since a meter reset is not a service. Evaluated even when the bound
+  entity is unavailable, which is exactly when an idle machine used to escape its
+  calendar service. See `sensor_tasks.backstop_due` / `evaluate_usage`.
 
 ---
 

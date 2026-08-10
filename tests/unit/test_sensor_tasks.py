@@ -154,6 +154,87 @@ def test_usage_arm_clears_reset_candidate():
     assert out == {"action": "arm", "reset_candidate": None}
 
 
+# ── usage with a time backstop ("or every N months, whichever first") ────────
+def _backstop(target, baseline, interval, unit, *, combinator="any", **over):
+    task = _usage(target, baseline, **over)
+    task["sensor"]["also_every"] = {"interval": interval, "unit": unit}
+    task["sensor"]["combinator"] = combinator
+    return task
+
+
+def test_backstop_due_anchors_to_last_completed_then_created():
+    task = _backstop(300, 660, 6, "months", created=dt(2026, 1, 15).isoformat())
+    # Never completed: the clock runs from creation.
+    assert s.backstop_due(task, task["sensor"]) == dt(2026, 7, 15)
+    # Once completed, that wins — the backstop measures time since the last service.
+    task["last_completed"] = dt(2026, 3, 31).isoformat()
+    # September has 30 days, so the March 31 anchor clamps to September 30.
+    assert s.backstop_due(task, task["sensor"]) == dt(2026, 9, 30)
+
+
+def test_backstop_due_is_none_without_also_every():
+    task = _usage(300, 660, created=dt(2026, 1, 15).isoformat())
+    assert s.backstop_due(task, task["sensor"]) is None
+
+
+def test_backstop_arms_on_time_alone_when_meter_has_not_moved():
+    task = _backstop(300, 660, 6, "months", created=dt(2026, 1, 15).isoformat())
+    # Meter has barely moved, but six months have passed -> "whichever comes first".
+    assert s.evaluate_usage(task, reading=662, now=dt(2026, 7, 14))["action"] is None
+    assert s.evaluate_usage(task, reading=662, now=dt(2026, 7, 15))["action"] == "arm"
+
+
+def test_backstop_arms_with_no_reading_at_all():
+    # The printer has been unplugged for a year; its annual service is still due.
+    task = _backstop(300, 660, 6, "months", created=dt(2026, 1, 15).isoformat())
+    out = s.evaluate_usage(task, reading=None, now=dt(2027, 1, 1))
+    assert out == {"action": "arm", "reset_candidate": None}
+
+
+def test_no_reading_leaves_baseline_and_candidate_alone():
+    task = _backstop(300, 660, 6, "months", created=dt(2026, 1, 15).isoformat())
+    out = s.evaluate_usage(task, reading=None, reset_candidate=12.0, now=dt(2026, 2, 1))
+    assert out == {"action": None, "reset_candidate": 12.0}
+
+
+def test_backstop_any_still_arms_on_the_meter_before_the_clock():
+    task = _backstop(300, 660, 6, "months", created=dt(2026, 1, 15).isoformat())
+    assert s.evaluate_usage(task, reading=960, now=dt(2026, 2, 1))["action"] == "arm"
+
+
+def test_backstop_all_requires_both():
+    task = _backstop(
+        300, 660, 1, "months", combinator="all", created=dt(2026, 1, 15).isoformat()
+    )
+    # Meter reached, clock not: not yet.
+    assert s.evaluate_usage(task, reading=960, now=dt(2026, 1, 20))["action"] is None
+    # Clock reached, meter not: not yet either.
+    assert s.evaluate_usage(task, reading=662, now=dt(2026, 3, 1))["action"] is None
+    # Both: arm.
+    assert s.evaluate_usage(task, reading=960, now=dt(2026, 3, 1))["action"] == "arm"
+
+
+def test_backstop_does_not_rearm_while_armed():
+    task = _backstop(
+        300, 660, 6, "months", armed=True, created=dt(2026, 1, 15).isoformat()
+    )
+    assert s.evaluate_usage(task, reading=None, now=dt(2030, 1, 1))["action"] is None
+
+
+def test_meter_reset_still_wins_over_the_backstop():
+    # A confirmed meter reset re-baselines rather than arming, even though the
+    # backstop has elapsed — otherwise one tick would both reset and fire.
+    task = _backstop(300, 660, 6, "months", created=dt(2026, 1, 15).isoformat())
+    out = s.evaluate_usage(task, reading=5, reset_candidate=5.0, now=dt(2027, 1, 1))
+    assert out == {"action": "rebaseline", "baseline": 5, "reset_candidate": None}
+
+
+def test_backstop_ignores_unparseable_anchor():
+    task = _backstop(300, 660, 6, "months", created="not-a-timestamp")
+    assert s.backstop_due(task, task["sensor"]) is None
+    assert s.evaluate_usage(task, reading=662, now=dt(2030, 1, 1))["action"] is None
+
+
 # ── threshold ────────────────────────────────────────────────────────────────
 def test_threshold_arms_on_rising_edge_only():
     now = dt(2026, 6, 1, 10)

@@ -22,11 +22,14 @@ from .const import (
     COMPLETION_METADATA_FIELDS,
     FREQS,
     MAX_INTERVAL,
+    MAX_SENSOR_UNIT_LEN,
     REC_FLOATING,
     REC_ONE_OFF,
     REC_SENSOR,
     REC_TRIGGERED,
     RECURRENCE_TYPES,
+    SENSOR_COMBINATOR_ANY,
+    SENSOR_COMBINATORS,
     SENSOR_COMPARISONS,
     SENSOR_MODE_USAGE,
     SENSOR_MODES,
@@ -120,6 +123,35 @@ def normalize_completion_required_fields(value: Any, mode: str) -> list[str]:
     return result or ["note"]
 
 
+def _normalize_also_every(data: Any) -> dict[str, Any]:
+    """Validate a usage binding's optional time backstop (``{interval, unit}``).
+
+    Same interval/unit rules as a floating task's cadence, so "or every 6 months"
+    means exactly what it does everywhere else in Home Keeper.
+    """
+    if not isinstance(data, dict):
+        raise TaskValidationError("sensor.also_every must be a mapping")
+    raw_interval = data.get("interval", 1)
+    if raw_interval in (None, ""):
+        raw_interval = 1
+    try:
+        interval = int(raw_interval)
+    except (TypeError, ValueError) as err:
+        raise TaskValidationError(
+            "sensor.also_every.interval must be a valid integer"
+        ) from err
+    if interval < 1:
+        raise TaskValidationError("sensor.also_every.interval must be >= 1")
+    if interval > MAX_INTERVAL:
+        raise TaskValidationError(
+            f"sensor.also_every.interval must be <= {MAX_INTERVAL}"
+        )
+    unit = data.get("unit")
+    if unit not in UNITS:
+        raise TaskValidationError(f"invalid sensor.also_every.unit: {unit!r}")
+    return {"interval": interval, "unit": unit}
+
+
 def normalize_sensor(data: Any) -> dict[str, Any]:
     """Validate and normalize a sensor-based task's ``sensor`` binding.
 
@@ -129,7 +161,12 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
     * ``usage`` (a meter) — ``target`` (> 0): arm when the reading advances ``target``
       units past ``baseline``. ``baseline`` (the reading captured at creation / last
       completion) is carried through if present; a fresh task leaves it unset for the
-      watcher to stamp from the live reading.
+      watcher to stamp from the live reading. An optional ``also_every``
+      (``{interval, unit}``) adds a **time backstop** — the "or every 6 months" half of
+      a real service interval, measured from the last completion (or the task's
+      creation if it has never been completed) — combined with the meter target by
+      ``combinator`` (``any``, the default, = whichever comes first; ``all`` = both).
+      An optional ``unit`` labels the meter in the UI.
     * ``threshold`` — ``comparison`` (one of :data:`SENSOR_COMPARISONS`) against a
       numeric ``value``, with an optional non-negative ``for_seconds`` hold.
 
@@ -161,7 +198,26 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
         baseline_raw = data.get("baseline")
         if baseline_raw is not None and baseline_raw != "":
             result["baseline"] = _finite_float(baseline_raw, "sensor.baseline")
+        unit_label = str(data.get("unit") or "").strip()
+        if unit_label:
+            if len(unit_label) > MAX_SENSOR_UNIT_LEN:
+                raise TaskValidationError(
+                    f"sensor.unit must be <= {MAX_SENSOR_UNIT_LEN} characters"
+                )
+            result["unit"] = unit_label
+        also_every = data.get("also_every")
+        if also_every not in (None, "", {}):
+            result["also_every"] = _normalize_also_every(also_every)
+            combinator = data.get("combinator") or SENSOR_COMBINATOR_ANY
+            if combinator not in SENSOR_COMBINATORS:
+                raise TaskValidationError(f"invalid sensor.combinator: {combinator!r}")
+            result["combinator"] = combinator
     else:  # SENSOR_MODE_THRESHOLD
+        for usage_only in ("also_every", "combinator", "unit"):
+            if data.get(usage_only) not in (None, "", {}):
+                raise TaskValidationError(
+                    f"sensor.{usage_only} is only valid for a usage-mode sensor task"
+                )
         comparison = data.get("comparison")
         if comparison not in SENSOR_COMPARISONS:
             raise TaskValidationError(f"invalid sensor comparison: {comparison!r}")
@@ -518,6 +574,15 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # only once the live reading actually meets its condition. ``compute_next_due``
         # would read as due-now (the re-arm contract), so set ``None`` directly.
         task["next_due"] = None
+        if seed not in (None, ""):
+            # A seeded "last serviced" date is meaningful for a sensor task too: it
+            # anchors the time backstop (``sensor.also_every``), so a task created for
+            # a machine serviced three months ago is three months into its calendar
+            # interval rather than starting the clock today. ``apply_completion``
+            # leaves a sensor task dormant, so this records history without arming.
+            recurrence.apply_completion(
+                task, _coerce_seed(seed, tz=now.tzinfo), now=now
+            )
     elif seed not in (None, ""):
         # Recording the seed as a completion both stamps last_completed and lets the
         # recurrence engine derive next_due (floating -> seed + interval; fixed stays
@@ -590,9 +655,9 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     if (
         isinstance(new_sensor, dict)
         and new_sensor.get("mode") == SENSOR_MODE_USAGE
-        and "baseline" not in new_sensor
         and isinstance(old_sensor, dict)
         and old_sensor.get("entity_id") == new_sensor.get("entity_id")
+        and "baseline" not in new_sensor
         and old_sensor.get("baseline") is not None
     ):
         new_sensor["baseline"] = old_sensor["baseline"]

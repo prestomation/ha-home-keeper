@@ -274,6 +274,20 @@
         }
       }
     },
+    "set_task_meter": {
+      "name": "Taakmeter instellen",
+      "description": "Verankert de startwaarde van een verbruikstaak (meter) opnieuw zonder een voltooiing vast te leggen. Handig wanneer het werk al was gedaan voordat Home Keeper meekeek, of wanneer de gekoppelde meter is vervangen of op nul gezet. Zonder startwaarde wordt verankerd op de huidige meetwaarde van de sensor. Alleen geldig voor een sensortaak in verbruiksmodus.",
+      "fields": {
+        "task_id": {
+          "name": "Taak-ID",
+          "description": "De id van de verbruikssensortaak die opnieuw verankerd moet worden."
+        },
+        "baseline": {
+          "name": "Startwaarde",
+          "description": "De meterstand waarvandaan geteld wordt. Laat leeg om de huidige meetwaarde van de gekoppelde sensor te gebruiken."
+        }
+      }
+    },
     "snooze_task": {
       "name": "Taak uitstellen",
       "description": "De vervaldatum van een taak uitstellen zonder een voltooiing vast te leggen of de herhaling te laten doorlopen.",

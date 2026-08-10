@@ -70,6 +70,14 @@ export function isArmedTriggered(task: Task): boolean {
   return task.recurrence_type === 'triggered' && !!task.next_due;
 }
 
+/** Round to at most one decimal, dropping a trailing ".0".
+ *
+ * Meter readings are floats (`661.4166666`); shown raw they swamp the figure that
+ * matters. One decimal is enough resolution for a maintenance interval. */
+export function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
 /** Human-readable summary of a task's recurrence rule. */
 export function recurrenceSummary(task: Task): string {
   // A triggered task has no schedule — it is "monitored" and only due when its
@@ -87,7 +95,13 @@ export function recurrenceSummary(task: Task): string {
         value: s.value ?? '',
       });
     }
-    return t('recurrence.sensorUsage', { target: s.target ?? '' });
+    const target = s.unit ? `${s.target ?? ''} ${s.unit}` : (s.target ?? '');
+    const summary = t('recurrence.sensorUsage', { target });
+    if (!s.also_every) return summary;
+    const every = `${s.also_every.interval} ${t(`opt.unit.${s.also_every.unit}`)}`;
+    return s.combinator === 'all'
+      ? t('recurrence.sensorUsageAll', { summary, every })
+      : t('recurrence.sensorUsageAny', { summary, every });
   }
   const n = task.interval || 1;
   if (task.recurrence_type === 'floating') {

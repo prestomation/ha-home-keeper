@@ -85,6 +85,7 @@ import {
   isSafeImageUrl,
   parseRoute,
   randomId,
+  round1,
   safeHref,
   recurrenceSummary,
   tasksForAsset,
@@ -564,6 +565,16 @@ const STYLES = `
     font-size: 0.85rem;
   }
   .hk-detail-row .v { flex: 1; min-width: 0; word-break: break-word; }
+  /* Usage-meter progress: how far through the service interval this task is. */
+  .hk-meter {
+    height: 6px; border-radius: 3px; margin: 10px 0 4px;
+    background: var(--divider-color); overflow: hidden;
+  }
+  .hk-meter > span {
+    display: block; height: 100%; border-radius: 3px;
+    background: var(--primary-color);
+  }
+  .hk-meter-note { color: var(--secondary-text-color); font-size: 0.85rem; }
   /* Anything linked from a detail row must *look* clickable — an anchor whose href is
      filled in asynchronously (a signed file URL) gets no default affordance, which is
      what made document links read as dead text (issue #164). */
@@ -2410,11 +2421,56 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     // usage / meter
     const target = s.target ?? 0;
+    const unit = s.unit ? ` ${s.unit}` : '';
     if (!Number.isNaN(reading) && s.baseline != null) {
       const consumed = Math.max(0, reading - s.baseline);
-      return t('sensor.usageProgress', { consumed, target, entity });
+      return t('sensor.usageProgress', {
+        consumed: `${round1(consumed)}${unit}`,
+        target: `${target}${unit}`,
+        entity,
+      });
     }
-    return t('sensor.usageTarget', { target, entity });
+    return t('sensor.usageTarget', { target: `${target}${unit}`, entity });
+  }
+
+  /** The meter's fill as an accessible bar, plus the time-backstop line when the
+   *  task carries one. Rendered as HTML under the sensor row on the detail page:
+   *  "how far through the interval am I" is the whole state of a usage task, and a
+   *  bar reads it at a glance in a way "120 of 300 used" does not. Empty for a
+   *  threshold task (there is no interval to be partway through) or when the bound
+   *  entity has no numeric reading. */
+  private _sensorProgressBar(task: Task): string {
+    const s = task.sensor;
+    if (!s || s.mode === 'threshold') return '';
+    const parts: string[] = [];
+    const state = this._hass?.states?.[s.entity_id];
+    const raw = state ? (s.attribute ? state.attributes?.[s.attribute] : state.state) : undefined;
+    const reading = raw == null || raw === '' ? NaN : Number(raw);
+    const target = Number(s.target) || 0;
+    if (!Number.isNaN(reading) && s.baseline != null && target > 0) {
+      const consumed = Math.max(0, reading - s.baseline);
+      const pct = Math.max(0, Math.min(100, (consumed / target) * 100));
+      const label = t('sensor.usageRemaining', {
+        remaining: `${round1(target - consumed)}${s.unit ? ` ${s.unit}` : ''}`,
+      });
+      parts.push(
+        `<div class="hk-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(
+          pct,
+        )}" aria-label="${escapeHTML(label)}"><span style="width:${pct.toFixed(1)}%"></span></div>` +
+          `<div class="hk-meter-note">${escapeHTML(label)}</div>`,
+      );
+    }
+    if (s.also_every) {
+      const every = `${s.also_every.interval} ${t(`opt.unit.${s.also_every.unit}`)}`;
+      parts.push(
+        `<div class="hk-meter-note">${escapeHTML(
+          s.combinator === 'all'
+            ? t('sensor.backstopAll', { every })
+            : t('sensor.backstopAny', { every }),
+        )}</div>`,
+      );
+    }
+    return parts.join('');
   }
 
   private _historySection(kind: 'task' | 'asset', id: string): string {
@@ -2518,6 +2574,7 @@ export class HomeKeeperPanel extends HTMLElement {
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         ${this._row(t('field.recurrence_type'), recurrenceSummary(task))}
         ${task.recurrence_type === 'sensor' ? this._row(t('field.sensor_entity_id'), this._sensorProgress(task)) : ''}
+        ${task.recurrence_type === 'sensor' ? this._sensorProgressBar(task) : ''}
         ${this._row(t('detail.nextDue'), due)}
         ${this._row(t('field.consumable_link'), this._consumableLinkLabel(task), true)}
       </div></ha-card>
@@ -4226,6 +4283,18 @@ export class HomeKeeperPanel extends HTMLElement {
           (this._edit.task as Record<string, unknown>).card_links = cardLinkTokens(
             this._edit.task,
           ).filter((tok) => docOpts.some((o) => o.value === tok));
+        }
+        // Picking a meter entity prefills the unit label from the entity itself, so
+        // "300" reads as "300 h" without anyone typing it. Only when still blank —
+        // a label the user (or a managing integration) chose is never overwritten.
+        if (
+          this._edit.task?.recurrence_type === 'sensor' &&
+          !String(value.sensor_unit ?? '').trim()
+        ) {
+          const live = this._sensorLive(this._edit.task);
+          if (live.unit) {
+            (this._edit.task as Record<string, unknown>).sensor_unit = live.unit;
+          }
         }
         // The recurrence type (cadence/sensor fields), the sensor mode (usage vs.
         // threshold), and the attached device (which scopes the consumable picker)

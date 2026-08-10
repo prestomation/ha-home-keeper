@@ -12,17 +12,26 @@ export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 export type SensorMode = 'usage' | 'threshold';
 export type SensorComparison = '>=' | '<=' | '>' | '<' | '==' | '!=';
 
+/** How a usage task's meter target combines with its time backstop: `any` (the
+ *  default) = whichever comes first, `all` = both must be met. */
+export type SensorCombinator = 'any' | 'all';
+
 /** The numeric-sensor binding of a sensor-based task. Only the keys relevant to
  *  `mode` are present: `target` for usage; `comparison`/`value`/`for_seconds` for
  *  threshold. `baseline` (usage) is the reading at creation / last completion,
  *  stamped by the backend watcher. `attribute` reads an entity attribute instead
- *  of the state. */
+ *  of the state. `also_every` is the usage task's optional **time backstop** — the
+ *  "or every 6 months" half of a real service interval, measured from the last
+ *  completion — and `unit` labels the meter ("300 h" rather than a bare "300"). */
 export interface SensorBinding {
   entity_id: string;
   mode: SensorMode;
   attribute?: string;
   target?: number;
   baseline?: number;
+  unit?: string;
+  also_every?: { interval: number; unit: Unit };
+  combinator?: SensorCombinator;
   comparison?: SensorComparison;
   value?: number;
   for_seconds?: number;
