@@ -334,40 +334,40 @@ event. While waiting it reads as **Monitored**, and the task detail shows live p
 also create one from automations/scripts with the `home_keeper.add_task` service by
 passing a `sensor` mapping.
 
-### Hours **or** months, whichever comes first
+### Hours or months, whichever comes first
 
 Most real service intervals have two halves. The manual says every **300 print hours or
-6 months**, every **8,000 km or 12 months**, every **500 run-hours or 3 months** —
-because wear happens whether the machine runs or not, and something that sits idle all
+6 months**, every **8,000 km or 12 months**, every **500 run-hours or 3 months**,
+because wear happens whether the machine runs or not, and something left unused all
 winter still needs its annual service.
 
 A usage task takes both. Beside the target there's an **Or every** cadence and a
 **Combine with** choice:
 
-- **Whichever comes first** (the default) — the everyday service interval. The task
-  becomes due when the meter reaches its target *or* the cadence elapses.
-- **Both must be met** — a floor rather than a ceiling. Use it when neither half alone
-  should trigger the work: a standby generator you want run *at least* monthly *and*
+- **Whichever comes first** (the default) is the everyday service interval. The task
+  becomes due when the meter reaches its target, or when the cadence elapses.
+- **Both must be met** is a floor rather than a ceiling. Use it when neither half alone
+  should trigger the work: a standby generator you want run at least monthly, and also
   serviced after 100 engine hours.
 
 Leave **Or every** at **0** for a pure meter, exactly as before.
 
 The clock runs from the **last completion** (or, before the first one, from when you
-created the task), so checking the task off resets both halves together — the counter
-*and* the calendar. And the time half keeps counting even while the bound sensor is
-**offline or unavailable**: a printer that's been unplugged for a year is precisely the
-one whose annual service you'd otherwise never hear about.
+created the task), so checking the task off resets both halves together: the counter and
+the calendar. The time half also keeps counting while the bound sensor is **offline or
+unavailable**. A printer that's been unplugged for a year is precisely the one whose
+annual service you'd otherwise never hear about.
 
 **Seeing where you are.** A usage task's page draws a progress bar with a *"180 h to
 go"* line under it. The **unit label** beside the target is what turns a bare "300" into
 "300 h"; Home Keeper prefills it from the sensor you pick, and you can change or clear
-it. The same figures ride as attributes on the task's next-due sensor entity —
-`usage_consumed`, `usage_remaining`, `usage_percent`, `usage_target`, `usage_unit`, and
-`backstop_due` — so a template card or automation can read them without any parsing.
-(As with every per-task entity, that sensor exists for tasks **attached to a device**.)
+it. The same figures ride as attributes on the task's next-due sensor entity
+(`usage_consumed`, `usage_remaining`, `usage_percent`, `usage_target`, `usage_unit`, and
+`backstop_due`), so a template card or automation can read them without any parsing.
+As with every per-task entity, that sensor exists for tasks **attached to a device**.
 
 **Already done it?** `home_keeper.set_task_meter` re-anchors a usage task's baseline
-*without* recording a completion — for work you did before Home Keeper was watching, or
+without recording a completion, for work you did before Home Keeper was watching, or
 when the meter itself was swapped or zeroed. Omit `baseline` and it anchors to whatever
 the sensor reads right now.
 

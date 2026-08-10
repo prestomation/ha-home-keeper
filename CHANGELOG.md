@@ -10,16 +10,16 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **A usage task can now come due on hours *or* time, whichever comes first.** Real
+- **A usage task can now come due on hours or on time, whichever comes first.** Real
   service intervals are rarely one or the other: a nozzle wants replacing every 300
-  print hours *or* every 6 months, an oil change every 8,000 km *or* every 12 months,
-  a filter every 500 run-hours *or* every 3 months. A usage (meter) task now takes an
+  print hours or every 6 months, an oil change every 8,000 km or every 12 months, a
+  filter every 500 run-hours or every 3 months. A usage (meter) task now takes an
   optional **"Or every"** cadence beside its target, with a **Combine with** choice of
   *Whichever comes first* or *Both must be met*. The clock runs from the last
   completion (or the task's creation, before the first one), so completing it resets
-  both halves together. A machine that sits idle no longer escapes its calendar
-  service — the time half is evaluated even while the bound sensor is offline, which
-  is exactly when an unplugged appliance used to slip through.
+  both halves together. A machine left unused no longer escapes its calendar service:
+  the time half is evaluated even while the bound sensor is offline, which is exactly
+  when an unplugged appliance used to slip through.
 - **Usage tasks show their progress.** The task page draws a meter bar with a
   *"180 h to go"* line, the meter target carries an optional **unit label** (prefilled
   from the bound sensor, so "300" reads as "300 h"), and a device-attached task's
@@ -27,9 +27,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   `usage_percent` / `usage_target` / `usage_unit` (plus `backstop_due` when a time
   backstop is set) for dashboards and automations.
 - **New service `set_task_meter` re-anchors a usage task's baseline without recording
-  a completion** — for "I did this last month, before Home Keeper was watching", or
-  when the meter itself was replaced or zeroed. Omit `baseline` to anchor to the bound
-  sensor's current reading.
+  a completion.** Use it for "I did this last month, before Home Keeper was watching",
+  or when the meter itself was replaced or zeroed. Omit `baseline` to anchor to the
+  bound sensor's current reading.
 - **New services `sign_document_url` and `sign_part_file_url` mint a short-lived,
   no-auth-header-needed URL for an asset document or a part's attached file.** A
   caller with no interactive browser session of its own (e.g. an MCP-connected
