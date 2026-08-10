@@ -138,8 +138,10 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
 
     // 3a. Switch the same form to a **sensor** task and build the shape a real service
     //     interval has: a meter target plus a time backstop. Typing the target, then
-    //     the "Or every" months, makes the live hint rewrite itself — that rewrite is
-    //     the thing a still screenshot can't show, so give each field its own beat.
+    //     the "Or every" months, makes the live hint *and* the rule summary above the
+    //     submit button rewrite themselves — watching "Every 300 of use" become
+    //     "Every 300 of use, or every 6 months" as you type is the whole argument for
+    //     that strip, and a still screenshot can't show it. Give each field a beat.
     await recurrence.click();
     await page.getByRole('menuitem', { name: /based on a sensor/i }).first().click();
     await expect(panel.locator('#hk-task-form ha-selector-entity').first()).toBeVisible();
@@ -150,8 +152,11 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
     await numberAt(1).fill('6'); // Or every … (the time backstop)
+    await expect(panel.locator('#hk-form-summary-value')).toHaveText(
+      'Every 300 of use, or every 6 months',
+    );
     await page.mouse.move(0, 0);
-    await page.waitForTimeout(BEAT * 3); // linger on the "whichever comes first" hint
+    await page.waitForTimeout(BEAT * 3); // linger on the summary + "whichever comes first"
 
     // Reset by re-opening the panel fresh — closing the create form does a full
     // route change back to /home-keeper that can race a click (the screenshots

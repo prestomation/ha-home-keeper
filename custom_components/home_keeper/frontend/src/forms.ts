@@ -1,4 +1,5 @@
 import { t } from './i18n';
+import { recurrenceSummary } from './utils';
 import type {
   Hass,
   Notification,
@@ -468,6 +469,38 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     if (lastCompleted) payload.last_completed = lastCompleted;
   }
   return payload;
+}
+
+/**
+ * The rule the form currently describes, in the *same words the saved task will use*.
+ *
+ * The recurrence fields are individually clear and collectively opaque: a target, a
+ * unit, a backstop interval and a combinator are four boxes that add up to "every 100 h
+ * of use, or every month, whichever lands first", and nothing on screen said that
+ * sentence until the task existed. So the form renders it live, right above the submit
+ * button, and you read the rule before you commit to it.
+ *
+ * Deliberately built by running the edit state through `buildTaskPayload` and handing
+ * the result to `recurrenceSummary` — the very functions that produce the payload and
+ * the card's caption. A separate "preview formatter" would be free to drift from what
+ * the task actually becomes, which is the one thing a preview must never do.
+ *
+ * Returns `''` when the type isn't chosen yet, so the caller can hide the strip.
+ */
+export function formRecurrenceSummary(task: Partial<Task>): string {
+  if (!task.recurrence_type) return '';
+  try {
+    // `recurrence_type` is re-attached because the triggered branch of
+    // buildTaskPayload deliberately omits it (the managing integration owns the
+    // kind, so the update need not carry it). Without this a triggered task would
+    // fall through to the clock branch and the preview would read "every day" —
+    // the exact class of confident-but-wrong copy this strip exists to prevent.
+    const payload = { ...buildTaskPayload(task), recurrence_type: task.recurrence_type };
+    return recurrenceSummary(payload as Task);
+  } catch {
+    // A half-typed form is not an error state; say nothing until it parses.
+    return '';
+  }
 }
 
 /** Stored sensor comparisons rendered as their human symbol for help/hint copy. */

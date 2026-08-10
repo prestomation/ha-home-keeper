@@ -36,6 +36,7 @@ import {
   selNumber,
   selSelect,
   selText,
+  formRecurrenceSummary,
   sensorHintText,
   taskFormData,
   taskSchema,
@@ -485,6 +486,23 @@ const STYLES = `
   .hk-part-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
   .hk-part-chips ha-assist-chip { --ha-assist-chip-container-height: 28px; }
   .hk-part-notes { color: var(--secondary-text-color); margin-top: 6px; }
+  /* The rule the form currently describes, in one sentence, immediately above the
+     submit button — the last thing read before committing. Louder than .hk-form-hint
+     on purpose: the hint explains, this one states the outcome. */
+  .hk-form-summary {
+    margin-top: 16px; padding: 10px 12px;
+    background: var(--secondary-background-color);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary-color);
+    font-size: 0.95rem; line-height: 1.4;
+  }
+  .hk-form-summary-label {
+    display: block;
+    color: var(--secondary-text-color);
+    font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+  .hk-form-summary-value { color: var(--primary-text-color); font-weight: 500; }
   .hk-form-actions { display: flex; gap: 8px; margin-top: 20px; }
   .hk-loading { display: flex; justify-content: center; padding: 48px 0; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
@@ -1343,7 +1361,7 @@ export class HomeKeeperPanel extends HTMLElement {
    *
    * The caller feeds it from its form's existing `value-changed` handler — updating the
    * preview in place rather than re-rendering, so the field keeps focus while typing
-   * (the same technique `_updateSensorHint` uses for the sensor primer).
+   * (the same technique `_updateFormHints` uses for the sensor primer).
    *
    * **This is the only way to build a preview.** Every one is registered in
    * `_previews`, which `_render` and `disconnectedCallback` dispose wholesale, so a
@@ -4218,14 +4236,28 @@ export class HomeKeeperPanel extends HTMLElement {
     return { reading: Number.isNaN(num) ? undefined : num, unit };
   }
 
-  /** Refresh the sensor task-form hint in place (no re-render → keeps input focus). */
-  private _updateSensorHint(): void {
-    const hint = this.shadowRoot?.getElementById('hk-sensor-hint');
-    if (!hint) return;
+  /**
+   * Refresh the task form's live copy in place (no re-render → keeps input focus).
+   *
+   * Two pieces: the sensor primer (only on sensor tasks, explains the baseline model)
+   * and the rule summary above the submit button (every task kind). Both are pure
+   * text derived from the current edit state, so this runs on any field change.
+   */
+  private _updateFormHints(): void {
     const task = this._edit.task || {};
-    const text = sensorHintText(task, this._sensorLive(task));
-    hint.textContent = text;
-    (hint as HTMLElement).style.display = text ? '' : 'none';
+    const hint = this.shadowRoot?.getElementById('hk-sensor-hint');
+    if (hint) {
+      const text = sensorHintText(task, this._sensorLive(task));
+      hint.textContent = text;
+      (hint as HTMLElement).style.display = text ? '' : 'none';
+    }
+    const summary = this.shadowRoot?.getElementById('hk-form-summary-value');
+    if (summary) {
+      const text = formRecurrenceSummary(task);
+      summary.textContent = text;
+      const box = summary.closest('.hk-form-summary') as HTMLElement | null;
+      if (box) box.style.display = text ? '' : 'none';
+    }
   }
 
   private _renderTaskForm(host: HTMLElement): void {
@@ -4305,11 +4337,12 @@ export class HomeKeeperPanel extends HTMLElement {
           value.device_id !== prevDevice
         ) {
           this._render();
-        } else if (this._edit.task?.recurrence_type === 'sensor') {
-          // A sensor entity/target/value edit doesn't change the visible schema, so
-          // refresh the live hint in place (a full re-render would drop focus from
-          // the number box the user is typing in).
-          this._updateSensorHint();
+        } else {
+          // The edit didn't change the visible schema, so refresh the live copy in
+          // place — a full re-render would drop focus from the box being typed in.
+          // Every task kind, not just sensor: the rule summary above the submit
+          // button has to track an interval or a unit change too.
+          this._updateFormHints();
         }
       },
     );
@@ -4341,6 +4374,21 @@ export class HomeKeeperPanel extends HTMLElement {
       hint.style.display = text ? '' : 'none';
       inner.appendChild(hint);
     }
+
+    // The rule this form adds up to, in one sentence, directly above the submit
+    // button. Four boxes (target, unit, backstop, combinator) can add up to "every
+    // 100 h of use, or every month" without ever saying it, so say it — and say it in
+    // the same words the saved task will use, since it is the same formatter.
+    const summary = document.createElement('div');
+    summary.className = 'hk-form-summary';
+    const summaryText = formRecurrenceSummary(task);
+    summary.innerHTML =
+      `<span class="hk-form-summary-label">${escapeHTML(t('form.summary.label'))}</span>` +
+      `<span class="hk-form-summary-value" id="hk-form-summary-value"></span>`;
+    (summary.querySelector('#hk-form-summary-value') as HTMLElement).textContent =
+      summaryText;
+    summary.style.display = summaryText ? '' : 'none';
+    inner.appendChild(summary);
 
     if (this._edit.error) {
       const err = document.createElement('ha-alert');

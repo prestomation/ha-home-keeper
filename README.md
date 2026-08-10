@@ -352,6 +352,13 @@ A usage task takes both. Beside the target there's an **Or every** cadence and a
 
 Leave **Or every** at **0** for a pure meter, exactly as before.
 
+Four fields adding up to one rule is easy to get wrong, so the form says the rule back
+to you under **When it comes due**, directly above the save button, and rewrites it as
+you type. It's the same sentence the task list will show afterwards, so there's no gap
+between what you set up and what you get.
+
+![The task form with a metered rule and a time backstop, summarised as "Every 100 of use, or every 6 months" above the Create button](docs/images/30b-panel-sensor-backstop.png)
+
 The clock runs from the **last completion** (or, before the first one, from when you
 created the task), so checking the task off resets both halves together: the counter and
 the calendar. The time half also keeps counting while the bound sensor is **offline or

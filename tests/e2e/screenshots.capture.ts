@@ -13,6 +13,19 @@ import { openPanel, openDashboard } from './tests/helpers';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
+/**
+ * Expand a collapsed `<details>` group, leaving an already-open one alone.
+ *
+ * Toggling a `<details>` is not idempotent, and several steps below reach into the
+ * same Monitored group: a blind `summary.click()` in a later step closes what an
+ * earlier one opened, and the shot silently captures a collapsed group.
+ */
+async function expandGroup(group: Locator): Promise<void> {
+  if (!(await group.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await group.locator('summary').click();
+  }
+}
+
 /** Fill the input of the nth ha-form text selector within a scope. */
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
   await scope.locator('ha-selector-text').nth(nth).locator('input, textarea').fill(value);
@@ -180,9 +193,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   const monitoredForUsage = panel.locator(
     'details.hk-group[data-group-key="status:monitored"]',
   );
-  if (!(await monitoredForUsage.evaluate((el: HTMLDetailsElement) => el.open))) {
-    await monitoredForUsage.locator('summary').click();
-  }
+  await expandGroup(monitoredForUsage);
   await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
   await expect(panel.locator('.hk-meter').first()).toBeVisible();
   await page.waitForTimeout(400);
@@ -253,9 +264,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/18-panel-tasks-blocked-done.png`, fullPage: true });
   // (healthy batteries) — collapsed by default to stay out of the way, one click
-  // to browse. Expand it for the shot.
+  // to browse. Expand it for the shot — guarded, because step 14b above already
+  // expands this same group to reach the usage task and a blind click would close
+  // it again (a `<details>` toggle is not idempotent).
   const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');
-  await monitored.locator('summary').click();
+  await expandGroup(monitored);
   await expect(monitored.locator('.hk-card').first()).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/15-panel-monitored-section.png`, fullPage: true });
@@ -264,7 +277,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // leaving the active list but keeping its completion history. Collapsed by default
   // (like Monitored); expand it for the shot.
   const completed = panel.locator('details.hk-group[data-group-key="status:completed"]');
-  await completed.locator('summary').click();
+  await expandGroup(completed);
   await expect(completed.locator('.hk-card').first()).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/19-panel-completed-section.png`, fullPage: true });
@@ -314,6 +327,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // Target); leaving it at 0 keeps the task a pure meter.
   await fillNumber(panel.locator('#hk-task-form'), 1, '6');
   await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
+  // The summary strip above the submit button states the assembled rule in one
+  // sentence. Four fields add up to it and none of them says it, so this is the
+  // shot that has to prove the wording — assert it, don't just photograph it.
+  await expect(panel.locator('#hk-form-summary-value')).toHaveText(
+    'Every 100 of use, or every 6 months',
+  );
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/30b-panel-sensor-backstop.png`, fullPage: true });

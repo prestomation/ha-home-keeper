@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildTaskPayload, sensorHintText, taskFormData, taskSchema } from '../src/forms.ts';
+import {
+  buildTaskPayload,
+  formRecurrenceSummary,
+  sensorHintText,
+  taskFormData,
+  taskSchema,
+} from '../src/forms.ts';
 import { recurrenceSummary } from '../src/utils.ts';
 
 describe('task form — sensor-based tasks', () => {
@@ -299,5 +305,80 @@ describe('usage tasks with a time backstop', () => {
       { reading: 660, unit: 'h' },
     );
     expect(hint).not.toContain('whichever comes first');
+  });
+});
+
+describe('formRecurrenceSummary — the rule shown above the submit button', () => {
+  it('reads the same as the saved task will, for a metered rule with a backstop', () => {
+    const form = {
+      recurrence_type: 'sensor',
+      sensor_mode: 'usage',
+      sensor_entity_id: 'sensor.printer_hours',
+      sensor_target: 100,
+      sensor_unit: 'h',
+      sensor_also_every: 1,
+      sensor_also_unit: 'months',
+      sensor_combinator: 'any',
+    };
+    // The whole point of building the preview from buildTaskPayload: what the form
+    // promises and what the card later says are the same sentence, not two
+    // formatters that agree today and drift tomorrow.
+    expect(formRecurrenceSummary(form)).toBe(recurrenceSummary(buildTaskPayload(form)));
+    expect(formRecurrenceSummary(form)).toBe('Every 100 h of use, or every 1 months');
+  });
+
+  it('says "and" for the both-must-be-met combinator', () => {
+    const summary = formRecurrenceSummary({
+      recurrence_type: 'sensor',
+      sensor_mode: 'usage',
+      sensor_entity_id: 'sensor.generator_hours',
+      sensor_target: 200,
+      sensor_unit: 'h',
+      sensor_also_every: 6,
+      sensor_also_unit: 'months',
+      sensor_combinator: 'all',
+    });
+    expect(summary).toBe('Every 200 h of use, and every 6 months');
+  });
+
+  it('drops the backstop clause when the interval is blank or zero', () => {
+    const summary = formRecurrenceSummary({
+      recurrence_type: 'sensor',
+      sensor_mode: 'usage',
+      sensor_entity_id: 'sensor.printer_hours',
+      sensor_target: 100,
+      sensor_unit: 'h',
+      sensor_also_every: 0,
+    });
+    expect(summary).toBe('Every 100 h of use');
+  });
+
+  it('covers the clock-based kinds too, not just sensor tasks', () => {
+    expect(formRecurrenceSummary({ recurrence_type: 'floating', interval: 3, unit: 'months' })).toBe(
+      'every 3 months after completion',
+    );
+    expect(formRecurrenceSummary({ recurrence_type: 'fixed', interval: 2, freq: 'WEEKLY' })).toBe(
+      'every 2 weeks',
+    );
+    // A triggered task is the trap here: buildTaskPayload drops recurrence_type for
+    // that kind, so a naive preview reads "every day" instead of "Monitored".
+    expect(formRecurrenceSummary({ recurrence_type: 'triggered' })).toBe('Monitored');
+  });
+
+  it('says nothing until a recurrence type is chosen', () => {
+    expect(formRecurrenceSummary({})).toBe('');
+    expect(formRecurrenceSummary({ name: 'Half-typed' })).toBe('');
+  });
+
+  it('stays quiet rather than throwing on half-entered input', () => {
+    // A user mid-type has blank numbers everywhere; the strip hides, it never errors.
+    expect(() =>
+      formRecurrenceSummary({
+        recurrence_type: 'sensor',
+        sensor_mode: 'usage',
+        sensor_target: '',
+        sensor_also_every: '',
+      }),
+    ).not.toThrow();
   });
 });

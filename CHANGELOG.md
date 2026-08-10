@@ -26,6 +26,14 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   next-due sensor entity now exposes `usage_consumed` / `usage_remaining` /
   `usage_percent` / `usage_target` / `usage_unit` (plus `backstop_due` when a time
   backstop is set) for dashboards and automations.
+- **The task form now states the rule it adds up to, right above the button that
+  saves it.** A target, a unit, an "Or every" interval and a Combine-with choice are
+  four separate boxes that together mean *"every 300 h of use, or every 6 months"* —
+  and nothing on the screen said that sentence until the task already existed. The
+  form now spells it out under **When it comes due**, rewriting itself as you type.
+  It covers every kind of task, not just metered ones, and it is produced by the same
+  formatter that writes the task's caption afterwards, so what the form promises and
+  what the list shows can't drift apart.
 - **New service `set_task_meter` re-anchors a usage task's baseline without recording
   a completion.** Use it for "I did this last month, before Home Keeper was watching",
   or when the meter itself was replaced or zeroed. Omit `baseline` to anchor to the
