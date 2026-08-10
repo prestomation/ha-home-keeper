@@ -30,3 +30,4 @@ tests/integration/ha_config/custom_components/
 # Vale style packages fetched by `vale sync` per .vale.ini. This is a synced
 # dependency, not source: errata-ai/vale-action fetches its own copy in CI.
 styles/
+build/
