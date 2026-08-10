@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_companions_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.2">coverage.py v7.15.2</a>,
-            created at 2026-08-09 07:55 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.4">coverage.py v7.15.4</a>,
+            created at 2026-08-10 17:29 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -82,14 +82,14 @@
     </div>
 </header>
 <main id="source">
-    <p class="pln"><span class="n"><a id="t1" href="#t1">1</a></span><span class="t"><span class="str">"""Auto-register the Home Keeper dashboard card as a Lovelace resource.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1" href="#t1">1</a></span><span class="t"><span class="str">&quot;&quot;&quot;Auto-register the Home Keeper dashboard card as a Lovelace resource.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t2" href="#t2">2</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t3" href="#t3">3</a></span><span class="t"><span class="str">The card's JS bundle is served from the same static path as the sidebar panel</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t4" href="#t4">4</a></span><span class="t"><span class="str">(registered in ``panel.async_register_panel``). Here we add it to the frontend's</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t5" href="#t5">5</a></span><span class="t"><span class="str">extra module URLs so the custom card registers itself in every dashboard's "Add</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t6" href="#t6">6</a></span><span class="t"><span class="str">card" picker &#8212; no manual resource entry required, mirroring how the sidebar</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t3" href="#t3">3</a></span><span class="t"><span class="str">The card&#x27;s JS bundle is served from the same static path as the sidebar panel</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t4" href="#t4">4</a></span><span class="t"><span class="str">(registered in ``panel.async_register_panel``). Here we add it to the frontend&#x27;s</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t5" href="#t5">5</a></span><span class="t"><span class="str">extra module URLs so the custom card registers itself in every dashboard&#x27;s &quot;Add</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t6" href="#t6">6</a></span><span class="t"><span class="str">card&quot; picker &#8212; no manual resource entry required, mirroring how the sidebar</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t7" href="#t7">7</a></span><span class="t"><span class="str">panel needs no YAML.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t"><span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t"><span class="str">&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t9" href="#t9">9</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t10" href="#t10">10</a></span><span class="t"><span class="key">from</span> <span class="nam">__future__</span> <span class="key">import</span> <span class="nam">annotations</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -105,25 +105,25 @@
     <p class="mis show_mis"><span class="n"><a id="t21" href="#t21">21</a></span><span class="t"><span class="nam">_LOGGER</span> <span class="op">=</span> <span class="nam">logging</span><span class="op">.</span><span class="nam">getLogger</span><span class="op">(</span><span class="nam">__name__</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t22" href="#t22">22</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t23" href="#t23">23</a></span><span class="t"><span class="com"># Guard so the extra-module URL is added once per HA run (not on every reload).</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t24" href="#t24">24</a></span><span class="t"><span class="nam">_CARD_REGISTERED</span> <span class="op">=</span> <span class="fst">f"</span><span class="op">{</span><span class="nam">DOMAIN</span><span class="op">}</span><span class="fst">_card_registered</span><span class="fst">"</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t24" href="#t24">24</a></span><span class="t"><span class="nam">_CARD_REGISTERED</span> <span class="op">=</span> <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">DOMAIN</span><span class="op">}</span><span class="fst">_card_registered</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t25" href="#t25">25</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t26" href="#t26">26</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t27" href="#t27">27</a></span><span class="t"><span class="key">async</span> <span class="key">def</span> <span class="nam">async_register_card</span><span class="op">(</span><span class="nam">hass</span><span class="op">:</span> <span class="nam">HomeAssistant</span><span class="op">)</span> <span class="op">-></span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t28" href="#t28">28</a></span><span class="t">    <span class="str">"""Add the card bundle to the frontend's module URLs (idempotent).</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t27" href="#t27">27</a></span><span class="t"><span class="key">async</span> <span class="key">def</span> <span class="nam">async_register_card</span><span class="op">(</span><span class="nam">hass</span><span class="op">:</span> <span class="nam">HomeAssistant</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t28" href="#t28">28</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Add the card bundle to the frontend&#x27;s module URLs (idempotent).</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t29" href="#t29">29</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t30" href="#t30">30</a></span><span class="t"><span class="str">    Assumes the static path that serves the bundle has already been registered</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t31" href="#t31">31</a></span><span class="t"><span class="str">    by ``panel.async_register_panel`` (called first during entry setup). The ``?v=``</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t32" href="#t32">32</a></span><span class="t"><span class="str">    token is a content hash so a rebuilt bundle always busts the cache (see</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t33" href="#t33">33</a></span><span class="t"><span class="str">    ``panel.cache_token``).</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t34" href="#t34">34</a></span><span class="t"><span class="str">    """</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t34" href="#t34">34</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t35" href="#t35">35</a></span><span class="t">    <span class="key">if</span> <span class="nam">hass</span><span class="op">.</span><span class="nam">data</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">_CARD_REGISTERED</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t36" href="#t36">36</a></span><span class="t">        <span class="key">return</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t37" href="#t37">37</a></span><span class="t">    <span class="nam">card_path</span> <span class="op">=</span> <span class="nam">Path</span><span class="op">(</span><span class="nam">__file__</span><span class="op">)</span><span class="op">.</span><span class="nam">parent</span> <span class="op">/</span> <span class="str">"frontend"</span> <span class="op">/</span> <span class="nam">CARD_JS_FILENAME</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t37" href="#t37">37</a></span><span class="t">    <span class="nam">card_path</span> <span class="op">=</span> <span class="nam">Path</span><span class="op">(</span><span class="nam">__file__</span><span class="op">)</span><span class="op">.</span><span class="nam">parent</span> <span class="op">/</span> <span class="str">&quot;frontend&quot;</span> <span class="op">/</span> <span class="nam">CARD_JS_FILENAME</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t38" href="#t38">38</a></span><span class="t">    <span class="nam">token</span> <span class="op">=</span> <span class="key">await</span> <span class="nam">hass</span><span class="op">.</span><span class="nam">async_add_executor_job</span><span class="op">(</span><span class="nam">cache_token</span><span class="op">,</span> <span class="nam">card_path</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t39" href="#t39">39</a></span><span class="t">    <span class="nam">url</span> <span class="op">=</span> <span class="fst">f"</span><span class="op">{</span><span class="nam">PANEL_STATIC_URL</span><span class="op">}</span><span class="fst">/</span><span class="op">{</span><span class="nam">CARD_JS_FILENAME</span><span class="op">}</span><span class="fst">?v=</span><span class="op">{</span><span class="nam">token</span><span class="op">}</span><span class="fst">"</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t39" href="#t39">39</a></span><span class="t">    <span class="nam">url</span> <span class="op">=</span> <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">PANEL_STATIC_URL</span><span class="op">}</span><span class="fst">/</span><span class="op">{</span><span class="nam">CARD_JS_FILENAME</span><span class="op">}</span><span class="fst">?v=</span><span class="op">{</span><span class="nam">token</span><span class="op">}</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t40" href="#t40">40</a></span><span class="t">    <span class="nam">frontend</span><span class="op">.</span><span class="nam">add_extra_js_url</span><span class="op">(</span><span class="nam">hass</span><span class="op">,</span> <span class="nam">url</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t41" href="#t41">41</a></span><span class="t">    <span class="nam">hass</span><span class="op">.</span><span class="nam">data</span><span class="op">[</span><span class="nam">_CARD_REGISTERED</span><span class="op">]</span> <span class="op">=</span> <span class="key">True</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t42" href="#t42">42</a></span><span class="t">    <span class="nam">_LOGGER</span><span class="op">.</span><span class="nam">info</span><span class="op">(</span><span class="str">"Registered Home Keeper dashboard card resource at %s"</span><span class="op">,</span> <span class="nam">url</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t42" href="#t42">42</a></span><span class="t">    <span class="nam">_LOGGER</span><span class="op">.</span><span class="nam">info</span><span class="op">(</span><span class="str">&quot;Registered Home Keeper dashboard card resource at %s&quot;</span><span class="op">,</span> <span class="nam">url</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -132,8 +132,8 @@
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_6b71c2d8cf329a53_companions_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.2">coverage.py v7.15.2</a>,
-            created at 2026-08-09 07:55 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.4">coverage.py v7.15.4</a>,
+            created at 2026-08-10 17:29 +0000
         </p>
     </div>
 </footer>
