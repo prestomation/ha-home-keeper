@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  backstopEnabled,
   buildTaskPayload,
   formRecurrenceSummary,
   sensorHintText,
@@ -206,6 +207,7 @@ describe('usage tasks with a time backstop', () => {
     sensor_entity_id: 'sensor.printer_hours',
     sensor_target: 300,
     sensor_unit: 'h',
+    sensor_backstop_on: true,
     sensor_also_every: 6,
     sensor_also_unit: 'months',
     sensor_combinator: 'any',
@@ -214,13 +216,18 @@ describe('usage tasks with a time backstop', () => {
   it('offers the unit label and backstop fields in usage mode only', () => {
     const usage = taskSchema({ recurrence_type: 'sensor' }).map((f) => f.name);
     expect(usage).toContain('sensor_unit');
-    expect(usage).toContain('sensor_also_every');
-    expect(usage).toContain('sensor_also_unit');
-    expect(usage).toContain('sensor_combinator');
+    // The switch is always offered; its three fields only once it's on.
+    expect(usage).toContain('sensor_backstop_on');
+    expect(usage).not.toContain('sensor_also_every');
+    const withBackstop = taskSchema(backstopTask).map((f) => f.name);
+    expect(withBackstop).toContain('sensor_also_every');
+    expect(withBackstop).toContain('sensor_also_unit');
+    expect(withBackstop).toContain('sensor_combinator');
     const threshold = taskSchema({
       recurrence_type: 'sensor',
       sensor_mode: 'threshold',
     }).map((f) => f.name);
+    expect(threshold).not.toContain('sensor_backstop_on');
     expect(threshold).not.toContain('sensor_also_every');
     expect(threshold).not.toContain('sensor_unit');
   });
@@ -241,6 +248,42 @@ describe('usage tasks with a time backstop', () => {
     const { sensor } = buildTaskPayload({ ...backstopTask, sensor_also_every: 0 });
     expect(sensor.also_every).toBeUndefined();
     expect(sensor.combinator).toBeUndefined();
+  });
+
+  it('drops the backstop when its switch is off, whatever the interval says', () => {
+    // The stale interval survives in the edit state after the switch is flipped off
+    // (the field is only hidden, not cleared), so the switch has to be authoritative
+    // or turning it off would save a backstop anyway.
+    const { sensor } = buildTaskPayload({ ...backstopTask, sensor_backstop_on: false });
+    expect(sensor.also_every).toBeUndefined();
+    expect(sensor.combinator).toBeUndefined();
+    expect(sensor.target).toBe(300);
+  });
+
+  it('infers the switch from a loaded task that already has a backstop', () => {
+    const loaded = {
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.printer_hours',
+        mode: 'usage',
+        target: 300,
+        also_every: { interval: 6, unit: 'months' },
+        combinator: 'any',
+      },
+    };
+    expect(backstopEnabled(loaded)).toBe(true);
+    expect(taskFormData(loaded).sensor_backstop_on).toBe(true);
+    expect(taskSchema(loaded).map((f) => f.name)).toContain('sensor_also_every');
+    // ...and a pure meter opens with the switch off and the fields hidden.
+    const meter = { recurrence_type: 'sensor', sensor: { entity_id: 'x', mode: 'usage', target: 300 } };
+    expect(backstopEnabled(meter)).toBe(false);
+    expect(taskFormData(meter).sensor_backstop_on).toBe(false);
+    expect(taskSchema(meter).map((f) => f.name)).not.toContain('sensor_also_every');
+  });
+
+  it('seeds a usable interval rather than zero for a fresh form', () => {
+    // Switching the backstop on must not reveal three fields that describe nothing.
+    expect(taskFormData({ recurrence_type: 'sensor' }).sensor_also_every).toBeGreaterThan(0);
   });
 
   it('flattens a loaded backstop binding back into form fields', () => {
@@ -316,6 +359,7 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
       sensor_entity_id: 'sensor.printer_hours',
       sensor_target: 100,
       sensor_unit: 'h',
+      sensor_backstop_on: true,
       sensor_also_every: 1,
       sensor_also_unit: 'months',
       sensor_combinator: 'any',
@@ -334,6 +378,7 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
       sensor_entity_id: 'sensor.generator_hours',
       sensor_target: 200,
       sensor_unit: 'h',
+      sensor_backstop_on: true,
       sensor_also_every: 6,
       sensor_also_unit: 'months',
       sensor_combinator: 'all',
@@ -348,6 +393,7 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
       sensor_entity_id: 'sensor.printer_hours',
       sensor_target: 100,
       sensor_unit: 'h',
+      sensor_backstop_on: true,
       sensor_also_every: 0,
     });
     expect(summary).toBe('Every 100 h of use');

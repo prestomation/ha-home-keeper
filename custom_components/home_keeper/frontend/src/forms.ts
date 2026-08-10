@@ -95,6 +95,23 @@ export function haDateTimeToIso(value?: string | null): string | undefined {
  * triggered (condition-driven) task offers only its descriptive fields (it has
  * no schedule to edit).
  */
+/** The interval seeded when the time backstop is first switched on. */
+export const DEFAULT_BACKSTOP_INTERVAL = 6;
+
+/**
+ * Whether a usage task's **time backstop** is in play, from either representation.
+ *
+ * The form holds it as a flat `sensor_backstop_on` switch; a task loaded for editing
+ * holds it as the presence of `sensor.also_every`. One predicate over both keeps the
+ * schema, the payload and the hint from ever disagreeing about whether the backstop
+ * fields count — the sort of split that shows a switched-off backstop still applying.
+ */
+export function backstopEnabled(task: Partial<Task>): boolean {
+  const flag = (task as Record<string, unknown>).sensor_backstop_on;
+  if (flag !== undefined && flag !== null) return Boolean(flag);
+  return Boolean(task.sensor?.also_every);
+}
+
 export function taskSchema(
   task: Partial<Task>,
   consumables: { value: string; label: string }[] = [],
@@ -178,6 +195,10 @@ export function taskSchema(
   const sd = task as Record<string, unknown>;
   const sensorMode =
     (sd.sensor_mode as string | undefined) ?? task.sensor?.mode ?? 'usage';
+  // Whether the time backstop's fields are showing. The live switch wins; a task
+  // loaded for editing infers it from whether it actually carries a backstop, so an
+  // existing "every 300 h or 6 months" task opens with the switch already on.
+  const backstopOn = backstopEnabled(task);
   const sensorFields: FormField[] = isSensor
     ? [
         { name: 'sensor_entity_id', required: true, selector: selEntity({}) },
@@ -207,25 +228,34 @@ export function taskSchema(
           : [
               { name: 'sensor_target', required: true, selector: selNumber(0) } as FormField,
               { name: 'sensor_unit', selector: selText() } as FormField,
-              // The time backstop: leave the interval at 0 for a pure meter. A real
-              // service interval is usually "every N hours *or* every M months",
-              // and without this half a machine that sits idle never comes due.
-              { name: 'sensor_also_every', selector: selNumber(0) } as FormField,
-              {
-                name: 'sensor_also_unit',
-                selector: selSelect([
-                  { value: 'days', label: t('opt.unit.days') },
-                  { value: 'weeks', label: t('opt.unit.weeks') },
-                  { value: 'months', label: t('opt.unit.months') },
-                ]),
-              } as FormField,
-              {
-                name: 'sensor_combinator',
-                selector: selSelect([
-                  { value: 'any', label: t('opt.sensor_combinator.any') },
-                  { value: 'all', label: t('opt.sensor_combinator.all') },
-                ]),
-              } as FormField,
+              // The time backstop, behind its own switch. A real service interval is
+              // usually "every N hours *or* every M months", and without the second
+              // half a machine that sits idle never comes due — but a pure meter is
+              // just as legitimate, so the three fields only appear once you ask for
+              // them. (They used to be always-visible with the interval doubling as
+              // its own off switch at 0, which read as three mandatory fields you had
+              // to know to neutralise.)
+              { name: 'sensor_backstop_on', selector: selBool() } as FormField,
+              ...(backstopOn
+                ? [
+                    { name: 'sensor_also_every', selector: selNumber(1) } as FormField,
+                    {
+                      name: 'sensor_also_unit',
+                      selector: selSelect([
+                        { value: 'days', label: t('opt.unit.days') },
+                        { value: 'weeks', label: t('opt.unit.weeks') },
+                        { value: 'months', label: t('opt.unit.months') },
+                      ]),
+                    } as FormField,
+                    {
+                      name: 'sensor_combinator',
+                      selector: selSelect([
+                        { value: 'any', label: t('opt.sensor_combinator.any') },
+                        { value: 'all', label: t('opt.sensor_combinator.all') },
+                      ]),
+                    } as FormField,
+                  ]
+                : []),
             ]),
         { name: 'sensor_attribute', selector: selText() },
       ]
@@ -321,7 +351,12 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
     sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
     sensor_unit: sd.sensor_unit ?? task.sensor?.unit ?? '',
-    sensor_also_every: sd.sensor_also_every ?? task.sensor?.also_every?.interval ?? 0,
+    sensor_backstop_on: backstopEnabled(task),
+    // Seeded rather than left at 0 so switching the backstop on gives a working rule
+    // straight away instead of three fields that quietly do nothing until you notice
+    // the interval is zero.
+    sensor_also_every:
+      sd.sensor_also_every ?? task.sensor?.also_every?.interval ?? DEFAULT_BACKSTOP_INTERVAL,
     sensor_also_unit: sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months',
     sensor_combinator: sd.sensor_combinator ?? task.sensor?.combinator ?? 'any',
     device_id: task.device_id ?? undefined,
@@ -406,10 +441,10 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       sensor.target = Number(sd.sensor_target ?? task.sensor?.target) || 0;
       const unit = String(sd.sensor_unit ?? task.sensor?.unit ?? '').trim();
       if (unit) sensor.unit = unit;
-      // 0 (or blank) means "no time backstop" — the field doubles as its own toggle,
-      // so the form stays a flat list rather than growing a checkbox to hide a pair.
+      // The backstop applies only when its switch is on; a blank or zero interval
+      // still drops it, so a half-filled form can't save a meaningless "every 0".
       const alsoEvery = Number(sd.sensor_also_every ?? task.sensor?.also_every?.interval) || 0;
-      if (alsoEvery > 0) {
+      if (backstopEnabled(task) && alsoEvery > 0) {
         sensor.also_every = {
           interval: alsoEvery,
           unit: (String(sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months') ||
@@ -559,7 +594,7 @@ export function sensorHintText(
           target: targetStr,
         });
   const alsoEvery = Number(sd.sensor_also_every ?? task.sensor?.also_every?.interval) || 0;
-  if (alsoEvery <= 0) return base;
+  if (!backstopEnabled(task) || alsoEvery <= 0) return base;
   const alsoUnit = String(sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months');
   const every = `${alsoEvery} ${t(`opt.unit.${alsoUnit}`)}`;
   const combinator = String(sd.sensor_combinator ?? task.sensor?.combinator ?? 'any');

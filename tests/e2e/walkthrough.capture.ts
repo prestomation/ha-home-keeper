@@ -151,6 +151,11 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await numberAt(0).fill('300'); // Target (units of use)
     await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
+    // Flip "Also come due on a schedule" — the three backstop fields appear, already
+    // seeded, and the summary gains its second half. That reveal is the beat.
+    await panel.locator('#hk-task-form ha-selector-boolean ha-switch').first().click();
+    await expect(panel.locator('#hk-task-form ha-selector-number')).toHaveCount(2);
+    await page.waitForTimeout(BEAT);
     await numberAt(1).fill('6'); // Or every … (the time backstop)
     await expect(panel.locator('#hk-form-summary-value')).toHaveText(
       'Every 300 of use, or every 6 months',

@@ -341,8 +341,8 @@ Most real service intervals have two halves. The manual says every **300 print h
 because wear happens whether the machine runs or not, and something left unused all
 winter still needs its annual service.
 
-A usage task takes both. Beside the target there's an **Or every** cadence and a
-**Combine with** choice:
+A usage task takes both. Switch on **Also come due on a schedule** and you get an **Or
+every** cadence, its unit, and a **Combine with** choice:
 
 - **Whichever comes first** (the default) is the everyday service interval. The task
   becomes due when the meter reaches its target, or when the cadence elapses.
@@ -350,13 +350,16 @@ A usage task takes both. Beside the target there's an **Or every** cadence and a
   should trigger the work: a standby generator you want run at least monthly, and also
   serviced after 100 engine hours.
 
-Leave **Or every** at **0** for a pure meter, exactly as before.
+Leave the switch off for a pure meter, which is what a task starts as. Switching it on
+fills in a sensible cadence for you, so the fields it reveals describe a working rule
+straight away.
 
-The target, the unit, the "Or every" interval and the Combine-with choice add up to one
-rule, and that is easy to get wrong. So the form says the rule back to you under **When
-it comes due**, directly above the save button, and rewrites it as you type. It's the
-same sentence the task list will show afterwards, so there's no gap between what you set
-up and what you get.
+The target, the unit, the cadence and the Combine-with choice add up to one rule, and
+that is easy to get wrong. So the form says the rule back to you under **When it comes
+due**, directly above the save button, and rewrites it as you type, with the live
+arithmetic underneath it ("reads 660 h, so first due at 760 h"). It's the same sentence
+the task list will show afterwards, so there's no gap between what you set up and what
+you get.
 
 ![The task form with a metered rule and a time backstop, summarised as "Every 100 of use, or every 6 months" above the Create button](docs/images/30b-panel-sensor-backstop.png)
 

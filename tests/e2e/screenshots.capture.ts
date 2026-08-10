@@ -37,6 +37,27 @@ async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Pr
   await select.page().getByRole('menuitem', { name: optionLabel }).first().click();
 }
 
+/**
+ * Put the usage form's "Also come due on a schedule" switch into a known state.
+ *
+ * Driven by its *effect* — the backstop adds a second number selector ("Or every")
+ * next to Target — rather than by reading the switch widget's internals, which live
+ * behind `ha-switch`'s shadow root and aren't a native checkbox. Reading the effect
+ * also makes the helper idempotent and self-verifying: it clicks only when the form
+ * isn't already in the wanted state, and waits for the schema to actually change.
+ */
+async function setBackstop(panel: Locator, on: boolean): Promise<void> {
+  const numbers = panel.locator('#hk-task-form ha-selector-number');
+  const wanted = on ? 2 : 1;
+  if ((await numbers.count()) !== wanted) {
+    // Click the switch itself, not its `ha-selector-boolean` wrapper: the wrapper
+    // spans the full row, so a centred click lands in the dead space between the
+    // label and the control and toggles nothing.
+    await panel.locator('#hk-task-form ha-selector-boolean ha-switch').first().click();
+  }
+  await expect(numbers).toHaveCount(wanted);
+}
+
 /** Fill the input of the nth ha-form number selector within a scope. */
 async function fillNumber(scope: Locator, nth: number, value: string): Promise<void> {
   await scope.locator('ha-selector-number').nth(nth).locator('input').fill(value);
@@ -323,12 +344,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 30b. The same usage form with a **time backstop** — "every 100 h, or every 6
   // months, whichever comes first", which is how manufacturers actually write a
-  // service interval. The "Or every" number is the 2nd number selector (after
-  // Target); leaving it at 0 keeps the task a pure meter.
+  // service interval. It lives behind the "Also come due on a schedule" switch, which
+  // reveals the interval, its unit and the combinator; switching it on seeds a usable
+  // interval so the revealed fields describe a real rule straight away.
+  await setBackstop(panel, true);
   await fillNumber(panel.locator('#hk-task-form'), 1, '6');
   await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
   // The summary strip above the submit button states the assembled rule in one
-  // sentence. Four fields add up to it and none of them says it, so this is the
+  // sentence. Several fields add up to it and none of them says it, so this is the
   // shot that has to prove the wording — assert it, don't just photograph it.
   await expect(panel.locator('#hk-form-summary-value')).toHaveText(
     'Every 100 of use, or every 6 months',
@@ -337,7 +360,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/30b-panel-sensor-backstop.png`, fullPage: true });
   // Put it back to a pure meter so the threshold shot below starts from a clean form.
-  await fillNumber(panel.locator('#hk-task-form'), 1, '0');
+  await setBackstop(panel, false);
 
   // 31. The same form switched to threshold mode — a comparison + value, plus an
   // optional hold (seconds) to debounce. The task arms on the crossing. (The sensor

@@ -26,11 +26,18 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   next-due sensor entity now exposes `usage_consumed` / `usage_remaining` /
   `usage_percent` / `usage_target` / `usage_unit` (plus `backstop_due` when a time
   backstop is set) for dashboards and automations.
+- **The time backstop is behind its own switch now.** It used to be three always-visible
+  fields whose interval doubled as its own off switch at **0**, so a plain meter task
+  showed three boxes you had to know to neutralise. **Also come due on a schedule** now
+  reveals them only when you want them, and fills in a working cadence when you flip it
+  on. Existing tasks open with the switch already set to match what they do.
 - **The task form now states the rule it adds up to, right above the button that
   saves it.** A target, a unit, an "Or every" interval and a Combine-with choice
   together mean *"every 300 h of use, or every 6 months"*, but nothing on the screen
   said that sentence until the task already existed. The form now spells it out under
-  **When it comes due**, rewriting itself as you type.
+  **When it comes due**, rewriting itself as you type, with the live arithmetic
+  underneath ("reads 660 h, so first due at 760 h") in the same box rather than a
+  second panel stacked below it.
   It covers every kind of task, not just metered ones, and it is produced by the same
   formatter that writes the task's caption afterwards, so what the form promises and
   what the list shows can't drift apart.
