@@ -352,10 +352,11 @@ A usage task takes both. Beside the target there's an **Or every** cadence and a
 
 Leave **Or every** at **0** for a pure meter, exactly as before.
 
-Four fields adding up to one rule is easy to get wrong, so the form says the rule back
-to you under **When it comes due**, directly above the save button, and rewrites it as
-you type. It's the same sentence the task list will show afterwards, so there's no gap
-between what you set up and what you get.
+The target, the unit, the "Or every" interval and the Combine-with choice add up to one
+rule, and that is easy to get wrong. So the form says the rule back to you under **When
+it comes due**, directly above the save button, and rewrites it as you type. It's the
+same sentence the task list will show afterwards, so there's no gap between what you set
+up and what you get.
 
 ![The task form with a metered rule and a time backstop, summarised as "Every 100 of use, or every 6 months" above the Create button](docs/images/30b-panel-sensor-backstop.png)
 
