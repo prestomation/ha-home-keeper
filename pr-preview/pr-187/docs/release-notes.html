@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-187/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-187/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-187/assets/js/runtime~main.f7df0722.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-187/assets/js/runtime~main.fb05a2d3.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-187/assets/js/main.224e1abb.js" defer="defer"></script>
 </head>
 <body>
@@ -17,16 +17,16 @@ versioning, with PEP 440 pre-release suffixes (<code>bN</code>/<code>aN</code>/<
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0120b1">[0.12.0b1]<a href="#0120b1" class="hash-link" aria-label="Direct link to [0.12.0b1]" title="Direct link to [0.12.0b1]" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added">Added<a href="#added" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
 <ul>
-<li class=""><strong>A usage task can now come due on hours <em>or</em> time, whichever comes first.</strong> Real
+<li class=""><strong>A usage task can now come due on hours or on time, whichever comes first.</strong> Real
 service intervals are rarely one or the other: a nozzle wants replacing every 300
-print hours <em>or</em> every 6 months, an oil change every 8,000 km <em>or</em> every 12 months,
-a filter every 500 run-hours <em>or</em> every 3 months. A usage (meter) task now takes an
+print hours or every 6 months, an oil change every 8,000 km or every 12 months, a
+filter every 500 run-hours or every 3 months. A usage (meter) task now takes an
 optional <strong>&quot;Or every&quot;</strong> cadence beside its target, with a <strong>Combine with</strong> choice of
 <em>Whichever comes first</em> or <em>Both must be met</em>. The clock runs from the last
 completion (or the task&#x27;s creation, before the first one), so completing it resets
-both halves together. A machine that sits idle no longer escapes its calendar
-service — the time half is evaluated even while the bound sensor is offline, which
-is exactly when an unplugged appliance used to slip through.</li>
+both halves together. A machine left unused no longer escapes its calendar service:
+the time half is evaluated even while the bound sensor is offline, which is exactly
+when an unplugged appliance used to slip through.</li>
 <li class=""><strong>Usage tasks show their progress.</strong> The task page draws a meter bar with a
 <em>&quot;180 h to go&quot;</em> line, the meter target carries an optional <strong>unit label</strong> (prefilled
 from the bound sensor, so &quot;300&quot; reads as &quot;300 h&quot;), and a device-attached task&#x27;s
@@ -34,9 +34,9 @@ next-due sensor entity now exposes <code>usage_consumed</code> / <code>usage_rem
 <code>usage_percent</code> / <code>usage_target</code> / <code>usage_unit</code> (plus <code>backstop_due</code> when a time
 backstop is set) for dashboards and automations.</li>
 <li class=""><strong>New service <code>set_task_meter</code> re-anchors a usage task&#x27;s baseline without recording
-a completion</strong> — for &quot;I did this last month, before Home Keeper was watching&quot;, or
-when the meter itself was replaced or zeroed. Omit <code>baseline</code> to anchor to the bound
-sensor&#x27;s current reading.</li>
+a completion.</strong> Use it for &quot;I did this last month, before Home Keeper was watching&quot;,
+or when the meter itself was replaced or zeroed. Omit <code>baseline</code> to anchor to the
+bound sensor&#x27;s current reading.</li>
 <li class=""><strong>New services <code>sign_document_url</code> and <code>sign_part_file_url</code> mint a short-lived,
 no-auth-header-needed URL for an asset document or a part&#x27;s attached file.</strong> A
 caller with no interactive browser session of its own (e.g. an MCP-connected
