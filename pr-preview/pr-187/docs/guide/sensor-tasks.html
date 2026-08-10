@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Sensor-based tasks | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/guide/sensor-tasks"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Sensor-based tasks | Home Keeper"><meta data-rh="true" name="description" content="Some maintenance isn&#x27;t measured in time but in use: oil every 15,000 km, a"><meta data-rh="true" property="og:description" content="Some maintenance isn&#x27;t measured in time but in use: oil every 15,000 km, a"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-187/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/guide/sensor-tasks"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/guide/sensor-tasks" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/guide/sensor-tasks" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Sensor-based tasks","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/guide/sensor-tasks"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-187/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-187/assets/js/runtime~main.45171bde.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-187/assets/js/runtime~main.ff873f53.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-187/assets/js/main.224e1abb.js" defer="defer"></script>
 </head>
 <body>
@@ -60,8 +60,8 @@ passing a <code>sensor</code> mapping.</p>
 6 months</strong>, every <strong>8,000 km or 12 months</strong>, every <strong>500 run-hours or 3 months</strong>,
 because wear happens whether the machine runs or not, and something left unused all
 winter still needs its annual service.</p>
-<p>A usage task takes both. Beside the target there&#x27;s an <strong>Or every</strong> cadence and a
-<strong>Combine with</strong> choice:</p>
+<p>A usage task takes both. Switch on <strong>Also come due on a schedule</strong> and you get an <strong>Or
+every</strong> cadence, its unit, and a <strong>Combine with</strong> choice:</p>
 <ul>
 <li class=""><strong>Whichever comes first</strong> (the default) is the everyday service interval. The task
 becomes due when the meter reaches its target, or when the cadence elapses.</li>
@@ -69,13 +69,16 @@ becomes due when the meter reaches its target, or when the cadence elapses.</li>
 should trigger the work: a standby generator you want run at least monthly, and also
 serviced after 100 engine hours.</li>
 </ul>
-<p>Leave <strong>Or every</strong> at <strong>0</strong> for a pure meter, exactly as before.</p>
-<p>The target, the unit, the &quot;Or every&quot; interval and the Combine-with choice add up to one
-rule, and that is easy to get wrong. So the form says the rule back to you under <strong>When
-it comes due</strong>, directly above the save button, and rewrites it as you type. It&#x27;s the
-same sentence the task list will show afterwards, so there&#x27;s no gap between what you set
-up and what you get.</p>
-<p><img decoding="async" loading="lazy" alt="The task form with a metered rule and a time backstop, summarised as &amp;quot;Every 100 of use, or every 6 months&amp;quot; above the Create button" src="/ha-home-keeper/pr-preview/pr-187/assets/images/30b-panel-sensor-backstop-b5dd0a5dfc33a75d1c79c5c6461c74e4.png" width="1280" height="3826" class="img_ev3q"></p>
+<p>Leave the switch off for a pure meter, which is what a task starts as. Switching it on
+fills in a sensible cadence for you, so the fields it reveals describe a working rule
+straight away.</p>
+<p>The target, the unit, the cadence and the Combine-with choice add up to one rule, and
+that is easy to get wrong. So the form says the rule back to you under <strong>When it comes
+due</strong>, directly above the save button, and rewrites it as you type, with the live
+arithmetic underneath it (&quot;reads 660 h, so first due at 760 h&quot;). It&#x27;s the same sentence
+the task list will show afterwards, so there&#x27;s no gap between what you set up and what
+you get.</p>
+<p><img decoding="async" loading="lazy" alt="The task form with a metered rule and a time backstop, summarised as &amp;quot;Every 100 of use, or every 6 months&amp;quot; above the Create button" src="/ha-home-keeper/pr-preview/pr-187/assets/images/30b-panel-sensor-backstop-9f5b47dbe72ab3e112d5adc3a72a0653.png" width="1280" height="3888" class="img_ev3q"></p>
 <p>The clock runs from the <strong>last completion</strong> (or, before the first one, from when you
 created the task), so checking the task off resets both halves together: the counter and
 the calendar. The time half also keeps counting while the bound sensor is <strong>offline or
@@ -92,8 +95,8 @@ As with every per-task entity, that sensor exists for tasks <strong>attached to 
 without recording a completion, for work you did before Home Keeper was watching, or
 when the meter itself was swapped or zeroed. Omit <code>baseline</code> and it anchors to whatever
 the sensor reads right now.</p>
-<p><img decoding="async" loading="lazy" alt="Creating a usage/meter sensor task: pick the sensor and a target; no clock cadence" src="/ha-home-keeper/pr-preview/pr-187/assets/images/30-panel-create-sensor-task-7ecee1f9de5443eaaa29eb583f1792da.png" width="1280" height="3810" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The same form in threshold mode, with a comparison, a value, and an optional hold" src="/ha-home-keeper/pr-preview/pr-187/assets/images/31-panel-create-sensor-threshold-7efcce106c2ad257cec41d8832159a1a.png" width="1280" height="3684" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="Creating a usage/meter sensor task: pick the sensor and a target; no clock cadence" src="/ha-home-keeper/pr-preview/pr-187/assets/images/30-panel-create-sensor-task-8abeb9d860a753e94dd9144d7e96c089.png" width="1280" height="3624" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same form in threshold mode, with a comparison, a value, and an optional hold" src="/ha-home-keeper/pr-preview/pr-187/assets/images/31-panel-create-sensor-threshold-81dfd4fac55eee72e28705686fcf3cc0.png" width="1280" height="3666" class="img_ev3q"></p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="link-a-task-to-a-consumable-auto-reorder">Link a task to a consumable (auto-reorder)<a href="#link-a-task-to-a-consumable-auto-reorder" class="hash-link" aria-label="Direct link to Link a task to a consumable (auto-reorder)" title="Direct link to Link a task to a consumable (auto-reorder)" translate="no">​</a></h3>
 <p>A maintenance task often <strong>uses up a spare you keep on hand</strong>, such as a fridge water filter,
 an HVAC filter, a brita cartridge. Home Keeper lets you <strong>link any task to an appliance

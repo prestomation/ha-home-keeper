@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-187/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-187/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-187/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-187/assets/js/runtime~main.45171bde.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-187/assets/js/runtime~main.ff873f53.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-187/assets/js/main.224e1abb.js" defer="defer"></script>
 </head>
 <body>
@@ -33,11 +33,18 @@ from the bound sensor, so &quot;300&quot; reads as &quot;300 h&quot;), and a dev
 next-due sensor entity now exposes <code>usage_consumed</code> / <code>usage_remaining</code> /
 <code>usage_percent</code> / <code>usage_target</code> / <code>usage_unit</code> (plus <code>backstop_due</code> when a time
 backstop is set) for dashboards and automations.</li>
+<li class=""><strong>The time backstop is behind its own switch now.</strong> It used to be three always-visible
+fields whose interval doubled as its own off switch at <strong>0</strong>, so a plain meter task
+showed three boxes you had to know to neutralise. <strong>Also come due on a schedule</strong> now
+reveals them only when you want them, and fills in a working cadence when you flip it
+on. Existing tasks open with the switch already set to match what they do.</li>
 <li class=""><strong>The task form now states the rule it adds up to, right above the button that
 saves it.</strong> A target, a unit, an &quot;Or every&quot; interval and a Combine-with choice
 together mean <em>&quot;every 300 h of use, or every 6 months&quot;</em>, but nothing on the screen
 said that sentence until the task already existed. The form now spells it out under
-<strong>When it comes due</strong>, rewriting itself as you type.
+<strong>When it comes due</strong>, rewriting itself as you type, with the live arithmetic
+underneath (&quot;reads 660 h, so first due at 760 h&quot;) in the same box rather than a
+second panel stacked below it.
 It covers every kind of task, not just metered ones, and it is produced by the same
 formatter that writes the task&#x27;s caption afterwards, so what the form promises and
 what the list shows can&#x27;t drift apart.</li>
