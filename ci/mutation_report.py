@@ -256,22 +256,24 @@ def main() -> int:
     passed = scored == 0 or percent >= threshold
     emit(render(args.title, tally, survivors, percent, hits, misses, threshold, passed))
 
-    if scored == 0 and args.require_mutants:
-        # The caller only gets here having asked for a non-empty scope, so zero
-        # scored mutants means the run did not do its job — every mutant errored,
-        # the filters matched nothing, or the tool died part-way. Treating that as
-        # a pass is the one failure mode worse than a false red.
+    if scored == 0 and tally and args.require_mutants:
+        # Mutants existed and not one of them was scored: they all errored out,
+        # or the filters matched nothing runnable. That is a run which tested
+        # nothing while looking like a pass — the one failure mode worse than a
+        # false red.
+        #
+        # An empty tally is the *opposite* case and must pass: the scoped lines
+        # genuinely hold no mutants. A comment-only edit inside a mutable file
+        # produces exactly that — real changed line ranges, nothing to mutate.
         print(
-            f"[mutation] no mutants were scored, but {len(tally)} outcome(s) were "
-            "reported and a scope was requested — the run did not test anything.",
+            f"[mutation] {sum(tally.values())} mutant(s) were reported but none "
+            "could be scored — the run did not test anything.",
             file=sys.stderr,
         )
         return 1
 
     if scored == 0:
-        print(
-            "[mutation] no mutants were scored — nothing to gate on.", file=sys.stderr
-        )
+        print("[mutation] no mutants in scope — nothing to gate on.", file=sys.stderr)
     return 0 if passed or not args.gate else 1
 
 
