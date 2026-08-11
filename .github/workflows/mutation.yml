@@ -66,7 +66,9 @@ jobs:
     name: TypeScript
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-mutation') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Diff-scoped runs take minutes; the headroom is for a manual `--all`, which
+    # is ~40 minutes over the full 1,800-mutant frontend surface.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7
         with:
