@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 import hk_events as events
 import hk_models as m
 import hk_recurrence as r
-import pytest
+from asserts import raises_exactly
 
 TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 13, 10, tzinfo=TZ)
@@ -35,9 +35,9 @@ def test_normalize_metadata_empty_inputs():
 
 
 def test_normalize_metadata_rejects_bad_cost():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "cost must be a number"):
         m.normalize_completion_metadata({"cost": "free"})
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "cost must be >= 0"):
         m.normalize_completion_metadata({"cost": -1})
 
 
@@ -58,7 +58,10 @@ def test_normalize_metadata_rejects_unsafe_photo_urls():
     # javascript:/data: URIs and protocol-relative URLs are stored-XSS vectors when
     # the panel renders `photo` into an href/img src.
     for bad in ("javascript:alert(1)", "data:text/html,<script>", "//evil.com/x"):
-        with pytest.raises(m.TaskValidationError):
+        with raises_exactly(
+            m.TaskValidationError,
+            "photo must be an http(s) URL or a site-relative path",
+        ):
             m.normalize_completion_metadata({"photo": bad})
 
 
@@ -146,7 +149,7 @@ def test_update_completion_reports_replaced_photo():
 def test_update_completion_unknown_ts_raises():
     task = _floating_task()
     r.apply_completion(task, NOW, now=NOW)
-    with pytest.raises(ValueError):
+    with raises_exactly(ValueError, "no completion at '2000-01-01T00:00:00+00:00'"):
         r.update_completion(task, "2000-01-01T00:00:00+00:00", {}, fields=FIELDS)
 
 
@@ -205,7 +208,9 @@ def test_optional_mode_clears_required_fields():
 
 
 def test_invalid_capture_mode_rejected():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(
+        m.TaskValidationError, "invalid completion_detail: 'sometimes'"
+    ):
         m.build_task(
             {
                 "name": "x",

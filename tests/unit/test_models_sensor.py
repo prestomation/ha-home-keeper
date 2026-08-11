@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import hk_models as m
 import pytest
+from asserts import raises_exactly
 
 TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 13, 10, tzinfo=TZ)
@@ -99,7 +100,9 @@ def test_invalid_sensor_config_rejected(sensor):
 
 
 def test_missing_sensor_block_rejected():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(
+        m.TaskValidationError, "a sensor task requires a sensor configuration"
+    ):
         m.build_task({"name": "T", "recurrence_type": "sensor"}, now=NOW)
 
 
