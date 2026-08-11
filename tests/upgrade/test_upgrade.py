@@ -188,6 +188,35 @@ def test_stored_device_ids_still_resolve(upgrade_run):
     )
 
 
+@pytest.mark.xfail(
+    reason=("the copy inside source.<ns> dangles too, and is the re-keying bug; #183"),
+    strict=True,
+)
+def test_source_namespace_device_ids_still_resolve(upgrade_run):
+    """A contributor's *own* copy of the device id must resolve too.
+
+    Separate from the test above on purpose. Healing only ``task["device_id"]`` would
+    flip that one green while leaving this one red — and this is the copy that
+    actually drives duplication, because bambu-lab and battery-notes match existing
+    tasks on ``source.<ns>.device_id`` rather than on the task's field.
+
+    So these two together are the real acceptance criterion for the auto-heal: a fix
+    that satisfies only the first one is not a fix.
+    """
+    live = {d["id"] for d in upgrade_run.after["devices"]}
+    dangling = []
+    for task in upgrade_run.after["tasks"]:
+        for namespace, payload in (task.get("source") or {}).items():
+            if not isinstance(payload, dict):
+                continue
+            device_id = payload.get("device_id")
+            if device_id and device_id not in live:
+                dangling.append((task["name"], namespace, device_id))
+    assert not dangling, (
+        f"{len(dangling)} source namespace(s) hold a dead device id: {dangling}"
+    )
+
+
 # ── scenario 7: the decisive one ─────────────────────────────────────────────
 
 

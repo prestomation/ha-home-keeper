@@ -275,12 +275,13 @@ def upgrade_run() -> UpgradeRun:
             pytest.fail(f"could not start HA {OLD_HA_TAG}: {up.stderr}")
         token = _wait_for_running()
 
-        # The glues create their tasks from a reconcile pass on setup; give every
-        # integration room to settle before snapshotting, or the "before" picture is
-        # of a half-built registry.
-        time.sleep(SETTLE_SECONDS)
+        # The glues create their tasks from a reconcile pass on setup. Wait for the
+        # registry to stop changing rather than sleeping a fixed interval — a slow
+        # runner would otherwise snapshot a half-built registry and produce a
+        # before/after diff that looks like a migration effect but isn't.
+        _wait_until_settled(token)
         _seed_home_keeper_scenarios(token)
-        time.sleep(SETTLE_SECONDS)
+        _wait_until_settled(token)
         before = snapshot(token)
 
         # `down` without `-v`: the config dir is a bind mount and must survive.
@@ -291,8 +292,14 @@ def upgrade_run() -> UpgradeRun:
         if up.returncode != 0:
             pytest.fail(f"could not start HA {NEW_HA_TAG}: {up.stderr}")
         token = _wait_for_running()
-        time.sleep(SETTLE_SECONDS)
+        _wait_until_settled(token)
         after = snapshot(token)
+
+        # Guard against the failure mode that would make every assertion in this
+        # suite vacuous: if phase 2 somehow started from a fresh config dir, the
+        # "after" world is a clean install rather than a migrated one, and each
+        # test would compare two unrelated systems while looking perfectly healthy.
+        _assert_phase_two_continued_phase_one(before, after)
 
         yield UpgradeRun(before, after, token, config_dir)
     finally:
@@ -302,6 +309,51 @@ def upgrade_run() -> UpgradeRun:
         (tmp / "ha.log").write_text(logs.stdout or "")
         print(f"\n[upgrade] Home Assistant logs: {tmp / 'ha.log'}")
         _compose("down", "-v", config_dir=config_dir, ha_tag=NEW_HA_TAG)
+
+
+def _wait_until_settled(token: str, quiet_for: int = 8, timeout: int = 120) -> None:
+    """Poll until devices, entities and tasks stop changing for *quiet_for* seconds.
+
+    Replaces a fixed sleep: integrations finish setting up at wildly different rates
+    on a loaded CI runner, and a snapshot of a half-built registry produces a
+    before/after diff that reads like a migration effect.
+    """
+    deadline = time.monotonic() + timeout
+    previous: tuple[int, int, int] | None = None
+    stable_since: float | None = None
+    while time.monotonic() < deadline:
+        snap = snapshot(token)
+        current = (len(snap["devices"]), len(snap["entities"]), len(snap["tasks"]))
+        if current == previous:
+            if stable_since is None:
+                stable_since = time.monotonic()
+            elif time.monotonic() - stable_since >= quiet_for:
+                return
+        else:
+            previous, stable_since = current, None
+        time.sleep(2)
+    # Not fatal: the assertions still run, but say so, because a timeout here is the
+    # most likely explanation for a confusing result downstream.
+    print(f"\n[upgrade] WARNING: registry never went quiet within {timeout}s")
+
+
+def _assert_phase_two_continued_phase_one(before: dict, after: dict) -> None:
+    """Fail loudly if phase 2 booted a fresh config rather than the migrated one."""
+    if not before["tasks"]:
+        pytest.fail("phase 1 produced no tasks — the fixture never seeded")
+    if not after["tasks"]:
+        pytest.fail(
+            "phase 2 has no tasks at all: it almost certainly started from a fresh "
+            "config dir, which would make every assertion in this suite vacuous"
+        )
+    # Task ids are generated per creation, so a shared id proves continuity in a way
+    # that names (which a fresh seed would recreate identically) cannot.
+    before_ids = {t["id"] for t in before["tasks"]}
+    if not before_ids & {t["id"] for t in after["tasks"]}:
+        pytest.fail(
+            "no task id survived into phase 2 — the config dir was not carried over, "
+            "so the 'after' world is a clean install rather than a migrated one"
+        )
 
 
 def _seed_home_keeper_scenarios(token: str) -> None:

@@ -18,6 +18,21 @@ entity to the **source device** by copying that device's identifiers into its ow
 ``DeviceInfo``. Before HA 2026.8 that merged onto the source device; from 2026.8 it
 forks a second device. That split is the thing the upgrade suite exists to observe,
 so the stub must keep doing it — do not "fix" it to use ``device_entry`` linking.
+
+**Fidelity scope — read this before drawing conclusions from the suite.** The
+identifier copy models Battery Notes *as it was before 2026.8*, which is the correct
+thing for phase 1: it is the world users are upgrading from, and the merged device it
+produces is what Home Assistant then splits. Battery Notes itself confirms this was
+its old shape — its own `common.py` notes that on older versions "devices sharing an
+identifier or connection were merged into a single device".
+
+It is **not** a model of current Battery Notes, which has already migrated: 3.0.0-dev
+links via ``async_entity_id_to_device_id`` and no longer copies identifiers at all.
+So results here support claims about *upgrading from a pre-2026.8 install* — which is
+what #183 reports — and must not be read as claims about how Battery Notes behaves
+today. Worth noting for the model decision in
+``docs/DEVICE_REGISTRY_2026_8_PLAN.md``: upstream has moved to entity-level linking,
+and Home Keeper has not.
 """
 
 from __future__ import annotations

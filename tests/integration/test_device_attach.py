@@ -30,6 +30,7 @@ anything.
 """
 
 import time
+from contextlib import contextmanager
 
 import pytest
 from conftest import call_service
@@ -64,12 +65,9 @@ def _wait_for_entities(
     return found
 
 
-@pytest.mark.xfail(
-    reason="HA 2026.8 forks a duplicate device instead of merging; see #183",
-    strict=True,
-)
-def test_task_entities_land_on_the_foreign_device(ha):
-    """A device-attached task puts its entities on that device, not on a fork."""
+@contextmanager
+def _attached_task(ha):
+    """Create a task attached to the stub's device; yield (device_id, task_id)."""
     stub_device = find_device(ha, STUB_DOMAIN, STUB_DEVICE_KEY)
     assert stub_device is not None, (
         "the battery-notes stub should own a device; is the stub mounted and loaded?"
@@ -90,20 +88,50 @@ def test_task_entities_land_on_the_foreign_device(ha):
         return_response=True,
     )
     task_id = resp.get("service_response", resp)["task_id"]
-
     try:
-        # add_task reloads the config entry; wait for our entities to be registered.
-        hk_entities = _wait_for_entities(ha, stub_device_id, "home_keeper")
+        # add_task reloads the config entry; let the entities be registered.
+        _wait_for_entities(ha, stub_device_id, "home_keeper")
+        yield stub_device_id, task_id
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
 
-        # 1. The per-task entities belong to the foreign device.
+
+# Two tests rather than one with several assertions, so a *partial* fix is legible:
+# restoring entity placement without stopping the fork would flip the first to XPASS
+# while the second stays xfail, which names exactly what is left to do. Bundled into
+# one test, the same partial fix would just look like "still broken".
+
+
+@pytest.mark.xfail(
+    reason="HA 2026.8 puts our entities on the fork, not the real device; see #183",
+    strict=True,
+)
+def test_task_entities_land_on_the_foreign_device(ha):
+    """The per-task entities belong to the device the task points at."""
+    with _attached_task(ha) as (stub_device_id, _task_id):
+        hk_entities = [
+            e
+            for e in entities_for_device(ha, stub_device_id)
+            if e.get("platform") == "home_keeper"
+        ]
         assert hk_entities, (
             "Home Keeper's per-task entities should be registered against the "
             f"foreign device {stub_device_id}, but none were found on it"
         )
 
-        # 2. No duplicate device was forked for the task. Pre-2026.8 the identifier
-        #    copy merged; post-2026.8 it creates a second device carrying the same
-        #    identifiers under Home Keeper's config entry.
+
+@pytest.mark.xfail(
+    reason="HA 2026.8 forks a duplicate device instead of merging; see #183",
+    strict=True,
+)
+def test_attaching_a_task_does_not_fork_a_duplicate_device(ha):
+    """Attaching must not mint a second device carrying the same identifiers.
+
+    Pre-2026.8 the identifier copy merged onto the existing device. Post-2026.8 it
+    creates a second device under Home Keeper's config entry — and with no ``name``,
+    which is why #183 item 1 shows a raw GUID.
+    """
+    with _attached_task(ha) as (stub_device_id, task_id):
         devices = device_registry(ha)
 
         self_owned = [d for d in devices if has_identifier(d, "home_keeper", task_id)]
@@ -120,8 +148,6 @@ def test_task_entities_land_on_the_foreign_device(ha):
         ]
         assert not forked, (
             "the stub device's identifiers must not appear on a second device — "
-            f"Home Keeper forked a duplicate: {forked}"
+            f"Home Keeper forked a duplicate: "
+            f"{[(d['id'], d.get('name')) for d in forked]}"
         )
-    finally:
-        if task_id:
-            call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})

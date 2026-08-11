@@ -41,7 +41,11 @@ def _complete_onboarding():
     )
     if r.status_code == 200:
         auth_code = r.json()["auth_code"]
-    elif r.status_code == 403:
+    elif r.status_code in (403, 404):
+        # Onboarding already completed: 403, or 404 once HA has removed the endpoint.
+        # Which one you get depends on the HA version and on whether the config dir
+        # carries leftover state, so accept both and log in instead — the same
+        # tolerance tests/e2e/global-setup.ts already has.
         return _login("test", "testtest1")
     else:
         raise RuntimeError(
