@@ -875,6 +875,55 @@ The integration and the sidebar panel are localized into **16 languages** and fo
 your Home Assistant language, falling back to English for anything untranslated.
 Translations live in `custom_components/home_keeper/translations/`.
 
+## Upgrading to Home Assistant 2026.8
+
+Home Assistant 2026.8 changed how devices work: a device now belongs to **one**
+integration instead of being shared. Home Keeper used the old shared behaviour to put a
+task's button and sensors on the page of the device the task is about (your dishwasher,
+your printer), so this needed a fix. Home Keeper **0.13.0** has it.
+
+**Update Home Keeper before you update Home Assistant.** That order matters, and it is
+the only one that comes through clean. Tested in `tests/upgrade/test_upgrade_order.py`:
+
+| What you do | Result |
+|---|---|
+| Update Home Keeper first, then Home Assistant | Clean. No leftover devices. |
+| Update Home Assistant first, Home Keeper after | Leftover duplicate devices you have to live with for now |
+| Update both at once | Same as Home Assistant first |
+
+Updating Home Keeper first works because 0.13.0 unhooks itself from devices it doesn't
+own before Home Assistant ever splits them, so there is nothing left to split.
+
+### If you already upgraded Home Assistant
+
+You may see a few things, all of them cosmetic rather than broken:
+
+- a **second device** for something you already had, sometimes showing a long
+  identifier instead of a name;
+- tasks that were on one device page **split across two entries** when you group by
+  device;
+- with a companion integration (Battery Notes, Bambu Lab), a **duplicate task** next to
+  the original.
+
+Nothing is lost. Your tasks, history and completions are all intact, and every task
+still works from the panel, the to-do list and the dashboard card. Updating to 0.13.0
+stops it getting any worse and fixes anything you attach from then on.
+
+Tidying up what's already there needs a repair step that re-points the affected tasks,
+which is coming in a follow-up. Until then you can delete a duplicate task from a
+companion and let it recreate itself, or re-pick the device on an affected task.
+
+### One thing that did go away
+
+For a task attached to a device **another integration owns**, that device's page no
+longer lists Home Keeper's triggers under *Add automation*. Home Assistant only offers a
+device's triggers for the single integration it now belongs to.
+
+Existing automations built that way need rebuilding on the task's own entities
+(`binary_sensor.<task>_overdue`, `sensor.<task>_next_due`) or on the matching
+`home_keeper_*` event, which react to exactly the same things. Home Keeper
+**appliances** are unaffected and keep their device triggers.
+
 ## Quality scale
 
 Home Keeper targets Home Assistant's

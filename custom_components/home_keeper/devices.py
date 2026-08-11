@@ -163,6 +163,43 @@ async def async_reconcile_assets(
             registry.async_remove_device(device.id)
 
 
+async def async_detach_legacy_merged_devices(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Drop our config entry from devices an older Home Keeper merged onto.
+
+    Before HA 2026.8, attaching a task copied the target device's identifiers into a
+    ``DeviceInfo``, which merged our entities onto that device **and** added our config
+    entry to it. This version links entities instead (see
+    ``coordinator.device_link_for_task``) and never needs to be on a device it doesn't
+    own, but the old association survives in the registry on its own.
+
+    That association is what makes Home Assistant split the device on upgrade, so
+    clearing it is what lets someone still on a pre-2026.8 Home Assistant update Home
+    Keeper first and then upgrade cleanly. Measured in
+    ``tests/upgrade/test_upgrade_order.py``: without this, every upgrade order is
+    damaged identically, and there is no advice worth giving.
+
+    Deliberately limited to devices that have **another** config entry besides ours.
+    Removing the last entry from a device deletes it, which would strand the entities
+    sitting on it — that case is the already-split leftover, and repairing it needs the
+    entities re-pointed first (still open; see ``docs/DEVICE_REGISTRY_2026_8_PLAN.md``).
+    Our own devices are skipped: they carry a ``home_keeper`` identifier, and we are
+    supposed to own those.
+    """
+    dev_reg = dr.async_get(hass)
+    for device in list(dr.async_entries_for_config_entry(dev_reg, entry.entry_id)):
+        if any(domain == DOMAIN for domain, _ in device.identifiers):
+            continue  # one of ours (virtual asset or self-owned task device)
+        others = set(device.config_entries) - {entry.entry_id}
+        if not others:
+            continue  # sole owner: removing us would delete the device and its entities
+        _LOGGER.debug(
+            "Detaching Home Keeper from %s: linked, not owned (legacy merge)", device.id
+        )
+        dev_reg.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
+
+
 async def async_prune_orphaned_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Drop Home Keeper from devices that no longer carry any of our entities.
 

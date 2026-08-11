@@ -91,14 +91,22 @@ if [ ! -f "$STAGE/home_keeper/frontend/home-keeper-panel.js" ] \
   cp -r "$ROOT/custom_components/home_keeper/frontend/." "$STAGE/home_keeper/frontend/"
 fi
 
-# The previous release, staged alongside (not into) the mounted tree. conftest.py
-# swaps it in for phase 1 and swaps the working tree back in for phase 2, so the run
-# reproduces a real upgrade: old Home Keeper on old HA, then new on new.
+# Both Home Keeper builds are staged *alongside* the mounted tree, and conftest.py
+# swaps whichever one a step needs into it. Staging both here (rather than letting the
+# harness cache a copy on first use) is deliberate: a cached copy silently survives
+# between runs, so an edit to the integration would not reach the container and the
+# suite would report on stale code. That happened once; don't reintroduce it.
 PREV_STAGE="$ROOT/tests/upgrade/home_keeper_previous"
 rm -rf "$PREV_STAGE"
 mkdir -p "$PREV_STAGE"
 fetch "$HK_PREV_REPO" "$HK_PREV_REF" "home_keeper" "$PREV_STAGE"
-# The released panel JS is a build artifact too; phase 1 is API-only, so skip it.
+# The released panel JS is a build artifact too; the upgrade suite is API-only.
+
+WT_STAGE="$ROOT/tests/upgrade/home_keeper_working_tree"
+rm -rf "$WT_STAGE"
+mkdir -p "$WT_STAGE"
+echo "[fetch-glues] home_keeper (working tree copy) -> $WT_STAGE"
+cp -r "$STAGE/home_keeper" "$WT_STAGE/"
 
 echo "[fetch-glues] staged into $STAGE:"
 ls -1 "$STAGE"

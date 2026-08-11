@@ -154,6 +154,42 @@ keeps working, which is why it isn't obvious. Two consequences:
 Both belong with the repair flow + snapshot auto-heal. Seven `xfail(strict=True)` tests in
 `tests/upgrade` pin the remaining gap and will fail the moment it closes.
 
+## Upgrade order matters, and only one order is clean
+
+Measured in `tests/upgrade/test_upgrade_order.py`, which runs three separate container
+paths against the same fixture:
+
+| order | devices we own but didn't create | tasks pointing at a dead device | glues duplicated |
+|---|---|---|---|
+| Home Keeper first, then HA | **none** | 2 | 1 |
+| HA first, Home Keeper after | 3 | 4 | 2 |
+| both together | 3 | 4 | 2 |
+
+The first row is the point. `devices.async_detach_legacy_merged_devices` drops our
+config entry, at setup, from any device an earlier release merged onto but that we
+don't own. Run while still on a pre-2026.8 Home Assistant, that leaves nothing of ours
+joined to those devices, so Home Assistant's split has nothing to divide and every
+registry id survives.
+
+It is deliberately limited to devices that have **another** config entry besides ours.
+Removing the last entry deletes the device, which would strand the entities on it —
+that is the already-split leftover, and it needs entities re-pointed first.
+
+The residual dangling tasks in the clean row belong to the `battery_notes` stub's own
+merge, not to Home Keeper: it reproduces pre-2026.8 Battery Notes, so Home Assistant
+splits the kitchen sensor whatever we do. Real users are less exposed, since Battery
+Notes 3.0.0-dev has already moved to entity linking.
+
+**Two false starts worth recording**, because both produced a confident wrong answer
+from a harness that looked fine:
+
+1. Running *this* Home Keeper in both phases made the fix look like it also cured the
+   glue duplication. It doesn't, for anyone already upgraded.
+2. A gitignored cache of the working-tree build (`home_keeper_working_tree/`) survived
+   between runs, so an edit to the integration never reached the container and the
+   suite reported on stale code — which is why "order doesn't matter" was the answer
+   for one round. `ci/fetch-glues.sh` now stages both builds authoritatively.
+
 ## The options considered
 
 **A — Entity-link, keep dual mode.** Swap the identifier copy for

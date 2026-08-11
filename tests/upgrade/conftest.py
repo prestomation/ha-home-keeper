@@ -40,11 +40,11 @@ FIXTURE_CONFIG = HERE / "fixtures" / "ha_config"
 
 #: The tree the container mounts. ci/fetch-glues.sh fills both of these.
 MOUNTED_HK = HERE / "custom_components" / "home_keeper"
-#: The working tree's Home Keeper, saved aside so it can be swapped back for phase 2.
-#: Deliberately a sibling of the staged tree, not inside it — the container mounts
-#: that whole directory and Home Assistant tries to import every subdirectory of it
-#: as a component, so a spare copy in there breaks setup for everything.
-WORKING_TREE_HK = HERE / "home_keeper_working_tree"
+#: The working tree's Home Keeper. Staged by ci/fetch-glues.sh, like the previous
+#: release, so both builds come from the same authoritative step. Deliberately a
+#: sibling of the mounted tree, not inside it: the container mounts that whole
+#: directory and Home Assistant imports every subdirectory of it as a component.
+WORKING_TREE_HK = HERE / "home_keeper_working_tree" / "home_keeper"
 #: The last released Home Keeper, used for phase 1.
 PREVIOUS_HK = HERE / "home_keeper_previous" / "home_keeper"
 
@@ -264,67 +264,120 @@ class UpgradeRun:
         ]
 
 
+def _run_path(steps: list[tuple[str, Path]], label: str):
+    """Boot a sequence of (Home Assistant tag, Home Keeper build) against one config.
+
+    The config dir is created once and carried through every boot, so each step sees
+    exactly what the previous one left behind. Seeding happens on the first boot.
+
+    Returns ``(before, after, token, config_dir, tmp)``. Callers are responsible for
+    tearing the container down; ``_path_fixture`` wraps that up.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix=f"hk-upgrade-{label}-"))
+    config_dir = tmp / "ha_config"
+    shutil.copytree(FIXTURE_CONFIG, config_dir)
+
+    before = None
+    token = ""
+    for index, (ha_tag, hk_source) in enumerate(steps):
+        _use_home_keeper(hk_source)
+        up = _compose("up", "-d", config_dir=config_dir, ha_tag=ha_tag)
+        if up.returncode != 0:
+            _compose("down", "-v", config_dir=config_dir, ha_tag=ha_tag)
+            pytest.fail(f"[{label}] could not start HA {ha_tag}: {up.stderr}")
+        token = _wait_for_running()
+        # Integrations finish setting up at very different rates; wait for the
+        # registry to go quiet rather than sleeping a fixed interval, or a snapshot
+        # catches a half-built world and reads like a migration effect.
+        _wait_until_settled(token)
+        if index == 0:
+            _seed_home_keeper_scenarios(token)
+            _wait_until_settled(token)
+            before = snapshot(token)
+        if index < len(steps) - 1:
+            # `down` without `-v`: the config dir is a bind mount and must survive.
+            _compose("down", config_dir=config_dir, ha_tag=ha_tag)
+
+    after = snapshot(token)
+    # Guard against the failure mode that would make every assertion vacuous: if a
+    # later boot started from a fresh config dir, the "after" world is a clean
+    # install rather than a migrated one, and every test would compare two unrelated
+    # systems while looking perfectly healthy.
+    _assert_phase_two_continued_phase_one(before, after)
+    return before, after, token, config_dir, tmp
+
+
+def _path_fixture(steps, label):
+    """Run a path, yield the UpgradeRun, then dump logs and tear the container down."""
+    config_dir = tmp = None
+    try:
+        before, after, token, config_dir, tmp = _run_path(steps, label)
+        yield UpgradeRun(before, after, token, config_dir)
+    finally:
+        if config_dir is not None and tmp is not None:
+            last_tag = steps[-1][0]
+            logs = _compose(
+                "logs", "--tail", "400", config_dir=config_dir, ha_tag=last_tag
+            )
+            (tmp / "ha.log").write_text(logs.stdout or "")
+            print(f"\n[upgrade:{label}] Home Assistant logs: {tmp / 'ha.log'}")
+            _compose("down", "-v", config_dir=config_dir, ha_tag=last_tag)
+
+
 @pytest.fixture(scope="session")
-def upgrade_run() -> UpgradeRun:
-    """Boot pre-split HA, seed, upgrade to current HA, and hand back both snapshots."""
-    staged = HERE / "custom_components"
-    if not (staged / "home_keeper").is_dir():
+def upgrade_run():
+    """Both upgraded at once: old Home Keeper on old HA, then new on new.
+
+    The common case for someone who updates HACS and Home Assistant in one sitting.
+    """
+    _require_staged()
+    yield from _path_fixture(
+        [(OLD_HA_TAG, PREVIOUS_HK), (NEW_HA_TAG, WORKING_TREE_HK)], "together"
+    )
+
+
+@pytest.fixture(scope="session")
+def ha_first_run():
+    """Home Assistant upgraded first, Home Keeper updated afterwards.
+
+    What everyone who reported #183 actually did: Home Assistant 2026.8 arrived
+    while Home Keeper was still the old version, and the fix came later.
+    """
+    _require_staged()
+    yield from _path_fixture(
+        [
+            (OLD_HA_TAG, PREVIOUS_HK),
+            (NEW_HA_TAG, PREVIOUS_HK),
+            (NEW_HA_TAG, WORKING_TREE_HK),
+        ],
+        "ha-first",
+    )
+
+
+@pytest.fixture(scope="session")
+def hk_first_run():
+    """Home Keeper updated first, Home Assistant upgraded afterwards.
+
+    The order this project can actually recommend, if it turns out to avoid the
+    damage. Whether it does is the whole point of measuring rather than assuming.
+    """
+    _require_staged()
+    yield from _path_fixture(
+        [
+            (OLD_HA_TAG, PREVIOUS_HK),
+            (OLD_HA_TAG, WORKING_TREE_HK),
+            (NEW_HA_TAG, WORKING_TREE_HK),
+        ],
+        "hk-first",
+    )
+
+
+def _require_staged() -> None:
+    if not (HERE / "custom_components" / "home_keeper").is_dir():
         pytest.fail(
             "tests/upgrade/custom_components is not staged — "
             "run `bash ci/fetch-glues.sh` first"
         )
-
-    tmp = Path(tempfile.mkdtemp(prefix="hk-upgrade-"))
-    config_dir = tmp / "ha_config"
-    shutil.copytree(FIXTURE_CONFIG, config_dir)
-
-    try:
-        # ── phase 1: the world before the split ──────────────────────────────
-        # Old Home Assistant *and* old Home Keeper. Running the working tree in both
-        # phases would test a journey nobody takes; what matters is what the new
-        # version does with state the old one left behind — including the duplicate
-        # devices the old identifier copy created on 2026.8.
-        _use_home_keeper(PREVIOUS_HK)
-        up = _compose("up", "-d", config_dir=config_dir, ha_tag=OLD_HA_TAG)
-        if up.returncode != 0:
-            pytest.fail(f"could not start HA {OLD_HA_TAG}: {up.stderr}")
-        token = _wait_for_running()
-
-        # The glues create their tasks from a reconcile pass on setup. Wait for the
-        # registry to stop changing rather than sleeping a fixed interval — a slow
-        # runner would otherwise snapshot a half-built registry and produce a
-        # before/after diff that looks like a migration effect but isn't.
-        _wait_until_settled(token)
-        _seed_home_keeper_scenarios(token)
-        _wait_until_settled(token)
-        before = snapshot(token)
-
-        # `down` without `-v`: the config dir is a bind mount and must survive.
-        _compose("down", config_dir=config_dir, ha_tag=OLD_HA_TAG)
-
-        # ── phase 2: new Home Assistant and new Home Keeper ──────────────────
-        _use_home_keeper(WORKING_TREE_HK)
-        up = _compose("up", "-d", config_dir=config_dir, ha_tag=NEW_HA_TAG)
-        if up.returncode != 0:
-            pytest.fail(f"could not start HA {NEW_HA_TAG}: {up.stderr}")
-        token = _wait_for_running()
-        _wait_until_settled(token)
-        after = snapshot(token)
-
-        # Guard against the failure mode that would make every assertion in this
-        # suite vacuous: if phase 2 somehow started from a fresh config dir, the
-        # "after" world is a clean install rather than a migrated one, and each
-        # test would compare two unrelated systems while looking perfectly healthy.
-        _assert_phase_two_continued_phase_one(before, after)
-
-        yield UpgradeRun(before, after, token, config_dir)
-    finally:
-        logs = _compose(
-            "logs", "--tail", "400", config_dir=config_dir, ha_tag=NEW_HA_TAG
-        )
-        (tmp / "ha.log").write_text(logs.stdout or "")
-        print(f"\n[upgrade] Home Assistant logs: {tmp / 'ha.log'}")
-        _compose("down", "-v", config_dir=config_dir, ha_tag=NEW_HA_TAG)
 
 
 def _use_home_keeper(source: Path) -> None:
@@ -336,9 +389,6 @@ def _use_home_keeper(source: Path) -> None:
     """
     if not source.is_dir():
         pytest.fail(f"{source} is missing — run `bash ci/fetch-glues.sh` first")
-    if source != WORKING_TREE_HK and not WORKING_TREE_HK.exists():
-        # Preserve the working tree's build on the first swap so phase 2 can restore it.
-        shutil.copytree(MOUNTED_HK, WORKING_TREE_HK)
     shutil.rmtree(MOUNTED_HK, ignore_errors=True)
     shutil.copytree(source, MOUNTED_HK)
 

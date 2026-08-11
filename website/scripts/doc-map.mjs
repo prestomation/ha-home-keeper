@@ -56,6 +56,7 @@ export const USER_SECTIONS = [
   {h: 'Events & automations', slug: 'events', title: 'Events & automations', label: 'Events'},
   {h: 'Integrations', slug: 'integrations', title: 'Integrations'},
   {h: 'Localization', slug: 'localization', title: 'Localization'},
+  {h: 'Upgrading to Home Assistant 2026.8', slug: 'migration-2026-8', title: 'Upgrading to Home Assistant 2026.8', label: 'HA 2026.8 migration'},
 ];
 
 // Standalone canonical docs copied 1:1 into the Developer Guide. `out` is the

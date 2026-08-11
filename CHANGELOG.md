@@ -18,11 +18,16 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   now links its entities to the device directly, so they appear on the real device's
   page again and no duplicate is created. (Fixes #183)
 
-  This applies to tasks attached from this version onward. **If you already upgraded
-  to Home Assistant 2026.8 with an earlier Home Keeper, the duplicate devices it left
-  behind stay for now.** Home Assistant moved your entities onto them during its
-  upgrade, so they can't simply be deleted. Repairing those, and re-pointing tasks
-  whose device was renumbered, is coming in a follow-up.
+  **Update Home Keeper before you update Home Assistant.** That order comes through
+  clean; upgrading Home Assistant first (or both at once) leaves duplicate devices
+  behind, because Home Assistant has already split them by the time the fix loads.
+  See [Upgrading to Home Assistant 2026.8](README.md#upgrading-to-home-assistant-20268)
+  for what you'll see and what to do about it.
+
+  If you already upgraded Home Assistant, the duplicates stay for now. Home Assistant
+  moved your entities onto them, so they can't simply be deleted. Repairing those, and
+  re-pointing tasks whose device was renumbered, is coming in a follow-up. Nothing is
+  lost in the meantime.
 
 ### Changed
 

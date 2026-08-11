@@ -476,6 +476,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Platforms have removed entities for deleted/excluded tasks; drop Home Keeper
     # from any device that no longer carries one of our entities so disabling Problem
     # Sensor Sync (or an exclusion) leaves no empty device card behind.
+    await devices.async_detach_legacy_merged_devices(hass, entry)
     await devices.async_prune_orphaned_devices(hass, entry)
 
     _register_services(hass)
