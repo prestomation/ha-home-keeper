@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Architecture | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/developer/architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Architecture | Home Keeper"><meta data-rh="true" name="description" content="Goal"><meta data-rh="true" property="og:description" content="Goal"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-189/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/developer/architecture"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/developer/architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/developer/architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Architecture","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/developer/architecture"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-189/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-189/assets/js/runtime~main.5c1a1e01.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-189/assets/js/runtime~main.c6aac57b.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-189/assets/js/main.ae01cb9a.js" defer="defer"></script>
 </head>
 <body>
@@ -55,8 +55,8 @@ leak sensors, filter pressure). See <a class="" href="/ha-home-keeper/pr-preview
 through it.</li>
 <li class=""><code>coordinator.py</code> is a <code>DataUpdateCoordinator</code> exposing the task map, refreshed after
 each mutation, plus a 5-minute tick so time-based &quot;overdue&quot; stays current.
-<code>device_info_for_task</code> reuses an existing device&#x27;s identifiers when a task is
-attached (so entities merge onto that device page), else a self-owned device.</li>
+<code>device_link_for_task</code> links a task&#x27;s entities to the device it&#x27;s attached to (so
+they appear on that device page), else describes a self-owned device.</li>
 <li class="">Entities (usage surfaces):
 <ul>
 <li class=""><code>todo.py</code> provides one to-do list. Completing an item advances recurrence.</li>
@@ -76,11 +76,22 @@ shouldn&#x27;t compete for space on a dashboard. Usage (<em>what&#x27;s due, mar
 exactly what HA&#x27;s native to-do/calendar cards and the mobile app already do well, so
 we lean on those instead of a bespoke card.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="device-attachment">Device attachment<a href="#device-attachment" class="hash-link" aria-label="Direct link to Device attachment" title="Direct link to Device attachment" translate="no">​</a></h2>
-<p>A task may reference a device-registry <code>device_id</code> (chosen in the panel). Its per-
-task entities set <code>DeviceInfo(identifiers=&lt;that device&#x27;s identifiers&gt;)</code>, which makes
-HA merge them onto the existing device&#x27;s page rather than create a new device. This is
-the same identifier-merge mechanism Battery Notes uses, and it works regardless of
-which integration owns the device.</p>
+<p>A task may reference a device-registry <code>device_id</code> (chosen in the panel). Its per-task
+entities are <strong>linked</strong> to that device: <code>coordinator.device_link_for_task</code> returns the
+<code>DeviceEntry</code> and the entity assigns <code>self.device_entry</code>, leaving <code>device_info</code> unset,
+so they appear on that device&#x27;s page without Home Keeper claiming the device. It works
+regardless of which integration owns it.</p>
+<p>This used to copy the target&#x27;s <code>identifiers</code>/<code>connections</code> into a <code>DeviceInfo</code>, the
+same identifier-merge Battery Notes used. <strong>HA 2026.8 made identifiers unique per config
+entry</strong>, so the copy stopped merging and forked a nameless duplicate device instead
+(#183). Entity-level linking is the supported replacement; the old
+<code>async_device_info_to_link_from_device_id</code> helper is deprecated upstream.</p>
+<p>The cost, which is invisible from the code: our config entry is no longer on that
+device, and HA sources device triggers and per-device diagnostics from
+<code>device.config_entries</code>. So <code>device_trigger.py</code> and <code>async_get_device_diagnostics</code> are
+not offered on a device we merely link to, and automations use the task&#x27;s entities
+instead. Tasks on Home Keeper&#x27;s own appliance devices keep both. See
+<code>docs/DEVICE_REGISTRY_2026_8_PLAN.md</code> for the options weighed.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="deferred-cross-integration-contribution-api">Deferred: cross-integration contribution API<a href="#deferred-cross-integration-contribution-api" class="hash-link" aria-label="Direct link to Deferred: cross-integration contribution API" title="Direct link to Deferred: cross-integration contribution API" translate="no">​</a></h2>
 <p>The end goal is for other integrations (e.g. Battery Notes) to contribute tasks
 <em>without Home Keeper knowing about them</em>. Planned mechanism:</p>
@@ -110,8 +121,8 @@ provision. Only the fields that wire into HA stay structured, namely
 view).
 Everything else is a free-form <strong><code>metadata</code></strong> list: ordered <code>{id, type, label, value}</code>
 entries where <code>type</code> is <code>text</code>, <code>link</code>, or <code>date</code>. A <code>date</code> entry with <code>track: true</code>
-becomes a <code>date</code> sensor (<code>HomeKeeperAssetDateSensor</code>, named from its label) merged
-onto the device page via <code>coordinator.device_info_for_device_id</code>, so e.g. a tracked
+becomes a <code>date</code> sensor (<code>HomeKeeperAssetDateSensor</code>, named from its label) placed
+on the device page via <code>coordinator.device_entry_for_device_id</code>, so e.g. a tracked
 warranty-expiry date is automatable. Untracked dates are display-only.</li>
 <li class=""><strong>Virtual-device provision.</strong> <code>devices.async_reconcile_assets()</code> registers a real
 registry device with <code>async_get_or_create(config_entry_id=..., identifiers={...})</code>,
