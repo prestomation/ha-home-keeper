@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-189/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-189/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-189/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-189/assets/js/runtime~main.3cbb81cc.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-189/assets/js/runtime~main.855c2ab5.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-189/assets/js/main.a8f99995.js" defer="defer"></script>
 </head>
 <body>
@@ -25,15 +25,17 @@ quietly created a second device instead of using the real one, showing an identi
 where a name belongs and splitting a device&#x27;s tasks across two entries. Home Keeper
 now links its entities to the device directly, so they appear on the real device&#x27;s
 page again and no duplicate is created. (Fixes #183)</p>
-<p><strong>Update Home Keeper before you update Home Assistant.</strong> That order comes through
-clean; upgrading Home Assistant first (or both at once) leaves duplicate devices
-behind, because Home Assistant has already split them by the time the fix loads.
-See <a href="https://github.com/prestomation/ha-home-keeper/blob/main/README.md#upgrading-to-home-assistant-20268" target="_blank" rel="noopener noreferrer" class="">Upgrading to Home Assistant 2026.8</a>
-for what you&#x27;ll see and what to do about it.</p>
-<p>If you already upgraded Home Assistant, the duplicates stay for now. Home Assistant
-moved your entities onto them, so they can&#x27;t simply be deleted. Repairing those, and
-re-pointing tasks whose device was renumbered, is coming in a follow-up. Nothing is
-lost in the meantime.</p>
+</li>
+<li class="">
+<p><strong>Installs that already upgraded to Home Assistant 2026.8 are repaired
+automatically, on the next restart.</strong> If Home Assistant reached 2026.8 before this
+version of Home Keeper did, it had already split your devices in two and left tasks
+pointing at the halves. Home Keeper now re-points those tasks at the real device,
+removes the leftover duplicate devices, and merges the duplicate tasks companion
+integrations created while the references were broken. No steps for you, and nothing
+with a recorded completion is ever removed. (Fixes #183)</p>
+<p>See <a href="https://github.com/prestomation/ha-home-keeper/blob/main/README.md#upgrading-to-home-assistant-20268" target="_blank" rel="noopener noreferrer" class="">Upgrading to Home Assistant 2026.8</a>
+for what this looks like.</p>
 </li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="changed">Changed<a href="#changed" class="hash-link" aria-label="Direct link to Changed" title="Direct link to Changed" translate="no">​</a></h3>
