@@ -46,8 +46,25 @@
   thoroughly unit-tested. `pytest tests/unit` must run without the HA harness.
 - Layers: `tests/unit` (pytest, pure logic), `tests/frontend` +
   `frontend/test` (vitest), `tests/integration` (Docker HA), `tests/e2e`
-  (Playwright). Run e2e/integration with `bash ci/e2e-up.sh` /
-  `ci/test-python-integration.sh`.
+  (Playwright), `tests/upgrade` (two-phase HA version upgrade). Run e2e/integration
+  with `bash ci/e2e-up.sh` / `ci/test-python-integration.sh`; stage the upgrade
+  suite's fixtures with `bash ci/fetch-glues.sh` first.
+- **Anything that rests on an HA framework contract** — device registry, entity
+  registry, device automation — **needs an integration-level assertion.** Unit tests
+  mock the framework away and cannot see the contract change. #183 (devices split per
+  config entry in HA 2026.8) shipped because the only device-attachment coverage was
+  for the *self-owned* case, never the foreign-device one.
+- **Cross-version behaviour needs an upgrade test, not just a fresh-boot test.**
+  `tests/upgrade` boots a frozen pre-split HA, seeds every scenario into one config
+  dir, then boots the current HA against that same dir so HA runs its own migration
+  in between — two cold starts for the whole suite. The pre-split tag is a frozen
+  pin: it defines "the world users upgrade from", so bumping it changes the meaning
+  of the test.
+- **Known-broken contracts get `xfail(strict=True)`, never a weakened assertion.**
+  The test then documents the breakage without going red, and becomes a hard failure
+  the moment a fix lands, forcing the marker off.
+- HA versions: PRs run `stable` (`HA_TAG` in `tests/integration/docker-compose.yml`);
+  `ha-beta.yml` runs `beta` nightly as an early warning and gates nothing.
 - After running the Docker HA container locally, restore the seeded fixtures
   (`tests/integration/ha_config/.storage/{home_keeper,core.config_entries}`);
   don't commit runtime-mutated state.

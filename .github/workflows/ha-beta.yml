@@ -1,0 +1,226 @@
+name: HA beta (early warning)
+
+# Home Assistant 2026.8 split devices per config entry and broke Home Keeper's
+# device attachment (#183). CI never caught it: PRs run against `stable`, and by the
+# time `stable` *is* the broken release, users are already on it.
+#
+# Beta week is public roughly four weeks ahead of a release, so this job runs the
+# container suites against `beta` nightly. A failure here is the warning that a
+# breaking change is inbound — it does not gate any PR.
+on:
+  schedule:
+    # 07:00 UTC daily — after HA's usual release/beta publishing window.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+    inputs:
+      ha_tag:
+        description: "Home Assistant image tag to test against"
+        required: false
+        default: "beta"
+
+env:
+  HA_TAG: ${{ github.event.inputs.ha_tag || 'beta' }}
+
+jobs:
+  integration:
+    name: Integration (HA ${{ github.event.inputs.ha_tag || 'beta' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-test.txt
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: custom_components/home_keeper/frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci --prefix custom_components/home_keeper/frontend
+
+      - name: Build panel JS
+        run: bash ci/build-panel.sh
+
+      - name: Start Home Assistant
+        working-directory: tests/integration
+        run: docker compose up -d
+
+      - name: Wait for Home Assistant to start
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8123/api/ 2>/dev/null || true)
+            if [ "$code" = "200" ] || [ "$code" = "401" ]; then
+              echo "Home Assistant is responding (HTTP $code, attempt $i)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Home Assistant failed to start within 120s"
+          (cd tests/integration && docker compose logs)
+          exit 1
+
+      - name: Report the version actually tested
+        working-directory: tests/integration
+        run: docker compose exec -T homeassistant python -c "import homeassistant;print('HA',homeassistant.__version__)"
+
+      - name: Run integration tests
+        run: bash ci/test-python-integration.sh
+
+  e2e:
+    name: E2E (HA ${{ github.event.inputs.ha_tag || 'beta' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      - name: Install frontend deps
+        run: npm ci --prefix custom_components/home_keeper/frontend
+
+      - name: Build panel JS
+        run: bash ci/build-panel.sh
+
+      - name: Install e2e deps
+        run: npm ci --prefix tests/e2e
+
+      - name: Install Playwright Chromium
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Home Assistant
+        working-directory: tests/integration
+        run: docker compose up -d
+
+      - name: Wait for Home Assistant to start
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8123/api/ 2>/dev/null || true)
+            if [ "$code" = "200" ] || [ "$code" = "401" ]; then exit 0; fi
+            sleep 2
+          done
+          (cd tests/integration && docker compose logs)
+          exit 1
+
+      - name: Run Playwright e2e
+        run: bash ci/test-e2e.sh
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-beta
+          path: tests/e2e/playwright-report
+          retention-days: 7
+
+  upgrade:
+    name: Upgrade 2026.7 -> ${{ github.event.inputs.ha_tag || 'beta' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-test.txt
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: custom_components/home_keeper/frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci --prefix custom_components/home_keeper/frontend
+
+      # Stages the real glue integrations at pinned SHAs plus the upstream stubs.
+      - name: Stage glue integrations
+        run: bash ci/fetch-glues.sh
+
+      # The suite boots the pre-split image and then the beta one against the same
+      # config dir, so Home Assistant runs its own device-registry migration between.
+      - name: Run upgrade suite
+        run: python -m pytest tests/upgrade -v -rxX
+
+  typing:
+    name: mypy against pre-release HA
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      # The cheapest early warning there is: upstream deprecations and signature
+      # changes surface as type errors well before they surface as broken behaviour.
+      - name: Install pre-release Home Assistant
+        run: pip install --pre mypy homeassistant Babel
+
+      - name: Report the version actually tested
+        run: python -c "import homeassistant;print('HA',homeassistant.__version__)"
+
+      - name: Run mypy
+        run: mypy custom_components/home_keeper
+
+  report:
+    name: File a regression issue
+    needs: [integration, e2e, upgrade, typing]
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      # One open issue, reused. A breaking beta stays broken for weeks, and a fresh
+      # issue every night would bury the original diagnosis.
+      - name: Find or create the tracking issue
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const label = 'ha-beta-regression';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `Nightly Home Assistant \`beta\` run failed: ${runUrl}\n\n` +
+              `Home Keeper may be broken on the next Home Assistant release. ` +
+              `Check which job failed — \`upgrade\` points at a device/entity registry ` +
+              `migration change, \`typing\` at a deprecated or changed API.`;
+
+            // Make sure the label exists before searching or applying it.
+            try {
+              await github.rest.issues.getLabel({ ...context.repo, name: label });
+            } catch {
+              await github.rest.issues.createLabel({
+                ...context.repo, name: label, color: 'B60205',
+                description: 'Home Keeper fails against the Home Assistant beta',
+              });
+            }
+
+            const { data: open } = await github.rest.issues.listForRepo({
+              ...context.repo, labels: label, state: 'open', per_page: 1,
+            });
+
+            if (open.length) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: open[0].number, body,
+              });
+              core.notice(`Commented on existing issue #${open[0].number}`);
+            } else {
+              const { data: issue } = await github.rest.issues.create({
+                ...context.repo,
+                title: 'Home Keeper fails against the Home Assistant beta',
+                body, labels: [label],
+              });
+              core.notice(`Opened issue #${issue.number}`);
+            }

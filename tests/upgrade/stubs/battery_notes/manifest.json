@@ -1,0 +1,9 @@
+{
+  "domain": "battery_notes",
+  "name": "Battery Notes (upgrade stub)",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/prestomation/ha-home-keeper",
+  "iot_class": "local_push",
+  "version": "0.0.1"
+}
