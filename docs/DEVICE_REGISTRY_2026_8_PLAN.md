@@ -139,20 +139,30 @@ Anyone still on a pre-2026.8 Home Assistant is protected before they upgrade, be
 this version never merges — including the knock-on where Home Keeper's own merge was
 what dragged a companion's device into the split and made its glue duplicate tasks.
 
-*Not fixed:* an install that **already** upgraded. The merge happened under the old
-version, so Home Assistant has already split those devices, handed Home Keeper its own
-half carrying the foreign identifiers, and **moved our entities onto it**. Everything
-keeps working, which is why it isn't obvious. Two consequences:
+*Also fixed, by repair rather than prevention:* an install that **already** upgraded.
+The merge happened under the old version, so Home Assistant had already split those
+devices, handed Home Keeper its own half and moved our entities onto it. Nothing at
+setup can prevent that, so `devices.async_heal_split_device_ids` undoes it instead.
 
-- `async_prune_orphaned_devices` cannot clear them — it removes devices with none of our
-  entities, and these have ours. Cleanup needs a migration that recognises a device we
-  own whose identifiers aren't ours (a shape this version never creates), re-points its
-  entities and removes it.
-- Every `device_id` stored before the upgrade dangles, so the glue duplication and the
-  raw-GUID symptom persist for those installs.
+The mechanism is the part worth knowing, because the obvious approach fails silently:
+a stale id does **not** look stale. `dr.async_get()` synthesizes a read-only composite
+device for a pre-migration id, so "does this still resolve?" answers yes and a naive
+heal skips every task. What Home Assistant refuses is *linking an entity* to it, which
+is the visible symptom. The supported query is
+`async_get_devices_for_composite_device_id`, which returns the live devices the id was
+split into; the successor to adopt is the split that isn't ours, with the composite's
+former `primary_config_entry` breaking ties.
 
-Both belong with the repair flow + snapshot auto-heal. Seven `xfail(strict=True)` tests in
-`tests/upgrade` pin the remaining gap and will fail the moment it closes.
+Duplicated contributor tasks are merged in the same pass
+(`store.async_merge_split_duplicates`). Canonicalizing device ids back through
+`composite_device_id` is what makes the two copies recognisable as one thing — they
+point at different halves of the same original, so they look unrelated otherwise. The
+survivor keeps the history but adopts the *newer* task's `device_id`, because the newer
+one was created by the contributor after the split and so carries that contributor's own
+answer for where the task belongs; adopting anything else just gets it duplicated again
+on the next reconcile. Deletion uses `force=True` (contributed tasks are
+deletion-protected, and here the integration created the duplicate and cannot clean it
+up itself) and never removes a task carrying completions.
 
 ## Upgrade order matters, and only one order is clean
 

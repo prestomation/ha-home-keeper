@@ -270,19 +270,16 @@ class UpgradeRun:
         ]
 
 
-def _run_path(steps: list[tuple[str, Path]], label: str):
+def _run_path(steps: list[tuple[str, Path]], label: str, config_dir: Path):
     """Boot a sequence of (Home Assistant tag, Home Keeper build) against one config.
 
-    The config dir is created once and carried through every boot, so each step sees
-    exactly what the previous one left behind. Seeding happens on the first boot.
+    *config_dir* is carried through every boot, so each step sees exactly what the
+    previous one left behind. Seeding happens on the first boot.
 
-    Returns ``(before, after, token, config_dir, tmp)``. Callers are responsible for
-    tearing the container down; ``_path_fixture`` wraps that up.
+    The caller owns the directory and the teardown: anything that fails in here — a
+    container that won't start, the continuity guard — still has to leave logs behind
+    and stop the container, which it can't do if this function owns them.
     """
-    tmp = Path(tempfile.mkdtemp(prefix=f"hk-upgrade-{label}-"))
-    config_dir = tmp / "ha_config"
-    shutil.copytree(FIXTURE_CONFIG, config_dir)
-
     before = None
     token = ""
     for index, (ha_tag, hk_source) in enumerate(steps):
@@ -310,24 +307,25 @@ def _run_path(steps: list[tuple[str, Path]], label: str):
     # install rather than a migrated one, and every test would compare two unrelated
     # systems while looking perfectly healthy.
     _assert_phase_two_continued_phase_one(before, after)
-    return before, after, token, config_dir, tmp
+    return before, after, token
 
 
 def _path_fixture(steps, label):
     """Run a path, yield the UpgradeRun, then dump logs and tear the container down."""
-    config_dir = tmp = None
+    tmp = Path(tempfile.mkdtemp(prefix=f"hk-upgrade-{label}-"))
+    config_dir = tmp / "ha_config"
+    shutil.copytree(FIXTURE_CONFIG, config_dir)
+    last_tag = steps[-1][0]
     try:
-        before, after, token, config_dir, tmp = _run_path(steps, label)
+        before, after, token = _run_path(steps, label, config_dir)
         yield UpgradeRun(before, after, token, config_dir)
     finally:
-        if config_dir is not None and tmp is not None:
-            last_tag = steps[-1][0]
-            logs = _compose(
-                "logs", "--tail", "400", config_dir=config_dir, ha_tag=last_tag
-            )
-            (tmp / "ha.log").write_text(logs.stdout or "")
-            print(f"\n[upgrade:{label}] Home Assistant logs: {tmp / 'ha.log'}")
-            _compose("down", "-v", config_dir=config_dir, ha_tag=last_tag)
+        # Unconditional: a run that fails partway is exactly when the logs matter, and
+        # leaving the container up would wedge the next path on the port.
+        logs = _compose("logs", "--tail", "400", config_dir=config_dir, ha_tag=last_tag)
+        (tmp / "ha.log").write_text(logs.stdout or "")
+        print(f"\n[upgrade:{label}] Home Assistant logs: {tmp / 'ha.log'}")
+        _compose("down", "-v", config_dir=config_dir, ha_tag=last_tag)
 
 
 @pytest.fixture(scope="session")
@@ -375,6 +373,25 @@ def hk_first_run():
             (NEW_HA_TAG, WORKING_TREE_HK),
         ],
         "hk-first",
+    )
+
+
+@pytest.fixture(scope="session")
+def repair_run():
+    """The already-upgraded world, for tests that *mutate* it to try a repair.
+
+    Same path as ``ha_first_run``, deliberately a separate container run: the other
+    order fixtures are read-only and shared, and a test that re-points a task would
+    silently change what they see.
+    """
+    _require_staged()
+    yield from _path_fixture(
+        [
+            (OLD_HA_TAG, PREVIOUS_HK),
+            (NEW_HA_TAG, PREVIOUS_HK),
+            (NEW_HA_TAG, WORKING_TREE_HK),
+        ],
+        "repair",
     )
 
 

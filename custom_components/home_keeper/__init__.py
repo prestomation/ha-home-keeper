@@ -448,6 +448,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     store = HomeKeeperStore(hass)
     await store.load()
 
+    # Repair device references Home Assistant invalidated when it split devices in
+    # 2026.8 (#183). Before the coordinator reads the store, so everything downstream
+    # sees healed ids, and before the platforms so entities land on the real device.
+    await devices.async_heal_split_device_ids(hass, entry, store)
+
     coordinator = HomeKeeperCoordinator(hass, entry, store)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator

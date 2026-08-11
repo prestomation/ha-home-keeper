@@ -9,10 +9,11 @@ Each test here is one scenario from the upgrade fixture. They share a single
 ``upgrade_run`` session fixture — the upgrade happens once, and every test reads the
 same before/after snapshots.
 
-Scenarios that are **expected to be broken today** are marked ``xfail(strict=True)``
-so the suite documents the damage without going red, and turns into a hard failure
-the moment a fix lands. Scenarios that pass are controls: they pin down what the
-migration must *not* disturb.
+Every scenario here passes. Most of them did not when this suite was written: they
+were ``xfail(strict=True)``, documenting damage the upgrade caused, and the strict
+marker turned each into a hard failure the moment the fix landed — which is how they
+came off. The ones that always passed are controls, pinning down what the migration
+must *not* disturb.
 """
 
 from __future__ import annotations
@@ -49,10 +50,6 @@ def test_fixture_produced_the_expected_world(upgrade_run):
 # ── scenario 1: a plain task on a foreign device ─────────────────────────────
 
 
-@pytest.mark.xfail(
-    reason="the split renumbers the device, so the stored device_id dangles; #183",
-    strict=True,
-)
 def test_foreign_attached_task_keeps_its_device(upgrade_run):
     """A task attached to another integration's device must still point at it.
 
@@ -80,10 +77,6 @@ def test_foreign_attached_task_keeps_its_device(upgrade_run):
     ), "the task should still point at the source kitchen sensor"
 
 
-@pytest.mark.xfail(
-    reason="duplicates the previous version created survive the upgrade; #183",
-    strict=True,
-)
 def test_home_keeper_adds_no_duplicate_device(upgrade_run):
     """Home Keeper must not be one of the devices carrying a foreign identifier.
 
@@ -189,12 +182,6 @@ def test_split_devices_keep_their_name(upgrade_run):
         )
 
 
-@pytest.mark.xfail(
-    reason=(
-        "HA 2026.8 renumbers both halves of a split device, dangling stored ids; #183"
-    ),
-    strict=True,
-)
 def test_stored_device_ids_still_resolve(upgrade_run):
     """Every Home Keeper task's ``device_id`` must still resolve after the upgrade.
 
@@ -215,10 +202,6 @@ def test_stored_device_ids_still_resolve(upgrade_run):
     )
 
 
-@pytest.mark.xfail(
-    reason=("the copy inside source.<ns> dangles too, and is the re-keying bug; #183"),
-    strict=True,
-)
 def test_source_namespace_device_ids_still_resolve(upgrade_run):
     """A contributor's *own* copy of the device id must resolve too.
 
@@ -250,20 +233,13 @@ def test_source_namespace_device_ids_still_resolve(upgrade_run):
 @pytest.mark.parametrize(
     ("source_ns", "label"),
     [
-        # Still duplicates, and no longer for a reason Home Keeper controls: the
-        # `battery_notes` stub merges onto the kitchen sensor (reproducing pre-2026.8
-        # Battery Notes), so that device splits and renumbers whatever Home Keeper
-        # does. Real users are less exposed than this looks — Battery Notes 3.0.0-dev
-        # has already moved to entity linking. The glue should still re-key durably.
+        # All three pass. Battery Notes and Bambu Lab both duplicated here until the
+        # repair landed: their device was renumbered, their stored copy of the id
+        # stopped matching, and they created a second task. The repair heals both
+        # copies and merges the duplicate away.
         pytest.param(
             BN_GLUE_NS,
             "Battery Notes",
-            marks=pytest.mark.xfail(
-                reason=(
-                    "the battery_notes stub still merges, so its device splits; #183"
-                ),
-                strict=True,
-            ),
         ),
         # Bambu Lab duplicates for the same reason: the previous release had already
         # merged onto the printer, so the split renumbers it and the glue's stored
@@ -273,10 +249,6 @@ def test_source_namespace_device_ids_still_resolve(upgrade_run):
         pytest.param(
             BAMBU_GLUE_NS,
             "Bambu Lab",
-            marks=pytest.mark.xfail(
-                reason="the previous release already merged onto the printer; #183",
-                strict=True,
-            ),
         ),
         # Passes: Pawsistant re-keys on schedule_id, so renumbering can't strand it.
         pytest.param(PAW_NS, "Pawsistant"),
@@ -317,10 +289,10 @@ def test_glue_does_not_duplicate_its_task_after_the_upgrade(
 def test_report_device_id_churn(upgrade_run, capsys):
     """Not an assertion — prints the before/after registry picture on every run.
 
-    When one of the xfail scenarios above flips (or a new HA release changes the
-    migration), this is the first thing to read: it shows which fixture devices were
-    renumbered, how many carriers each identifier ended up with, and what each glue
-    task points at on both sides of the upgrade.
+    When one of the scenarios above starts failing (a new Home Assistant release
+    changing the migration, say), this is the first thing to read: it shows which
+    fixture devices were renumbered, how many carriers each identifier ended up with,
+    and what each glue task points at on both sides of the upgrade.
     """
 
     def by_ident(snap, domain, value):
@@ -363,12 +335,6 @@ def test_report_device_id_churn(upgrade_run, capsys):
         print("\n".join(lines))
 
 
-@pytest.mark.xfail(
-    reason=(
-        "the split moves our entities onto the duplicate, so the prune keeps it; #183"
-    ),
-    strict=True,
-)
 def test_duplicate_devices_from_the_old_version_are_cleaned_up(upgrade_run):
     """Devices the previous release caused should not outlive the upgrade.
 

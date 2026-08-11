@@ -880,38 +880,32 @@ Translations live in `custom_components/home_keeper/translations/`.
 Home Assistant 2026.8 changed how devices work: a device now belongs to **one**
 integration instead of being shared. Home Keeper used the old shared behaviour to put a
 task's button and sensors on the page of the device the task is about (your dishwasher,
-your printer), so this needed a fix. Home Keeper **0.13.0** has it.
+your printer), so this needed a fix.
 
-**Update Home Keeper before you update Home Assistant.** That order matters, and it is
-the only one that comes through clean. Tested in `tests/upgrade/test_upgrade_order.py`:
-
-| What you do | Result |
-|---|---|
-| Update Home Keeper first, then Home Assistant | Clean. No leftover devices. |
-| Update Home Assistant first, Home Keeper after | Leftover duplicate devices you have to live with for now |
-| Update both at once | Same as Home Assistant first |
-
-Updating Home Keeper first works because 0.13.0 unhooks itself from devices it doesn't
-own before Home Assistant ever splits them, so there is nothing left to split.
+Home Keeper **0.13.0** has that fix, and repairs installs that already upgraded. There
+is nothing you need to do.
 
 ### If you already upgraded Home Assistant
 
-You may see a few things, all of them cosmetic rather than broken:
+Home Assistant had already split your devices by the time the fix arrived. What you'll
+have seen:
 
-- a **second device** for something you already had, sometimes showing a long
-  identifier instead of a name;
-- tasks that were on one device page **split across two entries** when you group by
-  device;
-- with a companion integration (Battery Notes, Bambu Lab), a **duplicate task** next to
-  the original.
+- a second device for something you already had, sometimes labelled with a long
+  identifier rather than a name;
+- tasks that shared a device page now split across two entries when you group by device;
+- with a companion integration such as Battery Notes or Bambu Lab, a duplicate task
+  sitting next to the original.
 
-Nothing is lost. Your tasks, history and completions are all intact, and every task
-still works from the panel, the to-do list and the dashboard card. Updating to 0.13.0
-stops it getting any worse and fixes anything you attach from then on.
+Updating to 0.13.0 repairs all of it on the next restart. Your tasks go back to the real
+device and the leftover devices disappear. A duplicated companion task becomes one
+again. Nothing carrying a recorded completion is ever removed, and your history, notes
+and schedules are untouched.
 
-Tidying up what's already there needs a repair step that re-points the affected tasks,
-which is coming in a follow-up. Until then you can delete a duplicate task from a
-companion and let it recreate itself, or re-pick the device on an affected task.
+### If you haven't upgraded Home Assistant yet
+
+Update Home Keeper first. Then there is nothing to repair, because 0.13.0 unhooks
+itself from devices it doesn't own before Home Assistant ever splits them. Either order
+ends up correct. This one simply never breaks in the first place.
 
 ### One thing that did go away
 

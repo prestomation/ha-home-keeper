@@ -8,6 +8,7 @@ change so entities stay in sync within the current HA tick.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -735,6 +736,105 @@ class HomeKeeperStore:
                 asset["parent_asset_id"] = None
                 changed = True
         return changed
+
+    async def async_repoint_device_ids(self, mapping: dict[str, str]) -> int:
+        """Rewrite dead device ids to their live replacements; return how many changed.
+
+        Used by the HA 2026.8 split repair (``devices.async_heal_split_device_ids``).
+        Deliberately bypasses ``models.merge_update``: that enforces a contributor's
+        ``locked_fields``, and every glue locks ``device_id`` — which is precisely why
+        an affected user can't fix these by hand. This is a migration correcting a
+        pointer Home Assistant invalidated, not an edit of the contributor's intent.
+
+        Rewrites the copy inside each ``source`` namespace as well. That is not
+        optional: contributors match their existing tasks on their own copy, so healing
+        only ``task["device_id"]`` leaves them unable to find the task and they create a
+        duplicate instead (measured in ``tests/upgrade``).
+        """
+        changed = 0
+        for task in self._tasks.values():
+            if (new_id := mapping.get(task.get("device_id") or "")) is not None:
+                task["device_id"] = new_id
+                changed += 1
+            for payload in (task.get("source") or {}).values():
+                if not isinstance(payload, dict):
+                    continue
+                if (new_id := mapping.get(payload.get("device_id") or "")) is not None:
+                    payload["device_id"] = new_id
+                    changed += 1
+        if changed:
+            await self._save()
+        return changed
+
+    async def async_merge_split_duplicates(self, canonical: dict[str, str]) -> int:
+        """Merge contributed tasks the device split duplicated; return how many went.
+
+        When Home Assistant 2026.8 renumbered a device, a contributor looking for its
+        task by its own stored device id found nothing and created a second one. The
+        user can remove neither by hand: contributed tasks are deletion-protected and
+        their ``device_id`` is locked. So this has to do it.
+
+        *canonical* maps every split device id back to the composite it came from, which
+        is what makes the two recognisable as one thing — they point at different live
+        devices (each half of the same original) and so would otherwise look unrelated.
+        Two tasks are the same only when the contributor's whole ``source`` payload
+        matches once device ids are canonicalized, which for every known contributor
+        means the same device *and* item (bambu-lab distinguishes firmware from each
+        maintenance item there, Pawsistant keys on a schedule id).
+
+        The survivor keeps the **history** (oldest wins ties) but adopts the **newest**
+        task's ``device_id``: the newer one was created by the contributor *after* the
+        split, so its id is that contributor's own current answer for where the task
+        belongs. Adopting anything else just gets the task duplicated again on the next
+        reconcile.
+
+        Never removes a task carrying completions, so no recorded completion can be
+        lost. Deletions go through ``delete_task`` so ``home_keeper_task_deleted`` still
+        fires and contributors stay in step, with ``force=True`` because contributed
+        tasks are deletion-protected — that protection exists to stop a *user* deleting
+        something their integration will recreate, and here the integration created the
+        duplicate and has no way to clean it up itself.
+        """
+
+        def key_for(namespace: str, payload: dict[str, Any]) -> str:
+            normalized = dict(payload)
+            device_id = normalized.get("device_id")
+            if isinstance(device_id, str):
+                normalized["device_id"] = canonical.get(device_id, device_id)
+            return f"{namespace}|{json.dumps(normalized, sort_keys=True, default=str)}"
+
+        groups: dict[str, list[dict[str, Any]]] = {}
+        for task in self._tasks.values():
+            for namespace, payload in (task.get("source") or {}).items():
+                if isinstance(payload, dict):
+                    groups.setdefault(key_for(namespace, payload), []).append(task)
+
+        removed = 0
+        for group in groups.values():
+            if len(group) < 2:
+                continue
+            by_age = sorted(group, key=lambda t: t.get("created") or "")
+            survivor = max(
+                by_age,
+                key=lambda t: (len(t.get("completions") or []), -by_age.index(t)),
+            )
+            adopted = by_age[-1].get("device_id")
+
+            if adopted and survivor.get("device_id") != adopted:
+                survivor["device_id"] = adopted
+                for payload in (survivor.get("source") or {}).values():
+                    if isinstance(payload, dict) and payload.get("device_id"):
+                        payload["device_id"] = adopted
+
+            for duplicate in group:
+                if duplicate is survivor or (duplicate.get("completions") or []):
+                    continue
+                await self.delete_task(duplicate["id"], force=True)
+                removed += 1
+
+        if removed:
+            await self._save()
+        return removed
 
     async def set_asset_device_id(self, asset_id: str, device_id: str) -> None:
         """Record the registry device id assigned to a provisioned virtual asset."""

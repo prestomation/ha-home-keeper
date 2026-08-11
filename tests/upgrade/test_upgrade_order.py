@@ -20,8 +20,6 @@ same criteria rather than on three hand-written variants that could drift.
 
 from __future__ import annotations
 
-import pytest
-
 SOURCE_DOMAIN = "hk_upgrade_source"
 KITCHEN = "kitchen_sensor"
 BAMBU_SERIAL = "AC12309BH109"
@@ -85,10 +83,6 @@ def _report(label: str, verdict: dict) -> str:
 OUR_FAULT = "devices_we_own_but_did_not_create"
 
 
-@pytest.mark.xfail(
-    reason="upgrading Home Assistant first leaves devices we never created; #183",
-    strict=True,
-)
 def test_upgrading_home_assistant_first_is_clean(ha_first_run, capsys):
     """The order the #183 reporters took, and the one that can't be repaired in place.
 
