@@ -29,8 +29,8 @@ leak sensors, filter pressure). See [INTEGRATING.md](INTEGRATING.md) §7 and
   through it.
 - `coordinator.py` is a `DataUpdateCoordinator` exposing the task map, refreshed after
   each mutation, plus a 5-minute tick so time-based "overdue" stays current.
-  `device_info_for_task` reuses an existing device's identifiers when a task is
-  attached (so entities merge onto that device page), else a self-owned device.
+  `device_link_for_task` links a task's entities to the device it's attached to (so
+  they appear on that device page), else describes a self-owned device.
 - Entities (usage surfaces):
   - `todo.py` provides one to-do list. Completing an item advances recurrence.
   - `calendar.py` shows upcoming occurrences (floating = next due, fixed = expanded).
@@ -50,11 +50,24 @@ we lean on those instead of a bespoke card.
 
 ## Device attachment
 
-A task may reference a device-registry `device_id` (chosen in the panel). Its per-
-task entities set `DeviceInfo(identifiers=<that device's identifiers>)`, which makes
-HA merge them onto the existing device's page rather than create a new device. This is
-the same identifier-merge mechanism Battery Notes uses, and it works regardless of
-which integration owns the device.
+A task may reference a device-registry `device_id` (chosen in the panel). Its per-task
+entities are **linked** to that device: `coordinator.device_link_for_task` returns the
+`DeviceEntry` and the entity assigns `self.device_entry`, leaving `device_info` unset,
+so they appear on that device's page without Home Keeper claiming the device. It works
+regardless of which integration owns it.
+
+This used to copy the target's `identifiers`/`connections` into a `DeviceInfo`, the
+same identifier-merge Battery Notes used. **HA 2026.8 made identifiers unique per config
+entry**, so the copy stopped merging and forked a nameless duplicate device instead
+(#183). Entity-level linking is the supported replacement; the old
+`async_device_info_to_link_from_device_id` helper is deprecated upstream.
+
+The cost, which is invisible from the code: our config entry is no longer on that
+device, and HA sources device triggers and per-device diagnostics from
+`device.config_entries`. So `device_trigger.py` and `async_get_device_diagnostics` are
+not offered on a device we merely link to, and automations use the task's entities
+instead. Tasks on Home Keeper's own appliance devices keep both. See
+`docs/DEVICE_REGISTRY_2026_8_PLAN.md` for the options weighed.
 
 ## Deferred: cross-integration contribution API
 
@@ -88,8 +101,8 @@ storage version).
   view).
   Everything else is a free-form **`metadata`** list: ordered `{id, type, label, value}`
   entries where `type` is `text`, `link`, or `date`. A `date` entry with `track: true`
-  becomes a `date` sensor (`HomeKeeperAssetDateSensor`, named from its label) merged
-  onto the device page via `coordinator.device_info_for_device_id`, so e.g. a tracked
+  becomes a `date` sensor (`HomeKeeperAssetDateSensor`, named from its label) placed
+  on the device page via `coordinator.device_entry_for_device_id`, so e.g. a tracked
   warranty-expiry date is automatable. Untracked dates are display-only.
 - **Virtual-device provision.** `devices.async_reconcile_assets()` registers a real
   registry device with `async_get_or_create(config_entry_id=..., identifiers={...})`,

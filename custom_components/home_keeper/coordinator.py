@@ -293,25 +293,21 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """
         return self._existing_device(task.get("device_id")) is not None
 
-    def device_info_for_device_id(self, device_id: str | None) -> DeviceInfo | None:
-        """DeviceInfo that merges entities onto an existing registry device.
+    def device_entry_for_device_id(
+        self, device_id: str | None
+    ) -> dr.DeviceEntry | None:
+        """The registry device an entity should be linked to, or ``None`` to skip it.
 
-        Reuses the device's own identifiers/connections so HA attaches our entities
-        to that device page rather than creating a new device. Returns ``None`` when
-        the device cannot be resolved (the entity should then be skipped).
+        Entities attach to a device they don't own by setting ``entity.device_entry``
+        (with no ``device_info``) — see :meth:`device_link_for_task` for why copying
+        identifiers no longer works.
         """
-        device = self._existing_device(device_id)
-        if device is None:
-            return None
-        return DeviceInfo(
-            identifiers=device.identifiers,
-            connections=device.connections,
-        )
+        return self._existing_device(device_id)
 
     def virtual_asset_parts(
         self, predicate: Callable[[dict[str, Any]], bool]
-    ) -> list[tuple[dict[str, Any], dict[str, Any], DeviceInfo]]:
-        """``(asset, part, device_info)`` for virtual-asset parts matching *predicate*.
+    ) -> list[tuple[dict[str, Any], dict[str, Any], dr.DeviceEntry]]:
+        """``(asset, part, device_entry)`` for virtual-asset parts matching *predicate*.
 
         The shared source for the per-part stock entities (the stock ``number`` and the
         low-stock ``binary_sensor``). Limited to **owned** (virtual) appliances with a
@@ -319,35 +315,51 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         both platforms agree on which parts get entities. ``predicate`` selects the part
         kind (tracks-stock vs has-reorder).
         """
-        out: list[tuple[dict[str, Any], dict[str, Any], DeviceInfo]] = []
+        out: list[tuple[dict[str, Any], dict[str, Any], dr.DeviceEntry]] = []
         for asset in self.store.list_assets():
             if asset.get("kind") != ASSET_KIND_VIRTUAL:
                 continue
-            device_info = self.device_info_for_device_id(asset.get("device_id"))
-            if device_info is None:
+            device = self.device_entry_for_device_id(asset.get("device_id"))
+            if device is None:
                 continue
             for part in asset.get("parts", []) or []:
                 if predicate(part):
-                    out.append((asset, part, device_info))
+                    out.append((asset, part, device))
         return out
 
-    def device_info_for_task(self, task: dict[str, Any]) -> DeviceInfo:
-        """Return the DeviceInfo a per-task entity should use.
+    def device_link_for_task(
+        self, task: dict[str, Any]
+    ) -> tuple[DeviceInfo | None, dr.DeviceEntry | None]:
+        """``(device_info, device_entry)`` for a per-task entity — set both verbatim.
 
-        * If the task is attached to an existing device (``device_id``), reuse that
-          device's own identifiers/connections so HA merges our entities onto the
-          existing device page (the Battery-Notes-style attachment) rather than
-          creating a new device.
-        * Otherwise, create a self-owned device per task so its entities group
-          together under the Home Keeper integration.
+        Exactly one is ever non-``None``:
+
+        * **Attached to a device that resolves** → ``(None, device)``. The entity is
+          linked by assigning ``entity.device_entry``, which puts it on that device's
+          page without claiming the device.
+        * **Otherwise** → ``(DeviceInfo(...), None)``, a self-owned device named after
+          the task, so its entities still group under Home Keeper.
+
+        This used to copy the target device's ``identifiers``/``connections`` into a
+        ``DeviceInfo``, which is how Home Assistant merged entities onto a device
+        another integration owned. **HA 2026.8 made identifiers unique per config
+        entry**, so that copy stopped merging and instead forked a duplicate device —
+        one owned by us, carrying no ``name``, which is why affected users saw a raw
+        GUID where a device name belonged (#183). Entity-level linking is the
+        supported replacement; ``async_device_info_to_link_from_device_id`` is
+        deprecated upstream and now returns ``None``.
+
+        The trade-off, recorded here because it is invisible from the code: our config
+        entry is no longer attached to that device, and Home Assistant sources device
+        triggers and per-device diagnostics from ``device.config_entries``. So
+        ``device_trigger.py`` and ``async_get_device_diagnostics`` are no longer
+        offered on a device we merely link to. Tasks on Home Keeper's own appliance
+        devices keep both. See ``docs/DEVICE_REGISTRY_2026_8_PLAN.md``.
         """
         device_id = task.get("device_id")
         device = self._existing_device(device_id)
         if device is not None:
-            return DeviceInfo(
-                identifiers=device.identifiers,
-                connections=device.connections,
-            )
+            return None, device
         if device_id:
             _LOGGER.warning(
                 "Home Keeper task %s references unknown device_id %s; "
@@ -355,9 +367,12 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 task.get("id"),
                 device_id,
             )
-        return DeviceInfo(
-            identifiers={(DOMAIN, task["id"])},
-            name=task["name"],
-            manufacturer="Home Keeper",
-            model="Maintenance task",
+        return (
+            DeviceInfo(
+                identifiers={(DOMAIN, task["id"])},
+                name=task["name"],
+                manufacturer="Home Keeper",
+                model="Maintenance task",
+            ),
+            None,
         )

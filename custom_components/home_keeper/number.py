@@ -15,8 +15,8 @@ from typing import Any
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -42,11 +42,11 @@ async def async_setup_entry(
     rows = coordinator.virtual_asset_parts(asset_model.part_tracks_stock)
     entities: list[NumberEntity] = []
     live_uids: set[str] = set()
-    for asset, part, device_info in rows:
+    for asset, part, device in rows:
         uid = f"{_UID_PREFIX}{asset['id']}{_UID_INFIX}{part['id']}{_UID_SUFFIX}"
         live_uids.add(uid)
         entities.append(
-            HomeKeeperPartStockNumber(coordinator, asset["id"], part, device_info)
+            HomeKeeperPartStockNumber(coordinator, asset["id"], part, device)
         )
 
     # Prune number entities whose part (or stock tracking) is gone.
@@ -81,7 +81,7 @@ class HomeKeeperPartStockNumber(CoordinatorEntity[HomeKeeperCoordinator], Number
         coordinator: HomeKeeperCoordinator,
         asset_id: str,
         part: dict[str, Any],
-        device_info: DeviceInfo | None,
+        device: dr.DeviceEntry,
     ) -> None:
         super().__init__(coordinator)
         self._asset_id = asset_id
@@ -92,7 +92,8 @@ class HomeKeeperPartStockNumber(CoordinatorEntity[HomeKeeperCoordinator], Number
         self._attr_unique_id = (
             f"{_UID_PREFIX}{asset_id}{_UID_INFIX}{part['id']}{_UID_SUFFIX}"
         )
-        self._attr_device_info = device_info
+        # Linked, not owned: the appliance device belongs to whoever created it.
+        self.device_entry = device
 
     def _part(self) -> dict[str, Any] | None:
         asset = self.coordinator.store.get_asset(self._asset_id) or {}

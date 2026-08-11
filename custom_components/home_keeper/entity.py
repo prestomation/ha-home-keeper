@@ -31,6 +31,13 @@ class HomeKeeperTaskEntity(CoordinatorEntity[HomeKeeperCoordinator]):
         super().__init__(coordinator)
         self._task_id = task_id
         task = coordinator.data.get(task_id, {})
+        # Set here rather than in each platform so the three per-task entities can't
+        # drift apart on which device they land on. Exactly one of these is non-None:
+        # a self-owned device we describe, or an existing device we link to without
+        # claiming it. See coordinator.device_link_for_task.
+        self._attr_device_info, self.device_entry = coordinator.device_link_for_task(
+            task
+        )
         if coordinator.task_uses_existing_device(task):
             name = task.get("name") or ""
             prefix = f"{name}: " if name else ""

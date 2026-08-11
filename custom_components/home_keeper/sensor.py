@@ -18,8 +18,8 @@ from typing import Any
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
@@ -59,14 +59,14 @@ async def async_setup_entry(
     live_asset_meta_uids: set[str] = set()
     asset_entities: list[SensorEntity] = []
     for asset in coordinator.store.list_assets():
-        device_info = coordinator.device_info_for_device_id(asset.get("device_id"))
-        if device_info is None:
+        device = coordinator.device_entry_for_device_id(asset.get("device_id"))
+        if device is None:
             continue
         for meta in _tracked_dates(asset):
             uid = f"{DOMAIN}_asset_{asset['id']}_meta_{meta['id']}"
             live_asset_meta_uids.add(uid)
             asset_entities.append(
-                HomeKeeperAssetDateSensor(coordinator, asset["id"], meta, device_info)
+                HomeKeeperAssetDateSensor(coordinator, asset["id"], meta, device)
             )
 
     # Remove entity-registry entries for sensors whose source no longer exists:
@@ -105,9 +105,6 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:
         super().__init__(coordinator, task_id)
         self._attr_unique_id = f"{DOMAIN}_{task_id}_next_due"
-        self._attr_device_info = coordinator.device_info_for_task(
-            coordinator.data[task_id]
-        )
 
     @property
     def native_value(self) -> datetime | None:
@@ -184,7 +181,7 @@ class HomeKeeperAssetDateSensor(CoordinatorEntity[HomeKeeperCoordinator], Sensor
         coordinator: HomeKeeperCoordinator,
         asset_id: str,
         entry: dict[str, Any],
-        device_info: DeviceInfo | None,
+        device: dr.DeviceEntry,
     ) -> None:
         super().__init__(coordinator)
         self._asset_id = asset_id
@@ -195,7 +192,8 @@ class HomeKeeperAssetDateSensor(CoordinatorEntity[HomeKeeperCoordinator], Sensor
         asset = coordinator.store.get_asset(asset_id) or {}
         self._attr_icon = asset.get("icon") or _DATE_ICON
         self._attr_unique_id = f"{DOMAIN}_asset_{asset_id}_meta_{entry['id']}"
-        self._attr_device_info = device_info
+        # Linked, not owned: the appliance device belongs to whoever created it.
+        self.device_entry = device
 
     def _entry(self) -> dict[str, Any] | None:
         asset = self.coordinator.store.get_asset(self._asset_id) or {}

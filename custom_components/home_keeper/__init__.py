@@ -448,6 +448,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     store = HomeKeeperStore(hass)
     await store.load()
 
+    # Repair device references Home Assistant invalidated when it split devices in
+    # 2026.8 (#183). Before the coordinator reads the store, so everything downstream
+    # sees healed ids, and before the platforms so entities land on the real device.
+    #
+    # Never allowed to prevent setup: a repair that hits an edge case should leave the
+    # user with the symptoms it meant to fix, not with an integration that won't load.
+    # (An early version raised out of here and did exactly that.)
+    try:
+        await devices.async_heal_split_device_ids(hass, entry, store)
+    except Exception:
+        _LOGGER.exception(
+            "Could not repair device references after the Home Assistant 2026.8 "
+            "device split; continuing setup. Please report this with the traceback"
+        )
+
     coordinator = HomeKeeperCoordinator(hass, entry, store)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
@@ -476,6 +491,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Platforms have removed entities for deleted/excluded tasks; drop Home Keeper
     # from any device that no longer carries one of our entities so disabling Problem
     # Sensor Sync (or an exclusion) leaves no empty device card behind.
+    await devices.async_detach_legacy_merged_devices(hass, entry)
     await devices.async_prune_orphaned_devices(hass, entry)
 
     _register_services(hass)

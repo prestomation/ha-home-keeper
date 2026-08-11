@@ -817,9 +817,12 @@ deleted, armed, and the time-based **overdue** / **due-soon** transitions), spar
 **out of stock**, **restocked**), and appliances (created, updated, deleted).
 
 You can trigger on these two ways: pick a **device trigger** in the visual automation
-editor (e.g. *"Task became overdue"*, *"Spare part out of stock"*, no event names to
-memorise), or use a plain `platform: event` trigger. *Spare part out of
-stock → add it to the shopping list*:
+editor on a Home Keeper appliance (e.g. *"Task became overdue"*, *"Spare part out of
+stock"*, no event names to memorise), or use a plain `platform: event` trigger. For a
+task attached to a device another integration owns, automate on the task's own
+entities or the event, since Home Assistant only offers device triggers for the one
+integration a device belongs to. *Spare part out of stock → add it to the shopping
+list*:
 
 ```yaml
 automation:
@@ -871,6 +874,49 @@ section (Settings tab), where you can jump to each one's settings, and Home Keep
 The integration and the sidebar panel are localized into **16 languages** and follow
 your Home Assistant language, falling back to English for anything untranslated.
 Translations live in `custom_components/home_keeper/translations/`.
+
+## Upgrading to Home Assistant 2026.8
+
+Home Assistant 2026.8 changed how devices work: a device now belongs to **one**
+integration instead of being shared. Home Keeper used the old shared behaviour to put a
+task's button and sensors on the page of the device the task is about (your dishwasher,
+your printer), so this needed a fix.
+
+Home Keeper **0.13.0** has that fix, and repairs installs that already upgraded. There
+is nothing you need to do.
+
+### If you already upgraded Home Assistant
+
+Home Assistant had already split your devices by the time the fix arrived. What you'll
+have seen:
+
+- a second device for something you already had, sometimes labelled with a long
+  identifier rather than a name;
+- tasks that shared a device page now split across two entries when you group by device;
+- with a companion integration such as Battery Notes or Bambu Lab, a duplicate task
+  sitting next to the original.
+
+Updating to 0.13.0 repairs all of it on the next restart. Your tasks go back to the real
+device and the leftover devices disappear. A duplicated companion task becomes one
+again. Nothing carrying a recorded completion is ever removed, and your history, notes
+and schedules are untouched.
+
+### If you haven't upgraded Home Assistant yet
+
+Update Home Keeper first. Then there is nothing to repair, because 0.13.0 unhooks
+itself from devices it doesn't own before Home Assistant ever splits them. Either order
+ends up correct. This one simply never breaks in the first place.
+
+### One thing that did go away
+
+For a task attached to a device **another integration owns**, that device's page no
+longer lists Home Keeper's triggers under *Add automation*. Home Assistant only offers a
+device's triggers for the single integration it now belongs to.
+
+Existing automations built that way need rebuilding on the task's own entities
+(`binary_sensor.<task>_overdue`, `sensor.<task>_next_due`) or on the matching
+`home_keeper_*` event, which react to exactly the same things. Home Keeper
+**appliances** are unaffected and keep their device triggers.
 
 ## Quality scale
 

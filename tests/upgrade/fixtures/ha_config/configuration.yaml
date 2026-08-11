@@ -1,0 +1,23 @@
+homeassistant:
+  name: Upgrade Fixture Home
+  unit_system: imperial
+  time_zone: America/New_York
+  latitude: 40.7128
+  longitude: -74.0060
+  elevation: 10
+
+# The upgrade suite talks REST + websocket only — no browser, so no frontend needed
+# beyond what the API requires.
+api:
+
+# Deliberately minimal. Every device in this fixture comes from an integration (the
+# stubs under tests/upgrade/stubs/), not from YAML helpers, because the whole subject
+# under test is how Home Assistant's device registry treats devices across config
+# entries. A YAML helper has no config entry and so can't participate.
+logger:
+  default: warning
+  logs:
+    custom_components.home_keeper: debug
+    custom_components.home_keeper_battery_notes: debug
+    custom_components.home_keeper_bambu_lab: debug
+    homeassistant.helpers.device_registry: info

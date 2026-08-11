@@ -163,6 +163,147 @@ async def async_reconcile_assets(
             registry.async_remove_device(device.id)
 
 
+def _split_successor(
+    registry: dr.DeviceRegistry, device_id: str, entry_id: str
+) -> dr.DeviceEntry | None:
+    """The live device a pre-2026.8 *composite* device id should now point at.
+
+    Home Assistant keeps the old id resolvable: ``async_get`` synthesizes a read-only
+    composite for it, which is why a stale id looks perfectly healthy and why this asks
+    ``async_get_devices_for_composite_device_id`` instead — that returns the real, live
+    devices the id was split into, and an empty list for an ordinary id.
+
+    Of those, the one to adopt is the split that is **not ours**: our half is an
+    artefact of the old identifier copy, and the task is about the other integration's
+    device. Where several remain, the composite's former ``primary_config_entry`` names
+    the successor Home Assistant itself treats as primary; the sorted fallback keeps
+    repeated runs deterministic.
+
+    Returns ``None`` on Home Assistant versions with no composite concept (pre-2026.8),
+    where there is nothing to heal.
+    """
+    resolve = getattr(registry, "async_get_devices_for_composite_device_id", None)
+    if resolve is None:
+        return None
+    splits = [d for d in resolve(device_id) if entry_id not in d.config_entries]
+    if not splits:
+        return None
+    if len(splits) > 1:
+        composite = registry.async_get(device_id)
+        primary = getattr(composite, "primary_config_entry", None)
+        if primary:
+            preferred = [d for d in splits if primary in d.config_entries]
+            if preferred:
+                return preferred[0]
+        # Three or more foreign splits with no primary named: nothing in the registry
+        # says which one the task meant, so this is an arbitrary pick — sorted only so
+        # that repeated setups keep choosing the same one instead of flip-flopping the
+        # task between devices. A two-way split, which is what the merge this repairs
+        # actually produces, never reaches here.
+        return sorted(splits, key=lambda d: d.id)[0]
+    return splits[0]
+
+
+async def async_heal_split_device_ids(
+    hass: HomeAssistant, entry: ConfigEntry, store: HomeKeeperStore
+) -> None:
+    """Re-point tasks whose device Home Assistant 2026.8 split apart (#183).
+
+    An install that upgraded Home Assistant before Home Keeper has, per attached thing,
+    a device id that is now a *composite*: Home Assistant split the merged device into
+    one per config entry and handed us our own half. Left alone that shows a raw
+    identifier where a device name belongs, splits a device's tasks across two entries,
+    and makes companion integrations create duplicate tasks.
+
+    It does **not** present as a missing device. Home Assistant answers ``async_get``
+    for the old id with a synthesized composite, so a naive "does this still resolve?"
+    check finds nothing wrong — it only refuses to *link an entity* to it, which is the
+    visible symptom and the reason this repair exists.
+
+    Runs before the platforms set up, so entities are created against the healed id
+    straight away. Our old half then holds none of our entities and
+    ``async_prune_orphaned_devices`` removes it at the end of setup. Idempotent: once
+    healed nothing resolves to a composite and this does no writes.
+    """
+    registry = dr.async_get(hass)
+    mapping: dict[str, str] = {}
+    for task in store.get_tasks().values():
+        device_id = task.get("device_id")
+        if not device_id or device_id in mapping:
+            continue
+        successor = _split_successor(registry, device_id, entry.entry_id)
+        if successor is not None:
+            mapping[device_id] = successor.id
+
+    if mapping:
+        changed = await store.async_repoint_device_ids(mapping)
+        _LOGGER.info(
+            "Repaired %s device reference(s) across %s device(s) that Home Assistant "
+            "2026.8 split into one device per config entry",
+            changed,
+            len(mapping),
+        )
+
+    # Healing the ids stops contributors duplicating from here on, but a duplicate
+    # already created while the ids were broken is still sitting there, and the user
+    # can't remove it — contributed tasks are deletion-protected. Merging needs to know
+    # which live devices came from the same original, or the two copies look unrelated:
+    # they point at different halves of the same split.
+    canonical: dict[str, str] = {}
+    for device in registry.devices.values():
+        # Explicit loop rather than a comprehension: composite_device_id is
+        # `str | None`, and a truthiness guard inside a comprehension doesn't narrow
+        # the value expression for the type checker.
+        composite_id = getattr(device, "composite_device_id", None)
+        if composite_id:
+            canonical[device.id] = composite_id
+    merged = await store.async_merge_split_duplicates(canonical)
+    if merged:
+        _LOGGER.info("Merged %s duplicate contributed task(s) after the split", merged)
+
+
+async def async_detach_legacy_merged_devices(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Drop our config entry from devices an older Home Keeper merged onto.
+
+    Before HA 2026.8, attaching a task copied the target device's identifiers into a
+    ``DeviceInfo``, which merged our entities onto that device **and** added our config
+    entry to it. This version links entities instead (see
+    ``coordinator.device_link_for_task``) and never needs to be on a device it doesn't
+    own, but the old association survives in the registry on its own.
+
+    That association is what makes Home Assistant split the device on upgrade, so
+    clearing it is what lets someone still on a pre-2026.8 Home Assistant update Home
+    Keeper first and then upgrade cleanly. Measured in
+    ``tests/upgrade/test_upgrade_order.py``: without this, every upgrade order is
+    damaged identically, and there is no advice worth giving.
+
+    Deliberately limited to devices that have **another** config entry besides ours.
+    Removing the last entry from a device deletes it, which would strand the entities
+    sitting on it — that case is the already-split leftover, and repairing it needs the
+    entities re-pointed first (still open; see ``docs/DEVICE_REGISTRY_2026_8_PLAN.md``).
+
+    That check and the update below are not atomic: nothing stops another integration
+    removing its own entry in between, which would make ours the last one after all.
+    Home Assistant's registry offers no remove-if-not-last, and the window is a few
+    synchronous statements during our setup, so this is the best the API allows.
+    Our own devices are skipped: they carry a ``home_keeper`` identifier, and we are
+    supposed to own those.
+    """
+    dev_reg = dr.async_get(hass)
+    for device in list(dr.async_entries_for_config_entry(dev_reg, entry.entry_id)):
+        if any(domain == DOMAIN for domain, _ in device.identifiers):
+            continue  # one of ours (virtual asset or self-owned task device)
+        others = set(device.config_entries) - {entry.entry_id}
+        if not others:
+            continue  # sole owner: removing us would delete the device and its entities
+        _LOGGER.debug(
+            "Detaching Home Keeper from %s: linked, not owned (legacy merge)", device.id
+        )
+        dev_reg.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
+
+
 async def async_prune_orphaned_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Drop Home Keeper from devices that no longer carry any of our entities.
 

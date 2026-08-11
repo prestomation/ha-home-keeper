@@ -1,10 +1,18 @@
 services:
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:stable
+    # HA_TAG selects the Home Assistant version. It defaults to `stable`, so e2e,
+    # integration and the walkthrough capture keep testing what users actually run.
+    # The nightly `ha-beta.yml` workflow sets `beta`, and `tests/upgrade` sets a
+    # frozen pre-split tag for phase 1 of its two-phase upgrade run.
+    image: ghcr.io/home-assistant/home-assistant:${HA_TAG:-stable}
     ports:
       - "8123:8123"
     volumes:
-      - ./ha_config:/config
+      # HA_CONFIG points at the config dir. The default is the committed fixture
+      # tree; `tests/upgrade` overrides it with a temp copy, because an upgrade run
+      # boots twice against the same dir and HA rewrites `.storage` in place — which
+      # would otherwise dirty the fixture files tracked in git.
+      - ${HA_CONFIG:-./ha_config}:/config
       # Mount the integration under test and the test-only stub companions as
       # siblings inside the (writable) /config tree, rather than mounting the whole
       # read-only custom_components over the parent — that blocks Docker from

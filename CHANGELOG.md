@@ -6,6 +6,38 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.13.0b1]
+
+### Fixed
+
+- **Attaching a task to another integration's device no longer creates a duplicate,
+  unnamed device.** Home Assistant 2026.8 made device identifiers unique per config
+  entry, which broke how Home Keeper put a task's entities on an existing device: it
+  quietly created a second device instead of using the real one, showing an identifier
+  where a name belongs and splitting a device's tasks across two entries. Home Keeper
+  now links its entities to the device directly, so they appear on the real device's
+  page again and no duplicate is created. (Fixes #183)
+
+- **Installs that already upgraded to Home Assistant 2026.8 are repaired
+  automatically, on the next restart.** If Home Assistant reached 2026.8 before this
+  version of Home Keeper did, it had already split your devices in two and left tasks
+  pointing at the halves. Home Keeper now re-points those tasks at the real device,
+  removes the leftover duplicate devices, and merges the duplicate tasks companion
+  integrations created while the references were broken. No steps for you, and nothing
+  with a recorded completion is ever removed. (Fixes #183)
+
+  See [Upgrading to Home Assistant 2026.8](README.md#upgrading-to-home-assistant-20268)
+  for what this looks like.
+
+### Changed
+
+- **Device triggers for a task attached to a device Home Keeper doesn't own are no
+  longer listed on that device's page.** Home Assistant only offers a device's
+  triggers for the single integration it belongs to, so this follows from the fix
+  above. Automate on the task's own entities (`binary_sensor.<task>_overdue`,
+  `sensor.<task>_next_due`) or on the `home_keeper_*` event instead. Both react to
+  exactly the same things. Home Keeper **appliances** keep their device triggers.
+
 ## [0.12.0] - 2026-08-10
 
 ### Added

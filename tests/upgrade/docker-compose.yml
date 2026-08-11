@@ -1,0 +1,27 @@
+services:
+  homeassistant:
+    # The upgrade suite boots this twice: HA_TAG=<pre-split> then HA_TAG=<current>,
+    # against the same config dir, so Home Assistant runs its own device-registry
+    # migration between the two. Both tags are supplied by tests/upgrade/conftest.py.
+    image: ghcr.io/home-assistant/home-assistant:${HA_TAG:-stable}
+    ports:
+      # Not 8123: the integration/e2e container owns that, and a developer running
+      # both at once should not have them fight over the port.
+      - "${HA_PORT:-8124}:8123"
+    volumes:
+      # Always a throwaway copy — the run mutates .storage in place, and phase 2 must
+      # see exactly what phase 1 left behind. conftest.py sets this.
+      - ${HA_CONFIG:?tests/upgrade requires HA_CONFIG (a temp copy of fixtures/ha_config)}:/config
+      # Everything the run needs, assembled into one tree by ci/fetch-glues.sh: the
+      # real glue integrations at pinned SHAs (their logic is what is under test),
+      # Home Keeper from the working tree, and the upstream stubs from ./stubs.
+      #
+      # One mount, not a parent plus nested children: bind-mounting a read-only dir
+      # over /config/custom_components stops Docker creating mountpoints beneath it,
+      # which is why the staging script copies the stubs in rather than the compose
+      # file mounting them separately.
+      - ./custom_components:/config/custom_components:ro
+    environment:
+      - TZ=America/New_York
+    tmpfs:
+      - /tmp

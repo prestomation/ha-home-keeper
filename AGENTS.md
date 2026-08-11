@@ -160,6 +160,13 @@
   Ask it to surface the most serious issues first and not to withhold minor ones.
   Then triage its findings as usual (fix the valid ones; push back, with
   reasoning, on false positives).
+- **Never comment on a GitHub issue.** Issues are where users talk to the
+  maintainer, and an agent posting there answers on the maintainer's behalf to
+  someone who didn't ask for it. Findings, analysis and status belong in the PR
+  that carries the work, or in the reply to whoever asked. A PR that fixes an
+  issue links it (`Fixes #N`) and closes it on merge, which is the only signal an
+  issue needs. This does **not** restrict PR comments: the `/q review` request
+  above and replies to review threads are still required.
 
 ## Conventions live in `.amazonq/rules/` — keep them current
 
@@ -275,5 +282,26 @@ See IDEAS.md before building it.
 - `test.yml` — vitest, pytest unit, HACS validation, hassfest.
 - `integration.yml` — Docker-based integration tests.
 - `e2e.yml` — Docker + Playwright; uploads the Playwright report on failure.
+- `ha-beta.yml` — **nightly early warning**, gates nothing. Runs integration, e2e and
+  the upgrade suite against `HA_TAG=beta`, plus mypy against a pre-release HA, and
+  files/updates a single `ha-beta-regression` issue on failure.
 - `pytest_coverage.yml` + `post_coverage_to_pr.yml` — coverage comment on PRs.
 - `release.yml` — PR-merge-driven release (see RELEASE.md).
+
+### Home Assistant versions
+
+- **PRs test `stable`** — what users actually run. The container version is
+  `HA_TAG` in `tests/integration/docker-compose.yml`, defaulting to `stable`;
+  override it locally with `HA_TAG=beta bash ci/e2e-up.sh`.
+- **A nightly tests `beta`.** HA beta week is public ~4 weeks ahead of a release, so
+  this is the warning window. HA 2026.8 split devices per config entry and broke
+  device attachment (#183) with no advance signal, which is why this exists.
+- **Anything resting on an HA framework contract** — device registry, entity registry,
+  device automation — **needs an integration-level assertion.** A unit test mocks the
+  framework and cannot see the contract change. #183 shipped because the only
+  device-attachment coverage was for the *self-owned* case.
+- **Cross-version behaviour needs an upgrade test**, not just a fresh-boot test:
+  `tests/upgrade/` boots a frozen pre-split HA, seeds, then boots the current one
+  against the same config dir so HA runs its own migration in between. Stage its
+  fixtures with `bash ci/fetch-glues.sh` first. The pre-split pin is frozen on
+  purpose — bumping it changes what the test means.

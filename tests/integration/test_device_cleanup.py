@@ -17,40 +17,17 @@ Follow-up to #104 (Problem Sensor Sync leaves stale entities/devices after disab
 or exclusions).
 """
 
-import json
 import time
 
-import websockets.sync.client
-from conftest import HA_URL, call_service
+from conftest import call_service
+from ha_registry import find_device
 
 # ── helpers ──────────────────────────────────────────────────────────────────
-
-_WS_URL = HA_URL.replace("http://", "ws://") + "/api/websocket"
-
-
-def _device_registry(ha) -> list[dict]:
-    """Fetch all device registry entries via HA's WebSocket API."""
-    token = ha.headers["Authorization"].split(" ", 1)[1]
-    with websockets.sync.client.connect(_WS_URL) as ws:
-        msg = json.loads(ws.recv())
-        assert msg["type"] == "auth_required"
-        ws.send(json.dumps({"type": "auth", "access_token": token}))
-        msg = json.loads(ws.recv())
-        assert msg["type"] == "auth_ok", f"auth failed: {msg}"
-        ws.send(json.dumps({"id": 1, "type": "config/device_registry/list"}))
-        msg = json.loads(ws.recv())
-        assert msg.get("success"), f"device_registry/list failed: {msg}"
-        return msg["result"]
 
 
 def _has_self_owned_device(ha, task_id: str) -> bool:
     """True if a self-owned ``(home_keeper, task_id)`` device exists in the registry."""
-    wanted = ["home_keeper", task_id]
-    for device in _device_registry(ha):
-        # identifiers come back as a list of [domain, id] pairs.
-        if any(list(ident) == wanted for ident in device.get("identifiers", [])):
-            return True
-    return False
+    return find_device(ha, "home_keeper", task_id) is not None
 
 
 # ── test ─────────────────────────────────────────────────────────────────────

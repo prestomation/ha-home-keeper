@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "core.config_entries",
+  "data": {
+    "entries": [
+      {
+        "entry_id": "upgrade_source_entry",
+        "domain": "hk_upgrade_source",
+        "title": "Upgrade Source Devices",
+        "data": {},
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "unique_id": "upgrade_source",
+        "disabled_by": null,
+        "version": 1,
+        "minor_version": 1
+      },
+      {
+        "entry_id": "upgrade_battery_notes_entry",
+        "domain": "battery_notes",
+        "title": "Battery Notes",
+        "data": {},
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "unique_id": "upgrade_battery_notes",
+        "disabled_by": null,
+        "version": 1,
+        "minor_version": 1
+      },
+      {
+        "entry_id": "upgrade_bambu_lab_entry",
+        "domain": "bambu_lab",
+        "title": "X1 Carbon",
+        "data": {},
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "unique_id": "upgrade_bambu_lab",
+        "disabled_by": null,
+        "version": 1,
+        "minor_version": 1
+      },
+      {
+        "entry_id": "upgrade_home_keeper_entry",
+        "domain": "home_keeper",
+        "title": "Home Keeper",
+        "data": {},
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "unique_id": "home_keeper_local",
+        "disabled_by": null,
+        "version": 1,
+        "minor_version": 1
+      },
+      {
+        "entry_id": "upgrade_hk_battery_notes_entry",
+        "domain": "home_keeper_battery_notes",
+        "title": "Battery Notes bridge",
+        "data": {},
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "unique_id": "upgrade_hk_battery_notes",
+        "disabled_by": null,
+        "version": 1,
+        "minor_version": 1
+      },
+      {
+        "entry_id": "upgrade_hk_bambu_lab_entry",
+        "domain": "home_keeper_bambu_lab",
+        "title": "Bambu Lab bridge",
+        "data": {},
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "unique_id": "upgrade_hk_bambu_lab",
+        "disabled_by": null,
+        "version": 1,
+        "minor_version": 1
+      },
+      {
+        "entry_id": "upgrade_pawsistant_entry",
+        "domain": "pawsistant",
+        "title": "Pawsistant",
+        "data": {},
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "unique_id": "upgrade_pawsistant",
+        "disabled_by": null,
+        "version": 1,
+        "minor_version": 1
+      }
+    ]
+  }
+}

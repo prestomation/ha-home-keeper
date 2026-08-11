@@ -66,9 +66,6 @@ class HomeKeeperMarkDoneButton(HomeKeeperTaskEntity, ButtonEntity):
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:
         super().__init__(coordinator, task_id)
         self._attr_unique_id = f"{DOMAIN}_{task_id}_done"
-        self._attr_device_info = coordinator.device_info_for_task(
-            coordinator.data[task_id]
-        )
 
     async def async_press(self) -> None:
         await self.coordinator.store.complete_task(self._task_id)

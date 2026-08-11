@@ -34,7 +34,7 @@ jobs:
 
       - name: Run unit tests with coverage
         run: |
-          python -m pytest tests/ --ignore=tests/integration \
+          python -m pytest tests/ --ignore=tests/integration --ignore=tests/upgrade \
             --cov=custom_components/home_keeper --cov-report=term-missing
 
       - name: "Generate coverage Comment (and possibly Post to PR)"
