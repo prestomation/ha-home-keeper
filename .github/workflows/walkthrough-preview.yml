@@ -115,7 +115,14 @@ jobs:
           comment: false
 
       - name: Sticky comment with the walkthrough
-        if: always()
+        # `!cancelled()` rather than `always()`: this job's concurrency group cancels
+        # in-progress runs, so two pushes a few minutes apart cancel the first one
+        # mid-capture. Under `always()` that cancelled run still reaches this step,
+        # reads a non-success outcome and overwrites a perfectly good embed with a
+        # "capture failed" note — for a run nothing was wrong with, while the gif it
+        # is contradicting is still published and live. The superseding run posts the
+        # real result a couple of minutes later.
+        if: ${{ !cancelled() }}
         uses: actions/github-script@v9
         env:
           CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
