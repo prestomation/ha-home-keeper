@@ -124,14 +124,37 @@ def test_upgrading_home_keeper_first_avoids_our_damage(hk_first_run, capsys):
     )
 
 
-def test_report_all_three_orders(upgrade_run, ha_first_run, hk_first_run, capsys):
-    """Print the three orders side by side. Not an assertion, a decision aid.
+def test_home_keeper_first_is_the_best_order(
+    upgrade_run, ha_first_run, hk_first_run, capsys
+):
+    """Updating Home Keeper first must not be worse than the alternatives, anywhere.
 
-    When one of the expectations above changes, this is what tells you whether the
-    advice in the migration guide is still the right advice.
+    ``test_upgrading_home_keeper_first_avoids_our_damage`` asserts only on the measure
+    Home Keeper is answerable for, which leaves a hole: the other two measures could
+    quietly get worse and that test would still pass. This closes it by comparing the
+    orders against **each other** rather than against a hardcoded baseline — a magic
+    number would need updating every time the fixture changes, and would say nothing
+    about the claim actually being made.
+
+    And the claim being made is exactly this: the migration guide tells users to update
+    Home Keeper first. That advice is only honest if this order is no worse than the
+    others on every measure, which is what this asserts.
     """
+    together = _assess(upgrade_run)
+    ha_first = _assess(ha_first_run)
+    hk_first = _assess(hk_first_run)
+
     with capsys.disabled():
         print()
-        print(_report("both together", _assess(upgrade_run)))
-        print(_report("HA first, Home Keeper later", _assess(ha_first_run)))
-        print(_report("Home Keeper first, HA later", _assess(hk_first_run)))
+        print(_report("both together", together))
+        print(_report("HA first, Home Keeper later", ha_first))
+        print(_report("Home Keeper first, HA later", hk_first))
+
+    for measure in hk_first:
+        ours = len(hk_first[measure])
+        for label, other in (("HA first", ha_first), ("both together", together)):
+            assert ours <= len(other[measure]), (
+                f"updating Home Keeper first is worse than {label} on {measure} "
+                f"({ours} vs {len(other[measure])}) — the migration guide's advice "
+                "is no longer correct"
+            )

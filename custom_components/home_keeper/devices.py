@@ -184,6 +184,11 @@ async def async_detach_legacy_merged_devices(
     Removing the last entry from a device deletes it, which would strand the entities
     sitting on it — that case is the already-split leftover, and repairing it needs the
     entities re-pointed first (still open; see ``docs/DEVICE_REGISTRY_2026_8_PLAN.md``).
+
+    That check and the update below are not atomic: nothing stops another integration
+    removing its own entry in between, which would make ours the last one after all.
+    Home Assistant's registry offers no remove-if-not-last, and the window is a few
+    synchronous statements during our setup, so this is the best the API allows.
     Our own devices are skipped: they carry a ``home_keeper`` identifier, and we are
     supposed to own those.
     """

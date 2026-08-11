@@ -14,6 +14,12 @@ Cost control: every scenario is seeded into **one** config dir and the upgrade r
 **once**, so a full pass is two Home Assistant cold starts rather than two per
 scenario. The scenarios use distinct devices and tasks, so they don't interact.
 
+Scope caveat: swapping the mounted ``home_keeper`` directory between boots reproduces
+a HACS update of the *code*, which is what the device-registry question needs. It does
+not exercise anything keyed on the version having changed — a `.storage` schema bump,
+`async_migrate_entry`, manifest version bookkeeping. Testing those needs a different
+apparatus; don't read a green run here as covering them.
+
 Run it with::
 
     bash ci/fetch-glues.sh          # stage the glues + upstream stubs (once)
