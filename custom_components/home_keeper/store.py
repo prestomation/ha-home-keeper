@@ -814,9 +814,13 @@ class HomeKeeperStore:
             if len(group) < 2:
                 continue
             by_age = sorted(group, key=lambda t: t.get("created") or "")
-            survivor = max(
-                by_age,
-                key=lambda t: (len(t.get("completions") or []), -by_age.index(t)),
+            # Rank by position rather than `by_age.index(task)`: `list.index` compares
+            # with `==`, so it would resolve two value-equal tasks to the same position.
+            # Distinct ids make that unreachable today, which is exactly the kind of
+            # invariant that quietly stops holding.
+            _, survivor = max(
+                enumerate(by_age),
+                key=lambda pair: (len(pair[1].get("completions") or []), -pair[0]),
             )
             adopted = by_age[-1].get("device_id")
 

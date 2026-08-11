@@ -358,6 +358,15 @@ await hass.services.async_call(
 )
 ```
 
+> **Put your device id at the top level of your `source` payload, under the key
+> `device_id`.** Home Keeper rewrites device ids when Home Assistant renumbers a device
+> (2026.8 split every merged device into one per config entry, invalidating stored ids),
+> and it heals exactly two places: the task's own `device_id`, and
+> `source.<your-namespace>.device_id`. A device id kept anywhere else (nested deeper, or
+> under a name of your own) is not healed, so your next reconcile won't match the
+> existing task and will create a duplicate. Anything that isn't a device id can live in
+> the payload in whatever shape you like.
+
 > **Don't delete-and-recreate on every cycle.** Keep one persistent triggered task per
 > monitored thing and toggle it with `complete_task` / `trigger_task`. That keeps the
 > task id stable and preserves the replacement history on the task. Reconcile after a

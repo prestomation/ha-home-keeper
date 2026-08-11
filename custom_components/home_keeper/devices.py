@@ -195,6 +195,11 @@ def _split_successor(
             preferred = [d for d in splits if primary in d.config_entries]
             if preferred:
                 return preferred[0]
+        # Three or more foreign splits with no primary named: nothing in the registry
+        # says which one the task meant, so this is an arbitrary pick — sorted only so
+        # that repeated setups keep choosing the same one instead of flip-flopping the
+        # task between devices. A two-way split, which is what the merge this repairs
+        # actually produces, never reaches here.
         return sorted(splits, key=lambda d: d.id)[0]
     return splits[0]
 
