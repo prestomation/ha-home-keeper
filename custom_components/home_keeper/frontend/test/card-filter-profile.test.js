@@ -1,0 +1,136 @@
+import { describe, expect, it } from 'vitest';
+import { DUE_SOON_DAYS, profileMatches } from '../src/card-filter.ts';
+
+// `profileMatches` decides which tasks a notification profile sends. It has to
+// agree with the backend's windows exactly, or a digest reports a different set
+// than the panel previews. `card-filter.test.js` covers the card's own filters;
+// this covers the profile predicate, which nothing exercised directly.
+
+const DAY_MS = 86_400_000;
+const NOW = Date.parse('2026-06-13T10:00:00Z');
+const at = (offsetDays) => new Date(NOW + offsetDays * DAY_MS).toISOString();
+
+const task = (over = {}) => ({
+  id: 't1',
+  name: 'Filter',
+  enabled: true,
+  next_due: at(-1),
+  ...over,
+});
+
+describe('profileMatches gating', () => {
+  it('excludes disabled tasks', () => {
+    expect(profileMatches(task(), {}, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(task({ enabled: false }), {}, {}, {}, NOW)).toBe(false);
+  });
+
+  it('treats an absent `enabled` as enabled', () => {
+    // Only an explicit `false` disables; `undefined` is an older record.
+    const t = task();
+    delete t.enabled;
+    expect(profileMatches(t, {}, {}, {}, NOW)).toBe(true);
+  });
+
+  it('excludes undated tasks', () => {
+    expect(profileMatches(task({ next_due: null }), {}, {}, {}, NOW)).toBe(false);
+    expect(profileMatches(task({ next_due: '' }), {}, {}, {}, NOW)).toBe(false);
+  });
+
+  it('excludes problem-sensor tasks', () => {
+    // These are driven by a binary sensor, not a schedule; notifying on them
+    // would duplicate the sensor's own alert.
+    expect(profileMatches(task({ source: { problem_sensor: 'binary_sensor.x' } }), {}, {}, {}, NOW)).toBe(
+      false,
+    );
+    // A source of another shape must not be swept up with them.
+    expect(profileMatches(task({ source: { part: { asset_id: 'a1' } } }), {}, {}, {}, NOW)).toBe(
+      true,
+    );
+    expect(profileMatches(task({ source: null }), {}, {}, {}, NOW)).toBe(true);
+  });
+});
+
+describe('profileMatches status windows', () => {
+  it('defaults to overdue when no status is set', () => {
+    // The default has to be `overdue`, not "everything": an empty profile that
+    // matched every dated task would notify on the whole list.
+    expect(profileMatches(task({ next_due: at(-1) }), {}, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(task({ next_due: at(1) }), {}, {}, {}, NOW)).toBe(false);
+    expect(profileMatches(task({ next_due: at(1) }), { status: '' }, {}, {}, NOW)).toBe(false);
+  });
+
+  it('overdue means due at or before now, inclusive', () => {
+    const f = { status: 'overdue' };
+    expect(profileMatches(task({ next_due: at(-1) }), f, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(task({ next_due: new Date(NOW).toISOString() }), f, {}, {}, NOW)).toBe(
+      true,
+    );
+    expect(profileMatches(task({ next_due: at(0.001) }), f, {}, {}, NOW)).toBe(false);
+  });
+
+  it('due_soon spans overdue through the window edge, inclusive', () => {
+    const f = { status: 'due_soon' };
+    expect(profileMatches(task({ next_due: at(-5) }), f, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(task({ next_due: at(DUE_SOON_DAYS) }), f, {}, {}, NOW)).toBe(true);
+    // One millisecond past the window is out — this is what pins the boundary
+    // as `>` rather than `>=`.
+    const justPast = new Date(NOW + DUE_SOON_DAYS * DAY_MS + 1).toISOString();
+    expect(profileMatches(task({ next_due: justPast }), f, {}, {}, NOW)).toBe(false);
+  });
+
+  it('all accepts any dated, enabled task', () => {
+    const f = { status: 'all' };
+    expect(profileMatches(task({ next_due: at(-30) }), f, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(task({ next_due: at(365) }), f, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(task({ next_due: null }), f, {}, {}, NOW)).toBe(false);
+  });
+});
+
+describe('profileMatches area and device filters', () => {
+  const devices = { d1: { area_id: 'kitchen' }, d2: { area_id: 'garage' } };
+
+  it('an empty list means "no constraint", not "match nothing"', () => {
+    const t = task({ area_id: 'kitchen', device_id: 'd1' });
+    expect(profileMatches(t, { areas: [], devices: [], labels: [] }, devices, {}, NOW)).toBe(true);
+    // Absent behaves the same as empty.
+    expect(profileMatches(t, {}, devices, {}, NOW)).toBe(true);
+  });
+
+  it('filters by the task area', () => {
+    const t = task({ area_id: 'kitchen' });
+    expect(profileMatches(t, { areas: ['kitchen'] }, devices, {}, NOW)).toBe(true);
+    expect(profileMatches(t, { areas: ['garage'] }, devices, {}, NOW)).toBe(false);
+    expect(profileMatches(t, { areas: ['garage', 'kitchen'] }, devices, {}, NOW)).toBe(true);
+  });
+
+  it('falls back to the device area when the task has none', () => {
+    const t = task({ device_id: 'd2' });
+    expect(profileMatches(t, { areas: ['garage'] }, devices, {}, NOW)).toBe(true);
+    expect(profileMatches(t, { areas: ['kitchen'] }, devices, {}, NOW)).toBe(false);
+  });
+
+  it('an area-less task matches no area filter', () => {
+    // It must not slip through by comparing against a placeholder that happens
+    // to be absent from the wanted list.
+    const t = task();
+    expect(profileMatches(t, { areas: ['kitchen'] }, devices, {}, NOW)).toBe(false);
+  });
+
+  it('filters by device', () => {
+    expect(profileMatches(task({ device_id: 'd1' }), { devices: ['d1'] }, devices, {}, NOW)).toBe(
+      true,
+    );
+    expect(profileMatches(task({ device_id: 'd1' }), { devices: ['d2'] }, devices, {}, NOW)).toBe(
+      false,
+    );
+    // A device-less task matches no device filter.
+    expect(profileMatches(task(), { devices: ['d1'] }, devices, {}, NOW)).toBe(false);
+  });
+
+  it('applies area and device filters together', () => {
+    const t = task({ area_id: 'kitchen', device_id: 'd1' });
+    expect(profileMatches(t, { areas: ['kitchen'], devices: ['d1'] }, devices, {}, NOW)).toBe(true);
+    expect(profileMatches(t, { areas: ['kitchen'], devices: ['d2'] }, devices, {}, NOW)).toBe(false);
+    expect(profileMatches(t, { areas: ['garage'], devices: ['d1'] }, devices, {}, NOW)).toBe(false);
+  });
+});
