@@ -1,0 +1,100 @@
+name: Mutation
+
+# Mutation testing on the code a pull request actually changed.
+#
+# Line coverage proves a line ran; it says nothing about whether a test would
+# have failed had that line been wrong. These jobs mutate the changed functions
+# (Python, via mutmut) and the changed line ranges (TypeScript, via Stryker) and
+# fail when too few of those mutants are caught.
+#
+# Scope is deliberately narrow — see `only_mutate` in pyproject.toml and
+# `mutate` in stryker.conf.json. Judging a whole file would fail pull requests
+# for debt they did not introduce, so ci/mutation_scope.py maps the diff onto
+# just the functions/lines it touched.
+#
+# Label a pull request `skip-mutation` to bypass both jobs.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "changed = diff-scoped, all = the whole configured surface"
+        type: choice
+        default: changed
+        options: [changed, all]
+
+concurrency:
+  group: mutation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # `--all` on a manual run, diff-scoped everywhere else.
+  MUTATION_MODE: ${{ inputs.scope == 'all' && '--all' || '--changed' }}
+
+jobs:
+  python:
+    name: Python
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-mutation') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # ci/mutation_scope.py needs the base branch to diff against.
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        # The pure unit tier is all mutmut runs, and it needs no Home Assistant
+        # harness — installing one would only slow every mutant down.
+        run: |
+          pip install -r requirements-test.txt
+          pip install mutmut==3.7.0
+      - name: Mutation test
+        env:
+          MUTATION_BASE_REF: origin/${{ github.base_ref || github.event.repository.default_branch }}
+        run: bash ci/test-mutation-python.sh "$MUTATION_MODE"
+
+  typescript:
+    name: TypeScript
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-mutation') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22.22.2"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Set up Python
+        # Only for ci/mutation_scope.py and ci/mutation_report.py.
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        # Root only: vitest, jsdom and Stryker live here, and the tests import
+        # `src/*.ts` directly, so the panel never needs building.
+        run: npm ci
+      - name: Mutation test
+        env:
+          MUTATION_BASE_REF: origin/${{ github.base_ref || github.event.repository.default_branch }}
+        run: bash ci/test-mutation-frontend.sh "$MUTATION_MODE"
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stryker-report
+          path: reports/mutation/
+          retention-days: 7
+          if-no-files-found: ignore

@@ -5,7 +5,7 @@
 The project's workflow, conventions, and **hard gates** live in `AGENTS.md`
 (imported above) and `.amazonq/rules/`. Read them before pushing.
 
-Two gates worth repeating because they are easy to miss:
+Three gates worth repeating because they are easy to miss:
 
 - **Every PR that touches the panel UI (`custom_components/home_keeper/frontend/src/`)
   MUST include current screenshots** of the changed surface — captured with the
@@ -21,4 +21,11 @@ Two gates worth repeating because they are easy to miss:
   gitignored (zero repo bloat); capture is a soft gate. Pure bug-fix / styling PRs
   stay on the screenshots gate only.
 
-See AGENTS.md "Workflow" for both.
+- **`mutation.yml` gates every PR at an 80% mutation score on the code it changed**
+  (mutmut for Python, Stryker for TypeScript). A surviving mutant means a test
+  executes that code without asserting anything that would catch it being wrong —
+  kill it with a real assertion, or annotate a genuinely equivalent mutant with a
+  reason. Never lower the threshold to get green. The mutable surface is an
+  allowlist: `only_mutate` in `[tool.mutmut]` and `mutate` in `stryker.conf.json`.
+
+See AGENTS.md "Workflow" for the first two and "Mutation testing" for the third.
