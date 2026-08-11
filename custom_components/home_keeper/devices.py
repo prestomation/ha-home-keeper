@@ -244,11 +244,14 @@ async def async_heal_split_device_ids(
     # can't remove it — contributed tasks are deletion-protected. Merging needs to know
     # which live devices came from the same original, or the two copies look unrelated:
     # they point at different halves of the same split.
-    canonical = {
-        device.id: device.composite_device_id
-        for device in registry.devices.values()
-        if getattr(device, "composite_device_id", None)
-    }
+    canonical: dict[str, str] = {}
+    for device in registry.devices.values():
+        # Explicit loop rather than a comprehension: composite_device_id is
+        # `str | None`, and a truthiness guard inside a comprehension doesn't narrow
+        # the value expression for the type checker.
+        composite_id = getattr(device, "composite_device_id", None)
+        if composite_id:
+            canonical[device.id] = composite_id
     merged = await store.async_merge_split_duplicates(canonical)
     if merged:
         _LOGGER.info("Merged %s duplicate contributed task(s) after the split", merged)

@@ -451,7 +451,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Repair device references Home Assistant invalidated when it split devices in
     # 2026.8 (#183). Before the coordinator reads the store, so everything downstream
     # sees healed ids, and before the platforms so entities land on the real device.
-    await devices.async_heal_split_device_ids(hass, entry, store)
+    #
+    # Never allowed to prevent setup: a repair that hits an edge case should leave the
+    # user with the symptoms it meant to fix, not with an integration that won't load.
+    # (An early version raised out of here and did exactly that.)
+    try:
+        await devices.async_heal_split_device_ids(hass, entry, store)
+    except Exception:
+        _LOGGER.exception(
+            "Could not repair device references after the Home Assistant 2026.8 "
+            "device split; continuing setup. Please report this with the traceback"
+        )
 
     coordinator = HomeKeeperCoordinator(hass, entry, store)
     await coordinator.async_config_entry_first_refresh()

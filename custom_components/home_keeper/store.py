@@ -827,6 +827,9 @@ class HomeKeeperStore:
                         payload["device_id"] = adopted
 
             for duplicate in group:
+                # Skipping a duplicate that carries completions leaves it in place,
+                # which is the intended trade: a leftover task is recoverable, a
+                # deleted completion history is not.
                 if duplicate is survivor or (duplicate.get("completions") or []):
                     continue
                 await self.delete_task(duplicate["id"], force=True)
