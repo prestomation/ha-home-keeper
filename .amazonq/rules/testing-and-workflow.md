@@ -44,6 +44,16 @@
 ## Tests (run locally before pushing — never use CI as the test runner)
 - The recurrence engine and model are the correctness core: keep them HA-free and
   thoroughly unit-tested. `pytest tests/unit` must run without the HA harness.
+  `tests/conftest.py` *executes* the pure modules under their real dotted name
+  (`custom_components.home_keeper.<mod>`, with stub parent packages so the
+  HA-importing `__init__.py` never runs) and registers `hk.<mod>` / `hk_<mod>` as
+  aliases. **Two invariants there:** mutmut matches a mutant's path-derived key
+  against the function's `__module__`, so executing them as `hk.<mod>` would make
+  every mutant look untested; and `hk` must stay a *distinct* package object, not
+  an alias of `custom_components.home_keeper`, because `from . import x` resolves
+  through the parent's `__name__` — aliasing them makes the modules
+  `test_coordinator_purge.py` / `test_calendar.py` load as `hk.coordinator` pull
+  in the real HA-importing siblings instead of their fakes.
 - Layers: `tests/unit` (pytest, pure logic), `tests/frontend` +
   `frontend/test` (vitest), `tests/integration` (Docker HA), `tests/e2e`
   (Playwright), `tests/upgrade` (two-phase HA version upgrade). Run e2e/integration
@@ -68,6 +78,39 @@
 - After running the Docker HA container locally, restore the seeded fixtures
   (`tests/integration/ha_config/.storage/{home_keeper,core.config_entries}`);
   don't commit runtime-mutated state.
+
+## Mutation testing (a PR gate)
+Coverage proves a line *ran*; mutation testing proves a test would have *failed*
+had that line been wrong. `mutation.yml` runs on every PR and scores only the code
+the branch touched.
+
+- **Runners:** `ci/test-mutation-python.sh` (mutmut, against `tests/unit`) and
+  `ci/test-mutation-frontend.sh` (Stryker, against vitest). Both take `--changed`
+  (default) or `--all`.
+- **The surface is an allowlist, in one place per language:** `only_mutate` in
+  `[tool.mutmut]` (pyproject.toml) and `mutate` in `stryker.conf.json`. It holds
+  only what the fast tiers cover — the pure core, and the focused frontend modules
+  (`utils`, `forms`, `card-filter`, `documents`, `markdown`, `i18n`, `limits`).
+  Out: everything importing Home Assistant (Docker-tier only), `const.py` /
+  `companions_catalog.py` (data), `backend_i18n.py` (no unit entry point),
+  `testing.py`, and `panel.ts` / `card.ts` / `api.ts` (indirectly covered only).
+- **Diff scoping:** `ci/mutation_scope.py` turns the diff into mutmut mutant-name
+  filters (changed line → enclosing function, decorators included, via `ast`) and
+  Stryker `--mutate` line ranges. Scoping to whole files would fail a PR for
+  pre-existing debt.
+- **The gate is 80%**, in `[tool.mutation-gate] break` and mirrored in
+  `thresholds.break`; both runners fail on a mismatch so they cannot drift.
+  `--all` may sit below it while the surface is being brought up — the PR gate is
+  what must stay green.
+- **Surviving mutants are a test gap, not a formality.** Kill them with a real
+  assertion. For a genuinely *equivalent* mutant, annotate at the source
+  (`# pragma: no mutate`, `// Stryker disable next-line <mutator>`) **with a
+  one-line reason**. Never blanket-disable a file; never lower the threshold.
+- **Tests that read source off disk must be `*-parity.test.js`.** Under Stryker
+  they would read *mutated* text and go red for mutants they never exercised —
+  `forms.ts` is full of `t('…')` call sites, so this inflates the score badly.
+  `vitest.stryker.config.js` excludes that suffix.
+- Label a PR `skip-mutation` to bypass both jobs (revert/infra PRs).
 
 ## Translations (quality gates)
 `strings.json` (backend) and `frontend/src/locales/en.json` are the sources of

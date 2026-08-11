@@ -40,6 +40,9 @@
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only `pip install pytest`: `pytest tests/unit -v`.
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
+- **Mutation testing gates every PR** at an 80% mutation score on the code the PR
+  changed — see "Mutation testing" below. It is too slow for the
+  run-before-you-push loop; run it when you touch the mutable surface.
 - **User-facing prose is linted for AI-tell phrasing.** `lint.yml`'s `vale` job runs
   the [vale-ai-tells](https://github.com/tbhb/vale-ai-tells) Vale style (pinned in
   `.vale.ini`) over `README.md`, `CHANGELOG.md`, the canonical `docs/*.md` (not the
@@ -256,6 +259,64 @@ documented in `docs/INTEGRATING.md`. The fuller dedicated **upsert/reconcile**
 contribution service is still deferred — hook point `const.SIGNAL_TASK_CONTRIBUTION`.
 See IDEAS.md before building it.
 
+## Mutation testing (a PR gate)
+
+Coverage measures that a line *ran*. Mutation testing measures whether a test
+would have **failed** if that line were wrong — the difference between a suite
+that executes the code and one that actually asserts on it.
+
+`mutation.yml` runs on every PR, in two jobs:
+
+```bash
+bash ci/test-mutation-python.sh            # mutmut, changed functions only
+bash ci/test-mutation-python.sh --all      # the whole configured surface
+bash ci/test-mutation-frontend.sh          # Stryker, changed line ranges only
+bash ci/test-mutation-frontend.sh --all
+```
+
+- **It only scores what your branch touched.** `ci/mutation_scope.py` maps the
+  diff to mutmut mutant-name filters (changed line → enclosing function,
+  decorators included, via `ast`) and to Stryker `--mutate` line ranges. Scoping
+  to whole files would fail a PR for debt it didn't create.
+- **The mutable surface is an allowlist**, in exactly one place per language:
+  `only_mutate` in `[tool.mutmut]` (pyproject.toml) and `mutate` in
+  `stryker.conf.json`. It holds the pure Python core (`recurrence`, `models`,
+  `assets`, `reconcile`, `notifications`, `sensor_tasks`, `problem_tasks`,
+  `inventory`, `profiles`, `documents`, `events`, `transitions`) and the focused
+  frontend modules (`utils`, `forms`, `card-filter`, `documents`, `markdown`,
+  `i18n`, `limits`). Excluded on purpose: everything importing Home Assistant
+  (only the Docker tiers cover it — far too slow to run once per mutant),
+  `const.py` / `companions_catalog.py` (data, not logic), `backend_i18n.py` (pure
+  but with no unit-test entry point), `testing.py` (already coverage-omitted), and
+  `panel.ts` / `card.ts` / `api.ts` (only indirectly covered; ~7k lines that would
+  score near zero). Widen the allowlist when you add unit tests that would make
+  the score mean something.
+- **The gate is a mutation score of 80%**, set in `[tool.mutation-gate] break` and
+  mirrored in `thresholds.break` (stryker.conf.json). The two runners compare them
+  and fail on a mismatch, so they cannot drift.
+- **Kill surviving mutants with real assertions.** If a mutant is genuinely
+  *equivalent* — it cannot change observable behaviour — annotate it at the source
+  (`# pragma: no mutate`, `// Stryker disable next-line <mutator>`) with a one-line
+  reason. Never blanket-disable a file, and never lower the threshold to get green.
+- **Tests that read `src/*.ts` off disk belong in a `*-parity.test.js` file.**
+  Inside Stryker's sandbox they read *mutated* source, so any mutant touching a
+  string literal turns them red and is scored as "killed" by a test that never ran
+  the behaviour — `forms.ts` alone has dozens of `t('…')` call sites, so this
+  inflates the score badly. `vitest.stryker.config.js` excludes that suffix; the
+  normal `ci/test-frontend.sh` run still includes it.
+- Label a PR `skip-mutation` to bypass both jobs.
+
+`tests/conftest.py` executes the pure modules under their **real** dotted name
+(`custom_components.home_keeper.<mod>`, with stub parent packages so the
+HA-importing `__init__.py` never runs) and registers `hk.<mod>` / `hk_<mod>` as
+aliases. Keep it that way: mutmut matches a mutant's path-derived key against the
+function's `__module__`, and a mismatch makes every mutant look untested. `hk`
+itself must stay a **distinct** package object, not another alias of
+`custom_components.home_keeper` — `from . import x` resolves through the parent's
+`__name__`, so aliasing the two makes the modules that `test_coordinator_purge.py`
+and `test_calendar.py` load as `hk.coordinator` pull in the real HA-importing
+siblings instead of their fakes.
+
 ## Browser e2e tests (Playwright)
 
 - Location: `tests/e2e/` drives a real browser against the same HA Docker container
@@ -280,6 +341,8 @@ See IDEAS.md before building it.
 
 - `lint.yml` — ruff lint + format check, and **mypy** strict typing (HA installed).
 - `test.yml` — vitest, pytest unit, HACS validation, hassfest.
+- `mutation.yml` — mutation testing (mutmut + Stryker) on the code a PR changed;
+  fails below an 80% mutation score. `skip-mutation` label bypasses it.
 - `integration.yml` — Docker-based integration tests.
 - `e2e.yml` — Docker + Playwright; uploads the Playwright report on failure.
 - `ha-beta.yml` — **nightly early warning**, gates nothing. Runs integration, e2e and

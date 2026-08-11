@@ -37,3 +37,12 @@ build/
 tests/upgrade/custom_components/
 tests/upgrade/home_keeper_previous/
 tests/upgrade/home_keeper_working_tree/
+
+# Mutation testing scratch (mutmut copies the project into mutants/; Stryker
+# sandboxes into .stryker-tmp/ and writes its report into reports/).
+mutants/
+.mutmut-cache
+.stryker-tmp/
+stryker.log
+reports/
+.venv/

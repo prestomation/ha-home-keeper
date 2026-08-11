@@ -38,6 +38,39 @@ omit = ["custom_components/home_keeper/testing.py"]
 [tool.coverage.report]
 show_missing = true
 
+# Mutation testing (ci/test-mutation-python.sh). Coverage says a line ran;
+# mutation testing says a test would have *failed* if that line were wrong.
+[tool.mutmut]
+source_paths = ["custom_components/home_keeper"]
+# The mutable surface: the pure core, which the fast `tests/unit` tier covers
+# directly. Everything else in the integration imports Home Assistant and is
+# only exercised by the Docker tiers — far too slow to run once per mutant, and
+# scoring it here would just report noise. Also excluded: const.py and
+# companions_catalog.py (data, not logic), backend_i18n.py (pure but with no
+# unit-test entry point) and testing.py (a helper for *other* integrations'
+# suites, already omitted from coverage).
+only_mutate = [
+    "custom_components/home_keeper/recurrence.py",
+    "custom_components/home_keeper/models.py",
+    "custom_components/home_keeper/assets.py",
+    "custom_components/home_keeper/reconcile.py",
+    "custom_components/home_keeper/notifications.py",
+    "custom_components/home_keeper/sensor_tasks.py",
+    "custom_components/home_keeper/problem_tasks.py",
+    "custom_components/home_keeper/inventory.py",
+    "custom_components/home_keeper/profiles.py",
+    "custom_components/home_keeper/documents.py",
+    "custom_components/home_keeper/events.py",
+    "custom_components/home_keeper/transitions.py",
+]
+pytest_add_cli_args_test_selection = ["tests/unit"]
+
+[tool.mutation-gate]
+# Minimum mutation score, in percent, for both languages. The TypeScript side
+# reads its copy from `thresholds.break` in stryker.conf.json — keep them equal;
+# ci/mutation_report.py fails the run if they drift.
+break = 80
+
 # Strict typing is a Platinum quality-scale gate (see custom_components/home_keeper/
 # quality_scale.yaml). CI runs `mypy custom_components/home_keeper` with Home
 # Assistant installed so HA's own types resolve; keep the integration error-free.
