@@ -23,6 +23,12 @@ include = ["home_keeper*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# Make `from asserts import raises_exactly` (tests/unit/asserts.py) resolve
+# explicitly. Without it the import works only by accident — pytest's default
+# import mode puts each test file's own directory on sys.path, so it would break
+# the moment a unit test moved into a subdirectory. This adds no *source* path,
+# so it doesn't affect how mutmut derives a mutant's module name.
+pythonpath = ["tests/unit"]
 markers = [
     "real_ha: marks tests that use real HA modules (not mocked)",
 ]

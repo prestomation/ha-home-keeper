@@ -9,6 +9,7 @@ import csv
 import io
 
 import hk_inventory as inv
+import pytest
 
 
 def _asset(**kw):
@@ -186,3 +187,92 @@ def test_spares_total_does_not_drift_from_per_row_rounding():
     # Each row rounds 0.005 -> 0.01 (banker's rounding may give 0.0), but the total is
     # round(0.005 + 0.005) == 0.01 regardless.
     assert report["totals"]["spares_value"] == 0.01
+
+
+def test_row_is_exactly_the_documented_shape():
+    # The row dict *is* the export contract — the CSV writer and the panel both
+    # index it by key, and an insurance export is the one artefact a user hands
+    # to a third party. Asserting a handful of fields lets a renamed or dropped
+    # key through, so assert the whole dict.
+    report = inv.build_inventory(
+        [
+            _asset(
+                area_id="garage",
+                serial_number="SN-TOP",
+                parts=[{"name": "Anode rod", "cost": 30.0, "stock": 2}],
+            )
+        ],
+        area_names={"garage": "Garage"},
+    )
+    assert report["assets"] == [
+        {
+            "id": "a1",
+            "name": "Water heater",
+            "kind": "virtual",
+            "area": "Garage",
+            "manufacturer": "Rheem",
+            "model": "XE50",
+            "serial_number": "SN-TOP",
+            "cost": 900.0,
+            "spares_value": 60.0,
+            "part_count": 1,
+            "details": "Serial: SN-1; Warranty expiry: 2030-01-01",
+        }
+    ]
+
+
+def test_absent_text_fields_become_empty_strings_not_none():
+    # A CSV cell of "None" would be visible nonsense in the export, so the row
+    # coalesces missing text to "". `cost` deliberately stays None — blank is
+    # meaningfully different from zero for an insurance value.
+    report = inv.build_inventory(
+        [
+            {
+                "id": "a2",
+                "kind": "virtual",
+                "name": None,
+                "metadata": [],
+                "parts": [],
+            }
+        ]
+    )
+    row = report["assets"][0]
+    assert row["name"] == ""
+    assert row["manufacturer"] == ""
+    assert row["model"] == ""
+    assert row["serial_number"] == ""
+    assert row["cost"] is None
+    assert row["area"] is None
+
+
+@pytest.mark.parametrize(
+    ("unit_cost", "stock", "expected"),
+    [
+        # Chosen so the answer differs at 2dp from both 0dp and 3dp: the row is
+        # money, so "round to cents" has to be exactly that.
+        (1.0625, 2, 2.12),  # 2.125 -> 2.12, not 2 and not 2.125
+        (0.625, 3, 1.88),  # 1.875 -> 1.88, not 2 and not 1.875
+    ],
+)
+def test_spares_value_rounds_to_cents(unit_cost, stock, expected):
+    report = inv.build_inventory(
+        [
+            _asset(
+                cost=None, parts=[{"name": "Filter", "cost": unit_cost, "stock": stock}]
+            )
+        ]
+    )
+    assert report["assets"][0]["spares_value"] == expected
+    # The totals round independently of the row, so pin them too.
+    assert report["totals"]["spares_value"] == expected
+    assert report["totals"]["grand_total"] == expected
+
+
+def test_area_is_looked_up_by_id_not_carried_through():
+    # The row must carry the resolved *name*; leaking the raw id into an export
+    # a human reads would be a regression even though both are strings.
+    report = inv.build_inventory(
+        [_asset(area_id="garage")], area_names={"garage": "Garage"}
+    )
+    assert report["assets"][0]["area"] == "Garage"
+    assert report["assets"][0].get("area_id") is None

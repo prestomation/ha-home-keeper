@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 
 import hk_documents as d
-import pytest
+from asserts import raises_exactly
 from hk_assets import AssetValidationError
 
 PDF = b"%PDF-1.7\n..."
@@ -58,13 +58,16 @@ def test_validate_upload_accepts_pdf_and_returns_sniffed_type():
 
 
 def test_validate_upload_rejects_empty_oversized_and_unknown():
-    with pytest.raises(AssetValidationError):
+    with raises_exactly(AssetValidationError, "uploaded file is empty"):
         d.validate_upload("x.pdf", b"")
-    with pytest.raises(AssetValidationError):
+    with raises_exactly(
+        AssetValidationError,
+        "unsupported file type (allowed: PDF, PNG, JPEG, WebP, GIF)",
+    ):
         d.validate_upload("x.exe", b"MZ\x90\x00garbage")
     # Declared via the stream variant so the ceiling can be exercised without
     # allocating MAX_DOCUMENT_BYTES of ballast in the test process.
-    with pytest.raises(AssetValidationError):
+    with raises_exactly(AssetValidationError, "file exceeds the 100 MB limit"):
         d.validate_upload_stream("big.pdf", PDF, d.MAX_DOCUMENT_BYTES + 1)
 
 
@@ -74,9 +77,12 @@ def test_validate_upload_stream_matches_the_in_memory_variant():
     assert d.validate_upload_stream("manual.pdf", PDF, len(PDF)) == d.validate_upload(
         "manual.pdf", PDF
     )
-    with pytest.raises(AssetValidationError):
+    with raises_exactly(AssetValidationError, "uploaded file is empty"):
         d.validate_upload_stream("x.pdf", PDF, 0)
-    with pytest.raises(AssetValidationError):
+    with raises_exactly(
+        AssetValidationError,
+        "unsupported file type (allowed: PDF, PNG, JPEG, WebP, GIF)",
+    ):
         d.validate_upload_stream("x.exe", b"MZ\x90\x00garbage", 64)
 
 
@@ -147,7 +153,7 @@ def test_safe_segment_reduces_or_rejects():
     assert d.safe_segment("a/b") == "b"
     # Pure traversal / empty markers have no usable basename — rejected outright.
     for bad in ("..", ".", "", "/", "../.."):
-        with pytest.raises(AssetValidationError):
+        with raises_exactly(AssetValidationError, "invalid document path"):
             d.safe_segment(bad)
 
 
@@ -169,7 +175,7 @@ def test_resolve_under_root_blocks_escape(tmp_path: Path):
         assert ".." not in p.parts
     # A pure traversal/empty marker has no usable basename — rejected outright.
     for asset_id in ("..", ".", ""):
-        with pytest.raises(AssetValidationError):
+        with raises_exactly(AssetValidationError, "invalid document path"):
             d.resolve_under_root(root, asset_id, "doc__x.pdf")
 
 

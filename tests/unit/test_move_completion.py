@@ -12,7 +12,7 @@ transiently look like "history now empty" and get re-armed.
 from datetime import datetime, timedelta, timezone
 
 import hk_recurrence as r
-import pytest
+from asserts import raises_exactly
 
 TZ = timezone(timedelta(hours=-4))
 
@@ -28,7 +28,7 @@ def test_move_completion_missing_old_ts_raises():
         "unit": "months",
         "completions": [{"ts": dt(2026, 6, 1).isoformat()}],
     }
-    with pytest.raises(ValueError):
+    with raises_exactly(ValueError, "no completion at '2020-01-01T00:00:00-04:00'"):
         r.move_completion(
             task,
             dt(2020, 1, 1).isoformat(),
