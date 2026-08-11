@@ -305,6 +305,20 @@ ship rather than adding a parallel system.
 
 ## Companion / glue integration candidates (beyond Battery Notes)
 
+### Known gap: the Bambu Lab glue is missing from `companions_catalog.py`
+
+**Deferred to a future PR.** The catalog that drives pull-based detection lists only
+`battery_notes`, so `ha-home-keeper-bambu-lab` is never detected or suggested in
+Settings → Companions. Someone running the Bambu Lab integration is shown nothing,
+even though the glue exists and is the exact case the catalog is for. (Push
+registration still works, so the glue does appear once it's installed and running —
+what's missing is the suggestion that gets someone to install it.)
+
+Fixing it is a catalog entry plus a `tests/unit/test_companions.py` case; the merge
+logic itself already handles more than one entry. Surfaced during the #183 device
+registry audit (PR #189) and deliberately left out of that change, which was about
+the 2026.8 device split.
+
 Battery Notes' pattern — an integration whose *primary* purpose is something else, but
 that exposes a "this consumable is wearing out" signal as a secondary/implied feature —
 generalizes. Below is a survey of other popular HA integrations checked against that

@@ -160,6 +160,13 @@
   Ask it to surface the most serious issues first and not to withhold minor ones.
   Then triage its findings as usual (fix the valid ones; push back, with
   reasoning, on false positives).
+- **Never comment on a GitHub issue.** Issues are where users talk to the
+  maintainer, and an agent posting there answers on the maintainer's behalf to
+  someone who didn't ask for it. Findings, analysis and status belong in the PR
+  that carries the work, or in the reply to whoever asked. A PR that fixes an
+  issue links it (`Fixes #N`) and closes it on merge, which is the only signal an
+  issue needs. This does **not** restrict PR comments: the `/q review` request
+  above and replies to review threads are still required.
 
 ## Conventions live in `.amazonq/rules/` — keep them current
 

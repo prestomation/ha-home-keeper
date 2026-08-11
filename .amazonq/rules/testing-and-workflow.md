@@ -140,3 +140,9 @@ gate); CI publishes it to the job summary.
   commenting `/q review {request}`. Ask explicitly for *critical/skeptical*
   feedback and name the topics to scrutinize (correctness, maintainability,
   performance, security, HA best practices), most-serious-first.
+- **Never comment on a GitHub issue.** Issues are the user↔maintainer channel;
+  an agent posting there answers for the maintainer to someone who didn't ask.
+  Analysis, findings and status go in the PR carrying the work. A PR that fixes
+  an issue links it (`Fixes #N`) and closes it on merge — that's the only signal
+  the issue needs. PR comments are unaffected (the `/q review` above and replies
+  to review threads are still required).
