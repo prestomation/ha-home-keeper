@@ -13,13 +13,13 @@ You can react to these events two ways:
    or **“Spare part out of stock”**. No need to know the event name. These are scoped
    to that device.
 
-   Device triggers are offered on devices Home Keeper owns — its appliances. They are
-   **not** offered on a device another integration owns that a task is merely attached
-   to: Home Assistant builds that menu from the integrations a device belongs to, and
-   since HA 2026.8 a device belongs to exactly one (see
+   Device triggers are offered on devices Home Keeper owns, meaning its appliances.
+   They are not offered on a device another integration owns that a task is merely
+   attached to. Home Assistant builds that menu from the integrations a device belongs
+   to, and since HA 2026.8 a device belongs to exactly one (see
    [DESIGN.md](DESIGN.md) → "Device attachment"). For those tasks, automate on the
    task's own entities (`binary_sensor.<task>_overdue`, `sensor.<task>_next_due`) or
-   use the event trigger below — both reach the same events.
+   use the event trigger below. Both reach the same events.
 2. **Event trigger (any automation).** For global automations (“*any* part low → add to
    one shopping list”), use a plain `platform: event` trigger on the event name below.
 
