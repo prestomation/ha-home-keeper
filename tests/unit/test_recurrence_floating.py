@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone
 
 import hk_recurrence as r
+from asserts import raises_exactly
 
 TZ = timezone(timedelta(hours=-4))
 
@@ -33,11 +34,10 @@ def test_add_months_handles_negative_across_year_boundary():
 
 
 def test_add_interval_rejects_bad_input():
-    import pytest
 
-    with pytest.raises(ValueError):
+    with raises_exactly(ValueError, "interval must be >= 1, got 0"):
         r.add_interval(dt(2026, 1, 1), 0, "days")
-    with pytest.raises(ValueError):
+    with raises_exactly(ValueError, "unknown unit: 'fortnights'"):
         r.add_interval(dt(2026, 1, 1), 1, "fortnights")
 
 

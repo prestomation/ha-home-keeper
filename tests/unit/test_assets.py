@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 import hk_assets as a
 import pytest
+from asserts import raises_exactly
 
 TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 13, 10, tzinfo=TZ)
@@ -100,12 +101,12 @@ def test_asset_device_identifier_is_prefixed():
 
 
 def test_build_virtual_asset_requires_name():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "missing required field: 'name'"):
         a.build_asset({"manufacturer": "X"}, now=NOW)
 
 
 def test_build_existing_asset_requires_device_id():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "missing required field: 'device_id'"):
         a.build_asset({"kind": "existing"}, now=NOW)
 
 
@@ -128,7 +129,7 @@ def test_build_existing_asset_keeps_device_id_no_identifier():
 
 
 def test_build_asset_rejects_bad_kind():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "invalid kind: 'imaginary'"):
         a.build_asset({"name": "x", "kind": "imaginary"}, now=NOW)
 
 
@@ -168,7 +169,7 @@ def test_metadata_entries_normalized():
 
 
 def test_metadata_requires_label():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "metadata label must not be empty"):
         a.build_asset(
             {"name": "Furnace", "metadata": [{"type": "text", "value": "orphan"}]},
             now=NOW,
@@ -176,7 +177,7 @@ def test_metadata_requires_label():
 
 
 def test_metadata_rejects_bad_type():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "invalid metadata type: 'number'"):
         a.build_asset(
             {
                 "name": "Furnace",
@@ -198,7 +199,10 @@ def test_metadata_empty_date_is_blank():
 
 
 def test_metadata_bad_date_raises():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(
+        a.AssetValidationError,
+        "invalid date for 'Warranty': 'not-a-date' (expected YYYY-MM-DD)",
+    ):
         a.build_asset(
             {
                 "name": "Furnace",
@@ -211,7 +215,7 @@ def test_metadata_bad_date_raises():
 
 
 def test_metadata_link_rejects_non_http():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "Bad must be an http(s) URL"):
         a.build_asset(
             {
                 "name": "Furnace",
@@ -226,12 +230,12 @@ def test_metadata_link_rejects_non_http():
 def test_cost_coerced_and_bad_cost_raises():
     asset = a.build_asset({"name": "Furnace", "cost": "1299.99"}, now=NOW)
     assert asset["cost"] == pytest.approx(1299.99)
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "cost must be a number"):
         a.build_asset({"name": "Furnace", "cost": "free"}, now=NOW)
 
 
 def test_negative_cost_raises():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "cost must not be negative"):
         a.build_asset({"name": "Furnace", "cost": "-5"}, now=NOW)
 
 
@@ -264,7 +268,9 @@ def test_document_link_name_falls_back_to_host():
 
 def test_document_link_rejects_non_http_scheme():
     for bad in ("javascript:alert(1)", "ftp://example.com", "/relative"):
-        with pytest.raises(a.AssetValidationError):
+        with raises_exactly(
+            a.AssetValidationError, "document url must be an http(s) URL"
+        ):
             a.build_asset(
                 {"name": "Furnace", "documents": [{"kind": "link", "url": bad}]},
                 now=NOW,
@@ -365,7 +371,9 @@ def test_merge_update_documents_are_upload_only_for_files():
 
 def test_documents_count_is_capped():
     too_many = [{"kind": "link", "url": f"https://ex.com/{i}"} for i in range(51)]
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(
+        a.AssetValidationError, "an appliance can have at most 50 documents"
+    ):
         a.build_asset({"name": "Furnace", "documents": too_many}, now=NOW)
 
 
@@ -387,7 +395,9 @@ def test_merge_update_caps_merged_documents_total():
         )
     # A generic edit sending 30 links: 30 files + 30 links = 60 > _MAX_DOCUMENTS (50).
     incoming = [{"kind": "link", "url": f"https://ex.com/{i}"} for i in range(30)]
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(
+        a.AssetValidationError, "an appliance can have at most 50 documents"
+    ):
         a.merge_update(asset, {"documents": incoming}, now=NOW)
     # A payload that keeps the merged total within the cap is accepted (30 + 15 = 45).
     fifteen = [{"kind": "link", "url": f"https://ex.com/{i}"} for i in range(15)]
@@ -412,11 +422,11 @@ def test_duplicate_document_ids_are_regenerated():
 
 def test_merge_update_validates_documents_and_cost():
     asset = a.build_asset({"name": "Furnace"}, now=NOW)
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "document url must be an http(s) URL"):
         a.merge_update(
             asset, {"documents": [{"kind": "link", "url": "javascript:bad"}]}, now=NOW
         )
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "cost must not be negative"):
         a.merge_update(asset, {"cost": -1}, now=NOW)
     ok = a.merge_update(
         asset, {"documents": [{"kind": "link", "url": "http://ok.example"}]}, now=NOW
@@ -491,10 +501,10 @@ def test_update_document_rejects_bad_url_and_missing_id():
     entry = a.append_document(
         asset, {"kind": "link", "url": "https://ex.com/m"}, created=""
     )
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "document url must be an http(s) URL"):
         a.update_document(asset, entry["id"], {"url": "javascript:alert(1)"})
     # A non-dict change set is rejected; an unknown document id returns None.
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "document changes must be an object"):
         a.update_document(asset, entry["id"], "nope")
     assert a.update_document(asset, "missing", {"name": "x"}) is None
 
@@ -558,7 +568,7 @@ def test_icon_valid_and_invalid():
         == "mdi:piano"
     )
     assert a.build_asset({"name": "Piano"}, now=NOW)["icon"] == ""
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "icon must look like 'mdi:name'"):
         a.build_asset({"name": "Piano", "icon": "not an icon"}, now=NOW)
 
 
@@ -602,7 +612,7 @@ def test_parts_normalized_with_ids_and_types():
 
 def test_part_url_rejects_non_http_scheme_and_allows_empty():
     for bad in ("javascript:alert(1)", "ftp://example.com", "not a url"):
-        with pytest.raises(a.AssetValidationError):
+        with raises_exactly(a.AssetValidationError, "part url must be an http(s) URL"):
             a.build_asset(
                 {"name": "Furnace", "parts": [{"name": "Filter", "url": bad}]},
                 now=NOW,
@@ -614,14 +624,14 @@ def test_part_url_rejects_non_http_scheme_and_allows_empty():
 
 
 def test_part_requires_name_and_valid_type():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "part name must not be empty"):
         a.build_asset({"name": "X", "parts": [{"name": ""}]}, now=NOW)
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "invalid part type: 'bogus'"):
         a.build_asset({"name": "X", "parts": [{"name": "p", "type": "bogus"}]}, now=NOW)
 
 
 def test_part_bad_interval_unit_rejected():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "invalid replace_unit: 'eons'"):
         a.build_asset(
             {
                 "name": "X",
@@ -814,7 +824,9 @@ def test_part_rejects_future_last_replaced():
     # a date one day past NOW is rejected deterministically regardless of when the
     # test runs.
     future = (NOW.date() + timedelta(days=1)).isoformat()
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(
+        a.AssetValidationError, "last_replaced must not be in the future"
+    ):
         a.build_asset(
             {"name": "Boiler", "parts": [{"name": "Anode", "last_replaced": future}]},
             now=NOW,
@@ -830,7 +842,9 @@ def test_part_last_replaced_validated_against_injected_now_not_wall_clock():
         "name": "Boiler",
         "parts": [{"name": "Anode", "last_replaced": day_after_now}],
     }
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(
+        a.AssetValidationError, "last_replaced must not be in the future"
+    ):
         a.build_asset(payload, now=NOW)
     # Advancing ``now`` past that date makes the same payload valid.
     asset = a.build_asset(payload, now=NOW + timedelta(days=2))
@@ -851,7 +865,9 @@ def test_merge_update_rejects_future_part_last_replaced():
     # The merge_update entry point threads the injected clock too.
     asset = a.build_asset({"name": "Boiler"}, now=NOW)
     future = (NOW.date() + timedelta(days=5)).isoformat()
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(
+        a.AssetValidationError, "last_replaced must not be in the future"
+    ):
         a.merge_update(
             asset,
             {"parts": [{"name": "Anode", "last_replaced": future}]},
@@ -875,7 +891,7 @@ def test_duplicate_part_ids_are_regenerated():
 
 
 def test_oversized_replace_interval_rejected():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "replace_interval must be <= 10000"):
         a.build_asset(
             {
                 "name": "Box",
@@ -890,7 +906,7 @@ def test_related_device_ids_listified():
         {"name": "Piano", "related_device_ids": ["dev_a", "dev_b", ""]}, now=NOW
     )
     assert asset["related_device_ids"] == ["dev_a", "dev_b"]
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "related_device_ids must be a list"):
         a.build_asset({"name": "Piano", "related_device_ids": "notalist"}, now=NOW)
 
 
@@ -926,17 +942,17 @@ def test_part_stock_defaults_none_and_untracked():
 
 
 def test_negative_stock_rejected():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "stock must not be negative"):
         a.build_asset({"name": "X", "parts": [{"name": "F", "stock": -1}]}, now=NOW)
 
 
 def test_non_integer_stock_rejected():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "stock must be an integer"):
         a.build_asset({"name": "X", "parts": [{"name": "F", "stock": "lots"}]}, now=NOW)
 
 
 def test_oversized_stock_rejected():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(a.AssetValidationError, "reorder_at must be <= 10000"):
         a.build_asset(
             {"name": "X", "parts": [{"name": "F", "reorder_at": 10**9}]}, now=NOW
         )
@@ -997,7 +1013,9 @@ def test_part_auto_buy_defaults_off():
 
 
 def test_negative_restock_quantity_rejected():
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(
+        a.AssetValidationError, "restock_quantity must not be negative"
+    ):
         a.build_asset(
             {"name": "X", "parts": [{"name": "F", "restock_quantity": -2}]}, now=NOW
         )
@@ -1119,3 +1137,98 @@ def test_merge_update_sets_part_stock_from_incoming():
     )
     assert updated["parts"][0]["stock"] == 5
     assert updated["parts"][0]["reorder_at"] == 2
+
+
+# ── merge_update carry-forward contract ──────────────────────────────────────
+# `merge_update` builds a candidate from `updates.get(field, existing.get(field))`
+# for every editable field, then re-validates the whole record. Every field a
+# caller *omits* therefore has to survive untouched — the panel's edit form sends
+# a partial payload and a service caller may send a single key.
+#
+# Testing one field at a time is what makes this real: merging a full payload
+# cannot tell the carry-forward apart from the update itself.
+
+# An asset with every independently-editable field set to a distinctive value.
+FULLY_SET_ASSET = {
+    "name": "Kitchen fridge",
+    "manufacturer": "Frigidaire",
+    "model": "FGHB2868TF",
+    "serial_number": "SN-12345",
+    "notes": "Coils need brushing every spring",
+    "area_id": "area-kitchen",
+    "cost": 1499.0,
+    "icon": "mdi:fridge",
+    "metadata": [{"kind": "text", "label": "Provider", "value": "Acme"}],
+    "documents": [{"kind": "link", "name": "Manual", "url": "https://example.com/m"}],
+}
+
+# (field, new value, expected value after normalization).
+ASSET_MERGE_CASES = [
+    ("name", "Garage fridge", "Garage fridge"),
+    ("manufacturer", "Bosch", "Bosch"),
+    ("model", "B36CT80SNS", "B36CT80SNS"),
+    ("serial_number", "SN-99999", "SN-99999"),
+    ("notes", "Moved to the garage", "Moved to the garage"),
+    ("area_id", "area-garage", "area-garage"),
+    ("cost", 1799.5, 1799.5),
+    ("icon", "mdi:fridge-outline", "mdi:fridge-outline"),
+]
+
+# Fields that must be identical before and after a merge that didn't mention them.
+ASSET_CARRIED_FIELDS = [
+    "name",
+    "manufacturer",
+    "model",
+    "serial_number",
+    "notes",
+    "area_id",
+    "cost",
+    "icon",
+    "metadata",
+    "documents",
+    "parts",
+]
+
+
+def test_asset_merge_cases_cover_the_carried_fields():
+    # Guard the fixtures: a new editable field must show up here rather than
+    # silently going untested on both the update and the carry-forward side.
+    assert {field for field, _, _ in ASSET_MERGE_CASES} <= set(ASSET_CARRIED_FIELDS)
+    assert set(FULLY_SET_ASSET) <= set(ASSET_CARRIED_FIELDS)
+
+
+@pytest.mark.parametrize(("field", "value", "expected"), ASSET_MERGE_CASES)
+def test_merge_update_applies_one_field_and_carries_the_rest(field, value, expected):
+    asset = a.build_asset(FULLY_SET_ASSET, now=NOW)
+    updated = a.merge_update(asset, {field: value}, now=NOW)
+
+    assert updated[field] == expected
+    for other in ASSET_CARRIED_FIELDS:
+        if other != field:
+            assert updated[other] == asset[other], f"{other} was not carried forward"
+
+
+def test_merge_update_with_an_empty_payload_changes_nothing():
+    # The degenerate case, and the cheapest proof that every default in the
+    # candidate dict reads from `existing`.
+    asset = a.build_asset(FULLY_SET_ASSET, now=NOW)
+    assert a.merge_update(asset, {}, now=NOW) == asset
+
+
+def test_merge_update_carries_identity_fields():
+    # `id`, `created` and the provisioning anchors are never in the candidate
+    # dict; they survive because the merge starts from `dict(existing)`.
+    asset = a.build_asset(FULLY_SET_ASSET, now=NOW)
+    updated = a.merge_update(asset, {"name": "Renamed"}, now=NOW)
+    for field in ("id", "created", "kind", "identifiers"):
+        assert updated[field] == asset[field], f"{field} was not preserved"
+
+
+def test_merge_update_clearing_a_text_field_is_honoured():
+    # The carry-forward must not swallow a deliberate blanking: an explicit ""
+    # is a value, not an omission.
+    asset = a.build_asset(FULLY_SET_ASSET, now=NOW)
+    updated = a.merge_update(asset, {"serial_number": "", "notes": ""}, now=NOW)
+    assert updated["serial_number"] == ""
+    assert updated["notes"] == ""
+    assert updated["manufacturer"] == "Frigidaire"  # untouched neighbour

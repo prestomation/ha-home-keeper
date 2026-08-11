@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import hk_models as m
 import pytest
+from asserts import raises_exactly
 
 TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 13, 10, tzinfo=TZ)
@@ -82,7 +83,9 @@ def test_build_floating_task_seed_naive_is_qualified():
 
 
 def test_build_task_rejects_bad_last_completed():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(
+        m.TaskValidationError, "invalid last_completed datetime: 'not-a-date'"
+    ):
         m.build_task(
             {
                 "name": "x",
@@ -133,14 +136,14 @@ def test_build_fixed_task_normalizes_naive_anchor():
 
 
 def test_build_task_rejects_missing_name():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "missing required field: 'name'"):
         m.build_task(
             {"recurrence_type": "floating", "interval": 1, "unit": "days"}, now=NOW
         )
 
 
 def test_build_task_rejects_bad_unit():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "invalid unit: 'lightyears'"):
         m.build_task(
             {
                 "name": "x",
@@ -153,7 +156,7 @@ def test_build_task_rejects_bad_unit():
 
 
 def test_build_task_rejects_bad_interval():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "interval must be >= 1"):
         m.build_task(
             {"name": "x", "recurrence_type": "floating", "interval": 0, "unit": "days"},
             now=NOW,
@@ -163,7 +166,7 @@ def test_build_task_rejects_bad_interval():
 def test_build_task_rejects_oversized_interval():
     # An absurd interval must be a clean validation error, not a timedelta
     # OverflowError that surfaces as a 500.
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "interval must be <= 10000"):
         m.build_task(
             {
                 "name": "x",
@@ -178,7 +181,7 @@ def test_build_task_rejects_oversized_interval():
 def test_build_task_rejects_non_numeric_interval():
     # Websocket payloads aren't coerced, so a non-numeric interval must raise a
     # validation error (not a raw ValueError that crashes the command).
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "interval must be a valid integer"):
         m.build_task(
             {
                 "name": "x",
@@ -194,13 +197,15 @@ def test_completion_metadata_rejects_nan_infinity_cost():
     # NaN passes every < / <= comparison, so a bare float() would let it persist (and
     # NaN serializes to null on the JSON round-trip). Reject non-finite numbers.
     for bad in (float("nan"), float("inf"), "nan", "inf"):
-        with pytest.raises(m.TaskValidationError):
+        with raises_exactly(m.TaskValidationError, "cost must be a finite number"):
             m.normalize_completion_metadata({"cost": bad})
 
 
 def test_build_sensor_task_rejects_nan_target():
     for bad in (float("nan"), float("inf")):
-        with pytest.raises(m.TaskValidationError):
+        with raises_exactly(
+            m.TaskValidationError, "sensor.target must be a finite number"
+        ):
             m.build_task(
                 {
                     "name": "x",
@@ -455,7 +460,11 @@ def test_deletion_not_blocked_for_unmanaged_task():
 def test_build_task_rejects_deletion_protected_without_config_entry_id():
     # Protection without a config_entry_id would be a permanent trap (orphan
     # detection couldn't fire), so creation must be rejected.
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(
+        m.TaskValidationError,
+        "managed_by.deletion_protected requires config_entry_id so the task can "
+        "still be cleaned up if the managing integration is removed",
+    ):
         m.build_task(
             {
                 "name": "Buddy: Medicine",
@@ -492,7 +501,7 @@ def test_build_task_allows_deletion_protected_with_config_entry_id():
 
 
 def test_build_task_rejects_non_mapping_managed_by():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "managed_by must be a mapping"):
         m.build_task(
             {
                 "name": "X",
@@ -691,7 +700,7 @@ def test_build_one_off_task_qualifies_naive_due():
 
 
 def test_build_one_off_task_rejects_invalid_due():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "invalid due datetime: 'not-a-date'"):
         m.build_task(
             {"name": "Bad", "recurrence_type": "one-off", "due": "not-a-date"},
             now=NOW,
@@ -841,7 +850,7 @@ def test_build_task_defaults_labels_to_empty():
 
 
 def test_build_task_rejects_non_list_labels():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "labels must be a list of label ids"):
         m.build_task(
             {
                 "name": "Bad",
@@ -908,12 +917,14 @@ def test_normalize_card_links_defaults_empty():
 
 
 def test_normalize_card_links_rejects_non_list():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(m.TaskValidationError, "card_links must be a list"):
         m.normalize_card_links({"asset_id": "a1", "entry_id": "d1"})
 
 
 def test_normalize_card_links_rejects_non_object_entry():
-    with pytest.raises(m.TaskValidationError):
+    with raises_exactly(
+        m.TaskValidationError, "each card_links entry must be an object"
+    ):
         m.normalize_card_links(["a1:d1"])
 
 
@@ -1103,3 +1114,145 @@ def test_merge_update_clears_task_chips_when_sent_empty():
 def test_normalize_task_chips_rejects_mdi_empty_suffix():
     with pytest.raises(m.TaskValidationError, match="non-empty name"):
         m.normalize_task_chips([{"label": "x", "icon": "mdi:"}])
+
+
+# ── merge_update carry-forward contract ──────────────────────────────────────
+# `merge_update` builds a candidate from `updates.get(field, existing.get(field))`
+# for every editable field, then re-normalizes the whole thing. That means every
+# field a caller *omits* has to survive the round trip untouched — the panel's
+# edit form sends a partial payload, and a service caller may send a single key.
+#
+# Testing one field at a time is what makes this real: a suite that only ever
+# merges a full payload cannot tell the carry-forward apart from the update.
+
+# A task with every independently-editable field set to a distinctive value.
+FULLY_SET_TASK = {
+    "name": "Furnace filter",
+    "notes": "Behind the return vent",
+    "recurrence_type": "floating",
+    "interval": 3,
+    "unit": "months",
+    "device_id": "dev-furnace",
+    "area_id": "area-basement",
+    "enabled": True,
+    "completion_detail": "required",
+    "completion_required_fields": ["note", "cost"],
+}
+
+# (field, new value, expected value after normalization, other fields the change
+# is *supposed* to move). The last element documents a real coupling rather than
+# weakening the carry-forward assertion to accommodate it.
+MERGE_UPDATE_CASES = [
+    ("name", "Renamed filter", "Renamed filter", {}),
+    ("notes", "Now in the loft", "Now in the loft", {}),
+    ("interval", 6, 6, {}),
+    ("unit", "weeks", "weeks", {}),
+    ("device_id", "dev-other", "dev-other", {}),
+    ("area_id", "area-attic", "area-attic", {}),
+    ("enabled", False, False, {}),
+    # Turning capture off makes a mandatory-field list meaningless, so it clears.
+    ("completion_detail", "optional", "optional", {"completion_required_fields": []}),
+    ("completion_detail", "none", "none", {"completion_required_fields": []}),
+]
+
+# Fields whose value must be identical before and after a merge that didn't
+# mention them. `next_due` is deliberately absent: changing the cadence is
+# *supposed* to move it, and that is covered by its own tests.
+CARRIED_FIELDS = [
+    "name",
+    "notes",
+    "recurrence_type",
+    "interval",
+    "unit",
+    "device_id",
+    "area_id",
+    "enabled",
+    "completion_detail",
+    "completion_required_fields",
+]
+
+
+def test_merge_update_cases_cover_the_carried_fields():
+    # Guard the fixtures above: a new editable field must show up here rather
+    # than silently going untested on both the update and the carry-forward side.
+    assert {case[0] for case in MERGE_UPDATE_CASES} <= set(CARRIED_FIELDS)
+    assert set(FULLY_SET_TASK) - {"recurrence_type"} <= set(CARRIED_FIELDS)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected", "also_changes"), MERGE_UPDATE_CASES
+)
+def test_merge_update_applies_one_field_and_carries_the_rest(
+    field, value, expected, also_changes
+):
+    task = m.build_task(FULLY_SET_TASK, now=NOW)
+    updated = m.merge_update(task, {field: value}, now=NOW)
+
+    assert updated[field] == expected
+    for other in CARRIED_FIELDS:
+        if other == field:
+            continue
+        if other in also_changes:
+            assert updated[other] == also_changes[other], f"{other} coupling changed"
+        else:
+            assert updated[other] == task[other], f"{other} was not carried forward"
+
+
+def test_merge_update_with_an_empty_payload_changes_nothing():
+    # The degenerate case, and the cheapest possible proof that every default in
+    # the candidate dict reads from `existing`.
+    task = m.build_task(FULLY_SET_TASK, now=NOW)
+    updated = m.merge_update(task, {}, now=NOW)
+    assert updated == task
+
+
+def test_merge_update_carries_identity_and_history_fields():
+    # Fields the candidate dict never mentions still have to survive, because the
+    # merge starts from `dict(existing)` rather than building a fresh task.
+    task = m.build_task(FULLY_SET_TASK, now=NOW)
+    task["completions"] = [{"ts": NOW.isoformat()}]
+    task["last_completed"] = NOW.isoformat()
+    updated = m.merge_update(task, {"name": "Renamed"}, now=NOW)
+    assert updated["id"] == task["id"]
+    assert updated["completions"] == task["completions"]
+    assert updated["last_completed"] == task["last_completed"]
+
+
+def test_merge_update_locked_fields_leaves_the_rest_of_the_payload_intact():
+    # Stripping locked keys must filter `updates`, not discard it: an update
+    # carrying both a locked and an unlocked field has to apply the unlocked one.
+    task = m.build_task(
+        {
+            **FULLY_SET_TASK,
+            "managed_by": {
+                "integration": "x",
+                "display_name": "X",
+                "locked_fields": ["name"],
+            },
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(
+        task,
+        {"name": "Hacked", "notes": "Legitimate edit", "area_id": "area-new"},
+        now=NOW,
+    )
+    assert updated["name"] == "Furnace filter"
+    assert updated["notes"] == "Legitimate edit"
+    assert updated["area_id"] == "area-new"
+
+
+def test_merge_update_with_empty_locked_fields_applies_everything():
+    task = m.build_task(
+        {
+            **FULLY_SET_TASK,
+            "managed_by": {
+                "integration": "x",
+                "display_name": "X",
+                "locked_fields": [],
+            },
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"name": "Renamed"}, now=NOW)
+    assert updated["name"] == "Renamed"
