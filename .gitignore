@@ -35,3 +35,5 @@ build/
 # Staged by ci/fetch-glues.sh for the upgrade suite (real glues at pinned SHAs +
 # Home Keeper from the working tree + the upstream stubs). Never committed.
 tests/upgrade/custom_components/
+tests/upgrade/home_keeper_previous/
+tests/upgrade/home_keeper_working_tree/

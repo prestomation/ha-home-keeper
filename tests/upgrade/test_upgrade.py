@@ -50,11 +50,19 @@ def test_fixture_produced_the_expected_world(upgrade_run):
 
 
 @pytest.mark.xfail(
-    reason="HA 2026.8 forks a nameless duplicate rather than merging; see #183",
+    reason="the split renumbers the device, so the stored device_id dangles; #183",
     strict=True,
 )
 def test_foreign_attached_task_keeps_its_device(upgrade_run):
-    """A task attached to another integration's device must still point at it."""
+    """A task attached to another integration's device must still point at it.
+
+    Home Keeper no longer forks a duplicate here — that half is fixed. What remains
+    is the dangling pointer: the kitchen sensor is split (by the `battery_notes`
+    stub's merge, not by us) and renumbered, so the ``device_id`` stored on the task
+    no longer resolves and the task falls back to a self-owned device. Fixing that
+    needs the repair flow + snapshot auto-heal, which is deliberately not in this
+    change.
+    """
     task = next(iter(upgrade_run.tasks_named("Upgrade probe foreign task")), None)
     assert task is not None, "the probe task did not survive the upgrade"
 
@@ -73,17 +81,34 @@ def test_foreign_attached_task_keeps_its_device(upgrade_run):
 
 
 @pytest.mark.xfail(
-    reason="HA 2026.8 forks a duplicate device from the copied identifiers; see #183",
+    reason="duplicates the previous version created survive the upgrade; #183",
     strict=True,
 )
-def test_upgrade_does_not_leave_duplicate_devices(upgrade_run):
-    """Exactly one device should carry the source device's identifiers."""
-    carriers = upgrade_run.devices_with_identifier(SOURCE_DOMAIN, KITCHEN)
-    assert len(carriers) == 1, (
-        "the kitchen sensor's identifiers appear on "
-        f"{len(carriers)} devices after the upgrade: "
-        f"{[(d['id'], d.get('name'), d.get('config_entries')) for d in carriers]}"
-    )
+def test_home_keeper_adds_no_duplicate_device(upgrade_run):
+    """Home Keeper must not be one of the devices carrying a foreign identifier.
+
+    Deliberately *not* "exactly one carrier": the kitchen sensor legitimately ends up
+    with two, because the ``battery_notes`` stub reproduces pre-2026.8 Battery Notes
+    and merges onto it, so Home Assistant splits it. That is the stub's doing. What is
+    Home Keeper's business is never appearing in that list.
+
+    Fresh attachments no longer do (``tests/integration/test_device_attach.py`` proves
+    it). This is the *upgrade* path, and it still fails: phase 1 runs the previous
+    release, whose identifier copy had already merged onto these devices, so Home
+    Assistant hands Home Keeper its own half during the split. See
+    ``test_duplicate_devices_from_the_old_version_are_cleaned_up`` for why the existing
+    prune can't remove them.
+    """
+    for domain, value in [(SOURCE_DOMAIN, KITCHEN), ("bambu_lab", BAMBU_SERIAL)]:
+        ours = [
+            d
+            for d in upgrade_run.devices_with_identifier(domain, value)
+            if any("home_keeper" in entry for entry in d.get("config_entries") or ())
+        ]
+        assert not ours, (
+            f"Home Keeper owns a device carrying ({domain}, {value}): "
+            f"{[(d['id'], d.get('name')) for d in ours]}"
+        )
 
 
 # ── scenarios 2 and 3: assets ────────────────────────────────────────────────
@@ -145,12 +170,14 @@ def test_split_devices_keep_their_name(upgrade_run):
     Worth pinning because it separates the two ways #183 shows raw GUIDs:
 
     * *upgrade* path — the name is copied to both halves, but every registry **id**
-      changes, so a stored ``device_id`` dangles (see the next test);
-    * *fresh attach* path — ``device_info_for_task`` sends identifiers with no
-      ``name``, so the forked device is nameless and the UI shows its id
-      (``tests/integration/test_device_attach.py``).
+      changes, so a stored ``device_id`` dangles (see the next test). **Still open**;
+      needs the repair flow + snapshot auto-heal.
+    * *fresh attach* path — the old identifier copy sent no ``name``, so the forked
+      device was nameless and the UI showed its id. **Fixed**: Home Keeper links
+      entities instead of forking (``tests/integration/test_device_attach.py``).
 
-    A fix has to handle both; neither one implies the other.
+    They were always two bugs wearing the same symptom, which is why fixing one left
+    the other standing.
     """
     for domain, value in [("bambu_lab", BAMBU_SERIAL), (SOURCE_DOMAIN, KITCHEN)]:
         carriers = upgrade_run.devices_with_identifier(domain, value)
@@ -220,18 +247,38 @@ def test_source_namespace_device_ids_still_resolve(upgrade_run):
 # ── scenario 7: the decisive one ─────────────────────────────────────────────
 
 
-_DUPLICATES_ON_UPGRADE = pytest.mark.xfail(
-    reason=("glue re-keys on a stale source.device_id and creates a second task; #183"),
-    strict=True,
-)
-
-
 @pytest.mark.parametrize(
     ("source_ns", "label"),
     [
-        pytest.param(BN_GLUE_NS, "Battery Notes", marks=_DUPLICATES_ON_UPGRADE),
-        pytest.param(BAMBU_GLUE_NS, "Bambu Lab", marks=_DUPLICATES_ON_UPGRADE),
-        # No xfail: Pawsistant is expected to pass, and that is the point.
+        # Still duplicates, and no longer for a reason Home Keeper controls: the
+        # `battery_notes` stub merges onto the kitchen sensor (reproducing pre-2026.8
+        # Battery Notes), so that device splits and renumbers whatever Home Keeper
+        # does. Real users are less exposed than this looks — Battery Notes 3.0.0-dev
+        # has already moved to entity linking. The glue should still re-key durably.
+        pytest.param(
+            BN_GLUE_NS,
+            "Battery Notes",
+            marks=pytest.mark.xfail(
+                reason=(
+                    "the battery_notes stub still merges, so its device splits; #183"
+                ),
+                strict=True,
+            ),
+        ),
+        # Bambu Lab duplicates for the same reason: the previous release had already
+        # merged onto the printer, so the split renumbers it and the glue's stored
+        # source.device_id stops matching. Worth knowing precisely: it stops
+        # duplicating for anyone who *hasn't* upgraded yet, because this version never
+        # merges — but that does not help an install where the merge already happened.
+        pytest.param(
+            BAMBU_GLUE_NS,
+            "Bambu Lab",
+            marks=pytest.mark.xfail(
+                reason="the previous release already merged onto the printer; #183",
+                strict=True,
+            ),
+        ),
+        # Passes: Pawsistant re-keys on schedule_id, so renumbering can't strand it.
         pytest.param(PAW_NS, "Pawsistant"),
     ],
 )
@@ -314,3 +361,40 @@ def test_report_device_id_churn(upgrade_run, capsys):
 
     with capsys.disabled():
         print("\n".join(lines))
+
+
+@pytest.mark.xfail(
+    reason=(
+        "the split moves our entities onto the duplicate, so the prune keeps it; #183"
+    ),
+    strict=True,
+)
+def test_duplicate_devices_from_the_old_version_are_cleaned_up(upgrade_run):
+    """Devices the previous release caused should not outlive the upgrade.
+
+    Phase 1 runs the **last released** Home Keeper, whose identifier copy merged onto
+    the target device. When Home Assistant splits that device it hands Home Keeper its
+    own half — carrying the *foreign* identifiers — and **moves our existing entities
+    onto it**. They keep working, which is why nothing looks broken at a glance.
+
+    That is exactly why ``async_prune_orphaned_devices`` can't help: it removes devices
+    that no longer carry any of our entities, and these do. Cleaning them up needs a
+    real migration — recognise a device we own whose identifiers aren't ours (a shape
+    this version never creates), re-point its entities, then remove it — which belongs
+    with the repair flow and snapshot auto-heal rather than here.
+
+    Written as a failing test on purpose: without it, a release note claiming
+    duplicates "are cleaned up" would be an untested promise. It was.
+    """
+    ours = [
+        (d["id"], d.get("name"))
+        for d in upgrade_run.after["devices"]
+        if any("home_keeper" in e for e in d.get("config_entries") or ())
+        and not any(
+            i[0] == "home_keeper" for i in d.get("identifiers", []) if len(i) == 2
+        )
+    ]
+    assert not ours, (
+        "Home Keeper still owns device(s) it did not create itself — the duplicates "
+        f"from the previous version were not cleaned up: {ours}"
+    )

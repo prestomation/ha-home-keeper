@@ -6,33 +6,22 @@ Battery-Notes-style merge described in ``docs/DESIGN.md`` → "Device attachment
 ``coordinator.device_info_for_task`` implements it by copying the foreign device's
 identifiers and connections verbatim into a ``DeviceInfo``.
 
-**Home Assistant 2026.8 made identifiers unique per config entry**, so that copy no
-longer merges — it silently forks a *duplicate* device owned by Home Keeper's config
-entry. Every symptom in #183 traces back to it.
+**Home Assistant 2026.8 made identifiers unique per config entry**, so that copy
+stopped merging and instead forked a *duplicate* device owned by Home Keeper's config
+entry — carrying no ``name``, which is why #183 saw raw GUIDs where a device name
+belonged. Home Keeper now links entities to the device instead
+(``coordinator.device_link_for_task`` sets ``entity.device_entry``), which restores
+the original behaviour without claiming the device.
 
-Observed on 2026.8 with this fixture: the stub's device and a second device carry the
-same identifiers, and the fork's ``name`` is ``None`` — ``device_info_for_task`` sends
-no ``name`` when it believes it is merging onto an existing device. A nameless device
-is why #183 item 1 sees raw GUIDs: both HA's device picker and the panel's
-``deviceName()`` fall back to the device id when a device resolves but has no name.
-The stored ``device_id`` is not stale; the device it points at simply has no name.
-
-This test is the assertion that should have existed. The suite already covered the
+These are the assertions that should have existed. The suite already covered the
 *self-owned* device path (``test_device_cleanup.py``, whose docstring says as much),
 but nothing asserted the foreign-device path, so the regression landed silently even
 though CI was already running the affected Home Assistant version.
-
-It is marked ``xfail(strict=True)`` deliberately: it documents the broken contract
-today and turns into a hard failure the moment a fix lands, forcing the marker off
-rather than letting a stale expectation rot. Do not weaken the assertions to make it
-pass — a passing version of this test on 2026.8 would mean it stopped testing
-anything.
 """
 
 import time
 from contextlib import contextmanager
 
-import pytest
 from conftest import call_service
 from ha_registry import (
     device_registry,
@@ -96,16 +85,11 @@ def _attached_task(ha):
         call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
 
 
-# Two tests rather than one with several assertions, so a *partial* fix is legible:
-# restoring entity placement without stopping the fork would flip the first to XPASS
-# while the second stays xfail, which names exactly what is left to do. Bundled into
-# one test, the same partial fix would just look like "still broken".
+# Two tests rather than one with several assertions, so a partial regression is
+# legible: losing entity placement and forking a duplicate are separate failures with
+# separate causes, and bundling them would report either as "device attachment broke".
 
 
-@pytest.mark.xfail(
-    reason="HA 2026.8 puts our entities on the fork, not the real device; see #183",
-    strict=True,
-)
 def test_task_entities_land_on_the_foreign_device(ha):
     """The per-task entities belong to the device the task points at."""
     with _attached_task(ha) as (stub_device_id, _task_id):
@@ -120,16 +104,13 @@ def test_task_entities_land_on_the_foreign_device(ha):
         )
 
 
-@pytest.mark.xfail(
-    reason="HA 2026.8 forks a duplicate device instead of merging; see #183",
-    strict=True,
-)
 def test_attaching_a_task_does_not_fork_a_duplicate_device(ha):
     """Attaching must not mint a second device carrying the same identifiers.
 
-    Pre-2026.8 the identifier copy merged onto the existing device. Post-2026.8 it
-    creates a second device under Home Keeper's config entry — and with no ``name``,
-    which is why #183 item 1 shows a raw GUID.
+    The regression this guards: copying the target's identifiers into a ``DeviceInfo``
+    created a second, nameless device under Home Keeper's config entry on HA 2026.8+
+    (#183). Entity-level linking adds no device at all, so exactly one device carries
+    these identifiers no matter how many tasks attach to it.
     """
     with _attached_task(ha) as (stub_device_id, task_id):
         devices = device_registry(ha)

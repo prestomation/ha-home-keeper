@@ -38,6 +38,16 @@ HERE = Path(__file__).parent
 COMPOSE_FILE = HERE / "docker-compose.yml"
 FIXTURE_CONFIG = HERE / "fixtures" / "ha_config"
 
+#: The tree the container mounts. ci/fetch-glues.sh fills both of these.
+MOUNTED_HK = HERE / "custom_components" / "home_keeper"
+#: The working tree's Home Keeper, saved aside so it can be swapped back for phase 2.
+#: Deliberately a sibling of the staged tree, not inside it — the container mounts
+#: that whole directory and Home Assistant tries to import every subdirectory of it
+#: as a component, so a spare copy in there breaks setup for everything.
+WORKING_TREE_HK = HERE / "home_keeper_working_tree"
+#: The last released Home Keeper, used for phase 1.
+PREVIOUS_HK = HERE / "home_keeper_previous" / "home_keeper"
+
 #: The last Home Assistant release **before** devices were split per config entry.
 #: This is a FROZEN pin, not a version to keep current: it defines "the world users
 #: are upgrading from". Bumping it changes what the test means. See
@@ -270,6 +280,11 @@ def upgrade_run() -> UpgradeRun:
 
     try:
         # ── phase 1: the world before the split ──────────────────────────────
+        # Old Home Assistant *and* old Home Keeper. Running the working tree in both
+        # phases would test a journey nobody takes; what matters is what the new
+        # version does with state the old one left behind — including the duplicate
+        # devices the old identifier copy created on 2026.8.
+        _use_home_keeper(PREVIOUS_HK)
         up = _compose("up", "-d", config_dir=config_dir, ha_tag=OLD_HA_TAG)
         if up.returncode != 0:
             pytest.fail(f"could not start HA {OLD_HA_TAG}: {up.stderr}")
@@ -287,7 +302,8 @@ def upgrade_run() -> UpgradeRun:
         # `down` without `-v`: the config dir is a bind mount and must survive.
         _compose("down", config_dir=config_dir, ha_tag=OLD_HA_TAG)
 
-        # ── phase 2: Home Assistant migrates on boot ─────────────────────────
+        # ── phase 2: new Home Assistant and new Home Keeper ──────────────────
+        _use_home_keeper(WORKING_TREE_HK)
         up = _compose("up", "-d", config_dir=config_dir, ha_tag=NEW_HA_TAG)
         if up.returncode != 0:
             pytest.fail(f"could not start HA {NEW_HA_TAG}: {up.stderr}")
@@ -309,6 +325,22 @@ def upgrade_run() -> UpgradeRun:
         (tmp / "ha.log").write_text(logs.stdout or "")
         print(f"\n[upgrade] Home Assistant logs: {tmp / 'ha.log'}")
         _compose("down", "-v", config_dir=config_dir, ha_tag=NEW_HA_TAG)
+
+
+def _use_home_keeper(source: Path) -> None:
+    """Point the mounted custom_components at a particular Home Keeper build.
+
+    The container bind-mounts the whole staged directory, so swapping versions
+    between the two boots is a matter of replacing that one subdirectory while
+    nothing is running.
+    """
+    if not source.is_dir():
+        pytest.fail(f"{source} is missing — run `bash ci/fetch-glues.sh` first")
+    if source != WORKING_TREE_HK and not WORKING_TREE_HK.exists():
+        # Preserve the working tree's build on the first swap so phase 2 can restore it.
+        shutil.copytree(MOUNTED_HK, WORKING_TREE_HK)
+    shutil.rmtree(MOUNTED_HK, ignore_errors=True)
+    shutil.copytree(source, MOUNTED_HK)
 
 
 def _wait_until_settled(token: str, quiet_for: int = 8, timeout: int = 120) -> None:

@@ -6,6 +6,33 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.13.0b1]
+
+### Fixed
+
+- **Attaching a task to another integration's device no longer creates a duplicate,
+  unnamed device.** Home Assistant 2026.8 made device identifiers unique per config
+  entry, which broke how Home Keeper put a task's entities on an existing device: it
+  quietly created a second device instead of using the real one, showing an identifier
+  where a name belongs and splitting a device's tasks across two entries. Home Keeper
+  now links its entities to the device directly, so they land on the real device's
+  page again and no duplicate is created. (Fixes #183)
+
+  This applies to tasks attached from this version onward. **If you already upgraded
+  to Home Assistant 2026.8 with an earlier Home Keeper, the duplicate devices it left
+  behind stay for now** — Home Assistant moved your entities onto them during its
+  upgrade, so they can't simply be deleted. Repairing those, and re-pointing tasks
+  whose device was renumbered, is coming in a follow-up.
+
+### Changed
+
+- **Device triggers for a task attached to a device Home Keeper doesn't own are no
+  longer listed on that device's page.** Home Assistant only offers a device's
+  triggers for the single integration it belongs to, so this follows from the fix
+  above. Automate on the task's own entities (`binary_sensor.<task>_overdue`,
+  `sensor.<task>_next_due`) or on the `home_keeper_*` event instead — both react to
+  exactly the same things. Home Keeper **appliances** keep their device triggers.
+
 ## [0.12.0] - 2026-08-10
 
 ### Added

@@ -1,8 +1,9 @@
 # Device registry, HA 2026.8 — findings and the model decision (#183)
 
-Scratch working doc, not user-facing. Records what the new upgrade suite *measured*,
-so the device-model decision is made against evidence rather than a reading of the
-code. No behaviour change ships with it.
+Scratch working doc, not user-facing. Records what the upgrade suite *measured*, so
+the device-model decision was made against evidence rather than a reading of the code.
+Option A shipped off the back of it — see "Decision" below for what that does and does
+not fix.
 
 ## What changed upstream
 
@@ -10,8 +11,9 @@ Home Assistant 2026.8 made device identifiers and connections unique **per confi
 entry** instead of globally
 ([dev blog](https://developers.home-assistant.io/blog/2026/07/21/device-registry-single-config-entry/)).
 
-Home Keeper's device attachment is built on the old global-merge behaviour. The whole
-mechanism is `coordinator.py:344-363`:
+Home Keeper's device attachment was built on the old global-merge behaviour. The whole
+mechanism was one expression in `coordinator.device_info_for_task` (now
+`device_link_for_task`):
 
 ```python
 return DeviceInfo(identifiers=device.identifiers, connections=device.connections)
@@ -37,8 +39,8 @@ id=d71d53cb… name=None                  entries=['home_keeper_test_entry']   �
   binary_sensor.probe_fork_overdue device_id=d71d53cb…
 ```
 
-The fork is nameless because `device_info_for_task` sends no `name` when it believes
-it is merging. Both HA's device picker and the panel's `deviceName()` fall back to the
+The fork was nameless because the old `device_info_for_task` sent no `name` when it
+believed it was merging. Both HA's device picker and the panel's `deviceName()` fall back to the
 device id when `name` and `name_by_user` are unset — that is #183 item 1. The stored
 `device_id` is *not* stale here; the device it points at simply has no name.
 
@@ -113,7 +115,46 @@ from the owning platform. `device_trigger.py` and `diagnostics.py` therefore sto
 being offered on a foreign device page from 2026.8 on. This is the strongest argument
 for the reporter's "always own a Home Keeper device" suggestion.
 
-## The options
+## Decision: option A, shipped
+
+**Entity-level linking, keeping dual mode.** `coordinator.device_link_for_task` returns
+a `DeviceEntry` for a task attached to a resolvable device, and the entity assigns
+`self.device_entry` with no `device_info`. The self-owned `DeviceInfo` fallback stays
+for a task whose `device_id` doesn't resolve.
+
+Accepted cost: device triggers and per-device diagnostics are gone on devices Home
+Keeper doesn't own. Judged acceptable because most people drive Home Keeper from the
+panel or a Lovelace card rather than the device page, and the same automations remain
+buildable from the task's entities or the event.
+
+**Scope of the fix — measured, and narrower than it first looked.** The upgrade suite
+originally ran *this* Home Keeper in both phases, which is not a journey any user takes
+and made the fix look bigger than it is. It now runs the **previous release** in phase 1
+(`ci/fetch-glues.sh` stages it; `conftest._use_home_keeper` swaps it in), so the run is a
+real upgrade: old Home Keeper on old HA, then new on new. That changed the result.
+
+*Fixed:* any attachment made by this version. Fresh attaches put entities on the real
+device and create no duplicate (`tests/integration/test_device_attach.py`, both passing).
+Anyone still on a pre-2026.8 Home Assistant is protected before they upgrade, because
+this version never merges — including the knock-on where Home Keeper's own merge was
+what dragged a companion's device into the split and made its glue duplicate tasks.
+
+*Not fixed:* an install that **already** upgraded. The merge happened under the old
+version, so Home Assistant has already split those devices, handed Home Keeper its own
+half carrying the foreign identifiers, and **moved our entities onto it**. Everything
+keeps working, which is why it isn't obvious. Two consequences:
+
+- `async_prune_orphaned_devices` cannot clear them — it removes devices with none of our
+  entities, and these have ours. Cleanup needs a migration that recognises a device we
+  own whose identifiers aren't ours (a shape this version never creates), re-points its
+  entities and removes it.
+- Every `device_id` stored before the upgrade dangles, so the glue duplication and the
+  raw-GUID symptom persist for those installs.
+
+Both belong with the repair flow + snapshot auto-heal. Seven `xfail(strict=True)` tests in
+`tests/upgrade` pin the remaining gap and will fail the moment it closes.
+
+## The options considered
 
 **A — Entity-link, keep dual mode.** Swap the identifier copy for
 `entity.device_entry`. Smallest change; entities still appear on the foreign device

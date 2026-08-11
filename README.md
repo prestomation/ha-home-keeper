@@ -817,9 +817,12 @@ deleted, armed, and the time-based **overdue** / **due-soon** transitions), spar
 **out of stock**, **restocked**), and appliances (created, updated, deleted).
 
 You can trigger on these two ways: pick a **device trigger** in the visual automation
-editor (e.g. *"Task became overdue"*, *"Spare part out of stock"*, no event names to
-memorise), or use a plain `platform: event` trigger. *Spare part out of
-stock → add it to the shopping list*:
+editor on a Home Keeper appliance (e.g. *"Task became overdue"*, *"Spare part out of
+stock"*, no event names to memorise), or use a plain `platform: event` trigger. For a
+task attached to a device another integration owns, automate on the task's own
+entities or the event — Home Assistant only offers device triggers for the one
+integration a device belongs to. *Spare part out of stock → add it to the shopping
+list*:
 
 ```yaml
 automation:

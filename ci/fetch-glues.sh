@@ -30,13 +30,22 @@ BAMBU_GLUE_REF="${BAMBU_GLUE_REF:-50235e254c3d2089a0e4d6575e3a3b30c1b0349d}"
 PAW_REPO="${PAW_REPO:-https://github.com/prestomation/Pawsistant}"
 PAW_REF="${PAW_REF:-4763e55685d308358f65604236d816f05d69caf1}"
 
+# The last released Home Keeper, staged separately so the upgrade suite can run
+# phase 1 as the *previous* version. Without it both boots would run the code in this
+# working tree, which is not a journey any user takes — a real upgrade changes Home
+# Assistant and Home Keeper together, and the interesting question is what the new
+# version does with state the old one left behind.
+HK_PREV_REPO="${HK_PREV_REPO:-https://github.com/prestomation/ha-home-keeper}"
+HK_PREV_REF="${HK_PREV_REF:-4ac32effee016f4805a670c6dfc55c1be3c44c39}"
+
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
 
 # Clone at a pinned SHA. `--depth 1 --branch` only accepts a ref name, so fetch the
 # single commit instead — cheap, and it works for a SHA that is not a branch tip.
+# fetch <repo> <ref> <component> [dest]  — dest defaults to $STAGE.
 fetch() {
-  local repo="$1" ref="$2" component="$3"
+  local repo="$1" ref="$2" component="$3" dest="${4:-$STAGE}"
   local tmp
   tmp="$(mktemp -d)"
   echo "[fetch-glues] $component <- $repo@${ref:0:12}"
@@ -49,7 +58,7 @@ fetch() {
     rm -rf "$tmp"
     return 1
   fi
-  cp -r "$tmp/custom_components/$component" "$STAGE/"
+  cp -r "$tmp/custom_components/$component" "$dest/"
   rm -rf "$tmp"
 }
 
@@ -82,5 +91,15 @@ if [ ! -f "$STAGE/home_keeper/frontend/home-keeper-panel.js" ] \
   cp -r "$ROOT/custom_components/home_keeper/frontend/." "$STAGE/home_keeper/frontend/"
 fi
 
+# The previous release, staged alongside (not into) the mounted tree. conftest.py
+# swaps it in for phase 1 and swaps the working tree back in for phase 2, so the run
+# reproduces a real upgrade: old Home Keeper on old HA, then new on new.
+PREV_STAGE="$ROOT/tests/upgrade/home_keeper_previous"
+rm -rf "$PREV_STAGE"
+mkdir -p "$PREV_STAGE"
+fetch "$HK_PREV_REPO" "$HK_PREV_REF" "home_keeper" "$PREV_STAGE"
+# The released panel JS is a build artifact too; phase 1 is API-only, so skip it.
+
 echo "[fetch-glues] staged into $STAGE:"
 ls -1 "$STAGE"
+echo "[fetch-glues] previous release staged into $PREV_STAGE"

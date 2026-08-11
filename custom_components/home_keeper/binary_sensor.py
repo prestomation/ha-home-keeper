@@ -19,8 +19,8 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
@@ -60,13 +60,11 @@ async def async_setup_entry(
     part_rows = coordinator.virtual_asset_parts(asset_model.part_has_reorder)
     live_low_uids: set[str] = set()
     part_entities: list[BinarySensorEntity] = []
-    for asset, part, device_info in part_rows:
+    for asset, part, device in part_rows:
         uid = _low_stock_uid(asset["id"], part["id"])
         live_low_uids.add(uid)
         part_entities.append(
-            HomeKeeperPartLowStockBinarySensor(
-                coordinator, asset["id"], part, device_info
-            )
+            HomeKeeperPartLowStockBinarySensor(coordinator, asset["id"], part, device)
         )
 
     # Remove registry entries for sensors whose source is gone:
@@ -106,9 +104,6 @@ class HomeKeeperOverdueBinarySensor(HomeKeeperTaskEntity, BinarySensorEntity):
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:
         super().__init__(coordinator, task_id)
         self._attr_unique_id = f"{DOMAIN}_{task_id}_overdue"
-        self._attr_device_info = coordinator.device_info_for_task(
-            coordinator.data[task_id]
-        )
 
     @property
     def is_on(self) -> bool:
@@ -139,7 +134,7 @@ class HomeKeeperPartLowStockBinarySensor(
         coordinator: HomeKeeperCoordinator,
         asset_id: str,
         part: dict[str, Any],
-        device_info: DeviceInfo | None,
+        device: dr.DeviceEntry,
     ) -> None:
         super().__init__(coordinator)
         self._asset_id = asset_id
@@ -147,7 +142,8 @@ class HomeKeeperPartLowStockBinarySensor(
         # Free-form part name carried as a placeholder ("Anode rod low stock").
         self._attr_translation_placeholders = {"part": part.get("name") or ""}
         self._attr_unique_id = _low_stock_uid(asset_id, part["id"])
-        self._attr_device_info = device_info
+        # Linked, not owned: the appliance device belongs to whoever created it.
+        self.device_entry = device
 
     def _part(self) -> dict[str, Any] | None:
         asset = self.coordinator.store.get_asset(self._asset_id) or {}
