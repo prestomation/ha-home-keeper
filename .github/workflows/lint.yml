@@ -25,15 +25,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Must be at or above Home Assistant's own Python floor (>=3.14.2 since HA
+      # 2026.3), otherwise pip backtracks to the last HA that supported this
+      # version instead of failing, and the gate silently checks a stale API.
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       # Install Home Assistant so its own types resolve — strict typing against the
       # real HA API is the Platinum quality-scale gate (quality_scale.yaml). Also
       # install the integration's own runtime requirements (manifest.json) so their
       # imports resolve too.
       - name: Install mypy + Home Assistant + integration requirements
         run: pip install mypy homeassistant Babel
+      - name: Report and verify the Home Assistant version being checked
+        run: python ci/check-ha-version.py
       - name: Mypy (strict typing)
         run: mypy custom_components/home_keeper
 

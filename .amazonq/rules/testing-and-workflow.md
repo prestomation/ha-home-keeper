@@ -186,6 +186,18 @@ gate); CI publishes it to the job summary.
 - Run it locally before pushing: `pip install mypy homeassistant && mypy
   custom_components/home_keeper`. The pure modules (`models.py`, `recurrence.py`,
   `events.py`) stay HA-free and type-check standalone.
+- **Run it on a Python at or above Home Assistant's own floor** (>=3.14.2 since HA
+  2026.3). On an older interpreter `pip install homeassistant` does not fail — it
+  backtracks to the last HA that supported it, so mypy checks a months-old API and
+  passes. Both mypy jobs therefore run `python ci/check-ha-version.py`, which
+  compares the installed version against PyPI and fails on a stale resolve (#199).
+- **`[tool.mypy] python_version` tracks HA's floor, not the integration's.** HA's
+  source uses syntax from its own minimum Python (2026.8 uses PEP 758
+  parenthesis-free `except A, B:`); targeting anything older makes mypy bail on a
+  syntax error inside HA, reporting nothing about our code.
+- **Read the HA version from `homeassistant.const.__version__`.**
+  `homeassistant.__version__` does not exist — `homeassistant/__init__.py` is a
+  one-line docstring — so a step reading it dies with an `AttributeError`.
 
 ## Quality scale
 - Home Keeper targets **Platinum** (`manifest.json` `quality_scale`), with the

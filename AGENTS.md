@@ -368,3 +368,18 @@ siblings instead of their fakes.
   against the same config dir so HA runs its own migration in between. Stage its
   fixtures with `bash ci/fetch-glues.sh` first. The pre-split pin is frozen on
   purpose — bumping it changes what the test means.
+- **Any job that `pip install`s Home Assistant must run on a Python at or above HA's
+  own floor, and must verify what pip actually resolved.** When the runner's Python
+  is too old, pip does not fail — it quietly backtracks to the last HA release that
+  supported it, and the job goes green having checked an API nobody runs. HA 2026.3
+  moved to Python >=3.14.2, which silently pinned both mypy jobs to HA 2026.2.3 for
+  months (#199). Every such job runs `python ci/check-ha-version.py` (add `--pre`
+  when installing with `pip install --pre`), which fails on a stale resolve.
+- **`[tool.mypy] python_version` tracks HA's floor, not ours.** HA's source uses
+  syntax from its own minimum Python (2026.8 uses PEP 758 parenthesis-free
+  `except A, B:`); target anything older and mypy cannot parse HA at all — it exits
+  on a syntax error having checked nothing.
+- **A diagnostic step must never be able to fail the suite it precedes.** The
+  version-report steps in `ha-beta.yml` are informational, so they carry
+  `continue-on-error: true`. #199 was a one-line version `print` that aborted a whole
+  nightly and filed a regression issue against a Home Keeper that was working fine.
