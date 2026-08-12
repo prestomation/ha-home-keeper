@@ -66,9 +66,13 @@ jobs:
           (cd tests/integration && docker compose logs)
           exit 1
 
+      # Informational only: `continue-on-error` so a broken diagnostic can never
+      # again abort the suite it precedes, which is exactly how #199 hid a whole
+      # nightly's worth of signal behind a one-line version print.
       - name: Report the version actually tested
+        continue-on-error: true
         working-directory: tests/integration
-        run: docker compose exec -T homeassistant python -c "import homeassistant;print('HA',homeassistant.__version__)"
+        run: docker compose exec -T homeassistant python -c "from homeassistant.const import __version__; print('HA', __version__)"
 
       - name: Run integration tests
         run: bash ci/test-python-integration.sh
@@ -161,17 +165,23 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Must be at or above Home Assistant's own Python floor (>=3.14.2 since HA
+      # 2026.3). Pin it too low and pip quietly backtracks to the last release that
+      # still supported it rather than failing, and this job type-checks an HA from
+      # six months ago — see ci/check-ha-version.py.
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       # The cheapest early warning there is: upstream deprecations and signature
       # changes surface as type errors well before they surface as broken behaviour.
       - name: Install pre-release Home Assistant
         run: pip install --pre mypy homeassistant Babel
 
-      - name: Report the version actually tested
-        run: python -c "import homeassistant;print('HA',homeassistant.__version__)"
+      # Not `continue-on-error`: for *this* job the version under test is the whole
+      # point, so a stale resolve is a real failure rather than a lost diagnostic.
+      - name: Report and verify the version actually tested
+        run: python ci/check-ha-version.py --pre
 
       - name: Run mypy
         run: mypy custom_components/home_keeper
