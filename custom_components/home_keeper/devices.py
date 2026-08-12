@@ -164,7 +164,10 @@ async def async_reconcile_assets(
 
 
 def _split_successor(
-    registry: dr.DeviceRegistry, device_id: str, entry_id: str
+    registry: dr.DeviceRegistry,
+    device_id: str,
+    entry_id: str,
+    snapshot: dict[str, Any] | None = None,
 ) -> dr.DeviceEntry | None:
     """The live device a pre-2026.8 *composite* device id should now point at.
 
@@ -187,6 +190,9 @@ def _split_successor(
         return None
     splits = [d for d in resolve(device_id) if entry_id not in d.config_entries]
     if not splits:
+        # Composite may have been GC'd; try snapshot-based fallback.
+        if snapshot is not None:
+            return _resolve_successor_from_snapshot(registry, snapshot, entry_id)
         return None
     if len(splits) > 1:
         composite = registry.async_get(device_id)
@@ -202,6 +208,45 @@ def _split_successor(
         # actually produces, never reaches here.
         return sorted(splits, key=lambda d: d.id)[0]
     return splits[0]
+
+
+def _resolve_successor_from_snapshot(
+    registry: dr.DeviceRegistry,
+    snapshot: dict[str, Any],
+    entry_id: str,
+) -> dr.DeviceEntry | None:
+    """Find a live device from stored identifiers/connections, preferring foreign.
+
+    Used as the fallback when a composite device has been GC'd and
+    ``async_get_devices_for_composite_device_id`` returns nothing.  The snapshot
+    is an asset dict (or compatible subset) with ``identifiers`` and
+    ``connections`` keys.
+
+    When multiple devices match (e.g. a Z-Wave node with multiple config
+    entries), prefer the one **not** owned by our config entry -- the same
+    preference as ``_split_successor``'s primary path.
+    """
+    candidates: list[dr.DeviceEntry] = []
+    for ident in snapshot.get("identifiers", []):
+        device = registry.async_get_device(identifiers={tuple(ident)})
+        if device is not None and device not in candidates:
+            candidates.append(device)
+    connections = {tuple(c) for c in snapshot.get("connections", [])}
+    if connections:
+        device = registry.async_get_device(connections=connections)
+        if device is not None and device not in candidates:
+            candidates.append(device)
+    if not candidates:
+        return None
+    # Prefer the device not owned by our config entry (the real device,
+    # not our split half).  If all are foreign or all are ours, fall back
+    # to sorted determinism.
+    foreign = [d for d in candidates if entry_id not in d.config_entries]
+    if foreign:
+        if len(foreign) > 1:
+            return sorted(foreign, key=lambda d: d.id)[0]
+        return foreign[0]
+    return sorted(candidates, key=lambda d: d.id)[0]
 
 
 async def async_heal_split_device_ids(
@@ -242,6 +287,35 @@ async def async_heal_split_device_ids(
             "2026.8 split into one device per config entry",
             changed,
             len(mapping),
+        )
+
+    # Heal assets with stale composite device_ids (same #183 cause).  Assets
+    # of kind "existing" store a device_id that can also become a dead
+    # composite after the HA 2026.8 split.  The snapshot fallback handles
+    # the case where Home Assistant has already GC'd the composite.
+    asset_mapping: dict[str, str] = {}
+    for asset in store.list_assets():
+        if asset.get("kind") != "existing":
+            continue
+        device_id = asset.get("device_id")
+        if not device_id or device_id in mapping or device_id in asset_mapping:
+            continue
+        successor = _split_successor(
+            registry, device_id, entry.entry_id, snapshot=asset
+        )
+        if successor is not None and successor.id != device_id:
+            asset_mapping[device_id] = successor.id
+
+    if asset_mapping:
+        for old_id, new_id in asset_mapping.items():
+            for asset in store.list_assets():
+                if asset.get("device_id") == old_id:
+                    await store.set_asset_device_id(asset["id"], new_id)
+        _LOGGER.info(
+            "Repaired %s asset device reference(s) across %s device(s) that Home "
+            "Assistant 2026.8 split into one device per config entry",
+            len(asset_mapping),
+            len(asset_mapping),
         )
 
     # Healing the ids stops contributors duplicating from here on, but a duplicate
