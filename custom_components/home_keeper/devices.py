@@ -200,8 +200,16 @@ def _split_successor(
         return None
     splits = [d for d in resolve(device_id) if entry_id not in d.config_entries]
     if not splits:
-        # Composite may have been GC'd; try the snapshot-based fallback.
-        if snapshot is not None:
+        # An empty answer means one of two very different things: a collected
+        # composite, or an ordinary id that was never split. Only the first is ours
+        # to repair, and ``async_get`` separates them — a composite is synthesized
+        # from the devices still pointing at it, so once they are all re-homed there
+        # is nothing left to synthesize and this returns None, while a live device
+        # answers for itself. Without the check a healthy asset whose snapshot has
+        # drifted (identifiers moved to another device, and the heal runs before
+        # ``_reconcile_existing`` refreshes them) would be silently repointed onto
+        # whatever the stale snapshot happened to match.
+        if snapshot is not None and registry.async_get(device_id) is None:
             return _resolve_by_snapshot(registry, snapshot, prefer_not_entry=entry_id)
         return None
     if len(splits) > 1:
@@ -251,10 +259,16 @@ async def async_heal_split_device_ids(
     registry = dr.async_get(hass)
     # One mapping (dead id -> live id) for tasks and assets alike.
     mapping: dict[str, str] = {}
+    # Ids the snapshot-less pass could not resolve, so a hundred tasks on one dead
+    # device cost one lookup rather than a hundred. Assets still retry these: a
+    # snapshot is exactly the extra information that can resolve them.
+    unresolved: set[str] = set()
 
     def _record(device_id: str | None, snapshot: dict[str, Any] | None = None) -> None:
         """Resolve *device_id*'s successor into the shared mapping, if it has one."""
         if not device_id or device_id in mapping:
+            return
+        if snapshot is None and device_id in unresolved:
             return
         successor = _split_successor(
             registry, device_id, entry.entry_id, snapshot=snapshot
@@ -263,6 +277,8 @@ async def async_heal_split_device_ids(
         # keeps the pass a genuine no-op once everything is healed.
         if successor is not None and successor.id != device_id:
             mapping[device_id] = successor.id
+        elif snapshot is None:
+            unresolved.add(device_id)
 
     for task in store.get_tasks().values():
         # No snapshot: a task stores only the id. A GC'd composite is unresolvable
@@ -524,6 +540,10 @@ def _resolve_by_snapshot(
 
     for ident in snapshot.get("identifiers", []):
         _add(registry.async_get_device(identifiers={tuple(ident)}))
+        # With no preference there is nothing a second candidate could change, so
+        # stop at the first hit rather than finishing the sweep.
+        if prefer_not_entry is None and candidates:
+            return candidates[0]
     connections = {tuple(c) for c in snapshot.get("connections", [])}
     if connections:
         _add(registry.async_get_device(connections=connections))

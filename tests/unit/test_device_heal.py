@@ -157,6 +157,8 @@ class FakeRegistry:
     ):
         self.devices = {d.id: d for d in devices_}
         self._splits = splits or {}
+        self.lookups = 0
+        self.composite_lookups = 0
         # Bound per instance rather than declared on the class so that a pre-2026.8
         # registry genuinely *lacks* the attribute, which is what the production
         # ``getattr(..., None)`` probe checks for.
@@ -164,9 +166,12 @@ class FakeRegistry:
             self.async_get_devices_for_composite_device_id = self._composite_splits
 
     def _composite_splits(self, device_id: str) -> list[FakeDevice]:
+        self.composite_lookups += 1
         return list(self._splits.get(device_id, []))
 
     def async_get(self, device_id: str) -> FakeDevice | None:
+        # A live device answers for itself; a collected composite answers with
+        # nothing, because it is synthesized from devices that no longer exist.
         return self.devices.get(device_id)
 
     def async_get_device(
@@ -174,6 +179,7 @@ class FakeRegistry:
         identifiers: set[tuple[str, ...]] | None = None,
         connections: set[tuple[str, ...]] | None = None,
     ) -> FakeDevice | None:
+        self.lookups += 1
         for device in self.devices.values():
             if identifiers and device.identifiers & identifiers:
                 return device
@@ -301,6 +307,24 @@ def test_snapshot_resolves_by_identifier():
     registry = FakeRegistry([ZWAVE_DEVICE])
     found = devices._resolve_by_snapshot(registry, {"identifiers": THERMOSTAT_IDENTS})
     assert found is ZWAVE_DEVICE
+
+
+def test_snapshot_stops_at_the_first_hit_when_there_is_no_preference():
+    """Reconciliation's mode does no lookups it cannot use.
+
+    With no preference the answer is the first match, so sweeping the remaining
+    identifiers and the connections is wasted work on every setup.
+    """
+    registry = FakeRegistry([ZWAVE_DEVICE])
+    snapshot = {
+        # First identifier matches; the rest (and the connections) must go unasked.
+        "identifiers": [["zwave_js", "4268179804-12-57"], *THERMOSTAT_IDENTS],
+        "connections": COFFEE_CONNECTIONS,
+    }
+    assert devices._resolve_by_snapshot(registry, snapshot) is ZWAVE_DEVICE
+    assert registry.lookups == 1, (
+        f"expected to stop after the first identifier, made {registry.lookups} lookups"
+    )
 
 
 def test_snapshot_falls_back_to_connections():
@@ -511,6 +535,56 @@ def test_heal_skips_devices_it_cannot_resolve():
     assert store.get_tasks()["t1"]["device_id"] == DEAD_THERMOSTAT
     assert store.list_assets()[0]["device_id"] == DEAD_COFFEE
     assert store.saves == 0
+
+
+def test_heal_will_not_repoint_a_device_that_is_still_alive():
+    """A live device is never overridden by a snapshot that resolves elsewhere.
+
+    An empty composite answer also means "ordinary id, never split", so the fallback
+    has to tell the two apart or a drifted snapshot silently moves a healthy asset.
+    Here the asset sits on a live device while its snapshot matches a *different*
+    one — the sort of drift that happens when identifiers migrate between devices
+    and the heal runs before ``_reconcile_existing`` refreshes the snapshot.
+    """
+    live = FakeDevice("still_here", config_entries=frozenset({SWITCHBOT_ENTRY}))
+    registry = FakeRegistry([live, ZWAVE_DEVICE])
+    store = FakeStore(
+        tasks={"t1": task("t1", "still_here")},
+        assets=[existing_asset("a1", "still_here", THERMOSTAT_IDENTS)],
+    )
+    heal(registry, store)
+    assert store.list_assets()[0]["device_id"] == "still_here", (
+        "a live device must win over a stale snapshot"
+    )
+    assert store.get_tasks()["t1"]["device_id"] == "still_here"
+    assert store.saves == 0
+
+
+def test_heal_resolves_each_dead_device_once():
+    """Many tasks on one unresolvable device cost one lookup, not one apiece."""
+    registry = FakeRegistry([])
+    store = FakeStore(
+        tasks={f"t{i}": task(f"t{i}", DEAD_THERMOSTAT) for i in range(25)}
+    )
+    heal(registry, store)
+    assert registry.composite_lookups == 1, (
+        "25 tasks on one dead device should resolve it once, got "
+        f"{registry.composite_lookups} lookups"
+    )
+
+
+def test_heal_retries_an_unresolved_task_device_once_an_asset_supplies_a_snapshot():
+    """The snapshot-less miss must not poison the asset's second attempt."""
+    registry = FakeRegistry([ZWAVE_DEVICE])
+    store = FakeStore(
+        # Task first in iteration order, so its failure is cached before the asset
+        # gets a chance to resolve the same id with a snapshot.
+        tasks={"t1": task("t1", DEAD_THERMOSTAT)},
+        assets=[existing_asset("a1", DEAD_THERMOSTAT, THERMOSTAT_IDENTS)],
+    )
+    heal(registry, store)
+    assert store.get_tasks()["t1"]["device_id"] == "zwave_real"
+    assert store.list_assets()[0]["device_id"] == "zwave_real"
 
 
 def test_heal_feeds_the_composite_map_to_the_duplicate_merge():
