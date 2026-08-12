@@ -16,7 +16,7 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   cleaned up after the split. A task on that same device had nothing to look itself
   up with, so it kept its dead reference while the appliance moved to the live
   device, leaving one physical thing spread across two device pages. Tasks and
-  appliances now heal from a single shared lookup, so both land on the same device.
+  appliances now heal from a single shared lookup, so both point at the same device.
 
 ## [0.13.0b2]
 
