@@ -316,12 +316,18 @@ async def async_heal_split_device_ids(
             asset_mapping[device_id] = successor.id
 
     if asset_mapping:
+        # Build a reverse index once (O(n)) instead of scanning all assets
+        # for each mapping entry (O(n*m)).
+        assets_by_device_id: dict[str, list[dict[str, Any]]] = {}
+        for asset in store.list_assets():
+            did = asset.get("device_id")
+            if did and did in asset_mapping:
+                assets_by_device_id.setdefault(did, []).append(asset)
         asset_count = 0
         for old_id, new_id in asset_mapping.items():
-            for asset in store.list_assets():
-                if asset.get("device_id") == old_id:
-                    await store.set_asset_device_id(asset["id"], new_id)
-                    asset_count += 1
+            for asset in assets_by_device_id.get(old_id, []):
+                await store.set_asset_device_id(asset["id"], new_id)
+                asset_count += 1
         _LOGGER.info(
             "Repaired %s asset device reference(s) across %s device(s) that Home "
             "Assistant 2026.8 split into one device per config entry",
