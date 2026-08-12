@@ -17,7 +17,7 @@
 | custom\_components/home\_keeper/const.py               |      120 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/coordinator.py         |      126 |       68 |       40 |        0 |     40% |55, 60, 76-78, 101-134, 150, 154, 167-173, 176-179, 182-220, 270, 282-284, 294, 305, 318-328, 359-370 |
 | custom\_components/home\_keeper/device\_trigger.py     |       71 |       71 |       28 |        0 |      0% |    23-187 |
-| custom\_components/home\_keeper/devices.py             |      193 |      193 |       98 |        0 |      0% |    13-486 |
+| custom\_components/home\_keeper/devices.py             |      239 |      239 |      134 |        0 |      0% |    13-577 |
 | custom\_components/home\_keeper/diagnostics.py         |       23 |       23 |        0 |        0 |      0% |     11-81 |
 | custom\_components/home\_keeper/documents.py           |       61 |        1 |       26 |        1 |     98% |       141 |
 | custom\_components/home\_keeper/entity.py              |       19 |       19 |        2 |        0 |      0% |     16-50 |
@@ -42,7 +42,7 @@
 | custom\_components/home\_keeper/todo.py                |       61 |       61 |       18 |        0 |      0% |    10-130 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py      |      457 |      457 |       94 |        0 |      0% |     8-926 |
-| **TOTAL**                                              | **5109** | **3116** | **1768** |   **66** | **40%** |           |
+| **TOTAL**                                              | **5155** | **3162** | **1804** |   **66** | **40%** |           |
 
 
 ## Setup coverage badge
