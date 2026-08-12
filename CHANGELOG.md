@@ -13,7 +13,7 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Assets with existing devices are now healed after a Home Assistant 2026.8
   upgrade, not just tasks.** The previous beta healed task device_ids that pointed
   at dead composite devices, but assets of kind "existing" also carry a device_id
-  that became stale. Left unrepaired, asset metadata entities landed on a
+  that became stale. Left unrepaired, asset metadata entities were routed to a
   non-existent device and the UI showed raw GUIDs instead of device names. The
   heal now covers assets and reuses the task healing mapping when both share the
   same dead composite.
