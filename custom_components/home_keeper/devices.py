@@ -293,12 +293,21 @@ async def async_heal_split_device_ids(
     # of kind "existing" store a device_id that can also become a dead
     # composite after the HA 2026.8 split.  The snapshot fallback handles
     # the case where Home Assistant has already GC'd the composite.
+    #
+    # If a task sharing the same dead composite was already healed above,
+    # reuse the same successor for the asset — the task healing only updates
+    # tasks (``async_repoint_device_ids``), not assets, so the asset's
+    # device_id is still the dead composite and needs the same repoint.
     asset_mapping: dict[str, str] = {}
     for asset in store.list_assets():
         if asset.get("kind") != "existing":
             continue
         device_id = asset.get("device_id")
-        if not device_id or device_id in mapping or device_id in asset_mapping:
+        if not device_id or device_id in asset_mapping:
+            continue
+        if device_id in mapping:
+            # Already healed as a task; reuse the same successor for the asset.
+            asset_mapping[device_id] = mapping[device_id]
             continue
         successor = _split_successor(
             registry, device_id, entry.entry_id, snapshot=asset
@@ -307,14 +316,16 @@ async def async_heal_split_device_ids(
             asset_mapping[device_id] = successor.id
 
     if asset_mapping:
+        asset_count = 0
         for old_id, new_id in asset_mapping.items():
             for asset in store.list_assets():
                 if asset.get("device_id") == old_id:
                     await store.set_asset_device_id(asset["id"], new_id)
+                    asset_count += 1
         _LOGGER.info(
             "Repaired %s asset device reference(s) across %s device(s) that Home "
             "Assistant 2026.8 split into one device per config entry",
-            len(asset_mapping),
+            asset_count,
             len(asset_mapping),
         )
 
