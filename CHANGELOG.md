@@ -6,24 +6,6 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.13.0b2]
-
-### Fixed
-
-- **Assets with existing devices are now healed after a Home Assistant 2026.8
-  upgrade, not just tasks.** The previous beta healed task device_ids that pointed
-  at dead composite devices, but assets of kind "existing" also carry a device_id
-  that became stale. Left unrepaired, asset metadata entities landed on a
-  non-existent device and the UI showed raw GUIDs instead of device names. The
-  heal now covers assets and reuses the task healing mapping when both share the
-  same dead composite.
-
-- **Garbage-collected composite devices no longer silently skip healing.** When
-  Home Assistant removes the composite after all halves are re-homed,
-  `async_get_devices_for_composite_device_id` returns nothing and the repair
-  previously skipped the device. Home Keeper now falls back to the asset's stored
-  identifiers/connections snapshot to find the live successor device.
-
 ## [0.13.0b1]
 
 ### Fixed
