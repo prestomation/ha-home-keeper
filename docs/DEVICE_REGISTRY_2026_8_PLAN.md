@@ -153,6 +153,15 @@ is the visible symptom. The supported query is
 split into; the successor to adopt is the split that isn't ours, with the composite's
 former `primary_config_entry` breaking ties.
 
+That query has a horizon: once every half has been re-homed, Home Assistant collects
+the composite and the query answers the empty list it gives any ordinary id. Past that
+point the only thing that can still identify the original device is a stored
+identifiers/connections snapshot, which existing-kind **assets** keep (refreshed by
+`_reconcile_existing`) and tasks do not. So the heal resolves tasks and assets into one
+shared mapping: an id only an asset can resolve still heals the task on the same
+device. Healing them from separate mappings splits one appliance across two device
+pages — asset on the live device, task left on the dead id.
+
 Duplicated contributor tasks are merged in the same pass
 (`store.async_merge_split_duplicates`). Canonicalizing device ids back through
 `composite_device_id` is what makes the two copies recognisable as one thing — they
@@ -219,9 +228,11 @@ entities onto the foreign device. Best coverage; two device pages per appliance,
 is close to the confusion the reporter opened the issue about.
 
 Whichever is chosen, the recovery work is the same and is already decided: a repair
-issue with a re-pick flow, plus snapshot auto-heal generalizing
-`devices.py:280-326` `_resolve_by_snapshot` from assets to tasks. The auto-heal must
-rewrite `source.<ns>.device_id` as well, or it reproduces the duplication above.
+issue with a re-pick flow. The snapshot auto-heal half of it has since shipped —
+`devices._resolve_by_snapshot` serves both reconciliation and `_split_successor`, and
+the shared mapping in `async_heal_split_device_ids` carries a snapshot-resolved device
+over to the tasks on it (see the mechanism section above). It rewrites
+`source.<ns>.device_id` too, or it would reproduce the duplication above.
 
 ## Follow-ups
 

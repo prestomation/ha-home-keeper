@@ -6,6 +6,18 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [Unreleased]
+
+### Fixed
+
+- **A task and an appliance attached to the same device no longer come apart
+  during the Home Assistant 2026.8 repair.** Only an appliance stores the device
+  identifiers Home Keeper needs to find a device that Home Assistant has already
+  cleaned up after the split. A task on that same device had nothing to look itself
+  up with, so it kept its dead reference while the appliance moved to the live
+  device, leaving one physical thing spread across two device pages. Tasks and
+  appliances now heal from a single shared lookup, so both land on the same device.
+
 ## [0.13.0b2]
 
 ### Fixed

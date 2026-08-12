@@ -766,6 +766,23 @@ class HomeKeeperStore:
             await self._save()
         return changed
 
+    async def async_repoint_asset_device_ids(self, mapping: dict[str, str]) -> int:
+        """Rewrite dead asset device ids to their live replacements; return how many.
+
+        The asset half of ``async_repoint_device_ids``, sharing its mapping so a
+        device's task and its asset are always repointed together (see
+        ``devices.async_heal_split_device_ids``). One write for the whole batch
+        rather than one per asset, because this runs during setup.
+        """
+        changed = 0
+        for asset in self._assets.values():
+            if (new_id := mapping.get(asset.get("device_id") or "")) is not None:
+                asset["device_id"] = new_id
+                changed += 1
+        if changed:
+            await self._save()
+        return changed
+
     async def async_merge_split_duplicates(self, canonical: dict[str, str]) -> int:
         """Merge contributed tasks the device split duplicated; return how many went.
 
@@ -844,7 +861,11 @@ class HomeKeeperStore:
         return removed
 
     async def set_asset_device_id(self, asset_id: str, device_id: str) -> None:
-        """Record the registry device id assigned to a provisioned virtual asset."""
+        """Record the registry device id an asset resolved to.
+
+        Written for a virtual asset when its device is provisioned, and for an
+        existing-device asset when reconciliation recovers it under a new id.
+        """
         asset = self._assets.get(asset_id)
         if asset is not None and asset.get("device_id") != device_id:
             asset["device_id"] = device_id

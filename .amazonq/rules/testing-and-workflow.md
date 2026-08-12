@@ -70,6 +70,22 @@
   in between — two cold starts for the whole suite. The pre-split tag is a frozen
   pin: it defines "the world users upgrade from", so bumping it changes the meaning
   of the test.
+- **A test must exercise the shipped function, never a copy of it.** Re-implementing
+  the logic under test inside the test file (to dodge an import) proves nothing: the
+  production code keeps zero coverage and every later edit to it stays green. An
+  HA-importing module is still unit-testable — `test_calendar.py`,
+  `test_coordinator_purge.py` and `test_device_heal.py` stub the HA symbols the module
+  imports, register fakes for its HA-aware siblings, load the **real** file under
+  `hk.<mod>`, then inject fakes by patching the loaded module's bindings. Follow that
+  pattern instead of duplicating the source.
+- **Check that a new test can fail.** Mutate the line it covers and confirm it goes
+  red before relying on it. A test whose fake can only produce the passing case (e.g.
+  a mock registry that returns one candidate, "verifying" a preference between
+  several) is worse than no test: it reports coverage the code does not have.
+- **Never commit a real `.storage` dump as a fixture.** Production snapshots carry
+  serial numbers, MAC addresses, document links and other household data, and they
+  live forever in git history. Build fixtures from synthetic data, and wire every
+  fixture into a test — an unreferenced fixture is only a leak with no upside.
 - **Known-broken contracts get `xfail(strict=True)`, never a weakened assertion.**
   The test then documents the breakage without going red, and becomes a hard failure
   the moment a fix lands, forcing the marker off.
