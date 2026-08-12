@@ -209,22 +209,32 @@ def ws_command(token: str, command_type: str):
         return msg["result"]
 
 
-def snapshot(token: str) -> dict:
-    """Devices, entities and Home Keeper tasks, as one comparable blob."""
-    session = _session(token)
+def _service_response(session: requests.Session, service: str, key: str) -> list:
+    """Call a response-returning Home Keeper service; ``[]`` if it didn't answer."""
     resp = session.post(
-        f"{HA_URL}/api/services/home_keeper/list_tasks?return_response",
+        f"{HA_URL}/api/services/home_keeper/{service}?return_response",
         json={},
         timeout=30,
     )
-    tasks = []
-    if resp.ok:
-        body = resp.json()
-        tasks = body.get("service_response", body).get("tasks", [])
+    if not resp.ok:
+        return []
+    body = resp.json()
+    return body.get("service_response", body).get(key, [])
+
+
+def snapshot(token: str) -> dict:
+    """Devices, entities and Home Keeper tasks/assets, as one comparable blob.
+
+    Assets are here for the same reason tasks are: an asset of kind ``existing``
+    stores a device id that the 2026.8 split invalidates exactly like a task's, so
+    the repair has to be asserted over both.
+    """
+    session = _session(token)
     return {
         "devices": ws_command(token, "config/device_registry/list"),
         "entities": ws_command(token, "config/entity_registry/list"),
-        "tasks": tasks,
+        "tasks": _service_response(session, "list_tasks", "tasks"),
+        "assets": _service_response(session, "list_assets", "assets"),
     }
 
 
@@ -267,6 +277,11 @@ class UpgradeRun:
     def tasks_from(self, source_ns: str) -> list[dict]:
         return [
             t for t in self.after["tasks"] if (t.get("source") or {}).get(source_ns)
+        ]
+
+    def assets_named(self, substring: str) -> list[dict]:
+        return [
+            a for a in self.after["assets"] if substring.lower() in a["name"].lower()
         ]
 
 
@@ -498,12 +513,25 @@ def _seed_home_keeper_scenarios(token: str) -> None:
             "device_id": kitchen,
         },
     )
-    # Scenario 2 — an asset decorating a foreign device (existing-kind).
+    # Scenario 2 — an asset decorating a foreign device (existing-kind), plus a task
+    # on that *same* device. Both references go stale together, but only the asset
+    # keeps an identifiers/connections snapshot, so this pair is what proves the
+    # repair carries a snapshot-resolved device over to the task as well.
     call(
         "add_asset",
         {
             "name": "Upgrade probe existing asset",
             "kind": "existing",
+            "device_id": heater,
+        },
+    )
+    call(
+        "add_task",
+        {
+            "name": "Upgrade probe shared-device task",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
             "device_id": heater,
         },
     )

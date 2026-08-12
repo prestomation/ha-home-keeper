@@ -25,6 +25,7 @@ from homeassistant.helpers import entity_registry as er
 from . import assets as asset_model
 from .const import (
     ASSET_IDENTIFIER_PREFIX,
+    ASSET_KIND_EXISTING,
     ASSET_KIND_VIRTUAL,
     DOMAIN,
     PANEL_URL_PATH,
@@ -167,6 +168,7 @@ def _split_successor(
     registry: dr.DeviceRegistry,
     device_id: str,
     entry_id: str,
+    *,
     snapshot: dict[str, Any] | None = None,
 ) -> dr.DeviceEntry | None:
     """The live device a pre-2026.8 *composite* device id should now point at.
@@ -182,6 +184,14 @@ def _split_successor(
     the successor Home Assistant itself treats as primary; the sorted fallback keeps
     repeated runs deterministic.
 
+    Once every half has been re-homed Home Assistant garbage-collects the composite,
+    and ``async_get_devices_for_composite_device_id`` then answers the same empty list
+    it gives an ordinary id — the composite is gone, so there is nothing left to ask.
+    A caller that holds an identifiers/connections *snapshot* of the original device
+    can still resolve it, so pass one and the lookup falls back to matching that
+    snapshot against the live registry (``_resolve_by_snapshot``). Assets keep such a
+    snapshot; tasks do not.
+
     Returns ``None`` on Home Assistant versions with no composite concept (pre-2026.8),
     where there is nothing to heal.
     """
@@ -190,9 +200,17 @@ def _split_successor(
         return None
     splits = [d for d in resolve(device_id) if entry_id not in d.config_entries]
     if not splits:
-        # Composite may have been GC'd; try snapshot-based fallback.
-        if snapshot is not None:
-            return _resolve_successor_from_snapshot(registry, snapshot, entry_id)
+        # An empty answer means one of two very different things: a collected
+        # composite, or an ordinary id that was never split. Only the first is ours
+        # to repair, and ``async_get`` separates them — a composite is synthesized
+        # from the devices still pointing at it, so once they are all re-homed there
+        # is nothing left to synthesize and this returns None, while a live device
+        # answers for itself. Without the check a healthy asset whose snapshot has
+        # drifted (identifiers moved to another device, and the heal runs before
+        # ``_reconcile_existing`` refreshes them) would be silently repointed onto
+        # whatever the stale snapshot happened to match.
+        if snapshot is not None and registry.async_get(device_id) is None:
+            return _resolve_by_snapshot(registry, snapshot, prefer_not_entry=entry_id)
         return None
     if len(splits) > 1:
         composite = registry.async_get(device_id)
@@ -208,45 +226,6 @@ def _split_successor(
         # actually produces, never reaches here.
         return sorted(splits, key=lambda d: d.id)[0]
     return splits[0]
-
-
-def _resolve_successor_from_snapshot(
-    registry: dr.DeviceRegistry,
-    snapshot: dict[str, Any],
-    entry_id: str,
-) -> dr.DeviceEntry | None:
-    """Find a live device from stored identifiers/connections, preferring foreign.
-
-    Used as the fallback when a composite device has been GC'd and
-    ``async_get_devices_for_composite_device_id`` returns nothing.  The snapshot
-    is an asset dict (or compatible subset) with ``identifiers`` and
-    ``connections`` keys.
-
-    When multiple devices match (e.g. a Z-Wave node with multiple config
-    entries), prefer the one **not** owned by our config entry -- the same
-    preference as ``_split_successor``'s primary path.
-    """
-    candidates: list[dr.DeviceEntry] = []
-    for ident in snapshot.get("identifiers", []):
-        device = registry.async_get_device(identifiers={tuple(ident)})
-        if device is not None and device not in candidates:
-            candidates.append(device)
-    connections = {tuple(c) for c in snapshot.get("connections", [])}
-    if connections:
-        device = registry.async_get_device(connections=connections)
-        if device is not None and device not in candidates:
-            candidates.append(device)
-    if not candidates:
-        return None
-    # Prefer the device not owned by our config entry (the real device,
-    # not our split half).  If all are foreign or all are ours, fall back
-    # to sorted determinism.
-    foreign = [d for d in candidates if entry_id not in d.config_entries]
-    if foreign:
-        if len(foreign) > 1:
-            return sorted(foreign, key=lambda d: d.id)[0]
-        return foreign[0]
-    return sorted(candidates, key=lambda d: d.id)[0]
 
 
 async def async_heal_split_device_ids(
@@ -265,74 +244,61 @@ async def async_heal_split_device_ids(
     check finds nothing wrong — it only refuses to *link an entity* to it, which is the
     visible symptom and the reason this repair exists.
 
+    Assets of kind ``existing`` carry the same kind of reference and are healed in the
+    same pass, against the same mapping. Sharing one mapping is what keeps a device's
+    task and its asset together: only the asset keeps an identifiers/connections
+    snapshot, so a composite Home Assistant has already garbage-collected is resolvable
+    *only* from the asset — and a task on that same device has to inherit the answer or
+    it stays pointing at the dead id while the asset moves on without it.
+
     Runs before the platforms set up, so entities are created against the healed id
     straight away. Our old half then holds none of our entities and
     ``async_prune_orphaned_devices`` removes it at the end of setup. Idempotent: once
     healed nothing resolves to a composite and this does no writes.
     """
     registry = dr.async_get(hass)
+    # One mapping (dead id -> live id) for tasks and assets alike.
     mapping: dict[str, str] = {}
-    for task in store.get_tasks().values():
-        device_id = task.get("device_id")
+    # Ids the snapshot-less pass could not resolve, so a hundred tasks on one dead
+    # device cost one lookup rather than a hundred. Assets still retry these: a
+    # snapshot is exactly the extra information that can resolve them.
+    unresolved: set[str] = set()
+
+    def _record(device_id: str | None, snapshot: dict[str, Any] | None = None) -> None:
+        """Resolve *device_id*'s successor into the shared mapping, if it has one."""
         if not device_id or device_id in mapping:
-            continue
-        successor = _split_successor(registry, device_id, entry.entry_id)
-        if successor is not None:
+            return
+        if snapshot is None and device_id in unresolved:
+            return
+        successor = _split_successor(
+            registry, device_id, entry.entry_id, snapshot=snapshot
+        )
+        # A successor equal to the id we started from is not a repair; skipping it
+        # keeps the pass a genuine no-op once everything is healed.
+        if successor is not None and successor.id != device_id:
             mapping[device_id] = successor.id
+        elif snapshot is None:
+            unresolved.add(device_id)
+
+    for task in store.get_tasks().values():
+        # No snapshot: a task stores only the id. A GC'd composite is unresolvable
+        # from here, and gets picked up below if an asset shares the device.
+        _record(task.get("device_id"))
+    for asset in store.list_assets():
+        if asset.get("kind") == ASSET_KIND_EXISTING:
+            # The asset dict doubles as the snapshot — ``_reconcile_existing`` keeps
+            # its identifiers/connections refreshed from the live device.
+            _record(asset.get("device_id"), asset)
 
     if mapping:
-        changed = await store.async_repoint_device_ids(mapping)
+        changed_tasks = await store.async_repoint_device_ids(mapping)
+        changed_assets = await store.async_repoint_asset_device_ids(mapping)
         _LOGGER.info(
-            "Repaired %s device reference(s) across %s device(s) that Home Assistant "
-            "2026.8 split into one device per config entry",
-            changed,
+            "Repaired %s task and %s asset device reference(s) across %s device(s) "
+            "that Home Assistant 2026.8 split into one device per config entry",
+            changed_tasks,
+            changed_assets,
             len(mapping),
-        )
-
-    # Heal assets with stale composite device_ids (same #183 cause).  Assets
-    # of kind "existing" store a device_id that can also become a dead
-    # composite after the HA 2026.8 split.  The snapshot fallback handles
-    # the case where Home Assistant has already GC'd the composite.
-    #
-    # If a task sharing the same dead composite was already healed above,
-    # reuse the same successor for the asset — the task healing only updates
-    # tasks (``async_repoint_device_ids``), not assets, so the asset's
-    # device_id is still the dead composite and needs the same repoint.
-    asset_mapping: dict[str, str] = {}
-    for asset in store.list_assets():
-        if asset.get("kind") != "existing":
-            continue
-        device_id = asset.get("device_id")
-        if not device_id or device_id in asset_mapping:
-            continue
-        if device_id in mapping:
-            # Already healed as a task; reuse the same successor for the asset.
-            asset_mapping[device_id] = mapping[device_id]
-            continue
-        successor = _split_successor(
-            registry, device_id, entry.entry_id, snapshot=asset
-        )
-        if successor is not None and successor.id != device_id:
-            asset_mapping[device_id] = successor.id
-
-    if asset_mapping:
-        # Build a reverse index once (O(n)) instead of scanning all assets
-        # for each mapping entry (O(n*m)).
-        assets_by_device_id: dict[str, list[dict[str, Any]]] = {}
-        for asset in store.list_assets():
-            did = asset.get("device_id")
-            if did and did in asset_mapping:
-                assets_by_device_id.setdefault(did, []).append(asset)
-        asset_count = 0
-        for old_id, new_id in asset_mapping.items():
-            for asset in assets_by_device_id.get(old_id, []):
-                await store.set_asset_device_id(asset["id"], new_id)
-                asset_count += 1
-        _LOGGER.info(
-            "Repaired %s asset device reference(s) across %s device(s) that Home "
-            "Assistant 2026.8 split into one device per config entry",
-            asset_count,
-            len(asset_mapping),
         )
 
     # Healing the ids stops contributors duplicating from here on, but a duplicate
@@ -545,17 +511,49 @@ def _reconcile_existing(registry: dr.DeviceRegistry, asset: dict[str, Any]) -> b
 
 
 def _resolve_by_snapshot(
-    registry: dr.DeviceRegistry, asset: dict[str, Any]
+    registry: dr.DeviceRegistry,
+    snapshot: dict[str, Any],
+    *,
+    prefer_not_entry: str | None = None,
 ) -> dr.DeviceEntry | None:
-    """Find a device matching the asset's stored identifiers/connections."""
-    for ident in asset.get("identifiers", []):
-        device = registry.async_get_device(identifiers={tuple(ident)})
-        if device is not None:
-            return device
-    connections = {tuple(c) for c in asset.get("connections", [])}
+    """Find a live device matching a snapshot's stored identifiers/connections.
+
+    *snapshot* is an asset dict (or any mapping with ``identifiers`` and
+    ``connections`` keys). Serves two callers:
+
+    * ``_reconcile_existing`` recovering an asset whose device its owning integration
+      re-created under a new id — no preference, first match wins.
+    * ``_split_successor`` resolving a composite Home Assistant has already
+      garbage-collected. There, ``prefer_not_entry`` names *our* config entry, and a
+      matching device that isn't ours wins: after a 2026.8 split the identifiers were
+      copied onto our half too, and the one worth adopting is the other integration's
+      real device, not the artefact. The sorted tie-break only keeps repeated setups
+      choosing the same device rather than flip-flopping between them.
+    """
+    candidates: list[dr.DeviceEntry] = []
+    seen: set[str] = set()
+
+    def _add(device: dr.DeviceEntry | None) -> None:
+        if device is not None and device.id not in seen:
+            seen.add(device.id)
+            candidates.append(device)
+
+    for ident in snapshot.get("identifiers", []):
+        _add(registry.async_get_device(identifiers={tuple(ident)}))
+        # With no preference there is nothing a second candidate could change, so
+        # stop at the first hit rather than finishing the sweep.
+        if prefer_not_entry is None and candidates:
+            return candidates[0]
+    connections = {tuple(c) for c in snapshot.get("connections", [])}
     if connections:
-        return registry.async_get_device(connections=connections)
-    return None
+        _add(registry.async_get_device(connections=connections))
+
+    if not candidates:
+        return None
+    if prefer_not_entry is None:
+        return candidates[0]
+    foreign = [d for d in candidates if prefer_not_entry not in d.config_entries]
+    return sorted(foreign or candidates, key=lambda d: d.id)[0]
 
 
 async def async_remove_asset_device(

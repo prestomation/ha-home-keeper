@@ -14,6 +14,7 @@ from __future__ import annotations
 
 SOURCE_DOMAIN = "hk_upgrade_source"
 KITCHEN = "kitchen_sensor"
+WATER_HEATER = "water_heater"
 BAMBU_SERIAL = "AC12309BH109"
 
 
@@ -66,6 +67,70 @@ def test_tasks_land_back_on_the_real_device(repair_run):
     )
     assert not any("home_keeper" in e for e in device.get("config_entries") or ()), (
         "the task should point at the real device, not at a Home Keeper-owned copy"
+    )
+
+
+def test_every_asset_points_at_a_live_device(repair_run):
+    """An asset's device id goes stale exactly like a task's, and must heal too.
+
+    The task-only version of this assertion is what let the asset half of the repair
+    ship broken: assets of kind ``existing`` store a device id against another
+    integration's device, and the split invalidates it identically.
+    """
+    live = {d["id"] for d in repair_run.after["devices"]}
+    dangling = [
+        (a["name"], a["device_id"])
+        for a in repair_run.after["assets"]
+        if a.get("device_id") and a["device_id"] not in live
+    ]
+    assert not dangling, (
+        f"{len(dangling)} asset(s) still point at a dead device: {dangling}"
+    )
+
+
+def test_the_existing_asset_lands_back_on_the_real_device(repair_run):
+    """The repaired asset decorates the water heater, not a Home Keeper copy of it."""
+    asset = next(
+        a
+        for a in repair_run.after["assets"]
+        if a["name"] == "Upgrade probe existing asset"
+    )
+    device = repair_run.device(asset["device_id"])
+    assert device is not None, (
+        "the probe asset's device should resolve after the repair"
+    )
+    assert any(
+        list(i) == [SOURCE_DOMAIN, WATER_HEATER] for i in device.get("identifiers", [])
+    ), (
+        f"expected the water heater, got {device.get('name')!r} "
+        f"{device.get('identifiers')}"
+    )
+    assert not any("home_keeper" in e for e in device.get("config_entries") or ()), (
+        "the asset should point at the real device, not at a Home Keeper-owned copy"
+    )
+
+
+def test_a_task_and_asset_on_one_device_stay_together(repair_run):
+    """Both references to a single device land on the same successor.
+
+    Tasks keep no identifiers/connections, so once Home Assistant collects the
+    composite only the asset can resolve it. Healing the two from separate mappings
+    moved the asset to the live device and left the task on the dead id — leaving one
+    physical appliance split across two device pages.
+    """
+    task = next(
+        t
+        for t in repair_run.after["tasks"]
+        if t["name"] == "Upgrade probe shared-device task"
+    )
+    asset = next(
+        a
+        for a in repair_run.after["assets"]
+        if a["name"] == "Upgrade probe existing asset"
+    )
+    assert task["device_id"] == asset["device_id"], (
+        f"task landed on {task['device_id']} but its asset landed on "
+        f"{asset['device_id']}; they decorate the same appliance"
     )
 
 
