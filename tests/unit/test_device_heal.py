@@ -412,6 +412,34 @@ def test_successor_prefers_the_foreign_split():
     assert devices._split_successor(registry, DEAD_THERMOSTAT, HK_ENTRY) is ZWAVE_DEVICE
 
 
+def test_successor_follows_the_composites_primary_entry():
+    """Several foreign splits: the entry Home Assistant called primary decides."""
+    zwave = FakeDevice("zwave_real", config_entries=frozenset({ZWAVE_ENTRY}))
+    switchbot = FakeDevice("aaa_switchbot", config_entries=frozenset({SWITCHBOT_ENTRY}))
+    composite = FakeDevice(DEAD_THERMOSTAT, primary_config_entry=ZWAVE_ENTRY)
+    registry = FakeRegistry(
+        [composite, zwave, switchbot],
+        {DEAD_THERMOSTAT: [HK_HALF, zwave, switchbot]},
+    )
+    found = devices._split_successor(registry, DEAD_THERMOSTAT, HK_ENTRY)
+    assert found is zwave, (
+        "the primary entry's device wins over the alphabetically lower id"
+    )
+
+
+def test_successor_picks_deterministically_with_no_primary():
+    """Several foreign splits and no primary named: lowest id, so runs agree."""
+    zwave = FakeDevice("zwave_real", config_entries=frozenset({ZWAVE_ENTRY}))
+    switchbot = FakeDevice("aaa_switchbot", config_entries=frozenset({SWITCHBOT_ENTRY}))
+    composite = FakeDevice(DEAD_THERMOSTAT)  # no primary_config_entry
+    registry = FakeRegistry(
+        [composite, zwave, switchbot],
+        {DEAD_THERMOSTAT: [HK_HALF, zwave, switchbot]},
+    )
+    found = devices._split_successor(registry, DEAD_THERMOSTAT, HK_ENTRY)
+    assert found is switchbot, "with nothing to choose on, the lowest id wins"
+
+
 def test_successor_none_before_composites_exist():
     """Pre-2026.8 Home Assistant has no composites, so there is nothing to heal."""
     registry = FakeRegistry([ZWAVE_DEVICE], supports_composites=False)
