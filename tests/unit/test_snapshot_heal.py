@@ -197,10 +197,16 @@ def test_snapshot_fallback_multiple_foreign_picks_sorted():
     """Two foreign matches with no HK entry: sorted determinism."""
     entry_b = "entry_b"
     entry_c = "entry_c"
-    dev_b = MockDevice("dev_b", config_entries=frozenset({entry_b}),
-                       identifiers=frozenset({("zwave_js", "4268179804-12-57:17:8")}))
-    dev_c = MockDevice("dev_c", config_entries=frozenset({entry_c}),
-                       identifiers=frozenset({("zwave_js", "4268179804-12")}))
+    dev_b = MockDevice(
+        "dev_b",
+        config_entries=frozenset({entry_b}),
+        identifiers=frozenset({("zwave_js", "4268179804-12-57:17:8")}),
+    )
+    dev_c = MockDevice(
+        "dev_c",
+        config_entries=frozenset({entry_c}),
+        identifiers=frozenset({("zwave_js", "4268179804-12")}),
+    )
     registry = MockRegistry([dev_b, dev_c])
 
     result = resolve_successor_from_snapshot(registry, THERMOSTAT_SNAPSHOT, HK_ENTRY)
@@ -213,10 +219,15 @@ def test_snapshot_fallback_multiple_foreign_picks_sorted():
 
 def test_snapshot_fallback_no_identifiers_no_connections():
     """An asset with no snapshot data at all returns None."""
-    registry = MockRegistry([
-        MockDevice("some_dev", config_entries=frozenset({HK_ENTRY}),
-                   identifiers=frozenset({("zwave_js", "x")}))
-    ])
+    registry = MockRegistry(
+        [
+            MockDevice(
+                "some_dev",
+                config_entries=frozenset({HK_ENTRY}),
+                identifiers=frozenset({("zwave_js", "x")}),
+            )
+        ]
+    )
     snapshot = {"identifiers": [], "connections": []}
     result = resolve_successor_from_snapshot(registry, snapshot, HK_ENTRY)
     assert result is None
