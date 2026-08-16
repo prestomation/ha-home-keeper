@@ -4,7 +4,7 @@
 
 | Name                                                   |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |------------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
-| custom\_components/home\_keeper/\_\_init\_\_.py        |      426 |      426 |       44 |        0 |      0% |    8-1422 |
+| custom\_components/home\_keeper/\_\_init\_\_.py        |      426 |      426 |       44 |        0 |      0% |    8-1427 |
 | custom\_components/home\_keeper/assets.py              |      449 |       24 |      208 |       22 |     93% |128, 157, 176, 181, 188, 221, 245, 248, 251, 274-275, 312, 314, 319, 333-\>332, 381-382, 384, 420, 481, 516-\>518, 518-\>525, 693, 806-807, 831-832, 834-\>847, 880-\>882 |
 | custom\_components/home\_keeper/backend\_i18n.py       |       42 |       16 |        6 |        1 |     56% |60-70, 79-80, 88, 91-92 |
 | custom\_components/home\_keeper/binary\_sensor.py      |       88 |       88 |       18 |        0 |      0% |    12-163 |
@@ -38,11 +38,11 @@
 | custom\_components/home\_keeper/sensor.py              |      121 |      121 |       38 |        0 |      0% |    13-214 |
 | custom\_components/home\_keeper/sensor\_tasks.py       |       91 |        3 |       42 |        3 |     95% |93, 110, 116 |
 | custom\_components/home\_keeper/sensor\_watcher.py     |      113 |      113 |       46 |        0 |      0% |    18-237 |
-| custom\_components/home\_keeper/store.py               |      613 |      613 |      282 |        0 |      0% |    9-1402 |
+| custom\_components/home\_keeper/store.py               |      615 |      615 |      284 |        0 |      0% |    9-1424 |
 | custom\_components/home\_keeper/todo.py                |       61 |       61 |       18 |        0 |      0% |    10-130 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py      |      457 |      457 |       94 |        0 |      0% |     8-926 |
-| **TOTAL**                                              | **5141** | **3054** | **1790** |   **68** | **42%** |           |
+| **TOTAL**                                              | **5143** | **3056** | **1792** |   **68** | **42%** |           |
 
 
 ## Setup coverage badge
