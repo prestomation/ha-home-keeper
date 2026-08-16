@@ -124,6 +124,109 @@ def test_task_lifecycle_events(ha, ha_token):
     assert events["home_keeper_task_deleted"][0]["task_id"] == created_id["id"]
 
 
+def test_uncompleted_event_names_the_completion_and_origin(ha, ha_token):
+    """Undo carries the removed ``ts`` and the caller's ``origin``.
+
+    This is the whole cross-integration contract: a companion that mirrored the
+    completion needs to know *which* one went away, and needs to recognise the echo
+    of an undo it triggered itself.
+    """
+    state = {}
+
+    def action():
+        resp = call_service(
+            ha,
+            "home_keeper",
+            "add_task",
+            {
+                "name": "Undo test task",
+                "recurrence_type": "floating",
+                "interval": 7,
+                "unit": "days",
+                "source": {"pawsistant": {"schedule_id": "s1"}},
+            },
+            return_response=True,
+        )
+        task_id = resp.get("service_response", resp)["task_id"]
+        state["id"] = task_id
+        completed_at = "2026-06-14T10:00:00+00:00"
+        state["ts"] = completed_at
+        call_service(
+            ha,
+            "home_keeper",
+            "complete_task",
+            {"task_id": task_id, "completed_at": completed_at, "origin": "pawsistant"},
+        )
+        call_service(
+            ha,
+            "home_keeper",
+            "delete_completion",
+            {"task_id": task_id, "ts": completed_at, "origin": "pawsistant"},
+        )
+
+    events = _by_type(
+        _run(
+            ha_token,
+            ["home_keeper_task_completed", "home_keeper_task_uncompleted"],
+            action,
+            expected=2,
+        )
+    )
+
+    undone = events["home_keeper_task_uncompleted"][0]
+    assert undone["task_id"] == state["id"]
+    # The ts round-trips exactly as recorded, so a listener can match its own record.
+    assert undone["ts"] == events["home_keeper_task_completed"][0]["completed_at"]
+    assert undone["origin"] == "pawsistant"
+    # The opaque source rides along, so a companion can tell its tasks from others'.
+    assert undone["source"] == {"pawsistant": {"schedule_id": "s1"}}
+    # Undo rewinds the schedule: with no history left there is no last completion.
+    assert undone["enabled"] is True
+
+    call_service(ha, "home_keeper", "delete_task", {"task_id": state["id"]})
+
+
+def test_uncompleted_event_silent_for_unknown_ts(ha, ha_token):
+    """Undoing a timestamp that isn't in the history changes nothing and says nothing.
+
+    Announcing it would tell a companion to drop a record for a completion that never
+    existed.
+    """
+    state = {}
+
+    def action():
+        resp = call_service(
+            ha,
+            "home_keeper",
+            "add_task",
+            {
+                "name": "Undo no-op task",
+                "recurrence_type": "floating",
+                "interval": 7,
+                "unit": "days",
+            },
+            return_response=True,
+        )
+        state["id"] = resp.get("service_response", resp)["task_id"]
+        call_service(
+            ha,
+            "home_keeper",
+            "delete_completion",
+            {"task_id": state["id"], "ts": "2020-01-01T00:00:00+00:00"},
+        )
+
+    captured = _run(
+        ha_token,
+        ["home_keeper_task_uncompleted"],
+        action,
+        expected=1,
+        timeout=5,
+    )
+    assert captured == []
+
+    call_service(ha, "home_keeper", "delete_task", {"task_id": state["id"]})
+
+
 def test_snooze_and_skip_events(ha, ha_token):
     """snooze_task / skip_task fire their events and defer without completing."""
     created_id = {}

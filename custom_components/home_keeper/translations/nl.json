@@ -670,6 +670,10 @@
         "ts": {
           "name": "Voltooiingstijdstempel",
           "description": "De ISO-tijdstempel (ts) van de te verwijderen voltooiing."
+        },
+        "origin": {
+          "name": "Oorsprong",
+          "description": "Optionele vrije-vorm markering die wordt teruggegeven in de gebeurtenis home_keeper_task_uncompleted, zodat een bijdragende integratie de ongedaanmaking die zij heeft geactiveerd kan herkennen en negeren (luspreventie). Home Keeper interpreteert deze niet."
         }
       }
     },

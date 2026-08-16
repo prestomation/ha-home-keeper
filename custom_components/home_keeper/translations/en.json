@@ -670,6 +670,10 @@
         "ts": {
           "name": "Completion timestamp",
           "description": "The ISO timestamp (ts) of the completion entry to remove."
+        },
+        "origin": {
+          "name": "Origin",
+          "description": "Optional free-form marker echoed back in the home_keeper_task_uncompleted event so a contributing integration can recognise and ignore the undo it triggered (loop prevention), and Home Keeper never interprets it."
         }
       }
     },

@@ -670,6 +670,10 @@
         "ts": {
           "name": "Znacznik czasu wykonania",
           "description": "Znacznik czasu ISO (ts) wpisu wykonania do usunięcia."
+        },
+        "origin": {
+          "name": "Inicjator",
+          "description": "Opcjonalny znacznik w postaci dowolnego tekstu, zwracany w zdarzeniu home_keeper_task_uncompleted, dzięki czemu wnosząca wkład integracja może rozpoznać i zignorować cofnięcie, które sama wywołała (zapobieganie pętlom). Home Keeper go nie interpretuje."
         }
       }
     },

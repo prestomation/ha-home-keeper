@@ -670,6 +670,10 @@
         "ts": {
           "name": "Tidsstämpel för slutförande",
           "description": "ISO-tidsstämpeln (ts) för slutförandet som ska tas bort."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Valfri fritextmarkör som återges i händelsen home_keeper_task_uncompleted, så att en bidragande integration kan känna igen och ignorera den ångring den utlöste (loopförebyggande). Home Keeper tolkar den inte."
         }
       }
     },

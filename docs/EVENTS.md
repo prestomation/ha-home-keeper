@@ -42,7 +42,7 @@ All event names follow `home_keeper_<noun>_<verb>`. Task events share a common
 | `home_keeper_task_updated` | a task actually changes; payload adds `changed_fields` |
 | `home_keeper_task_deleted` | a task is removed (directly, or because its appliance/part was) |
 | `home_keeper_task_completed` | a task is completed from **any** surface (to-do checkbox, device button, `complete_task`); payload adds `completed_at`, `origin`, and any per-completion metadata that was recorded (`note`, `cost`, `photo`, `who`) |
-| `home_keeper_task_uncompleted` | a completion is undone (`next_due` is re-derived) |
+| `home_keeper_task_uncompleted` | a completion is undone (`next_due` is re-derived). Payload adds the removed completion's `ts` and the `origin` marker the caller passed. Undoing a `ts` that isn't in the history changes nothing and fires nothing |
 | `home_keeper_task_completion_updated` | a recorded completion's metadata (`note`/`cost`/`photo`/`who`) is edited after the fact; payload adds the edited completion's `ts`. The schedule is untouched. |
 | `home_keeper_task_triggered` | a condition-driven (triggered) or sensor-based task is armed (dormant → due-now) |
 | `home_keeper_task_snoozed` | a task's due date is deferred without recording a completion (`snooze_task` service or an actionable-notification **Snooze**). Payload adds `snoozed_until`. The schedule/recurrence is untouched, only `next_due` moves |

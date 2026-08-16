@@ -6,6 +6,28 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.14.0b1]
+
+### Added
+
+- **Undoing a completion now tells companion integrations which one you undid.** The
+  `home_keeper_task_uncompleted` event carries the removed completion's `ts`, and
+  `delete_completion` takes the same optional `origin` marker `complete_task` already
+  accepts. Together these let an integration that mirrors your completions (Pawsistant,
+  for one) remove its own copy when you correct a mistaken "done", instead of leaving a
+  pet-care entry behind that no longer matches Home Keeper. See
+  [docs/INTEGRATING.md](docs/INTEGRATING.md).
+
+### Fixed
+
+- **Undoing a completion that was already gone no longer announces an undo.** Removing
+  a timestamp that isn't in a task's history has always been a no-op, but the event
+  fired anyway. It now stays silent, so a listener can't be told to drop a record that
+  was never completed.
+- **`docs/INTEGRATING.md` said no event fires when you delete a task in Home Keeper.**
+  `home_keeper_task_deleted` has fired on every deletion path for a while; the
+  lifecycle section now says so.
+
 ## [0.13.0] - 2026-08-12
 
 ### Fixed

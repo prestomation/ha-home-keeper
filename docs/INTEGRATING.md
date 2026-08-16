@@ -194,6 +194,49 @@ event → your listener completes it again → … Break it with **two independe
 
 Either guard alone closes the loop. Together they add a second layer of protection.
 
+### Undoing a completion
+
+Completion is only half of "the same button". A user who marks a chore done by mistake
+expects the undo to travel too. Home Keeper fires `home_keeper_task_uncompleted` when a
+completion is removed, and the payload names the completion by the `ts` that went away,
+so you can drop exactly the mirrored record it stood for:
+
+```python
+EVENT_HK_UNCOMPLETED = "home_keeper_task_uncompleted"
+
+@callback
+def _on_hk_uncompleted(event):
+    if event.data.get("origin") == "my_integration":
+        return                      # the echo of an undo we initiated
+    src = (event.data.get("source") or {}).get("my_integration")
+    if not src:
+        return
+    hass.async_create_task(_drop_record(src, event.data["ts"]))
+
+entry.async_on_unload(hass.bus.async_listen(EVENT_HK_UNCOMPLETED, _on_hk_uncompleted))
+```
+
+Going the other way, when the user deletes the record on *your* side, call
+`home_keeper.delete_completion` with the same `ts` and your `origin` marker:
+
+```python
+await hass.services.async_call(
+    DOMAIN_HK,
+    "delete_completion",
+    {"task_id": task_id, "ts": ts, "origin": "my_integration"},
+    blocking=True,
+)
+```
+
+Both guards from above apply unchanged: check `origin` on the way in, and delete your
+own record through a path that does not re-enter `delete_completion`.
+
+A `ts` that isn't in the task's history is a no-op. Nothing changes and no event fires,
+so a stale or already-undone call is safe. A completion is also
+*identified* by its `ts`: to re-time one, undo it and complete again at the new time
+(that is exactly what Home Keeper's own `move_completion` does, firing the same two
+events with no `origin` because moving is a user edit from the panel).
+
 ## 5. Lifecycle
 
 Keep the two sides from drifting:
@@ -201,9 +244,12 @@ Keep the two sides from drifting:
 - **Your config is removed** → call `home_keeper.delete_task` for the task ids you stored.
 - **Home Keeper is absent** → the `has_service` guards make every call a no-op; your
   integration keeps working, and tasks you couldn't create simply don't sync.
-- **The user deletes a task directly in Home Keeper** → no event fires for it. Reconcile
-  on your own setup: call `list_tasks`, and for any of your schedules whose stored
-  `task_id` is gone, recreate it (re-`add_task` with the same `source`) so it self-heals.
+- **The user deletes a task directly in Home Keeper** → `home_keeper_task_deleted`
+  fires, carrying your `source` (see [EVENTS.md](EVENTS.md)), so you can react live.
+  Still reconcile on your own setup for the deletions that happened while you were not
+  running: call `list_tasks`, and for any of your schedules whose stored `task_id` is
+  gone, either recreate it (re-`add_task` with the same `source`) or drop your schedule,
+  whichever matches what your integration means by the task disappearing.
 - **A device you attached to disappears** → Home Keeper degrades gracefully (the task
   falls back to a self-owned device). Still delete the task when your thing goes away.
 
