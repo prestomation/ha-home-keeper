@@ -1238,7 +1238,10 @@ class HomeKeeperStore:
         # user; don't let the panel/websocket rewrite it.
         _reject_synced_problem(existing, None)
         if not any(e.get("ts") == ts for e in existing.get("completions", [])):
-            return existing
+            # Copy for the same reason the removal path does: this method's contract is
+            # "returns the task", and handing back the live stored dict would make the
+            # no-op branch the one place a caller could mutate the store by accident.
+            return dict(existing)
         updated = recurrence.remove_completion(dict(existing), ts, now=dt_util.now())
         self._tasks[task_id] = updated
         await self._save()
