@@ -1212,11 +1212,24 @@ class HomeKeeperStore:
         )
         return updated
 
-    async def delete_completion(self, task_id: str, ts: str) -> dict[str, Any]:
+    async def delete_completion(
+        self, task_id: str, ts: str, *, origin: str | None = None
+    ) -> dict[str, Any]:
         """Remove one completion from a task (undo an accidental "done").
 
         Re-derives ``last_completed``/``next_due`` from the remaining history and
         persists. Returns the updated task.
+
+        Fires ``home_keeper_task_uncompleted`` carrying the ``ts`` that was removed,
+        so a contributing integration can undo its own mirror of that one completion
+        (``ts`` is the completion's identity everywhere else in this class, so it is
+        the only thing that makes the event actionable). ``origin`` is the same opaque
+        caller marker :meth:`complete_task` takes, echoed back purely so a caller can
+        ignore the echo of an undo it initiated.
+
+        ``recurrence.remove_completion`` is a documented no-op for a ``ts`` that isn't
+        in the history; skip the save and the event in that case rather than announce
+        an undo of a completion that was never there.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
@@ -1224,11 +1237,14 @@ class HomeKeeperStore:
         # A synced problem task's history is owned by the sync (arm/clear), not the
         # user; don't let the panel/websocket rewrite it.
         _reject_synced_problem(existing, None)
+        if not any(e.get("ts") == ts for e in existing.get("completions", [])):
+            return existing
         updated = recurrence.remove_completion(dict(existing), ts, now=dt_util.now())
         self._tasks[task_id] = updated
         await self._save()
         self._hass.bus.async_fire(
-            EVENT_TASK_UNCOMPLETED, events.task_event_data(updated)
+            EVENT_TASK_UNCOMPLETED,
+            events.task_event_data(updated, extra={"ts": ts, "origin": origin}),
         )
         return updated
 
@@ -1245,8 +1261,11 @@ class HomeKeeperStore:
         Modeled as "undo, then redo at the new time": fires
         ``home_keeper_task_uncompleted`` then ``home_keeper_task_completed`` so
         automations/integrations that already react to those two events see the
-        move without a new event type to learn. Raises ``KeyError`` for an unknown
-        task and ``TaskValidationError`` when no completion matches *old_ts*.
+        move without a new event type to learn. Both carry no ``origin`` — a move is
+        always a user edit from the panel; an integration re-times its own mirror with
+        ``delete_completion`` + ``complete_task``, which take the marker. Raises
+        ``KeyError`` for an unknown task and ``TaskValidationError`` when no completion
+        matches *old_ts*.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
@@ -1280,7 +1299,7 @@ class HomeKeeperStore:
         }
         self._hass.bus.async_fire(
             EVENT_TASK_UNCOMPLETED,
-            events.task_event_data(updated, extra={"ts": old_ts}),
+            events.task_event_data(updated, extra={"ts": old_ts, "origin": None}),
         )
         self._hass.bus.async_fire(
             EVENT_TASK_COMPLETED,

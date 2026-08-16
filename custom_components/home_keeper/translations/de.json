@@ -670,6 +670,10 @@
         "ts": {
           "name": "Erledigungs-Zeitstempel",
           "description": "Der ISO-Zeitstempel (ts) des zu entfernenden Erledigungseintrags."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Optionale Freiform-Markierung, die im Ereignis home_keeper_task_uncompleted zurückgegeben wird, damit eine beitragende Integration die von ihr ausgelöste Rücknahme erkennen und ignorieren kann (Schleifenvermeidung). Home Keeper wertet sie nicht aus."
         }
       }
     },

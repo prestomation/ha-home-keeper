@@ -54,6 +54,27 @@ def test_task_event_spine_defaults_and_extra():
     assert data["changed_fields"] == ["name"]
 
 
+def test_uncompleted_spine_carries_ts_and_origin():
+    """The undo payload names the completion it removed, and who removed it.
+
+    Without ``ts`` a listener can't tell which mirrored record to drop, and without
+    ``origin`` it can't ignore the echo of an undo it initiated itself.
+    """
+    task = {
+        "id": "t1",
+        "name": "Medicine",
+        "source": {"pawsistant": {"schedule_id": "s1"}},
+    }
+    data = ev.task_event_data(
+        task, extra={"ts": WHEN.isoformat(), "origin": "pawsistant"}
+    )
+    assert data["ts"] == WHEN.isoformat()
+    assert data["origin"] == "pawsistant"
+    assert data["source"] == {"pawsistant": {"schedule_id": "s1"}}
+    # No completion-only fields leak in — undo is not a completion.
+    assert "completed_at" not in data
+
+
 def test_asset_event_data_shape():
     data = ev.asset_event_data(
         {"id": "a1", "name": "Furnace", "device_id": "dev1"},

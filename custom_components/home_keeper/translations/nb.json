@@ -670,6 +670,10 @@
         "ts": {
           "name": "Fullføringstidsstempel",
           "description": "ISO-tidsstempelet (ts) for fullføringen som skal fjernes."
+        },
+        "origin": {
+          "name": "Opprinnelse",
+          "description": "Valgfri fritekstmarkør som gjengis i home_keeper_task_uncompleted-hendelsen, slik at en bidragende integrasjon kan gjenkjenne og ignorere angringen den utløste (løkkeforebygging). Home Keeper tolker den ikke."
         }
       }
     },

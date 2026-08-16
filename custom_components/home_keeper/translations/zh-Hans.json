@@ -670,6 +670,10 @@
         "ts": {
           "name": "完成时间戳",
           "description": "要移除的完成条目的 ISO 时间戳（ts）。"
+        },
+        "origin": {
+          "name": "发起方",
+          "description": "可选的自由文本标记，会在 home_keeper_task_uncompleted 事件中回显，以便贡献集成能够识别并忽略由其自身触发的撤销（防止循环）。Home Keeper 不会解释它。"
         }
       }
     },

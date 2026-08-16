@@ -2,9 +2,9 @@
 
 Import this from *your* integration's test suite (it needs a real Home Assistant
 test environment, e.g. ``pytest-homeassistant-custom-component``) to exercise the
-cross-integration contract — creating tasks, completing them, and receiving the
-``home_keeper_task_completed`` event — **without** standing up Home Keeper's panel,
-storage, or entities.
+cross-integration contract — creating tasks, completing and un-completing them, and
+receiving the ``home_keeper_task_completed`` / ``home_keeper_task_uncompleted``
+events — **without** standing up Home Keeper's panel, storage, or entities.
 
 The fake is built on Home Keeper's own model/recurrence code and the shared event
 payload builder (:mod:`home_keeper.events`), so it stays in lockstep with the real
@@ -25,6 +25,12 @@ Example
         hk.fire_user_completion(task["id"])
         await hass.async_block_till_done()
         # ... assert your integration mirrored the completion ...
+
+        # Simulate the user undoing that completion again:
+        ts = hk.tasks[task["id"]]["completions"][-1]["ts"]
+        hk.fire_user_uncompletion(task["id"], ts)
+        await hass.async_block_till_done()
+        # ... assert your integration dropped its mirrored record ...
 """
 
 from __future__ import annotations
@@ -42,6 +48,7 @@ from .const import (
     EVENT_TASK_CREATED,
     EVENT_TASK_DELETED,
     EVENT_TASK_TRIGGERED,
+    EVENT_TASK_UNCOMPLETED,
     EVENT_TASK_UPDATED,
     REC_SENSOR,
     REC_TRIGGERED,
@@ -57,8 +64,9 @@ class FakeHomeKeeper:
     """In-memory stand-in for Home Keeper's services + completion event.
 
     Registers the real service names (``add_task``/``update_task``/``delete_task``/
-    ``complete_task``/``list_tasks``) on the test ``hass`` and fires the genuine
-    ``home_keeper_task_completed`` event on completion.
+    ``complete_task``/``delete_completion``/``list_tasks``) on the test ``hass`` and
+    fires the genuine ``home_keeper_task_completed`` /
+    ``home_keeper_task_uncompleted`` events as completions are recorded and undone.
     """
 
     def __init__(self, hass: HomeAssistant) -> None:
@@ -99,6 +107,13 @@ class FakeHomeKeeper:
         self._complete(
             call.data["task_id"],
             call.data.get("completed_at"),
+            call.data.get("origin"),
+        )
+
+    async def _delete_completion(self, call: ServiceCall) -> None:
+        self._uncomplete(
+            call.data["task_id"],
+            call.data["ts"],
             call.data.get("origin"),
         )
 
@@ -143,11 +158,31 @@ class FakeHomeKeeper:
         )
         return updated
 
+    def _uncomplete(self, task_id: str, ts: str, origin: str | None) -> dict[str, Any]:
+        task = self.tasks.get(task_id)
+        if task is None:
+            raise KeyError(task_id)
+        # Mirror the real store: a ``ts`` that isn't in the history is a no-op, and no
+        # event announces an undo that didn't happen.
+        if not any(e.get("ts") == ts for e in task.get("completions", [])):
+            return task
+        updated = recurrence.remove_completion(dict(task), ts, now=dt_util.now())
+        self.tasks[task_id] = updated
+        self.hass.bus.async_fire(
+            EVENT_TASK_UNCOMPLETED,
+            events.task_event_data(updated, extra={"ts": ts, "origin": origin}),
+        )
+        return updated
+
     def fire_user_completion(
         self, task_id: str, completed_at: Any | None = None
     ) -> dict[str, Any]:
         """Simulate a user checking the task off in the UI (``origin`` None)."""
         return self._complete(task_id, completed_at, None)
+
+    def fire_user_uncompletion(self, task_id: str, ts: str) -> dict[str, Any]:
+        """Simulate a user undoing a completion in the UI (``origin`` None)."""
+        return self._uncomplete(task_id, ts, None)
 
     def get_task_by_source(self, namespace: str, **match: Any) -> dict[str, Any] | None:
         """Return the first task whose ``source[namespace]`` matches all kwargs."""
@@ -171,6 +206,7 @@ class FakeHomeKeeper:
         reg(DOMAIN, "update_task", self._update_task, _ANY)
         reg(DOMAIN, "delete_task", self._delete_task, _ANY)
         reg(DOMAIN, "complete_task", self._complete_task, _ANY)
+        reg(DOMAIN, "delete_completion", self._delete_completion, _ANY)
         reg(DOMAIN, "trigger_task", self._trigger_task, _ANY)
         reg(
             DOMAIN,
@@ -186,6 +222,7 @@ class FakeHomeKeeper:
             "update_task",
             "delete_task",
             "complete_task",
+            "delete_completion",
             "trigger_task",
             "list_tasks",
         ):

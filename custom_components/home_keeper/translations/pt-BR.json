@@ -670,6 +670,10 @@
         "ts": {
           "name": "Carimbo de data/hora da conclusão",
           "description": "O carimbo de data/hora ISO (ts) da conclusão a remover."
+        },
+        "origin": {
+          "name": "Origem",
+          "description": "Marcador opcional de formato livre repassado no evento home_keeper_task_uncompleted, para que uma integração contribuinte possa reconhecer e ignorar a reversão que ela acionou (prevenção de laço). O Home Keeper não o interpreta."
         }
       }
     },

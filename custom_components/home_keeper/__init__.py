@@ -231,6 +231,7 @@ DELETE_COMPLETION_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
         vol.Required("ts"): cv.string,
+        vol.Optional("origin"): cv.string,
     }
 )
 
@@ -743,7 +744,11 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_delete_completion(call: ServiceCall) -> None:
         coord = _coordinator()
         try:
-            await coord.store.delete_completion(call.data["task_id"], call.data["ts"])
+            await coord.store.delete_completion(
+                call.data["task_id"],
+                call.data["ts"],
+                origin=call.data.get("origin"),
+            )
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,

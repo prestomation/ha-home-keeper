@@ -670,6 +670,10 @@
         "ts": {
           "name": "Marca de tiempo de finalización",
           "description": "La marca de tiempo ISO (ts) de la finalización a eliminar."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador de formato libre opcional que se devuelve en el evento home_keeper_task_uncompleted, para que una integración contribuyente pueda reconocer e ignorar la anulación que ella misma desencadenó (prevención de bucles). Home Keeper no lo interpreta."
         }
       }
     },

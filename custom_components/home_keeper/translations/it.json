@@ -670,6 +670,10 @@
         "ts": {
           "name": "Timestamp completamento",
           "description": "Il timestamp ISO (ts) del completamento da rimuovere."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marcatore facoltativo in formato libero restituito nell'evento home_keeper_task_uncompleted, così che un'integrazione contribuente possa riconoscere e ignorare l'annullamento che ha attivato (prevenzione dei cicli). Home Keeper non lo interpreta."
         }
       }
     },

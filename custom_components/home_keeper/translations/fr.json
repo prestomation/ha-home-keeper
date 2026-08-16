@@ -670,6 +670,10 @@
         "ts": {
           "name": "Horodatage de réalisation",
           "description": "L'horodatage ISO (ts) de la réalisation à supprimer."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marqueur libre facultatif renvoyé dans l'événement home_keeper_task_uncompleted, afin qu'une intégration contributrice puisse reconnaître et ignorer l'annulation qu'elle a déclenchée (prévention des boucles). Home Keeper ne l'interprète pas."
         }
       }
     },

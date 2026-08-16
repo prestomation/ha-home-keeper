@@ -670,6 +670,10 @@
         "ts": {
           "name": "Časové razítko dokončení",
           "description": "Časové razítko ISO (ts) záznamu dokončení k odebrání."
+        },
+        "origin": {
+          "name": "Původ",
+          "description": "Volitelná značka ve volném textu, která se vrací zpět v události home_keeper_task_uncompleted, aby přispívající integrace mohla rozpoznat a ignorovat zrušení dokončení, které sama vyvolala (prevence smyčky). Home Keeper ji neinterpretuje."
         }
       }
     },

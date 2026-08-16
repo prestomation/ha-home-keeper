@@ -670,6 +670,10 @@
         "ts": {
           "name": "Suorituksen aikaleima",
           "description": "Poistettavan suoritusmerkinnän ISO-aikaleima (ts)."
+        },
+        "origin": {
+          "name": "Alkuperä",
+          "description": "Valinnainen vapaamuotoinen merkintä, joka toistetaan home_keeper_task_uncompleted-tapahtumassa, jotta osallistuva integraatio voi tunnistaa ja ohittaa laukaisemansa kumoamisen (silmukan esto). Home Keeper ei tulkitse sitä."
         }
       }
     },
