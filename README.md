@@ -81,7 +81,7 @@ A **task** has a name, notes, an optional device it's attached to, and a recurre
 An **appliance** (asset) is the physical thing a task is about: a fridge, furnace,
 water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).
 
-**Who can do what.** Managing your home is an admin job; using the list is not. The
+**Who can do what.** Managing your home is an admin job. Using the list is not. The
 sidebar panel and everything behind it (creating and editing appliances, settings,
 profiles, notification delivery, the inventory export) is for Home Assistant
 **administrators**, the same line HA draws around its own Settings. Everyone else in

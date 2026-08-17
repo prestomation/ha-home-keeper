@@ -10,8 +10,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Security
 
-- **The two admin-only actions are now actually admin-only.** Saving settings and
-  exporting the home inventory were guarded in the panel's websocket API but not in
+- **Saving settings and exporting the home inventory are now actually admin-only.**
+  Both were guarded in the panel's websocket API but not in
   the matching `home_keeper.set_options` / `home_keeper.export_inventory` services, so
   any signed-in user could call the service and get the same result, inventory value
   totals included. Both halves are gated now, and appliance changes join them.

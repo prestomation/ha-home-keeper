@@ -42,7 +42,7 @@ leak sensors, filter pressure). See [INTEGRATING.md](INTEGRATING.md) §7 and
   panel is not offered to a non-admin at all.
 - `websocket_api.py` + services in `__init__.py` provide CRUD + complete. The panel uses
   websocket commands, automations use services. **Both halves carry the same privilege
-  gate** — a websocket command and its service twin are one operation over one
+  gate.** A websocket command and its service twin are one operation over one
   authenticated connection, so gating only the command leaves `call_service` open.
   See [the security model](SECURITY.md) for which operations are admin-only and what
   a non-admin reads instead.

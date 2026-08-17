@@ -11,15 +11,16 @@ household can and cannot do.
 ## Why the line is there
 
 A Home Assistant instance usually has one or two admins and a handful of ordinary
-users: a partner, older kids, a housemate, a guest account on the wall tablet. Home
-Assistant already reserves Settings and Developer tools for admins, and its own
+users. A partner, older kids, a housemate, maybe a guest account on the wall tablet.
+Home Assistant already reserves Settings and Developer tools for admins, and its own
 `config/*` commands (device registry, entity registry, config entries) are
 admin-only. Home Keeper follows the same convention rather than inventing a second,
 weaker one.
 
-The concrete risks this addresses are modest and domestic: a guest account should
-not be able to delete the appliance records you built up, silently redirect your
-reminders, or read the purchase prices and serial numbers you keep for insurance.
+The risks here are modest and domestic. A guest account should not be able to delete
+the appliance records you built up. It should not be able to redirect your reminders
+somewhere you won't see them, or read the purchase prices and serial numbers you keep
+for insurance.
 
 ## Admin only
 
@@ -59,11 +60,11 @@ Usage is not gated, because a reminder nobody can act on is not a reminder:
 - Reading tasks and profiles.
 
 Appliance data is readable by the card, so it is not admin-only, but a non-admin
-receives a **narrowed view**: the documents, product links and link-type custom
-fields the card renders, and nothing else. Purchase costs, part costs, serial
-numbers, warranty dates and free-text custom fields are withheld. The narrowed view
-is a whitelist, so a field added to the appliance record later stays private until
-someone publishes it on purpose.
+receives a **narrowed view** holding only what the card renders. That means an
+appliance's documents, its link-type custom fields, and the name and product URL of
+each part. Purchase costs, part costs, serial numbers, warranty dates and free-text
+custom fields are withheld. The narrowed view is a whitelist, so a field added to the
+appliance record later stays private until someone publishes it on purpose.
 
 ## Notifications
 
@@ -84,12 +85,18 @@ Assistant view. To open one in a browser tab, the panel mints a **signed URL** w
 short lifetime (one hour for the panel, fifteen minutes for the
 `sign_document_url` / `sign_part_file_url` services, whose result may travel further).
 
-A signed URL is a bearer credential for the file it names: anyone who has the link can
-fetch that file until it expires, without logging in. Treat a screenshot of a
-dashboard that contains one accordingly. Home Assistant honours a signature on `GET`
-and `HEAD` only, and the upload endpoints additionally refuse any request that is not
-authenticated as a real user, so a link that can read a file can never be used to
-replace it.
+A signed URL is a bearer credential for the file it names. Anyone holding the link can
+fetch that file until it expires, without logging in, so a screenshot of a dashboard
+carrying one deserves the same care as the file itself. Home Assistant honours a
+signature on `GET` and `HEAD` only, and the upload endpoints also refuse any request
+that is not authenticated as a real user, so a link that can read a file can never be
+used to replace it.
+
+Minting a signed URL is not admin-only, because the card needs one to open a document
+on a task anyone can complete. A known consequence, accepted rather than overlooked:
+a non-admin who guesses an appliance and document id learns whether that pair exists,
+from whether the request succeeds. Guessing is the operative word. The narrowed
+appliance view only lists documents already surfaced on a card.
 
 Only the two built JavaScript bundles are published as a static path. Home Assistant
 serves static paths before authentication, so the panel's source tree and its
@@ -100,7 +107,7 @@ Escaping alone does not neutralise a `javascript:` link, and some links come fro
 other integrations through `add_task`, so the check runs at the point of rendering
 even where the stored value was already validated.
 
-## What this does not protect against
+## Outside the boundary
 
 - **An admin is an admin.** Home Keeper does not defend an instance against its own
   administrators, and the integration's data is readable by anyone who can read the
@@ -108,8 +115,8 @@ even where the stored value was already validated.
 - **Home Assistant's own authentication is the perimeter.** Nothing here helps if an
   account is shared or a long-lived token leaks.
 - **A non-admin can still create and complete tasks**, which is the point. If you need
-  a genuinely read-only member, Home Assistant's own user model, not Home Keeper, is
-  where that belongs.
+  a read-only member, Home Assistant's own user model, not Home Keeper, is where that
+  belongs.
 
 ## Reporting a problem
 

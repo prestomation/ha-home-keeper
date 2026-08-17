@@ -135,8 +135,10 @@ def test_normalize_notification_snooze_of_one_hour_is_kept():
 
 def test_normalize_notification_keeps_a_known_style():
     # A stored style must survive normalization; only an unknown one falls back.
-    assert n.normalize_notification({"style": n.STYLE_DIGEST})["style"] == n.STYLE_DIGEST
-    assert n.normalize_notification({"style": "carrier-pigeon"})["style"] == n.STYLE_WALK
+    digest = n.normalize_notification({"style": n.STYLE_DIGEST})
+    assert digest["style"] == n.STYLE_DIGEST
+    unknown = n.normalize_notification({"style": "carrier-pigeon"})
+    assert unknown["style"] == n.STYLE_WALK
 
 
 def test_normalize_notification_default_name():
