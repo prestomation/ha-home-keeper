@@ -117,16 +117,31 @@ describe('taskSchema area field (issue #204)', () => {
   it('omits the picker when the managing integration locks the area', () => {
     // A synced problem-sensor task takes its area from the source sensor's device
     // (`problem_tasks._LOCKED_FIELDS`), so the form must not offer to change it.
-    const got = names(
-      taskSchema({
-        recurrence_type: 'floating',
-        managed_by: { integration: 'x', display_name: 'X', locked_fields: ['area_id'] },
-      }),
-    );
-    expect(got).not.toContain('area_id');
+    const unlocked = taskSchema({ recurrence_type: 'floating' });
+    const fields = taskSchema({
+      recurrence_type: 'floating',
+      managed_by: { integration: 'x', display_name: 'X', locked_fields: ['area_id'] },
+    });
+    expect(names(fields)).not.toContain('area_id');
     // Locking the area alone leaves the neighbouring attachment fields reachable.
-    expect(got).toContain('device_id');
-    expect(got).toContain('labels');
+    expect(names(fields)).toContain('device_id');
+    expect(names(fields)).toContain('labels');
+    // Count the raw entries, not the names: a nameless entry would be dropped by
+    // `names()`, so only this catches the locked branch contributing anything at all
+    // to the schema instead of nothing.
+    expect(fields.length).toBe(unlocked.length - 1);
+  });
+
+  it('omits the picker on a locked *triggered* task too', () => {
+    // The triggered branch builds its own short field list, so it needs its own
+    // locking assertion — the floating path's does not exercise it.
+    const unlocked = taskSchema({ recurrence_type: 'triggered' });
+    const fields = taskSchema({
+      recurrence_type: 'triggered',
+      managed_by: { integration: 'x', display_name: 'X', locked_fields: ['area_id'] },
+    });
+    expect(names(fields)).toEqual(['name', 'notes', 'device_id', 'labels']);
+    expect(fields.length).toBe(unlocked.length - 1);
   });
 
   it('loads a task’s saved area into the form', () => {
