@@ -209,6 +209,7 @@
   "group.none": "Ninguno",
   "group.status": "Estado",
   "help.anchor": "La fecha de referencia a partir de la cual cuenta la programación fija.",
+  "help.area_id": "Coloca opcionalmente la tarea en un área para agruparla y filtrarla. Sin ella, se usa el área del dispositivo adjunto.",
   "help.card_links": "Documentos o enlaces del electrodoméstico adjunto para mostrar en la tarjeta del panel.",
   "help.completion_detail": "Pide una nota, un coste o quién lo hizo cuando se completa la tarea.",
   "help.consumable_link": "Completar la tarea retira un repuesto de estas existencias y puede activar una alerta de reposición.",

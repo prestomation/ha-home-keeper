@@ -202,6 +202,7 @@
   "group.none": "Ingen",
   "group.status": "Status",
   "help.anchor": "Referensdatumet som det fasta schemat räknar från.",
+  "help.area_id": "Placera eventuellt uppgiften i ett område för gruppering och filtrering. Utan område används den kopplade enhetens område.",
   "help.card_links": "Dokument eller länkar från den kopplade apparaten att visa på instrumentpanelskortet.",
   "help.completion_detail": "Fråga efter en anteckning, en kostnad eller vem som gjorde det när uppgiften slutförs.",
   "help.consumable_link": "När uppgiften slutförs tas en reservdel från detta lager, och en beställningspåminnelse kan utlösas.",

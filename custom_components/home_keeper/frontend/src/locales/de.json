@@ -202,6 +202,7 @@
   "group.none": "Keine",
   "group.status": "Status",
   "help.anchor": "Das Bezugsdatum, ab dem der feste Zeitplan zählt.",
+  "help.area_id": "Optional die Aufgabe einem Bereich zuordnen, um sie zu gruppieren und zu filtern. Ohne Angabe gilt der Bereich des verknüpften Geräts.",
   "help.card_links": "Dokumente oder Links vom verknüpften Gerät, die auf der Dashboard-Karte angezeigt werden.",
   "help.completion_detail": "Beim Abschließen der Aufgabe nach einer Notiz, den Kosten oder der ausführenden Person fragen.",
   "help.consumable_link": "Beim Abschließen der Aufgabe wird ein Ersatzteil aus diesem Bestand entnommen und kann eine Nachbestellwarnung auslösen.",

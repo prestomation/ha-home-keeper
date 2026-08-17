@@ -202,6 +202,7 @@
   "group.none": "Ingen",
   "group.status": "Status",
   "help.anchor": "Referencedatoen, som den faste tidsplan tæller fra.",
+  "help.area_id": "Placer eventuelt opgaven i et område til gruppering og filtrering. Uden et bruges området fra den tilknyttede enhed.",
   "help.card_links": "Dokumenter eller links fra det tilknyttede apparat, der skal vises på dashboard-kortet.",
   "help.completion_detail": "Bed om en note, en pris eller hvem der gjorde det, når opgaven fuldføres.",
   "help.consumable_link": "Når opgaven fuldføres, trækkes én reservedel fra dette lager, og der kan udløses en genbestillingsadvarsel.",

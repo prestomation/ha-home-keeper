@@ -6,6 +6,19 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.14.0b2]
+
+### Added
+
+- **You can put a task in a room.** The task form has an **Area** field, so a task that
+  isn't attached to a device can still be placed: *water the plants* in the Living room,
+  *clean the windows* in the Bedroom. A task's area has always been part of the store
+  and the `add_task` / `update_task` services, and the panel already grouped and
+  filtered on it, but nothing in the UI could set it. A device-less task was stuck
+  under **Unassigned** for good. Choosing an area overrides the one a task would inherit
+  from its device. Clearing it hands the task back to the device's. The task detail page
+  now names the area it ended up in, next to the device chip. (Fixes #204)
+
 ## [0.14.0b1]
 
 ### Added

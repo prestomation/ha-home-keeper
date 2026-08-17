@@ -216,6 +216,7 @@
   "group.none": "Žádné",
   "group.status": "Stav",
   "help.anchor": "Referenční datum, od kterého se pevný plán počítá.",
+  "help.area_id": "Volitelně zařaďte úkol do oblasti pro seskupování a filtrování. Bez ní se použije oblast připojeného zařízení.",
   "help.card_links": "Dokumenty nebo odkazy z připojeného spotřebiče k zobrazení na kartě nástěnky.",
   "help.completion_detail": "Při dokončení úkolu se zeptejte na poznámku, cenu nebo kdo jej provedl.",
   "help.consumable_link": "Dokončení úkolu odebere jeden kus z této zásoby a může spustit upozornění na doobjednání.",

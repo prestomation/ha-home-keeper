@@ -81,6 +81,27 @@ A **task** has a name, notes, an optional device it's attached to, and a recurre
 An **appliance** (asset) is the physical thing a task is about: a fridge, furnace,
 water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).
 
+### Put a task in a room
+
+Every task can sit in a Home Assistant **area**, so your upkeep sorts by room. Pick one
+in the task form's **Area** field.
+
+A task attached to a device already takes that device's area, so this field is really
+for the tasks that have no device: *water the plants* in the Living room, *clean the
+windows* in the Bedroom, *descale the kettle* in the Kitchen. Choosing an area
+overrides whatever the device would have supplied. Clearing it hands the task back to
+its device's area.
+
+Once a task has an area you can **Group by → Area** on the Tasks tab, filter a
+[dashboard card](#dashboard-task-card) to one or more areas, or scope a
+[Profile](#profiles-saved-filters-you-reuse-everywhere) (and the notifications built on
+it) to a room. Areas are also settable from `home_keeper.add_task` /
+`home_keeper.update_task`.
+
+![The task form's Area field, holding the room a device-less task was placed in](docs/images/42b-panel-task-area-form.png)
+
+![The Tasks tab grouped by Area, with the task under its room instead of Unassigned](docs/images/42c-panel-tasks-grouped-by-area.png)
+
 ## One-off (do-once) tasks
 
 Not everything repeats. **One-off** tasks are for things you do exactly once:

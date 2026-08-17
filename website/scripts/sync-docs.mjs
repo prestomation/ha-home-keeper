@@ -42,6 +42,7 @@ const ANCHOR_ROUTES = {
   '#companions': '/docs/guide/settings#companions',
   '#notifications-actionable-reminders-on-your-phone': '/docs/guide/notifications',
   '#profiles-saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
+  '#dashboard-task-card': '/docs/guide/dashboard-card',
   // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
   // section (→ sensor-tasks page); "Parts & wear items" under Appliances.
   '#link-a-task-to-a-consumable-auto-reorder':

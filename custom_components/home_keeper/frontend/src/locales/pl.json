@@ -216,6 +216,7 @@
   "group.none": "Brak",
   "group.status": "Status",
   "help.anchor": "Data odniesienia, od której liczony jest stały harmonogram.",
+  "help.area_id": "Opcjonalnie umieść zadanie w obszarze, aby je grupować i filtrować. Bez tego używany jest obszar przypisanego urządzenia.",
   "help.card_links": "Dokumenty lub linki z podłączonego urządzenia do wyświetlenia na karcie pulpitu.",
   "help.completion_detail": "Poproś o notatkę, koszt lub informację, kto wykonał zadanie, gdy zostanie ukończone.",
   "help.consumable_link": "Ukończenie zadania pobiera jedną sztukę z tego zapasu i może wyzwolić alert o ponownym zamówieniu.",
