@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Security model | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-206/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-206/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-206/developer/security"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Security model | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper draws one line: managing your home is an admin job, using it is not."><meta data-rh="true" property="og:description" content="Home Keeper draws one line: managing your home is an admin job, using it is not."><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-206/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-206/developer/security"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-206/developer/security" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-206/developer/security" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Security","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-206/developer/security"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-206/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-206/assets/js/runtime~main.2a9025d7.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-206/assets/js/runtime~main.c0d91a9b.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-206/assets/js/main.f5c2f4d3.js" defer="defer"></script>
 </head>
 <body>
@@ -19,14 +19,15 @@ due and mark it done stays open to any signed-in user.</p>
 household can and cannot do.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-the-line-is-there">Why the line is there<a href="#why-the-line-is-there" class="hash-link" aria-label="Direct link to Why the line is there" title="Direct link to Why the line is there" translate="no">​</a></h2>
 <p>A Home Assistant instance usually has one or two admins and a handful of ordinary
-users: a partner, older kids, a housemate, a guest account on the wall tablet. Home
-Assistant already reserves Settings and Developer tools for admins, and its own
+users. A partner, older kids, a housemate, maybe a guest account on the wall tablet.
+Home Assistant already reserves Settings and Developer tools for admins, and its own
 <code>config/*</code> commands (device registry, entity registry, config entries) are
 admin-only. Home Keeper follows the same convention rather than inventing a second,
 weaker one.</p>
-<p>The concrete risks this addresses are modest and domestic: a guest account should
-not be able to delete the appliance records you built up, silently redirect your
-reminders, or read the purchase prices and serial numbers you keep for insurance.</p>
+<p>The risks here are modest and domestic. A guest account should not be able to delete
+the appliance records you built up. It should not be able to redirect your reminders
+somewhere you won&#x27;t see them, or read the purchase prices and serial numbers you keep
+for insurance.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="admin-only">Admin only<a href="#admin-only" class="hash-link" aria-label="Direct link to Admin only" title="Direct link to Admin only" translate="no">​</a></h2>
 <p>Administration lives in the <strong>Home Keeper sidebar panel</strong>, which is registered as an
 admin-only panel. A non-admin does not see it in the sidebar. Behind it, these
@@ -81,11 +82,11 @@ trusted, the same way Home Assistant treats them.</p>
 <li class="">Reading tasks and profiles.</li>
 </ul>
 <p>Appliance data is readable by the card, so it is not admin-only, but a non-admin
-receives a <strong>narrowed view</strong>: the documents, product links and link-type custom
-fields the card renders, and nothing else. Purchase costs, part costs, serial
-numbers, warranty dates and free-text custom fields are withheld. The narrowed view
-is a whitelist, so a field added to the appliance record later stays private until
-someone publishes it on purpose.</p>
+receives a <strong>narrowed view</strong> holding only what the card renders. That means an
+appliance&#x27;s documents, its link-type custom fields, and the name and product URL of
+each part. Purchase costs, part costs, serial numbers, warranty dates and free-text
+custom fields are withheld. The narrowed view is a whitelist, so a field added to the
+appliance record later stays private until someone publishes it on purpose.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="notifications">Notifications<a href="#notifications" class="hash-link" aria-label="Direct link to Notifications" title="Direct link to Notifications" translate="no">​</a></h2>
 <p>Home Keeper delivers only to companion-app notify services (<code>notify.mobile_app_*</code>)
 and to <code>persistent_notification</code>. Any other target on a saved notification, or passed
@@ -100,12 +101,17 @@ instance.</p>
 Assistant view. To open one in a browser tab, the panel mints a <strong>signed URL</strong> with a
 short lifetime (one hour for the panel, fifteen minutes for the
 <code>sign_document_url</code> / <code>sign_part_file_url</code> services, whose result may travel further).</p>
-<p>A signed URL is a bearer credential for the file it names: anyone who has the link can
-fetch that file until it expires, without logging in. Treat a screenshot of a
-dashboard that contains one accordingly. Home Assistant honours a signature on <code>GET</code>
-and <code>HEAD</code> only, and the upload endpoints additionally refuse any request that is not
-authenticated as a real user, so a link that can read a file can never be used to
-replace it.</p>
+<p>A signed URL is a bearer credential for the file it names. Anyone holding the link can
+fetch that file until it expires, without logging in, so a screenshot of a dashboard
+carrying one deserves the same care as the file itself. Home Assistant honours a
+signature on <code>GET</code> and <code>HEAD</code> only, and the upload endpoints also refuse any request
+that is not authenticated as a real user, so a link that can read a file can never be
+used to replace it.</p>
+<p>Minting a signed URL is not admin-only, because the card needs one to open a document
+on a task anyone can complete. A known consequence, accepted rather than overlooked:
+a non-admin who guesses an appliance and document id learns whether that pair exists,
+from whether the request succeeds. Guessing is the operative word. The narrowed
+appliance view only lists documents already surfaced on a card.</p>
 <p>Only the two built JavaScript bundles are published as a static path. Home Assistant
 serves static paths before authentication, so the panel&#x27;s source tree and its
 dependencies are deliberately not mounted.</p>
@@ -113,7 +119,7 @@ dependencies are deliberately not mounted.</p>
 Escaping alone does not neutralise a <code>javascript:</code> link, and some links come from
 other integrations through <code>add_task</code>, so the check runs at the point of rendering
 even where the stored value was already validated.</p>
-<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="what-this-does-not-protect-against">What this does not protect against<a href="#what-this-does-not-protect-against" class="hash-link" aria-label="Direct link to What this does not protect against" title="Direct link to What this does not protect against" translate="no">​</a></h2>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="outside-the-boundary">Outside the boundary<a href="#outside-the-boundary" class="hash-link" aria-label="Direct link to Outside the boundary" title="Direct link to Outside the boundary" translate="no">​</a></h2>
 <ul>
 <li class=""><strong>An admin is an admin.</strong> Home Keeper does not defend an instance against its own
 administrators, and the integration&#x27;s data is readable by anyone who can read the
@@ -121,13 +127,13 @@ Home Assistant configuration directory.</li>
 <li class=""><strong>Home Assistant&#x27;s own authentication is the perimeter.</strong> Nothing here helps if an
 account is shared or a long-lived token leaks.</li>
 <li class=""><strong>A non-admin can still create and complete tasks</strong>, which is the point. If you need
-a genuinely read-only member, Home Assistant&#x27;s own user model, not Home Keeper, is
-where that belongs.</li>
+a read-only member, Home Assistant&#x27;s own user model, not Home Keeper, is where that
+belongs.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="reporting-a-problem">Reporting a problem<a href="#reporting-a-problem" class="hash-link" aria-label="Direct link to Reporting a problem" title="Direct link to Reporting a problem" translate="no">​</a></h2>
 <p>Open an issue at
 <a href="https://github.com/prestomation/ha-home-keeper/issues" target="_blank" rel="noopener noreferrer" class="">github.com/prestomation/ha-home-keeper/issues</a>.
 For something you would rather not post publicly, use GitHub&#x27;s private vulnerability
-reporting on the same repository.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/prestomation/ha-home-keeper/tree/main/website/developer/security.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/ha-home-keeper/pr-preview/pr-206/developer/architecture"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Architecture</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#why-the-line-is-there" class="table-of-contents__link toc-highlight">Why the line is there</a></li><li><a href="#admin-only" class="table-of-contents__link toc-highlight">Admin only</a></li><li><a href="#open-to-any-signed-in-user" class="table-of-contents__link toc-highlight">Open to any signed-in user</a></li><li><a href="#notifications" class="table-of-contents__link toc-highlight">Notifications</a></li><li><a href="#files-and-links" class="table-of-contents__link toc-highlight">Files and links</a></li><li><a href="#what-this-does-not-protect-against" class="table-of-contents__link toc-highlight">What this does not protect against</a></li><li><a href="#reporting-a-problem" class="table-of-contents__link toc-highlight">Reporting a problem</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-206/docs/intro">User Guide</a></li><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-206/developer/integrating">Developer Guide</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://www.home-assistant.io/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Home Assistant<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://hacs.xyz/" target="_blank" rel="noopener noreferrer" class="footer__link-item">HACS<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper/issues" target="_blank" rel="noopener noreferrer" class="footer__link-item">Issues<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Home Keeper — a community Home Assistant integration. Built with Docusaurus.</div></div></div></footer></div>
+reporting on the same repository.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/prestomation/ha-home-keeper/tree/main/website/developer/security.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/ha-home-keeper/pr-preview/pr-206/developer/architecture"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Architecture</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#why-the-line-is-there" class="table-of-contents__link toc-highlight">Why the line is there</a></li><li><a href="#admin-only" class="table-of-contents__link toc-highlight">Admin only</a></li><li><a href="#open-to-any-signed-in-user" class="table-of-contents__link toc-highlight">Open to any signed-in user</a></li><li><a href="#notifications" class="table-of-contents__link toc-highlight">Notifications</a></li><li><a href="#files-and-links" class="table-of-contents__link toc-highlight">Files and links</a></li><li><a href="#outside-the-boundary" class="table-of-contents__link toc-highlight">Outside the boundary</a></li><li><a href="#reporting-a-problem" class="table-of-contents__link toc-highlight">Reporting a problem</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-206/docs/intro">User Guide</a></li><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-206/developer/integrating">Developer Guide</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://www.home-assistant.io/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Home Assistant<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://hacs.xyz/" target="_blank" rel="noopener noreferrer" class="footer__link-item">HACS<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper/issues" target="_blank" rel="noopener noreferrer" class="footer__link-item">Issues<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Home Keeper — a community Home Assistant integration. Built with Docusaurus.</div></div></div></footer></div>
 </body>
 </html>
