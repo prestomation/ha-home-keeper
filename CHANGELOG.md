@@ -6,6 +6,43 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [Unreleased]
+
+### Security
+
+- **Saving settings and exporting the home inventory are now actually admin-only.**
+  Both were guarded in the panel's websocket API but not in
+  the matching `home_keeper.set_options` / `home_keeper.export_inventory` services, so
+  any signed-in user could call the service and get the same result, inventory value
+  totals included. Both halves are gated now, and appliance changes join them.
+- **Appliance data no longer leaks to non-admin accounts.** Reading appliances stays
+  open, because the dashboard card needs it, but a non-admin now receives only what
+  the card renders: documents, product links and link-type custom fields. Purchase
+  costs, part costs, serial numbers, warranty dates and free-text custom fields are
+  withheld.
+- **Notifications only go where Home Keeper says they go.** Saved notifications and the
+  `target:` option on `home_keeper.notify` accepted any notify service, so Home Keeper
+  could be pointed at an email or chat integration it never advertised. Companion-app
+  (`mobile_app_*`) targets and `persistent_notification` are accepted; anything else is
+  refused, loudly when you ask for it and with a log warning when a stored one is
+  dropped.
+- **Only the built panel files are published.** The panel used to serve its whole
+  frontend directory, which Home Assistant exposes before login. Installations from
+  HACS were unaffected (the release archive never carried those files); a Git-clone
+  install exposed the panel's source tree and dependencies.
+- **Links render through a scheme check, not just escaping**, everywhere rather than
+  almost everywhere. Escaping alone doesn't defuse a `javascript:` link, and some links
+  reach Home Keeper from other integrations.
+
+### Changed
+
+- **The Home Keeper panel now requires an administrator account.** Managing your home
+  is administration, and Home Assistant reserves that for admins, so the panel follows
+  the same rule its own Settings does. Everyone else in the household keeps the to-do
+  list, the calendar, the device-page buttons and the dashboard card, and can still
+  complete, snooze, skip and add tasks. The new
+  [security model](docs/SECURITY.md) page spells out where the line falls.
+
 ## [0.14.0b2]
 
 ### Added

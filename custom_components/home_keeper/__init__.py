@@ -21,7 +21,11 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.exceptions import (
+    HomeAssistantError,
+    ServiceValidationError,
+    Unauthorized,
+)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.start import async_at_started
@@ -39,7 +43,7 @@ from . import (
     sensor_tasks,
     websocket_api,
 )
-from .assets import AssetValidationError
+from .assets import AssetValidationError, card_projection
 from .const import (
     DOMAIN,
     OPTION_DISMISSED_COMPANIONS,
@@ -615,6 +619,35 @@ def _register_services(hass: HomeAssistant) -> None:
             translation_domain=DOMAIN, translation_key="integration_not_loaded"
         )
 
+    async def _caller_is_admin(call: ServiceCall) -> bool:
+        """Whether *call* may see/do administrative things.
+
+        ``context.user_id`` is ``None`` for an internal or automation-triggered call
+        — there is no user to measure, and HA core treats that as trusted.
+        """
+        if (user_id := call.context.user_id) is None:
+            return True
+        user = await hass.auth.async_get_user(user_id)
+        return user is not None and user.is_admin
+
+    async def _verify_admin(call: ServiceCall) -> None:
+        """Reject a non-admin caller of an administrative service.
+
+        The websocket twins of these services are ``@websocket_api.require_admin``,
+        and a service call is the same operation over the same authenticated
+        connection — without this, ``call_service`` is a hole straight through that
+        decorator. ``context.user_id`` is ``None`` for an internal or
+        automation-triggered call (no user to check), which HA core treats as
+        trusted; only a call that carries a user is measured against it.
+
+        Raises HA core's ``Unauthorized`` rather than a translated
+        ``ServiceValidationError``: this is an auth failure, not bad input, and the
+        websocket/REST layers already map it to a 401/``unauthorized`` the frontend
+        renders. See ``.amazonq/rules/architecture-and-code.md`` → "Privilege model".
+        """
+        if not await _caller_is_admin(call):
+            raise Unauthorized(context=call.context)
+
     def _check_area(data: dict) -> None:
         if not devices.area_exists(hass, data.get("area_id")):
             raise ServiceValidationError(
@@ -945,6 +978,7 @@ def _register_services(hass: HomeAssistant) -> None:
         }
 
     async def handle_add_asset(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         _check_area(call.data)
         try:
@@ -958,6 +992,7 @@ def _register_services(hass: HomeAssistant) -> None:
         await devices.async_apply_asset_change(hass, coord.entry, coord.store)
 
     async def handle_update_asset(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         _check_area(call.data)
         data = dict(call.data)
@@ -979,10 +1014,12 @@ def _register_services(hass: HomeAssistant) -> None:
         await devices.async_apply_asset_change(hass, coord.entry, coord.store)
 
     async def handle_delete_asset(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         await _delete_asset(hass, coord, call.data["asset_id"])
 
     async def handle_archive_asset(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         asset_id = call.data["asset_id"]
         asset = await coord.store.archive_asset(asset_id)
@@ -994,6 +1031,7 @@ def _register_services(hass: HomeAssistant) -> None:
             )
 
     async def handle_restore_asset(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         asset_id = call.data["asset_id"]
         asset = await coord.store.restore_asset(asset_id)
@@ -1005,10 +1043,19 @@ def _register_services(hass: HomeAssistant) -> None:
             )
 
     async def handle_list_assets(call: ServiceCall) -> dict[str, Any]:
+        # The service twin of ``ws_get_assets``, and gated the same way: a non-admin
+        # gets the card-link projection, not the costs and serial numbers
+        # ``export_inventory`` is admin-only to protect. Without this the projection
+        # on the websocket read would be trivially side-stepped by calling the
+        # service instead.
         coord = _coordinator()
-        return {"assets": coord.store.list_assets()}
+        assets = coord.store.list_assets()
+        if not await _caller_is_admin(call):
+            assets = card_projection(assets)
+        return {"assets": assets}
 
     async def handle_adjust_part_stock(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         try:
             await coord.store.adjust_part_stock(
@@ -1028,6 +1075,7 @@ def _register_services(hass: HomeAssistant) -> None:
         await coord.async_settle_buy_tasks()
 
     async def handle_remove_part_file(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         try:
             await coord.store.remove_part_file(
@@ -1044,6 +1092,7 @@ def _register_services(hass: HomeAssistant) -> None:
             ) from None
 
     async def handle_add_asset_document(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         document = dict(call.data["document"])
         # Files are uploaded through the HTTP view; the service only adds links.
@@ -1075,6 +1124,7 @@ def _register_services(hass: HomeAssistant) -> None:
         # event, so no device reconcile or entry reload is needed.
 
     async def handle_remove_asset_document(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         try:
             await coord.store.remove_asset_document(
@@ -1088,6 +1138,7 @@ def _register_services(hass: HomeAssistant) -> None:
             ) from None
 
     async def handle_update_asset_document(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         try:
             await coord.store.update_asset_document(
@@ -1157,6 +1208,9 @@ def _register_services(hass: HomeAssistant) -> None:
         }
 
     async def handle_export_inventory(call: ServiceCall) -> dict[str, Any]:
+        # Admin-only: the report carries every asset's serial numbers, purchase costs
+        # and value totals. Mirrors ``ws_export_inventory``'s ``require_admin``.
+        await _verify_admin(call)
         coord = _coordinator()
         report = inventory.build_inventory(
             coord.store.list_assets(),
@@ -1300,6 +1354,9 @@ def _register_services(hass: HomeAssistant) -> None:
     )
 
     async def handle_set_options(call: ServiceCall) -> None:
+        # Admin-only: mutating config-entry options is administration, which HA core
+        # reserves for admins. Mirrors ``ws_set_options``'s ``require_admin``.
+        await _verify_admin(call)
         coord = _coordinator()
         await options.async_set_options(hass, coord.entry, dict(call.data))
 

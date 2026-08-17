@@ -498,3 +498,51 @@ def test_sign_document_url_unknown_document_errors(ha):
     )
     assert r.status_code >= 400, "signing an unknown document must fail"
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_signed_url_cannot_be_used_to_upload(ha):
+    """A signed URL is a *read* credential and must never become an upload primitive.
+
+    GET and POST share one route here, and the signature is what makes the GET work
+    with no auth header. Home Assistant only considers a signed request when
+    ``request.method == "GET"`` (``homeassistant/components/http/auth.py``), so the
+    POST should never authenticate — this pins that behaviour against the HA the
+    suite actually runs, and covers the view's own check for the day it changes.
+    """
+    name = f"Doc signed-post probe {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    doc_id = uuid.uuid4().hex
+    up = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc_id}",
+        files={"file": ("manual.pdf", PDF_BYTES, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=30,
+    )
+    assert up.status_code == 200, up.text
+
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "sign_document_url",
+        {"asset_id": asset["id"], "document_id": doc_id},
+        return_response=True,
+    )
+    parsed = urlsplit(resp.get("service_response", resp)["url"])
+    reachable_url = urlunsplit(urlsplit(HA_URL)[:2] + parsed[2:])
+
+    # The read the signature is for still works...
+    assert requests.get(reachable_url, timeout=10).status_code == 200
+    # ...but the same credential must not write.
+    posted = requests.post(
+        reachable_url,
+        files={"file": ("planted.pdf", PDF_BYTES, "application/pdf")},
+        timeout=30,
+    )
+    assert posted.status_code == 401, (
+        f"a signed read URL was accepted for an upload: {posted.status_code}"
+    )
+
+    # And the upload really did not land: the document list is unchanged.
+    after = next(a for a in _assets(ha) if a["id"] == asset["id"])
+    assert len(after.get("documents", [])) == 1
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})

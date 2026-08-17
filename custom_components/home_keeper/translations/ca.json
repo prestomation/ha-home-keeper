@@ -832,6 +832,12 @@
     "notify_no_targets": {
       "message": "Aquesta notificació no té cap destinatari: afegeix un dispositiu «Envia a» a Configuració → Notificacions, o passa target: en cridar-la."
     },
+    "notify_invalid_target": {
+      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
+    },
+    "upload_requires_user": {
+      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
+    },
     "integration_not_loaded": {
       "message": "Home Keeper no està carregat en aquest moment. Torneu-ho a provar d'aquí a un moment."
     },

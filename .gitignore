@@ -5,8 +5,7 @@ __pycache__/
 node_modules/
 
 # Build artifacts
-custom_components/home_keeper/frontend/home-keeper-panel.js
-custom_components/home_keeper/frontend/home-keeper-card.js
+custom_components/home_keeper/frontend/dist/
 home_keeper.zip
 
 # Coverage artifacts

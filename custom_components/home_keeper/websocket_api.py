@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
 from . import companions, devices, inventory, manuals, notifier, options
-from .assets import AssetValidationError
+from .assets import AssetValidationError, card_projection
 from .backend_i18n import resolve_exception
 from .const import DOMAIN, OPTION_PROFILES
 from .coordinator import HomeKeeperCoordinator, entity_set_key, task_has_entities
@@ -427,11 +427,21 @@ async def ws_delete_archived_completion(
 async def ws_get_assets(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
+    """Return the appliances — in full for an admin, projected for anyone else.
+
+    Not ``require_admin``: the dashboard card is a usage surface open to every
+    household member and it reads appliance data to resolve a task's card links. So
+    a non-admin gets :func:`assets.card_projection` — the link-rendering subset —
+    rather than the costs and serial numbers ``export_inventory`` is gated on.
+    """
     coord = _coordinator(hass)
     if coord is None:
         _not_loaded(hass, connection, msg)
         return
-    connection.send_result(msg["id"], {"assets": coord.store.list_assets()})
+    assets = coord.store.list_assets()
+    if not connection.user.is_admin:
+        assets = card_projection(assets)
+    connection.send_result(msg["id"], {"assets": assets})
 
 
 @websocket_api.websocket_command(
@@ -440,6 +450,7 @@ async def ws_get_assets(
         vol.Required("asset"): dict,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_add_asset(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -469,6 +480,7 @@ async def ws_add_asset(
         vol.Required("updates"): dict,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_update_asset(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -506,6 +518,7 @@ async def ws_update_asset(
         vol.Required("asset_id"): str,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_delete_asset(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -529,6 +542,7 @@ async def ws_delete_asset(
         vol.Required("asset_id"): str,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_archive_asset(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -557,6 +571,7 @@ async def ws_archive_asset(
         vol.Required("asset_id"): str,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_restore_asset(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -587,6 +602,7 @@ async def ws_restore_asset(
         vol.Required("delta"): int,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_adjust_part_stock(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -623,6 +639,7 @@ async def ws_adjust_part_stock(
         vol.Required("document"): dict,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_add_asset_document(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -664,6 +681,7 @@ async def ws_add_asset_document(
         vol.Required("document_id"): str,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_remove_asset_document(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -698,6 +716,7 @@ async def ws_remove_asset_document(
         vol.Required("changes"): dict,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_update_asset_document(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
@@ -765,6 +784,7 @@ async def ws_sign_document_url(
         vol.Required("part_id"): str,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_remove_part_file(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]

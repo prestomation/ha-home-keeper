@@ -34,7 +34,7 @@ async def async_register_card(hass: HomeAssistant) -> None:
     """
     if hass.data.get(_CARD_REGISTERED):
         return
-    card_path = Path(__file__).parent / "frontend" / CARD_JS_FILENAME
+    card_path = Path(__file__).parent / "frontend" / "dist" / CARD_JS_FILENAME
     token = await hass.async_add_executor_job(cache_token, card_path)
     url = f"{PANEL_STATIC_URL}/{CARD_JS_FILENAME}?v={token}"
     frontend.add_extra_js_url(hass, url)

@@ -38,6 +38,7 @@ import {
   isOverdue,
   labelName,
   recurrenceSummary,
+  safeFileHref,
   safeHref,
 } from './utils';
 
@@ -783,10 +784,12 @@ export class HomeKeeperCard extends HTMLElement {
   private _documentChip(chip: DocumentChip): string {
     const name = escapeHTML(chip.name);
     const iconSlot = `<ha-icon slot="icon" icon="${escapeHTML(chip.icon)}" class="hk-chip-ic"></ha-icon>`;
-    // `chip.url` is already validated at resolution time — external links pass
-    // `isHttpUrl`, uploaded files carry a server-minted *site-relative* signed URL
-    // (which `safeHref` would reject) — so escape it directly rather than re-guarding.
-    return `<a class="hk-task-chip-link hk-link-chip" href="${escapeHTML(chip.url)}" target="_blank" rel="noopener noreferrer" title="${name}"><ha-assist-chip label="${name}">${iconSlot}</ha-assist-chip></a>`;
+    // `safeFileHref`, not `safeHref`: an uploaded file's chip carries a server-minted
+    // *site-relative* signed URL, which the http(s)-only guard would blank. Guarding
+    // here as well as at resolution time is deliberate — `escapeHTML` alone does not
+    // neutralise a `javascript:` URI in href position, and a chip can originate in
+    // another integration's `add_task` call.
+    return `<a class="hk-task-chip-link hk-link-chip" href="${safeFileHref(chip.url)}" target="_blank" rel="noopener noreferrer" title="${name}"><ha-assist-chip label="${name}">${iconSlot}</ha-assist-chip></a>`;
   }
 
   private _row(task: Task): string {

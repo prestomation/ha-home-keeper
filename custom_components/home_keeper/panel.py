@@ -50,7 +50,11 @@ def cache_token(path: Path) -> str:
 
 async def async_register_panel(hass: HomeAssistant) -> None:
     """Register the static path and the sidebar panel (idempotent)."""
-    frontend_dir = Path(__file__).parent / "frontend"
+    # Only the built bundles, never the whole `frontend/` tree: HA serves static
+    # paths *before* authentication, so mounting the source directory would publish
+    # `src/`, `test/`, `node_modules/` and `package*.json` to anyone who can reach
+    # the port. rollup writes both bundles here (see rollup.config.mjs).
+    frontend_dir = Path(__file__).parent / "frontend" / "dist"
     try:
         await hass.http.async_register_static_paths(
             [StaticPathConfig(PANEL_STATIC_URL, str(frontend_dir), False)]
@@ -73,7 +77,12 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         sidebar_title=PANEL_TITLE,
         sidebar_icon=PANEL_ICON,
         frontend_url_path=PANEL_URL_PATH,
-        require_admin=False,
+        # Administration is admin-only, the same line HA core draws around Settings
+        # and Developer tools (and every ``config/*`` websocket command). Usage is
+        # unaffected: a non-admin household member still completes tasks through the
+        # todo list, the calendar, the per-task device entities and the dashboard
+        # card. See docs/DESIGN.md → "Privilege model".
+        require_admin=True,
         config={
             "_panel_custom": {
                 "name": WEBCOMPONENT_NAME,

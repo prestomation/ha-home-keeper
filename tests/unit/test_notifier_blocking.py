@@ -214,7 +214,10 @@ def test_send_does_not_block_the_event_loop(monkeypatch):
     hass = _FakeHass()
     notification = notifications.normalize_notification(
         {
-            "targets": ["persistent_notification"],
+            # A real companion-app target: `normalize_notification` drops anything
+            # that is not a `mobile_app_*` service, so a stand-in name would make
+            # this send a no-op and the test vacuous.
+            "targets": ["mobile_app_phone"],
             "actions": ["complete"],
             "style": notifications.STYLE_WALK,
         }
@@ -228,7 +231,7 @@ def test_send_does_not_block_the_event_loop(monkeypatch):
 
     assert matched == 1
     assert sent == "t1"
-    assert hass.services.calls, "expected a notify.persistent_notification call"
+    assert hass.services.calls, "expected a notify.mobile_app_phone call"
     assert call_threads, "expected the translation/plural-rule lookups to run"
     assert main_thread_id not in call_threads, (
         "notification string/plural-rule lookups ran on the event loop thread — "

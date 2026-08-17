@@ -176,7 +176,7 @@ gate); CI publishes it to the job summary.
   `preview-release.yml` publishes an installable ephemeral pre-release
   (`X.Y.Z.dev<pr>`) from the PR head for pre-merge HACS testing (auto-deleted on
   close; see RELEASE.md). Bug-fix/developer-only PRs don't.
-- The built `home-keeper-panel.js` is gitignored; CI builds it.
+- The built `dist/home-keeper-panel.js` is gitignored; CI builds it.
 
 ## Typing (strict-typing gate — Platinum)
 - The integration is **fully typed** and ships `custom_components/home_keeper/py.typed`.

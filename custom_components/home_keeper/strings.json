@@ -352,7 +352,7 @@
         },
         "target": {
           "name": "Target",
-          "description": "Notify services to send to, overriding the profile (e.g. mobile_app_phone)."
+          "description": "Notify services to send to, overriding the profile. Must be companion-app services (e.g. mobile_app_phone) or persistent_notification."
         }
       }
     },
@@ -831,6 +831,12 @@
     },
     "notify_no_targets": {
       "message": "This notification has no target to send to. Add a \"Send to\" device in Settings → Notifications, or pass target: when calling the service."
+    },
+    "notify_invalid_target": {
+      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
+    },
+    "upload_requires_user": {
+      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
     },
     "integration_not_loaded": {
       "message": "Home Keeper isn't loaded right now. Please try again in a moment."

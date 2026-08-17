@@ -44,8 +44,10 @@ _LOGGER = logging.getLogger(__name__)
 EVENT_MOBILE_APP_ACTION = "mobile_app_notification_action"
 
 # notify services we can target with actionable payloads (the legacy per-device
-# services — the newer notify entity API doesn't carry ``data.actions``).
-_TARGET_PREFIX = "mobile_app_"
+# services — the newer notify entity API doesn't carry ``data.actions``). The prefix
+# lives in :mod:`notifications`, which enforces it on every stored target; here it
+# only narrows what the picker offers.
+_TARGET_PREFIX = notifications.TARGET_PREFIX
 
 
 def available_targets(hass: HomeAssistant) -> list[str]:
@@ -310,6 +312,19 @@ async def async_run_notify(
     # Delivery = the saved notification's, with an optional per-call target override.
     notif_raw: dict[str, Any] = {"name": "ad-hoc", **(base_notif or {})}
     if "target" in data:
+        # An explicit override that names an unsupported service fails loudly rather
+        # than being silently filtered: the caller asked for a specific destination,
+        # and "sent: 0" would read as "nothing was due".
+        _, rejected = notifications.split_targets(data["target"])
+        if rejected:
+            return {}, {
+                "key": "notify_invalid_target",
+                "placeholders": {
+                    "target": ", ".join(rejected),
+                    "prefix": notifications.TARGET_PREFIX,
+                    "persistent": notifications.TARGET_PERSISTENT,
+                },
+            }
         notif_raw["targets"] = data["target"]
     notif_raw["profile_id"] = profile["id"]
     notification = notifications.normalize_notification(notif_raw)

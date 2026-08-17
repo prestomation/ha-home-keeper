@@ -66,4 +66,5 @@ export const DEV_DOCS = [
   {file: 'docs/GLUE_INTEGRATIONS.md', out: 'glue-integrations.md', title: 'Glue integrations', label: 'Glue integrations', pos: 2},
   {file: 'docs/EVENTS.md', out: 'events.md', title: 'Events reference', label: 'Events', pos: 3},
   {file: 'docs/DESIGN.md', out: 'architecture.md', title: 'Architecture', label: 'Architecture', pos: 4},
+  {file: 'docs/SECURITY.md', out: 'security.md', title: 'Security model', label: 'Security', pos: 5},
 ];

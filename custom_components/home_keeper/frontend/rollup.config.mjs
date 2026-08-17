@@ -36,11 +36,17 @@ const plugins = () => [
 
 // Two bundles ship with the integration: the full-page sidebar panel and the
 // resizable dashboard task card. Both are served from the same static path.
+//
+// They build into `dist/` rather than alongside the sources on purpose: `panel.py`
+// mounts the output directory as a Home Assistant static path, and HA static paths
+// are served *before* authentication. Emitting here would publish `src/`, `test/`,
+// `node_modules/` and `package*.json` to anyone who can reach the HA port. The
+// served URLs are unchanged (`/home_keeper_panel/<bundle>.js`).
 export default [
   {
     input: 'src/index.ts',
     output: {
-      file: 'home-keeper-panel.js',
+      file: 'dist/home-keeper-panel.js',
       format: 'iife',
       name: 'HomeKeeperPanelBundle',
       banner: `/**\n * Home Keeper panel — home maintenance & chores for Home Assistant.\n * Bundled with the Home Keeper integration — no manual setup required.\n * Version: ${PANEL_VERSION}\n * Built: ${BUILD_DATE}\n */`,
@@ -50,7 +56,7 @@ export default [
   {
     input: 'src/card-index.ts',
     output: {
-      file: 'home-keeper-card.js',
+      file: 'dist/home-keeper-card.js',
       format: 'iife',
       name: 'HomeKeeperCardBundle',
       banner: `/**\n * Home Keeper task card — a resizable dashboard list of maintenance tasks.\n * Bundled with the Home Keeper integration — no manual setup required.\n * Version: ${PANEL_VERSION}\n * Built: ${BUILD_DATE}\n */`,
