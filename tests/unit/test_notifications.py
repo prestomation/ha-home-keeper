@@ -109,17 +109,51 @@ def test_normalize_notification_drops_unsupported_targets(caplog):
     # text through an admin's SMTP/Telegram service just because something wrote that
     # name into the options blob.
     notif = n.normalize_notification(
-        {"name": "Me", "targets": ["mobile_app_phone", "smtp_family"]}
+        {"name": "Me", "targets": ["mobile_app_phone", "smtp_family", "telegram"]}
     )
     assert notif["targets"] == ["mobile_app_phone"]
-    assert "smtp_family" in caplog.text
+    # The warning has to be actionable on its own: which targets were dropped (as a
+    # readable list) and what would have been accepted instead.
+    assert "Home Keeper dropped notify target(s)" in caplog.text
+    assert "smtp_family, telegram" in caplog.text
     assert n.TARGET_PREFIX in caplog.text
+    assert n.TARGET_PERSISTENT in caplog.text
 
 
-def test_normalize_notification_keeps_quiet_when_every_target_is_valid():
+def test_normalize_notification_keeps_quiet_when_every_target_is_valid(caplog):
     # No warning on the ordinary path — an alarm that cries wolf gets filtered out.
     with_valid = n.normalize_notification({"targets": ["mobile_app_phone"]})
     assert with_valid["targets"] == ["mobile_app_phone"]
+    assert "dropped notify target" not in caplog.text
+
+
+def test_normalize_notification_snooze_of_one_hour_is_kept():
+    # 1 is the documented floor (services.yaml's selector minimum), not a value to
+    # round up: the guard rejects what is *below* it.
+    assert n.normalize_notification({"snooze_hours": 1})["snooze_hours"] == 1
+
+
+def test_normalize_notification_keeps_a_known_style():
+    # A stored style must survive normalization; only an unknown one falls back.
+    assert n.normalize_notification({"style": n.STYLE_DIGEST})["style"] == n.STYLE_DIGEST
+    assert n.normalize_notification({"style": "carrier-pigeon"})["style"] == n.STYLE_WALK
+
+
+def test_normalize_notification_default_name():
+    # The fallback is user-visible (it labels the notification in Settings), so it is
+    # a specific string, not just "something truthy".
+    assert n.normalize_notification({})["name"] == "Notification"
+    assert n.normalize_notification({"name": "Kitchen"})["name"] == "Kitchen"
+
+
+def test_normalize_notification_auto_triggers_round_trip():
+    # Both auto triggers are read independently and default off. A notification that
+    # silently lost its "overdue" flag would simply stop firing.
+    both = n.normalize_notification({"auto": {"overdue": True, "due_soon": True}})
+    assert both["auto"] == {"overdue": True, "due_soon": True}
+    one = n.normalize_notification({"auto": {"overdue": True}})
+    assert one["auto"] == {"overdue": True, "due_soon": False}
+    assert n.normalize_notification({})["auto"] == {"overdue": False, "due_soon": False}
 
 
 def test_normalize_notifications_filters_each_entry():

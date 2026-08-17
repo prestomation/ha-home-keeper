@@ -48,6 +48,12 @@ show_missing = true
 # mutation testing says a test would have *failed* if that line were wrong.
 [tool.mutmut]
 source_paths = ["custom_components/home_keeper"]
+# mutmut runs the suite inside a `mutants/` copy that holds only the source paths
+# and the tests. `tests/unit/test_ci_check_ha_version.py` loads `ci/check-ha-version.py`
+# by path (the hyphen makes it unimportable), so without this the whole run dies at
+# stat collection — never noticed, because the two PRs since that test landed changed
+# no mutable Python and mutmut was skipped.
+also_copy = ["ci"]
 # The mutable surface: the pure core, which the fast `tests/unit` tier covers
 # directly. Everything else in the integration imports Home Assistant and is
 # only exercised by the Docker tiers — far too slow to run once per mutant, and
