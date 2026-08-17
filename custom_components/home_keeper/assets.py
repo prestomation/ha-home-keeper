@@ -904,6 +904,45 @@ def tasks_for_asset(asset: dict, tasks: list[dict]) -> list[dict]:
     return [task for task in tasks if task_relates_to_asset(task, asset)]
 
 
+# The only fields of a part the dashboard card reads (to render a linked part's
+# product-URL chip). Everything else about a part — cost, vendor, stock levels, part
+# number, notes — is administration and stays admin-only.
+_CARD_PART_FIELDS = ("id", "name", "url")
+
+
+def card_projection(assets: list[dict]) -> list[dict]:
+    """The subset of asset data a **non-admin** caller needs, and nothing more.
+
+    Administration is admin-only (the panel is ``require_admin``), but the dashboard
+    card is a usage surface every household member can see, and it reads appliance
+    data to resolve a task's "show on card" links. Without this, ``get_assets`` hands
+    any logged-in user the replacement costs, serial numbers and warranty dates that
+    ``export_inventory`` is admin-gated to protect — making that gate meaningless.
+
+    The card needs exactly three things: an asset's ``documents`` (a card link can
+    point at one), its ``link``-typed ``metadata`` entries (a card link can point at
+    one of those too, and its value is a URL the user chose to publish), and a part's
+    id/name/url. This is a **whitelist**: a field added to the asset record later is
+    private until someone adds it here on purpose.
+    """
+    return [
+        {
+            "id": asset.get("id"),
+            "documents": list(asset.get("documents") or []),
+            "metadata": [
+                entry
+                for entry in (asset.get("metadata") or [])
+                if entry.get("type") == "link"
+            ],
+            "parts": [
+                {field: part.get(field) for field in _CARD_PART_FIELDS}
+                for part in (asset.get("parts") or [])
+            ],
+        }
+        for asset in assets
+    ]
+
+
 def find_archiving_asset(assets_by_id: dict[str, dict], task: dict) -> dict | None:
     """The asset a deleted *task*'s history should be preserved on, or None.
 

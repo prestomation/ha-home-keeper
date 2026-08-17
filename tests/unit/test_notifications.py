@@ -70,6 +70,65 @@ def test_normalize_notification_bad_snooze_falls_back():
     assert n.normalize_notification({"snooze_hours": 6})["snooze_hours"] == 6
 
 
+def test_split_targets_partitions_by_prefix():
+    accepted, rejected = n.split_targets(
+        ["mobile_app_phone", "smtp_family", "mobile_app_tablet", "telegram"]
+    )
+    assert accepted == ["mobile_app_phone", "mobile_app_tablet"]
+    assert rejected == ["smtp_family", "telegram"]
+
+
+def test_split_targets_on_junk_input():
+    # A bare string, None, and non-string members all normalize to "nothing valid"
+    # rather than raising into the send loop.
+    assert n.split_targets(None) == ([], [])
+    assert n.split_targets("mobile_app_phone") == ([], [])
+    assert n.split_targets(["mobile_app_phone", None, ""]) == (["mobile_app_phone"], [])
+
+
+def test_split_targets_allows_the_in_instance_sink():
+    # `persistent_notification` is the one non-companion target that never leaves the
+    # instance, so it is allowlisted alongside the mobile_app_* services.
+    accepted, rejected = n.split_targets(["persistent_notification", "smtp_family"])
+    assert accepted == ["persistent_notification"]
+    assert rejected == ["smtp_family"]
+    assert n.is_allowed_target("persistent_notification")
+    assert not n.is_allowed_target("persistent_notification_extra")
+
+
+def test_split_targets_rejects_a_lookalike_prefix():
+    # The check is a prefix, not a substring: a service that merely *contains* the
+    # token is a different service and must not slip through.
+    accepted, rejected = n.split_targets(["notify_mobile_app_phone", "MOBILE_APP_x"])
+    assert accepted == []
+    assert rejected == ["notify_mobile_app_phone", "MOBILE_APP_x"]
+
+
+def test_normalize_notification_drops_unsupported_targets(caplog):
+    # The confused-deputy fix: a stored notification cannot route Home-Keeper-authored
+    # text through an admin's SMTP/Telegram service just because something wrote that
+    # name into the options blob.
+    notif = n.normalize_notification(
+        {"name": "Me", "targets": ["mobile_app_phone", "smtp_family"]}
+    )
+    assert notif["targets"] == ["mobile_app_phone"]
+    assert "smtp_family" in caplog.text
+    assert n.TARGET_PREFIX in caplog.text
+
+
+def test_normalize_notification_keeps_quiet_when_every_target_is_valid():
+    # No warning on the ordinary path — an alarm that cries wolf gets filtered out.
+    with_valid = n.normalize_notification({"targets": ["mobile_app_phone"]})
+    assert with_valid["targets"] == ["mobile_app_phone"]
+
+
+def test_normalize_notifications_filters_each_entry():
+    notifs = n.normalize_notifications(
+        [{"targets": ["smtp_family"]}, {"targets": ["mobile_app_phone"]}]
+    )
+    assert [notif["targets"] for notif in notifs] == [[], ["mobile_app_phone"]]
+
+
 def test_resolve_notification_by_id_then_name():
     notifs = [n.normalize_notification({"id": "a", "name": "Me"})]
     assert n.resolve_notification(notifs, "a")["name"] == "Me"

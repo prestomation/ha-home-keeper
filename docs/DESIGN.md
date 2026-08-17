@@ -38,8 +38,14 @@ leak sensors, filter pressure). See [INTEGRATING.md](INTEGRATING.md) §7 and
     device-attached tasks**. They cover mark-done / next-due / overdue.
 - `panel.py` + `frontend/` provide the admin sidebar panel (a custom HA panel registered
   via `frontend.async_register_built_in_panel` with a `_panel_custom` config block).
+  It is registered `require_admin=True`: administration is an admin activity, so the
+  panel is not offered to a non-admin at all.
 - `websocket_api.py` + services in `__init__.py` provide CRUD + complete. The panel uses
-  websocket commands, automations use services.
+  websocket commands, automations use services. **Both halves carry the same privilege
+  gate** — a websocket command and its service twin are one operation over one
+  authenticated connection, so gating only the command leaves `call_service` open.
+  See [the security model](SECURITY.md) for which operations are admin-only and what
+  a non-admin reads instead.
 
 ## Why a panel (not a Lovelace card) for admin
 

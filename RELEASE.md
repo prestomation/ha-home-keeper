@@ -21,7 +21,7 @@ the GitHub release automatically. No manual `git tag` step.
    2. Verify a matching `## [X.Y.Z]` entry exists in `CHANGELOG.md` and that
       `PANEL_VERSION` matches. If either check fails, the workflow fails loudly.
    3. Skip silently if tag `vX.Y.Z` already exists.
-   4. Build `home-keeper-panel.js` from TypeScript via Rollup.
+   4. Build `dist/home-keeper-panel.js` from TypeScript via Rollup.
    5. Build `home_keeper.zip` (the HACS asset).
    6. Push tag `vX.Y.Z` and create the GitHub Release with the changelog section as
       the body and `home_keeper.zip` attached.
@@ -66,7 +66,8 @@ design and rationale.
 
 - **Never push directly to `main`.** All changes go through PRs.
 - **Never create GitHub releases manually** — `release.yml` handles tag, zip, release.
-- **`home-keeper-panel.js` is gitignored.** It's built by CI from TypeScript source.
+- **`dist/home-keeper-panel.js` is gitignored.** It's built by CI from TypeScript
+  source.
 - **`hacs.json` must have `zip_release: true`** with `filename: home_keeper.zip`.
 
 ## Troubleshooting

@@ -81,6 +81,15 @@ A **task** has a name, notes, an optional device it's attached to, and a recurre
 An **appliance** (asset) is the physical thing a task is about: a fridge, furnace,
 water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).
 
+**Who can do what.** Managing your home is an admin job; using the list is not. The
+sidebar panel and everything behind it (creating and editing appliances, settings,
+profiles, notification delivery, the inventory export) is for Home Assistant
+**administrators**, the same line HA draws around its own Settings. Everyone else in
+the household keeps the to-do list, the calendar, the device-page buttons and the
+dashboard card, so they can see what's due and mark it done. Full details, including
+what appliance data a non-admin can read, are in
+[the security model](docs/SECURITY.md).
+
 ### Put a task in a room
 
 Every task can sit in a Home Assistant **area**, so your upkeep sorts by room. Pick one
@@ -523,7 +532,9 @@ notification is a delivery config with:
   filter decides which tasks this notification covers (leave it unset to cover every due
   task).
 - **Send to**: one or more `mobile_app_*` companion-app devices (picked from a live
-  list).
+  list). Those and `persistent_notification` are the destinations Home Keeper will
+  send to; other notify services are refused (see
+  [the security model](docs/SECURITY.md)).
 - **Buttons**: which of *Mark done / Snooze / Skip / Open* appear, and the snooze
   duration.
 - **Style**: a **walk** (sends the first due task, then the next each time you action

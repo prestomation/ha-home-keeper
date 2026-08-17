@@ -193,11 +193,16 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   they are unit-testable in isolation — keep them that way.
 - **Storage:** local, single JSON document `.storage/home_keeper`.
 - **Frontend:** TypeScript + Rollup at `custom_components/home_keeper/frontend/`.
-  Source in `src/*.ts`, builds to `home-keeper-panel.js` (gitignored, built by CI;
+  Source in `src/*.ts`, builds to `dist/home-keeper-panel.js` (gitignored, built by
+  CI; only `dist/` is served as a static path, since HA serves those pre-auth;
   see `ci/build-panel.sh`).
 - **Admin vs usage:** management lives in the **sidebar panel** (a custom HA panel);
   usage is exposed via native `todo`/`calendar` entities and per-task device-page
-  entities. Don't blur these — administration stays in the panel.
+  entities. Don't blur these — administration stays in the panel. That split is also
+  the **privilege boundary**: the panel is `require_admin=True`, and an admin-only
+  operation must be gated in *both* its websocket command and its service twin, or
+  `call_service` walks around the gate. See `docs/SECURITY.md` and
+  `.amazonq/rules/architecture-and-code.md` → "Privilege model".
 - **Docs site:** `website/` is a Docusaurus site deployed to GitHub Pages
   (https://prestomation.github.io/ha-home-keeper/). It has a **User Guide** and a
   **Developer Guide** (the `docs/INTEGRATING.md` equivalent). **The content pages are

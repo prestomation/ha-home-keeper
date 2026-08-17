@@ -6,6 +6,7 @@
 //   docs/INTEGRATING.md  -> website/developer/integrating.md
 //   docs/EVENTS.md       -> website/developer/events.md
 //   docs/DESIGN.md       -> website/developer/architecture.md
+//   docs/SECURITY.md     -> website/developer/security.md
 //
 // The generated trees (website/docs/guide, website/developer) are gitignored; the
 // canonical files stay the single source of truth. Run via `npm run sync` (wired
@@ -30,6 +31,7 @@ const DOC_ROUTES = {
   'docs/INTEGRATING.md': '/developer/integrating',
   'docs/EVENTS.md': '/developer/events',
   'docs/DESIGN.md': '/developer/architecture',
+  'docs/SECURITY.md': '/developer/security',
 };
 
 // README same-page anchors that now live on their own User Guide pages.

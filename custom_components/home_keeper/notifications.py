@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import functools
 import json
+import logging
 import re
 import uuid
 from datetime import datetime
@@ -23,6 +24,17 @@ from typing import Any
 
 from babel import Locale
 from babel.core import UnknownLocaleError
+
+_LOGGER = logging.getLogger(__name__)
+
+# The notify services Home Keeper delivers to. Actionable payloads go to the
+# companion app's legacy per-device ``notify.mobile_app_*`` services (the newer
+# notify entity API doesn't carry ``data.actions``, which every button rides on);
+# ``persistent_notification`` is allowed alongside them as the one sink that stays
+# *inside* Home Assistant — it drops the buttons but shows the text, and it cannot
+# carry anything off the instance.
+TARGET_PREFIX = "mobile_app_"
+TARGET_PERSISTENT = "persistent_notification"
 
 # Notification action verbs (the button behaviours). ``open`` is a client-side URI
 # deep-link (no backend callback).
@@ -81,6 +93,32 @@ def _str_list(value: Any) -> list[str]:
     return [str(v) for v in value if v not in (None, "")]
 
 
+def is_allowed_target(target: str) -> bool:
+    """Whether Home Keeper may deliver to the ``notify.<target>`` service."""
+    return target.startswith(TARGET_PREFIX) or target == TARGET_PERSISTENT
+
+
+def split_targets(value: Any) -> tuple[list[str], list[str]]:
+    """Partition raw notify targets into ``(accepted, rejected)``.
+
+    The picker in the panel only ever offers ``mobile_app_*`` services, but that is a
+    UI courtesy — nothing stopped a stored notification (or a ``target:`` override on
+    ``home_keeper.notify``) from naming *any* notify service the admin has set up:
+    SMTP, Telegram, a webhook. That turns Home Keeper into a confused deputy, relaying
+    text an unprivileged caller controls out through a channel they could not reach
+    themselves. So the allowlist is enforced where the value is *stored*, not only
+    where it is displayed.
+
+    ``persistent_notification`` is allowed because it is the one destination that
+    never leaves the instance: what it delivers, an HA user could already read.
+    """
+    accepted: list[str] = []
+    rejected: list[str] = []
+    for target in _str_list(value):
+        (accepted if is_allowed_target(target) else rejected).append(target)
+    return accepted, rejected
+
+
 def normalize_notification(raw: Any) -> dict[str, Any]:
     """Coerce one raw notification to its stored, fully-defaulted shape.
 
@@ -102,11 +140,19 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
     if snooze_hours < 1:
         snooze_hours = DEFAULT_SNOOZE_HOURS
     style = raw.get("style")
+    targets, rejected = split_targets(raw.get("targets"))
+    if rejected:
+        _LOGGER.warning(
+            "Home Keeper dropped notify target(s) %s: only %s* and %s are supported",
+            ", ".join(rejected),
+            TARGET_PREFIX,
+            TARGET_PERSISTENT,
+        )
     return {
         "id": str(raw.get("id") or uuid.uuid4().hex),
         "name": str(raw.get("name") or "Notification"),
         "profile_id": str(raw["profile_id"]) if raw.get("profile_id") else None,
-        "targets": _str_list(raw.get("targets")),
+        "targets": targets,
         "actions": actions or list(DEFAULT_ACTIONS),
         "snooze_hours": snooze_hours,
         "style": style if style in STYLES else STYLE_WALK,

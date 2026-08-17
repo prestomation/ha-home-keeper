@@ -33,6 +33,7 @@ from typing import Any
 from aiohttp import BodyPartReader, hdrs, web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.components.http.auth import async_sign_path
+from homeassistant.components.http.const import KEY_HASS_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.http import KEY_HASS
 
@@ -294,6 +295,25 @@ def _coordinator(hass: HomeAssistant) -> Any:
     return None
 
 
+def _uploader_is_a_real_user(request: web.Request) -> bool:
+    """True when *request* is authenticated as a person, not as a signed URL.
+
+    GET on these views is reachable through an ``async_sign_path`` URL, which
+    authenticates as the "Home Assistant Content" **system** user
+    (``use_content_user=True``) and needs no auth header — that is the whole point,
+    so a browser tab can open a document. POST shares the same route, so this asks
+    the question the route's shape invites: could that read credential ever be used
+    to *write*?
+
+    Today it cannot — HA's auth middleware only considers a signed request when
+    ``request.method == "GET"`` (``homeassistant/components/http/auth.py``). This is
+    a belt for the day that changes: an upload must come from a real user's token,
+    never from a system user, and never from a request with no user at all.
+    """
+    user = request.get(KEY_HASS_USER)
+    return user is not None and not user.system_generated
+
+
 def _file_document(asset: dict[str, Any] | None, document_id: str) -> dict | None:
     for document in (asset or {}).get("documents", []):
         if document.get("id") == document_id and document.get("kind") == "file":
@@ -531,6 +551,9 @@ class HomeKeeperDocumentView(HomeAssistantView):
         # ceiling (with a clear message) while streaming below.
         request._client_max_size = MAX_DOCUMENT_BYTES
         lang = hass.config.language
+        if not _uploader_is_a_real_user(request):
+            message = resolve_exception(lang, "upload_requires_user")
+            return self.json_message(message, HTTPStatus.UNAUTHORIZED)
         coord = _coordinator(hass)
         if coord is None:
             message = resolve_exception(lang, "integration_not_loaded")
@@ -660,6 +683,9 @@ class HomeKeeperPartFileView(HomeAssistantView):
         hass = request.app[KEY_HASS]
         request._client_max_size = MAX_DOCUMENT_BYTES  # see HomeKeeperDocumentView.post
         lang = hass.config.language
+        if not _uploader_is_a_real_user(request):
+            message = resolve_exception(lang, "upload_requires_user")
+            return self.json_message(message, HTTPStatus.UNAUTHORIZED)
         coord = _coordinator(hass)
         if coord is None:
             message = resolve_exception(lang, "integration_not_loaded")

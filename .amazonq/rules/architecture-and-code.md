@@ -14,6 +14,45 @@ reviewing code in this repository (the `home_keeper` Home Assistant integration)
   built-in cards over bespoke Lovelace usage cards. Do not put management UI into
   a Lovelace card.
 
+## Privilege model: administration is admin-only, usage is not
+The split above is also the **security boundary** (user-facing writeup:
+`docs/SECURITY.md`). HA reserves Settings, Developer tools and every `config/*`
+command for admins; Home Keeper follows that rather than inventing a weaker line.
+- The panel is registered `require_admin=True`. Anything reachable only from the
+  panel is administration.
+- **Admin-only operations: gate BOTH halves.** A websocket command and its
+  `home_keeper.*` service twin are the same operation over the same authenticated
+  connection, so `@websocket_api.require_admin` on the command without a check in
+  the service handler is not a gate — `call_service` walks straight through it.
+  Service handlers call the local `_verify_admin(call)` helper in `__init__.py`,
+  which raises HA's `Unauthorized`. Currently gated: appliance CRUD (create /
+  update / delete / archive / restore, documents, part files, part stock),
+  `set_options`, `export_inventory`.
+- A call with **no** `context.user_id` (internal / automation-triggered) is
+  trusted, matching HA core.
+- **`Unauthorized` is the one exception to the localized-exception rule.** It is an
+  auth failure, not bad input; core raises it bare and the websocket/REST layers map
+  it to `unauthorized`/401. Do not dress it up as a `ServiceValidationError`.
+- **Usage stays open**: tasks (read, create, complete, snooze, skip), profiles,
+  companions, and the dashboard card's reads.
+- **Reads that return appliance data must project for non-admins.** The card needs
+  appliance data, so `get_assets` / `list_assets` are not admin-only; instead a
+  non-admin gets `assets.card_projection(...)` — a **whitelist** of the fields the
+  card renders (documents, `link`-type metadata, part id/name/url). Costs, serials,
+  warranty dates and free-text custom fields stay admin-only, so a new field is
+  private until someone publishes it deliberately. A mutating command that echoes
+  the full asset back is admin-gated instead (that is why appliance CRUD is on the
+  list above).
+- **Notify targets are allowlisted where they're stored**, not only in the picker:
+  `notifications.split_targets` keeps `mobile_app_*` and `persistent_notification`
+  and drops the rest, so Home Keeper can't be made to relay text through an admin's
+  SMTP/chat integration. A rejected `target:` override on `home_keeper.notify` fails
+  the call (`notify_invalid_target`); a rejected stored target is dropped with a
+  warning.
+- **Only built assets are published as a static path.** HA serves static paths
+  pre-auth, so `panel.py` mounts `frontend/dist/` (rollup's output), never the
+  source tree.
+
 ## Panel navigation & high-fidelity deep linking
 - The panel's navigation state is **high-fidelity deep-linked**: every navigable
   destination maps to a URL under the panel prefix (`/home-keeper`). Current

@@ -84,11 +84,11 @@ cp -r "$ROOT/tests/upgrade/stubs/." "$STAGE/"
 # makes the HA log noisy enough to obscure real errors.
 echo "[fetch-glues] home_keeper <- working tree"
 cp -r "$ROOT/custom_components/home_keeper" "$STAGE/"
-if [ ! -f "$STAGE/home_keeper/frontend/home-keeper-panel.js" ] \
+if [ ! -f "$STAGE/home_keeper/frontend/dist/home-keeper-panel.js" ] \
    && [ "${SKIP_PANEL_BUILD:-0}" != "1" ]; then
   echo "[fetch-glues] building the panel..."
   bash "$ROOT/ci/build-panel.sh"
-  cp -r "$ROOT/custom_components/home_keeper/frontend/." "$STAGE/home_keeper/frontend/"
+  cp -r "$ROOT/custom_components/home_keeper/frontend/dist" "$STAGE/home_keeper/frontend/"
 fi
 
 # Both Home Keeper builds are staged *alongside* the mounted tree, and conftest.py

@@ -832,6 +832,12 @@
     "notify_no_targets": {
       "message": "Deze melding heeft geen doel om naar te sturen — voeg een 'Versturen naar'-apparaat toe in Instellingen → Meldingen, of geef target: mee bij de aanroep."
     },
+    "notify_invalid_target": {
+      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
+    },
+    "upload_requires_user": {
+      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
+    },
     "integration_not_loaded": {
       "message": "Home Keeper is momenteel niet geladen. Probeer het zo meteen opnieuw."
     },

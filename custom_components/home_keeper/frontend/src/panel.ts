@@ -89,6 +89,7 @@ import {
   parseRoute,
   randomId,
   round1,
+  safeFileHref,
   safeHref,
   recurrenceSummary,
   tasksForAsset,
@@ -2706,7 +2707,7 @@ export class HomeKeeperPanel extends HTMLElement {
           const href = this._signedFiles.getByKey(key);
           inner = `<a class="hk-doc-file" tabindex="0" data-sign="${escapeHTML(key)}" data-doc="${escapeHTML(
             d.id || '',
-          )}"${href ? ` href="${escapeHTML(href)}"` : ''} target="_blank" rel="noopener noreferrer" title="${name}">${name}${open}</a>`;
+          )}"${href ? ` href="${safeFileHref(href)}"` : ''} target="_blank" rel="noopener noreferrer" title="${name}">${name}${open}</a>`;
         } else {
           // A link with no usable URL renders as plain text rather than an anchor to
           // nowhere: now that these *look* clickable, an empty href would reload the
@@ -2772,7 +2773,7 @@ export class HomeKeeperPanel extends HTMLElement {
         const chipRow = chips.length ? `<div class="hk-part-chips">${chips.join('')}</div>` : '';
         const badge = `<span class="hk-part-badge">${escapeHTML(t(`opt.part.${p.type}`))}</span>`;
         const name = p.url
-          ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">${escapeHTML(p.name)}</a>`
+          ? `<a href="${safeHref(p.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(p.name)}</a>`
           : escapeHTML(p.name);
         // An attached file (receipt/spec sheet/photo) opens via a **pre-signed** URL
         // filled in by `_signFiles`, the same native-anchor pattern asset documents use.
@@ -2782,7 +2783,7 @@ export class HomeKeeperPanel extends HTMLElement {
           ? `<a class="hk-part-file" tabindex="0" data-sign="${escapeHTML(
               fileKey,
             )}" data-part="${escapeHTML(p.id || '')}"${
-              fileHref ? ` href="${escapeHTML(fileHref)}"` : ''
+              fileHref ? ` href="${safeFileHref(fileHref)}"` : ''
             } target="_blank" rel="noopener noreferrer" title="${escapeHTML(
               p.file_name,
             )}"><ha-icon icon="mdi:paperclip" aria-hidden="true"></ha-icon></a>`
@@ -4236,7 +4237,7 @@ export class HomeKeeperPanel extends HTMLElement {
           )}`
         : '';
     const name = p.url
-      ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">${escapeHTML(p.name)}</a>`
+      ? `<a href="${safeHref(p.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(p.name)}</a>`
       : escapeHTML(p.name);
     return `${escapeHTML(asset.name)} · ${name}${stock}`;
   }

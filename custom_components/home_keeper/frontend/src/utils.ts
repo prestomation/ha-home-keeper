@@ -43,6 +43,18 @@ export function isSafeImageUrl(url: unknown): boolean {
 }
 
 /**
+ * Escaped, scheme-checked value for an `href` that may hold **either** an external
+ * link **or** a server-minted signed file URL. Signed URLs are site-relative
+ * (`/api/home_keeper/document/…?authSig=…`), which `safeHref` rejects, so document
+ * and part-file anchors need this variant rather than escaping the value raw:
+ * `escapeHTML` alone leaves a `javascript:` URI intact in href position, and these
+ * values reach the DOM from stored data and from other integrations' `task_chips`.
+ */
+export function safeFileHref(url: unknown): string {
+  return isSafeImageUrl(url) ? escapeHTML(url) : '';
+}
+
+/**
  * A random UUID-v4 string for client-minted ids (document ids, working-copy entries).
  *
  * `crypto.randomUUID()` only exists in a **secure context** — HTTPS or `localhost`. Over

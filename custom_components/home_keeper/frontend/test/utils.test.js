@@ -3,6 +3,7 @@ import {
   escapeHTML,
   isHttpUrl,
   isSafeImageUrl,
+  safeFileHref,
   safeHref,
   randomId,
   recurrenceSummary,
@@ -85,6 +86,30 @@ describe('href/image URL guards', () => {
     expect(isSafeImageUrl('javascript:alert(1)')).toBe(false);
     expect(isSafeImageUrl('data:text/html,<script>')).toBe(false);
     expect(isSafeImageUrl('//evil.com/x')).toBe(false); // protocol-relative
+  });
+
+  it('safeFileHref keeps signed site-relative URLs that safeHref would blank', () => {
+    // Document and part-file anchors carry a server-minted signed path; the
+    // http(s)-only guard would render every one of them inert.
+    const signed = '/api/home_keeper/document/a1/d2?authSig=abc.def';
+    expect(safeFileHref(signed)).toBe(signed);
+    expect(safeHref(signed)).toBe('');
+    expect(safeFileHref('https://example.com/manual.pdf')).toBe(
+      'https://example.com/manual.pdf',
+    );
+  });
+
+  it('safeFileHref still blanks script and protocol-relative URLs', () => {
+    expect(safeFileHref('javascript:alert(1)')).toBe('');
+    expect(safeFileHref('data:text/html,<script>')).toBe('');
+    expect(safeFileHref('vbscript:msgbox(1)')).toBe('');
+    expect(safeFileHref('//evil.com/x')).toBe('');
+    expect(safeFileHref(undefined)).toBe('');
+  });
+
+  it('safeFileHref escapes the value it returns', () => {
+    // A quote that survived into an href would let the attribute be closed early.
+    expect(safeFileHref('/api/f?a=1&b="x"')).toBe('/api/f?a=1&amp;b=&quot;x&quot;');
   });
 });
 

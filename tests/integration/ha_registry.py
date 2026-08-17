@@ -17,9 +17,12 @@ from conftest import HA_URL
 _WS_URL = HA_URL.replace("http://", "ws://") + "/api/websocket"
 
 
-def ws_command(ha, command_type: str) -> Any:
-    """Run a single no-argument websocket command and return its result."""
-    token = ha.headers["Authorization"].split(" ", 1)[1]
+def ws_send(token: str, payload: dict) -> dict:
+    """Run one websocket command as *token* and return the raw reply message.
+
+    The raw reply (not just ``result``) so callers can assert on *failure* too — the
+    admin-gate tests need the ``error`` body a non-admin gets back.
+    """
     with websockets.sync.client.connect(_WS_URL) as ws:
         # HA sends auth_required first.
         msg = json.loads(ws.recv())
@@ -27,10 +30,16 @@ def ws_command(ha, command_type: str) -> Any:
         ws.send(json.dumps({"type": "auth", "access_token": token}))
         msg = json.loads(ws.recv())
         assert msg["type"] == "auth_ok", f"auth failed: {msg}"
-        ws.send(json.dumps({"id": 1, "type": command_type}))
-        msg = json.loads(ws.recv())
-        assert msg.get("success"), f"{command_type} failed: {msg}"
-        return msg["result"]
+        ws.send(json.dumps({"id": 1, **payload}))
+        return json.loads(ws.recv())
+
+
+def ws_command(ha, command_type: str) -> Any:
+    """Run a single no-argument websocket command and return its result."""
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    msg = ws_send(token, {"type": command_type})
+    assert msg.get("success"), f"{command_type} failed: {msg}"
+    return msg["result"]
 
 
 def device_registry(ha) -> list[dict]:

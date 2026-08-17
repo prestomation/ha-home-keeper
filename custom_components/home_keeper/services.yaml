@@ -658,8 +658,10 @@ notify:
     target:
       name: Target
       description: >-
-        Notify service name(s) to send to, overriding the profile's targets
-        (e.g. mobile_app_phone).
+        Notify service name(s) to send to, overriding the profile's targets. Each
+        must be a companion-app service (e.g. mobile_app_phone) or
+        persistent_notification — the buttons ride on mobile_app payloads, so other
+        notify services are rejected.
       selector:
         text:
           multiple: true

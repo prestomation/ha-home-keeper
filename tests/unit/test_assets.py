@@ -1232,3 +1232,96 @@ def test_merge_update_clearing_a_text_field_is_honoured():
     assert updated["serial_number"] == ""
     assert updated["notes"] == ""
     assert updated["manufacturer"] == "Frigidaire"  # untouched neighbour
+
+
+# ── card_projection (what a non-admin is allowed to see) ────────────────────
+
+
+def _projected_asset():
+    """One fully-populated asset, run through the non-admin projection."""
+    asset = a.build_asset(
+        {
+            **FULLY_SET_ASSET,
+            "metadata": [
+                {"type": "text", "label": "Provider", "value": "Acme"},
+                {"type": "date", "label": "Warranty ends", "value": "2030-01-01"},
+                {"type": "link", "label": "Product page", "value": "https://ex.com/p"},
+            ],
+            "parts": [
+                {
+                    "name": "Water filter",
+                    "part_number": "EPTWFU01",
+                    "vendor": "Frigidaire",
+                    "cost": 49.99,
+                    "url": "https://example.com/filter",
+                    "notes": "Behind the kick plate",
+                    "stock": 2,
+                    "reorder_at": 1,
+                }
+            ],
+        },
+        now=NOW,
+    )
+    projected = a.card_projection([asset])
+    assert len(projected) == 1
+    return asset, projected[0]
+
+
+def test_card_projection_keeps_what_the_card_renders():
+    # The dashboard card resolves a task's card links against documents, link-typed
+    # metadata and a part's product URL — all three must survive the projection or
+    # the card silently loses its chips for every non-admin.
+    asset, projected = _projected_asset()
+    assert projected["id"] == asset["id"]
+    assert projected["documents"] == asset["documents"]
+    assert [m["label"] for m in projected["metadata"]] == ["Product page"]
+    assert projected["parts"] == [
+        {
+            "id": asset["parts"][0]["id"],
+            "name": "Water filter",
+            "url": "https://example.com/filter",
+        }
+    ]
+
+
+def test_card_projection_drops_inventory_value_data():
+    # The point of the projection: `export_inventory` is admin-only because costs and
+    # serials shouldn't leak, so the un-gated read must not hand them over either.
+    _, projected = _projected_asset()
+    for field in ("cost", "serial_number", "manufacturer", "model", "notes", "name"):
+        assert field not in projected, f"{field} leaked to a non-admin"
+    for field in ("cost", "vendor", "stock", "reorder_at", "part_number", "notes"):
+        assert field not in projected["parts"][0], f"part {field} leaked to a non-admin"
+
+
+def test_card_projection_drops_non_link_metadata():
+    # Warranty dates and free-text custom fields are where the private detail lives;
+    # only `link` entries (a URL the user chose to publish on a card) survive.
+    _, projected = _projected_asset()
+    assert all(entry["type"] == "link" for entry in projected["metadata"])
+    assert "Warranty ends" not in [entry["label"] for entry in projected["metadata"]]
+
+
+def test_card_projection_is_a_whitelist():
+    # A field added to the asset record later must be private until someone adds it
+    # here deliberately — the guarantee a blacklist could not make.
+    asset = a.build_asset({"name": "Boiler"}, now=NOW)
+    asset["secret_new_field"] = "leak me"
+    projected = a.card_projection([asset])[0]
+    assert set(projected) == {"id", "documents", "metadata", "parts"}
+
+
+def test_card_projection_tolerates_a_bare_asset():
+    # An asset with no documents/metadata/parts still projects to empty lists, so the
+    # card's `.find()` calls don't hit undefined.
+    projected = a.card_projection([{"id": "abc"}])
+    assert projected == [{"id": "abc", "documents": [], "metadata": [], "parts": []}]
+
+
+def test_card_projection_does_not_mutate_the_stored_assets():
+    # The store hands out its live dicts; the projection must copy, or a non-admin
+    # read would strip the real records for everyone.
+    asset, _ = _projected_asset()
+    assert asset["cost"] == 1499.0
+    assert len(asset["metadata"]) == 3
+    assert asset["parts"][0]["vendor"] == "Frigidaire"
