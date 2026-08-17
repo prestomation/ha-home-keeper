@@ -202,6 +202,7 @@
   "group.none": "无",
   "group.status": "状态",
   "help.anchor": "固定计划开始计算的参考日期。",
+  "help.area_id": "可选择将任务归入某个区域，便于分组和筛选。未设置时使用所关联设备的区域。",
   "help.card_links": "来自所关联电器的文档或链接，将显示在仪表板卡片上。",
   "help.completion_detail": "在任务完成时询问备注、费用或由谁完成。",
   "help.consumable_link": "完成任务时会从此库存中扣除一个备件，并可触发补货提醒。",

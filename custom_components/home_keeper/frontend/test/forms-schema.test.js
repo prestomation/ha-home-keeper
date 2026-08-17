@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  buildTaskPayload,
   formRecurrenceSummary,
   notifyFormData,
   notifyFormToNotification,
   notificationSchema,
+  taskFormData,
   taskSchema,
 } from '../src/forms.ts';
 import { setLanguage } from '../src/i18n.ts';
@@ -31,6 +33,7 @@ describe('taskSchema by recurrence type', () => {
       'unit',
       'last_completed',
       'device_id',
+      'area_id',
       'labels',
       'completion_detail',
     ]);
@@ -46,6 +49,7 @@ describe('taskSchema by recurrence type', () => {
       'anchor',
       'last_completed',
       'device_id',
+      'area_id',
       'labels',
       'completion_detail',
     ]);
@@ -60,6 +64,7 @@ describe('taskSchema by recurrence type', () => {
       'recurrence_type',
       'due',
       'device_id',
+      'area_id',
       'labels',
       'completion_detail',
     ]);
@@ -78,10 +83,85 @@ describe('taskSchema by recurrence type', () => {
     // Its state is owned by the integration watching the condition, so there is
     // no schedule to edit — offering one would let a user arm a dormant task.
     const got = names(taskSchema({ recurrence_type: 'triggered' }));
-    expect(got).toEqual(['name', 'notes', 'device_id', 'labels']);
+    expect(got).toEqual(['name', 'notes', 'device_id', 'area_id', 'labels']);
     for (const scheduling of ['interval', 'unit', 'freq', 'anchor', 'due', 'recurrence_type']) {
       expect(got).not.toContain(scheduling);
     }
+  });
+});
+
+// A task carries its own `area_id` in the store, the services and the websocket
+// API, and the panel groups/filters on it — but the form offered no control for
+// it, so a task with no device could never be placed in a room from the UI at all
+// (issue #204). These assert the whole path the picker sits on: it's offered, it
+// loads, it saves, and it clears.
+describe('taskSchema area field (issue #204)', () => {
+  const KITCHEN = 'kitchen_area_id';
+
+  it('offers an area picker for every task kind, not just device-backed ones', () => {
+    for (const recurrence_type of ['floating', 'fixed', 'one-off', 'sensor', 'triggered']) {
+      const fields = taskSchema({ recurrence_type });
+      expect(names(fields)).toContain('area_id');
+      // The single-select area selector — a `multiple` picker would save an array
+      // the backend rejects.
+      const area = fields.find((f) => f.name === 'area_id');
+      expect(area.selector).toEqual({ area: {} });
+    }
+  });
+
+  it('sits next to the device picker, since both are attachment fields', () => {
+    const got = names(taskSchema({ recurrence_type: 'floating' }));
+    expect(got.indexOf('area_id')).toBe(got.indexOf('device_id') + 1);
+  });
+
+  it('omits the picker when the managing integration locks the area', () => {
+    // A synced problem-sensor task takes its area from the source sensor's device
+    // (`problem_tasks._LOCKED_FIELDS`), so the form must not offer to change it.
+    const got = names(
+      taskSchema({
+        recurrence_type: 'floating',
+        managed_by: { integration: 'x', display_name: 'X', locked_fields: ['area_id'] },
+      }),
+    );
+    expect(got).not.toContain('area_id');
+    // Locking the area alone leaves the neighbouring attachment fields reachable.
+    expect(got).toContain('device_id');
+    expect(got).toContain('labels');
+  });
+
+  it('loads a task’s saved area into the form', () => {
+    expect(taskFormData({ area_id: KITCHEN }).area_id).toBe(KITCHEN);
+  });
+
+  it('leaves the picker empty for a task with no area of its own', () => {
+    // `undefined`, not null or '' — ha-form treats an empty registry picker as
+    // unset, and a null would render as a selected "null" option.
+    expect(taskFormData({}).area_id).toBeUndefined();
+    expect(taskFormData({ area_id: null }).area_id).toBeUndefined();
+  });
+
+  it('saves the chosen area on every task kind', () => {
+    for (const recurrence_type of ['floating', 'fixed', 'one-off', 'sensor', 'triggered']) {
+      const payload = buildTaskPayload({ name: 'T', recurrence_type, area_id: KITCHEN });
+      expect(payload.area_id).toBe(KITCHEN);
+    }
+  });
+
+  it('sends an explicit null when the area is cleared, so the old one is dropped', () => {
+    // `merge_update` only overwrites keys the payload carries — omitting a cleared
+    // area would silently keep the task in its old room.
+    expect(buildTaskPayload({ name: 'T', recurrence_type: 'floating' }).area_id).toBeNull();
+    expect(
+      buildTaskPayload({ name: 'T', recurrence_type: 'floating', area_id: '' }).area_id,
+    ).toBeNull();
+    expect(
+      buildTaskPayload({ name: 'T', recurrence_type: 'triggered', area_id: null }).area_id,
+    ).toBeNull();
+  });
+
+  it('round-trips an area through the form unchanged', () => {
+    const task = { id: 't1', name: 'T', recurrence_type: 'floating', interval: 3, unit: 'months', area_id: KITCHEN };
+    expect(buildTaskPayload({ ...task, ...taskFormData(task) }).area_id).toBe(KITCHEN);
   });
 });
 
@@ -123,7 +203,7 @@ describe('taskSchema respects locked fields', () => {
         managed_by: { integration: 'x', locked_fields: ['name', 'notes'] },
       }),
     );
-    expect(got).toEqual(['device_id', 'labels']);
+    expect(got).toEqual(['device_id', 'area_id', 'labels']);
   });
 });
 

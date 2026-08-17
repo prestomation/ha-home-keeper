@@ -202,6 +202,7 @@
   "group.none": "Geen",
   "group.status": "Status",
   "help.anchor": "De referentiedatum waarvan de vaste planning telt.",
+  "help.area_id": "Plaats de taak eventueel in een gebied voor groeperen en filteren. Zonder gebied wordt dat van het gekoppelde apparaat gebruikt.",
   "help.card_links": "Documenten of links van het gekoppelde apparaat om op de dashboardkaart te tonen.",
   "help.completion_detail": "Vraag om een notitie, een kostenpost of wie het deed wanneer de taak wordt voltooid.",
   "help.consumable_link": "Bij het voltooien van de taak wordt één reserveonderdeel uit deze voorraad gehaald en kan een bijbestelmelding worden geactiveerd.",

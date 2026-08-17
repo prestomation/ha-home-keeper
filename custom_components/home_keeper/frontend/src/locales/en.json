@@ -202,6 +202,7 @@
   "group.none": "None",
   "group.status": "Status",
   "help.anchor": "The reference date the fixed schedule counts from.",
+  "help.area_id": "Optionally place the task in an area for grouping and filtering. Without one, it uses the attached device's area.",
   "help.card_links": "Documents or links from the attached appliance to surface on the dashboard card.",
   "help.completion_detail": "Ask for a note, a cost, or who did it when the task is completed.",
   "help.consumable_link": "Completing the task draws one spare from this stock and can fire a reorder alert.",

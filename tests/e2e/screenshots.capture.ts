@@ -303,6 +303,64 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/19-panel-completed-section.png`, fullPage: true });
 
+  // 42. Placing a task in a room (issue #204). `area_id` has always been a task field
+  // in the store and the services, and the panel groups and filters on it — but the
+  // form offered no control, so a task with no device could never be put in a room
+  // from the UI. Seed an area, assign it to a *device-less* task (the case that had
+  // no path at all), and capture both halves: the picker in the form, and the area
+  // named on the detail page.
+  await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    // HA's onboarding seeds a handful of areas; reuse one rather than creating a
+    // duplicate (the registry rejects a repeated name, failing the whole capture).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const areas: any[] = await hass.callWS({ type: 'config/area_registry/list' });
+    const area =
+      areas.find((a) => a.area_id === 'living_room') ??
+      areas[0] ??
+      (await hass.callWS({ type: 'config/area_registry/create', name: 'Living Room' }));
+    await hass.callService('home_keeper', 'update_task', {
+      task_id: 'task_medicine',
+      area_id: area.area_id,
+    });
+  });
+  await openPanel(page);
+  await expect(panel.locator('.hk-name').first()).toBeVisible();
+
+  // The detail page names the task's area beside its status chip, so the save is
+  // visible without changing the grouping.
+  await panel.locator('.detail-open[data-detail-id="task_medicine"]').click();
+  await expect(panel.locator('.hk-chips ha-assist-chip[label="Living Room"]')).toBeVisible({
+    timeout: 10_000,
+  });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/42-panel-task-area-detail.png`, fullPage: true });
+
+  // The Area picker in the task's edit form, holding the saved room. Editing from a
+  // detail page returns to the list and re-opens the form there.
+  await panel.locator('.d-edit').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  await expect(panel.locator('#hk-task-form ha-selector-area')).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/42b-panel-task-area-form.png`, fullPage: true });
+  // The task form is an inline card, not an `ha-dialog` — Escape leaves it open and
+  // it would then sit on top of the grouped-list shot below. Close it properly.
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+
+  // 42c. Grouped by Area — what the picker buys you: the task now sorts into its room
+  // instead of the "Unassigned" bucket it was stuck in.
+  await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'Area' }).click();
+  await expect(panel.locator('details.hk-group[data-group-key^="area:"]').first()).toBeVisible({
+    timeout: 10_000,
+  });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/42c-panel-tasks-grouped-by-area.png`, fullPage: true });
+  // Reset grouping so later list shots are unaffected.
+  await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'Status' }).click();
+
   // 2. Create form — floating recurrence + device picker.
   await panel.locator('#add-btn').click();
   await expect(panel.locator('#hk-form')).toBeVisible();

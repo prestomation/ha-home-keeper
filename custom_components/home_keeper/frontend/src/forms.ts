@@ -138,6 +138,7 @@ export function taskSchema(
       ...(!locked.has('device_id')
         ? [{ name: 'device_id', selector: selDevice() } as FormField]
         : []),
+      ...(!locked.has('area_id') ? [{ name: 'area_id', selector: selArea() } as FormField] : []),
       ...(!locked.has('labels')
         ? [{ name: 'labels', selector: selLabel(true) } as FormField]
         : []),
@@ -291,6 +292,13 @@ export function taskSchema(
       ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
       : []),
     ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
+    // A task's *own* area, independent of any device. A task with an attached device
+    // already inherits that device's area for grouping and filtering (see
+    // `taskAreaId`), but a device-less task had no way to be placed in a room at all —
+    // the panel grouped it under "Unassigned" with no control to fix it, even though
+    // `area_id` has always been a first-class field on the service API. Setting it
+    // here overrides the inherited value; clearing it falls back to the device's area.
+    ...(!locked.has('area_id') ? [{ name: 'area_id', selector: selArea() } as FormField] : []),
     // Link the task to an appliance consumable so completing it draws down stock
     // (and fires the low-stock reorder event). Only offered when the user has at
     // least one consumable defined; the leading blank option clears the link.
@@ -360,6 +368,7 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     sensor_also_unit: sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months',
     sensor_combinator: sd.sensor_combinator ?? task.sensor?.combinator ?? 'any',
     device_id: task.device_id ?? undefined,
+    area_id: task.area_id ?? undefined,
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
     // task's current part source.
@@ -493,6 +502,11 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     // `required` task makes mandatory (v1: the note).
     payload.completion_detail = task.completion_detail || 'none';
   }
+  // Area applies to every task kind (including triggered) and always round-trips, so
+  // clearing the picker sends an explicit null and drops the task's own area rather
+  // than silently keeping the previous one. `merge_update` strips it again when the
+  // managing integration locks the field.
+  payload.area_id = task.area_id || null;
   // Labels apply to every task kind (including triggered) and always round-trip,
   // so an empty array correctly clears a task's labels on update.
   payload.labels = Array.isArray(task.labels) ? task.labels : [];

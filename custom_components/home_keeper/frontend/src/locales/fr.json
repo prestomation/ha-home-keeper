@@ -209,6 +209,7 @@
   "group.none": "Aucun",
   "group.status": "État",
   "help.anchor": "La date de référence à partir de laquelle la planification fixe compte.",
+  "help.area_id": "Placez éventuellement la tâche dans une zone pour le regroupement et le filtrage. Sans zone, celle de l'appareil rattaché est utilisée.",
   "help.card_links": "Documents ou liens de l'appareil rattaché à afficher sur la carte du tableau de bord.",
   "help.completion_detail": "Demandez une note, un coût ou qui l'a fait lorsque la tâche est terminée.",
   "help.consumable_link": "Terminer la tâche prélève une pièce de rechange de ce stock et peut déclencher une alerte de réapprovisionnement.",

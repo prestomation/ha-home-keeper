@@ -732,3 +732,66 @@ describe('Appliance detail — signed hrefs are refreshed before they expire', (
     }
   });
 });
+
+// The detail page grew an area chip alongside the device chip: once a task can be
+// given an area from the form (issue #204), the page has to show which one it
+// landed in — otherwise "Group by → Area" is the only confirmation the save took.
+describe('Task detail — area chip (issue #204)', () => {
+  const baseTask = {
+    id: 't1',
+    name: 'Water the plants',
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'weeks',
+    completions: [],
+  };
+  const chipLabels = (panel) =>
+    [...panel.shadowRoot.querySelectorAll('.hk-chips ha-assist-chip')].map((c) =>
+      c.getAttribute('label'),
+    );
+
+  it('names the area of a device-less task — the case that had no UI at all', async () => {
+    const { hass } = makeHassWith({ tasks: [{ ...baseTask, area_id: 'a_kitchen' }] });
+    hass.areas = { a_kitchen: { area_id: 'a_kitchen', name: 'Kitchen' } };
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-chips'));
+    expect(chipLabels(panel)).toContain('Kitchen');
+  });
+
+  it('falls back to the attached device’s area, matching how tasks are grouped', async () => {
+    const { hass } = makeHassWith({ tasks: [{ ...baseTask, device_id: 'd1' }] });
+    hass.areas = { a_garage: { area_id: 'a_garage', name: 'Garage' } };
+    hass.devices = { d1: { id: 'd1', name: 'Furnace', area_id: 'a_garage' } };
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-chips'));
+    expect(chipLabels(panel)).toContain('Garage');
+  });
+
+  it('prefers the task’s own area over the device’s when both are set', async () => {
+    const { hass } = makeHassWith({
+      tasks: [{ ...baseTask, device_id: 'd1', area_id: 'a_kitchen' }],
+    });
+    hass.areas = {
+      a_kitchen: { area_id: 'a_kitchen', name: 'Kitchen' },
+      a_garage: { area_id: 'a_garage', name: 'Garage' },
+    };
+    hass.devices = { d1: { id: 'd1', name: 'Furnace', area_id: 'a_garage' } };
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-chips'));
+    const labels = chipLabels(panel);
+    expect(labels).toContain('Kitchen');
+    expect(labels).not.toContain('Garage');
+  });
+
+  it('shows no area chip when the task is unplaced', async () => {
+    const { hass } = makeHassWith({ tasks: [baseTask] });
+    hass.areas = { a_kitchen: { area_id: 'a_kitchen', name: 'Kitchen' } };
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-chips'));
+    expect(chipLabels(panel)).not.toContain('Kitchen');
+  });
+});

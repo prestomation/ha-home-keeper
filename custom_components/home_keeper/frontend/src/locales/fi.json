@@ -202,6 +202,7 @@
   "group.none": "Ei mitään",
   "group.status": "Tila",
   "help.anchor": "Viitepäivämäärä, josta kiinteä aikataulu lasketaan.",
+  "help.area_id": "Sijoita tehtävä halutessasi alueelle ryhmittelyä ja suodatusta varten. Ilman aluetta käytetään liitetyn laitteen aluetta.",
   "help.card_links": "Liitetyn laitteen asiakirjat tai linkit näytettäväksi kojelaudan kortilla.",
   "help.completion_detail": "Pyydä muistiinpano, kustannus tai tekijä, kun tehtävä suoritetaan.",
   "help.consumable_link": "Tehtävän suorittaminen ottaa yhden varaosan tästä varastosta ja voi laukaista tilausmuistutuksen.",

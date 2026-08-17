@@ -2514,6 +2514,10 @@ export class HomeKeeperPanel extends HTMLElement {
       ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
       : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
     const dev = task.device_id ? this._deviceChip(task.device_id) : '';
+    // The task's *effective* area — its own, else its device's — so the page explains
+    // which "Group by → Area" section the task lands in. When it's inherited, the
+    // device chip sits right beside it and shows where it came from.
+    const areaChip = this._areaChip(task);
     const managedChip = this._managedChip(task);
     const taskChips = this._taskChipsHtml(task);
     const mb = task.managed_by;
@@ -2589,7 +2593,7 @@ export class HomeKeeperPanel extends HTMLElement {
     return `
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
-        <div class="hk-chips">${statusChip}${dev}${taskChips}${managedChip}</div>
+        <div class="hk-chips">${statusChip}${dev}${areaChip}${taskChips}${managedChip}</div>
         <div class="hk-detail-actions">
           ${doneBtn}
           ${manage}
@@ -2887,6 +2891,18 @@ export class HomeKeeperPanel extends HTMLElement {
           : chip;
       })
       .join('');
+  }
+
+  /**
+   * A chip naming the task's effective area (its own, else its attached device's).
+   * Empty when neither resolves to a real area — an unplaced task shows no chip
+   * rather than an "Unassigned" one, matching how the device chip stays absent.
+   */
+  private _areaChip(task: Task): string {
+    const name = areaName(this._hass?.areas, this._taskAreaId(task));
+    if (!name) return '';
+    const icon = `<ha-icon slot="icon" icon="mdi:texture-box" class="hk-chip-ic"></ha-icon>`;
+    return `<ha-assist-chip label="${escapeHTML(name)}">${icon}</ha-assist-chip>`;
   }
 
   /** Renders a "Managed by X" chip (or "Integration offline" if orphaned). */

@@ -209,6 +209,7 @@
   "group.none": "Nessuno",
   "group.status": "Stato",
   "help.anchor": "La data di riferimento da cui conta la pianificazione fissa.",
+  "help.area_id": "Colloca facoltativamente l'attività in un'area per raggrupparla e filtrarla. Senza area viene usata quella del dispositivo collegato.",
   "help.card_links": "Documenti o collegamenti dell'elettrodomestico collegato da mostrare sulla scheda della dashboard.",
   "help.completion_detail": "Chiedi una nota, un costo o chi l'ha fatto quando l'attività viene completata.",
   "help.consumable_link": "Completare l'attività preleva un ricambio da queste scorte e può attivare un avviso di riordino.",

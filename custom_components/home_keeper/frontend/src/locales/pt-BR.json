@@ -209,6 +209,7 @@
   "group.none": "Nenhum",
   "group.status": "Status",
   "help.anchor": "A data de referência a partir da qual o agendamento fixo conta.",
+  "help.area_id": "Opcionalmente, coloque a tarefa em uma área para agrupamento e filtragem. Sem ela, é usada a área do dispositivo anexado.",
   "help.card_links": "Documentos ou links do eletrodoméstico anexado para exibir no cartão do painel.",
   "help.completion_detail": "Peça uma nota, um custo ou quem fez quando a tarefa for concluída.",
   "help.consumable_link": "Concluir a tarefa retira uma unidade reserva deste estoque e pode disparar um alerta de reabastecimento.",
