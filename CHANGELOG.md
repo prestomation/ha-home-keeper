@@ -6,20 +6,25 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.14.0b4]
-
-### Fixed
-
-- **Typing a name into the add-task or add-appliance form no longer sets off Home
-  Assistant's keyboard shortcuts.** The first character rebuilt the form, which took
-  focus off the field you were typing in, so the rest of the word reached HA's global
-  single-letter shortcuts instead: the device or entity search popped up, and sometimes
-  Assist opened. The form now rebuilds only when the fields it shows actually change.
-
-## [0.14.0b3]
+## [0.14.0] - 2026-08-18
 
 ### Added
 
+- **Undoing a completion now tells companion integrations which one you undid.** The
+  `home_keeper_task_uncompleted` event carries the removed completion's `ts`, and
+  `delete_completion` takes the same optional `origin` marker `complete_task` already
+  accepts. Together these let an integration that mirrors your completions (Pawsistant,
+  for one) remove its own copy when you correct a mistaken "done", instead of leaving a
+  pet-care entry behind that no longer matches Home Keeper. See
+  [docs/INTEGRATING.md](docs/INTEGRATING.md).
+- **You can put a task in a room.** The task form has an **Area** field, so a task that
+  isn't attached to a device can still be placed: *water the plants* in the Living room,
+  *clean the windows* in the Bedroom. A task's area has always been part of the store
+  and the `add_task` / `update_task` services, and the panel already grouped and
+  filtered on it, but nothing in the UI could set it. A device-less task was stuck
+  under **Unassigned** for good. Choosing an area overrides the one a task would inherit
+  from its device. Clearing it hands the task back to the device's. The task detail page
+  now names the area it ended up in, next to the device chip. (Fixes #204)
 - **Sensor-based tasks can now be driven by a binary sensor**, through a new **State**
   mode. Plenty of hardware never publishes a number: a robot vacuum reports *water tank
   low*, a device reports `battery_almost_empty` instead of a battery percentage, a leak
@@ -37,6 +42,15 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   the task by itself once the condition goes away, recording a completion so the history
   still shows it. It's off by default, so tasks keep waiting for you unless you say
   otherwise. A bound entity going unavailable is deliberately not treated as a recovery.
+
+### Changed
+
+- **The Home Keeper panel now requires an administrator account.** Managing your home
+  is administration, and Home Assistant reserves that for admins, so the panel follows
+  the same rule its own Settings does. Everyone else in the household keeps the to-do
+  list, the calendar, the device-page buttons and the dashboard card, and can still
+  complete, snooze, skip and add tasks. The new
+  [security model](docs/SECURITY.md) page spells out where the line falls.
 
 ### Security
 
@@ -64,40 +78,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   almost everywhere. Escaping alone doesn't defuse a `javascript:` link, and some links
   reach Home Keeper from other integrations.
 
-### Changed
-
-- **The Home Keeper panel now requires an administrator account.** Managing your home
-  is administration, and Home Assistant reserves that for admins, so the panel follows
-  the same rule its own Settings does. Everyone else in the household keeps the to-do
-  list, the calendar, the device-page buttons and the dashboard card, and can still
-  complete, snooze, skip and add tasks. The new
-  [security model](docs/SECURITY.md) page spells out where the line falls.
-
-## [0.14.0b2]
-
-### Added
-
-- **You can put a task in a room.** The task form has an **Area** field, so a task that
-  isn't attached to a device can still be placed: *water the plants* in the Living room,
-  *clean the windows* in the Bedroom. A task's area has always been part of the store
-  and the `add_task` / `update_task` services, and the panel already grouped and
-  filtered on it, but nothing in the UI could set it. A device-less task was stuck
-  under **Unassigned** for good. Choosing an area overrides the one a task would inherit
-  from its device. Clearing it hands the task back to the device's. The task detail page
-  now names the area it ended up in, next to the device chip. (Fixes #204)
-
-## [0.14.0b1]
-
-### Added
-
-- **Undoing a completion now tells companion integrations which one you undid.** The
-  `home_keeper_task_uncompleted` event carries the removed completion's `ts`, and
-  `delete_completion` takes the same optional `origin` marker `complete_task` already
-  accepts. Together these let an integration that mirrors your completions (Pawsistant,
-  for one) remove its own copy when you correct a mistaken "done", instead of leaving a
-  pet-care entry behind that no longer matches Home Keeper. See
-  [docs/INTEGRATING.md](docs/INTEGRATING.md).
-
 ### Fixed
 
 - **Undoing a completion that was already gone no longer announces an undo.** Removing
@@ -107,6 +87,11 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **`docs/INTEGRATING.md` said no event fires when you delete a task in Home Keeper.**
   `home_keeper_task_deleted` has fired on every deletion path for a while; the
   lifecycle section now says so.
+- **Typing a name into the add-task or add-appliance form no longer sets off Home
+  Assistant's keyboard shortcuts.** The first character rebuilt the form, which took
+  focus off the field you were typing in, so the rest of the word reached HA's global
+  single-letter shortcuts instead: the device or entity search popped up, and sometimes
+  Assist opened. The form now rebuilds only when the fields it shows actually change.
 
 ## [0.13.0] - 2026-08-12
 
