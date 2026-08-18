@@ -97,10 +97,13 @@ export function recurrenceSummary(task: Task): string {
   if (task.recurrence_type === 'triggered') return t('recurrence.triggered');
   // A one-off (do-once) task has no cadence — just a single due date.
   if (task.recurrence_type === 'one-off') return t('recurrence.oneOff');
-  // A sensor task is described by its bound numeric condition, not a clock.
+  // A sensor task is described by its bound condition, not a clock.
   if (task.recurrence_type === 'sensor') {
     const s = task.sensor;
     if (!s) return t('recurrence.sensor');
+    if (s.mode === 'state') {
+      return t('recurrence.sensorState', { state: s.state ?? '' });
+    }
     if (s.mode === 'threshold') {
       return t('recurrence.sensorThreshold', {
         comparison: s.comparison ?? '',

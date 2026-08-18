@@ -30,6 +30,17 @@ template:
         unique_id: sump_pump_problem
         device_class: problem
         state: "{{ true }}"
+  # A *controllable* binary sensor for the state-mode sensor task, standing in for
+  # the kind of "water tank low" / "battery almost empty" flag a device exposes.
+  # Deliberately NOT device_class problem: those are already mirrored by the
+  # problem-sensor sync, and the point of state mode is reaching the ones that
+  # aren't. It follows an input_boolean so a test can flip it and produce a genuine
+  # off -> on state-change event.
+  - binary_sensor:
+      - name: "HK demo water tank low"
+        unique_id: hk_demo_water_tank_low
+        device_class: moisture
+        state: "{{ is_state('input_boolean.hk_demo_flag', 'on') }}"
   # A fixed cumulative run-hours counter, standing in for the kind of
   # ``total_usage_hours`` sensor an appliance integration exposes. Constant so the
   # seeded usage task's progress ("120 of 300 h used") renders identically on every
@@ -69,6 +80,12 @@ input_number:
     max: 1000000
     step: 1
     initial: 0
+
+# Drives ``binary_sensor.hk_demo_water_tank_low`` above, so the state-mode sensor
+# task test can flip a real binary sensor between off and on.
+input_boolean:
+  hk_demo_flag:
+    name: HK demo flag
 
 input_text:
   hk_last_completed_source:

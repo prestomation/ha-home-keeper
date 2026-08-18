@@ -22,6 +22,7 @@ from .const import (
     COMPLETION_METADATA_FIELDS,
     FREQS,
     MAX_INTERVAL,
+    MAX_SENSOR_STATE_LEN,
     MAX_SENSOR_UNIT_LEN,
     REC_FLOATING,
     REC_ONE_OFF,
@@ -31,10 +32,16 @@ from .const import (
     SENSOR_COMBINATOR_ANY,
     SENSOR_COMBINATORS,
     SENSOR_COMPARISONS,
+    SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_USAGE,
     SENSOR_MODES,
     UNITS,
 )
+
+# Binding fields that only mean anything for a ``usage`` meter. The edge-driven modes
+# (``threshold``, ``state``) reject them rather than storing a setting that never
+# applies.
+USAGE_ONLY_SENSOR_FIELDS = ("also_every", "combinator", "unit", "target", "baseline")
 
 
 class TaskValidationError(ValueError):
@@ -152,10 +159,40 @@ def _normalize_also_every(data: Any) -> dict[str, Any]:
     return {"interval": interval, "unit": unit}
 
 
+def _normalize_for_seconds(data: dict[str, Any]) -> int:
+    """Validate the optional ``for_seconds`` hold shared by edge-driven modes.
+
+    ``threshold`` and ``state`` both let a condition be required to *persist* before
+    the task arms ("the door has been open for 10 minutes"), so the rule lives here
+    rather than in each branch.
+    """
+    raw_for = data.get("for_seconds") or 0
+    try:
+        for_seconds = int(raw_for)
+    except (TypeError, ValueError) as err:
+        raise TaskValidationError("sensor.for_seconds must be an integer") from err
+    if for_seconds < 0:
+        raise TaskValidationError("sensor.for_seconds must be >= 0")
+    return for_seconds
+
+
+def _reject_fields(data: dict[str, Any], fields: tuple[str, ...], mode: str) -> None:
+    """Fail when a binding carries fields that belong to a different mode.
+
+    Silently dropping them would let the panel save an "every 300 h" target onto a
+    state task and leave the user believing it applies.
+    """
+    for name in fields:
+        if data.get(name) not in (None, "", {}):
+            raise TaskValidationError(
+                f"sensor.{name} is not valid for a {mode}-mode sensor task"
+            )
+
+
 def normalize_sensor(data: Any) -> dict[str, Any]:
     """Validate and normalize a sensor-based task's ``sensor`` binding.
 
-    A sensor task derives its armed/dormant state from a bound numeric entity. The
+    A sensor task derives its armed/dormant state from a bound entity. The
     binding always carries ``entity_id`` and ``mode``; the rest is mode-specific:
 
     * ``usage`` (a meter) — ``target`` (> 0): arm when the reading advances ``target``
@@ -169,6 +206,13 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
       An optional ``unit`` labels the meter in the UI.
     * ``threshold`` — ``comparison`` (one of :data:`SENSOR_COMPARISONS`) against a
       numeric ``value``, with an optional non-negative ``for_seconds`` hold.
+    * ``state`` — a ``state`` string the entity must enter, with the same optional
+      ``for_seconds`` hold. This is the binary-sensor mode (``on``/``off``), though any
+      state-y entity works.
+
+    ``threshold`` and ``state`` also accept ``clear_on_recover``: when set, an armed
+    task clears itself once the condition goes away again, instead of waiting to be
+    completed by hand.
 
     An optional ``attribute`` reads that entity attribute instead of the state. Raises
     :class:`TaskValidationError` on any malformed field so bad input fails at the edge
@@ -212,12 +256,8 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
             if combinator not in SENSOR_COMBINATORS:
                 raise TaskValidationError(f"invalid sensor.combinator: {combinator!r}")
             result["combinator"] = combinator
-    else:  # SENSOR_MODE_THRESHOLD
-        for usage_only in ("also_every", "combinator", "unit"):
-            if data.get(usage_only) not in (None, "", {}):
-                raise TaskValidationError(
-                    f"sensor.{usage_only} is only valid for a usage-mode sensor task"
-                )
+    elif mode == SENSOR_MODE_THRESHOLD:
+        _reject_fields(data, USAGE_ONLY_SENSOR_FIELDS, "threshold")
         comparison = data.get("comparison")
         if comparison not in SENSOR_COMPARISONS:
             raise TaskValidationError(f"invalid sensor comparison: {comparison!r}")
@@ -227,15 +267,26 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
         value = _finite_float(value_raw, "sensor.value")
         result["comparison"] = comparison
         result["value"] = value
-        raw_for = data.get("for_seconds") or 0
-        try:
-            for_seconds = int(raw_for)
-        except (TypeError, ValueError) as err:
-            raise TaskValidationError("sensor.for_seconds must be an integer") from err
-        if for_seconds < 0:
-            raise TaskValidationError("sensor.for_seconds must be >= 0")
-        if for_seconds:
+        if for_seconds := _normalize_for_seconds(data):
             result["for_seconds"] = for_seconds
+        if data.get("clear_on_recover"):
+            result["clear_on_recover"] = True
+    else:  # SENSOR_MODE_STATE
+        _reject_fields(
+            data, (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value"), "state"
+        )
+        state = str(data.get("state") or "").strip()
+        if not state:
+            raise TaskValidationError("sensor.state is required")
+        if len(state) > MAX_SENSOR_STATE_LEN:
+            raise TaskValidationError(
+                f"sensor.state must be <= {MAX_SENSOR_STATE_LEN} characters"
+            )
+        result["state"] = state
+        if for_seconds := _normalize_for_seconds(data):
+            result["for_seconds"] = for_seconds
+        if data.get("clear_on_recover"):
+            result["clear_on_recover"] = True
     return result
 
 

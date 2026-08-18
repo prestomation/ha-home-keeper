@@ -304,3 +304,158 @@ def test_usage_progress_attributes_land_on_the_next_due_sensor(ha):
     finally:
         _delete(ha, task_id)
         _set_meter(ha, 0)
+
+
+# ── state mode (binary sensors) ──────────────────────────────────────────────
+# `binary_sensor.hk_demo_water_tank_low` is a template sensor following
+# `input_boolean.hk_demo_flag` (see ha_config/configuration.yaml), so flipping the
+# boolean produces a genuine off -> on state-change event on a real binary sensor.
+# That is the contract a unit test with a mocked state machine cannot see: an `on`
+# state has no numeric reading, so before state mode existed the watcher skipped
+# these entities entirely.
+TANK = "binary_sensor.hk_demo_water_tank_low"
+FLAG = "input_boolean.hk_demo_flag"
+
+
+def _set_flag(ha, on):
+    call_service(
+        ha, "input_boolean", "turn_on" if on else "turn_off", {"entity_id": FLAG}
+    )
+
+
+def test_state_sensor_task_arms_when_a_binary_sensor_turns_on(ha):
+    # Start clear so the task is created with the condition false.
+    _set_flag(ha, False)
+    task_id = _add_sensor_task(ha, {"entity_id": TANK, "mode": "state", "state": "on"})
+    try:
+        task = _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        assert task["next_due"] is None  # dormant while the tank is fine
+        assert task["sensor"]["state"] == "on"
+
+        # The tank empties -> rising edge arms the task.
+        _set_flag(ha, True)
+        armed = _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+        assert armed["next_due"] is not None
+
+        # Filling it is a user action: the task is completable by hand and clears.
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        cleared = _poll_task(ha, task_id, lambda t: t.get("next_due") is None)
+        assert cleared["next_due"] is None
+    finally:
+        _delete(ha, task_id)
+        _set_flag(ha, False)
+
+
+def test_state_task_does_not_rearm_while_the_sensor_stays_on(ha):
+    # The task arms once per *event*, not once per tick — otherwise "fill the water
+    # tank" would come back the moment you completed it, since the tank is still
+    # empty until you actually fill it.
+    _set_flag(ha, False)
+    task_id = _add_sensor_task(ha, {"entity_id": TANK, "mode": "state", "state": "on"})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _set_flag(ha, True)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is None)
+
+        # Still on, and it must stay dormant: no fresh crossing has happened.
+        time.sleep(5)
+        assert _get_task(ha, task_id)["next_due"] is None
+
+        # Recover then trip again -> that *is* a fresh crossing, so it re-arms.
+        _set_flag(ha, False)
+        time.sleep(2)
+        _set_flag(ha, True)
+        rearmed = _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+        assert rearmed["next_due"] is not None
+    finally:
+        _delete(ha, task_id)
+        _set_flag(ha, False)
+
+
+def test_state_task_bound_to_a_non_binary_entity_matches_its_state(ha):
+    # State mode compares the state string, so it is not binary-sensor-only. Bind to
+    # the input_boolean itself and match "on".
+    _set_flag(ha, False)
+    task_id = _add_sensor_task(ha, {"entity_id": FLAG, "mode": "state", "state": "on"})
+    try:
+        task = _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        assert task["next_due"] is None
+        _set_flag(ha, True)
+        armed = _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+        assert armed["next_due"] is not None
+    finally:
+        _delete(ha, task_id)
+        _set_flag(ha, False)
+
+
+def test_clear_on_recover_completes_the_task_when_the_sensor_goes_back(ha):
+    _set_flag(ha, False)
+    task_id = _add_sensor_task(
+        ha,
+        {"entity_id": TANK, "mode": "state", "state": "on", "clear_on_recover": True},
+    )
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _set_flag(ha, True)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+
+        # Somebody else filled the tank: the task clears itself, and records a real
+        # completion so the history still shows the work happened.
+        _set_flag(ha, False)
+        cleared = _poll_task(ha, task_id, lambda t: t.get("next_due") is None)
+        assert cleared["next_due"] is None
+        assert cleared["last_completed"] is not None
+        assert len(cleared.get("completions") or []) >= 1
+    finally:
+        _delete(ha, task_id)
+        _set_flag(ha, False)
+
+
+def test_without_clear_on_recover_the_task_stays_armed(ha):
+    # The default: a task you have to go and do doesn't un-need doing because the
+    # sensor recovered.
+    _set_flag(ha, False)
+    task_id = _add_sensor_task(ha, {"entity_id": TANK, "mode": "state", "state": "on"})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _set_flag(ha, True)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+
+        _set_flag(ha, False)
+        time.sleep(5)
+        assert _get_task(ha, task_id)["next_due"] is not None
+    finally:
+        _delete(ha, task_id)
+        _set_flag(ha, False)
+
+
+def test_a_reload_with_the_sensor_already_on_does_not_rearm(ha):
+    # The startup-baseline contract, and the reason `async_baseline` exists: an
+    # already-matching sensor at setup is recorded as met *without* a crossing, so
+    # restarting Home Assistant while the tank is still empty must not resurrect a
+    # task you already dealt with. Reloading the config entry re-runs setup, which is
+    # the same code path a restart takes.
+    _set_flag(ha, False)
+    task_id = _add_sensor_task(ha, {"entity_id": TANK, "mode": "state", "state": "on"})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _set_flag(ha, True)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is None)
+
+        # Reload with the sensor still on. No fresh crossing -> still dormant.
+        call_service(
+            ha,
+            "homeassistant",
+            "reload_config_entry",
+            {"entity_id": "todo.home_keeper_tasks"},
+        )
+        time.sleep(10)
+        assert _get_task(ha, task_id)["next_due"] is None
+    finally:
+        _delete(ha, task_id)
+        _set_flag(ha, False)

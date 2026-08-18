@@ -51,13 +51,21 @@ All event names follow `home_keeper_<noun>_<verb>`. Task events share a common
 <!-- vale ai-tells.OverusedVocabulary = YES -->
 
 **Sensor-based tasks** reuse the triggered lifecycle: <!-- vale ai-tells.ColonUsage = NO -->Home Keeper's<!-- vale ai-tells.ColonUsage = YES --> watcher fires
-`home_keeper_task_triggered` when a bound numeric sensor meets the task's condition (a
-usage meter passing its target, or a threshold crossing), the task then crosses to
+`home_keeper_task_triggered` when a bound entity meets the task's condition (a
+usage meter passing its target, a threshold crossing, or a `state` binding's entity
+entering its state), the task then crosses to
 `home_keeper_task_overdue` like any due task, and a normal user `home_keeper_task_completed`
 clears it (resetting a usage meter's baseline). A usage meter carrying a **time backstop**
 (`sensor.also_every`) arms on whichever half lands first (including while the bound
 entity is unavailable) through the same `home_keeper_task_triggered`. No new event types
 are introduced.
+
+A `threshold` or `state` binding that sets **`clear_on_recover`** also clears itself when
+its condition goes away, and that path fires an ordinary `home_keeper_task_completed`
+carrying `origin: home_keeper_sensor_recover`. Match on that origin to tell a
+self-clearing sensor task from someone pressing Done. A bound entity going
+`unavailable`/`unknown` counts as no reading rather than a recovery, and fires nothing,
+so a device dropping off the network never completes a task.
 
 The watcher's own baseline bookkeeping (anchoring a fresh meter, re-anchoring after a
 meter reset) stays **silent**, because it is internal state, not a user action. A baseline moved

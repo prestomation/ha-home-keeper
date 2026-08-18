@@ -38,6 +38,7 @@ import {
   selText,
   DEFAULT_BACKSTOP_INTERVAL,
   backstopEnabled,
+  isBinarySensorBinding,
   formRecurrenceSummary,
   sensorHintText,
   taskFormData,
@@ -2427,8 +2428,8 @@ export class HomeKeeperPanel extends HTMLElement {
 
   /** A human-readable line for a sensor task's binding, with live progress when the
    *  bound entity's current value is known: usage shows "consumed / target (entity)";
-   *  threshold shows "entity: current (cmp value)". Falls back to the binding alone
-   *  when the reading is unavailable. */
+   *  threshold shows "entity: current (cmp value)"; state shows "entity: current
+   *  (= wanted)". Falls back to the binding alone when the reading is unavailable. */
   private _sensorProgress(task: Task): string {
     const s = task.sensor;
     if (!s) return '';
@@ -2438,8 +2439,16 @@ export class HomeKeeperPanel extends HTMLElement {
         ? (state.attributes?.[s.attribute] as unknown)
         : state.state
       : undefined;
-    const reading = raw == null || raw === '' ? NaN : Number(raw);
     const entity = s.entity_id;
+    // State mode compares strings, so it must read `raw` before the numeric coercion
+    // below turns a perfectly good `on` into NaN.
+    if (s.mode === 'state') {
+      const cond = `= ${s.state ?? ''}`;
+      return raw == null || raw === ''
+        ? `${entity} (${cond})`
+        : `${entity}: ${String(raw)} (${cond})`;
+    }
+    const reading = raw == null || raw === '' ? NaN : Number(raw);
     if (s.mode === 'threshold') {
       const cond = `${s.comparison ?? ''} ${s.value ?? ''}`.trim();
       return Number.isNaN(reading)
@@ -2464,11 +2473,13 @@ export class HomeKeeperPanel extends HTMLElement {
    *  task carries one. Rendered as HTML under the sensor row on the detail page:
    *  "how far through the interval am I" is the whole state of a usage task, and a
    *  bar reads it at a glance in a way "120 of 300 used" does not. Empty for a
-   *  threshold task (there is no interval to be partway through) or when the bound
-   *  entity has no numeric reading. */
+   *  threshold or state task (neither has an interval to be partway through) or when
+   *  the bound entity has no numeric reading. */
   private _sensorProgressBar(task: Task): string {
     const s = task.sensor;
-    if (!s || s.mode === 'threshold') return '';
+    // Allowlist usage rather than excluding threshold: a mode added later must not
+    // silently inherit the meter bar and render "0 of 0".
+    if (!s || s.mode !== 'usage') return '';
     const parts: string[] = [];
     const state = this._hass?.states?.[s.entity_id];
     const raw = state ? (s.attribute ? state.attributes?.[s.attribute] : state.state) : undefined;
@@ -4329,6 +4340,10 @@ export class HomeKeeperPanel extends HTMLElement {
         // (the form seeds it from the loaded task), and `undefined !== false` would
         // otherwise re-render on the first unrelated keystroke.
         const prevBackstop = backstopEnabled(this._edit.task ?? {});
+        // Whether the state-mode value control is the on/off picker or free text —
+        // it follows the bound entity, so switching between a `binary_sensor.` and
+        // anything else swaps the control and needs a re-render like the rest.
+        const prevBinary = isBinarySensorBinding(this._edit.task ?? {});
         const prevDevice = this._edit.task?.device_id;
         this._edit.task = {
           ...this._edit.task,
@@ -4377,13 +4392,15 @@ export class HomeKeeperPanel extends HTMLElement {
             DEFAULT_BACKSTOP_INTERVAL;
         }
         // The recurrence type (cadence/sensor fields), the sensor mode (usage vs.
-        // threshold), the time-backstop switch (which reveals or hides its three
-        // fields), and the attached device (which scopes the consumable picker) each
+        // threshold vs. state), the time-backstop switch (which reveals or hides its
+        // three fields), the bound entity's binary-ness (which swaps the state
+        // control), and the attached device (which scopes the consumable picker) each
         // toggle the visible schema -> re-render.
         if (
           value.recurrence_type !== prevType ||
           value.sensor_mode !== prevSensorMode ||
           Boolean(value.sensor_backstop_on) !== prevBackstop ||
+          isBinarySensorBinding(this._edit.task ?? {}) !== prevBinary ||
           value.device_id !== prevDevice
         ) {
           this._render();

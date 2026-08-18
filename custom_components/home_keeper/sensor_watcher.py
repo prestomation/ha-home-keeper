@@ -1,18 +1,20 @@
 """Home-Assistant-aware driver for sensor-based tasks.
 
 Subscribes to the entities that sensor-based tasks are bound to, reads their live
-numeric values, and feeds the pure evaluators in ``sensor_tasks.py`` to arm a task
-(via ``store.trigger_task``) or stamp/reset a usage baseline (via
+values — numeric for ``usage``/``threshold``, the state string for ``state`` — and
+feeds the pure evaluators in ``sensor_tasks.py`` to arm a task (via
+``store.trigger_task``) or stamp/reset a usage baseline (via
 ``store.set_sensor_baseline``). Unlike ``problem_sync.py`` this is **evaluation
 only**: sensor tasks are user-created, so there is no registry enumeration,
 auto-creation/deletion, exclusion options, or entry reload — the watcher never
 changes which tasks exist, only their armed/dormant state and meter baseline.
 
-Edge state for threshold tasks (was-the-condition-true, when-it-crossed) lives in
-this object's memory and is baselined on startup (``async_baseline``) so a restart
-never replays a spurious arm — mirroring how the coordinator baselines the
-overdue/due-soon transitions. Completion (the only thing that clears a sensor task)
-flows through the normal user surfaces; the watcher does not clear tasks.
+Edge state for the threshold/state modes (was-the-condition-true, when-it-crossed)
+lives in this object's memory and is baselined on startup (``async_baseline``) so a
+restart never replays a spurious arm — mirroring how the coordinator baselines the
+overdue/due-soon transitions. Completion normally flows through the user surfaces; the
+one exception is a binding with ``clear_on_recover``, where the watcher completes the
+task itself (tagged ``ORIGIN_SENSOR_RECOVER``) once the condition goes away.
 """
 
 from __future__ import annotations
@@ -33,7 +35,13 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from . import sensor_tasks
-from .const import REC_SENSOR, SENSOR_MODE_THRESHOLD, SENSOR_MODE_USAGE
+from .const import (
+    ORIGIN_SENSOR_RECOVER,
+    REC_SENSOR,
+    SENSOR_MODE_STATE,
+    SENSOR_MODE_THRESHOLD,
+    SENSOR_MODE_USAGE,
+)
 
 if TYPE_CHECKING:
     from .coordinator import HomeKeeperCoordinator
@@ -41,12 +49,13 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-def read_sensor_value(hass: HomeAssistant, cfg: dict[str, Any] | None) -> float | None:
-    """Read the live numeric value a sensor binding points at, or ``None``.
+def _raw_reading(hass: HomeAssistant, cfg: dict[str, Any] | None) -> Any | None:
+    """The raw value a sensor binding points at, or ``None`` if there isn't one.
 
-    Honours the optional ``attribute`` (reads that attribute instead of the state) and
-    returns ``None`` for a missing / unavailable / non-numeric entity so callers skip
-    evaluation rather than arm on bad data.
+    Resolves the binding to a live value once — honouring the optional ``attribute``
+    (read that attribute instead of the state) and rejecting a missing / unavailable /
+    unknown entity — so the numeric and state readers can't disagree about what
+    "there is no reading" means.
     """
     if not cfg:
         return None
@@ -57,8 +66,28 @@ def read_sensor_value(hass: HomeAssistant, cfg: dict[str, Any] | None) -> float 
     if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE, "", None):
         return None
     attribute = cfg.get("attribute")
-    raw = state.attributes.get(attribute) if attribute else state.state
-    return sensor_tasks.parse_reading(raw)
+    return state.attributes.get(attribute) if attribute else state.state
+
+
+def read_sensor_value(hass: HomeAssistant, cfg: dict[str, Any] | None) -> float | None:
+    """Read the live numeric value a sensor binding points at, or ``None``.
+
+    Returns ``None`` for a missing / unavailable / non-numeric entity so callers skip
+    evaluation rather than arm on bad data.
+    """
+    return sensor_tasks.parse_reading(_raw_reading(hass, cfg))
+
+
+def read_sensor_state(hass: HomeAssistant, cfg: dict[str, Any] | None) -> str | None:
+    """Read the live **state string** a sensor binding points at, or ``None``.
+
+    The ``state`` mode's counterpart to :func:`read_sensor_value`: a binary sensor
+    reports ``on``/``off``, which has no numeric reading at all. An attribute value is
+    coerced to ``str`` so an attribute holding a bool/number still compares against the
+    binding's stored state.
+    """
+    raw = _raw_reading(hass, cfg)
+    return None if raw is None else str(raw)
 
 
 class SensorTaskWatcher:
@@ -115,14 +144,26 @@ class SensorTaskWatcher:
             cfg = sensor_tasks.sensor_config(task)
             if cfg is None:
                 continue
-            reading = read_sensor_value(self._hass, cfg)
-            if cfg.get("mode") == SENSOR_MODE_THRESHOLD:
+            mode = cfg.get("mode")
+            if mode == SENSOR_MODE_THRESHOLD:
+                reading = read_sensor_value(self._hass, cfg)
                 met = reading is not None and sensor_tasks.compare(
                     reading, cfg["comparison"], float(cfg["value"])
                 )
                 self._edge[tid] = {"condition_met": met, "crossed_at": None}
-            elif reading is not None and cfg.get("baseline") is None:
-                await self._coordinator.store.set_sensor_baseline(tid, reading)
+            elif mode == SENSOR_MODE_STATE:
+                # Record an already-matching sensor as met-without-a-crossing, so a
+                # vacuum still reporting "water tank low" across a restart doesn't
+                # re-arm a task the user already dealt with.
+                self._edge[tid] = {
+                    "condition_met": read_sensor_state(self._hass, cfg)
+                    == cfg.get("state"),
+                    "crossed_at": None,
+                }
+            else:
+                reading = read_sensor_value(self._hass, cfg)
+                if reading is not None and cfg.get("baseline") is None:
+                    await self._coordinator.store.set_sensor_baseline(tid, reading)
 
     @callback
     def async_start_listeners(self) -> None:
@@ -168,13 +209,23 @@ class SensorTaskWatcher:
         # added/edited/removed since we last subscribed).
         self._resubscribe_state()
         now = dt_util.now()
-        armed_any = False
+        changed_any = False
         for tid, task in self._sensor_tasks().items():
             cfg = sensor_tasks.sensor_config(task)
             if cfg is None:
                 continue
+            mode = cfg.get("mode")
+            if mode == SENSOR_MODE_STATE:
+                # A missing state is handled inside the evaluator (it holds the edge
+                # state rather than reading a dropout as a recovery), so unlike the
+                # numeric modes there's nothing to skip here.
+                if await self._evaluate_state(
+                    tid, task, state=read_sensor_state(self._hass, cfg), now=now
+                ):
+                    changed_any = True
+                continue
             reading = read_sensor_value(self._hass, cfg)
-            if cfg.get("mode") == SENSOR_MODE_USAGE:
+            if mode == SENSOR_MODE_USAGE:
                 # A usage task with a time backstop must still be evaluable with no
                 # reading — an appliance that's been offline for a year still owes its
                 # annual service. Without one there's nothing a missing reading can
@@ -182,19 +233,19 @@ class SensorTaskWatcher:
                 if reading is None and not cfg.get("also_every"):
                     continue
                 if await self._evaluate_usage(tid, task, reading=reading, now=now):
-                    armed_any = True
+                    changed_any = True
             else:
                 if reading is None:
                     continue  # unavailable / non-numeric — never arm on bad data
                 if await self._evaluate_threshold(tid, task, reading=reading, now=now):
-                    armed_any = True
+                    changed_any = True
         # Drop edge state for tasks that no longer exist so it can't leak.
         live = set(self._sensor_tasks())
         for stale in [tid for tid in self._edge if tid not in live]:
             del self._edge[stale]
         for stale in [tid for tid in self._usage_reset if tid not in live]:
             del self._usage_reset[stale]
-        if armed_any and refresh:
+        if changed_any and refresh:
             await self._coordinator.async_request_refresh()
 
     async def _evaluate_usage(
@@ -219,19 +270,52 @@ class SensorTaskWatcher:
     async def _evaluate_threshold(
         self, tid: str, task: dict[str, Any], *, reading: float, now: Any
     ) -> bool:
-        edge = self._edge.get(tid, {"condition_met": False, "crossed_at": None})
-        decision = sensor_tasks.evaluate_threshold(
-            task,
-            reading=reading,
-            condition_met_prev=bool(edge.get("condition_met")),
-            crossed_at=edge.get("crossed_at"),
-            now=now,
+        return await self._apply_edge(
+            tid,
+            sensor_tasks.evaluate_threshold(
+                task,
+                reading=reading,
+                condition_met_prev=bool(self._edge.get(tid, {}).get("condition_met")),
+                crossed_at=self._edge.get(tid, {}).get("crossed_at"),
+                now=now,
+            ),
         )
+
+    async def _evaluate_state(
+        self, tid: str, task: dict[str, Any], *, state: str | None, now: Any
+    ) -> bool:
+        return await self._apply_edge(
+            tid,
+            sensor_tasks.evaluate_state(
+                task,
+                state=state,
+                condition_met_prev=bool(self._edge.get(tid, {}).get("condition_met")),
+                crossed_at=self._edge.get(tid, {}).get("crossed_at"),
+                now=now,
+            ),
+        )
+
+    async def _apply_edge(self, tid: str, decision: dict[str, Any]) -> bool:
+        """Carry an edge decision's state forward and apply its action.
+
+        Returns whether the task's due-state changed. A ``clear_on_recover`` clear
+        counts as much as an arming: the task drops off the overdue surfaces, and that
+        should show up immediately rather than at the next periodic tick.
+        """
         self._edge[tid] = {
             "condition_met": decision["condition_met"],
             "crossed_at": decision["crossed_at"],
         }
-        if decision["action"] == sensor_tasks.ACTION_ARM:
+        action = decision["action"]
+        if action == sensor_tasks.ACTION_ARM:
             await self._coordinator.store.trigger_task(tid)
+            return True
+        if action == sensor_tasks.ACTION_CLEAR:
+            # The condition went away on its own, so the work is done: record a real
+            # completion (history, events, the todo/calendar surfaces all follow) and
+            # tag it so an automation can tell it apart from someone pressing Done.
+            await self._coordinator.store.complete_task(
+                tid, origin=ORIGIN_SENSOR_RECOVER
+            )
             return True
         return False

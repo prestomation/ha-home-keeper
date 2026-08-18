@@ -112,6 +112,26 @@ export function backstopEnabled(task: Partial<Task>): boolean {
   return Boolean(task.sensor?.also_every);
 }
 
+/**
+ * Whether a state-mode binding points at a `binary_sensor`, from either representation.
+ *
+ * Binary sensors are the reason this mode exists and they only ever report `on`/`off`,
+ * so they get a two-option picker; every other entity keeps free text because its
+ * states are open-ended (`docked`, `finished`, …). Reads the live edit state's flat
+ * `sensor_entity_id` first so the control swaps as soon as the entity is picked, not
+ * only after a save.
+ *
+ * A binding that reads an `attribute` is deliberately *not* treated as binary: the
+ * attribute's value is what gets compared, and that's arbitrary even on a binary sensor.
+ */
+export function isBinarySensorBinding(task: Partial<Task>): boolean {
+  const sd = task as Record<string, unknown>;
+  const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
+  if (attribute) return false;
+  const entityId = String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? '');
+  return entityId.startsWith('binary_sensor.');
+}
+
 export function taskSchema(
   task: Partial<Task>,
   consumables: { value: string; label: string }[] = [],
@@ -208,9 +228,28 @@ export function taskSchema(
           selector: selSelect([
             { value: 'usage', label: t('opt.sensor_mode.usage') },
             { value: 'threshold', label: t('opt.sensor_mode.threshold') },
+            { value: 'state', label: t('opt.sensor_mode.state') },
           ]),
         },
-        ...(sensorMode === 'threshold'
+        ...(sensorMode === 'state'
+          ? [
+              // A binary sensor only ever reports on/off, so offer those directly
+              // rather than making the user type a magic word. Any other entity keeps
+              // free text so `docked` / `finished` stay reachable.
+              {
+                name: 'sensor_state',
+                required: true,
+                selector: isBinarySensorBinding(task)
+                  ? selSelect([
+                      { value: 'on', label: t('opt.sensor_state.on') },
+                      { value: 'off', label: t('opt.sensor_state.off') },
+                    ])
+                  : selText(),
+              } as FormField,
+              { name: 'sensor_for', selector: selNumber(0) } as FormField,
+              { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
+            ]
+          : sensorMode === 'threshold'
           ? [
               {
                 name: 'sensor_comparison',
@@ -225,6 +264,7 @@ export function taskSchema(
               } as FormField,
               { name: 'sensor_value', required: true, selector: { number: { mode: 'box' } } },
               { name: 'sensor_for', selector: selNumber(0) },
+              { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
             ]
           : [
               { name: 'sensor_target', required: true, selector: selNumber(0) } as FormField,
@@ -356,6 +396,11 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     sensor_target: sd.sensor_target ?? task.sensor?.target ?? undefined,
     sensor_value: sd.sensor_value ?? task.sensor?.value ?? undefined,
     sensor_comparison: sd.sensor_comparison ?? task.sensor?.comparison ?? '>=',
+    // Seeded to `on` because a binary sensor is what this mode is for, and `on` is the
+    // state that means "something needs doing" for every device class that matters
+    // here (water tank low, battery almost empty, leak detected).
+    sensor_state: sd.sensor_state ?? task.sensor?.state ?? 'on',
+    sensor_clear_on_recover: sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover ?? false,
     sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
     sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
     sensor_unit: sd.sensor_unit ?? task.sensor?.unit ?? '',
@@ -464,12 +509,20 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
         ) || 'any') as SensorCombinator;
       }
     } else {
-      sensor.comparison = (sd.sensor_comparison as SensorComparison) ||
-        task.sensor?.comparison ||
-        '>=';
-      sensor.value = Number(sd.sensor_value ?? task.sensor?.value) || 0;
+      // The edge-driven modes (threshold / state) share the hold and the
+      // clear-on-recover flag; only the condition itself differs.
+      if (mode === 'state') {
+        sensor.state = String(sd.sensor_state ?? task.sensor?.state ?? '').trim();
+      } else {
+        sensor.comparison = (sd.sensor_comparison as SensorComparison) ||
+          task.sensor?.comparison ||
+          '>=';
+        sensor.value = Number(sd.sensor_value ?? task.sensor?.value) || 0;
+      }
       const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds) || 0;
       if (forSeconds > 0) sensor.for_seconds = forSeconds;
+      const clearOnRecover = sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover;
+      if (clearOnRecover) sensor.clear_on_recover = true;
     }
     payload = {
       name: task.name,
@@ -582,16 +635,34 @@ export function sensorHintText(
   const mode = ((sd.sensor_mode as SensorMode) ?? task.sensor?.mode ?? 'usage') as SensorMode;
   const unit = ctx.unit ? ` ${ctx.unit}` : '';
 
+  // The edge-driven modes share the hold wording and the clear-on-recover suffix.
+  const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds ?? 0) || 0;
+  const withRecovery = (base: string): string =>
+    (sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover)
+      ? `${base} ${t('hint.sensor.clearOnRecover')}`
+      : base;
+
+  if (mode === 'state') {
+    const state = String(sd.sensor_state ?? task.sensor?.state ?? '').trim();
+    if (!state) return '';
+    return withRecovery(
+      forSeconds > 0
+        ? t('hint.sensor.stateFor', { state, seconds: forSeconds })
+        : t('hint.sensor.state', { state }),
+    );
+  }
+
   if (mode === 'threshold') {
     const rawValue = sd.sensor_value ?? task.sensor?.value;
     if (rawValue == null || rawValue === '' || Number.isNaN(Number(rawValue))) return '';
     const comparison = String(sd.sensor_comparison ?? task.sensor?.comparison ?? '>=');
     const symbol = COMPARISON_SYMBOLS[comparison] ?? comparison;
     const value = `${Number(rawValue)}${unit}`;
-    const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds ?? 0) || 0;
-    return forSeconds > 0
-      ? t('hint.sensor.thresholdFor', { comparison: symbol, value, seconds: forSeconds })
-      : t('hint.sensor.threshold', { comparison: symbol, value });
+    return withRecovery(
+      forSeconds > 0
+        ? t('hint.sensor.thresholdFor', { comparison: symbol, value, seconds: forSeconds })
+        : t('hint.sensor.threshold', { comparison: symbol, value }),
+    );
   }
 
   // usage / meter
