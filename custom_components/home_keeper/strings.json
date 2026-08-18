@@ -68,7 +68,7 @@
         },
         "sensor": {
           "name": "Sensor trigger",
-          "description": "For sensor tasks: a mapping with the bound numeric sensor, entity_id, mode (usage or threshold), and the mode's fields."
+          "description": "For sensor tasks: a mapping with the bound entity, entity_id, mode (usage, threshold or state), and the mode's fields."
         },
         "last_completed": {
           "name": "Last completed",
@@ -150,7 +150,7 @@
         },
         "sensor": {
           "name": "Sensor trigger",
-          "description": "Sensor binding for a sensor task, entity_id, mode, and the mode's fields (replaces the whole binding)."
+          "description": "Sensor binding for a sensor task, entity_id, mode (usage, threshold or state), and the mode's fields (replaces the whole binding)."
         },
         "device_id": {
           "name": "Device",

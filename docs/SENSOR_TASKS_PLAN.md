@@ -51,7 +51,7 @@ HA-aware **watcher** that feeds it.
 
 ---
 
-## 2. Product shape — two modes in v1
+## 2. Product shape — two modes in v1 (a third since)
 
 A new recurrence type **`sensor`** (`REC_SENSOR = "sensor"`), carrying a `sensor`
 config block on the task dict. v1 ships two evaluation modes:
@@ -103,10 +103,30 @@ Semantics — **arm on the crossing edge, clear on completion** (not on recovery
 - After completion the task goes dormant and re-arms only on a *fresh* crossing
   (the edge must go false then true again). This makes it a maintenance *trigger*,
   distinct from the problem-sensor mirror, which tracks the live condition and
-  auto-clears on recovery. (A `clear_on_recover` flag to opt into mirror-style
-  behaviour is a deferred enhancement — §8.)
+  auto-clears on recovery. (`clear_on_recover` opts into mirror-style behaviour; it
+  shipped after v1 — §8.)
 
-Both modes share the triggered state model, so an armed sensor task shows in the
+### 2c. `state` — armed when the entity enters a state *(shipped after v1)*
+
+The binary-sensor case, which neither numeric mode can reach: a robot vacuum's "water
+tank low", a device reporting `battery_almost_empty` rather than a percentage, a leak
+detector. These publish `on`/`off`, so `parse_reading` returns `None` and the numeric
+modes skip them forever — while the entity picker happily let you select one, which made
+it a silent dead end rather than a blocked path.
+
+`state` carries a `state` string the entity must enter, and compares
+`entity state == state` as text. That keeps it useful beyond binary sensors
+(`vacuum.x == "docked"`, `sensor.washer == "finished"`).
+
+Its semantics are 2b's exactly — arm on the rising edge, optional hold, consume the
+crossing, re-arm only on a fresh transition — so the edge machinery lives once in
+`sensor_tasks._evaluate_edge` and both modes delegate to it rather than keeping two
+copies that can drift. The one addition is that a `None` reading (missing / unavailable /
+unknown) holds the carried edge state untouched and decides nothing: treating a dropout
+as a recovery would silently complete every `clear_on_recover` task the first time its
+device fell off the network.
+
+All three modes share the triggered state model, so an armed sensor task shows in the
 to-do list, on the calendar (as due-now), lights the per-task overdue
 binary_sensor, and fires `home_keeper_task_overdue` — all for free.
 
@@ -312,9 +332,11 @@ Kept out of v1 to keep it reviewable; each has a natural seam:
 
 - **State-change counting** is the next-largest unlock after that — see the same
   analysis for the use cases it gates ("descale every 50 cycles").
-- **`clear_on_recover`** — opt a threshold task into mirror-style behaviour
-  (auto-clear when the reading recovers), bridging toward how the problem-sensor
-  sync behaves. One flag + one evaluator branch.
+- ~~**`clear_on_recover`**~~ — **shipped.** Opts a threshold *or* state task into
+  mirror-style behaviour (auto-clear when the condition recovers), bridging toward how
+  the problem-sensor sync behaves. It landed as one flag and one branch in the shared
+  `_evaluate_edge`, applied by the watcher as a real `complete_task` tagged
+  `ORIGIN_SENSOR_RECOVER`. A missing reading is deliberately not a recovery.
 - **Unavailable-entity repair issues** — surface a Home Assistant repair when a
   bound entity goes missing past a grace period (reuse the `managed_by` orphan
   spirit).

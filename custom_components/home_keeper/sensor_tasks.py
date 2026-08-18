@@ -9,7 +9,7 @@ operators, the meter delta, the rising-edge + hold detection, the meter-reset
 re-baseline — is unit-testable with plain dicts and an injected ``now`` (the
 HA-aware reading enumeration and state subscription live in ``sensor_watcher.py``).
 
-Two modes:
+Three modes:
 
 * ``usage`` (a meter) — generalizes ``floating`` from elapsed *time* to elapsed
   sensor *units*: armed when ``reading - baseline >= target``. ``baseline`` is the
@@ -23,6 +23,16 @@ Two modes:
   a fixed value, after an optional ``for_seconds`` hold. The "was the condition true
   last tick" flag and the crossing timestamp are carried by the caller (held in
   coordinator memory, baselined on startup) so a restart never replays a spurious arm.
+* ``state`` — the same rising edge, but the condition is ``entity state == state``
+  rather than a numeric comparison. This is what makes a **binary sensor** usable: a
+  robot vacuum's "water tank low" or a device's ``battery_almost_empty`` report
+  ``on``/``off``, so the numeric modes can never see them. Because it compares the
+  state *string* it is not binary-only — ``vacuum.x == "docked"`` works the same way.
+
+``threshold`` and ``state`` differ only in how "is the condition true right now" is
+computed, so the edge machinery they share — rising-edge detection, the hold timer,
+consuming a crossing so a steady-true sensor never re-arms, and the optional
+``clear_on_recover`` — lives once in :func:`_evaluate_edge` and both delegate to it.
 """
 
 from __future__ import annotations
@@ -45,6 +55,9 @@ from .const import (
 # Decision actions returned by the evaluators (the store/watcher dispatches on these):
 ACTION_ARM = "arm"  # set next_due = now and fire EVENT_TASK_TRIGGERED
 ACTION_REBASELINE = "rebaseline"  # persist a new usage baseline (silent bookkeeping)
+# Clear an armed threshold/state task because its condition recovered and the binding
+# opted into ``clear_on_recover``. The watcher applies it as a real completion.
+ACTION_CLEAR = "clear"
 
 
 def sensor_config(task: dict[str, Any]) -> dict[str, Any] | None:
@@ -198,19 +211,25 @@ def evaluate_usage(
     return {"action": None, "reset_candidate": reset_candidate}
 
 
-def evaluate_threshold(
+def _evaluate_edge(
     task: dict[str, Any],
+    cfg: dict[str, Any],
     *,
-    reading: float,
+    met: bool,
     condition_met_prev: bool,
     crossed_at: datetime | None,
     now: datetime,
 ) -> dict[str, Any]:
-    """Decide the action for a threshold task and return the next edge state.
+    """Shared rising-edge + hold machinery for the ``threshold`` and ``state`` modes.
 
-    Returns ``{"action": "arm" | None, "condition_met": bool, "crossed_at": dt|None}``.
+    Both modes answer the same question — "has the condition just become true, and has
+    it stayed true long enough?" — and differ only in how *met* was computed, so the
+    edge logic lives here once rather than in two copies that can drift.
 
-    ``crossed_at`` tracks an *unconsumed* rising edge: it is set when the comparison
+    Returns ``{"action": "arm" | "clear" | None, "condition_met": bool,
+    "crossed_at": dt|None}``.
+
+    ``crossed_at`` tracks an *unconsumed* rising edge: it is set when the condition
     goes ``false -> true`` and cleared the moment the task arms (or the condition
     recovers). So the task arms once per genuine crossing, after the optional
     ``for_seconds`` hold, and never re-arms while the condition merely stays true
@@ -218,16 +237,19 @@ def evaluate_threshold(
     crossing arms it again. ``condition_met``/``crossed_at`` are the caller's carried
     edge state (in coordinator memory, baselined on startup so an already-true sensor
     at boot — recorded as ``condition_met=True, crossed_at=None`` — does not arm).
+
+    When the binding sets ``clear_on_recover``, a *falling* edge on an armed task also
+    clears it (problem-sensor-mirror behaviour), so "fill the water tank" resolves
+    itself if the tank is refilled without anyone pressing Done.
     """
-    cfg = sensor_config(task)
-    assert cfg is not None
-    met = compare(reading, cfg["comparison"], float(cfg["value"]))
     for_seconds = int(cfg.get("for_seconds") or 0)
     armed = task.get("next_due") is not None
 
     if not met:
-        # Below threshold: clear the hold so the next crossing starts fresh.
-        return {"action": None, "condition_met": False, "crossed_at": None}
+        # Condition false: clear the hold so the next crossing starts fresh. An armed
+        # task also clears itself if it opted in — the work stopped being needed.
+        action = ACTION_CLEAR if armed and cfg.get("clear_on_recover") else None
+        return {"action": action, "condition_met": False, "crossed_at": None}
 
     # Condition is true. A rising edge starts a fresh (unconsumed) hold timer; a
     # continuation keeps whatever timer we had (``None`` once consumed/baselined).
@@ -239,3 +261,66 @@ def evaluate_threshold(
             action = ACTION_ARM
             new_crossed_at = None  # consume this crossing so we don't re-arm on it
     return {"action": action, "condition_met": True, "crossed_at": new_crossed_at}
+
+
+def evaluate_threshold(
+    task: dict[str, Any],
+    *,
+    reading: float,
+    condition_met_prev: bool,
+    crossed_at: datetime | None,
+    now: datetime,
+) -> dict[str, Any]:
+    """Decide the action for a threshold task and return the next edge state.
+
+    The condition is the binding's numeric ``comparison`` against ``value``; see
+    :func:`_evaluate_edge` for the edge/hold semantics and the returned shape.
+    """
+    cfg = sensor_config(task)
+    assert cfg is not None
+    return _evaluate_edge(
+        task,
+        cfg,
+        met=compare(reading, cfg["comparison"], float(cfg["value"])),
+        condition_met_prev=condition_met_prev,
+        crossed_at=crossed_at,
+        now=now,
+    )
+
+
+def evaluate_state(
+    task: dict[str, Any],
+    *,
+    state: str | None,
+    condition_met_prev: bool,
+    crossed_at: datetime | None,
+    now: datetime,
+) -> dict[str, Any]:
+    """Decide the action for a ``state`` task and return the next edge state.
+
+    The condition is ``state == cfg["state"]`` — a plain string comparison, which is
+    what lets a binary sensor (``on``/``off``) drive a task at all. See
+    :func:`_evaluate_edge` for the edge/hold semantics and the returned shape.
+
+    ``state`` is ``None`` when the bound entity is missing, ``unavailable`` or
+    ``unknown``. That is **not** a recovery: treating a Zigbee dropout as "the
+    condition went away" would silently complete every ``clear_on_recover`` task the
+    first time its device fell off the mesh. A ``None`` state therefore holds the
+    carried edge state exactly as it was and decides nothing.
+    """
+    cfg = sensor_config(task)
+    assert cfg is not None
+    if state is None:
+        return {
+            "action": None,
+            "condition_met": condition_met_prev,
+            "crossed_at": crossed_at,
+        }
+    return _evaluate_edge(
+        task,
+        cfg,
+        met=state == cfg["state"],
+        condition_met_prev=condition_met_prev,
+        crossed_at=crossed_at,
+        now=now,
+    )

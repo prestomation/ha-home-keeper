@@ -478,3 +478,239 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
     ).not.toThrow();
   });
 });
+
+describe('state mode — binary sensors', () => {
+  it('offers state alongside usage and threshold', () => {
+    const mode = taskSchema({ recurrence_type: 'sensor' }).find((f) => f.name === 'sensor_mode');
+    expect(mode.selector.select.options.map((o) => o.value)).toEqual([
+      'usage',
+      'threshold',
+      'state',
+    ]);
+  });
+
+  it('shows the state fields and hides both other modes', () => {
+    const names = taskSchema({ recurrence_type: 'sensor', sensor_mode: 'state' }).map(
+      (f) => f.name,
+    );
+    expect(names).toContain('sensor_state');
+    expect(names).toContain('sensor_for');
+    expect(names).toContain('sensor_clear_on_recover');
+    // Neither the meter's target nor the threshold's comparison belongs here.
+    expect(names).not.toContain('sensor_target');
+    expect(names).not.toContain('sensor_comparison');
+    expect(names).not.toContain('sensor_value');
+  });
+
+  it('offers on/off as a picker for a binary sensor', () => {
+    const field = taskSchema({
+      recurrence_type: 'sensor',
+      sensor_mode: 'state',
+      sensor_entity_id: 'binary_sensor.rosie_water_tank_low',
+    }).find((f) => f.name === 'sensor_state');
+    expect(field.selector.select.options.map((o) => o.value)).toEqual(['on', 'off']);
+  });
+
+  it('falls back to free text for a non-binary entity', () => {
+    // `vacuum.x === 'docked'` has to stay reachable, so the picker can't be forced.
+    const field = taskSchema({
+      recurrence_type: 'sensor',
+      sensor_mode: 'state',
+      sensor_entity_id: 'vacuum.rosie',
+    }).find((f) => f.name === 'sensor_state');
+    expect(field.selector.text).toBeDefined();
+    expect(field.selector.select).toBeUndefined();
+  });
+
+  it('falls back to free text when reading an attribute of a binary sensor', () => {
+    // The attribute's value is what gets compared, and that is arbitrary even on a
+    // binary sensor — so on/off would be the wrong pair to offer.
+    const field = taskSchema({
+      recurrence_type: 'sensor',
+      sensor_mode: 'state',
+      sensor_entity_id: 'binary_sensor.rosie_water_tank_low',
+      sensor_attribute: 'level',
+    }).find((f) => f.name === 'sensor_state');
+    expect(field.selector.text).toBeDefined();
+  });
+
+  it('picks the control from a loaded binding, not just live edit state', () => {
+    const field = taskSchema({
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'binary_sensor.x', mode: 'state', state: 'on' },
+    }).find((f) => f.name === 'sensor_state');
+    expect(field.selector.select.options.map((o) => o.value)).toEqual(['on', 'off']);
+  });
+
+  it('assembles a state payload', () => {
+    const payload = buildTaskPayload({
+      name: 'Fill the water tank',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'binary_sensor.rosie_water_tank_low',
+      sensor_mode: 'state',
+      sensor_state: 'on',
+      sensor_for: '60',
+    });
+    expect(payload.sensor).toEqual({
+      entity_id: 'binary_sensor.rosie_water_tank_low',
+      mode: 'state',
+      state: 'on',
+      for_seconds: 60,
+    });
+  });
+
+  it('never sends the other modes’ fields, even if they linger in edit state', () => {
+    // Switching usage -> state leaves `sensor_target` in the live form state; sending
+    // it would be rejected by the backend as a usage-only field.
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'binary_sensor.x',
+      sensor_mode: 'state',
+      sensor_state: 'on',
+      sensor_target: '300',
+      sensor_unit: 'h',
+      sensor_comparison: '>=',
+      sensor_value: '90',
+    });
+    expect(payload.sensor).toEqual({
+      entity_id: 'binary_sensor.x',
+      mode: 'state',
+      state: 'on',
+    });
+  });
+
+  it('trims the state and omits a zero hold', () => {
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'vacuum.rosie',
+      sensor_mode: 'state',
+      sensor_state: '  docked  ',
+      sensor_for: '0',
+    });
+    expect(payload.sensor.state).toBe('docked');
+    expect(payload.sensor.for_seconds).toBeUndefined();
+  });
+
+  it('carries clear_on_recover only when switched on', () => {
+    const base = {
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'binary_sensor.x',
+      sensor_mode: 'state',
+      sensor_state: 'on',
+    };
+    expect(buildTaskPayload(base).sensor.clear_on_recover).toBeUndefined();
+    expect(buildTaskPayload({ ...base, sensor_clear_on_recover: false }).sensor.clear_on_recover)
+      .toBeUndefined();
+    expect(buildTaskPayload({ ...base, sensor_clear_on_recover: true }).sensor.clear_on_recover)
+      .toBe(true);
+  });
+
+  it('offers clear_on_recover on threshold tasks too', () => {
+    const names = taskSchema({ recurrence_type: 'sensor', sensor_mode: 'threshold' }).map(
+      (f) => f.name,
+    );
+    expect(names).toContain('sensor_clear_on_recover');
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.airflow',
+      sensor_mode: 'threshold',
+      sensor_comparison: '<',
+      sensor_value: '60',
+      sensor_clear_on_recover: true,
+    });
+    expect(payload.sensor.clear_on_recover).toBe(true);
+  });
+
+  it('flattens a loaded state binding back into form fields', () => {
+    const data = taskFormData({
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'binary_sensor.x',
+        mode: 'state',
+        state: 'off',
+        for_seconds: 30,
+        clear_on_recover: true,
+      },
+    });
+    expect(data.sensor_mode).toBe('state');
+    expect(data.sensor_state).toBe('off');
+    expect(data.sensor_for).toBe(30);
+    expect(data.sensor_clear_on_recover).toBe(true);
+  });
+
+  it('seeds a fresh form with "on", the state that means "something needs doing"', () => {
+    expect(taskFormData({ recurrence_type: 'sensor' }).sensor_state).toBe('on');
+  });
+
+  it('summarises a state task by the state it waits for', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'sensor',
+        sensor: { entity_id: 'binary_sensor.x', mode: 'state', state: 'on' },
+      }),
+    ).toContain('on');
+  });
+
+  it('describes the rule in the live hint', () => {
+    const hint = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'state',
+      sensor_state: 'on',
+    });
+    expect(hint).toContain('on');
+    expect(hint).not.toBe('');
+  });
+
+  it('mentions the hold time when the state sets one', () => {
+    const hint = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'state',
+      sensor_state: 'on',
+      sensor_for: 600,
+    });
+    expect(hint).toContain('600');
+  });
+
+  it('adds the self-clearing clause when clear_on_recover is on', () => {
+    const plain = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'state',
+      sensor_state: 'on',
+    });
+    const clearing = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'state',
+      sensor_state: 'on',
+      sensor_clear_on_recover: true,
+    });
+    expect(clearing.startsWith(plain)).toBe(true);
+    expect(clearing.length).toBeGreaterThan(plain.length);
+  });
+
+  it('adds the same clause to a threshold hint', () => {
+    const clearing = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'threshold',
+      sensor_comparison: '>',
+      sensor_value: 90,
+      sensor_clear_on_recover: true,
+    });
+    const plain = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'threshold',
+      sensor_comparison: '>',
+      sensor_value: 90,
+    });
+    expect(clearing.startsWith(plain)).toBe(true);
+  });
+
+  it('stays quiet until a state is entered', () => {
+    expect(
+      sensorHintText({ recurrence_type: 'sensor', sensor_mode: 'state', sensor_state: '  ' }),
+    ).toBe('');
+  });
+});

@@ -6,7 +6,27 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [Unreleased]
+## [0.14.0b3]
+
+### Added
+
+- **Sensor-based tasks can now be driven by a binary sensor**, through a new **State**
+  mode. Plenty of hardware never publishes a number: a robot vacuum reports *water tank
+  low*, a device reports `battery_almost_empty` instead of a battery percentage, a leak
+  detector reports a leak. Pick the entity, pick the state that means *"this needs
+  attention"* (On and Off are offered directly for a `binary_sensor`), and the task arms
+  when the sensor gets there. Previously you could select such an entity and the task
+  would silently never fire, because only numeric readings were understood.
+  - It arms on the **transition** into the state, not on the state being true, so a task
+    appears once per event rather than repeating while the sensor stays on, and a
+    restart with the sensor already on doesn't resurrect work you already did.
+  - The state is matched as text, so it reaches past binary sensors:
+    `vacuum.rosie` = `docked` or `sensor.washer_status` = `finished` work the same way.
+  - The existing **hold** applies, for *"the door has been open for 10 minutes"*.
+- **Clear when back to normal**, an opt-in on State and Threshold tasks that completes
+  the task by itself once the condition goes away, recording a completion so the history
+  still shows it. It's off by default, so tasks keep waiting for you unless you say
+  otherwise. A bound entity going unavailable is deliberately not treated as a recovery.
 
 ### Security
 

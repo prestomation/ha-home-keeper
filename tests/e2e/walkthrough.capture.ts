@@ -163,6 +163,31 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await page.mouse.move(0, 0);
     await page.waitForTimeout(BEAT * 3); // linger on the summary + "whichever comes first"
 
+    // 3a2. **State** mode — the binary-sensor case, and the one that only reads as a
+    //      motion: bind a binary_sensor and the value control *changes shape*, from a
+    //      free-text box into an On/Off picker, because a binary sensor has only those
+    //      two states. A still can show the end state but not the swap, so pick the
+    //      entity first, beat, then switch the mode and let the form re-render.
+    await panel
+      .locator('#hk-task-form ha-selector-entity')
+      .first()
+      .locator('ha-picker-field')
+      .click();
+    await page.locator('input[placeholder="Search"]:visible').first().fill('hk_demo_water_tank');
+    await page
+      .locator('ha-combo-box-item:visible')
+      .filter({ hasText: /HK demo water tank low/ })
+      .first()
+      .click();
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('#hk-task-form ha-select').nth(1).click();
+    await page.getByRole('menuitem', { name: /^State$/ }).first().click();
+    // The summary rewrites itself again, now describing a transition rather than a
+    // meter — the same strip, tracking a completely different kind of rule.
+    await expect(panel.locator('#hk-form-summary-value')).toHaveText('When it changes to on');
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(BEAT * 3);
+
     // Reset by re-opening the panel fresh — closing the create form does a full
     // route change back to /home-keeper that can race a click (the screenshots
     // harness resets the create form the same way).

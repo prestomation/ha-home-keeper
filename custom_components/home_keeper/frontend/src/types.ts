@@ -4,25 +4,31 @@
 // `one-off` is a user-scheduled do-once task: it carries a `due` date and goes
 // dormant (next_due null) once completed, landing in the panel's Completed section.
 // `sensor` is a sensor-based task: Home Keeper derives its armed/dormant state from
-// a bound numeric sensor (see `SensorBinding`). Like `triggered`, its `next_due` is
+// a bound entity (see `SensorBinding`). Like `triggered`, its `next_due` is
 // its state; the user creates it and the backend watcher arms it.
 export type RecurrenceType = 'floating' | 'fixed' | 'triggered' | 'one-off' | 'sensor';
 export type Unit = 'days' | 'weeks' | 'months';
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
-export type SensorMode = 'usage' | 'threshold';
+/** `state` compares the entity's state *string* rather than a number, which is what
+ *  makes a binary sensor usable (`on`/`off` has no numeric reading). Not binary-only:
+ *  any state-y entity works, e.g. `vacuum.x === 'docked'`. */
+export type SensorMode = 'usage' | 'threshold' | 'state';
 export type SensorComparison = '>=' | '<=' | '>' | '<' | '==' | '!=';
 
 /** How a usage task's meter target combines with its time backstop: `any` (the
  *  default) = whichever comes first, `all` = both must be met. */
 export type SensorCombinator = 'any' | 'all';
 
-/** The numeric-sensor binding of a sensor-based task. Only the keys relevant to
- *  `mode` are present: `target` for usage; `comparison`/`value`/`for_seconds` for
- *  threshold. `baseline` (usage) is the reading at creation / last completion,
+/** The entity binding of a sensor-based task. Only the keys relevant to
+ *  `mode` are present: `target` for usage; `comparison`/`value` for threshold;
+ *  `state` for state. `baseline` (usage) is the reading at creation / last completion,
  *  stamped by the backend watcher. `attribute` reads an entity attribute instead
  *  of the state. `also_every` is the usage task's optional **time backstop** — the
  *  "or every 6 months" half of a real service interval, measured from the last
- *  completion — and `unit` labels the meter ("300 h" rather than a bare "300"). */
+ *  completion — and `unit` labels the meter ("300 h" rather than a bare "300").
+ *  `for_seconds` (threshold/state) makes the condition hold before the task arms, and
+ *  `clear_on_recover` (threshold/state) clears an armed task when the condition goes
+ *  away instead of waiting for it to be completed by hand. */
 export interface SensorBinding {
   entity_id: string;
   mode: SensorMode;
@@ -34,7 +40,9 @@ export interface SensorBinding {
   combinator?: SensorCombinator;
   comparison?: SensorComparison;
   value?: number;
+  state?: string;
   for_seconds?: number;
+  clear_on_recover?: boolean;
 }
 
 /** How a task captures per-completion detail when marked done:

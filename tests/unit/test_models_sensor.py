@@ -317,3 +317,206 @@ def test_sensor_task_accepts_a_seeded_last_completed_without_arming():
     assert task["next_due"] is None
     assert task["last_completed"] is not None
     assert len(task["completions"]) == 1
+
+
+# ── state mode (binary sensors) ──────────────────────────────────────────────
+def test_build_state_sensor_task():
+    task = m.build_task(
+        {
+            "name": "Fill the vacuum's water tank",
+            "recurrence_type": "sensor",
+            "sensor": {
+                "entity_id": "binary_sensor.rosie_water_tank_low",
+                "mode": "state",
+                "state": "on",
+                "for_seconds": 60,
+            },
+        },
+        now=NOW,
+    )
+    # Born dormant like every sensor task — the watcher arms it on the crossing.
+    assert task["next_due"] is None
+    assert task["sensor"] == {
+        "entity_id": "binary_sensor.rosie_water_tank_low",
+        "mode": "state",
+        "state": "on",
+        "for_seconds": 60,
+    }
+
+
+def test_state_keeps_only_the_keys_it_was_given():
+    # No hold, no clear_on_recover -> neither key is stored, so a binding round-trips
+    # to exactly what the user configured.
+    assert m.normalize_sensor(
+        {"entity_id": "binary_sensor.x", "mode": "state", "state": "on"}
+    ) == {"entity_id": "binary_sensor.x", "mode": "state", "state": "on"}
+
+
+def test_state_is_trimmed_and_accepts_any_state_string():
+    cfg = m.normalize_sensor(
+        {"entity_id": "vacuum.rosie", "mode": "state", "state": "  docked  "}
+    )
+    assert cfg["state"] == "docked"
+
+
+def test_state_reads_an_attribute_when_asked():
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "vacuum.rosie",
+            "mode": "state",
+            "state": "low",
+            "attribute": "water_level",
+        }
+    )
+    assert cfg["attribute"] == "water_level"
+
+
+def test_state_clear_on_recover_is_stored_only_when_on():
+    binding = {"entity_id": "binary_sensor.x", "mode": "state", "state": "on"}
+    assert "clear_on_recover" not in m.normalize_sensor(binding)
+    assert "clear_on_recover" not in m.normalize_sensor(
+        {**binding, "clear_on_recover": False}
+    )
+    assert (
+        m.normalize_sensor({**binding, "clear_on_recover": True})["clear_on_recover"]
+        is True
+    )
+
+
+def test_threshold_clear_on_recover_is_stored_only_when_on():
+    binding = {
+        "entity_id": "sensor.airflow",
+        "mode": "threshold",
+        "comparison": "<",
+        "value": 60,
+    }
+    assert "clear_on_recover" not in m.normalize_sensor(binding)
+    assert (
+        m.normalize_sensor({**binding, "clear_on_recover": True})["clear_on_recover"]
+        is True
+    )
+
+
+@pytest.mark.parametrize(
+    "state",
+    [None, "", "   "],
+)
+def test_state_is_required(state):
+    with raises_exactly(m.TaskValidationError, "sensor.state is required"):
+        m.normalize_sensor(
+            {"entity_id": "binary_sensor.x", "mode": "state", "state": state}
+        )
+
+
+def test_state_over_length_rejected():
+    # Home Assistant caps a state at 255 chars, so a longer one could never match.
+    with raises_exactly(
+        m.TaskValidationError, "sensor.state must be <= 255 characters"
+    ):
+        m.normalize_sensor(
+            {"entity_id": "binary_sensor.x", "mode": "state", "state": "x" * 256}
+        )
+    # The boundary itself is fine.
+    assert (
+        m.normalize_sensor(
+            {"entity_id": "binary_sensor.x", "mode": "state", "state": "x" * 255}
+        )["state"]
+        == "x" * 255
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("also_every", {"interval": 6, "unit": "months"}),
+        ("combinator", "all"),
+        ("unit", "h"),
+        ("target", 500),
+        ("baseline", 12),
+        ("comparison", ">"),
+        ("value", 5),
+    ],
+)
+def test_state_rejects_fields_from_the_other_modes(field, value):
+    # Storing them silently would let the panel save an "every 300 h" target onto a
+    # state task and leave the user believing it applies.
+    with raises_exactly(
+        m.TaskValidationError,
+        f"sensor.{field} is not valid for a state-mode sensor task",
+    ):
+        m.normalize_sensor(
+            {
+                "entity_id": "binary_sensor.x",
+                "mode": "state",
+                "state": "on",
+                field: value,
+            }
+        )
+
+
+@pytest.mark.parametrize("field", ["also_every", "combinator", "unit", "target"])
+def test_threshold_still_rejects_usage_only_fields(field):
+    with raises_exactly(
+        m.TaskValidationError,
+        f"sensor.{field} is not valid for a threshold-mode sensor task",
+    ):
+        m.normalize_sensor(
+            {
+                "entity_id": "sensor.x",
+                "mode": "threshold",
+                "comparison": ">",
+                "value": 5,
+                field: (
+                    "6" if field != "also_every" else {"interval": 6, "unit": "days"}
+                ),
+            }
+        )
+
+
+@pytest.mark.parametrize("for_seconds", [-1, "abc"])
+def test_state_rejects_a_bad_hold(for_seconds):
+    with pytest.raises(m.TaskValidationError):
+        m.normalize_sensor(
+            {
+                "entity_id": "binary_sensor.x",
+                "mode": "state",
+                "state": "on",
+                "for_seconds": for_seconds,
+            }
+        )
+
+
+def test_unknown_sensor_mode_rejected():
+    with raises_exactly(m.TaskValidationError, "invalid sensor mode: 'count'"):
+        m.normalize_sensor(
+            {"entity_id": "binary_sensor.x", "mode": "count", "state": "on"}
+        )
+
+
+def test_converting_a_usage_task_to_state_drops_the_meter():
+    task = m.build_task(
+        {
+            "name": "T",
+            "recurrence_type": "sensor",
+            "sensor": {"entity_id": "sensor.hours", "mode": "usage", "target": 300},
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(
+        task,
+        {
+            "sensor": {
+                "entity_id": "binary_sensor.service_due",
+                "mode": "state",
+                "state": "on",
+            }
+        },
+        now=NOW,
+    )
+    assert updated["sensor"] == {
+        "entity_id": "binary_sensor.service_due",
+        "mode": "state",
+        "state": "on",
+    }
+    # Still dormant: switching how a task is driven must not arm it.
+    assert updated["next_due"] is None

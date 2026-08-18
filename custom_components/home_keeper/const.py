@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.14.0b2"
+PANEL_VERSION = "0.14.0b3"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -179,6 +179,13 @@ OPTION_NOTIFICATIONS = "notifications"
 # (and ignore) the completion/snooze it triggered from a notification tap.
 ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"
 
+# Opaque ``origin`` marker the sensor watcher passes to ``complete_task`` when a
+# ``clear_on_recover`` sensor task clears itself because its bound entity went back to
+# normal. Unlike ``ORIGIN_PROBLEM_SENSOR_SYNC`` this authorizes nothing — the task is
+# user-owned and completable by hand — it exists so an automation can tell "Home Keeper
+# noticed the condition cleared" apart from "somebody pressed Done".
+ORIGIN_SENSOR_RECOVER = f"{DOMAIN}_sensor_recover"
+
 
 # Recurrence types.
 REC_FLOATING = "floating"
@@ -196,20 +203,30 @@ REC_TRIGGERED = "triggered"
 # history-driven, not condition-driven). See docs/EVENTS.md / README.
 REC_ONE_OFF = "one-off"
 # A sensor-based task: Home Keeper derives its armed/dormant state from a bound
-# numeric sensor rather than the clock. Like ``triggered`` its ``next_due`` *is* its
+# entity rather than the clock. Like ``triggered`` its ``next_due`` *is* its
 # state (``None`` = dormant, a timestamp = armed/due-now), but Home Keeper itself —
 # not an external owner — arms it via a pure evaluator fed by the live reading. The
 # binding lives in ``task["sensor"]`` (see ``models.normalize_sensor`` /
-# ``sensor_tasks.py``). Two modes: ``usage`` (a meter — due after the reading
-# advances ``target`` units since the last completion) and ``threshold`` (due when
-# the reading crosses a comparison). See docs/SENSOR_TASKS_PLAN.md.
+# ``sensor_tasks.py``). Three modes: ``usage`` (a meter — due after the reading
+# advances ``target`` units since the last completion), ``threshold`` (due when
+# the reading crosses a numeric comparison) and ``state`` (due when the entity enters
+# a given state). See docs/SENSOR_TASKS_PLAN.md.
 REC_SENSOR = "sensor"
 RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED, REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR]
 
 # Sensor-based task modes.
 SENSOR_MODE_USAGE = "usage"  # meter: arm when reading - baseline >= target
 SENSOR_MODE_THRESHOLD = "threshold"  # arm on a numeric crossing of value
-SENSOR_MODES = [SENSOR_MODE_USAGE, SENSOR_MODE_THRESHOLD]
+# ``state`` compares the entity's *state string* rather than a number, which is what
+# makes a binary sensor usable at all: "water tank low" / "battery almost empty"
+# report ``on``/``off``, never a figure. It is not binary-only — any state-y entity
+# works (``vacuum.x == "docked"``, ``sensor.washer == "finished"``).
+SENSOR_MODE_STATE = "state"
+SENSOR_MODES = [SENSOR_MODE_USAGE, SENSOR_MODE_THRESHOLD, SENSOR_MODE_STATE]
+
+# Max length of a ``state`` binding's target state. Home Assistant caps a state string
+# at 255 characters, so anything longer could never match a real entity.
+MAX_SENSOR_STATE_LEN = 255
 
 # How a usage task's meter target combines with its optional time backstop
 # (``sensor["also_every"]``): ``any`` = whichever comes first (the common

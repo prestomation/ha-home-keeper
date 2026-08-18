@@ -25,7 +25,7 @@ add_task:
         (do-once, uses "due", goes dormant when completed), triggered
         (condition-driven, no schedule; an owning integration arms it via trigger_task
         and clears it via complete_task), or sensor (due-state derived from a bound
-        numeric sensor, uses "sensor"). interval/unit/freq/anchor are N/A for one-off,
+        entity, uses "sensor"). interval/unit/freq/anchor are N/A for one-off,
         triggered, and sensor.
       selector:
         select:
@@ -78,11 +78,14 @@ add_task:
     sensor:
       name: Sensor trigger
       description: >-
-        For sensor tasks - a mapping describing the bound numeric sensor. Always
-        entity_id and mode ("usage" or "threshold"). For usage (a meter): target
-        (arm once the reading advances this many units since the last completion).
-        For threshold: comparison (">=", "<=", ">", "<", "==", "!="), value, and an
-        optional for_seconds hold. Optional attribute reads an entity attribute
+        For sensor tasks - a mapping describing the bound entity. Always
+        entity_id and mode ("usage", "threshold" or "state"). For usage (a meter):
+        target (arm once the reading advances this many units since the last
+        completion). For threshold: comparison (">=", "<=", ">", "<", "==", "!=") and
+        value. For state (what makes a binary sensor usable): state, the state string
+        the entity must enter, such as "on". Threshold and state also take an optional
+        for_seconds hold and clear_on_recover (clear the task by itself once the
+        condition goes away). Optional attribute reads an entity attribute
         instead of the state. Example - {"entity_id": "sensor.odometer", "mode":
         "usage", "target": 15000}.
       example: '{"entity_id": "sensor.odometer", "mode": "usage", "target": 15000}'
@@ -201,7 +204,7 @@ update_task:
       name: Recurrence type
       description: >-
         floating, fixed, one-off (do-once), triggered (condition-driven, no schedule),
-        or sensor (derived from a bound numeric sensor).
+        or sensor (derived from a bound entity).
       selector:
         select:
           options:
@@ -249,7 +252,7 @@ update_task:
       name: Sensor trigger
       description: >-
         Sensor binding for a sensor task (see add_task): entity_id, mode
-        (usage/threshold) and the mode's fields. Replaces the whole binding.
+        (usage/threshold/state) and the mode's fields. Replaces the whole binding.
       selector:
         object:
     device_id:

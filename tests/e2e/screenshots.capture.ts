@@ -63,6 +63,26 @@ async function fillNumber(scope: Locator, nth: number, value: string): Promise<v
   await scope.locator('ha-selector-number').nth(nth).locator('input').fill(value);
 }
 
+/**
+ * Pick an entity in the nth ha-form entity selector within a scope.
+ *
+ * Home Assistant's entity picker is an `ha-picker-field` button that opens a search
+ * overlay, not a plain text input, so the flow is click -> search -> pick the row.
+ * The state mode's value control follows the bound entity (an on/off picker for a
+ * binary sensor, free text otherwise), so a shot of that form has to really choose one.
+ */
+async function chooseEntity(
+  scope: Locator,
+  nth: number,
+  query: string,
+  label: RegExp,
+): Promise<void> {
+  const page = scope.page();
+  await scope.locator('ha-selector-entity').nth(nth).locator('ha-picker-field').click();
+  await page.locator('input[placeholder="Search"]:visible').first().fill(query);
+  await page.locator('ha-combo-box-item:visible').filter({ hasText: label }).first().click();
+}
+
 test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 1. The admin sidebar panel — task list with floating + fixed + overdue tasks.
   await openPanel(page);
@@ -431,6 +451,36 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/31-panel-create-sensor-threshold.png`, fullPage: true });
+
+  // 43. The same form in **state** mode — the binary-sensor case. A robot vacuum's
+  // "water tank low" or a device's battery_almost_empty reports on/off and has no
+  // number to compare, so the numeric modes can't see it at all. Bind a real
+  // binary_sensor and Home Keeper offers On/Off directly instead of free text.
+  await openPanel(page);
+  await expect(panel.locator('#add-btn')).toBeVisible();
+  await panel.locator('#add-btn').click();
+  await expect(panel.locator('#hk-form')).toBeVisible();
+  await fillText(panel.locator('#hk-task-form'), 0, 'Fill the vacuum water tank');
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Based on a sensor/);
+  await expect(panel.locator('#hk-task-form ha-selector-entity').first()).toBeVisible();
+  await chooseEntity(
+    panel.locator('#hk-task-form'),
+    0,
+    'hk_demo_water_tank',
+    /HK demo water tank low/,
+  );
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').nth(1), /^State$/);
+  // Assert the wording rather than only photographing it: the entity, the mode and
+  // the state add up to one rule and no single field states it. Both lines also prove
+  // the state defaulted to `on` through the binary-sensor picker rather than staying
+  // an empty free-text box.
+  await expect(panel.locator('#hk-form-summary-value')).toHaveText('When it changes to on');
+  await expect(panel.locator('#hk-sensor-hint')).toHaveText(
+    'The task becomes due when the sensor changes to on.',
+  );
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/43-panel-create-sensor-state.png`, fullPage: true });
 
   // 33 + 34. Linked consumable (sensor-driven reorder). Attach a task to an appliance,
   // then its "Linked consumable" picker is scoped to that appliance's consumables;

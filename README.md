@@ -27,7 +27,8 @@ changes, water filters, taking medicine, and anything else that recurs).
 - **Tasks, five ways:** **floating** (every N units after last done), **fixed**
   (anchored calendar schedule), **one-off** (do-once, on a chosen due date),
   **triggered** (condition-driven, no schedule, armed/cleared by another integration),
-  and **sensor-based** (driven by a numeric sensor, either a usage meter or a threshold).
+  and **sensor-based** (driven by an entity: a usage meter, a threshold, or a state such
+  as a binary sensor flipping on).
 - **Used through native HA entities**: a `todo` list, an upcoming-tasks `calendar`,
   and per-device **button / next-due sensor / overdue binary_sensor** on a task's
   device page.
@@ -73,10 +74,10 @@ A **task** has a name, notes, an optional device it's attached to, and a recurre
 - **One-off** (form: *Just once*), *do-once* (see
   [One-off tasks](#one-off-do-once-tasks) below).
 - **Triggered** (*monitored, condition-driven, no schedule*, see below).
-- **Sensor-based** (form: *Based on a sensor*), driven by a numeric sensor instead of
-  the clock: *"service the generator every 500 running hours"* or *"replace the filter
-  when airflow drops below 60%"* (see
-  [Sensor-based tasks](#sensor-based-tasks-usage-meters--thresholds) below).
+- **Sensor-based** (form: *Based on a sensor*), driven by an entity instead of
+  the clock: *"service the generator every 500 running hours"*, *"replace the filter
+  when airflow drops below 60%"*, or *"fill the tank when the vacuum says it's empty"* (see
+  [Sensor-based tasks](#sensor-based-tasks-usage-meters-thresholds--states) below).
 
 An **appliance** (asset) is the physical thing a task is about: a fridge, furnace,
 water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).
@@ -321,14 +322,15 @@ Add a durable note that reappears the next time the problem fires:
 
 ![Editing the note on a synced problem-sensor task, showing a textarea seeded with the previous note and Save/Cancel buttons](docs/images/18-panel-problem-sensor-note.png)
 
-## Sensor-based tasks (usage meters & thresholds)
+## Sensor-based tasks (usage meters, thresholds & states)
 
 Some maintenance isn't measured in *time* but in *use*: oil every **15,000 km**, a
 service every **500 running hours**, descale after **50 cycles**, or it's a reaction
 to a **reading crossing a limit**: replace the filter when airflow drops **below 60 %**,
-check coolant when temperature climbs **above 90 °C**. A **sensor-based** task binds a
-task to an existing numeric Home Assistant entity and lets Home Keeper arm it for you.
-No automation to wire up.
+check coolant when temperature climbs **above 90 °C**. Sometimes the device just tells
+you outright, with a **binary sensor** that flips on: *water tank empty*, *battery
+almost empty*, *leak detected*. A **sensor-based** task binds a task to an existing
+Home Assistant entity and lets Home Keeper arm it for you. No automation to wire up.
 
 Pick **Based on a sensor** on the task form, choose the **sensor**, and pick a **mode**:
 
@@ -356,6 +358,12 @@ Pick **Based on a sensor** on the task form, choose the **sensor**, and pick a *
   instead of its state). The task arms on the crossing and stays due until you complete
   it. A filter you need to replace doesn't un-need replacing if airflow briefly
   recovers, then re-arms only on a fresh crossing.
+- **State**: pick the **state** the entity has to enter, with the same optional **hold**.
+  This is the mode for **binary sensors**, which report `on`/`off` and have no number to
+  compare, so pick an entity like `binary_sensor.robot_water_tank_low` and Home Keeper
+  offers **On** and **Off** directly. It isn't limited to binary sensors: the state is
+  matched as text, so `vacuum.rosie` = `docked` or `sensor.washer_status` = `finished`
+  work the same way. See [below](#when-a-device-just-tells-you) for what it's for.
 
 A sensor task behaves like any other once **armed**: it shows on the to-do list and
 calendar, lights the device's overdue sensor, and fires the `home_keeper_task_overdue`
@@ -416,6 +424,50 @@ the sensor reads right now.
 
 ![The same form in threshold mode, with a comparison, a value, and an optional hold](docs/images/31-panel-create-sensor-threshold.png)
 
+### When a device just tells you
+
+Plenty of hardware doesn't expose a number at all. It exposes a **binary sensor** that
+flips on when something needs doing: a robot vacuum's *water tank empty*, a sensor whose
+battery reports `battery_almost_empty` instead of a percentage, a leak detector, a
+*filter needs replacing* flag. There is nothing to meter and no threshold to cross. The
+device has already made the judgement.
+
+**State** mode is for exactly that. Pick the entity, pick the state that means *"this
+needs attention"* (Home Keeper offers **On** and **Off** when you choose a
+`binary_sensor`), and the task arms the moment the sensor gets there.
+
+- **What it solves:** the maintenance signal your device already publishes, turned into a
+  task you can see, complete and keep history for, instead of a binary sensor quietly
+  flipping `on` where nobody looks.
+- **Once per event, not once per tick.** The task arms on the **transition** into the
+  state, not on the state being true. It stays put while the sensor remains on, and after
+  you complete it, it re-arms only when the sensor goes back to normal and then trips
+  again. So *"fill the water tank"* appears once per empty tank, not every five minutes
+  until you get around to it.
+- **A restart doesn't fabricate work.** If the sensor is already on when Home Assistant
+  starts, that's not a fresh transition, so a task you already dealt with doesn't come
+  back.
+- **An optional hold** ignores the momentary trips: *"the door has been open for 10
+  minutes"*, not *"the door opened"*.
+- **Not just binary sensors.** The state is matched as text, so `vacuum.rosie` = `docked`
+  or `sensor.washer_status` = `finished` work identically. When the entity isn't a binary
+  sensor the field becomes free text.
+
+**Let it clear itself.** Some of these fix themselves: somebody else fills the tank, the
+leak dries up. Switch on **Clear when back to normal** and the task completes itself once
+the sensor recovers, recording a completion so the history still shows it happened. Leave
+it off (the default) when you want the task to wait for you, which is usually right for
+anything you actually have to go and do.
+
+> **How this differs from [problem-sensor sync](#sync-problem-binary-sensors-as-tasks).**
+> That mirrors `device_class: problem` sensors automatically, all of them at once, as
+> tasks you can't complete by hand. State mode is the opposite trade: you create one task
+> deliberately, for **any** entity and any device class (`battery_almost_empty` is
+> `device_class: battery`, so the sync never sees it), you choose which state arms it, and
+> you complete it yourself unless you opt into self-clearing.
+
+![Creating a state-mode sensor task bound to a binary sensor, with On selected and the rule summarised above the Create button](docs/images/43-panel-create-sensor-state.png)
+
 ### Link a task to a consumable (auto-reorder)
 
 A maintenance task often **uses up a spare you keep on hand**, such as a fridge water filter,
@@ -427,7 +479,7 @@ list. The link is independent of the auto-generated wear-part tasks, so the task
 normal, fully-editable task.
 
 This is what makes the *"there's no schedule, my fridge tells me when the filter is
-spent"* case work end to end: create a **[sensor-based](#sensor-based-tasks-usage-meters--thresholds)**
+spent"* case work end to end: create a **[sensor-based](#sensor-based-tasks-usage-meters-thresholds--states)**
 task bound to the fridge's filter-life (or water-usage) entity, then **link it to the
 filter consumable**. The fridge arms the task; when you swap the filter and mark it done,
 Home Keeper subtracts a spare and tells you to **buy more** once you're low.
