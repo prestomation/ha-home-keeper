@@ -21,6 +21,7 @@ import {
   selNumber,
   selSelect,
   selText,
+  taskFormSchemaKey,
 } from '../src/forms.ts';
 import { setLanguage } from '../src/i18n.ts';
 
@@ -296,5 +297,101 @@ describe('profile form round-trip', () => {
       'devices',
     ]);
     expect(profileSchema()[0].required).toBe(true);
+  });
+});
+
+describe('taskFormSchemaKey', () => {
+  // The panel re-renders the task form when this key moves, and a re-render replaces
+  // the field being typed in — focus falls back to `<body>` and Home Assistant's
+  // global one-letter shortcuts start swallowing the keystrokes (`d` device search,
+  // `a` Assist, `e`/`c` quick bar). So the key must move for exactly the four things
+  // that change which fields are on screen, and for nothing else.
+
+  it('is unchanged by an edit to a field that is always on screen', () => {
+    const before = taskFormSchemaKey({ recurrence_type: 'floating', interval: 3 });
+    for (const edit of [
+      { name: 'D' },
+      { name: 'Dishwasher descale' },
+      { notes: 'under the sink' },
+      { interval: 4 },
+      { unit: 'weeks' },
+      { labels: ['kitchen'] },
+      { area_id: 'kitchen' },
+      { completion_detail: 'required' },
+    ]) {
+      expect(
+        taskFormSchemaKey({ recurrence_type: 'floating', interval: 3, ...edit }),
+        `editing ${Object.keys(edit)[0]} must not move the key`,
+      ).toBe(before);
+    }
+  });
+
+  it('reads a bare new task the same as the values its form seeds', () => {
+    // The bug: the form defaults `recurrence_type` to floating and `sensor_mode` to
+    // usage, so comparing a *task* that carries neither against the *form values* that
+    // carry both made the first keystroke look like a schema change.
+    expect(taskFormSchemaKey({})).toBe(
+      taskFormSchemaKey({ recurrence_type: 'floating', sensor_mode: 'usage', name: 'D' }),
+    );
+  });
+
+  it('moves when the recurrence type changes', () => {
+    expect(taskFormSchemaKey({ recurrence_type: 'sensor' })).not.toBe(
+      taskFormSchemaKey({ recurrence_type: 'floating' }),
+    );
+    expect(taskFormSchemaKey({ recurrence_type: 'fixed' })).not.toBe(
+      taskFormSchemaKey({ recurrence_type: 'floating' }),
+    );
+  });
+
+  it('moves when the sensor mode changes', () => {
+    expect(taskFormSchemaKey({ recurrence_type: 'sensor', sensor_mode: 'threshold' })).not.toBe(
+      taskFormSchemaKey({ recurrence_type: 'sensor', sensor_mode: 'usage' }),
+    );
+  });
+
+  it('moves when the time backstop is switched on', () => {
+    const off = taskFormSchemaKey({ recurrence_type: 'sensor', sensor_backstop_on: false });
+    expect(taskFormSchemaKey({ recurrence_type: 'sensor', sensor_backstop_on: true })).not.toBe(off);
+    // A loaded task carries the backstop as a nested `also_every` rather than the flat
+    // switch; both representations have to read the same way.
+    expect(
+      taskFormSchemaKey({
+        recurrence_type: 'sensor',
+        sensor: { entity_id: 'sensor.hours', mode: 'usage', also_every: { interval: 6, unit: 'months' } },
+      }),
+    ).not.toBe(off);
+  });
+
+  it('moves when a state binding swaps between a binary sensor and anything else', () => {
+    // State mode offers an on/off picker for a binary sensor and free text for every
+    // other entity, so the bound entity decides which control is on screen.
+    const base = { recurrence_type: 'sensor', sensor_mode: 'state' };
+    const binary = taskFormSchemaKey({ ...base, sensor_entity_id: 'binary_sensor.leak' });
+    expect(taskFormSchemaKey({ ...base, sensor_entity_id: 'vacuum.rosie' })).not.toBe(binary);
+    // Reading an attribute compares the attribute's value, which is open-ended even on
+    // a binary sensor — so that swaps the control back to free text.
+    expect(
+      taskFormSchemaKey({
+        ...base,
+        sensor_entity_id: 'binary_sensor.leak',
+        sensor_attribute: 'moisture',
+      }),
+    ).not.toBe(binary);
+    // Typing the state itself leaves the control alone.
+    expect(
+      taskFormSchemaKey({ ...base, sensor_entity_id: 'binary_sensor.leak', sensor_state: 'on' }),
+    ).toBe(binary);
+  });
+
+  it('moves when the attached device changes, treating cleared and unset alike', () => {
+    const none = taskFormSchemaKey({ recurrence_type: 'floating' });
+    expect(taskFormSchemaKey({ recurrence_type: 'floating', device_id: null })).toBe(none);
+    expect(taskFormSchemaKey({ recurrence_type: 'floating', device_id: undefined })).toBe(none);
+    expect(taskFormSchemaKey({ recurrence_type: 'floating', device_id: '' })).toBe(none);
+    expect(taskFormSchemaKey({ recurrence_type: 'floating', device_id: 'dev1' })).not.toBe(none);
+    expect(taskFormSchemaKey({ recurrence_type: 'floating', device_id: 'dev2' })).not.toBe(
+      taskFormSchemaKey({ recurrence_type: 'floating', device_id: 'dev1' }),
+    );
   });
 });

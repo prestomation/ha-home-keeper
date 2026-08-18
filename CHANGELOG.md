@@ -6,6 +6,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [Unreleased]
+
+### Fixed
+
+- **Typing a name into the add-task or add-appliance form no longer sets off Home
+  Assistant's keyboard shortcuts.** The first character rebuilt the form, which took
+  focus off the field you were typing in, so the rest of the word reached HA's global
+  single-letter shortcuts instead: the device or entity search popped up, and sometimes
+  Assist opened. The form now rebuilds only when the fields it shows actually change.
+
 ## [0.14.0b3]
 
 ### Added
