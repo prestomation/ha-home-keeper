@@ -37,7 +37,7 @@ const DOC_ROUTES = {
 // README same-page anchors that now live on their own User Guide pages.
 const ANCHOR_ROUTES = {
   '#one-off-do-once-tasks': '/docs/guide/one-off-tasks',
-  '#sensor-based-tasks-usage-meters--thresholds': '/docs/guide/sensor-tasks',
+  '#sensor-based-tasks-usage-meters-thresholds--states': '/docs/guide/sensor-tasks',
   '#appliances--virtual-devices': '/docs/guide/appliances',
   '#notes-are-markdown': '/docs/guide/markdown-notes',
   // The "Companions" subsection lives under the Settings section (→ settings page).
@@ -46,10 +46,14 @@ const ANCHOR_ROUTES = {
   '#profiles-saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
   '#dashboard-task-card': '/docs/guide/dashboard-card',
   // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
-  // section (→ sensor-tasks page); "Parts & wear items" under Appliances.
+  // section (→ sensor-tasks page); "Parts & wear items" under Appliances; and
+  // "Sync problem binary sensors" under Condition-driven tasks (→ triggered-tasks),
+  // which the Sensor-based tasks page links across to when contrasting the two.
   '#link-a-task-to-a-consumable-auto-reorder':
     '/docs/guide/sensor-tasks#link-a-task-to-a-consumable-auto-reorder',
   '#parts--wear-items': '/docs/guide/appliances#parts--wear-items',
+  '#sync-problem-binary-sensors-as-tasks':
+    '/docs/guide/triggered-tasks#sync-problem-binary-sensors-as-tasks',
 };
 
 // Rewrite every Markdown link/image target. `sourceDir` is the canonical file's

@@ -46,7 +46,7 @@ export const USER_SECTIONS = [
   {h: 'Notes are Markdown', slug: 'markdown-notes', title: 'Markdown notes', label: 'Markdown notes'},
   {h: 'Logging completions (note, cost, photo, who)', slug: 'completions', title: 'Logging completions', label: 'Completions'},
   {h: 'Condition-driven (triggered) tasks', slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks'},
-  {h: 'Sensor-based tasks (usage meters & thresholds)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks'},
+  {h: 'Sensor-based tasks (usage meters, thresholds & states)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks'},
   {h: 'Settings', slug: 'settings', title: 'Settings'},
   {h: 'Profiles (saved filters you reuse everywhere)', slug: 'profiles', title: 'Profiles', label: 'Profiles'},
   {h: 'Notifications (actionable reminders on your phone)', slug: 'notifications', title: 'Notifications', label: 'Notifications'},
