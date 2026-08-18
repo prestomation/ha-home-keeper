@@ -473,9 +473,16 @@ def test_threshold_still_rejects_usage_only_fields(field):
         )
 
 
-@pytest.mark.parametrize("for_seconds", [-1, "abc"])
-def test_state_rejects_a_bad_hold(for_seconds):
-    with pytest.raises(m.TaskValidationError):
+@pytest.mark.parametrize(
+    ("for_seconds", "message"),
+    [
+        (-1, "sensor.for_seconds must be >= 0"),
+        ("abc", "sensor.for_seconds must be an integer"),
+        ({"a": 1}, "sensor.for_seconds must be an integer"),
+    ],
+)
+def test_state_rejects_a_bad_hold(for_seconds, message):
+    with raises_exactly(m.TaskValidationError, message):
         m.normalize_sensor(
             {
                 "entity_id": "binary_sensor.x",
@@ -484,6 +491,17 @@ def test_state_rejects_a_bad_hold(for_seconds):
                 "for_seconds": for_seconds,
             }
         )
+
+
+def test_state_hold_is_stored_only_when_non_zero():
+    binding = {"entity_id": "binary_sensor.x", "mode": "state", "state": "on"}
+    assert "for_seconds" not in m.normalize_sensor({**binding, "for_seconds": 0})
+    assert m.normalize_sensor({**binding, "for_seconds": 45})["for_seconds"] == 45
+    # Strings coerce, so a form posting "45" stores the same integer.
+    assert m.normalize_sensor({**binding, "for_seconds": "45"})["for_seconds"] == 45
+    # A fractional hold truncates rather than failing — sub-second precision is
+    # meaningless for a debounce, and threshold mode has always behaved this way.
+    assert m.normalize_sensor({**binding, "for_seconds": 1.5})["for_seconds"] == 1
 
 
 def test_unknown_sensor_mode_rejected():

@@ -534,6 +534,18 @@ describe('state mode — binary sensors', () => {
     expect(field.selector.text).toBeDefined();
   });
 
+  it('treats a whitespace-only attribute as no attribute at all', () => {
+    // Otherwise a stray space in the field would silently demote the on/off picker
+    // to free text, for a binding that still reads the entity's own state.
+    const field = taskSchema({
+      recurrence_type: 'sensor',
+      sensor_mode: 'state',
+      sensor_entity_id: 'binary_sensor.rosie_water_tank_low',
+      sensor_attribute: '   ',
+    }).find((f) => f.name === 'sensor_state');
+    expect(field.selector.select).toBeDefined();
+  });
+
   it('picks the control from a loaded binding, not just live edit state', () => {
     const field = taskSchema({
       recurrence_type: 'sensor',
@@ -644,6 +656,9 @@ describe('state mode — binary sensors', () => {
 
   it('seeds a fresh form with "on", the state that means "something needs doing"', () => {
     expect(taskFormData({ recurrence_type: 'sensor' }).sensor_state).toBe('on');
+    // ...and with self-clearing OFF: a task you have to go and do must wait for you
+    // unless you ask otherwise.
+    expect(taskFormData({ recurrence_type: 'sensor' }).sensor_clear_on_recover).toBe(false);
   });
 
   it('summarises a state task by the state it waits for', () => {
@@ -666,13 +681,26 @@ describe('state mode — binary sensors', () => {
   });
 
   it('mentions the hold time when the state sets one', () => {
-    const hint = sensorHintText({
+    const base = { recurrence_type: 'sensor', sensor_mode: 'state', sensor_state: 'on' };
+    expect(sensorHintText({ ...base, sensor_for: 600 })).toContain('600');
+    // A zero hold is "no hold", not "for 0 seconds" — the two wordings are different
+    // strings and a reader would notice the difference.
+    const noHold = sensorHintText({ ...base, sensor_for: 0 });
+    expect(noHold).not.toContain('0');
+    expect(noHold).not.toBe(sensorHintText({ ...base, sensor_for: 600 }));
+  });
+
+  it('says the plain threshold wording when the hold is zero', () => {
+    const base = {
       recurrence_type: 'sensor',
-      sensor_mode: 'state',
-      sensor_state: 'on',
-      sensor_for: 600,
-    });
-    expect(hint).toContain('600');
+      sensor_mode: 'threshold',
+      sensor_comparison: '>',
+      sensor_value: 90,
+    };
+    const noHold = sensorHintText({ ...base, sensor_for: 0 });
+    const held = sensorHintText({ ...base, sensor_for: 300 });
+    expect(held).toContain('300');
+    expect(noHold).not.toBe(held);
   });
 
   it('adds the self-clearing clause when clear_on_recover is on', () => {
