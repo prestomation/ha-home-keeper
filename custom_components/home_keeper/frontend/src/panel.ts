@@ -37,11 +37,10 @@ import {
   selSelect,
   selText,
   DEFAULT_BACKSTOP_INTERVAL,
-  backstopEnabled,
-  isBinarySensorBinding,
   formRecurrenceSummary,
   sensorHintText,
   taskFormData,
+  taskFormSchemaKey,
   taskSchema,
   type FormField,
   type HaFormElement,
@@ -1880,8 +1879,31 @@ export class HomeKeeperPanel extends HTMLElement {
   private _ensureMarkdown(): void {
     if (markdownReady()) return;
     void ensureMarkdown().then((ok) => {
-      if (ok && this.isConnected) this._render();
+      if (!ok || !this.isConnected) return;
+      // Never mid-edit: this resolves a lazy chunk load later, so a user who opened a
+      // form and started typing would have the field replaced under them — focus falls
+      // back to `<body>` and HA's global one-letter shortcuts start eating the word.
+      // Nothing is lost by waiting: each live preview re-checks `markdownReady()` when
+      // it paints, so the open form upgrades on the next keystroke, and the panel-wide
+      // upgrade lands on the next render.
+      if (this._editingOpen()) return;
+      this._render();
     });
+  }
+
+  /**
+   * Whether the user is editing something that a re-render would destroy — a form or a
+   * dialog with fields in it. Background refreshes that only improve the rendering
+   * (never the data the user is looking at) stand down while this is true.
+   */
+  private _editingOpen(): boolean {
+    return Boolean(
+      this._edit.open ||
+        this._assetEdit.open ||
+        this._noteEdit ||
+        this._completion.open ||
+        this._moveCompletion.open,
+    );
   }
 
   // ── rendering ───────────────────────────────────────────────────────────────
@@ -4333,18 +4355,12 @@ export class HomeKeeperPanel extends HTMLElement {
       taskSchema(task, this._consumableOptions(task), this._documentOptions(task)),
       taskFormData(task),
       (value) => {
-        const prevType = this._edit.task?.recurrence_type;
-        const prevSensorMode = (this._edit.task as Record<string, unknown> | undefined)
-          ?.sensor_mode;
-        // Compared as booleans: the previous value may be undefined on the first edit
-        // (the form seeds it from the loaded task), and `undefined !== false` would
-        // otherwise re-render on the first unrelated keystroke.
-        const prevBackstop = backstopEnabled(this._edit.task ?? {});
-        // Whether the state-mode value control is the on/off picker or free text —
-        // it follows the bound entity, so switching between a `binary_sensor.` and
-        // anything else swaps the control and needs a re-render like the rest.
-        const prevBinary = isBinarySensorBinding(this._edit.task ?? {});
-        const prevDevice = this._edit.task?.device_id;
+        // Which fields the form shows, before this edit — normalized through
+        // `taskFormData` so a default the form seeded can't read as a change (see
+        // `taskFormSchemaKey`). Anything else, a typed character included, leaves it
+        // untouched and must never reach `_render()`.
+        const prevSchemaKey = taskFormSchemaKey(this._edit.task ?? {});
+        const prevDevice = this._edit.task?.device_id ?? '';
         this._edit.task = {
           ...this._edit.task,
           ...value,
@@ -4355,8 +4371,10 @@ export class HomeKeeperPanel extends HTMLElement {
         // the textarea mid-word.
         this._taskNotePreview?.update(String(value.notes ?? ''));
         // Changing the attached device re-scopes the consumable picker; drop a link
-        // that no longer belongs to the newly-attached appliance.
-        if (value.device_id !== prevDevice) {
+        // that no longer belongs to the newly-attached appliance. Both sides are
+        // normalized to '' so a cleared picker (null vs. undefined vs. absent) doesn't
+        // look like a change on an unrelated edit.
+        if ((value.device_id ?? '') !== prevDevice) {
           const opts = this._consumableOptions(this._edit.task);
           const cur = (this._edit.task as Record<string, unknown>).consumable_link;
           if (cur && !opts.some((o) => o.value === cur)) {
@@ -4395,18 +4413,15 @@ export class HomeKeeperPanel extends HTMLElement {
         // threshold vs. state), the time-backstop switch (which reveals or hides its
         // three fields), the bound entity's binary-ness (which swaps the state
         // control), and the attached device (which scopes the consumable picker) each
-        // toggle the visible schema -> re-render.
-        if (
-          value.recurrence_type !== prevType ||
-          value.sensor_mode !== prevSensorMode ||
-          Boolean(value.sensor_backstop_on) !== prevBackstop ||
-          isBinarySensorBinding(this._edit.task ?? {}) !== prevBinary ||
-          value.device_id !== prevDevice
-        ) {
+        // toggle the visible schema -> re-render. Read off the merged state, so it and
+        // the "before" key above are the same shape through the same normalizer.
+        if (taskFormSchemaKey(this._edit.task ?? {}) !== prevSchemaKey) {
           this._render();
         } else {
           // The edit didn't change the visible schema, so refresh the live copy in
-          // place — a full re-render would drop focus from the box being typed in.
+          // place — a full re-render would drop focus from the box being typed in, and
+          // Home Assistant's global one-letter shortcuts would then swallow the rest of
+          // the word (`d` device search, `a` Assist, `e`/`c` quick bar, `m` my-link).
           // Every task kind, not just sensor: the rule summary above the submit
           // button has to track an interval or a unit change too.
           this._updateFormHints();
@@ -4696,7 +4711,11 @@ export class HomeKeeperPanel extends HTMLElement {
       },
       (value) => {
         const prevAsset = this._assetEdit.asset;
-        const prevKind = prevAsset?.kind;
+        // Defaulted exactly as the form data above seeds it, so an appliance that
+        // doesn't carry a kind can't make the form's 'virtual' read as a change — that
+        // would re-render on the first character typed into the name, dropping focus
+        // (and handing the keystrokes to HA's global shortcuts; see the task form).
+        const prevKind = prevAsset?.kind ?? 'virtual';
         const prevDeviceId = prevAsset?.device_id;
         mergeAsset(value);
         if (value.kind === 'existing' && value.device_id && value.device_id !== prevDeviceId) {

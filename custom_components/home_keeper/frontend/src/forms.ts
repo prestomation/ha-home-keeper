@@ -427,6 +427,40 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
   };
 }
 
+/**
+ * The values that decide **which fields the task form shows**: the recurrence kind, the
+ * sensor mode, whether the time backstop is on, whether a state binding points at a
+ * binary sensor (which swaps its value control), and the attached device (which scopes
+ * the consumable and card-link pickers). Serialized into one comparable key.
+ *
+ * The form's `value-changed` handler re-renders only when this key moves, and it must
+ * compare like with like: both sides run through `taskFormData`, so a default the
+ * *form* seeded (an unset `sensor_mode` shows as 'usage') can never read as a change
+ * against an edit state that simply doesn't carry the field. Comparing the raw edit
+ * state against form values did exactly that, and re-rendered on the first unrelated
+ * character typed into a task's name — which replaced the field mid-word, dropped
+ * focus to `<body>`, and handed the rest of the keystrokes to Home Assistant's global
+ * one-letter shortcuts (`d` device search, `a` Assist, `e`/`c`/`m`).
+ *
+ * Accepts either shape the two sides come in — a task (nested `sensor` binding) or the
+ * flat `sensor_*` form values — because `taskFormData` reads both.
+ */
+export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>): string {
+  const d = taskFormData(task as Partial<Task>);
+  return JSON.stringify([
+    d.recurrence_type,
+    d.sensor_mode,
+    d.sensor_backstop_on,
+    // State mode's value control follows the bound entity: an on/off picker for a
+    // binary sensor, free text for anything else. This predicate reads the flat and the
+    // nested binding itself, so it needs no normalizing pass of its own.
+    isBinarySensorBinding(task as Partial<Task>),
+    // No device, a cleared picker and a blank string all mean "unattached", so they all
+    // have to land on the same value here.
+    d.device_id || null,
+  ]);
+}
+
 /** The `asset_id:part_id` token for a task's current part link (empty if none). */
 export function consumableLinkToken(task: Partial<Task>): string {
   const part = task.source?.part;
