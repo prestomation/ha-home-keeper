@@ -121,6 +121,57 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);
 
+    // 2c. NFC/RFID tags. Bind a tag to the fridge-filter task (quick-log) and
+    //     scan-lock the furnace filter, show the chips and the blocked Done with its
+    //     explanatory toast, then unbind both so the seeded data is untouched.
+    await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      if (!hass) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tags: any[] = await hass.callWS({ type: 'tag/list' });
+      if (!tags.some((t) => t.id === 'fridge-filter-tag')) {
+        await hass.callWS({ type: 'tag/create', tag_id: 'fridge-filter-tag', name: 'Fridge filter' });
+      }
+      await hass.callService('home_keeper', 'update_task', {
+        task_id: 'task_fridge_filter',
+        tag_id: 'fridge-filter-tag',
+      });
+      await hass.callService('home_keeper', 'update_task', {
+        task_id: 'task_furnace_filter',
+        tag_id: 'fridge-filter-tag',
+        require_tag_scan: true,
+      });
+    });
+    await page.goto('/home-keeper', { waitUntil: 'domcontentloaded' });
+    await expect(panel.locator('#add-btn')).toBeVisible();
+    const nfcChip = panel.locator('.hk-card[data-id="task_fridge_filter"] .hk-tag');
+    await expect(nfcChip).toBeVisible({ timeout: 10_000 });
+    await nfcChip.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(BEAT * 2);
+    // Tap the scan-locked task's greyed Done — the toast explains a scan is needed.
+    const lockedDone = panel.locator('.hk-card[data-id="task_furnace_filter"] .done-blocked-wrap');
+    await expect(lockedDone).toBeVisible();
+    await lockedDone.click();
+    await page.waitForTimeout(BEAT * 3); // linger so the toast reads on video
+    await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      if (!hass) return;
+      await hass.callService('home_keeper', 'update_task', {
+        task_id: 'task_furnace_filter',
+        tag_id: null,
+        require_tag_scan: false,
+      });
+      await hass.callService('home_keeper', 'update_task', {
+        task_id: 'task_fridge_filter',
+        tag_id: null,
+      });
+    });
+    await page.goto('/home-keeper', { waitUntil: 'domcontentloaded' });
+    await expect(panel.locator('#add-btn')).toBeVisible();
+    await page.waitForTimeout(BEAT);
+
     // 3. Create a task — show the form and the recurrence picker switching modes.
     await panel.locator('#add-btn').click();
     await expect(panel.locator('#hk-form')).toBeVisible();
