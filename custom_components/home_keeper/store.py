@@ -1150,10 +1150,14 @@ class HomeKeeperStore:
         mirror the completion. This is the single chokepoint every completion surface
         funnels through (the to-do list, the device mark-done button, and the
         ``complete_task`` service), so firing here — rather than in the service handler
-        — is what makes completion observable from anywhere. ``origin`` is an opaque,
-        caller-supplied marker echoed back in the event purely so a contributing
-        integration can ignore the echo of a completion it initiated; Home Keeper does
-        not interpret it.
+        — is what makes completion observable from anywhere. ``origin`` is a
+        caller-supplied marker echoed back in the event so a contributing integration
+        can ignore the echo of a completion it initiated. Two gates also read it:
+        a problem-sensor-synced task accepts only the sync's marker, and a
+        ``require_tag_scan`` task accepts only ``tags.SCAN_ALLOWED_ORIGINS``. It is
+        trusted as given (any service caller may pass any marker), so those gates are
+        household accountability, not a security boundary — the same trust level as
+        every HA automation.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
