@@ -94,6 +94,14 @@
           "name": "Tehtäväsirut",
           "description": "Integraation tarjoamat metatietosirut, jotka näytetään tehtäväluettelossa ja koontinäytön kortissa – luettelo (label, icon?, url?) -objekteista. Käyttäjä ei voi muokata paneelissa."
         },
+        "tag_id": {
+          "name": "Tunniste",
+          "description": "Home Assistant -tunnisteen tunnus (Tunnisteet-näkymästä), jonka lukeminen suorittaa tämän tehtävän. Lukeminen merkitsee tehtävän tehdyksi."
+        },
+        "require_tag_scan": {
+          "name": "Vaadi tunnisteen lukemista",
+          "description": "Vain liitetty tunniste voi suorittaa tämän tehtävän. Kaikki muut tavat merkitä se tehdyksi hylätään. Vaatii tunnisteen."
+        },
         "source": {
           "name": "Lähde",
           "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Home Keeper tallentaa ja toistaa sen sanatarkasti eikä koskaan tarkastele sitä. Katso docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Tehtäväsirut",
           "description": "Integraation tarjoamat metatietosirut (korvaa nykyisen joukon) – luettelo (label, icon?, url?) -objekteista. Katso koko rakenne kohdasta add_task."
+        },
+        "tag_id": {
+          "name": "Tunniste",
+          "description": "Sen Home Assistant -tunnisteen tunnus, jonka lukeminen suorittaa tämän tehtävän. Tyhjä arvo poistaa liitoksen; se epäonnistuu, kun lukemista vaaditaan."
+        },
+        "require_tag_scan": {
+          "name": "Vaadi tunnisteen lukemista",
+          "description": "Vain liitetty tunniste voi suorittaa tämän tehtävän. Vaatii tunnisteen."
         },
         "source": {
           "name": "Lähde",

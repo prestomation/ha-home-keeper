@@ -20,7 +20,8 @@ def task_event_data(
     `_completed` / `_uncompleted` / `_triggered` / `_overdue` / `_due_soon`: the same
     identity (``task_id``/``name``), attachment (``device_id``/``area_id``/``labels``),
     schedule state (``recurrence_type``/``next_due``/``enabled``), and the opaque
-    ``source`` / well-known ``managed_by`` blocks Home Keeper echoes verbatim.
+    ``source`` / well-known ``managed_by`` blocks Home Keeper echoes verbatim, plus
+    the linked NFC/RFID ``tag_id`` (``None`` when no tag is bound).
     ``device_id`` is the task's stored registry device id (already a registry id;
     echoed as-is, or ``None`` when the task isn't attached to a device — its per-task
     entities then live on a self-owned device keyed on ``task_id``). Per-event extras
@@ -39,6 +40,7 @@ def task_event_data(
         "source": task.get("source"),
         "managed_by": task.get("managed_by"),
         "task_chips": task.get("task_chips", []),
+        "tag_id": task.get("tag_id"),
     }
     if extra:
         data.update(extra)

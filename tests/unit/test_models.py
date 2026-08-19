@@ -1116,6 +1116,196 @@ def test_normalize_task_chips_rejects_mdi_empty_suffix():
         m.normalize_task_chips([{"label": "x", "icon": "mdi:"}])
 
 
+# ── tag binding (NFC/RFID completion) ────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, None),
+        ("", None),
+        ("   ", None),
+        ("abc ", "abc"),
+        (" abc", "abc"),
+        ("abc", "abc"),
+    ],
+)
+def test_normalize_tag_id_cases(value, expected):
+    assert m.normalize_tag_id(value) == expected
+
+
+@pytest.mark.parametrize("value", [123, 1.5, True, ["a"], {"id": "a"}])
+def test_normalize_tag_id_rejects_non_strings(value):
+    # A non-string tag id could never match a scan, so it fails at the edge rather
+    # than persisting as a task nobody can ever complete.
+    with raises_exactly(m.TaskValidationError, "tag_id must be a string"):
+        m.normalize_tag_id(value)
+
+
+def test_build_task_defaults_to_no_tag():
+    task = m.build_task(
+        {
+            "name": "Furnace filter",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+        },
+        now=NOW,
+    )
+    assert task["tag_id"] is None
+    assert task["require_tag_scan"] is False
+
+
+def test_build_task_stores_tag_binding():
+    task = m.build_task(
+        {
+            "name": "Furnace filter",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+            "tag_id": "  furnace-tag ",
+            "require_tag_scan": 1,  # truthy, stored as a real bool
+        },
+        now=NOW,
+    )
+    assert task["tag_id"] == "furnace-tag"
+    assert task["require_tag_scan"] is True
+
+
+def test_build_task_stores_tag_without_requiring_a_scan():
+    task = m.build_task(
+        {"name": "Descale", "recurrence_type": "triggered", "tag_id": "kettle"},
+        now=NOW,
+    )
+    assert task["tag_id"] == "kettle"
+    assert task["require_tag_scan"] is False
+
+
+@pytest.mark.parametrize("tag_id", [None, "", "   "])
+def test_build_task_rejects_require_tag_scan_without_a_tag(tag_id):
+    # Requiring a scan with nothing to scan would lock the task out of every
+    # completion surface at birth.
+    with raises_exactly(m.TaskValidationError, "require_tag_scan needs a linked tag"):
+        m.build_task(
+            {
+                "name": "Descale",
+                "recurrence_type": "triggered",
+                "tag_id": tag_id,
+                "require_tag_scan": True,
+            },
+            now=NOW,
+        )
+
+
+def test_merge_update_sets_tag_id():
+    task = m.build_task({"name": "Descale", "recurrence_type": "triggered"}, now=NOW)
+    updated = m.merge_update(task, {"tag_id": " kettle "}, now=NOW)
+    assert updated["tag_id"] == "kettle"
+    assert updated["require_tag_scan"] is False
+
+
+def test_merge_update_clears_tag_id_with_none():
+    task = m.build_task(
+        {"name": "Descale", "recurrence_type": "triggered", "tag_id": "kettle"},
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"tag_id": None}, now=NOW)
+    assert updated["tag_id"] is None
+
+
+def test_merge_update_sets_require_tag_scan():
+    task = m.build_task(
+        {"name": "Descale", "recurrence_type": "triggered", "tag_id": "kettle"},
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"require_tag_scan": True}, now=NOW)
+    assert updated["require_tag_scan"] is True
+    assert updated["tag_id"] == "kettle"
+
+
+def test_merge_update_rejects_require_tag_scan_without_a_tag():
+    task = m.build_task({"name": "Descale", "recurrence_type": "triggered"}, now=NOW)
+    with raises_exactly(m.TaskValidationError, "require_tag_scan needs a linked tag"):
+        m.merge_update(task, {"require_tag_scan": True}, now=NOW)
+
+
+def test_merge_update_rejects_clearing_the_tag_while_a_scan_is_required():
+    # The flag alone is not the only way into the locked-out state: clearing the tag
+    # and leaving the flag standing gets there too, so the check reads the merged task.
+    task = m.build_task(
+        {
+            "name": "Descale",
+            "recurrence_type": "triggered",
+            "tag_id": "kettle",
+            "require_tag_scan": True,
+        },
+        now=NOW,
+    )
+    with raises_exactly(m.TaskValidationError, "require_tag_scan needs a linked tag"):
+        m.merge_update(task, {"tag_id": None}, now=NOW)
+
+
+def test_merge_update_swaps_the_tag_while_a_scan_is_required():
+    # Re-tagging a scan-only task is legitimate — the replacement sticker is a new id.
+    task = m.build_task(
+        {
+            "name": "Descale",
+            "recurrence_type": "triggered",
+            "tag_id": "kettle",
+            "require_tag_scan": True,
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"tag_id": "kettle-2"}, now=NOW)
+    assert updated["tag_id"] == "kettle-2"
+    assert updated["require_tag_scan"] is True
+
+
+def test_merge_update_leaves_the_tag_binding_untouched_when_absent():
+    task = m.build_task(
+        {
+            "name": "Descale",
+            "recurrence_type": "triggered",
+            "tag_id": "kettle",
+            "require_tag_scan": True,
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"name": "Descale the kettle"}, now=NOW)
+    assert updated["tag_id"] == "kettle"
+    assert updated["require_tag_scan"] is True
+
+
+def test_merge_update_does_not_add_tag_keys_to_a_task_without_them():
+    # A pre-tag task edited without the keys must not gain a phantom binding, which
+    # would surface as a spurious "tag_id changed" on the update event.
+    task = m.build_task({"name": "Descale", "recurrence_type": "triggered"}, now=NOW)
+    del task["tag_id"]
+    del task["require_tag_scan"]
+    updated = m.merge_update(task, {"name": "Descale it"}, now=NOW)
+    assert "tag_id" not in updated
+    assert "require_tag_scan" not in updated
+
+
+def test_merge_update_tag_change_does_not_reschedule():
+    # The tag is an identity/attachment field, not a cadence one: re-tagging must
+    # leave next_due (and a snooze) exactly where it was.
+    task = m.build_task(
+        {
+            "name": "Furnace filter",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+        },
+        now=NOW,
+    )
+    task["next_due"] = (NOW + timedelta(days=5)).isoformat()
+    updated = m.merge_update(
+        task, {"tag_id": "furnace", "require_tag_scan": True}, now=NOW
+    )
+    assert updated["next_due"] == task["next_due"]
+
+
 # ── merge_update carry-forward contract ──────────────────────────────────────
 # `merge_update` builds a candidate from `updates.get(field, existing.get(field))`
 # for every editable field, then re-normalizes the whole thing. That means every

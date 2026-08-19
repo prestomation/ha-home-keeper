@@ -94,6 +94,14 @@
           "name": "Čipy úkolu",
           "description": "Metadatové čipy poskytnuté integrací, zobrazené v seznamu úkolů a na kartě nástěnky – seznam objektů (label, icon?, url?). V panelu je nelze uživatelsky upravovat."
         },
+        "tag_id": {
+          "name": "Štítek",
+          "description": "Identifikátor štítku Home Assistant (z panelu Štítky), jehož načtení dokončí tento úkol. Načtení označí úkol jako hotový."
+        },
+        "require_tag_scan": {
+          "name": "Vyžadovat načtení štítku",
+          "description": "Tento úkol lze dokončit pouze připojeným štítkem. Jakýkoli jiný způsob označení jako hotové je odmítnut. Vyžaduje štítek."
+        },
         "source": {
           "name": "Zdroj",
           "description": "Neprůhledný údaj o původu vlastněný integrací, která úkol vytvořila. Home Keeper jej ukládá a vrací doslovně a nikdy jej nezkoumá. Viz docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Čipy úkolu",
           "description": "Metadatové čipy poskytnuté integrací (nahradí aktuální sadu) – seznam objektů (label, icon?, url?). Úplné schéma viz add_task."
+        },
+        "tag_id": {
+          "name": "Štítek",
+          "description": "Identifikátor štítku Home Assistant, jehož načtení dokončí tento úkol. Odesláním prázdné hodnoty štítek odpojíte; při zapnutém vyžadování načtení to selže."
+        },
+        "require_tag_scan": {
+          "name": "Vyžadovat načtení štítku",
+          "description": "Tento úkol lze dokončit pouze připojeným štítkem. Vyžaduje štítek."
         },
         "source": {
           "name": "Zdroj",

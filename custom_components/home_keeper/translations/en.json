@@ -94,6 +94,14 @@
           "name": "Task chips",
           "description": "Integration-provided metadata chips shown in the task list and dashboard card — a list of (label, icon?, url?) objects. Not user-editable in the panel."
         },
+        "tag_id": {
+          "name": "Tag",
+          "description": "Id of a Home Assistant tag (from the Tags panel) whose scan completes this task. Scanning it marks the task as done."
+        },
+        "require_tag_scan": {
+          "name": "Require tag scan",
+          "description": "Only let the linked tag complete this task. Every other way of marking it done is refused. Needs a tag."
+        },
         "source": {
           "name": "Source",
           "description": "Opaque provenance owned by the integration that created the task. Home Keeper stores and echoes it verbatim and never inspects it. See docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Task chips",
           "description": "Integration-provided metadata chips (replaces the current set) — a list of (label, icon?, url?) objects. See add_task for the full schema."
+        },
+        "tag_id": {
+          "name": "Tag",
+          "description": "Id of the Home Assistant tag whose scan completes this task. Send an empty value to unlink it, which fails while a tag scan is required."
+        },
+        "require_tag_scan": {
+          "name": "Require tag scan",
+          "description": "Only let the linked tag complete this task. Needs a tag."
         },
         "source": {
           "name": "Source",

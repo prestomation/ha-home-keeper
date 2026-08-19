@@ -94,6 +94,14 @@
           "name": "Aufgaben-Chips",
           "description": "Von der Integration bereitgestellte Metadaten-Chips, die in der Aufgabenliste und der Dashboard-Karte angezeigt werden – eine Liste von (label, icon?, url?)-Objekten. Im Panel nicht bearbeitbar."
         },
+        "tag_id": {
+          "name": "NFC-Tag",
+          "description": "ID eines Home-Assistant-Tags (aus dem Tags-Bereich), dessen Scan diese Aufgabe abschließt. Ein Scan markiert die Aufgabe als erledigt."
+        },
+        "require_tag_scan": {
+          "name": "Scan des Tags verlangen",
+          "description": "Diese Aufgabe lässt sich nur mit dem verknüpften Tag abschließen. Jeder andere Weg, sie als erledigt zu markieren, wird abgelehnt. Erfordert ein Tag."
+        },
         "source": {
           "name": "Quelle",
           "description": "Undurchsichtige Herkunftsangabe, die der Integration gehört, die die Aufgabe erstellt hat. Home Keeper speichert und gibt sie unverändert zurück und wertet sie nie aus. Siehe docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Aufgaben-Chips",
           "description": "Von der Integration bereitgestellte Metadaten-Chips (ersetzt die aktuelle Auswahl) – eine Liste von (label, icon?, url?)-Objekten. Das vollständige Schema siehe add_task."
+        },
+        "tag_id": {
+          "name": "NFC-Tag",
+          "description": "ID des Home-Assistant-Tags, dessen Scan diese Aufgabe abschließt. Ein leerer Wert löst die Verknüpfung; solange ein Scan verlangt wird, schlägt das fehl."
+        },
+        "require_tag_scan": {
+          "name": "Scan des Tags verlangen",
+          "description": "Diese Aufgabe lässt sich nur mit dem verknüpften Tag abschließen. Erfordert ein Tag."
         },
         "source": {
           "name": "Quelle",

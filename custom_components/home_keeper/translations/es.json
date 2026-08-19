@@ -94,6 +94,14 @@
           "name": "Chips de tarea",
           "description": "Chips de metadatos proporcionados por la integración, mostrados en la lista de tareas y la tarjeta del panel de control: una lista de objetos (label, icon?, url?). No editable por el usuario en el panel."
         },
+        "tag_id": {
+          "name": "Etiqueta",
+          "description": "Identificador de una etiqueta de Home Assistant (del panel Etiquetas) cuyo escaneo completa esta tarea. Escanearla marca la tarea como hecha."
+        },
+        "require_tag_scan": {
+          "name": "Exigir escaneo de la etiqueta",
+          "description": "Solo la etiqueta vinculada puede completar esta tarea. Se rechaza cualquier otra forma de marcarla como hecha. Requiere una etiqueta."
+        },
         "source": {
           "name": "Fuente",
           "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Home Keeper la almacena y la devuelve tal cual y nunca la inspecciona. Consulta docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Chips de tarea",
           "description": "Chips de metadatos proporcionados por la integración (reemplaza el conjunto actual): una lista de objetos (label, icon?, url?). Consulta add_task para ver el esquema completo."
+        },
+        "tag_id": {
+          "name": "Etiqueta",
+          "description": "Identificador de la etiqueta de Home Assistant cuyo escaneo completa esta tarea. Envía un valor vacío para desvincularla; falla mientras se exija el escaneo."
+        },
+        "require_tag_scan": {
+          "name": "Exigir escaneo de la etiqueta",
+          "description": "Solo la etiqueta vinculada puede completar esta tarea. Requiere una etiqueta."
         },
         "source": {
           "name": "Fuente",

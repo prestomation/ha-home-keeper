@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import assets, events, models, recurrence, sensor_tasks, sensor_watcher
+from . import assets, events, models, recurrence, sensor_tasks, sensor_watcher, tags
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
     EVENT_ASSET_ARCHIVED,
@@ -94,6 +94,24 @@ def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
         f"This task mirrors the problem sensor {entity_id} and can't be cleared in "
         "Home Keeper. Resolve the problem in the originating integration — the task "
         "clears automatically when the sensor returns to OK."
+    )
+
+
+def _reject_scan_required(task: dict[str, Any], origin: str | None) -> None:
+    """Raise unless *origin* authorizes completing a scan-only task.
+
+    A task with ``require_tag_scan`` is completable only by physically scanning its
+    NFC/RFID tag, which is what makes "done" mean "somebody was actually standing in
+    front of it". Every human-facing surface (to-do, button, notification tap, panel,
+    bare ``complete_task`` service) calls without an authorizing marker, so this
+    rejects them with a clear message; see ``tags.SCAN_ALLOWED_ORIGINS`` for the
+    system origins that pass.
+    """
+    if tags.completion_allowed(task, origin):
+        return
+    raise models.TaskValidationError(
+        "This task requires a physical tag scan to complete. Scan its NFC/RFID tag "
+        "to mark it done."
     )
 
 
@@ -1141,6 +1159,7 @@ class HomeKeeperStore:
         if existing is None:
             raise KeyError(task_id)
         _reject_synced_problem(existing, origin)
+        _reject_scan_required(existing, origin)
         now = dt_util.now()
         when = completed_at or now
         if when.tzinfo is None:

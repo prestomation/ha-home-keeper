@@ -296,6 +296,22 @@ def _require(data: dict, key: str) -> Any:
     return data[key]
 
 
+def normalize_tag_id(value: Any) -> str | None:
+    """Normalize a task's ``tag_id`` — the NFC/RFID tag that completes it.
+
+    The value is a Home Assistant tag id (from the ``tag`` integration), stored so a
+    ``tag_scanned`` event can be routed back to every task bound to it. ``None``, an
+    empty string, or whitespace means "no tag" and normalizes to ``None`` so
+    unlinking a tag is expressible; anything that isn't a string fails loudly at the
+    edge rather than persisting junk that could never match a scan.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TaskValidationError("tag_id must be a string")
+    return value.strip() or None
+
+
 def normalize_labels(value: Any) -> list[str]:
     """Normalize a task's ``labels`` into a de-duplicated list of HA label ids.
 
@@ -595,6 +611,10 @@ def build_task(data: dict, *, now: datetime) -> dict:
         data = {**data, "due": now.isoformat()}
     fields = normalize_fields(data, tz=now.tzinfo)
     validate_managed_by(data.get("managed_by"))
+    tag_id = normalize_tag_id(data.get("tag_id"))
+    require_tag_scan = bool(data.get("require_tag_scan"))
+    if require_tag_scan and tag_id is None:
+        raise TaskValidationError("require_tag_scan needs a linked tag")
     task: dict[str, Any] = {
         "id": str(uuid.uuid4()),
         "created": now.isoformat(),
@@ -617,6 +637,10 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # dashboard card. Each chip is {label, icon?, url?}. Integration-owned; the
         # panel does not expose an editor for this field.
         "task_chips": normalize_task_chips(data.get("task_chips")),
+        # The NFC/RFID tag that completes this task, and whether a scan is the *only*
+        # way to complete it (a physical presence check: you have to be at the thing).
+        "tag_id": tag_id,
+        "require_tag_scan": require_tag_scan,
         **fields,
     }
     seed = data.get("last_completed")
@@ -730,6 +754,19 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # a routine update_task call can't accidentally clear chips set at creation time.
     if "task_chips" in updates:
         merged["task_chips"] = normalize_task_chips(updates["task_chips"])
+
+    # The tag binding follows the same only-when-sent rule, so a plain rename can't
+    # unlink a task's tag or drop its scan requirement.
+    if "tag_id" in updates:
+        merged["tag_id"] = normalize_tag_id(updates["tag_id"])
+    if "require_tag_scan" in updates:
+        merged["require_tag_scan"] = bool(updates["require_tag_scan"])
+    # Checked against the *merged* task rather than the payload: requiring a scan with
+    # no tag to scan would lock the task out of every completion surface, and that
+    # state is reachable by clearing the tag alone (leaving the flag standing) just as
+    # easily as by setting the flag alone.
+    if merged.get("require_tag_scan") and not merged.get("tag_id"):
+        raise TaskValidationError("require_tag_scan needs a linked tag")
 
     # A triggered or sensor task has no schedule: its next_due is owned by the arm /
     # complete chokepoints (armed timestamp vs dormant None), so editing

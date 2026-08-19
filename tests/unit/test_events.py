@@ -37,6 +37,7 @@ def test_payload_has_contract_fields():
         "source": {"pawsistant": {"schedule_id": "s1"}},
         "managed_by": None,
         "task_chips": [],
+        "tag_id": None,
         "completed_at": WHEN.isoformat(),
         "origin": "pawsistant",
     }
@@ -51,7 +52,15 @@ def test_task_event_spine_defaults_and_extra():
     assert data["source"] is None and data["managed_by"] is None
     assert data["labels"] == []  # defaults to empty for a label-less task
     assert data["task_chips"] == []  # defaults to empty for a chip-less task
+    assert data["tag_id"] is None  # defaults to None for a task with no tag linked
     assert data["changed_fields"] == ["name"]
+
+
+def test_spine_carries_the_linked_tag():
+    # A listener mirroring completions needs to know which tag a task answers to —
+    # e.g. to tell a scan-driven completion apart from a tap on the same task.
+    data = ev.task_event_data({"id": "t1", "tag_id": "coffee"})
+    assert data["tag_id"] == "coffee"
 
 
 def test_uncompleted_spine_carries_ts_and_origin():

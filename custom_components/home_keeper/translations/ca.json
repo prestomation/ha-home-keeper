@@ -94,6 +94,14 @@
           "name": "Xips de la tasca",
           "description": "Xips de metadades proporcionats per la integració, mostrats a la llista de tasques i a la targeta del tauler — una llista d'objectes (label, icon?, url?). No editables per l'usuari al panell."
         },
+        "tag_id": {
+          "name": "Etiqueta",
+          "description": "Identificador d'una etiqueta de Home Assistant (del tauler Etiquetes) que, en escanejar-la, completa aquesta tasca. Escanejar-la marca la tasca com a feta."
+        },
+        "require_tag_scan": {
+          "name": "Exigeix escanejar l'etiqueta",
+          "description": "Només permet completar aquesta tasca amb l'etiqueta vinculada. Es rebutja qualsevol altra manera de marcar-la com a feta. Cal una etiqueta."
+        },
         "source": {
           "name": "Origen",
           "description": "Procedència opaca propietat de la integració que ha creat la tasca. Home Keeper l'emmagatzema i la retorna literalment i mai la inspecciona. Vegeu docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Xips de la tasca",
           "description": "Xips de metadades proporcionats per la integració (substitueix el conjunt actual) — una llista d'objectes (label, icon?, url?). Vegeu add_task per a l'esquema complet."
+        },
+        "tag_id": {
+          "name": "Etiqueta",
+          "description": "Identificador de l'etiqueta de Home Assistant que completa aquesta tasca en escanejar-la. Envia un valor buit per desvincular-la; falla mentre calgui escanejar l'etiqueta."
+        },
+        "require_tag_scan": {
+          "name": "Exigeix escanejar l'etiqueta",
+          "description": "Només permet completar aquesta tasca amb l'etiqueta vinculada. Cal una etiqueta."
         },
         "source": {
           "name": "Origen",
