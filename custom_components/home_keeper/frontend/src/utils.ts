@@ -217,6 +217,28 @@ export function labelName(
   return labels?.[labelId]?.name || labelId;
 }
 
+/**
+ * Resolve a tag id to the name HA's tag registry gives it, falling back to the raw
+ * id — an unnamed tag has nothing else to call it by, and showing the id beats
+ * showing nothing.
+ */
+export function tagName(
+  tags: { value: string; label: string }[] | undefined,
+  tagId: string | null | undefined,
+): string {
+  if (!tagId) return '';
+  return tags?.find((tag) => tag.value === tagId)?.label || tagId;
+}
+
+/**
+ * Whether *task* can only be completed by scanning its tag. Both halves are
+ * required: the flag without a bound tag would describe a task nothing could ever
+ * complete, so it reads as "not locked" rather than "locked forever".
+ */
+export function scanRequired(task: Partial<Task>): boolean {
+  return !!task.tag_id && !!task.require_tag_scan;
+}
+
 // ── panel routing ────────────────────────────────────────────────────────────
 
 /** The navigable list view; mirrors the panel's two tabs. */

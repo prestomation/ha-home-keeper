@@ -68,6 +68,15 @@ export const selSelect = (
 ): Selector => ({
   select: { mode: 'dropdown', options, sort: false, multiple },
 });
+/**
+ * A dropdown that also accepts a value the user types. Used for the NFC/RFID tag
+ * picker: HA's tag registry only lists tags it already knows about, and a tag id
+ * printed on a sticker is a perfectly good binding before the tag has ever been
+ * scanned — so the list is a convenience, not the limit.
+ */
+export const selSelectCustom = (options: { value: string; label: string }[]): Selector => ({
+  select: { mode: 'dropdown', options, custom_value: true },
+});
 
 // ── datetime <-> HA selector string helpers ────────────────────────────────
 // HA's datetime selector uses local "YYYY-MM-DD HH:mm:ss"; we persist ISO.
@@ -136,8 +145,21 @@ export function taskSchema(
   task: Partial<Task>,
   consumables: { value: string; label: string }[] = [],
   links: { value: string; label: string }[] = [],
+  tags: { value: string; label: string }[] = [],
 ): FormField[] {
   const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
+
+  // The NFC/RFID binding — offered for every task kind (a triggered task can carry a
+  // tag too), and offered even when the registry is empty: `custom_value` lets the
+  // user type an id straight off the sticker.
+  const tagFields: FormField[] = [
+    ...(!locked.has('tag_id')
+      ? [{ name: 'tag_id', selector: selSelectCustom(tags) } as FormField]
+      : []),
+    ...(!locked.has('require_tag_scan')
+      ? [{ name: 'require_tag_scan', selector: selBool() } as FormField]
+      : []),
+  ];
 
   // The "show on card" picker (appliance document/metadata links) — offered for
   // every task kind, but only when the task's appliance actually has links to show.
@@ -159,6 +181,7 @@ export function taskSchema(
         ? [{ name: 'device_id', selector: selDevice() } as FormField]
         : []),
       ...(!locked.has('area_id') ? [{ name: 'area_id', selector: selArea() } as FormField] : []),
+      ...tagFields,
       ...(!locked.has('labels')
         ? [{ name: 'labels', selector: selLabel(true) } as FormField]
         : []),
@@ -339,6 +362,10 @@ export function taskSchema(
     // `area_id` has always been a first-class field on the service API. Setting it
     // here overrides the inherited value; clearing it falls back to the device's area.
     ...(!locked.has('area_id') ? [{ name: 'area_id', selector: selArea() } as FormField] : []),
+    // Bind an NFC/RFID tag, and optionally make scanning it the *only* way to
+    // complete the task. Sits with the other attachment fields — a tag is one more
+    // physical thing the task hangs off, like a device or a room.
+    ...tagFields,
     // Link the task to an appliance consumable so completing it draws down stock
     // (and fires the low-stock reorder event). Only offered when the user has at
     // least one consumable defined; the leading blank option clears the link.
@@ -414,6 +441,10 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     sensor_combinator: sd.sensor_combinator ?? task.sensor?.combinator ?? 'any',
     device_id: task.device_id ?? undefined,
     area_id: task.area_id ?? undefined,
+    // `undefined`, not '' — an unbound tag must leave the combo box empty rather
+    // than pre-selecting a blank option.
+    tag_id: task.tag_id ?? undefined,
+    require_tag_scan: task.require_tag_scan ?? false,
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
     // task's current part source.
@@ -594,6 +625,12 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   // than silently keeping the previous one. `merge_update` strips it again when the
   // managing integration locks the field.
   payload.area_id = task.area_id || null;
+  // The tag binding applies to every task kind and always round-trips, so clearing
+  // the picker sends an explicit null and unbinds the tag. Clearing it also force-
+  // clears `require_tag_scan`: a task that demands a scan but has no tag to scan
+  // could never be completed at all, from any surface.
+  payload.tag_id = task.tag_id || null;
+  payload.require_tag_scan = task.tag_id ? !!task.require_tag_scan : false;
   // Labels apply to every task kind (including triggered) and always round-trip,
   // so an empty array correctly clears a task's labels on update.
   payload.labels = Array.isArray(task.labels) ? task.labels : [];
