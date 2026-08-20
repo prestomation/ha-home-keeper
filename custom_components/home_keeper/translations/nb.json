@@ -94,6 +94,14 @@
           "name": "Oppgavechips",
           "description": "Metadatachips levert av integrasjonen og vist i oppgavelisten og dashbordkortet – en liste med (label, icon?, url?)-objekter. Kan ikke redigeres av brukeren i panelet."
         },
+        "tag_id": {
+          "name": "NFC-brikke",
+          "description": "ID-en til en Home Assistant-brikke (fra Brikker-panelet) som fullfører denne oppgaven når den skannes. En skanning merker oppgaven som utført."
+        },
+        "require_tag_scan": {
+          "name": "Krev skanning av brikken",
+          "description": "Bare den tilknyttede brikken kan fullføre denne oppgaven. Alle andre måter å merke den som utført på avvises. Krever en brikke."
+        },
         "source": {
           "name": "Kilde",
           "description": "Ugjennomsiktig opphav eid av integrasjonen som opprettet oppgaven. Home Keeper lagrer og gjengir det ordrett og inspiserer det aldri. Se docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Oppgavechips",
           "description": "Metadatachips levert av integrasjonen (erstatter det gjeldende settet) – en liste med (label, icon?, url?)-objekter. Se add_task for det fullstendige skjemaet."
+        },
+        "tag_id": {
+          "name": "NFC-brikke",
+          "description": "ID-en til Home Assistant-brikken som fullfører denne oppgaven når den skannes. Send en tom verdi for å koble den fra; det feiler så lenge skanning kreves."
+        },
+        "require_tag_scan": {
+          "name": "Krev skanning av brikken",
+          "description": "Bare den tilknyttede brikken kan fullføre denne oppgaven. Krever en brikke."
         },
         "source": {
           "name": "Kilde",

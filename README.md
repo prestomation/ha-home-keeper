@@ -36,6 +36,8 @@ changes, water filters, taking medicine, and anything else that recurs).
   one-tap **Done**, inline add/edit, and rich filtering/grouping.
 - **Markdown notes**: every notes field (task, appliance, part, completion) renders
   as Markdown, authored with a live preview.
+- **NFC/RFID tags**: link a task to a Home Assistant tag so a scan completes it,
+  optionally *requiring* the scan so nobody checks off a chore from the couch.
 - **Appliances & virtual devices**: give "dumb" appliances a real device page,
   structured metadata (with optional tracked-date sensors), **parts & wear items**,
   **spare-part inventory**, **offline manuals & documents** (link or upload a PDF), and a
@@ -239,6 +241,40 @@ appliances from the **Home Keeper** sidebar panel, and **use** them through nati
 entities and the dashboard card. The panel list view can group/filter tasks, and
 tapping any row opens a detail page with the full schedule, notes, and completion
 history.
+
+## Complete tasks with NFC/RFID tags
+
+Stick a cheap NFC sticker on the thing itself (the dog food bin, the furnace
+filter, the litter box) and a tap of your phone logs the chore. A task can be
+linked to a [Home Assistant tag](https://www.home-assistant.io/integrations/tag/),
+and whenever that tag is scanned, Home Keeper completes the task.
+
+**Use cases.**
+
+- **Quick-log:** tap the tag as you finish and move on, without opening the
+  dashboard at all. The Done button keeps working too.
+- **Proof of presence:** for households where tasks get checked off from the couch,
+  the **Require tag scan to complete** toggle blocks Done on every surface (panel,
+  card, to-do list, device button, notifications). Marking the task done then
+  means walking over to its tag.
+
+**How it's used.** Write the tag once from HA's **Settings → Tags** (or let the
+companion app register it on first scan). Then pick it in the task form's
+**NFC/RFID tag** field. The picker lists your existing tags, or you can type a tag
+ID directly. Tagged tasks wear an NFC chip in the panel and on the dashboard card;
+a scan-required task shows a lock instead, and tapping its Done button explains
+what to do. This replaces the classic pile of one-off `tag_scanned` YAML
+automations.
+
+![The task form's NFC/RFID tag picker and the require-scan toggle](docs/images/44-panel-task-tag-form.png)
+
+![A task row wearing the NFC chip, and a scan-required task with its Done button blocked](docs/images/44b-panel-task-nfc-chip.png)
+
+Scan completions fire the ordinary `home_keeper_task_completed` event with
+`origin: home_keeper_tag_scan`, so automations can tell a physical scan from a
+press of Done. An automation can also pass that same origin to
+`home_keeper.complete_task` when it legitimately needs to complete a scan-locked
+task. See [docs/EVENTS.md](docs/EVENTS.md).
 
 ## Condition-driven (triggered) tasks
 

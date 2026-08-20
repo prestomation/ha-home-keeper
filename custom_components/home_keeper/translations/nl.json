@@ -94,6 +94,14 @@
           "name": "Taakchips",
           "description": "Door de integratie geleverde metadatachips die worden getoond in de takenlijst en de dashboardkaart — een lijst met (label, icon?, url?)-objecten. Niet door de gebruiker bewerkbaar in het paneel."
         },
+        "tag_id": {
+          "name": "NFC-tag",
+          "description": "Id van een Home Assistant-tag (uit het Tags-paneel) waarvan de scan deze taak afrondt. Scannen markeert de taak als gedaan."
+        },
+        "require_tag_scan": {
+          "name": "Scan van de tag vereisen",
+          "description": "Alleen de gekoppelde tag mag deze taak afronden. Elke andere manier om hem als gedaan te markeren wordt geweigerd. Vereist een tag."
+        },
         "source": {
           "name": "Bron",
           "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Home Keeper slaat deze letterlijk op en geeft deze letterlijk terug en inspecteert deze nooit. Zie docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Taakchips",
           "description": "Door de integratie geleverde metadatachips (vervangt de huidige set) — een lijst met (label, icon?, url?)-objecten. Zie add_task voor het volledige schema."
+        },
+        "tag_id": {
+          "name": "NFC-tag",
+          "description": "Id van de Home Assistant-tag waarvan de scan deze taak afrondt. Stuur een lege waarde om de koppeling op te heffen; dat mislukt zolang een scan vereist is."
+        },
+        "require_tag_scan": {
+          "name": "Scan van de tag vereisen",
+          "description": "Alleen de gekoppelde tag mag deze taak afronden. Vereist een tag."
         },
         "source": {
           "name": "Bron",

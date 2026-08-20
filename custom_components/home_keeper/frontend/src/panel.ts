@@ -92,6 +92,8 @@ import {
   safeFileHref,
   safeHref,
   recurrenceSummary,
+  scanRequired,
+  tagName,
   tasksForAsset,
   type PanelLocation,
 } from './utils';
@@ -877,6 +879,9 @@ export class HomeKeeperPanel extends HTMLElement {
   private _notifyTargets: string[] = [];
   // Companion integrations shown on the Settings tab (loaded with the rest).
   private _companions: Companion[] = [];
+  // HA tag-registry entries as picker options, for the task form's tag field and
+  // the tag chip. Best-effort: an empty list still leaves a typable combo box.
+  private _tags: { value: string; label: string }[] = [];
   // List controls (persisted in localStorage).
   private _groupBy: GroupBy = 'status';
   private _filter: TaskFilter = 'all';
@@ -1150,16 +1155,27 @@ export class HomeKeeperPanel extends HTMLElement {
   private async _reload(): Promise<void> {
     if (!this._hass) return;
     try {
-      const [tasks, assets, entryDomains, loadedEntryIds, options, companions, introDismissed] =
-        await Promise.all([
-          api.getTasks(this._hass),
-          api.getAssets(this._hass),
-          api.getEntryDomains(this._hass).catch(() => ({})),
-          api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
-          api.getOptions(this._hass).catch(() => null),
-          api.getCompanions(this._hass).catch(() => [] as Companion[]),
-          api.getIntroDismissed(this._hass).catch(() => false),
-        ]);
+      const [
+        tasks,
+        assets,
+        entryDomains,
+        loadedEntryIds,
+        options,
+        companions,
+        introDismissed,
+        tags,
+      ] = await Promise.all([
+        api.getTasks(this._hass),
+        api.getAssets(this._hass),
+        api.getEntryDomains(this._hass).catch(() => ({})),
+        api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
+        api.getOptions(this._hass).catch(() => null),
+        api.getCompanions(this._hass).catch(() => [] as Companion[]),
+        api.getIntroDismissed(this._hass).catch(() => false),
+        // Best-effort: the tag registry is a convenience for the picker and the
+        // chip label, never a precondition for the panel loading.
+        api.getTags(this._hass).catch(() => [] as { value: string; label: string }[]),
+      ]);
       this._tasks = tasks;
       this._assets = assets;
       this._entryDomains = entryDomains;
@@ -1168,6 +1184,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._notifyTargets = options?.notifyTargets ?? [];
       this._companions = companions ?? [];
       this._introDismissed = introDismissed;
+      this._tags = tags;
       // Drop a remembered Profile filter that no longer exists (deleted since), so the
       // Tasks-tab dropdown and the stored id can't disagree.
       if (this._profile && !(this._options?.profiles ?? []).some((p) => p.id === this._profile)) {
@@ -1407,6 +1424,12 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private async _complete(task: Task): Promise<void> {
     if (!this._hass) return;
+    // A scan-locked task is completed by its tag, not by this button. The backend
+    // rejects the call outright, so say why here rather than surfacing its error.
+    if (scanRequired(task)) {
+      this._toast(t('done.needsScan'));
+      return;
+    }
     // Tasks set to capture detail open a dialog first; the default one-taps.
     const mode = task.completion_detail || 'none';
     if (mode === 'optional' || mode === 'required') {
@@ -1616,9 +1639,17 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /** A completion-blocked task (e.g. a synced problem sensor) can't be marked done
-   *  here — its owning integration clears it. Explain why instead of completing. */
+   *  here — its owning integration clears it. Explain why instead of completing.
+   *  A scan-locked task is blocked for a different reason, so it says so instead. */
   private _notifyBlocked(task: Task): void {
-    this._toast(task.managed_by?.completion_prompt || t('done.blocked'));
+    this._toast(this._blockedReason(task));
+  }
+
+  /** Why *task*'s Done action is unavailable, in the words the user needs: a
+   *  scan-locked task wants its tag scanned, a source-owned one clears itself. */
+  private _blockedReason(task: Task): string {
+    if (scanRequired(task)) return t('done.needsScan');
+    return task.managed_by?.completion_prompt || t('done.blocked');
   }
 
   /** Render a *disabled* Done for a completion-blocked task, wrapped in a clickable
@@ -1626,8 +1657,9 @@ export class HomeKeeperPanel extends HTMLElement {
    *  versions, but swallows clicks — so the span carries the tap → explanation and a
    *  hover tooltip). ``raised`` matches the prominent detail-page button. */
   private _blockedDone(wrapClass: string, task: Task, raised = false): string {
-    const reason = task.managed_by?.completion_prompt || t('done.blocked');
-    return `<span class="${wrapClass} done-blocked-wrap" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-button ${raised ? 'raised ' : ''}disabled>${escapeHTML(t('btn.done'))}</ha-button></span>`;
+    const reason = this._blockedReason(task);
+    const cls = [wrapClass, 'done-blocked-wrap'].filter(Boolean).join(' ');
+    return `<span class="${cls}" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-button ${raised ? 'raised ' : ''}disabled>${escapeHTML(t('btn.done'))}</ha-button></span>`;
   }
   /** A muted "Clears automatically" caption for a completion-blocked task in the list
    *  card — self-explanatory inline (no hover needed), unlike a dead greyed button. It's
@@ -2324,6 +2356,7 @@ export class HomeKeeperPanel extends HTMLElement {
       ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
       : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
     const dev = task.device_id ? this._deviceChip(task.device_id) : '';
+    const tagChip = this._tagChip(task);
     const managedChip = this._managedChip(task);
     const taskChips = this._taskChipsHtml(task);
     // A completed one-off (do-once, now dormant) shows when it was done instead of a
@@ -2351,11 +2384,16 @@ export class HomeKeeperPanel extends HTMLElement {
     // task (e.g. a synced problem sensor) keeps a *disabled* Done that explains why
     // on click, rather than silently offering no action.
     const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
+    // A scan-locked task keeps a *disabled* Done rather than the auto-clear caption:
+    // it is still completable, just not from here, so a greyed button that explains
+    // itself on tap is the honest affordance.
     const doneAction = dormantTriggered || completedOneOff
       ? ''
       : task.managed_by?.completion_blocked
         ? this._blockedDoneInline(task)
-        : `<ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
+        : scanRequired(task)
+          ? this._blockedDone('', task)
+          : `<ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
     // The row opens the task's detail page; "Done" stays as a quick action.
     return `
       <ha-card class="hk-card${overdue ? ' overdue' : ''}" data-id="${escapeHTML(task.id)}">
@@ -2363,7 +2401,7 @@ export class HomeKeeperPanel extends HTMLElement {
           <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(task.name)}</div>
             <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${overdueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
-            <div class="hk-chips">${statusChip}${dev}${taskChips}${managedChip}</div>
+            <div class="hk-chips">${statusChip}${dev}${tagChip}${taskChips}${managedChip}</div>
           </div>
           <div class="hk-card-actions">
             ${doneAction}
@@ -2552,6 +2590,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // which "Group by → Area" section the task lands in. When it's inherited, the
     // device chip sits right beside it and shows where it came from.
     const areaChip = this._areaChip(task);
+    const tagChip = this._tagChip(task);
     const managedChip = this._managedChip(task);
     const taskChips = this._taskChipsHtml(task);
     const mb = task.managed_by;
@@ -2605,9 +2644,11 @@ export class HomeKeeperPanel extends HTMLElement {
     // already completed. A completion-blocked task (a synced problem sensor) keeps a
     // *disabled* Done that, on click, explains its source clears it (the managed
     // completion prompt also shows below).
+    // A scan-locked task lands on the same disabled-Done treatment: the tap explains
+    // that the tag is the way in.
     const doneBtn = dormantTriggered || completedOneOff
       ? ''
-      : mb?.completion_blocked
+      : mb?.completion_blocked || scanRequired(task)
         ? this._blockedDone('d-done-blocked-wrap', task, true)
         : `<ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
     // Notes get an inline editor right on the detail page: they're long-form prose
@@ -2627,7 +2668,7 @@ export class HomeKeeperPanel extends HTMLElement {
     return `
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
-        <div class="hk-chips">${statusChip}${dev}${areaChip}${taskChips}${managedChip}</div>
+        <div class="hk-chips">${statusChip}${dev}${areaChip}${tagChip}${taskChips}${managedChip}</div>
         <div class="hk-detail-actions">
           ${doneBtn}
           ${manage}
@@ -2937,6 +2978,22 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!name) return '';
     const icon = `<ha-icon slot="icon" icon="mdi:texture-box" class="hk-chip-ic"></ha-icon>`;
     return `<ha-assist-chip label="${escapeHTML(name)}">${icon}</ha-assist-chip>`;
+  }
+
+  /**
+   * A chip for the task's bound NFC/RFID tag, naming it where the tag registry
+   * knows it and falling back to the raw id. A scan-locked task swaps the glyph for
+   * a padlock, so the row shows at a glance why its Done button is greyed out.
+   * Empty when no tag is bound.
+   */
+  private _tagChip(task: Task): string {
+    if (!task.tag_id) return '';
+    const locked = scanRequired(task);
+    const iconName = locked ? 'mdi:lock' : 'mdi:nfc-variant';
+    const tip = locked ? t('chip.scanLock.tip') : t('chip.nfc.tip');
+    const label = tagName(this._tags, task.tag_id) || t('chip.nfc');
+    const icon = `<ha-icon slot="icon" icon="${iconName}" class="hk-chip-ic"></ha-icon>`;
+    return `<ha-assist-chip class="hk-tag" label="${escapeHTML(label)}" title="${escapeHTML(tip)}">${icon}</ha-assist-chip>`;
   }
 
   /** Renders a "Managed by X" chip (or "Integration offline" if orphaned). */
@@ -4352,7 +4409,7 @@ export class HomeKeeperPanel extends HTMLElement {
     }
 
     const form = this._makeForm(
-      taskSchema(task, this._consumableOptions(task), this._documentOptions(task)),
+      taskSchema(task, this._consumableOptions(task), this._documentOptions(task), this._tags),
       taskFormData(task),
       (value) => {
         // Which fields the form shows, before this edit — normalized through

@@ -94,6 +94,14 @@
           "name": "Opgavechips",
           "description": "Metadatachips leveret af integrationen og vist i opgavelisten og dashboard-kortet – en liste af (label, icon?, url?)-objekter. Kan ikke redigeres af brugeren i panelet."
         },
+        "tag_id": {
+          "name": "NFC-tag",
+          "description": "Id på et Home Assistant-tag (fra Tags-panelet), hvis scanning fuldfører denne opgave. En scanning markerer opgaven som udført."
+        },
+        "require_tag_scan": {
+          "name": "Kræv scanning af tag",
+          "description": "Lad kun det tilknyttede tag fuldføre denne opgave. Alle andre måder at markere den som udført på afvises. Kræver et tag."
+        },
         "source": {
           "name": "Kilde",
           "description": "Uigennemsigtig oprindelse ejet af den integration, der oprettede opgaven. Home Keeper gemmer og gengiver den ordret og inspicerer den aldrig. Se docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Opgavechips",
           "description": "Metadatachips leveret af integrationen (erstatter det aktuelle sæt) – en liste af (label, icon?, url?)-objekter. Se add_task for det fulde skema."
+        },
+        "tag_id": {
+          "name": "NFC-tag",
+          "description": "Id på det Home Assistant-tag, hvis scanning fuldfører denne opgave. Send en tom værdi for at fjerne tilknytningen; det fejler, mens scanning kræves."
+        },
+        "require_tag_scan": {
+          "name": "Kræv scanning af tag",
+          "description": "Lad kun det tilknyttede tag fuldføre denne opgave. Kræver et tag."
         },
         "source": {
           "name": "Kilde",

@@ -48,6 +48,7 @@ _PURE_MODULES = (
     "companions_catalog",
     "profiles",
     "notifications",
+    "tags",
 )
 
 

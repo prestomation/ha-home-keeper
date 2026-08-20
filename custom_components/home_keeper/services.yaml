@@ -141,6 +141,23 @@ add_task:
       advanced: true
       selector:
         object:
+    tag_id:
+      name: Tag
+      description: >-
+        Id of a Home Assistant tag (from the Tags panel) whose scan completes this
+        task. Scanning it marks the task done, so the NFC sticker on the filter or
+        the fridge is all anyone needs to log the job.
+      example: my-furnace-filter
+      selector:
+        text:
+    require_tag_scan:
+      name: Require tag scan
+      description: >-
+        Only let the linked tag complete this task. Every other way of marking it
+        done is refused, so "done" means somebody was standing in front of the thing.
+        Needs a tag.
+      selector:
+        boolean:
     source:
       name: Source
       description: >-
@@ -290,6 +307,20 @@ update_task:
       advanced: true
       selector:
         object:
+    tag_id:
+      name: Tag
+      description: >-
+        Id of the Home Assistant tag whose scan completes this task. Send an empty
+        value to unlink the tag (which fails while "Require tag scan" is on).
+      example: my-furnace-filter
+      selector:
+        text:
+    require_tag_scan:
+      name: Require tag scan
+      description: >-
+        Only let the linked tag complete this task. Needs a tag.
+      selector:
+        boolean:
     source:
       name: Source
       description: >-

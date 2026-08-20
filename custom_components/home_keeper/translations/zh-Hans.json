@@ -94,6 +94,14 @@
           "name": "任务信息片",
           "description": "由集成提供、显示在任务列表和仪表板卡片中的元数据信息片 — 由 (label, icon?, url?) 对象组成的列表。无法在面板中由用户编辑。"
         },
+        "tag_id": {
+          "name": "标签",
+          "description": "Home Assistant 标签的 ID（在标签面板中创建），扫描该标签即可完成此任务。扫描后任务会被标记为已完成。"
+        },
+        "require_tag_scan": {
+          "name": "必须扫描标签",
+          "description": "只允许用关联的标签完成此任务，其他标记完成的方式一律拒绝。需要先关联标签。"
+        },
         "source": {
           "name": "来源",
           "description": "由创建该任务的集成拥有的不透明来源信息。Home Keeper 会原样存储并回显，且从不检查它。参见 docs/INTEGRATING.md。"
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "任务信息片",
           "description": "由集成提供的元数据信息片（替换当前集合）— 由 (label, icon?, url?) 对象组成的列表。完整架构请参见 add_task。"
+        },
+        "tag_id": {
+          "name": "标签",
+          "description": "扫描后可完成此任务的 Home Assistant 标签 ID。发送空值可解除关联；在要求扫描标签时解除会失败。"
+        },
+        "require_tag_scan": {
+          "name": "必须扫描标签",
+          "description": "只允许用关联的标签完成此任务。需要先关联标签。"
         },
         "source": {
           "name": "来源",

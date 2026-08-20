@@ -795,3 +795,87 @@ describe('Task detail — area chip (issue #204)', () => {
     expect(chipLabels(panel)).not.toContain('Kitchen');
   });
 });
+
+// NFC/RFID tag binding (issue #211). The detail page names the bound tag, and a
+// task that can only be completed by a scan keeps a *disabled* Done that says so —
+// the backend refuses the completion, so offering a live button would only produce
+// an error the user can do nothing about.
+describe('Task detail — NFC tag chip and scan lock (issue #211)', () => {
+  const baseTask = {
+    id: 't1',
+    name: 'Water the plants',
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'weeks',
+    completions: [],
+  };
+  const withTags = (tasks, tags = []) => {
+    const { hass, calls } = makeHassWith({ tasks });
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) => (msg.type === 'tag/list' ? Promise.resolve(tags) : inner(msg));
+    return { hass, calls };
+  };
+  const chipLabels = (panel) =>
+    [...panel.shadowRoot.querySelectorAll('.hk-chips ha-assist-chip')].map((c) =>
+      c.getAttribute('label'),
+    );
+
+  it('names the bound tag using HA’s tag registry', async () => {
+    const { hass } = withTags([{ ...baseTask, tag_id: 'tag_kitchen' }], [
+      { id: 'tag_kitchen', name: 'Kitchen sticker' },
+    ]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-assist-chip.hk-tag'));
+    expect(chipLabels(panel)).toContain('Kitchen sticker');
+  });
+
+  it('falls back to the raw tag id when the registry does not know it', async () => {
+    // A sticker can be bound before HA has ever seen a scan from it.
+    const { hass } = withTags([{ ...baseTask, tag_id: 'a1b2c3' }]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-assist-chip.hk-tag'));
+    expect(chipLabels(panel)).toContain('a1b2c3');
+  });
+
+  it('shows no tag chip for an unbound task', async () => {
+    const { hass } = withTags([baseTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-chips'));
+    expect(panel.shadowRoot.querySelector('ha-assist-chip.hk-tag')).toBeNull();
+  });
+
+  it('keeps Done live for a tag-bound task that does not require a scan', async () => {
+    const { hass } = withTags([{ ...baseTask, tag_id: 'a1b2c3' }]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-assist-chip.hk-tag'));
+    expect(panel.shadowRoot.querySelector('.d-done')).not.toBeNull();
+    expect(panel.shadowRoot.querySelector('.d-done-blocked-wrap')).toBeNull();
+  });
+
+  it('blocks Done for a scan-locked task and explains on tap', async () => {
+    const { hass, calls } = withTags([
+      { ...baseTask, tag_id: 'a1b2c3', require_tag_scan: true },
+    ]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const blocked = await waitFor(() => panel.shadowRoot?.querySelector('.d-done-blocked-wrap'));
+    expect(blocked, 'a scan-locked task shows a disabled Done').toBeTruthy();
+    expect(panel.shadowRoot.querySelector('.d-done')).toBeNull();
+    expect(blocked.getAttribute('title')).toBe("Scan this task's tag to complete it.");
+    // The padlock glyph carries the same message on the chip.
+    expect(
+      panel.shadowRoot.querySelector('ha-assist-chip.hk-tag ha-icon').getAttribute('icon'),
+    ).toBe('mdi:lock');
+
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+    blocked.click();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(toasts).toEqual(["Scan this task's tag to complete it."]);
+    expect(calls['home_keeper/complete_task']).toBeUndefined();
+  });
+});

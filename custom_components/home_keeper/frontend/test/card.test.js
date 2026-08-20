@@ -338,3 +338,111 @@ describe('Card notes render as Markdown (issue #163)', () => {
     );
   });
 });
+
+// NFC/RFID tag binding (issue #211). The card shows that a task is tag-bound and,
+// when the tag is the only way to complete it, refuses its own mark-done — the
+// backend rejects that completion, and the sidebar panel would refuse it too, so
+// there is nowhere to send the user but back to the tag.
+describe('HomeKeeperCard NFC tag binding (issue #211)', () => {
+  const tagged = (extra) => [{ ...sampleTasks[0], tag_id: 'tag_kitchen', ...extra }];
+  const chipLabels = (card) =>
+    [...sr(card).querySelectorAll('.hk-chips ha-assist-chip')].map((c) => c.getAttribute('label'));
+
+  it('renders an NFC chip for a tag-bound task', async () => {
+    const card = makeCard();
+    card.hass = { callWS: async () => ({ tasks: tagged() }), language: 'en' };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(chipLabels(card)).toContain('NFC tag');
+    const chip = sr(card).querySelector('ha-assist-chip.hk-tag');
+    expect(chip.querySelector('ha-icon').getAttribute('icon')).toBe('mdi:nfc-variant');
+  });
+
+  it('shows no NFC chip for a task with no tag', async () => {
+    const card = makeCard();
+    card.hass = { callWS: async () => ({ tasks: sampleTasks }), language: 'en' };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(sr(card).querySelector('ha-assist-chip.hk-tag')).toBeNull();
+  });
+
+  it('swaps the chip glyph for a padlock once a scan is required', async () => {
+    const card = makeCard();
+    card.hass = {
+      callWS: async () => ({ tasks: tagged({ require_tag_scan: true }) }),
+      language: 'en',
+    };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    const chip = sr(card).querySelector('ha-assist-chip.hk-tag');
+    expect(chip.querySelector('ha-icon').getAttribute('icon')).toBe('mdi:lock');
+    expect(chip.getAttribute('title')).toBe(
+      'This task can only be completed by scanning its tag.',
+    );
+  });
+
+  it('leaves mark-done live when a tag is bound but no scan is required', async () => {
+    const card = makeCard();
+    let completes = 0;
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: tagged() };
+        if (msg.type === 'home_keeper/complete_task') completes++;
+        return {};
+      },
+    };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-done'));
+    const done = sr(card).querySelector('.hk-done');
+    expect(done.classList.contains('blocked')).toBe(false);
+    done.click();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(completes, 'an unlocked tag-bound task still completes from the card').toBe(1);
+  });
+
+  it('blocks mark-done for a scan-locked task and explains instead', async () => {
+    const card = makeCard();
+    const sent = [];
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        sent.push(msg.type);
+        if (msg.type === 'home_keeper/get_tasks') {
+          return { tasks: tagged({ require_tag_scan: true }) };
+        }
+        return {};
+      },
+    };
+    const toasts = [];
+    card.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+
+    await waitFor(() => sr(card)?.querySelector('.hk-done'));
+    const done = sr(card).querySelector('.hk-done');
+    expect(done.classList.contains('blocked')).toBe(true);
+
+    done.click();
+    await new Promise((r) => setTimeout(r, 50));
+    // The completion never leaves the browser — the backend would reject it.
+    expect(sent).not.toContain('home_keeper/complete_task');
+    expect(toasts).toEqual(["Scan this task's tag to complete it."]);
+  });
+
+  it('does not send a scan-locked task to the panel — it is refused there too', async () => {
+    const card = makeCard();
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) =>
+        msg.type === 'home_keeper/get_tasks'
+          ? { tasks: tagged({ require_tag_scan: true }) }
+          : {},
+    };
+    const navigations = [];
+    window.addEventListener('location-changed', () => navigations.push(location.pathname));
+
+    await waitFor(() => sr(card)?.querySelector('.hk-done'));
+    sr(card).querySelector('.hk-done').click();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(navigations).toEqual([]);
+  });
+});

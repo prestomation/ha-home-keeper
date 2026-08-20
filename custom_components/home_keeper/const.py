@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.14.0"
+PANEL_VERSION = "0.15.0b1"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -185,6 +185,21 @@ ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"
 # user-owned and completable by hand — it exists so an automation can tell "Home Keeper
 # noticed the condition cleared" apart from "somebody pressed Done".
 ORIGIN_SENSOR_RECOVER = f"{DOMAIN}_sensor_recover"
+
+# Opaque ``origin`` marker the tag listener passes to ``complete_task`` when an
+# NFC/RFID tag scan completes the tasks bound to it. Like
+# ``ORIGIN_PROBLEM_SENSOR_SYNC`` this one *authorizes*: a task with
+# ``require_tag_scan`` refuses every human-initiated completion surface (to-do,
+# button, notification, panel, bare service) and only accepts a completion carrying
+# a system marker, of which this is the one a real scan produces. See ``tags.py``.
+ORIGIN_TAG_SCAN = f"{DOMAIN}_tag_scan"
+
+# The bus event Home Assistant core's ``tag`` integration fires when a tag is
+# scanned; its ``tag_id`` field is the scanned tag's id. Named here rather than
+# imported from ``homeassistant.components.tag`` because that integration may not be
+# loaded at all — Home Keeper only listens for the event, so it must not pull the
+# component in.
+EVENT_HA_TAG_SCANNED = "tag_scanned"
 
 
 # Recurrence types.

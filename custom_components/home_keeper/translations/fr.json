@@ -94,6 +94,14 @@
           "name": "Puces de tâche",
           "description": "Puces de métadonnées fournies par l'intégration, affichées dans la liste des tâches et la carte du tableau de bord — une liste d'objets (label, icon?, url?). Non modifiable par l'utilisateur dans le panneau."
         },
+        "tag_id": {
+          "name": "Étiquette",
+          "description": "Identifiant d'une étiquette Home Assistant (depuis le panneau Étiquettes) dont le scan termine cette tâche. La scanner marque la tâche comme faite."
+        },
+        "require_tag_scan": {
+          "name": "Exiger le scan de l'étiquette",
+          "description": "Seule l'étiquette liée peut terminer cette tâche. Toute autre façon de la marquer comme faite est refusée. Nécessite une étiquette."
+        },
         "source": {
           "name": "Source",
           "description": "Provenance opaque appartenant à l'intégration qui a créé la tâche. Home Keeper la stocke et la renvoie telle quelle et ne l'inspecte jamais. Voir docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Puces de tâche",
           "description": "Puces de métadonnées fournies par l'intégration (remplace l'ensemble actuel) — une liste d'objets (label, icon?, url?). Voir add_task pour le schéma complet."
+        },
+        "tag_id": {
+          "name": "Étiquette",
+          "description": "Identifiant de l'étiquette Home Assistant dont le scan termine cette tâche. Envoyez une valeur vide pour la délier ; cela échoue tant que le scan est exigé."
+        },
+        "require_tag_scan": {
+          "name": "Exiger le scan de l'étiquette",
+          "description": "Seule l'étiquette liée peut terminer cette tâche. Nécessite une étiquette."
         },
         "source": {
           "name": "Source",

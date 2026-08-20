@@ -40,6 +40,7 @@ import {
   recurrenceSummary,
   safeFileHref,
   safeHref,
+  scanRequired,
 } from './utils';
 
 // mdi:check-circle-outline — the trailing "mark done" action on each row.
@@ -546,6 +547,13 @@ export class HomeKeeperCard extends HTMLElement {
     // quick mark-done (there's no dialog here) — send the user to the panel, where
     // the capture dialog lives. (Optional capture still quick-completes; details
     // can be added later by editing the completion in the panel.)
+    // A scan-locked task is completed by scanning its tag and nowhere else — not
+    // even in the panel — so this explains and stops, rather than sending the user
+    // somewhere that would refuse them just the same.
+    if (scanRequired(task)) {
+      this._toast(t('done.needsScan'));
+      return;
+    }
     if (task.completion_detail === 'required') {
       this._toast(t('done.needsDetails'));
       this._navigateToPanel(task.id);
@@ -814,6 +822,16 @@ export class HomeKeeperCard extends HTMLElement {
       const label = area || dev;
       if (label) areaChip = `<ha-assist-chip label="${escapeHTML(label)}"></ha-assist-chip>`;
     }
+    // The NFC/RFID binding. The card never fetches HA's tag registry (it stays as
+    // light as it can), so the chip is a generic marker rather than the tag's name —
+    // the panel's task page is where the actual tag is named.
+    let tagChip = '';
+    if (task.tag_id) {
+      const locked = scanRequired(task);
+      const tip = escapeHTML(locked ? t('chip.scanLock.tip') : t('chip.nfc.tip'));
+      const icon = locked ? 'mdi:lock' : 'mdi:nfc-variant';
+      tagChip = `<ha-assist-chip class="hk-tag" label="${escapeHTML(t('chip.nfc'))}" title="${tip}"><ha-icon slot="icon" icon="${icon}" class="hk-chip-ic"></ha-icon></ha-assist-chip>`;
+    }
     let labelChips = '';
     if (this._config.show_labels && task.labels?.length) {
       const labels = Object.keys(this._labels).length ? this._labels : this._hass?.labels;
@@ -857,7 +875,9 @@ export class HomeKeeperCard extends HTMLElement {
     // A completed one-off (do-once, now dormant) is also nothing to complete — hide Done.
     const completedOneOff =
       task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-    const blocked = Boolean(task.managed_by?.completion_blocked);
+    // A scan-locked task greys its mark-done the same way a source-cleared one does:
+    // tapping it explains that the tag is the only way in.
+    const blocked = Boolean(task.managed_by?.completion_blocked) || scanRequired(task);
     const done =
       dormant || completedOneOff
         ? ''
@@ -868,7 +888,7 @@ export class HomeKeeperCard extends HTMLElement {
           <div class="hk-name">${escapeHTML(task.name)}</div>
           <div class="hk-meta">${meta}</div>
           ${notes}
-          <div class="hk-chips">${statusChip}${areaChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
+          <div class="hk-chips">${statusChip}${areaChip}${tagChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
         </div>
         ${done}
       </div>`;

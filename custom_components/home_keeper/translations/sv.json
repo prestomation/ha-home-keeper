@@ -94,6 +94,14 @@
           "name": "Uppgiftschips",
           "description": "Metadatachips som tillhandahålls av integrationen och visas i uppgiftslistan och instrumentpanelskortet — en lista med (label, icon?, url?)-objekt. Kan inte redigeras av användaren i panelen."
         },
+        "tag_id": {
+          "name": "Tagg",
+          "description": "Id för en Home Assistant-tagg (från Taggar-panelen) vars skanning slutför den här uppgiften. En skanning markerar uppgiften som utförd."
+        },
+        "require_tag_scan": {
+          "name": "Kräv skanning av taggen",
+          "description": "Bara den kopplade taggen får slutföra den här uppgiften. Alla andra sätt att markera den som utförd avvisas. Kräver en tagg."
+        },
         "source": {
           "name": "Källa",
           "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Home Keeper lagrar och återger den ordagrant och inspekterar den aldrig. Se docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Uppgiftschips",
           "description": "Metadatachips som tillhandahålls av integrationen (ersätter den nuvarande uppsättningen) — en lista med (label, icon?, url?)-objekt. Se add_task för det fullständiga schemat."
+        },
+        "tag_id": {
+          "name": "Tagg",
+          "description": "Id för den Home Assistant-tagg vars skanning slutför den här uppgiften. Skicka ett tomt värde för att koppla bort den; det misslyckas så länge skanning krävs."
+        },
+        "require_tag_scan": {
+          "name": "Kräv skanning av taggen",
+          "description": "Bara den kopplade taggen får slutföra den här uppgiften. Kräver en tagg."
         },
         "source": {
           "name": "Källa",

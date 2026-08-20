@@ -94,6 +94,14 @@
           "name": "Chipy zadania",
           "description": "Chipy metadanych dostarczane przez integrację, wyświetlane na liście zadań i karcie pulpitu — lista obiektów (label, icon?, url?). Nie można ich edytować przez użytkownika w panelu."
         },
+        "tag_id": {
+          "name": "Znacznik",
+          "description": "Identyfikator znacznika Home Assistant (z panelu Znaczniki), którego zeskanowanie kończy to zadanie. Skan oznacza zadanie jako wykonane."
+        },
+        "require_tag_scan": {
+          "name": "Wymagaj zeskanowania znacznika",
+          "description": "To zadanie może zakończyć tylko powiązany znacznik. Każdy inny sposób oznaczenia go jako wykonanego zostanie odrzucony. Wymaga znacznika."
+        },
         "source": {
           "name": "Źródło",
           "description": "Nieprzejrzyste dane o pochodzeniu należące do integracji, która utworzyła zadanie. Home Keeper przechowuje je i zwraca dosłownie oraz nigdy ich nie sprawdza. Zobacz docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Chipy zadania",
           "description": "Chipy metadanych dostarczane przez integrację (zastępują bieżący zestaw) — lista obiektów (label, icon?, url?). Pełny schemat znajdziesz w add_task."
+        },
+        "tag_id": {
+          "name": "Znacznik",
+          "description": "Identyfikator znacznika Home Assistant, którego zeskanowanie kończy to zadanie. Wyślij pustą wartość, aby odłączyć znacznik; nie uda się to, gdy skan jest wymagany."
+        },
+        "require_tag_scan": {
+          "name": "Wymagaj zeskanowania znacznika",
+          "description": "To zadanie może zakończyć tylko powiązany znacznik. Wymaga znacznika."
         },
         "source": {
           "name": "Źródło",

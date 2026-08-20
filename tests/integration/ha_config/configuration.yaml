@@ -12,6 +12,12 @@ api:
 # Enable frontend (required for the custom sidebar panel + Lovelace resources)
 frontend:
 
+# Enable HA's tag integration. It owns the `tag_scanned` event Home Keeper listens
+# for, and its tag list is what the panel's tag picker offers, so both the tag-scan
+# integration test and the panel need it loaded (this minimal config omits
+# default_config, which would otherwise bring it in).
+tag:
+
 # Enable the recorder. A real HA install always has it (via default_config); this
 # minimal test config omits default_config, so without this the HA frontend's
 # `recorder/info` probe at load is rejected as an unknown command and surfaces as an

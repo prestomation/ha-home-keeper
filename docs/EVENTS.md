@@ -50,6 +50,13 @@ All event names follow `home_keeper_<noun>_<verb>`. Task events share a common
 
 <!-- vale ai-tells.OverusedVocabulary = YES -->
 
+**NFC/RFID tag scans** ride these same events: completing a task by scanning its
+linked tag fires an ordinary `home_keeper_task_completed` carrying
+`origin: home_keeper_tag_scan`. Match on that origin to tell a physical scan from a
+press of Done. Passing that origin to `complete_task` is also the escape hatch for
+automations that need to complete a task whose **Require tag scan** toggle blocks
+every UI surface.
+
 **Sensor-based tasks** reuse the triggered lifecycle: <!-- vale ai-tells.ColonUsage = NO -->Home Keeper's<!-- vale ai-tells.ColonUsage = YES --> watcher fires
 `home_keeper_task_triggered` when a bound entity meets the task's condition (a
 usage meter passing its target, a threshold crossing, or a `state` binding's entity
@@ -183,6 +190,7 @@ Every task event carries this core (per-event extras noted above are merged in):
 | `name` | `str` | |
 | `device_id` | `str \| None` | the task’s registry device id, or `None` when it’s a standalone task (its entities then live on a self-owned device) |
 | `area_id` | `str \| None` | |
+| `tag_id` | `str \| None` | the HA tag whose scan completes the task, or `None` when no tag is linked |
 | `recurrence_type` | `str` | `floating` / `fixed` / `one-off` / `triggered` / `sensor` |
 | `next_due` | `str \| None` | ISO; `None` for a dormant triggered/sensor task or a completed one-off |
 | `enabled` | `bool` | |

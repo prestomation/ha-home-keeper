@@ -41,6 +41,7 @@ from . import (
     options,
     panel,
     sensor_tasks,
+    tag_listener,
     websocket_api,
 )
 from .assets import AssetValidationError, card_projection
@@ -125,6 +126,11 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("completion_required_fields"): vol.All(
             cv.ensure_list, [cv.string]
         ),
+        # The NFC/RFID tag (a Home Assistant tag id) whose scan completes this task,
+        # and whether a scan is the only accepted way to complete it. ``None`` clears
+        # the link, which is why the value is nullable rather than a bare string.
+        vol.Optional("tag_id"): vol.Any(None, cv.string),
+        vol.Optional("require_tag_scan"): cv.boolean,
         vol.Optional("source"): dict,
         vol.Optional("managed_by"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
@@ -150,6 +156,10 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("completion_required_fields"): vol.All(
             cv.ensure_list, [cv.string]
         ),
+        # Send ``tag_id: null`` to unlink the tag (clearing it while
+        # ``require_tag_scan`` stays on is rejected — see models.merge_update).
+        vol.Optional("tag_id"): vol.Any(None, cv.string),
+        vol.Optional("require_tag_scan"): cv.boolean,
         vol.Optional("source"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
     }
@@ -542,6 +552,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Listen for actionable-notification taps (mobile_app_notification_action) so a
     # Mark done / Snooze / Skip button routes back into the store and advances a walk.
     entry.async_on_unload(notifier.async_setup_notifications(hass, entry, coordinator))
+    # Listen for tag scans (tag_scanned) so scanning the NFC/RFID tag stuck on the
+    # thing completes the tasks bound to it — and unlocks the ones that accept no
+    # other way of being completed.
+    entry.async_on_unload(
+        tag_listener.async_setup_tag_listener(hass, entry, coordinator)
+    )
     # Setup is complete: the refreshes above have baselined current overdue/due-soon
     # state silently, so start firing those events only for transitions from here on.
     coordinator.enable_transition_events()

@@ -94,6 +94,14 @@
           "name": "Chip dell'attività",
           "description": "Chip di metadati forniti dall'integrazione, mostrati nell'elenco delle attività e nella scheda dashboard — un elenco di oggetti (label, icon?, url?). Non modificabili dall'utente nel pannello."
         },
+        "tag_id": {
+          "name": "Etichetta",
+          "description": "Id di un'etichetta di Home Assistant (dal pannello Etichette) la cui scansione completa questa attività. Scansionarla segna l'attività come fatta."
+        },
+        "require_tag_scan": {
+          "name": "Richiedi la scansione dell'etichetta",
+          "description": "Solo l'etichetta collegata può completare questa attività. Qualsiasi altro modo di segnarla come fatta viene rifiutato. Richiede un'etichetta."
+        },
         "source": {
           "name": "Origine",
           "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Home Keeper la memorizza e la restituisce testualmente e non la ispeziona mai. Vedi docs/INTEGRATING.md."
@@ -171,6 +179,14 @@
         "task_chips": {
           "name": "Chip dell'attività",
           "description": "Chip di metadati forniti dall'integrazione (sostituisce l'insieme attuale) — un elenco di oggetti (label, icon?, url?). Vedi add_task per lo schema completo."
+        },
+        "tag_id": {
+          "name": "Etichetta",
+          "description": "Id dell'etichetta di Home Assistant la cui scansione completa questa attività. Invia un valore vuoto per scollegarla; fallisce finché la scansione è richiesta."
+        },
+        "require_tag_scan": {
+          "name": "Richiedi la scansione dell'etichetta",
+          "description": "Solo l'etichetta collegata può completare questa attività. Richiede un'etichetta."
         },
         "source": {
           "name": "Origine",

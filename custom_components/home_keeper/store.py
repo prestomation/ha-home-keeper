@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import assets, events, models, recurrence, sensor_tasks, sensor_watcher
+from . import assets, events, models, recurrence, sensor_tasks, sensor_watcher, tags
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
     EVENT_ASSET_ARCHIVED,
@@ -94,6 +94,24 @@ def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
         f"This task mirrors the problem sensor {entity_id} and can't be cleared in "
         "Home Keeper. Resolve the problem in the originating integration — the task "
         "clears automatically when the sensor returns to OK."
+    )
+
+
+def _reject_scan_required(task: dict[str, Any], origin: str | None) -> None:
+    """Raise unless *origin* authorizes completing a scan-only task.
+
+    A task with ``require_tag_scan`` is completable only by physically scanning its
+    NFC/RFID tag, which is what makes "done" mean "somebody was actually standing in
+    front of it". Every human-facing surface (to-do, button, notification tap, panel,
+    bare ``complete_task`` service) calls without an authorizing marker, so this
+    rejects them with a clear message; see ``tags.SCAN_ALLOWED_ORIGINS`` for the
+    system origins that pass.
+    """
+    if tags.completion_allowed(task, origin):
+        return
+    raise models.TaskValidationError(
+        "This task requires a physical tag scan to complete. Scan its NFC/RFID tag "
+        "to mark it done."
     )
 
 
@@ -1132,15 +1150,20 @@ class HomeKeeperStore:
         mirror the completion. This is the single chokepoint every completion surface
         funnels through (the to-do list, the device mark-done button, and the
         ``complete_task`` service), so firing here — rather than in the service handler
-        — is what makes completion observable from anywhere. ``origin`` is an opaque,
-        caller-supplied marker echoed back in the event purely so a contributing
-        integration can ignore the echo of a completion it initiated; Home Keeper does
-        not interpret it.
+        — is what makes completion observable from anywhere. ``origin`` is a
+        caller-supplied marker echoed back in the event so a contributing integration
+        can ignore the echo of a completion it initiated. Two gates also read it:
+        a problem-sensor-synced task accepts only the sync's marker, and a
+        ``require_tag_scan`` task accepts only ``tags.SCAN_ALLOWED_ORIGINS``. It is
+        trusted as given (any service caller may pass any marker), so those gates are
+        household accountability, not a security boundary — the same trust level as
+        every HA automation.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
         _reject_synced_problem(existing, origin)
+        _reject_scan_required(existing, origin)
         now = dt_util.now()
         when = completed_at or now
         if when.tzinfo is None:

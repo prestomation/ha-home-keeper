@@ -74,6 +74,7 @@ only_mutate = [
     "custom_components/home_keeper/documents.py",
     "custom_components/home_keeper/events.py",
     "custom_components/home_keeper/transitions.py",
+    "custom_components/home_keeper/tags.py",
 ]
 pytest_add_cli_args_test_selection = ["tests/unit"]
 

@@ -6,6 +6,24 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.15.0b1]
+
+### Added
+
+- **Complete a task by scanning an NFC/RFID tag.** A task can now be linked to a
+  Home Assistant tag: pick one (or type a tag ID) in the task form's new
+  **NFC/RFID tag** field, stick the physical tag on the thing itself (the dog food
+  bin, the air filter), and scanning it marks the task done. Tagged tasks show an
+  NFC chip in the panel and on the dashboard card, and scan completions carry
+  `origin: home_keeper_tag_scan` so automations can tell a tap of the tag from a
+  tap on Done. (Fixes #211)
+- **Proof of presence: require the scan.** A per-task **Require tag scan to
+  complete** toggle blocks Done on every surface (panel, dashboard card, to-do
+  list, device button, notifications), so checking the task off means walking
+  over and scanning its tag. No more feeding the dog from the couch.
+  Automations that need to complete such a task can still do it by passing
+  the tag-scan origin to `home_keeper.complete_task`.
+
 ## [0.14.0] - 2026-08-18
 
 ### Added

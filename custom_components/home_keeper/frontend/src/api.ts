@@ -38,6 +38,19 @@ export async function getLabels(hass: Hass): Promise<Record<string, HassLabel>> 
   return map;
 }
 
+/**
+ * The HA tag registry (NFC/RFID tags), as picker options. A tag carries an
+ * optional friendly `name`; an unnamed one is only ever identified by its id, so
+ * that is what the option shows.
+ */
+export async function getTags(hass: Hass): Promise<{ value: string; label: string }[]> {
+  const list = await hass.callWS<{ id: string; name?: string | null }[]>({ type: 'tag/list' });
+  return (Array.isArray(list) ? list : []).map((tag) => ({
+    value: tag.id,
+    label: tag.name || tag.id,
+  }));
+}
+
 /** Read the integration options (for the Settings tab). */
 export async function getOptions(
   hass: Hass,

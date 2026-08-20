@@ -34,6 +34,8 @@ describe('taskSchema by recurrence type', () => {
       'last_completed',
       'device_id',
       'area_id',
+      'tag_id',
+      'require_tag_scan',
       'labels',
       'completion_detail',
     ]);
@@ -50,6 +52,8 @@ describe('taskSchema by recurrence type', () => {
       'last_completed',
       'device_id',
       'area_id',
+      'tag_id',
+      'require_tag_scan',
       'labels',
       'completion_detail',
     ]);
@@ -65,6 +69,8 @@ describe('taskSchema by recurrence type', () => {
       'due',
       'device_id',
       'area_id',
+      'tag_id',
+      'require_tag_scan',
       'labels',
       'completion_detail',
     ]);
@@ -83,7 +89,15 @@ describe('taskSchema by recurrence type', () => {
     // Its state is owned by the integration watching the condition, so there is
     // no schedule to edit — offering one would let a user arm a dormant task.
     const got = names(taskSchema({ recurrence_type: 'triggered' }));
-    expect(got).toEqual(['name', 'notes', 'device_id', 'area_id', 'labels']);
+    expect(got).toEqual([
+      'name',
+      'notes',
+      'device_id',
+      'area_id',
+      'tag_id',
+      'require_tag_scan',
+      'labels',
+    ]);
     for (const scheduling of ['interval', 'unit', 'freq', 'anchor', 'due', 'recurrence_type']) {
       expect(got).not.toContain(scheduling);
     }
@@ -140,7 +154,14 @@ describe('taskSchema area field (issue #204)', () => {
       recurrence_type: 'triggered',
       managed_by: { integration: 'x', display_name: 'X', locked_fields: ['area_id'] },
     });
-    expect(names(fields)).toEqual(['name', 'notes', 'device_id', 'labels']);
+    expect(names(fields)).toEqual([
+      'name',
+      'notes',
+      'device_id',
+      'tag_id',
+      'require_tag_scan',
+      'labels',
+    ]);
     expect(fields.length).toBe(unlocked.length - 1);
   });
 
@@ -218,7 +239,7 @@ describe('taskSchema respects locked fields', () => {
         managed_by: { integration: 'x', locked_fields: ['name', 'notes'] },
       }),
     );
-    expect(got).toEqual(['device_id', 'area_id', 'labels']);
+    expect(got).toEqual(['device_id', 'area_id', 'tag_id', 'require_tag_scan', 'labels']);
   });
 });
 
