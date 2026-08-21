@@ -162,6 +162,146 @@ def test_notify_service_and_action_completes(ha, ha_token):
     )
 
 
+def _seed_due_soon_task(ha, label, notification_ids):
+    """A task due in 2 hours plus a due-soon profile and *notification_ids* cards.
+
+    Returns ``(task_id, due_token)`` — the token being the task's ``next_due``, which is
+    what every button on every one of those cards encodes.
+    """
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "Not yet due task",
+            "recurrence_type": "floating",
+            "interval": 7,
+            "unit": "days",
+            "labels": [label],
+        },
+        return_response=True,
+    )
+    task_id = resp.get("service_response", resp)["task_id"]
+    # A fresh floating task is due *now*; snooze it forward so it is genuinely not
+    # overdue, while still inside the 3-day due-soon window the profile selects on.
+    call_service(ha, "home_keeper", "snooze_task", {"task_id": task_id, "hours": 2})
+
+    call_service(
+        ha,
+        "home_keeper",
+        "set_options",
+        {
+            "profiles": [
+                {
+                    "id": "dueprofile",
+                    "name": "Due soon",
+                    "filter": {"status": "due_soon", "labels": [label]},
+                }
+            ],
+            "notifications": [
+                {
+                    "id": nid,
+                    "name": f"Card {nid}",
+                    "profile_id": "dueprofile",
+                    "targets": ["mobile_app_test"],
+                    "actions": ["complete", "snooze"],
+                }
+                for nid in notification_ids
+            ],
+        },
+    )
+
+    task = _get_task(ha, task_id)
+    assert task["next_due"], "snoozed task should carry a next_due"
+    return task_id, task["next_due"]
+
+
+def _wait_for_completion(ha, task_id, timeout=20):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        task = _get_task(ha, task_id)
+        if task and task.get("completions"):
+            return task
+        time.sleep(1)
+    return None
+
+
+def _cleanup(ha, task_id):
+    call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+    call_service(
+        ha, "home_keeper", "set_options", {"profiles": [], "notifications": []}
+    )
+
+
+def test_action_completes_a_task_that_is_not_yet_due(ha):
+    """#216: "Mark done" on a due-soon notification was silently ignored.
+
+    A profile with ``status: due_soon`` legitimately queues a task whose ``next_due`` is
+    still in the future, and the notification it builds carries the full button set. The
+    old handler gated the tap on ``is_overdue``, so the button did nothing at all — no
+    completion, no log — and the task went on to become overdue. The gate now checks the
+    button against the task's *current* schedule instead of its due-state.
+    """
+    label = "hk_notify_due_soon"
+    task_id, token = _seed_due_soon_task(ha, label, ["duenotif"])
+
+    before = _get_task(ha, task_id)
+    assert not before.get("completions"), "precondition: task starts uncompleted"
+
+    _fire_action(ha, f"home_keeper::complete::{task_id}::duenotif::{token}")
+    completed = _wait_for_completion(ha, task_id)
+    assert completed, "an early 'Mark done' tap must complete the task (#216)"
+
+    # The same tap re-fired is now stale — the completion moved next_due, so the token
+    # the button carried no longer matches and the task must not advance a second time.
+    before_count = len(completed.get("completions", []))
+    before_next_due = completed.get("next_due")
+    _fire_action(ha, f"home_keeper::complete::{task_id}::duenotif::{token}")
+    time.sleep(3)  # let the (no-op) action handler run
+    after = _get_task(ha, task_id)
+    assert len(after.get("completions", [])) == before_count, (
+        "stale complete tap should not append a second completion"
+    )
+    assert after.get("next_due") == before_next_due, (
+        "stale complete tap should not advance next_due"
+    )
+
+    _cleanup(ha, task_id)
+
+
+def test_two_notifications_for_one_task_complete_it_once(ha):
+    """Two separate cards for the same task must not double-advance it.
+
+    Two saved notifications matching the same task deliver two independent cards, each
+    with its own ``tag`` — so actioning one does not replace the other on the phone.
+    Both encode the same freshness token (it is keyed on the *task*, not on the
+    notification), so whichever is tapped first advances the task and strands the other
+    — a notification-scoped dedupe could not do that. Each completion
+    advances ``next_due`` by a full interval, which is what makes a double-tap here
+    silently skip a cycle rather than merely duplicate a history row.
+    """
+    label = "hk_notify_two_cards"
+    task_id, token = _seed_due_soon_task(ha, label, ["cardone", "cardtwo"])
+
+    # Fired back to back with no wait: the freshness check and the store mutation it
+    # guards run without a yield point, so the second tap is guaranteed to observe the
+    # first one's completion rather than racing it.
+    _fire_action(ha, f"home_keeper::complete::{task_id}::cardone::{token}")
+    _fire_action(ha, f"home_keeper::complete::{task_id}::cardtwo::{token}")
+
+    completed = _wait_for_completion(ha, task_id)
+    assert completed, "the first card's tap must complete the task"
+    time.sleep(3)  # give the second tap every chance to land as well
+
+    after = _get_task(ha, task_id)
+    assert len(after.get("completions", [])) == 1, (
+        "two cards for one task must produce exactly one completion, got "
+        f"{len(after.get('completions', []))}"
+    )
+
+    _cleanup(ha, task_id)
+
+
 async def _ws_commands(token, commands):
     """Open one authed websocket; send each command; return the replies."""
     results = []
