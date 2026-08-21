@@ -142,6 +142,24 @@ export interface ProfileFilter {
   labels: string[];
   areas: string[];
   devices: string[];
+  /** Ids that disqualify a task even when it cleared every include list above.
+   *  Empty (or absent, on a profile saved before these existed) excludes nothing. */
+  exclude_labels?: string[];
+  exclude_areas?: string[];
+  exclude_devices?: string[];
+}
+
+/**
+ * Whether a configured id list names `id`. A task with no area or no device has no id
+ * to name, so it matches no list — which is what keeps a non-empty exclude list from
+ * sweeping up every unattached task. An absent list names nothing.
+ */
+function listHas(list: string[] | undefined, id: string | null | undefined): boolean {
+  // Stryker disable next-line ConditionalExpression: equivalent — this guard narrows
+  // `id` to a string for `includes`; a list of real ids can never contain null,
+  // undefined or '', so falling through would return false for those anyway.
+  if (!id) return false;
+  return list?.includes(id) ?? false;
 }
 
 /**
@@ -153,6 +171,11 @@ export interface ProfileFilter {
  * The backend reaches parity by enriching tasks with their effective ids before
  * matching (`notifier._effective_filter_tasks`); here we resolve them inline via
  * `taskLabelIds`/`taskAreaId`.
+ *
+ * The `exclude_*` lists subtract after the include lists and win over them, so
+ * "everything except the jobs that need a tradesperson" is one profile rather than a
+ * label on every task that isn't one. They read the same effective ids, so excluding a
+ * label also drops a task that only inherits it from its device or area.
  */
 export function profileMatches(
   task: Task,
@@ -171,17 +194,18 @@ export function profileMatches(
   const status = filter.status || 'overdue';
   if (status === 'overdue' && due > now) return false;
   if (status === 'due_soon' && due > now + DUE_SOON_DAYS * DAY_MS) return false;
+  const taskLabels = taskLabelIds(task, devices, areas);
+  const areaId = taskAreaId(task, devices);
   const labels = filter.labels ?? [];
-  if (labels.length) {
-    const tl = taskLabelIds(task, devices, areas);
-    if (!labels.some((id) => tl.has(id))) return false;
-  }
+  if (labels.length && !labels.some((id) => taskLabels.has(id))) return false;
   const wantAreas = filter.areas ?? [];
-  if (wantAreas.length && !wantAreas.includes(taskAreaId(task, devices) ?? '')) {
-    return false;
-  }
+  if (wantAreas.length && !listHas(wantAreas, areaId)) return false;
   const wantDevices = filter.devices ?? [];
-  return !(wantDevices.length && !wantDevices.includes(task.device_id ?? ''));
+  if (wantDevices.length && !listHas(wantDevices, task.device_id)) return false;
+  // Exclusions subtract, and win over the include lists above.
+  if (filter.exclude_labels?.some((id) => taskLabels.has(id))) return false;
+  if (listHas(filter.exclude_areas, areaId)) return false;
+  return !listHas(filter.exclude_devices, task.device_id);
 }
 
 function matchesLabels(

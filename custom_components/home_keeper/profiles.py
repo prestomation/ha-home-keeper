@@ -35,13 +35,22 @@ def _str_list(value: Any) -> list[str]:
 
 
 def normalize_filter(raw: Any) -> dict[str, Any]:
-    """Coerce a profile ``filter`` block to its stored shape."""
+    """Coerce a profile ``filter`` block to its stored shape.
+
+    This rebuilds the block from a fixed key set rather than merging, so it doubles as
+    the allowlist: a key absent here never survives a save. The ``exclude_*`` lists are
+    additive and default to empty, which is why a profile stored before they existed
+    needs no migration — ``options.current_options`` re-normalizes on every read.
+    """
     raw = raw if isinstance(raw, dict) else {}
     status = raw.get("status")
     return {
         "labels": _str_list(raw.get("labels")),
         "areas": _str_list(raw.get("areas")),
         "devices": _str_list(raw.get("devices")),
+        "exclude_labels": _str_list(raw.get("exclude_labels")),
+        "exclude_areas": _str_list(raw.get("exclude_areas")),
+        "exclude_devices": _str_list(raw.get("exclude_devices")),
         "status": status if status in STATUSES else STATUS_OVERDUE,
     }
 
@@ -104,7 +113,15 @@ def matches_filter(
     ``next_due``), and not a synced ``problem`` sensor (those can't be completed from
     Home Keeper). On top of that it must clear the label/area/device filters (each is
     an OR within the list, AND across the lists; an empty list means "any") and the
-    ``status`` due-state. This pure matcher reads the ``labels``/``area_id``/
+    ``status`` due-state.
+
+    The ``exclude_labels``/``exclude_areas``/``exclude_devices`` lists then subtract:
+    any hit drops the task even when it satisfied every include list, so exclusions win.
+    An empty exclude list excludes nothing. Exclusions read the same **effective** ids
+    as the include lists, so excluding a label also drops a task that merely inherits
+    it from its device or area.
+
+    This pure matcher reads the ``labels``/``area_id``/
     ``device_id`` on the task dict; the HA-aware caller
     (``notifier._effective_filter_tasks``) enriches those with **effective**
     (device/area-inherited) ids before calling, so a Profile selects the same tasks here
@@ -127,14 +144,31 @@ def matches_filter(
     ):
         return False
 
+    task_labels = set(task.get("labels") or [])
+    area_id = task.get("area_id")
+    device_id = task.get("device_id")
+
     labels = filt.get("labels") or []
-    if labels and not (set(task.get("labels") or []) & set(labels)):
+    if labels and not (task_labels & set(labels)):
         return False
     areas = filt.get("areas") or []
-    if areas and task.get("area_id") not in areas:
+    if areas and area_id not in areas:
         return False
     devices = filt.get("devices") or []
-    return not (devices and task.get("device_id") not in devices)
+    if devices and device_id not in devices:
+        return False
+
+    # Exclusions are applied last and win: a task that cleared every include list is
+    # still dropped if it carries an excluded label, sits in an excluded area, or hangs
+    # off an excluded device. That's what makes "everything I can do myself" expressible
+    # as one profile instead of labelling every task that *isn't* a call-out.
+    # An unset area/device can never be listed: ``_str_list`` drops ``None``/``""``, so
+    # a task with no area is not swept up by a non-empty ``exclude_areas``.
+    if task_labels & set(filt.get("exclude_labels") or []):
+        return False
+    if area_id in (filt.get("exclude_areas") or []):
+        return False
+    return device_id not in (filt.get("exclude_devices") or [])
 
 
 def _due_key(task: dict[str, Any]) -> tuple[datetime, str]:

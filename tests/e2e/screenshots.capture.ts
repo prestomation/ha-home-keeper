@@ -843,22 +843,44 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 17a. Settings → Profiles + Notifications. A Profile is a standalone saved filter;
   // a Notification is a delivery binding that references one. Seed one of each via the
-  // public set_options service so both editors render populated.
+  // public set_options service so both editors render populated. "Upstairs" carries an
+  // area exclusion so the shot shows the exclude_* rows holding a real value, not three
+  // empty pickers; "My chores" stays unfiltered because the Tasks-tab shot below
+  // filters the admin list by it.
   await page.evaluate(async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
     if (!hass) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const areas: any[] = await hass.callWS({ type: 'config/area_registry/list' });
+    const downstairs = areas.find((a) => a.area_id === 'living_room') ?? areas[0];
     await hass.callService('home_keeper', 'set_options', {
       profiles: [
         {
           id: 'demo_me',
           name: 'My chores',
-          filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+          filter: {
+            status: 'overdue',
+            labels: [],
+            areas: [],
+            devices: [],
+            exclude_labels: [],
+            exclude_areas: [],
+            exclude_devices: [],
+          },
         },
         {
           id: 'demo_upstairs',
           name: 'Upstairs',
-          filter: { status: 'due_soon', labels: [], areas: [], devices: [] },
+          filter: {
+            status: 'due_soon',
+            labels: [],
+            areas: [],
+            devices: [],
+            exclude_labels: [],
+            exclude_areas: downstairs ? [downstairs.area_id] : [],
+            exclude_devices: [],
+          },
         },
       ],
       notifications: [

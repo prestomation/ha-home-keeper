@@ -6,6 +6,24 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.16.0b1] - 2026-08-21
+
+### Added
+
+- **Profiles can now leave tasks out, not just let them in.** A Profile's filter gains
+  **Exclude labels**, **Exclude areas** and **Exclude devices** alongside the existing
+  include pickers. They subtract from whatever the include filters selected, and they
+  win: a task that matched everything else is still dropped if it carries an excluded
+  label, sits in an excluded area, or hangs off an excluded device. Tag the jobs that
+  need a tradesperson `professional` and exclude that one label, and you have an
+  "everything I can do myself" list, without tagging every task that *isn't* a call-out.
+  Exclusions follow the same inheritance as the include pickers, so excluding a label
+  also drops a task that carries it only via its device or area. Because a Profile is
+  the shared saved filter, the exclusions apply everywhere it is used: the notifications
+  built on it, the **Profile** dropdown on the Tasks tab, and the dashboard card's
+  **Filter by profile**. Profiles saved before this release keep working unchanged. The
+  new pickers start empty, and an empty picker excludes nothing. (Fixes #214)
+
 ## [0.15.0] - 2026-08-20
 
 ### Added

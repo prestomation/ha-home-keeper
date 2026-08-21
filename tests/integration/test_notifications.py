@@ -256,3 +256,80 @@ def test_notify_persistent_notification_is_localized(ha, ha_token):
         call_service(
             ha, "home_keeper", "set_options", {"profiles": [], "notifications": []}
         )
+
+
+def test_notify_profile_exclusions_skip_matching_tasks(ha):
+    """A profile's ``exclude_labels`` drops a task the include list picked up (#214).
+
+    The point is the *round trip*: the exclusion has to survive ``set_options`` ->
+    ``profiles.normalize_filter`` -> storage -> ``notifier`` -> ``due_queue``. A unit
+    test can't see that path, and ``normalize_filter`` rebuilds the block from a fixed
+    key set, so a key it forgets is dropped silently rather than raising.
+    """
+    label = "hk_exclude_test"
+    pro = "hk_exclude_test_pro"
+    ids = {}
+    wanted = (("Do it myself", [label]), ("Call the mechanic", [label, pro]))
+    for name, labels in wanted:
+        resp = call_service(
+            ha,
+            "home_keeper",
+            "add_task",
+            {
+                "name": name,
+                "recurrence_type": "floating",
+                "interval": 7,
+                "unit": "days",
+                "labels": labels,
+            },
+            return_response=True,
+        )
+        ids[name] = resp.get("service_response", resp)["task_id"]
+
+    try:
+        call_service(
+            ha,
+            "home_keeper",
+            "set_options",
+            {
+                "profiles": [
+                    {
+                        "id": "excludeprofile",
+                        "name": "Without a call-out",
+                        "filter": {
+                            "status": "overdue",
+                            "labels": [label],
+                            "exclude_labels": [pro],
+                        },
+                    }
+                ],
+            },
+        )
+
+        # The stored profile kept the exclusion (normalize_filter didn't drop the key).
+        resp = call_service(
+            ha, "home_keeper", "list_profiles", {}, return_response=True
+        )
+        stored = resp.get("service_response", resp)["profiles"]
+        saved = next(p for p in stored if p["id"] == "excludeprofile")
+        assert saved["filter"]["exclude_labels"] == [pro]
+        assert saved["filter"]["exclude_areas"] == []
+        assert saved["filter"]["exclude_devices"] == []
+
+        # Both tasks are overdue and carry the include label, but only one survives.
+        resp = call_service(
+            ha,
+            "home_keeper",
+            "notify",
+            {"profile": "excludeprofile", "target": "mobile_app_test"},
+            return_response=True,
+        )
+        body = resp.get("service_response", resp)
+        assert body["matched"] == 1, body
+        assert body["sent"] == ids["Do it myself"], body
+    finally:
+        for task_id in ids.values():
+            call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+        call_service(
+            ha, "home_keeper", "set_options", {"profiles": [], "notifications": []}
+        )

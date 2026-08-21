@@ -247,7 +247,15 @@ describe('profile form round-trip', () => {
   const profile = {
     id: 'p1',
     name: 'Overdue in the garage',
-    filter: { status: 'overdue', labels: ['l1'], areas: ['a1'], devices: ['d1'] },
+    filter: {
+      status: 'overdue',
+      labels: ['l1'],
+      areas: ['a1'],
+      devices: ['d1'],
+      exclude_labels: ['l2'],
+      exclude_areas: ['a2'],
+      exclude_devices: ['d2'],
+    },
   };
 
   it('flattens a profile for ha-form', () => {
@@ -257,6 +265,9 @@ describe('profile form round-trip', () => {
       labels: ['l1'],
       areas: ['a1'],
       devices: ['d1'],
+      exclude_labels: ['l2'],
+      exclude_areas: ['a2'],
+      exclude_devices: ['d2'],
     });
   });
 
@@ -279,24 +290,47 @@ describe('profile form round-trip', () => {
       labels: [],
       areas: [],
       devices: [],
+      exclude_labels: [],
+      exclude_areas: [],
+      exclude_devices: [],
     });
   });
 
   it('stringifies list members that arrive as non-strings', () => {
-    const rebuilt = profileFormToProfile('p1', { name: 'x', labels: [1, 2], areas: 'nope' });
+    const rebuilt = profileFormToProfile('p1', {
+      name: 'x',
+      labels: [1, 2],
+      areas: 'nope',
+      exclude_labels: [3],
+      exclude_devices: 'nope',
+    });
     expect(rebuilt.filter.labels).toEqual(['1', '2']);
     expect(rebuilt.filter.areas).toEqual([]);
+    expect(rebuilt.filter.exclude_labels).toEqual(['3']);
+    expect(rebuilt.filter.exclude_devices).toEqual([]);
   });
 
   it('describes every profile field in the schema', () => {
+    // The exclude_* rows follow the include rows, so the form reads as "these, minus
+    // these" top to bottom.
     expect(profileSchema().map((f) => f.name)).toEqual([
       'name',
       'status',
       'labels',
       'areas',
       'devices',
+      'exclude_labels',
+      'exclude_areas',
+      'exclude_devices',
     ]);
     expect(profileSchema()[0].required).toBe(true);
+  });
+
+  it('offers the exclude rows the same multi-pickers as their include twins', () => {
+    const by = Object.fromEntries(profileSchema().map((f) => [f.name, f.selector]));
+    expect(by.exclude_labels).toEqual(by.labels);
+    expect(by.exclude_areas).toEqual(by.areas);
+    expect(by.exclude_devices).toEqual(by.devices);
   });
 });
 
