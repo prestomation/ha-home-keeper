@@ -801,7 +801,12 @@ const notifyOptions = (values: string[]): { value: string; label: string }[] =>
 
 const strList = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
 
-/** The `ha-form` schema for one **profile** (a named, reusable task filter). */
+/**
+ * The `ha-form` schema for one **profile** (a named, reusable task filter).
+ *
+ * The include lists come first, then the `exclude_*` lists that subtract from them —
+ * so a profile can say "everything overdue except the jobs that need a tradesperson".
+ */
 export function profileSchema(): FormField[] {
   return [
     { name: 'name', required: true, selector: selText() },
@@ -809,6 +814,9 @@ export function profileSchema(): FormField[] {
     { name: 'labels', selector: selLabel(true) },
     { name: 'areas', selector: selArea(true) },
     { name: 'devices', selector: selDevice(true) },
+    { name: 'exclude_labels', selector: selLabel(true) },
+    { name: 'exclude_areas', selector: selArea(true) },
+    { name: 'exclude_devices', selector: selDevice(true) },
   ];
 }
 
@@ -820,6 +828,9 @@ export function profileFormData(p: Profile): Record<string, unknown> {
     labels: p.filter.labels,
     areas: p.filter.areas,
     devices: p.filter.devices,
+    exclude_labels: p.filter.exclude_labels,
+    exclude_areas: p.filter.exclude_areas,
+    exclude_devices: p.filter.exclude_devices,
   };
 }
 
@@ -833,6 +844,9 @@ export function profileFormToProfile(id: string, data: Record<string, unknown>):
       labels: strList(data.labels),
       areas: strList(data.areas),
       devices: strList(data.devices),
+      exclude_labels: strList(data.exclude_labels),
+      exclude_areas: strList(data.exclude_areas),
+      exclude_devices: strList(data.exclude_devices),
     },
   };
 }

@@ -354,6 +354,10 @@ export interface NotifyFilter {
   labels: string[];
   areas: string[];
   devices: string[];
+  /** Ids that disqualify a task even when it cleared the include lists above. */
+  exclude_labels: string[];
+  exclude_areas: string[];
+  exclude_devices: string[];
   status: NotifyStatus;
 }
 

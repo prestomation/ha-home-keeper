@@ -35,6 +35,9 @@ def test_normalize_profile_defaults_and_id():
         "labels": [],
         "areas": [],
         "devices": [],
+        "exclude_labels": [],
+        "exclude_areas": [],
+        "exclude_devices": [],
         "status": "overdue",
     }
 
@@ -78,6 +81,14 @@ def test_matches_filter_status_overdue_vs_due_soon():
     assert p.matches_filter(far, {"status": "all"}, now=now)
 
 
+def test_matches_filter_defaults_to_overdue_without_a_status():
+    # The default has to be `overdue`, not "everything": a filter block with no status
+    # that matched every dated task would push the whole list at once.
+    now = dt(2026, 6, 13, 12)
+    assert p.matches_filter(task("1", "A", dt(2026, 6, 10)), {}, now=now)
+    assert not p.matches_filter(task("2", "B", dt(2026, 6, 20)), {}, now=now)
+
+
 def test_matches_filter_excludes_disabled_dormant_and_problem():
     now = dt(2026, 6, 13, 12)
     f = {"status": "all"}
@@ -103,6 +114,109 @@ def test_matches_filter_labels_areas_devices():
     assert not p.matches_filter(t, {"status": "all", "areas": ["garage"]}, now=now)
     assert p.matches_filter(t, {"status": "all", "devices": ["dev1"]}, now=now)
     assert not p.matches_filter(t, {"status": "all", "devices": ["dev2"]}, now=now)
+
+
+# ── exclusions ──────────────────────────────────────────────────────────────
+
+
+def test_normalize_filter_reads_every_input_key():
+    # A distinct value per key, so a slot fed from the wrong key — or one that is never
+    # read at all and silently comes back empty — lands somewhere visible.
+    raw = {
+        "labels": ["l"],
+        "areas": ["a"],
+        "devices": ["d"],
+        "exclude_labels": ["xl"],
+        "exclude_areas": ["xa"],
+        "exclude_devices": ["xd"],
+        "status": "all",
+    }
+    assert p.normalize_filter(raw) == raw
+
+
+def test_normalize_filter_defaults_and_coerces_exclusions():
+    filt = p.normalize_filter(
+        {"exclude_labels": ["pro", None, ""], "exclude_devices": ("dev1",)}
+    )
+    # None/"" are dropped, tuples are accepted, and the untouched list still defaults.
+    assert filt["exclude_labels"] == ["pro"]
+    assert filt["exclude_devices"] == ["dev1"]
+    assert filt["exclude_areas"] == []
+
+
+def test_matches_filter_exclusions_drop_a_task():
+    now = dt(2026, 6, 13, 12)
+    t = task(
+        "1", "A", dt(2026, 6, 10), labels=["mine"], area_id="kitchen", device_id="dev1"
+    )
+    assert not p.matches_filter(
+        t, {"status": "all", "exclude_labels": ["mine"]}, now=now
+    )
+    assert not p.matches_filter(
+        t, {"status": "all", "exclude_areas": ["kitchen"]}, now=now
+    )
+    assert not p.matches_filter(
+        t, {"status": "all", "exclude_devices": ["dev1"]}, now=now
+    )
+    # An exclusion the task doesn't hit leaves it alone.
+    assert p.matches_filter(t, {"status": "all", "exclude_labels": ["hers"]}, now=now)
+    assert p.matches_filter(t, {"status": "all", "exclude_areas": ["garage"]}, now=now)
+    assert p.matches_filter(t, {"status": "all", "exclude_devices": ["dev2"]}, now=now)
+
+
+def test_matches_filter_empty_exclusions_exclude_nothing():
+    # The failure that would hurt most: an inverted check turning "no exclusions" into
+    # "exclude everything" empties every profile at once.
+    now = dt(2026, 6, 13, 12)
+    t = task(
+        "1", "A", dt(2026, 6, 10), labels=["mine"], area_id="kitchen", device_id="dev1"
+    )
+    assert p.matches_filter(
+        t,
+        {
+            "status": "all",
+            "exclude_labels": [],
+            "exclude_areas": [],
+            "exclude_devices": [],
+        },
+        now=now,
+    )
+    # A filter block predating exclusions omits the keys entirely.
+    assert p.matches_filter(t, {"status": "all"}, now=now)
+
+
+def test_matches_filter_exclusion_beats_a_satisfied_include():
+    now = dt(2026, 6, 13, 12)
+    t = task("1", "A", dt(2026, 6, 10), labels=["mine", "pro"], area_id="kitchen")
+    assert p.matches_filter(t, {"status": "all", "labels": ["mine"]}, now=now)
+    assert not p.matches_filter(
+        t, {"status": "all", "labels": ["mine"], "exclude_labels": ["pro"]}, now=now
+    )
+    assert not p.matches_filter(
+        t,
+        {"status": "all", "areas": ["kitchen"], "exclude_areas": ["kitchen"]},
+        now=now,
+    )
+
+
+def test_matches_filter_unset_area_or_device_survives_an_exclusion():
+    # A task with no area must not be dropped by "exclude the garage" — it isn't there.
+    now = dt(2026, 6, 13, 12)
+    t = task("1", "A", dt(2026, 6, 10))
+    assert p.matches_filter(t, {"status": "all", "exclude_areas": ["garage"]}, now=now)
+    assert p.matches_filter(t, {"status": "all", "exclude_devices": ["dev1"]}, now=now)
+
+
+def test_due_queue_applies_exclusions():
+    # The queue is what a notification actually sends, so the exclusion has to survive
+    # the trip through due_queue, not just the bare predicate.
+    now = dt(2026, 6, 13, 12)
+    tasks = [
+        task("1", "Mine", dt(2026, 6, 1), labels=["mine"]),
+        task("2", "Call someone", dt(2026, 6, 8), labels=["pro"]),
+    ]
+    q = p.due_queue(tasks, {"status": "overdue", "exclude_labels": ["pro"]}, now=now)
+    assert [t["name"] for t in q] == ["Mine"]
 
 
 def test_due_queue_orders_most_overdue_first():

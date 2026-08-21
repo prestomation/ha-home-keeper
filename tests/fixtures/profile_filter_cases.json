@@ -1,5 +1,5 @@
 {
-  "_comment": "Cross-language conformance cases for the Profile filter. Both the Python pure matcher (profiles.matches_filter) and the TypeScript pure matcher (card-filter.profileMatches) must agree on every case, so a saved Profile selects the same tasks in a notification (server-side), the admin task list, and the dashboard card. Tasks here carry their EFFECTIVE label/area ids directly (own + any inherited from device/area), since each side resolves inheritance before/inside matching; these cases pin the shared matcher logic with empty registries. now is a fixed instant so date math is deterministic.",
+  "_comment": "Cross-language conformance cases for the Profile filter. Both the Python pure matcher (profiles.matches_filter) and the TypeScript pure matcher (card-filter.profileMatches) must agree on every case, so a saved Profile selects the same tasks in a notification (server-side), the admin task list, and the dashboard card. Tasks here carry their EFFECTIVE label/area ids directly (own + any inherited from device/area), since each side resolves inheritance before/inside matching; these cases pin the shared matcher logic with empty registries. The exclude_labels/exclude_areas/exclude_devices lists subtract after the include lists and win over them; an omitted exclude key means the same as an empty one, which is how a profile saved before exclusions existed keeps behaving. now is a fixed instant so date math is deterministic.",
   "now": "2026-06-16T12:00:00Z",
   "cases": [
     {
@@ -114,6 +114,72 @@
       "name": "AND across lists: label present but area missing -> excluded",
       "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"], "area_id": "garage" },
       "filter": { "status": "all", "labels": ["dog"], "areas": ["kitchen"], "devices": [] },
+      "expected": false
+    },
+    {
+      "name": "exclude_labels: an excluded effective label drops the task",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["pro"] },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_labels": ["pro"] },
+      "expected": false
+    },
+    {
+      "name": "exclude_labels: a task without the excluded label still matches",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"] },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_labels": ["pro"] },
+      "expected": true
+    },
+    {
+      "name": "exclude_labels: ANY hit is enough, across several excluded labels",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog", "pro"] },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_labels": ["mechanic", "pro"] },
+      "expected": false
+    },
+    {
+      "name": "exclusions win over includes: label satisfies the include list AND the exclude list",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog", "pro"] },
+      "filter": { "status": "all", "labels": ["dog"], "areas": [], "devices": [], "exclude_labels": ["pro"] },
+      "expected": false
+    },
+    {
+      "name": "empty exclude lists exclude nothing",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"], "area_id": "kitchen", "device_id": "d1" },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_labels": [], "exclude_areas": [], "exclude_devices": [] },
+      "expected": true
+    },
+    {
+      "name": "exclude_areas: an excluded effective area drops the task",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "area_id": "garage" },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_areas": ["garage"] },
+      "expected": false
+    },
+    {
+      "name": "exclude_areas: an area-less task is not swept up by a non-empty exclude list",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [] },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_areas": ["garage"] },
+      "expected": true
+    },
+    {
+      "name": "exclude_devices: an excluded device drops the task",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "device_id": "d1" },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_devices": ["d1"] },
+      "expected": false
+    },
+    {
+      "name": "exclude_devices: a device-less task is not swept up by a non-empty exclude list",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [] },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_devices": ["d1"] },
+      "expected": true
+    },
+    {
+      "name": "exclude_devices: a different device is untouched",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "device_id": "d2" },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_devices": ["d1"] },
+      "expected": true
+    },
+    {
+      "name": "exclusions do not rescue a task the status window already dropped",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-21T12:00:00Z", "labels": [] },
+      "filter": { "status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_labels": ["pro"] },
       "expected": false
     }
   ]

@@ -134,3 +134,89 @@ describe('profileMatches area and device filters', () => {
     expect(profileMatches(t, { areas: ['garage'], devices: ['d1'] }, devices, {}, NOW)).toBe(false);
   });
 });
+
+describe('profileMatches exclusions', () => {
+  const devices = { d1: { area_id: 'kitchen', labels: ['pro'] }, d2: { area_id: 'garage' } };
+  const areas = { kitchen: { labels: ['indoors'] }, garage: { labels: [] } };
+
+  it('drops a task carrying an excluded label', () => {
+    const t = task({ labels: ['pro'] });
+    expect(profileMatches(t, { exclude_labels: ['pro'] }, {}, {}, NOW)).toBe(false);
+    expect(profileMatches(t, { exclude_labels: ['mechanic'] }, {}, {}, NOW)).toBe(true);
+  });
+
+  it('excludes on ANY hit across several excluded labels', () => {
+    const t = task({ labels: ['dog', 'pro'] });
+    expect(profileMatches(t, { exclude_labels: ['mechanic', 'pro'] }, {}, {}, NOW)).toBe(false);
+  });
+
+  it('lets an exclusion beat a satisfied include', () => {
+    // This is the whole point of #214: "everything on my list except the call-outs".
+    const t = task({ labels: ['dog', 'pro'] });
+    expect(profileMatches(t, { labels: ['dog'] }, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(t, { labels: ['dog'], exclude_labels: ['pro'] }, {}, {}, NOW)).toBe(
+      false,
+    );
+  });
+
+  it('treats an empty or absent exclude list as "exclude nothing"', () => {
+    // An inverted check here would empty every profile at once, so pin both spellings.
+    const t = task({ labels: ['dog'], area_id: 'kitchen', device_id: 'd2' });
+    expect(
+      profileMatches(
+        t,
+        { exclude_labels: [], exclude_areas: [], exclude_devices: [] },
+        devices,
+        areas,
+        NOW,
+      ),
+    ).toBe(true);
+    expect(profileMatches(t, {}, devices, areas, NOW)).toBe(true);
+  });
+
+  it('excludes on the effective label, inherited from the device or the area', () => {
+    // Parity with the backend, which enriches tasks before matching: excluding `pro`
+    // also drops a task that only carries it via the device it hangs off.
+    expect(
+      profileMatches(task({ device_id: 'd1' }), { exclude_labels: ['pro'] }, devices, areas, NOW),
+    ).toBe(false);
+    expect(
+      profileMatches(
+        task({ area_id: 'kitchen' }),
+        { exclude_labels: ['indoors'] },
+        devices,
+        areas,
+        NOW,
+      ),
+    ).toBe(false);
+  });
+
+  it('drops a task in an excluded area, including one inherited from its device', () => {
+    expect(
+      profileMatches(task({ area_id: 'garage' }), { exclude_areas: ['garage'] }, devices, {}, NOW),
+    ).toBe(false);
+    expect(
+      profileMatches(task({ device_id: 'd2' }), { exclude_areas: ['garage'] }, devices, {}, NOW),
+    ).toBe(false);
+    expect(
+      profileMatches(task({ area_id: 'kitchen' }), { exclude_areas: ['garage'] }, devices, {}, NOW),
+    ).toBe(true);
+  });
+
+  it('drops a task on an excluded device', () => {
+    expect(
+      profileMatches(task({ device_id: 'd1' }), { exclude_devices: ['d1'] }, devices, {}, NOW),
+    ).toBe(false);
+    expect(
+      profileMatches(task({ device_id: 'd2' }), { exclude_devices: ['d1'] }, devices, {}, NOW),
+    ).toBe(true);
+  });
+
+  it('does not sweep up an area-less or device-less task', () => {
+    // The placeholder '' must not collide with a real id, or every unattached task
+    // would vanish the moment any exclusion was set.
+    const bare = task();
+    expect(profileMatches(bare, { exclude_areas: ['garage'] }, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(bare, { exclude_devices: ['d1'] }, {}, {}, NOW)).toBe(true);
+  });
+});

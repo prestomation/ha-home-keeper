@@ -3850,7 +3850,15 @@ export class HomeKeeperPanel extends HTMLElement {
     const blank: Profile = {
       id: '',
       name: t('notify.new_profile'),
-      filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+      filter: {
+        status: 'overdue',
+        labels: [],
+        areas: [],
+        devices: [],
+        exclude_labels: [],
+        exclude_areas: [],
+        exclude_devices: [],
+      },
     };
     return this._persistProfiles([...(this._options?.profiles ?? []), blank], true, true);
   }

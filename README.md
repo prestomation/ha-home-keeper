@@ -592,6 +592,18 @@ The same Profile drives filtering in three places:
 - **The dashboard card**: the card editor's **Filter by profile** picker points a card
   at a Profile instead of re-specifying the same filter inline.
 
+**Leaving things out.** Under the label / area / device pickers sit **Exclude labels**,
+**Exclude areas** and **Exclude devices**. They subtract, and they win. A task that
+matched everything above is still left out when any of its labels, its area or its
+device turns up in an exclude picker. So "everything I can do myself" becomes one
+Profile: tag the jobs that need a tradesperson `professional`, then exclude that one
+label. You no longer have to tag every task that *isn't* a call-out. An empty exclude
+picker leaves everything in.
+
+Exclusions read labels and areas the same way the include pickers do, through whatever
+a task inherits. Excluding the `professional` label also leaves out a task that carries
+it only because its device or its area does.
+
 ![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
 
 ![The Tasks tab filtered to a saved Profile via the Profile dropdown](docs/images/23-panel-profile-filter.png)
