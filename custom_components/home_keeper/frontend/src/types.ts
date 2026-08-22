@@ -130,6 +130,7 @@ export interface Task {
   source?: {
     part?: { asset_id: string; part_id: string; manual?: boolean };
     problem_sensor?: { entity_id: string };
+    buy?: { asset_id: string; part_id: string };
   } | null;
   // Well-known ownership block that Home Keeper inspects. See docs/INTEGRATING.md §6.
   managed_by?: ManagedBy | null;
