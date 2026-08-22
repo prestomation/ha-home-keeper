@@ -197,7 +197,7 @@ jobs:
       # One open issue, reused. A breaking beta stays broken for weeks, and a fresh
       # issue every night would bury the original diagnosis.
       - name: Find or create the tracking issue
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const label = 'ha-beta-regression';
