@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Events reference | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-232/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-232/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-232/developer/events"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Events reference | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper fires a Home Assistant bus event for every state change:"><meta data-rh="true" property="og:description" content="Home Keeper fires a Home Assistant bus event for every state change:"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-232/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-232/developer/events"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-232/developer/events" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-232/developer/events" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Events","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-232/developer/events"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-232/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-232/assets/js/runtime~main.ba207f89.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-232/assets/js/runtime~main.b925f76e.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-232/assets/js/main.bba2558a.js" defer="defer"></script>
 </head>
 <body>
@@ -119,6 +119,16 @@ so a device dropping off the network never completes a task.</p>
 meter reset) stays <strong>silent</strong>, because it is internal state, not a user action. A baseline moved
 by hand through the <code>set_task_meter</code> service does fire <code>home_keeper_task_updated</code> with
 <code>changed_fields: [&quot;sensor&quot;]</code>.</p>
+<p><strong>Buy reminders ticked off on a mirrored shopping list</strong> ride these same events too.
+When <em>Settings → Shopping list</em> points at a to-do list, each auto-created <strong>&quot;Buy
+{part}&quot;</strong> reminder is put on it. Ticking that line off there fires an ordinary
+<code>home_keeper_task_completed</code> carrying <code>origin: home_keeper_shopping_list</code> and
+<code>source: {&quot;buy&quot;: {&quot;asset_id&quot;: …, &quot;part_id&quot;: …}}</code>. Match on that origin to tell &quot;bought
+at the shop&quot; from a press of Done. Like any buy-reminder completion it restocks the part
+by its restock quantity. A <code>home_keeper_part_restocked</code> normally follows. The reminder is
+then retired with a <code>home_keeper_task_deleted</code>. The mirror&#x27;s own bookkeeping
+(which line on which list stands for which reminder) stays <strong>silent</strong>, the same
+reasoning as the sensor watcher&#x27;s baselines above.</p>
 <p><strong>Synced <code>problem</code> binary sensors</strong> (when <em>Sync problem sensors</em> is on) ride these same
 events: a mirror task is <code>created</code> for each <code>device_class: problem</code> sensor, <code>triggered</code>
 when the sensor reports a problem, and <code>completed</code> when it clears. The completion event
