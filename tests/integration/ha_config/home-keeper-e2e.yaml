@@ -3,6 +3,12 @@
 # so browser tests can assert on real DOM and screenshots can show how tasks
 # appear to users.
 title: Home Keeper E2E
+# YAML-mode dashboards do NOT read the storage-mode resource collection that
+# card.py registers, so the card module is declared here explicitly. The URL
+# matches PANEL_STATIC_URL/CARD_JS_FILENAME (the static path panel.py serves).
+resources:
+  - url: /home_keeper_panel/home-keeper-card.js
+    type: module
 views:
   - title: Tasks
     path: card

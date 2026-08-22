@@ -1,5 +1,6 @@
 import { CARD_DESCRIPTION, CARD_NAME, HomeKeeperCard, HomeKeeperCardEditor } from './card';
 
+// Loaded post-boot as a Lovelace module resource, so a plain guarded define is enough.
 if (!customElements.get('home-keeper-card')) {
   customElements.define('home-keeper-card', HomeKeeperCard);
 }
