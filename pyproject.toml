@@ -80,6 +80,9 @@ only_mutate = [
     "custom_components/home_keeper/events.py",
     "custom_components/home_keeper/transitions.py",
     "custom_components/home_keeper/tags.py",
+    # Imports Home Assistant only under ``TYPE_CHECKING``, so the fast unit tier runs
+    # it directly (tests/unit/test_options.py) — see "Pure, HA-free core".
+    "custom_components/home_keeper/options.py",
 ]
 pytest_add_cli_args_test_selection = ["tests/unit"]
 
