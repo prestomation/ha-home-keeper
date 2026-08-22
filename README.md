@@ -41,10 +41,10 @@
 | custom\_components/home\_keeper/store.py               |      620 |      620 |      286 |        0 |      0% |    9-1447 |
 | custom\_components/home\_keeper/tag\_listener.py       |       29 |       29 |        8 |        0 |      0% |     12-69 |
 | custom\_components/home\_keeper/tags.py                |       11 |        0 |        2 |        0 |    100% |           |
-| custom\_components/home\_keeper/todo.py                |       61 |       61 |       18 |        0 |      0% |    10-130 |
+| custom\_components/home\_keeper/todo.py                |       66 |        6 |       20 |        0 |     93% |57-58, 74-75, 155-156 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py      |      470 |      470 |       96 |        0 |      0% |     8-946 |
-| **TOTAL**                                              | **5346** | **3159** | **1868** |   **68** | **42%** |           |
+| **TOTAL**                                              | **5351** | **3104** | **1870** |   **68** | **43%** |           |
 
 
 ## Setup coverage badge
