@@ -25,9 +25,64 @@ the GitHub release automatically. No manual `git tag` step.
    5. Build `home_keeper.zip` (the HACS asset).
    6. Push tag `vX.Y.Z` and create the GitHub Release with the changelog section as
       the body and `home_keeper.zip` attached.
+   7. Comment on every issue the changelog section says this version fixes, and — on
+      a stable release — close it. See "Issue notifications" below.
 
 3. **HACS picks it up** via `hacs.json` (`zip_release: true`, `filename:
    home_keeper.zip`).
+
+## Issue notifications
+
+An issue closes when its fix **ships**, not when its PR merges. A merged PR is not in
+anyone's Home Assistant yet — it may sit on `main` for days and go out in a beta before
+it reaches everyone.
+
+Closing-on-merge is turned off for this repository, so a PR's `Fixes #N` links the
+issue (filling in its **Development** panel) without closing it, and the issue stays
+open on its own. Keep writing `Fixes #N` — the link is worth having.
+
+The `notify-issues` job in `release.yml` closes the loop. It reads the shipped
+version's `## [X.Y.Z]` CHANGELOG section, pulls out every `(Fixes #N)` reference, and
+for each one:
+
+- **On a beta** — comments that the fix is available for testing, with the "Show beta
+  versions" instructions, and leaves the issue **open**.
+- **On a stable** — comments that it shipped, quotes the changelog bullet, and closes
+  the issue as `completed`.
+
+Notes on how it behaves:
+
+- **`(Fixes #N)` in the changelog is the only thing that notifies an issue.** Forget it
+  and the issue is never told and never closes. The job posts a CI warning naming any
+  issue that a commit in the release referenced but the section left out — check the
+  job summary after a release. A **developer-only** issue (a CI or tooling fix, which
+  correctly gets no changelog entry) shows up here too; that one is expected, and
+  closing it is a manual call.
+- **The cross-check range depends on the kind of release.** A stable is compared
+  against the previous stable, because its section rolls up every beta in between. A
+  beta is compared against the previous tag of any kind, because its section covers
+  only its own increment.
+- **Bare `(#N)` is ignored**, because it's also the PR number squash-merge appends to
+  commit subjects, and the two can't be distinguished. So is `(Related to #N)`.
+- **Re-running is safe.** Each comment carries a `<!-- home-keeper-release vX.Y.Z -->`
+  marker and the job skips any issue that already has one.
+- **It can't fail a release.** The release is already tagged and published by the time
+  it runs; a bad issue number becomes a warning and a row in the job summary.
+
+### Rehearsing it
+
+Run the workflow manually (Actions → Release → Run workflow) with **notify_dry_run**
+checked and **notify_version** set to a past release such as `0.15.0`. The job resolves
+the same issue list and writes the full plan to the run summary without posting or
+closing anything.
+
+The parsing itself lives in `ci/release-issues.py`, which also cuts the release notes.
+Run it locally against any version:
+
+```bash
+python3 ci/release-issues.py --version 0.15.0 --json    # issues it would notify
+python3 ci/release-issues.py --version 0.15.0 --notes   # the release body
+```
 
 ## Beta / pre-release releases
 
