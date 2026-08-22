@@ -116,6 +116,20 @@
 - After running the Docker HA container locally, restore the seeded fixtures
   (`tests/integration/ha_config/.storage/{home_keeper,core.config_entries}`);
   don't commit runtime-mutated state.
+- **A second delivery path needs a test that deletes the first one.** #228 was
+  invisible to a suite where every dashboard test loaded a freshly-rendered app shell
+  that happened to carry the card's import. Don't wait for a stale cache — reproduce
+  what one *is*: `tests/e2e/tests/card-registration.spec.ts` intercepts the dashboard
+  navigation with `page.route`, strips the card's `import(...)` out of the HTML, and
+  asserts the card still renders. Two things make it honest. It sets
+  `test.use({ serviceWorkers: 'block' })`, because a service worker answers
+  navigations *before* `page.route` sees them, and HA registers one on first load — so
+  without it the reload that follows is served the original shell and the test passes
+  for the wrong reason. And it asserts the *unstripped* HTML did contain the import, so
+  the test cannot quietly go vacuous if HA changes how it delivers extra modules. It
+  deliberately does not use `openCardDashboard`: that helper reloads up to 3x to absorb
+  cold-frontend flake, which here would only re-serve the stripped shell while turning
+  a precise failure into an opaque timeout.
 
 ## Mutation testing (a PR gate)
 Coverage proves a line *ran*; mutation testing proves a test would have *failed*

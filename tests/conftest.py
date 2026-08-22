@@ -49,6 +49,7 @@ _PURE_MODULES = (
     "profiles",
     "notifications",
     "tags",
+    "card_resource",
 )
 
 
