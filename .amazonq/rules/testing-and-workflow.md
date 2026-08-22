@@ -141,9 +141,12 @@
   page's own `ws://localhost:8123/api/websocket` as a local-network request
   (`net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`). The frontend never connects, so nothing
   websocket-delivered — Lovelace resources included — ever loads, and the failure looks like the
-  feature under test is broken. `playwright.config.ts` passes
-  `--disable-features=LocalNetworkAccessChecks` for this; every test here is localhost talking to
-  localhost, so the check can only produce false failures.
+  feature under test is broken. Pass `--disable-features=LocalNetworkAccessChecks` in that spec's
+  own `test.use({ launchOptions })`, not in `playwright.config.ts`: only a spec that rewrites a
+  document needs it, and every other spec should keep the check so a future test of network or
+  CORS behaviour still gets it. Note `launchOptions` *replaces* the config's copy rather than
+  merging, so the spec has to re-plumb `CHROMIUM_EXEC` itself — see
+  `tests/e2e/tests/card-registration.spec.ts`.
 - **Give an e2e assertion that depends on browser plumbing a failure message that names what it
   saw.** The above took a CI round-trip per guess until the spec captured console errors and
   whether the bundle was requested at all; "the bundle was never requested" is the line that

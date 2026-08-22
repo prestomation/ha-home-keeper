@@ -21,19 +21,33 @@ and is the only method Home Assistant's own docs describe for loading a custom c
 Registering both is safe: they name the same URL, so the browser's module map runs
 the module body once, and ``card-index.ts`` guards both its ``customElements.define``
 calls and its ``window.customCards`` push for the case where the two can diverge.
+
+Reconciliation assumes **one config entry**, which the single-instance config flow
+enforces (``_abort_if_unique_id_configured`` on ``home_keeper_local``). Two entries
+setting up concurrently could both read an empty collection and both create a row;
+the ``_CARD_REGISTERED`` guard makes that unreachable today, and ``plan_card_resource``
+would collapse the duplicate on the next start even if it were not.
 """
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from homeassistant.components import frontend
 from homeassistant.components.lovelace.const import DOMAIN as LOVELACE_DOMAIN
-from homeassistant.components.lovelace.const import LOVELACE_DATA
-from homeassistant.components.lovelace.resources import ResourceStorageCollection
+from homeassistant.components.lovelace.const import LOVELACE_DATA, MODE_STORAGE
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_when_setup
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    # Import for the annotation alone. Lovelace's resource collections are internal
+    # to that integration, and a runtime import of them would make a future HA
+    # refactor an ImportError that takes the whole of Home Keeper down with it —
+    # `card.py` is imported from `__init__.py`. Branching on `resource_mode` (below)
+    # is what HA core itself does, and needs only `lovelace.const`.
+    from homeassistant.components.lovelace.resources import ResourceStorageCollection
 
 from .card_resource import matching_ids, plan_card_resource, resource_payload
 from .const import CARD_JS_FILENAME, DOMAIN, PANEL_STATIC_URL
@@ -61,16 +75,19 @@ async def _async_card_url(hass: HomeAssistant) -> str:
 def _storage_resources(hass: HomeAssistant) -> ResourceStorageCollection | None:
     """The writable resource collection, or None when we must not touch it.
 
-    ``ResourceYAMLCollection`` (``lovelace:`` with a ``resources:`` block) has no
-    create, update or delete at all — those installs declare every resource in YAML
-    and Home Keeper has no business rewriting their file. They keep path 1 only,
-    which is exactly what they had before this fix.
+    ``resource_mode`` is yaml when the user declares a ``resources:`` block under
+    ``lovelace:``. That collection has no create, update or delete at all — those
+    installs manage every resource in YAML and Home Keeper has no business rewriting
+    their file. They keep path 1 only, which is exactly what they had before this fix.
     """
     if (data := hass.data.get(LOVELACE_DATA)) is None:
         return None
-    if not isinstance(data.resources, ResourceStorageCollection):
+    if data.resource_mode != MODE_STORAGE:
         return None
-    return data.resources
+    # `lovelace.__init__` builds a ResourceStorageCollection for exactly this mode and a
+    # ResourceYAMLCollection for the other, so the mode *is* the discriminator. The cast
+    # says so without importing the class at runtime (see the TYPE_CHECKING note above).
+    return cast("ResourceStorageCollection", data.resources)
 
 
 async def _async_sync_resource(hass: HomeAssistant, url: str) -> None:

@@ -31,6 +31,13 @@ def resource_path(url: str) -> str:
     instead of adding a second one beside it. It also means the absolute form a
     user may have typed by hand (``http://homeassistant.local:8123/...``) is
     recognised as the same resource as the relative one we register.
+
+    Ignoring scheme and host is deliberate: someone who hand-registered an absolute
+    or proxied URL for *this* bundle wanted the card, so adopting that row and
+    rewriting it to the canonical relative URL fixes it for every way they reach
+    Home Assistant, rather than leaving a host-pinned entry beside ours. A copy
+    served from a *different* path (``/local/home-keeper-card.js``) is somebody
+    else's row and is left alone.
     """
     return urlsplit(url).path
 

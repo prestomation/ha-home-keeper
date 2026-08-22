@@ -26,10 +26,24 @@ import { DASHBOARD } from './helpers';
 // would load for the wrong reason. Blocking it is not dodging the bug: the service
 // worker's caching is what we are simulating, not what we are exercising.
 //
-// The other half of making this run is in `playwright.config.ts`, which disables
-// Chrome's Local Network Access checks — they treat a `route.fulfill` response as
-// public and then block the page's own websocket. See the comment there.
-test.use({ serviceWorkers: 'block' });
+// The second option is what makes the interception survivable. Chrome classifies a
+// response synthesized by `route.fulfill` as coming from a *public* address space, so
+// its Local Network Access checks then block this page's own
+// `ws://localhost:8123/api/websocket` as a local-network request
+// (`net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`). With no websocket the frontend
+// never fetches the resource list, so the card cannot load by the very path this test
+// exists to prove — a false failure that looks exactly like a real one. It is scoped to
+// this spec rather than the whole project: every other spec leaves the document alone
+// and keeps the check, so a future test of network or CORS behaviour still gets it.
+// (Re-plumbing `CHROMIUM_EXEC` here is the cost — `launchOptions` replaces the config's
+// copy wholesale rather than merging with it.)
+test.use({
+  serviceWorkers: 'block',
+  launchOptions: {
+    args: ['--disable-features=LocalNetworkAccessChecks'],
+    ...(process.env.CHROMIUM_EXEC ? { executablePath: process.env.CHROMIUM_EXEC } : {}),
+  },
+});
 
 const CARD_BUNDLE = 'home-keeper-card.js';
 // `index.html.template` renders each entry in `extra_modules` as an inline
@@ -109,11 +123,20 @@ test.describe('Home Keeper card — delivery (#228)', () => {
         'the card never loaded from the Lovelace resource after its app-shell import ' +
           `was removed — issue #228.\nbundle traffic: ${
             bundleTraffic.length ? bundleTraffic.join(', ') : '(the bundle was never requested)'
-          }\nbrowser problems:\n${problems.join('\n') || '(none)'}\n\n${String(err)}`,
+          }\nbrowser problems:\n${problems.join('\n') || '(none)'}`,
+        { cause: err },
       );
     }
     await expect(card.locator('.hk-row, .hk-empty').first()).toBeVisible({ timeout: 30_000 });
     await expect(card.locator('.hk-title').first()).toContainText('Home maintenance');
+
+    // The element being defined is not on its own proof the *resource* delivered it —
+    // some future shell-side fallback could define it without a fetch. The bundle
+    // crossing the wire after the shell's import was removed is what pins the path.
+    expect(
+      bundleTraffic.filter((t) => t.startsWith('response')),
+      `the card upgraded without the bundle being fetched: ${bundleTraffic.join(', ')}`,
+    ).not.toHaveLength(0);
 
     // What the reporter saw: HA substitutes an error card for an undefined custom
     // element, one per card instance. The seeded dashboard's other cards are native,
