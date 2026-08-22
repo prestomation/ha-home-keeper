@@ -491,7 +491,9 @@ needs attention"* (Home Keeper offers **On** and **Off** when you choose a
 
 **Let it clear itself.** Some of these fix themselves: somebody else fills the tank, the
 leak dries up. Switch on **Clear when back to normal** and the task completes itself once
-the sensor recovers, recording a completion so the history still shows it happened. Leave
+the sensor recovers, recording a completion so the history still shows it happened. If
+the task is [linked to a consumable](#link-a-task-to-a-consumable-auto-reorder), the
+auto-completion draws down one spare, just like completing it by hand. Leave
 it off (the default) when you want the task to wait for you, which is usually right for
 anything you actually have to go and do.
 
@@ -811,6 +813,8 @@ to (or below) the threshold Home Keeper fires a `home_keeper_part_low_stock` eve
 can automate on (add to a shopping list, notify, reorder). A *consumable* part isn't
 limited to its own wear cadence: you can **[link any task to it](#link-a-task-to-a-consumable-auto-reorder)**
 (including a sensor-driven one), so completing that task draws down the same stock.
+Stock deduction applies to every completion path: manual, tag scan, and
+[auto-clearing sensor tasks](#sensor-based-tasks-usage-meters-thresholds--states) alike.
 
 #### Auto-create a buy task when a part runs low
 

@@ -816,7 +816,7 @@ interface HistoryGroup {
 /** How the list view buckets rows; `status`/`device`/`integration` apply to tasks only. */
 type GroupBy = 'none' | 'status' | 'area' | 'device' | 'integration';
 /** Task-list quick filter. */
-type TaskFilter = 'all' | 'overdue' | 'soon';
+type TaskFilter = 'all' | 'overdue' | 'soon' | 'shopping';
 /** Appliance-list quick filter. */
 type AssetFilter = 'active' | 'archived';
 /** One bucket of rows rendered under a collapsible section header. */
@@ -2044,6 +2044,7 @@ export class HomeKeeperPanel extends HTMLElement {
             { value: 'all', label: t('filter.all') },
             { value: 'overdue', label: t('filter.overdue') },
             { value: 'soon', label: t('filter.soon') },
+            { value: 'shopping', label: t('filter.shopping') },
           ])}</div>`
         : '';
     const assetFilterControl =
@@ -2291,6 +2292,8 @@ export class HomeKeeperPanel extends HTMLElement {
     } else if (this._filter === 'overdue') tasks = tasks.filter((task) => isOverdue(task));
     else if (this._filter === 'soon')
       tasks = tasks.filter((task) => this._statusBucket(task, now) === 'soon');
+    else if (this._filter === 'shopping')
+      tasks = tasks.filter((task) => Boolean(task.source?.buy));
     tasks.sort((a, b) => {
       const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
       const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
