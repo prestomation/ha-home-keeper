@@ -53,7 +53,11 @@ source_paths = ["custom_components/home_keeper"]
 # by path (the hyphen makes it unimportable), so without this the whole run dies at
 # stat collection — never noticed, because the two PRs since that test landed changed
 # no mutable Python and mutmut was skipped.
-also_copy = ["ci"]
+# `test_release_issues.py` reads CHANGELOG.md the same way, to check that every
+# released version's section names the issues its commits fixed. Same failure mode,
+# same fix: without it the whole run dies at stat collection. It went unnoticed for
+# the same reason — no mutable Python changed in the PRs since that test landed.
+also_copy = ["ci", "CHANGELOG.md"]
 # The mutable surface: the pure core, which the fast `tests/unit` tier covers
 # directly. Everything else in the integration imports Home Assistant and is
 # only exercised by the Docker tiers — far too slow to run once per mutant, and

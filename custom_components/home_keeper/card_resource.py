@@ -44,6 +44,16 @@ class ResourcePlan:
     delete_ids: tuple[str, ...] = ()
 
 
+def _serves_bundle(item: Mapping[str, Any], wanted: str) -> bool:
+    """True when *item* is a stored resource serving the bundle at *wanted*.
+
+    The collection is user-writable storage, so don't assume the shape: a row
+    without a string URL is somebody else's problem, not a match.
+    """
+    url = item.get("url")
+    return isinstance(url, str) and resource_path(url) == wanted
+
+
 def matching_ids(items: Iterable[Mapping[str, Any]], url: str) -> tuple[str, ...]:
     """Ids of every stored resource serving the card bundle, token ignored.
 
@@ -51,11 +61,7 @@ def matching_ids(items: Iterable[Mapping[str, Any]], url: str) -> tuple[str, ...
     it has to clear.
     """
     wanted = resource_path(url)
-    return tuple(
-        str(item["id"])
-        for item in items
-        if "id" in item and resource_path(str(item.get("url", ""))) == wanted
-    )
+    return tuple(str(item["id"]) for item in items if _serves_bundle(item, wanted))
 
 
 def plan_card_resource(
@@ -69,14 +75,13 @@ def plan_card_resource(
     * several matches              -> keep and fix the first, delete the rest
     """
     wanted = resource_path(desired_url)
-    matches = [
-        item for item in items if resource_path(str(item.get("url", ""))) == wanted
-    ]
+    matches = [item for item in items if _serves_bundle(item, wanted)]
     if not matches:
         return ResourcePlan(create=True)
 
+    # `keep` matched, so it has a string URL — no fallback needed reading it back.
     keep, *extra = matches
-    stale = str(keep.get("url", "")) != desired_url or keep.get("type") != RESOURCE_TYPE
+    stale = keep["url"] != desired_url or keep.get("type") != RESOURCE_TYPE
     return ResourcePlan(
         update_id=str(keep["id"]) if stale else None,
         delete_ids=tuple(str(item["id"]) for item in extra),
