@@ -18,6 +18,21 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   to say why. The dialog now changes only its own fields and leaves what you set in
   the panel alone.
 
+## [0.16.0b6]
+
+### Fixed
+
+- **The dashboard card no longer breaks on an ordinary page reload.** A dashboard using
+  the Home Keeper card could show a configuration error reading "Custom element doesn't
+  exist: home-keeper-card". Reloading with the browser cache disabled brought the card
+  back, and the next normal reload broke it again. Home Keeper handed the card to the
+  frontend in a way that only reaches the browser through the page Home Assistant
+  caches, so a page cached before Home Keeper was installed never loaded it. The card
+  is now registered the way every other custom card is, as a dashboard resource under
+  **Settings > Dashboards > Resources**, which the frontend fetches fresh on every
+  dashboard load. Existing installs get the entry on the next restart, and removing
+  Home Keeper takes it away again. (Fixes #228)
+
 ## [0.16.0b5]
 
 ### Added

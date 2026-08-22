@@ -116,6 +116,41 @@
 - After running the Docker HA container locally, restore the seeded fixtures
   (`tests/integration/ha_config/.storage/{home_keeper,core.config_entries}`);
   don't commit runtime-mutated state.
+- **A second delivery path needs a test that deletes the first one.** #228 was
+  invisible to a suite where every dashboard test loaded a freshly-rendered app shell
+  that happened to carry the card's import. Don't wait for a stale cache — reproduce
+  what one *is*: `tests/e2e/tests/card-registration.spec.ts` intercepts the dashboard
+  navigation with `page.route`, strips the card's `import(...)` out of the HTML, and
+  asserts the card still renders. Two things make it honest. It sets
+  `test.use({ serviceWorkers: 'block' })`, because a service worker answers
+  navigations *before* `page.route` sees them, and HA registers one on first load — so
+  without it the reload that follows is served the original shell and the test passes
+  for the wrong reason. And it asserts the *unstripped* HTML did contain the import, so
+  the test cannot quietly go vacuous if HA changes how it delivers extra modules. It
+  deliberately does not use `openCardDashboard`: that helper reloads up to 3x to absorb
+  cold-frontend flake, which here would only re-serve the stripped shell while turning
+  a precise failure into an opaque timeout.
+- **Verify a browser-sensitive e2e spec with the browser CI actually uses.** `e2e.yml` runs
+  `npx playwright install chromium` and no `CHROMIUM_EXEC`, so CI drives Playwright's
+  **headless shell**; the `CHROMIUM_EXEC` override documented in AGENTS.md for the Claude Code
+  remote environment points at a *different, older* full Chromium. `card-registration.spec.ts`
+  passed locally and failed on CI three times for exactly that reason. Re-run a spec with
+  `CHROMIUM_EXEC` unset (`CI=true npx playwright test <spec>`) before trusting it.
+- **A spec that rewrites a document needs the Local Network Access flag.** Chrome classifies a
+  response synthesized by `route.fulfill` as coming from a public address space, then blocks the
+  page's own `ws://localhost:8123/api/websocket` as a local-network request
+  (`net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`). The frontend never connects, so nothing
+  websocket-delivered — Lovelace resources included — ever loads, and the failure looks like the
+  feature under test is broken. Pass `--disable-features=LocalNetworkAccessChecks` in that spec's
+  own `test.use({ launchOptions })`, not in `playwright.config.ts`: only a spec that rewrites a
+  document needs it, and every other spec should keep the check so a future test of network or
+  CORS behaviour still gets it. Note `launchOptions` *replaces* the config's copy rather than
+  merging, so the spec has to re-plumb `CHROMIUM_EXEC` itself — see
+  `tests/e2e/tests/card-registration.spec.ts`.
+- **Give an e2e assertion that depends on browser plumbing a failure message that names what it
+  saw.** The above took a CI round-trip per guess until the spec captured console errors and
+  whether the bundle was requested at all; "the bundle was never requested" is the line that
+  ended it. A bare `waitFor` timeout says only that something, somewhere, did not happen.
 
 ## Mutation testing (a PR gate)
 Coverage proves a line *ran*; mutation testing proves a test would have *failed*

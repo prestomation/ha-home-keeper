@@ -669,7 +669,8 @@ of your tasks with a one-tap **Done** button on each row. It's a focused
 do-and-glance surface: mark tasks done, add a new one from the header **+**, and open
 any documentation links a task shows (see below), while **editing and deleting a task
 live in the sidebar panel**, so a stray tap on the dashboard can't open a form or
-accidentally delete a task. It's auto-registered (no resource setup) and
+accidentally delete a task. It's auto-registered (Home Keeper adds its own entry under
+**Settings > Dashboards > Resources**, so there's nothing for you to set up) and
 appears in the dashboard **"Add card"** picker. Its GUI editor lets you filter (by
 status, area, device, **label**, recurrence type, a "due within N days" horizon, or a
 saved [Profile](#profiles-saved-filters-you-reuse-everywhere)), sort, group, cap rows,
