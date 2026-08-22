@@ -44,9 +44,18 @@ _CLOSES = re.compile(rf"\b(?:{_CLOSING_WORDS})\s+#(\d+)\b", re.IGNORECASE)
 # cross-checking against the changelog, so this is the looser pattern.
 _MENTIONS = re.compile(rf"\b(?:{_CLOSING_WORDS}|refs?)\s+#(\d+)\b", re.IGNORECASE)
 
-_BULLET = re.compile(r"^[-*] ")
+# A bullet at any indent. A nested bullet is its own entry, not part of its parent's
+# text, so a ``Fixes #N`` inside one is summarised by the sentence that actually
+# describes it. An indented line that is *not* a bullet is still a continuation.
+_BULLET = re.compile(r"^\s*[-*] ")
 _HEADING = re.compile(r"^#")
+_FENCE = re.compile(r"^\s*```")
 _BOLD_LEAD = re.compile(r"^\*\*(.+?)\*\*")
+
+# vX.Y.Z with an optional PEP 440 pre-release suffix — the only shapes release.yml
+# accepts, and so the only tags this project produces.
+_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)(\d+))?$")
+_STAGES = {"a": 0, "b": 1, "rc": 2}
 
 
 def section(changelog: str, version: str) -> str:
@@ -76,13 +85,18 @@ def section(changelog: str, version: str) -> str:
 def bullets(text: str) -> list[str]:
     """Split *text* into its top-level Markdown bullets, each flattened to one line.
 
-    A bullet runs from a ``- `` at column zero until the next bullet, heading or blank
+    A bullet runs from a ``- `` (at any indent) until the next bullet, heading or blank
     line. The changelog wraps prose across several indented continuation lines, and a
     ``Fixes #N`` often lands on a different line from the sentence that describes it,
     so the whole bullet has to be reassembled before either can be read.
+
+    Fenced code blocks are dropped first. A ``Fixes #N`` inside one is a code sample,
+    not a claim that this release fixed anything, and acting on it would close a
+    stranger's issue.
     """
     out: list[str] = []
     current: list[str] = []
+    fenced = False
 
     def flush() -> None:
         if current:
@@ -90,6 +104,14 @@ def bullets(text: str) -> list[str]:
             current.clear()
 
     for line in text.splitlines():
+        if _FENCE.match(line):
+            # Skip the fence itself but keep the bullet open: prose after a code
+            # sample belongs to the bullet that introduced it, and closing here would
+            # silently drop a `Fixes #N` that follows the sample.
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
         if _BULLET.match(line):
             flush()
             current.append(_BULLET.sub("", line))
@@ -154,6 +176,55 @@ def missing(commits: str, section_body: str) -> list[int]:
     return [number for number in scan(commits) if number not in listed]
 
 
+def version_key(tag: str) -> tuple[int, int, int, int, int] | None:
+    """Sort key for a ``vX.Y.Z[{a|b|rc}N]`` tag, or None if it isn't one.
+
+    ``git tag --sort=-v:refname`` cannot do this. Git orders a bare ``v0.16.0``
+    *below* every one of its own pre-releases, so asking git for the tag before
+    ``v0.17.0b1`` hands back ``v0.16.0rc1`` when ``v0.16.0`` shipped after it. PEP 440
+    is the opposite — a final release outranks its pre-releases — which is the order
+    this project's tags actually mean.
+    """
+    match = _TAG.match(tag)
+    if not match:
+        return None
+    major, minor, patch, stage, serial = match.groups()
+    # Stage 3 = a final release, which outranks rc > b > a at the same X.Y.Z.
+    return (
+        int(major),
+        int(minor),
+        int(patch),
+        _STAGES.get(stage, 3) if stage else 3,
+        int(serial) if serial else 0,
+    )
+
+
+def previous_tags(tags: list[str], version: str) -> list[str]:
+    """Candidate predecessors of *version*, newest first.
+
+    The kind of release decides what may be a predecessor, mirroring how the changelog
+    is written (AGENTS.md): a **stable**'s section covers everything since the last
+    *stable* — the betas in between are rolled into it — so only bare ``vX.Y.Z`` tags
+    qualify. A **beta**'s section covers only its own increment, so the previous tag of
+    any kind qualifies; measuring a beta from the last stable makes every earlier
+    beta's fixes look like omissions.
+    """
+    current = version_key(f"v{version}")
+    if current is None:
+        return []
+    stable_only = current[3] == 3
+
+    keyed = []
+    for tag in tags:
+        key = version_key(tag)
+        if key is None or key >= current:
+            continue
+        if stable_only and key[3] != 3:
+            continue
+        keyed.append((key, tag))
+    return [tag for _, tag in sorted(keyed, reverse=True)]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", help="release version, e.g. 0.16.0 or 0.16.0b1")
@@ -169,6 +240,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="print, as JSON, the issues stdin references that the section omits",
     )
+    mode.add_argument(
+        "--previous-tags",
+        action="store_true",
+        help="rank the tags on stdin as predecessors of --version, newest first",
+    )
     args = parser.parse_args(argv)
 
     if args.scan:
@@ -177,7 +253,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if not args.version:
-        parser.error("--version is required for --notes, --json and --missing")
+        parser.error("--version is required for every mode except --scan")
+
+    if args.previous_tags:
+        for tag in previous_tags(sys.stdin.read().split(), args.version):
+            print(tag)
+        return 0
 
     body = section(args.changelog.read_text(encoding="utf-8"), args.version)
     if not body.strip():

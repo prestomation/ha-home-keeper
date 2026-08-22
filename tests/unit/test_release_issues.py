@@ -16,6 +16,7 @@ import json
 import subprocess
 import textwrap
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -46,6 +47,8 @@ issues = _mod.issues
 bullets = _mod.bullets
 summarize = _mod.summarize
 scan = _mod.scan
+version_key = _mod.version_key
+previous_tags = _mod.previous_tags
 
 
 def _numbers(text: str) -> list[int]:
@@ -196,6 +199,140 @@ class TestScan:
 
     def test_deduped_in_first_mention_order(self):
         assert scan("Refs #4 Fixes #4 Refs #1") == [4, 1]
+
+
+class TestFencedCode:
+    """A `Fixes #N` in a code sample is not a claim that this release fixed it."""
+
+    def test_reference_inside_a_fence_is_ignored(self):
+        text = "- **A.** Example:\n\n```\ngit commit -m 'Fixes #4'\n```\n"
+        assert _numbers(text) == []
+
+    def test_indented_fence_inside_a_bullet_is_ignored(self):
+        text = (
+            "- **A.** Example:\n  ```bash\n  # Fixes #4\n  ```\n  Real text. (Fixes #5)"
+        )
+        assert _numbers(text) == [5]
+
+    def test_text_after_a_closed_fence_is_read_again(self):
+        text = "- **A.**\n```\nnoise\n```\n- **B.** (Fixes #6)"
+        assert _numbers(text) == [6]
+
+
+class TestNestedBullets:
+    """A nested bullet is its own entry, so its ref gets its own summary."""
+
+    def test_nested_bullet_is_separate(self):
+        assert bullets("- parent\n  - child") == ["parent", "child"]
+
+    def test_nested_reference_gets_its_own_summary(self):
+        text = "- **Parent headline.** Prose.\n  - **Child headline.** (Fixes #8)"
+        assert issues(text) == [{"number": 8, "summary": "Child headline."}]
+
+    def test_parent_reference_is_unaffected_by_a_nested_bullet(self):
+        text = "- **Parent headline.** (Fixes #9)\n  - **Child headline.** Detail."
+        assert issues(text) == [{"number": 9, "summary": "Parent headline."}]
+
+    def test_continuation_lines_still_join(self):
+        # An indented line that is *not* a bullet remains part of the bullet above it.
+        assert bullets("- parent\n  wrapped prose\n  - child") == [
+            "parent wrapped prose",
+            "child",
+        ]
+
+    def test_real_changelog_nested_bullets_do_not_change_the_issue_list(self):
+        # The 0.14.0 section is the one with nested bullets; splitting them must not
+        # drop or move the reference the release actually closes.
+        text = _CHANGELOG.read_text(encoding="utf-8")
+        assert _numbers(section(text, "0.14.0")) == [204]
+
+
+class TestVersionKey:
+    """PEP 440 ordering, which `git tag --sort=-v:refname` does not provide."""
+
+    def test_a_final_release_outranks_its_own_prereleases(self):
+        # This is the bug: git sorts v0.16.0 *below* v0.16.0rc1.
+        assert version_key("v0.16.0") > version_key("v0.16.0rc1")
+        assert version_key("v0.16.0rc1") > version_key("v0.16.0b2")
+        assert version_key("v0.16.0b2") > version_key("v0.16.0a1")
+
+    def test_beta_serials_order_numerically(self):
+        assert version_key("v0.16.0b10") > version_key("v0.16.0b2")
+
+    def test_across_versions(self):
+        assert version_key("v0.16.0b1") > version_key("v0.15.0")
+
+    @pytest.mark.parametrize("tag", ["v0.16", "0.16.0", "v0.16.0.dev1", "vX.Y.Z", ""])
+    def test_non_release_tags_are_rejected(self, tag):
+        assert version_key(tag) is None
+
+
+class TestPreviousTags:
+    ALL: ClassVar[list[str]] = [
+        "v0.17.0b1",
+        "v0.16.0",
+        "v0.16.0rc1",
+        "v0.16.0b10",
+        "v0.16.0b2",
+        "v0.16.0b1",
+        "v0.15.0",
+        "v0.15.0b1",
+        "not-a-tag",
+    ]
+
+    def test_a_stable_only_considers_stables(self):
+        # A stable's section rolls up its betas, so it is measured from the last stable.
+        assert previous_tags(self.ALL, "0.16.0") == ["v0.15.0"]
+
+    def test_a_beta_considers_any_kind(self):
+        # The regression this fixes: git ranked v0.16.0rc1 above v0.16.0, so a beta
+        # measured from the rc and flagged everything v0.16.0 shipped as missing.
+        assert previous_tags(self.ALL, "0.17.0b1")[0] == "v0.16.0"
+
+    def test_ordering_is_newest_first(self):
+        assert previous_tags(self.ALL, "0.17.0b1") == [
+            "v0.16.0",
+            "v0.16.0rc1",
+            "v0.16.0b10",
+            "v0.16.0b2",
+            "v0.16.0b1",
+            "v0.15.0",
+            "v0.15.0b1",
+        ]
+
+    def test_the_version_itself_is_excluded(self):
+        assert "v0.16.0" not in previous_tags(self.ALL, "0.16.0")
+
+    def test_newer_tags_are_excluded(self):
+        assert "v0.17.0b1" not in previous_tags(self.ALL, "0.16.0")
+
+    def test_a_beta_excludes_its_own_line_above_it(self):
+        assert previous_tags(self.ALL, "0.16.0b2")[0] == "v0.16.0b1"
+
+    def test_unparseable_tags_are_dropped(self):
+        assert "not-a-tag" not in previous_tags(self.ALL, "0.17.0b1")
+
+    def test_no_candidates(self):
+        assert previous_tags(["v0.1.0"], "0.1.0") == []
+
+    def test_a_malformed_version_yields_nothing(self):
+        assert previous_tags(self.ALL, "garbage") == []
+
+
+class TestOutputSafety:
+    """The JSON reaches $GITHUB_OUTPUT as `issues=<json>`, so it must stay one line."""
+
+    def test_json_is_single_line_even_with_hostile_prose(self):
+        text = "- **A line\nbreak and a `backtick`.** (Fixes #5)"
+        assert "\n" not in json.dumps(issues(text))
+
+    def test_a_forged_output_line_in_prose_cannot_escape_the_json(self):
+        # A changelog line that looks like a workflow output must stay inert data.
+        text = "- Evil stuff\n  prerelease=false\n  more (Fixes #5)"
+        encoded = json.dumps(issues(text))
+        assert "\n" not in encoded
+        summary = json.loads(encoded)[0]["summary"]
+        assert summary == "Evil stuff prerelease=false more (Fixes #5)"
 
 
 class TestMissing:

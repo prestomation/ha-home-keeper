@@ -174,18 +174,28 @@ jobs:
           RELEASE_VERSION: ${{ needs.release.outputs.version }}
         run: |
           VERSION="${DISPATCH_VERSION:-$RELEASE_VERSION}"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-          # Re-derived rather than taken from the release job, so a dry run can target
-          # any past version without depending on that job's outputs.
+          # Validate before this value reaches $GITHUB_OUTPUT or a git argument.
+          # notify_version is operator input, and writing an unvalidated value to
+          # $GITHUB_OUTPUT first would let a newline in it forge a second output line
+          # (`prerelease=false` on a beta, say) and talk the job into closing issues a
+          # beta only meant to comment on. Nothing here is interpolated into a shell
+          # word — VERSION arrives as an env var and every use below is quoted — so
+          # this is about output forgery, not command injection.
+          #
+          # prerelease is re-derived rather than taken from the release job so a dry
+          # run can target any past version without depending on that job's outputs.
           if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)[0-9]+$ ]]; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            PRERELEASE=true
           elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            PRERELEASE=false
           else
             echo "::error::version '$VERSION' is malformed — expected X.Y.Z or X.Y.Z{a|b|rc}N."
             exit 1
           fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
           # Read the changelog as it was at the tag, so a dry run against an old
           # release sees that release's notes. The working tree deliberately stays on
@@ -204,7 +214,6 @@ jobs:
         env:
           VERSION: ${{ steps.target.outputs.version }}
           REF: ${{ steps.target.outputs.ref }}
-          PRERELEASE: ${{ steps.target.outputs.prerelease }}
         run: |
           ISSUES=$(python3 ci/release-issues.py --version "$VERSION" --changelog /tmp/changelog.md --json)
           echo "issues=$ISSUES" >> "$GITHUB_OUTPUT"
@@ -216,21 +225,15 @@ jobs:
           # warning only. Changelog bookkeeping must not block a release that has
           # already been tagged and published.
           #
-          # PREV bounds the range this version's changelog section is answerable for,
-          # and that differs by kind. A stable's notes cover everything since the last
-          # *stable* (betas in between are rolled into it), so only bare vX.Y.Z tags
-          # count. A beta's notes cover only its own increment, so the previous tag of
-          # any kind is the bound — compare a beta against the last stable and every
-          # earlier beta's fixes look like omissions.
-          if [ "$PRERELEASE" = "true" ]; then
-            TAG_FILTER='^v[0-9]+\.[0-9]+\.[0-9]+([ab]|rc)?[0-9]*$'
-          else
-            TAG_FILTER='^v[0-9]+\.[0-9]+\.[0-9]+$'
-          fi
-
+          # PREV bounds the range this version's changelog section is answerable for.
+          # --previous-tags ranks the candidates (and filters by release kind); git is
+          # only asked what it can actually answer, which of them this release descends
+          # from. Ranking in git would be wrong: `--sort=-v:refname` puts a bare
+          # v0.16.0 *below* its own v0.16.0rc1.
           PREV=""
-          for TAG in $(git tag --list --sort=-v:refname | grep -E "$TAG_FILTER"); do
-            if [ "$TAG" != "v$VERSION" ] && git merge-base --is-ancestor "$TAG" "$REF" 2>/dev/null; then
+          for TAG in $(git tag --list \
+                        | python3 ci/release-issues.py --version "$VERSION" --previous-tags); do
+            if git merge-base --is-ancestor "$TAG" "$REF" 2>/dev/null; then
               PREV="$TAG"
               break
             fi
