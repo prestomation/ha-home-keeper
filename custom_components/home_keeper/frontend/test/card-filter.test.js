@@ -116,6 +116,22 @@ describe('filterTasks', () => {
     expect(ids).toEqual(['m', 'n']);
   });
 
+  it('shopping keeps only tasks with source.buy', () => {
+    const buyTask = task({ id: 'b', name: 'Buy filter', recurrence_type: 'one-off', source: { buy: { asset_id: 'a1', part_id: 'p1' } } });
+    const list = [...all, buyTask];
+    const ids = filterTasks(list, { type: '', filter: 'shopping' }, {}, NOW).map((t) => t.id);
+    expect(ids).toEqual(['b']);
+  });
+
+  it('ignores horizon_days for the shopping filter', () => {
+    const datedBuy = task({ id: 'db', name: 'Buy dated', next_due: new Date(NOW + DAY).toISOString(), source: { buy: { asset_id: 'a1', part_id: 'p1' } } });
+    const undatedBuy = task({ id: 'ub', name: 'Buy undated', source: { buy: { asset_id: 'a1', part_id: 'p1' } } });
+    const ids = filterTasks([...all, datedBuy, undatedBuy], { type: '', filter: 'shopping', horizon_days: 1 }, {}, NOW)
+      .map((t) => t.id)
+      .sort();
+    expect(ids).toEqual(['db', 'ub']);
+  });
+
   it('filters by area, resolving a task to its device area', () => {
     const devices = { dev1: { id: 'dev1', area_id: 'kitchen' } };
     const inKitchenDirect = task({ id: 'k1', area_id: 'kitchen', next_due: new Date(NOW + DAY).toISOString() });

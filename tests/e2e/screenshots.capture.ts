@@ -99,6 +99,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   await page.screenshot({ path: `${OUT}/1-panel-task-list.png`, fullPage: true });
 
+  // 1a1. Shopping filter — click the Shopping segment to show only buy-task tasks.
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'Shopping' }).click();
+  await page.screenshot({ path: `${OUT}/44-panel-shopping-filter.png`, fullPage: true });
+  // Switch back to All so the remaining shots see the full list.
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
+
   // 1a2. Completion-details dialog — a task whose capture mode is "optional" or
   // "required" opens this dialog on Done so you can record a note, cost, who and a
   // photo. The seeded "Replace fridge filter" task is set to optional capture.

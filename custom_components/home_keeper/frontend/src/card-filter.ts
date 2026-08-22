@@ -8,7 +8,7 @@ import { areaName, deviceName } from './utils';
  * the interesting edge cases — is unit-testable in node without a DOM.
  */
 
-export type CardFilter = 'all' | 'overdue' | 'soon' | 'today' | 'no_due';
+export type CardFilter = 'all' | 'overdue' | 'soon' | 'today' | 'no_due' | 'shopping';
 export type CardSort = 'due' | 'name' | 'recent' | 'area';
 export type CardGroupBy = 'none' | 'status' | 'area' | 'device';
 export type StatusBucket = 'overdue' | 'soon' | 'today' | 'later' | 'monitored' | 'none';
@@ -234,6 +234,8 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
       return dated && due <= endOfToday(now);
     case 'no_due':
       return !dated;
+    case 'shopping':
+      return Boolean(task.source?.buy);
     case 'all':
     default:
       return true;
@@ -264,7 +266,7 @@ export function filterTasks(
   // The horizon is an "upcoming dated window"; it's meaningless for the
   // explicitly-undated `no_due` filter, so skip it there (else the list is
   // always empty — undated tasks have no date to fall within the window).
-  const horizonCutoff = horizon > 0 && filter !== 'no_due' ? now + horizon * DAY_MS : 0;
+  const horizonCutoff = horizon > 0 && filter !== 'no_due' && filter !== 'shopping' ? now + horizon * DAY_MS : 0;
 
   return tasks.filter((task) => {
     if (!config.show_disabled && task.enabled === false) return false;
