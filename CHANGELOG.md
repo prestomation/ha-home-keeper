@@ -10,15 +10,15 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **Buy reminders can go on your own shopping list.** Point **Settings → Shopping
-  list** at a to-do list you already use and every auto-created "Buy {part}" reminder
-  is put on it, so it reaches your voice assistant and whatever list widget you keep on
-  the fridge tablet. It works both ways: tick the line off at the shop and Home Keeper
-  completes the reminder for you, which restocks the part and clears it; complete the
-  reminder in Home Keeper and the line is ticked off to match; top the stock up some
-  other way and the line is removed, because nothing was bought. Lines you (or Home
-  Keeper) already ticked off are never touched, and only the lines Home Keeper added are
-  ever managed. Leave the setting empty to turn it off. (Fixes #220)
+- **Buy reminders now reach your own shopping list.** Point **Settings → Shopping
+  list** at a to-do list the household already uses. Every auto-created "Buy {part}"
+  reminder is then put on it, so it turns up on your voice assistant and on whatever
+  list widget lives on the fridge tablet. It works both ways. Ticking the line off at
+  the shop completes the Home Keeper reminder and restocks the part. Completing the
+  reminder in Home Keeper ticks the line off to match. Topping the stock up some other
+  way removes the line, because nothing was bought. A line already ticked off is never
+  touched. Only the lines Home Keeper added are ever managed. Leave the setting empty to
+  turn it off. (Fixes #220)
 
 ### Fixed
 

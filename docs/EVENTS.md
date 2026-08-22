@@ -88,8 +88,8 @@ When *Settings → Shopping list* points at a to-do list, each auto-created **"B
 `home_keeper_task_completed` carrying `origin: home_keeper_shopping_list` and
 `source: {"buy": {"asset_id": …, "part_id": …}}`. Match on that origin to tell "bought
 at the shop" from a press of Done. Like any buy-reminder completion it restocks the part
-by its restock quantity, so a `home_keeper_part_restocked` normally follows, and the
-reminder is then retired with a `home_keeper_task_deleted`. The mirror's own bookkeeping
+by its restock quantity. A `home_keeper_part_restocked` normally follows. The reminder is
+then retired with a `home_keeper_task_deleted`. The mirror's own bookkeeping
 (which line on which list stands for which reminder) stays **silent**, the same
 reasoning as the sensor watcher's baselines above.
 

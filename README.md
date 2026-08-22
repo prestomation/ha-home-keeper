@@ -537,12 +537,13 @@ detail then shows the linked part and its current stock.
 
 Home Keeper's integration options are editable right in the panel (a **Settings**
 tab alongside Tasks and Appliances) so you never have to dig through *Settings →
-Devices & services → Configure*. It's a plain form that mirrors the options flow
-(**General**, for how long to keep completed one-offs; **Shopping list**, for the to-do
-list [buy reminders are mirrored onto](#send-buy-reminders-to-your-shopping-list); and
-**problem-sensor sync**, the toggle plus entity / area / label exclusions), and it
-**saves as you change it**. The same options remain available through the HA options
-flow and the `home_keeper.set_options` service (for automations).
+Devices & services → Configure*. It's a plain form that mirrors the options flow and
+**saves as you change it**. The **General** card holds how long to keep completed
+one-offs. **Shopping list** picks the to-do list
+[buy reminders are mirrored onto](#send-buy-reminders-to-your-shopping-list).
+**Problem sensor sync** carries the toggle plus entity / area / label exclusions. The
+same options remain available through the HA options flow and the
+`home_keeper.set_options` service (for automations).
 
 ![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
 
@@ -842,20 +843,20 @@ stays put until you actually restock.)
 #### Send buy reminders to your shopping list
 
 A reminder that only exists in Home Keeper is no help in the shop. Point **Settings →
-Shopping list** at a to-do list you already use and every auto-created **"Buy {part}"**
-reminder is put on it as an ordinary line. Any `todo` entity works, from the built-in
-shopping list to whatever your voice assistant reads out. The reminder then turns up
-wherever that list does: on the To-do card on your dashboard, or read back when you ask
-what's on the shopping list.
+Shopping list** at a to-do list the household already uses. Every auto-created
+**"Buy {part}"** reminder is then put on it as an ordinary line, so it turns up wherever
+that list turns up. The built-in shopping list works. So does a `local_todo` list your
+voice assistant reads back.
 
 It works in both directions:
 
-- **Tick the line off at the shop** and Home Keeper completes the reminder for you,
-  which restocks the part by its Restock quantity and clears the reminder, exactly as if
-  you had pressed Done. Your ticked-off line stays where it is, as your record.
+- **Tick the line off at the shop** and Home Keeper completes the reminder. That
+  restocks the part by its Restock quantity and clears the reminder. The ticked-off line
+  stays put as your record.
 - **Complete the reminder in Home Keeper** and the line is ticked off to match.
-- **Restock the part some other way** (you top the stock up by hand, or switch
-  Auto-create buy task off) and the line is removed, because nothing was bought.
+- **Restock the part some other way** and the line is removed, because nothing was
+  bought. Topping the stock up by hand counts. So does switching Auto-create buy task
+  off.
 
 Anything already ticked off is never touched, and Home Keeper only ever manages the
 lines it added: the milk you put on the list yourself is none of its business. Leave the
@@ -986,7 +987,7 @@ stock"*, no event names to memorise), or use a plain `platform: event` trigger. 
 task attached to a device another integration owns, automate on the task's own
 entities or the event, since Home Assistant only offers device triggers for the one
 integration a device belongs to. *Spare part out of stock → add it to the shopping
-list*, for parts that don't use
+list*. Useful for parts that don't use
 [Auto-create buy task](#auto-create-a-buy-task-when-a-part-runs-low), or when you want
 the line worded your own way:
 
