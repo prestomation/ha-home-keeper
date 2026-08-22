@@ -105,9 +105,13 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   schedule — owned by another integration), and `sensor` (due-state derived from a
   bound numeric entity — see below). `one-off`, `triggered`, and `sensor` all carry
   **no cadence fields** (`normalize_fields` returns early for each); a completed
-  one-off and a dormant triggered/sensor task all have `next_due=None`, so they fall
-  out of every time surface (to-do/calendar/sensors/transitions) for free. Keep the
-  recurrence math in pure `recurrence.py` with an explicit `now`.
+  one-off and a dormant triggered/sensor task all have `next_due=None`, and every
+  time surface (to-do/calendar/sensors/transitions) must drop them. Only the surfaces
+  that *compare* `next_due` get that free (`is_overdue` is `False` for `None`);
+  a surface that **lists** tasks needs an explicit dormancy skip, so add one when you
+  build a new one — the to-do list shipped without one for `one-off`, and a finished
+  do-once task sat there undated forever (#221). Keep the recurrence math in pure
+  `recurrence.py` with an explicit `now`.
 - **Sensor-based tasks** (`REC_SENSOR`) bind a task to a numeric entity via a
   `task["sensor"]` block (`models.normalize_sensor`: `entity_id`, `mode`, and the
   mode's fields — `target` for `usage`, `comparison`+`value`+optional `for_seconds`
@@ -189,7 +193,8 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
 - Per-task device-page entities (`button`/`sensor`/`binary_sensor`) are created
   only for **enabled, device-attached** tasks (use
   `coordinator.device_attached_task_ids()`); `todo`/`calendar` likewise skip
-  disabled tasks.
+  disabled tasks, and both also skip **dormant** ones (`next_due is None` on a
+  `one-off`/`triggered`/`sensor`).
 - Attach to an existing device by reusing that device's `DeviceInfo`
   `identifiers`/`connections` (Battery-Notes-style identifier merge) — never
   create a duplicate device for someone else's hardware.

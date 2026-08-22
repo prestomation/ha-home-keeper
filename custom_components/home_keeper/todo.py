@@ -1,13 +1,19 @@
 """To-do list entity for Home Keeper.
 
-Exposes all tasks as items in a single native HA to-do list, so users can view
-and complete them from HA's built-in To-do card and the mobile app. Checking an
-item off routes into the recurrence engine: the task's clock advances and the
+Exposes every live task as an item in a single native HA to-do list, so users can
+view and complete them from HA's built-in To-do card and the mobile app. Checking
+an item off routes into the recurrence engine: the task's clock advances and the
 item reappears with its new due date (native TodoListEntity has no recurrence of
 its own).
+
+A task that has gone *dormant* carries no ``next_due`` — a do-once task that is
+finished, a triggered or sensor task that is not armed — and is off the list until
+it is armed again.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 from homeassistant.components.todo import (
     TodoItem,
@@ -22,9 +28,24 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, REC_SENSOR, REC_TRIGGERED
+from .const import DOMAIN, REC_ONE_OFF, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
 from .models import TaskValidationError
+
+
+def _completed_one_off(task: dict[str, Any]) -> bool:
+    """True for a do-once task that is already done (dormant, not re-armed).
+
+    The same dormant-and-completed shape ``recurrence.one_off_expired`` keys its
+    retention window on, and the panel's ``_statusBucket`` files under Completed.
+    Kept local rather than imported: ``one_off_expired`` answers the different
+    question "is this purgeable yet", and it takes a retention window to do it.
+    """
+    return (
+        task.get("recurrence_type") == REC_ONE_OFF
+        and not task.get("next_due")
+        and bool(task.get("last_completed"))
+    )
 
 
 async def async_setup_entry(
@@ -55,17 +76,22 @@ class HomeKeeperTodoListEntity(
 
     @property
     def todo_items(self) -> list[TodoItem]:
-        """Return one item per enabled task, dated by next_due."""
+        """Return one item per enabled, non-dormant task, dated by next_due."""
         items: list[TodoItem] = []
         for task in self.coordinator.data.values():
             if not task.get("enabled", True):
                 continue
             due_iso = task.get("next_due")
-            # A dormant triggered or sensor task (next_due == None) is "armed but not
-            # due" — keep it off the to-do list entirely rather than showing it as an
-            # undated item. It reappears the moment it is armed (next_due set).
+            # A dormant task (next_due == None) is off every time surface: a completed
+            # one-off is permanently done, and a triggered or sensor task is "armed but
+            # not due". Keep both off the to-do list entirely rather than showing them
+            # as undated items that can never be cleared. Each reappears the moment it
+            # is (re-)armed — a one-off when its completion is undone, the other two
+            # when their condition fires again. Not a bare `not due_iso` check: a
+            # floating or fixed task always carries a next_due, so a missing one there
+            # is malformed data that should stay visible rather than silently vanish.
             rec_type = task.get("recurrence_type")
-            if rec_type in (REC_TRIGGERED, REC_SENSOR) and not due_iso:
+            if rec_type in (REC_ONE_OFF, REC_TRIGGERED, REC_SENSOR) and not due_iso:
                 continue
             due = dt_util.parse_datetime(due_iso) if due_iso else None
             items.append(
@@ -87,13 +113,19 @@ class HomeKeeperTodoListEntity(
           integration must clear the underlying problem — surfaced as a
           ``HomeAssistantError`` so the card shows the reason and leaves it
           checked-pending).
+        * A completion aimed at an already-completed do-once task is ignored. It is
+          dormant and off the list, so the only thing a second check-off could do is
+          duplicate the record of work done exactly once.
         * Editing the summary/notes in the detail dialog applies as a task update.
           The entity declares ``UPDATE_TODO_ITEM``, so a rename must actually persist
           rather than silently revert on the next render.
         """
         if not item.uid:
             return
+        task = self.coordinator.store.get_task(item.uid)
         if item.status == TodoItemStatus.COMPLETED:
+            if task is not None and _completed_one_off(task):
+                return
             try:
                 await self.coordinator.store.complete_task(item.uid)
             except TaskValidationError as err:
@@ -108,7 +140,6 @@ class HomeKeeperTodoListEntity(
             return
 
         # NEEDS_ACTION: persist summary/notes edits made in the card detail dialog.
-        task = self.coordinator.store.get_task(item.uid)
         if task is None:
             return
         updates: dict[str, str] = {}
