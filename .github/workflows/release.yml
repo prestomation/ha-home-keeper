@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      notify_dry_run:
+        description: "Rehearse notify-issues: log what it would post, post nothing"
+        type: boolean
+        default: false
+      notify_version:
+        description: "Version for the dry run (default: the current manifest version)"
+        type: string
 
 jobs:
   release:
@@ -65,15 +73,7 @@ jobs:
         env:
           VERSION: ${{ steps.check.outputs.version }}
         run: |
-          awk -v ver="$VERSION" '
-            $0 ~ "^## \\[" ver "\\]" { found=1; print; next }
-            found && /^## \[/ { exit }
-            found { print }
-          ' CHANGELOG.md > release_notes.txt
-          if [ ! -s release_notes.txt ]; then
-            echo "::error::Failed to extract changelog section for $VERSION (awk pattern matched zero lines)."
-            exit 1
-          fi
+          python3 ci/release-issues.py --version "$VERSION" --notes > release_notes.txt
           {
             echo 'notes<<RELEASE_NOTES_EOF'
             cat release_notes.txt
@@ -143,3 +143,212 @@ jobs:
     uses: ./.github/workflows/docs-deploy.yml
     with:
       ref: "v${{ needs.release.outputs.version }}"
+
+  # Tell every issue this release fixes which version carries the fix. Merging a PR
+  # doesn't put anything in a user's Home Assistant, so PRs link issues with `Refs #N`
+  # and leave them open; the issue closes here, when the fix actually ships. A beta
+  # only comments (the fix is testable, not shipped); a stable comments and closes.
+  #
+  # Chained via `needs:` for the same reason as deploy-docs: the Release above is
+  # created by this workflow's GITHUB_TOKEN, so an `on: release` listener would never
+  # start a run.
+  notify-issues:
+    needs: release
+    if: >-
+      github.event_name != 'pull_request' &&
+      (inputs.notify_dry_run || needs.release.outputs.release == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Scoped to this job alone — the build above stays contents-only.
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the version to notify for
+        id: target
+        env:
+          DISPATCH_VERSION: ${{ inputs.notify_version }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          VERSION="${DISPATCH_VERSION:-$RELEASE_VERSION}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          # Re-derived rather than taken from the release job, so a dry run can target
+          # any past version without depending on that job's outputs.
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)[0-9]+$ ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::version '$VERSION' is malformed — expected X.Y.Z or X.Y.Z{a|b|rc}N."
+            exit 1
+          fi
+
+          # Read the changelog as it was at the tag, so a dry run against an old
+          # release sees that release's notes. The working tree deliberately stays on
+          # the current branch — checking the tag out would also roll
+          # ci/release-issues.py back to a version that predates it.
+          if git rev-parse --verify "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            git show "v$VERSION:CHANGELOG.md" > /tmp/changelog.md
+            echo "ref=v$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            cp CHANGELOG.md /tmp/changelog.md
+            echo "ref=HEAD" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Collect the issues this release fixes
+        id: collect
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+          REF: ${{ steps.target.outputs.ref }}
+          PRERELEASE: ${{ steps.target.outputs.prerelease }}
+        run: |
+          ISSUES=$(python3 ci/release-issues.py --version "$VERSION" --changelog /tmp/changelog.md --json)
+          echo "issues=$ISSUES" >> "$GITHUB_OUTPUT"
+          echo "Changelog references: $ISSUES"
+
+          # Cross-check: an issue referenced by a shipped commit but absent from the
+          # changelog section will never be notified and never close. That is the one
+          # way the deferred-closing model fails silently, so surface it — as a
+          # warning only. Changelog bookkeeping must not block a release that has
+          # already been tagged and published.
+          #
+          # PREV bounds the range this version's changelog section is answerable for,
+          # and that differs by kind. A stable's notes cover everything since the last
+          # *stable* (betas in between are rolled into it), so only bare vX.Y.Z tags
+          # count. A beta's notes cover only its own increment, so the previous tag of
+          # any kind is the bound — compare a beta against the last stable and every
+          # earlier beta's fixes look like omissions.
+          if [ "$PRERELEASE" = "true" ]; then
+            TAG_FILTER='^v[0-9]+\.[0-9]+\.[0-9]+([ab]|rc)?[0-9]*$'
+          else
+            TAG_FILTER='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          fi
+
+          PREV=""
+          for TAG in $(git tag --list --sort=-v:refname | grep -E "$TAG_FILTER"); do
+            if [ "$TAG" != "v$VERSION" ] && git merge-base --is-ancestor "$TAG" "$REF" 2>/dev/null; then
+              PREV="$TAG"
+              break
+            fi
+          done
+
+          if [ -z "$PREV" ]; then
+            echo "No previous stable tag found — skipping the changelog cross-check."
+            echo "missing=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Cross-checking commits in $PREV..$REF"
+          git log --format=%B "$PREV..$REF" > /tmp/commits.txt
+          MISSING=$(python3 ci/release-issues.py \
+            --version "$VERSION" --changelog /tmp/changelog.md --missing < /tmp/commits.txt)
+          echo "missing=$MISSING" >> "$GITHUB_OUTPUT"
+          echo "Referenced by a commit but absent from the changelog: $MISSING"
+
+      - name: Comment and close
+        uses: actions/github-script@v9
+        env:
+          ISSUES: ${{ steps.collect.outputs.issues }}
+          MISSING: ${{ steps.collect.outputs.missing }}
+          VERSION: ${{ steps.target.outputs.version }}
+          PRERELEASE: ${{ steps.target.outputs.prerelease }}
+          DRY_RUN: ${{ inputs.notify_dry_run }}
+        with:
+          script: |
+            const version = process.env.VERSION;
+            const isBeta = process.env.PRERELEASE === 'true';
+            const dryRun = process.env.DRY_RUN === 'true';
+            const entries = JSON.parse(process.env.ISSUES || '[]');
+            const missing = JSON.parse(process.env.MISSING || '[]');
+
+            // Re-running the workflow must not post a second time.
+            const marker = `<!-- home-keeper-release v${version} -->`;
+            const releaseUrl =
+              `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/releases/tag/v${version}`;
+
+            const body = (summary) => {
+              const quote = summary ? `\n> ${summary}\n` : '';
+              return isBeta
+                ? `${marker}\n**Fixed in Home Keeper v${version}**, out now as a beta.\n${quote}\n` +
+                  `To try it before it ships to everyone, turn on **Show beta versions** for ` +
+                  `Home Keeper in HACS and update. This issue stays open until the fix reaches ` +
+                  `a stable release.\n\n[Release notes](${releaseUrl})`
+                : `${marker}\n**Shipped in Home Keeper v${version}.** Update through HACS to get it.\n${quote}\n` +
+                  `Closing this out. If you still run into it after updating, reopen the issue ` +
+                  `or leave a comment and it'll be picked back up.\n\n[Release notes](${releaseUrl})`;
+            };
+
+            const rows = [];
+            for (const entry of entries) {
+              const number = entry.number;
+              // One bad number must never fail a release that is already published.
+              try {
+                const { data: issue } = await github.rest.issues.get({
+                  ...context.repo, issue_number: number,
+                });
+
+                if (issue.pull_request) {
+                  rows.push([`#${number}`, 'skipped', 'is a pull request, not an issue']);
+                  continue;
+                }
+
+                const comments = await github.paginate(github.rest.issues.listComments, {
+                  ...context.repo, issue_number: number, per_page: 100,
+                });
+                if (comments.some((comment) => comment.body && comment.body.includes(marker))) {
+                  rows.push([`#${number}`, 'skipped', `already notified about v${version}`]);
+                  continue;
+                }
+
+                if (dryRun) {
+                  rows.push([`#${number}`, 'dry run', isBeta ? 'would comment' : 'would comment and close']);
+                  continue;
+                }
+
+                await github.rest.issues.createComment({
+                  ...context.repo, issue_number: number, body: body(entry.summary),
+                });
+
+                if (isBeta) {
+                  rows.push([`#${number}`, 'commented', 'left open until a stable release']);
+                } else {
+                  await github.rest.issues.update({
+                    ...context.repo, issue_number: number,
+                    state: 'closed', state_reason: 'completed',
+                  });
+                  rows.push([`#${number}`, 'closed', 'commented and closed as completed']);
+                }
+              } catch (error) {
+                core.warning(`Could not notify #${number}: ${error.message}`);
+                rows.push([`#${number}`, 'failed', error.message]);
+              }
+            }
+
+            for (const number of missing) {
+              core.warning(
+                `#${number} is referenced by a commit in this release but has no ` +
+                `"Fixes #${number}" in the v${version} changelog section — it will not be ` +
+                `notified or closed. Add it to CHANGELOG.md if this release fixes it.`
+              );
+              rows.push([`#${number}`, 'not listed', 'referenced by a commit, missing from the changelog']);
+            }
+
+            const summary = core.summary
+              .addHeading(`Issue notifications for v${version}${dryRun ? ' (dry run)' : ''}`, 3)
+              .addRaw(isBeta
+                ? 'Beta release: issues are notified and left open.'
+                : 'Stable release: issues are notified and closed.')
+              .addBreak();
+            if (rows.length) {
+              summary.addTable([
+                [{ data: 'Issue', header: true }, { data: 'Result', header: true }, { data: 'Detail', header: true }],
+                ...rows,
+              ]);
+            } else {
+              summary.addRaw('No issue references found in this version\'s changelog section.');
+            }
+            await summary.write();
