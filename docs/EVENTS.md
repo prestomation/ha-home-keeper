@@ -82,6 +82,17 @@ meter reset) stays **silent**, because it is internal state, not a user action. 
 by hand through the `set_task_meter` service does fire `home_keeper_task_updated` with
 `changed_fields: ["sensor"]`.
 
+**Buy reminders ticked off on a mirrored shopping list** ride these same events too.
+When *Settings → Shopping list* points at a to-do list, each auto-created **"Buy
+{part}"** reminder is put on it; ticking that line off there fires an ordinary
+`home_keeper_task_completed` carrying `origin: home_keeper_shopping_list` and
+`source: {"buy": {"asset_id": …, "part_id": …}}`. Match on that origin to tell "bought
+at the shop" from a press of Done. Like any buy-reminder completion it restocks the part
+by its restock quantity, so a `home_keeper_part_restocked` normally follows, and the
+reminder is then retired with a `home_keeper_task_deleted`. The mirror's own bookkeeping
+(which line on which list stands for which reminder) stays **silent**, the same
+reasoning as the sensor watcher's baselines above.
+
 **Synced `problem` binary sensors** (when *Sync problem sensors* is on) ride these same
 events: a mirror task is `created` for each `device_class: problem` sensor, `triggered`
 when the sensor reports a problem, and `completed` when it clears. The completion event

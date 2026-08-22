@@ -57,10 +57,20 @@ export const selArea = (multiple = false): Selector => ({ area: multiple ? { mul
 export const selLabel = (multiple = false): Selector => ({
   label: multiple ? { multiple: true } : {},
 });
+/**
+ * An entity picker. `exclude` drops specific entity ids from the list offered —
+ * used to keep Home Keeper's own to-do list out of the shopping-list picker,
+ * where choosing it would mean mirroring a list onto itself. Omitted entirely
+ * when there is nothing to exclude, so the emitted selector config stays as
+ * small as it was.
+ */
 export const selEntity = (
   filter: { domain?: string; device_class?: string },
   multiple = false,
-): Selector => ({ entity: { filter, multiple } });
+  exclude: string[] = [],
+): Selector => ({
+  entity: { filter, multiple, ...(exclude.length ? { exclude_entities: exclude } : {}) },
+});
 export const selIcon = (): Selector => ({ icon: {} });
 export const selSelect = (
   options: { value: string; label: string }[],
@@ -787,6 +797,18 @@ export function problemSyncSchema(): FormField[] {
  */
 export function generalSchema(): FormField[] {
   return [{ name: 'one_off_retention_days', selector: selNumber(0) }];
+}
+
+/**
+ * The `ha-form` schema for the Settings tab's **Shopping list** card — the one
+ * to-do list auto-buy reminders are mirrored onto (empty turns the mirror off).
+ * Home Keeper's own to-do lists are excluded from the picker: mirroring a list
+ * onto itself is a loop, and ours accepts no new items anyway.
+ */
+export function shoppingSchema(exclude: string[] = []): FormField[] {
+  return [
+    { name: 'shopping_list_entity', selector: selEntity({ domain: 'todo' }, false, exclude) },
+  ];
 }
 
 // ── profiles (saved filters) & notifications (delivery) ─────────────────────

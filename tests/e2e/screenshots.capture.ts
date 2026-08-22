@@ -837,15 +837,74 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await buyPart.scrollIntoViewIfNeeded();
   await buyPart.screenshot({ path: `${OUT}/39-panel-part-auto-buy.png` });
 
-  // 17. The Settings tab — friendly forms mirroring the options flow: a
-  // Problem sensor sync card (toggle + entity / device / area / label exclusions)
-  // and a General card (one-off retention), each saved on change.
+  // 17-pre. Point the buy-reminder mirror at the household shopping list and opt
+  // the seeded anode rod (already sitting at its reorder point) into auto-buy, so
+  // the Settings shots below show the picker holding a real list and the dashboard
+  // shot at the end shows the "Buy …" line the shopper actually gets.
+  await openPanel(page);
+  await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'set_options', {
+      shopping_list_entity: 'todo.shopping_list',
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { assets } = await hass.callWS({ type: 'home_keeper/get_assets' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const heater = assets.find((a: any) => a.id === 'asset_water_heater');
+    // A part's attached file is upload-only, so the service schema rejects any
+    // payload carrying file_* — echo back only the fields it accepts.
+    const WRITABLE = [
+      'id',
+      'name',
+      'part_number',
+      'type',
+      'vendor',
+      'cost',
+      'url',
+      'notes',
+      'replace_interval',
+      'replace_unit',
+      'last_replaced',
+      'stock',
+      'reorder_at',
+      'create_buy_task',
+      'restock_quantity',
+    ];
+    await hass.callService('home_keeper', 'update_asset', {
+      asset_id: heater.id,
+      parts: heater.parts.map((p: Record<string, unknown>) => {
+        const out: Record<string, unknown> = {};
+        for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
+        if (p.id === 'part_anode') {
+          out.create_buy_task = true;
+          out.restock_quantity = 4;
+        }
+        return out;
+      }),
+    });
+  });
+
+  // 17. The Settings tab — friendly forms mirroring the options flow: a General
+  // card (one-off retention), a Shopping list card (where auto-buy reminders are
+  // mirrored) and a Problem sensor sync card (toggle + entity / device / area /
+  // label exclusions), each saved on change.
   await openPanel(page);
   await panel.locator('#tab-settings').click();
   await expect(panel.locator('#hk-settings')).toBeVisible();
   await expect(panel.locator('#hk-settings ha-form')).toBeVisible();
+  await expect(panel.locator('#hk-settings-shopping ha-form')).toBeVisible();
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/17-panel-settings.png`, fullPage: true });
+
+  // 17s. The Shopping list card on its own, for the README section about mirroring
+  // buy reminders onto an existing to-do list.
+  await panel.locator('#hk-settings-shopping').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await panel
+    .locator('#hk-settings-shopping')
+    .screenshot({ path: `${OUT}/45-panel-settings-shopping.png` });
 
   // 17a. Settings → Profiles + Notifications. A Profile is a standalone saved filter;
   // a Notification is a delivery binding that references one. Seed one of each via the
@@ -937,6 +996,17 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-comp-configure').first()).toBeVisible();
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
+
+  // 46. The payoff: the buy reminder sitting on the household's own shopping list,
+  // where a voice assistant or a phone widget will read it out.
+  await openDashboard(page);
+  const shoppingCard = page
+    .locator('hui-todo-list-card, todo-list-card')
+    .filter({ hasText: 'Shopping list' })
+    .first();
+  await expect(shoppingCard).toContainText('Buy Anode rod', { timeout: 30_000 });
+  await page.waitForTimeout(600);
+  await shoppingCard.screenshot({ path: `${OUT}/46-shopping-list-buy-reminder.png` });
 
   // 4. The usage surfaces — native to-do list + calendar on a dashboard.
   await openDashboard(page);

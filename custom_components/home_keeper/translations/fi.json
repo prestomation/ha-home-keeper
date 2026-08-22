@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Poissuljetut laitteet",
           "problem_sensor_exclude_areas": "Poissuljetut alueet",
           "problem_sensor_exclude_labels": "Poissuljetut tunnisteet",
-          "one_off_retention_days": "Kertaluonteisten säilytys (päivää)"
+          "one_off_retention_days": "Kertaluonteisten säilytys (päivää)",
+          "shopping_list_entity": "Ostoslista"
         },
         "data_description": {
-          "one_off_retention_days": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää valmiit kertaluonteiset tehtävät pysyvästi."
+          "one_off_retention_days": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää valmiit kertaluonteiset tehtävät pysyvästi.",
+          "shopping_list_entity": "Peilaa automaattiset ostomuistutukset tähän tehtävälistaan. Kun merkitset kohteen siellä tehdyksi, Home Keeperin muistutus kuittautuu ja varaosan varasto täydentyy. Jätä tyhjäksi ottaaksesi peilauksen pois käytöstä."
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "Kertaluonteisten säilytys (päivää)",
           "description": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää ne pysyvästi."
+        },
+        "shopping_list_entity": {
+          "name": "Ostoslista",
+          "description": "Olemassa oleva tehtävälista, johon automaattiset ostomuistutukset peilataan. Siellä tehdyksi merkitty kohde kuittaa muistutuksen ja täydentää varaston. Tyhjä kenttä poistaa toiminnon käytöstä."
         },
         "dismissed_companions": {
           "name": "Hylätyt kumppanit",

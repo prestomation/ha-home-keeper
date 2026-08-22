@@ -538,11 +538,13 @@ detail then shows the linked part and its current stock.
 Home Keeper's integration options are editable right in the panel (a **Settings**
 tab alongside Tasks and Appliances) so you never have to dig through *Settings →
 Devices & services → Configure*. It's a plain form that mirrors the options flow
-(currently the **problem-sensor sync** toggle plus entity / area / label exclusions)
-and **saves as you change it**. The same options remain available through the HA
-options flow and the `home_keeper.set_options` service (for automations).
+(**General**, for how long to keep completed one-offs; **Shopping list**, for the to-do
+list [buy reminders are mirrored onto](#send-buy-reminders-to-your-shopping-list); and
+**problem-sensor sync**, the toggle plus entity / area / label exclusions), and it
+**saves as you change it**. The same options remain available through the HA options
+flow and the `home_keeper.set_options` service (for automations).
 
-![The Home Keeper Settings tab, showing a form with the problem-sensor sync toggle and entity/area/label exclusion pickers](docs/images/17-panel-settings.png)
+![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
 
 ### Companions
 
@@ -837,6 +839,32 @@ stays put until you actually restock.)
 
 ![A part editor with Auto-create buy task enabled and a Restock quantity field](docs/images/39-panel-part-auto-buy.png)
 
+#### Send buy reminders to your shopping list
+
+A reminder that only exists in Home Keeper is no help in the shop. Point **Settings →
+Shopping list** at a to-do list you already use (the built-in shopping list, a
+`local_todo` list, whatever your voice assistant reads out) and every auto-created
+**"Buy {part}"** reminder is put on it as an ordinary line. It shows up wherever that
+list shows up: the To-do card on your dashboard, the companion app, "hey, what's on my
+shopping list".
+
+It works in both directions:
+
+- **Tick the line off at the shop** and Home Keeper completes the reminder for you,
+  which restocks the part by its Restock quantity and clears the reminder, exactly as if
+  you had pressed Done. Your ticked-off line stays where it is, as your record.
+- **Complete the reminder in Home Keeper** and the line is ticked off to match.
+- **Restock the part some other way** (you top the stock up by hand, or switch
+  Auto-create buy task off) and the line is removed, because nothing was bought.
+
+Anything already ticked off is never touched, and Home Keeper only ever manages the
+lines it added: the milk you put on the list yourself is none of its business. Leave the
+setting empty to turn the whole thing off.
+
+![The Settings tab's Shopping list card, with a to-do list picked](docs/images/45-panel-settings-shopping.png)
+
+![A buy reminder on the household shopping list card](docs/images/46-shopping-list-buy-reminder.png)
+
 ### Offline manuals & documents
 
 Every appliance keeps a list of **documents**: manuals, warranties, receipts. Each is
@@ -958,7 +986,9 @@ stock"*, no event names to memorise), or use a plain `platform: event` trigger. 
 task attached to a device another integration owns, automate on the task's own
 entities or the event, since Home Assistant only offers device triggers for the one
 integration a device belongs to. *Spare part out of stock → add it to the shopping
-list*:
+list*, for parts that don't use
+[Auto-create buy task](#auto-create-a-buy-task-when-a-part-runs-low), or when you want
+the line worded your own way:
 
 ```yaml
 automation:
@@ -972,6 +1002,10 @@ automation:
         data:
           item: "{{ trigger.event.data.part_name }} ({{ trigger.event.data.vendor }})"
 ```
+
+(For a part already on auto-buy, the built-in
+[shopping-list mirror](#send-buy-reminders-to-your-shopping-list) does this for you, and
+takes the line off again when the part is restocked.)
 
 Events are **edge-triggered** (one event per crossing, never repeated each cycle) and
 silently baselined on restart (no "overdue" storm after a reboot). The full catalog

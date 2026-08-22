@@ -38,6 +38,7 @@ from .store import HomeKeeperStore
 if TYPE_CHECKING:
     from .problem_sync import ProblemSensorSync
     from .sensor_watcher import SensorTaskWatcher
+    from .shopping_sync import ShoppingListSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -115,6 +116,8 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         # edge state / usage baselines are seeded, so the periodic tick below only ever
         # reacts to genuine transitions).
         self.sensor_watcher: SensorTaskWatcher | None = None
+        # The shopping-list mirror, attached during async_setup_entry.
+        self.shopping_sync: ShoppingListSync | None = None
         # Edge state for the time-based task events (overdue / due-soon). Carried
         # across refreshes so each is fired at most once per ``next_due``; see
         # transitions.detect_transitions. Seeded from the process-lifetime store so it
@@ -163,8 +166,21 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         to (un)register those entities — deferred via ``async_create_task`` so it never
         tears down the calling entity/handler mid-call, and guarded so several changes
         at once don't stack reloads. Otherwise a plain refresh suffices.
+
+        The shopping-list mirror runs on **both** sides of the reconcile, and both
+        before the reload is scheduled. Before, because a reminder that was just
+        completed still exists for exactly this moment — the mirror can tick its
+        shopping-list line off, instead of watching the reconcile delete the
+        reminder and then having to guess why the line is stale. After, for
+        whatever the reconcile created or retired. Neither pass reads a to-do list
+        unless something actually drifted, so a settle that changes nothing is
+        free.
         """
+        if self.shopping_sync is not None:
+            await self.shopping_sync.async_sync()
         entity_set_changed = await self.store.reconcile_buy_tasks()
+        if self.shopping_sync is not None:
+            await self.shopping_sync.async_sync()
         if entity_set_changed:
             if not self._buy_reload_scheduled:
                 self._buy_reload_scheduled = True
@@ -217,6 +233,12 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         # installed/removed glue updates — edge-triggered + silently baselined inside
         # the registry (a no-op until it's live).
         companions.async_reconcile(self.hass)
+        # Sweep the mirrored shopping list on the same cadence. The list's state is
+        # only its outstanding-item count, so one item ticked off while another is
+        # added produces no state change for the listener to catch; this is the
+        # backstop. A no-op until something is actually mirrored.
+        if self.shopping_sync is not None:
+            self.shopping_sync.async_schedule_sweep()
         return tasks
 
     async def _purge_expired_one_offs(self) -> None:

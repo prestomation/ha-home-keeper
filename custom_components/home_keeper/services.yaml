@@ -1102,8 +1102,8 @@ set_options:
     Update Home Keeper's integration options (the same settings as the panel's
     Settings tab and the options flow). Only the fields you pass change. Controls
     whether device_class "problem" binary sensors are synced as tasks (with
-    entity / device / area / label exclusions) and how long completed one-off tasks
-    are kept.
+    entity / device / area / label exclusions), how long completed one-off tasks
+    are kept, and which to-do list auto-buy reminders are mirrored onto.
   fields:
     sync_problem_sensors:
       name: Sync problem sensors as tasks
@@ -1121,6 +1121,16 @@ set_options:
           max: 3650
           step: 1
           mode: box
+    shopping_list_entity:
+      name: Shopping list
+      description: >-
+        An existing to-do list to mirror auto-buy reminders onto. Ticking an item
+        off there completes the Home Keeper reminder and restocks the part. Leave
+        empty to turn the mirror off.
+      selector:
+        entity:
+          filter:
+            domain: todo
     problem_sensor_exclude_entities:
       name: Excluded sensors
       description: Problem binary sensors to leave out of syncing.

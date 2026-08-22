@@ -10,6 +10,9 @@ test.describe('Home Keeper panel — Settings tab', () => {
     await panel.locator('#tab-settings').click();
     // The ha-form mirror of the options flow is rendered.
     await expect(panel.locator('#hk-settings ha-form')).toBeVisible();
+    // …and so is the Shopping list card, which is where the buy-reminder mirror
+    // is turned on.
+    await expect(panel.locator('#hk-settings-shopping ha-form')).toBeVisible();
     // Deep-linked: the panel URL reflects the settings view (so Back/Forward work).
     await expect.poll(() => page.url()).toContain('/home-keeper/settings');
 

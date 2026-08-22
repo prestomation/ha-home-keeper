@@ -52,8 +52,12 @@ source_paths = ["custom_components/home_keeper"]
 # and the tests. `tests/unit/test_ci_check_ha_version.py` loads `ci/check-ha-version.py`
 # by path (the hyphen makes it unimportable), so without this the whole run dies at
 # stat collection — never noticed, because the two PRs since that test landed changed
-# no mutable Python and mutmut was skipped.
-also_copy = ["ci"]
+# no mutable Python and mutmut was skipped. `tests/unit/test_release_issues.py` reads
+# CHANGELOG.md at *import* time (its parametrize enumerates released versions), which
+# is the same trap: it went in with a PR that changed no mutable Python, so the run
+# that would have caught it never happened. A test that reads a repo file needs that
+# file listed here.
+also_copy = ["ci", "CHANGELOG.md"]
 # The mutable surface: the pure core, which the fast `tests/unit` tier covers
 # directly. Everything else in the integration imports Home Assistant and is
 # only exercised by the Docker tiers — far too slow to run once per mutant, and
@@ -66,6 +70,7 @@ only_mutate = [
     "custom_components/home_keeper/models.py",
     "custom_components/home_keeper/assets.py",
     "custom_components/home_keeper/reconcile.py",
+    "custom_components/home_keeper/shopping.py",
     "custom_components/home_keeper/notifications.py",
     "custom_components/home_keeper/sensor_tasks.py",
     "custom_components/home_keeper/problem_tasks.py",

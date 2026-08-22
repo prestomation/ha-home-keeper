@@ -142,13 +142,19 @@ class HomeKeeperStore:
         # temporarily excluded — and re-hydrates onto the fresh task the next time the
         # same problem fires. See ``reconcile_problem_sensor_tasks`` / ``update_task``.
         self._problem_notes: dict[str, str] = {}
+        # Which item on which external to-do list mirrors which auto-buy reminder
+        # (``"<asset_id>:<part_id>" -> {entity_id, summary, uid}``). Bookkeeping for
+        # ``shopping_sync.py``, kept out of the task so it survives the reminder
+        # being deleted — the moment the mirror most needs it, since that is when
+        # the item has to come off the list. See ``get_shopping_items``.
+        self._shopping_items: dict[str, dict[str, Any]] = {}
 
     async def load(self) -> None:
         """Load tasks and assets from disk (no-op safe on first run).
 
-        The ``assets`` and ``problem_notes`` keys are additive — documents written
-        before they existed simply lack them, so we default to empty without a
-        storage migration.
+        The ``assets``, ``problem_notes`` and ``shopping_items`` keys are additive
+        — documents written before they existed simply lack them, so we default to
+        empty without a storage migration.
         """
         data = await self._store.async_load()
         if data and isinstance(data.get("tasks"), dict):
@@ -163,6 +169,10 @@ class HomeKeeperStore:
             self._problem_notes = data["problem_notes"]
         else:
             self._problem_notes = {}
+        if data and isinstance(data.get("shopping_items"), dict):
+            self._shopping_items = data["shopping_items"]
+        else:
+            self._shopping_items = {}
         # Additive migrations (no storage-version bump): fold a legacy
         # ``part_numbers`` string into structured ``parts`` and drop links to
         # assets that no longer exist.
@@ -183,6 +193,7 @@ class HomeKeeperStore:
                 "tasks": self._tasks,
                 "assets": self._assets,
                 "problem_notes": self._problem_notes,
+                "shopping_items": self._shopping_items,
             }
         )
 
@@ -201,11 +212,35 @@ class HomeKeeperStore:
         self._tasks = {}
         self._assets = {}
         self._problem_notes = {}
+        self._shopping_items = {}
 
     # ── reads ────────────────────────────────────────────────────────────────
     def get_tasks(self) -> dict[str, dict[str, Any]]:
         """Return the full task map (id -> task dict)."""
         return self._tasks
+
+    def get_shopping_items(self) -> dict[str, dict[str, Any]]:
+        """The shopping-list mirror's bookkeeping (see ``shopping_sync.py``)."""
+        return self._shopping_items
+
+    async def async_set_shopping_items(self, items: dict[str, dict[str, Any]]) -> bool:
+        """Replace the mirror bookkeeping; persists only on a real change.
+
+        Fires no event, and deliberately so: this records which line on somebody
+        else's to-do list stands for which reminder, not a Home Keeper state
+        change anyone can act on — the reminder's own created/completed/deleted
+        events already say everything observable. Same reasoning as
+        ``set_sensor_baseline(silent=True)``.
+
+        The unchanged check is not an optimization detail: a pass runs on every
+        edit to the watched list, and most of them settle to exactly what was
+        already stored.
+        """
+        if items == self._shopping_items:
+            return False
+        self._shopping_items = items
+        await self._save()
+        return True
 
     def get_task(self, task_id: str) -> dict[str, Any] | None:
         return self._tasks.get(task_id)
@@ -1419,7 +1454,13 @@ class HomeKeeperStore:
 
         Edge-triggered: ``assets.stock_transition`` returns the crossing this change
         caused (or ``none``), so users can automate a reorder / shopping-list add /
-        "back in stock" notification without Home Keeper owning a shopping integration.
+        "back in stock" notification however they like.
+
+        These stay the general-purpose hook even now that auto-buy reminders can be
+        mirrored onto a configured to-do list (``shopping_sync.py``): that mirror is
+        opt-in, covers only parts using ``create_buy_task``, and writes through Home
+        Assistant's own ``todo`` services. Home Keeper still owns no shopping
+        integration of its own.
         """
         event = _STOCK_EVENT.get(transition)
         if event is not None:

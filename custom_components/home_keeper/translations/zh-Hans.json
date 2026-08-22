@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "排除的设备",
           "problem_sensor_exclude_areas": "排除的区域",
           "problem_sensor_exclude_labels": "排除的标签",
-          "one_off_retention_days": "一次性任务保留天数"
+          "one_off_retention_days": "一次性任务保留天数",
+          "shopping_list_entity": "购物清单"
         },
         "data_description": {
-          "one_off_retention_days": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留已完成的一次性任务。"
+          "one_off_retention_days": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留已完成的一次性任务。",
+          "shopping_list_entity": "将自动购买提醒同步到此待办清单。在该清单上勾选条目会完成 Home Keeper 的提醒并补充备件库存。留空即可关闭同步。"
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "一次性任务保留天数",
           "description": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留。"
+        },
+        "shopping_list_entity": {
+          "name": "购物清单",
+          "description": "用于同步自动购买提醒的现有待办清单。在该清单上勾选条目会完成提醒并补充库存。留空即可关闭此功能。"
         },
         "dismissed_companions": {
           "name": "已忽略的搭档",

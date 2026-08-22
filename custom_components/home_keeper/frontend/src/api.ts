@@ -54,11 +54,23 @@ export async function getTags(hass: Hass): Promise<{ value: string; label: strin
 /** Read the integration options (for the Settings tab). */
 export async function getOptions(
   hass: Hass,
-): Promise<{ options: HomeKeeperOptions; notifyTargets: string[] }> {
-  const res = await hass.callWS<{ options: HomeKeeperOptions; notify_targets?: string[] }>({
+): Promise<{
+  options: HomeKeeperOptions;
+  notifyTargets: string[];
+  ownTodoEntities: string[];
+}> {
+  const res = await hass.callWS<{
+    options: HomeKeeperOptions;
+    notify_targets?: string[];
+    own_todo_entities?: string[];
+  }>({
     type: 'home_keeper/get_options',
   });
-  return { options: res.options, notifyTargets: res.notify_targets ?? [] };
+  return {
+    options: res.options,
+    notifyTargets: res.notify_targets ?? [],
+    ownTodoEntities: res.own_todo_entities ?? [],
+  };
 }
 
 /** Saved profiles (filters) — used by the dashboard card's profile picker. */

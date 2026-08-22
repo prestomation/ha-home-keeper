@@ -6,6 +6,27 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.16.0b5]
+
+### Added
+
+- **Buy reminders can go on your own shopping list.** Point **Settings → Shopping
+  list** at a to-do list you already use and every auto-created "Buy {part}" reminder
+  is put on it, so it reaches your voice assistant and whatever list widget you keep on
+  the fridge tablet. It works both ways: tick the line off at the shop and Home Keeper
+  completes the reminder for you, which restocks the part and clears it; complete the
+  reminder in Home Keeper and the line is ticked off to match; top the stock up some
+  other way and the line is removed, because nothing was bought. Lines you (or Home
+  Keeper) already ticked off are never touched, and only the lines Home Keeper added are
+  ever managed. Leave the setting empty to turn it off. (Fixes #220)
+
+### Fixed
+
+- **"Mark done" on a notification now clears an auto-buy reminder.** Completing a
+  "Buy {part}" reminder from a notification restocked the part but left the reminder
+  standing until something else happened to settle it, so it kept showing up as due.
+  Every other way of completing it already cleared it.
+
 ## [0.16.0b4]
 
 ### Added

@@ -31,6 +31,7 @@ import {
   profileFormData,
   profileFormToProfile,
   profileSchema,
+  shoppingSchema,
   selDevice,
   selIcon,
   selNumber,
@@ -877,6 +878,8 @@ export class HomeKeeperPanel extends HTMLElement {
   private _options: HomeKeeperOptions | null = null;
   // Available mobile_app_* notify services (for the Notifications profile editor).
   private _notifyTargets: string[] = [];
+  // Home Keeper's own todo entities, kept out of the shopping-list picker.
+  private _ownTodoEntities: string[] = [];
   // Companion integrations shown on the Settings tab (loaded with the rest).
   private _companions: Companion[] = [];
   // HA tag-registry entries as picker options, for the task form's tag field and
@@ -1182,6 +1185,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._loadedEntryIds = loadedEntryIds;
       this._options = options?.options ?? null;
       this._notifyTargets = options?.notifyTargets ?? [];
+      this._ownTodoEntities = options?.ownTodoEntities ?? [];
       this._companions = companions ?? [];
       this._introDismissed = introDismissed;
       this._tags = tags;
@@ -3632,9 +3636,11 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /** Render the Settings tab — `ha-form` mirrors of the options flow that autosave
-   *  each change (the backend reloads + re-runs the problem sync). Two cards: the
-   *  problem-sensor sync feature, and a **General** card for settings (like one-off
-   *  retention) that aren't tied to any single feature. */
+   *  each change (the backend reloads + re-runs the problem sync). Three cards: a
+   *  **General** card for settings (like one-off retention) that aren't tied to any
+   *  single feature, the **Shopping list** mirror, and problem-sensor sync. The two
+   *  feature cards each carry a paragraph, because both do something to the user's
+   *  data they should read about before switching it on. */
   private _renderSettingsForm(host: HTMLElement): void {
     const opts: HomeKeeperOptions = this._options ?? {
       sync_problem_sensors: false,
@@ -3643,6 +3649,7 @@ export class HomeKeeperPanel extends HTMLElement {
       problem_sensor_exclude_areas: [],
       problem_sensor_exclude_labels: [],
       one_off_retention_days: 0,
+      shopping_list_entity: '',
       profiles: [],
       notifications: [],
     };
@@ -3656,6 +3663,22 @@ export class HomeKeeperPanel extends HTMLElement {
         opts,
       ),
     );
+    // Shopping list — where auto-buy reminders are mirrored.
+    host.appendChild(
+      this._settingsCard(
+        'hk-settings-shopping',
+        'settings.shopping_heading',
+        'settings.shopping_help',
+        shoppingSchema(this._ownTodoEntities),
+        opts,
+        // Clearing an entity picker emits `undefined`, which JSON drops on the way
+        // to the backend — so the key never reaches the partial-update merge and
+        // "turn the mirror off" silently wouldn't stick. Send the empty string the
+        // backend reads as off. (The other settings are multi-selects, which emit
+        // `[]`, which is why nothing has needed this before.)
+        (value) => ({ ...value, shopping_list_entity: String(value.shopping_list_entity ?? '') }),
+      ),
+    );
     // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor).
     host.appendChild(
       this._settingsCard('hk-settings', 'settings.heading', 'settings.help', problemSyncSchema(), opts),
@@ -3663,13 +3686,15 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /** Build one autosaving Settings card: a titled `ha-card` wrapping an `ha-form`
-   *  for *schema*, seeded with the full *opts* and saving on change. */
+   *  for *schema*, seeded with the full *opts* and saving on change. *coerce*, when
+   *  given, cleans the emitted value before it is saved. */
   private _settingsCard(
     id: string,
     headingKey: string,
     helpKey: string,
     schema: FormField[],
     opts: HomeKeeperOptions,
+    coerce?: (value: Record<string, unknown>) => Record<string, unknown>,
   ): HTMLElement {
     const card = document.createElement('ha-card');
     card.className = 'hk-form-card';
@@ -3685,7 +3710,8 @@ export class HomeKeeperPanel extends HTMLElement {
     form.data = { ...opts };
     form.computeLabel = (s: { name: string }): string => (s.name ? t('settings.' + s.name) : '');
     form.addEventListener('value-changed', (e: Event) => {
-      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      const raw = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      const value = coerce ? coerce(raw) : raw;
       void this._saveOptions(value as Partial<HomeKeeperOptions>);
     });
     this._liveHassEls.push(form);
