@@ -311,3 +311,26 @@ def test_the_set_options_service_accepts_every_option() -> None:
     the panel's websocket command is only a UI shortcut, never the substitute.
     """
     assert _set_options_schema_keys() == _CONST_OPTION_KEYS
+
+
+def test_the_defaults_are_all_off() -> None:
+    """An entry that has never been configured behaves as if nothing is enabled.
+
+    Spelled out rather than compared against ``_empty_options``, which would be
+    tautological. Each of these is a user-visible promise: syncing is opt-in, ``0``
+    retention days keeps completed one-offs forever (any other number would start
+    deleting them for people who never touched the setting), and an empty shopping
+    target leaves the mirror off.
+    """
+    assert opts.current_options(_entry({})) == {
+        "sync_problem_sensors": False,
+        "one_off_retention_days": 0,
+        "shopping_list_entity": "",
+        "profiles": [],
+        "notifications": [],
+        "problem_sensor_exclude_entities": [],
+        "problem_sensor_exclude_devices": [],
+        "problem_sensor_exclude_areas": [],
+        "problem_sensor_exclude_labels": [],
+        "dismissed_companions": [],
+    }
