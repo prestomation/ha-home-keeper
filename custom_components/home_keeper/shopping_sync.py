@@ -270,6 +270,13 @@ class ShoppingListSync:
         snapshots: dict[str, list[dict[str, Any]]] = {}
         for entity_id in entity_ids:
             state = self._hass.states.get(entity_id)
+            # The two ways a list can be unreadable are not the same, and are
+            # deliberately logged differently. A target that does not exist is a
+            # misconfiguration the user has to fix, so it says so once, by name.
+            # A target that merely reads unavailable belongs to an integration
+            # that is temporarily down: Home Assistant already logs that, the
+            # next pass picks it up by itself, and warning here would fire on
+            # every restart where a cloud-backed list comes up after we do.
             if state is None:
                 if entity_id == target:
                     self._warn_once(
