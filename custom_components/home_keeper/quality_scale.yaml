@@ -25,7 +25,12 @@ rules:
   config-flow: done
   config-flow-test-coverage:
     status: done
-    comment: tests/integration covers setup and the options flow.
+    comment: >-
+      tests/integration/test_lifecycle.py covers setup;
+      tests/integration/test_options_flow.py drives the real options flow over HA's
+      flow API and asserts a save leaves the panel-only options intact;
+      tests/unit/test_config_flow.py pins the form's schema to options.FLOW_OPTIONS,
+      and tests/unit/test_options.py covers the merge and normalization rules.
   dependency-transparency:
     status: done
     comment: No external requirements; depends only on HA core http + frontend.

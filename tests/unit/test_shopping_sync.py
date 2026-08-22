@@ -128,13 +128,9 @@ def _load_module() -> types.ModuleType:
     if existing is not None:
         return existing
     _install_ha_stubs()
-
-    if "hk.options" not in sys.modules or not hasattr(
-        sys.modules["hk.options"], "current_options"
-    ):
-        options = types.ModuleType("hk.options")
-        options.current_options = lambda entry: entry.options
-        sys.modules["hk.options"] = options
+    # ``hk.options`` is the real module (conftest loads it — it imports Home
+    # Assistant only under ``TYPE_CHECKING``), so ``_resolve_target`` runs the real
+    # ``current_options`` here rather than a fake that hands back raw entry options.
 
     spec = importlib.util.spec_from_file_location(
         "hk.shopping_sync", str(_COMPONENT_DIR / "shopping_sync.py")

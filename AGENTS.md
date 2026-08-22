@@ -270,6 +270,13 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   baselined silently on startup). A new event isn't done until it's in `docs/EVENTS.md`
   and, if device-facing, in `device_trigger.py` with translation-parity labels. Events
   need no new service. See `.amazonq/rules/architecture-and-code.md` and `docs/EVENTS.md`.
+- **An options flow merges; it never replaces.** Home Assistant stores what an options
+  flow returns from `async_create_entry` as the *entire* `entry.options`, and the
+  Configure dialog renders only `options.FLOW_OPTIONS` — so return
+  `options.merge_flow_input(entry, user_input)`, never `user_input`, or every key the
+  form doesn't render (profiles, notifications, dismissed companions) is deleted on
+  each save. See `.amazonq/rules/architecture-and-code.md` → "Options have three
+  editing surfaces".
 - Tasks are plain dicts: `id, name, notes, recurrence_type, interval, unit|freq,
   anchor, device_id, area_id, enabled, last_completed, next_due, completions[]`.
 - All datetimes are timezone-aware (`homeassistant.util.dt`); `recurrence.py` takes
@@ -320,10 +327,12 @@ bash ci/test-mutation-frontend.sh --all
 - **The mutable surface is an allowlist**, in exactly one place per language:
   `only_mutate` in `[tool.mutmut]` (pyproject.toml) and `mutate` in
   `stryker.conf.json`. It holds the pure Python core (`recurrence`, `models`,
-  `assets`, `reconcile`, `notifications`, `sensor_tasks`, `problem_tasks`,
-  `inventory`, `profiles`, `documents`, `events`, `transitions`) and the focused
-  frontend modules (`utils`, `forms`, `card-filter`, `documents`, `markdown`,
-  `i18n`, `limits`). Excluded on purpose: everything importing Home Assistant
+  `assets`, `reconcile`, `shopping`, `notifications`, `sensor_tasks`,
+  `problem_tasks`, `inventory`, `profiles`, `documents`, `events`, `transitions`,
+  `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
+  `card-filter`, `documents`, `markdown`, `i18n`, `limits`). `options.py` counts as
+  pure because its Home Assistant imports are `TYPE_CHECKING`-only. Excluded on
+  purpose: everything else importing Home Assistant
   (only the Docker tiers cover it — far too slow to run once per mutant),
   `const.py` / `companions_catalog.py` (data, not logic), `backend_i18n.py` (pure
   but with no unit-test entry point), `testing.py` (already coverage-omitted), and

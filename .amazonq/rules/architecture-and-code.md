@@ -83,6 +83,12 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   callers instead of importing them here.
 - Keep the recurrence engine deterministic: functions take an explicit `now`
   rather than calling a clock internally.
+- `options.py` sits on the boundary: it takes a `ConfigEntry` and a `HomeAssistant`,
+  but only ever reads attributes off them, so those two imports live under
+  `if TYPE_CHECKING:` and the module is runtime-pure. That is what lets the fast unit
+  tier assert on the option merge rules every write path shares. Keep it that way —
+  reach for `hass.<something>` at import time and `tests/unit/test_options.py` stops
+  running without the HA harness.
 
 ## Datetimes & timezones
 - All datetimes are timezone-aware. Use `homeassistant.util.dt` (`dt_util`) at the
@@ -603,9 +609,30 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   **coordinator's periodic refresh** uses to auto-delete completed one-offs
   (`recurrence.one_off_expired` collects expired ids; `_purge_expired_one_offs` deletes
   via `store.delete_task`), and `shopping_list_entity` (a `todo.*` entity id; `""` =
-  off) driving the shopping-list mirror. Put a new option's default/coercion in
-  `options.py` and add it to all three surfaces (flow schema, `SET_OPTIONS_SCHEMA`,
-  Settings `settingsSchema`) with `strings.json`/`services.yaml` parity.
+  off) driving the shopping-list mirror. Put a new option's default in
+  `options.py`'s `_empty_options` **and** its coercion in `_normalize` — both, or the
+  key is invisible to every reader and dropped by every writer — then add it to all
+  three surfaces (flow schema *and* `FLOW_OPTIONS`, `SET_OPTIONS_SCHEMA`, Settings
+  `settingsSchema`) with `strings.json`/`services.yaml` parity. `tests/unit/test_options.py`
+  fails the build if a `const.OPTION_*` misses either half.
+  - **The options *flow* merges; it never replaces.** Home Assistant stores whatever
+    an options flow returns from `async_create_entry` as `entry.options` **verbatim**
+    — the whole object, not a patch. The Configure dialog renders only
+    `options.FLOW_OPTIONS`; `profiles`, `notifications` and `dismissed_companions` are
+    panel-only, so returning `user_input` deleted every one of them on each save, and
+    notifications then stopped firing with nothing on screen to say why (`notifier`
+    reads a missing key back as `[]`). `async_step_init` returns
+    `options.merge_flow_input(entry, user_input)`, which starts from `current_options`,
+    resets any `FLOW_OPTIONS` key the submission *omits* — that absence is how clearing
+    the `shopping_list_entity` picker turns the mirror off, and it's the one field with
+    no voluptuous `default` for exactly that reason — routes everything through
+    `_normalize`, and touches nothing else. Guarded at three levels:
+    `tests/unit/test_options.py` (every `const.OPTION_*` reaches `_empty_options` and
+    `_normalize`; `strings.json`'s labels match `FLOW_OPTIONS`),
+    `tests/unit/test_config_flow.py` (the form's schema keys equal `FLOW_OPTIONS`, and
+    the shopping picker still has no `default`), and
+    `tests/integration/test_options_flow.py` (a real save over HA's flow API leaves the
+    panel-only keys byte-identical — the framework contract no mock can see).
   - **A single-value picker needs a clear-coercion on the panel side.** `ha-form`'s
     entity selector emits `undefined` when cleared, and JSON drops it — so the key
     never reaches `_normalize`'s `if key in updates` merge and "turn it off" silently

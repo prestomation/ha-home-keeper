@@ -6,6 +6,18 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [Unreleased]
+
+### Fixed
+
+- **Opening Configure no longer wipes your notifications and profiles.** Saving the
+  integration's options dialog (Settings → Devices & services → Home Keeper →
+  Configure) replaced the whole settings object with just the seven fields on that
+  form. Every notification, every profile, and every companion suggestion you had
+  dismissed was deleted. Notifications then stopped arriving, with nothing on screen
+  to say why. The dialog now changes only its own fields and leaves what you set in
+  the panel alone.
+
 ## [0.16.0b6]
 
 ### Fixed

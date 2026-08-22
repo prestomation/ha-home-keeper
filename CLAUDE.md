@@ -26,6 +26,8 @@ Three gates worth repeating because they are easy to miss:
   executes that code without asserting anything that would catch it being wrong —
   kill it with a real assertion, or annotate a genuinely equivalent mutant with a
   reason. Never lower the threshold to get green. The mutable surface is an
-  allowlist: `only_mutate` in `[tool.mutmut]` and `mutate` in `stryker.conf.json`.
+  allowlist: `only_mutate` in `[tool.mutmut]` and `mutate` in `stryker.conf.json`
+  (the pure Python core — including `options.py`, whose HA imports are
+  `TYPE_CHECKING`-only — plus the focused frontend modules).
 
 See AGENTS.md "Workflow" for the first two and "Mutation testing" for the third.
