@@ -8,6 +8,28 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ## [0.16.0b4]
 
+### Fixed
+
+- **Dashboard cards no longer show "Configuration error" on a fresh page load.** On a
+  cold load the Home Keeper card could lose a race with Home Assistant's own frontend
+  bundle and register itself a moment too early, so Lovelace never found it and drew an
+  error card in its place; a refresh hid it, which is why it looked intermittent. The
+  card now loads as a Lovelace resource — the way HACS-installed cards do — so it
+  registers once the frontend is ready and renders first time.
+
+### Changed
+
+- **Breaking, YAML-mode dashboards only: the card now loads as a Lovelace resource
+  instead of an auto-injected script.** Storage-mode dashboards — the default — pick it
+  up automatically and need no action. If your Lovelace runs in global YAML mode, or you
+  use a per-dashboard YAML dashboard, add the card module yourself; the integration logs
+  the exact URL on startup:
+
+  ```yaml
+  resources:
+    - url: /home_keeper_panel/home-keeper-card.js
+      type: module
+  ```
 ### Added
 
 - **Shopping filter in the panel and dashboard card.** A new "Shopping" option in the

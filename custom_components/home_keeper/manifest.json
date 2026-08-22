@@ -2,6 +2,7 @@
   "domain": "home_keeper",
   "name": "Home Keeper",
   "after_dependencies": [
+    "lovelace",
     "tag"
   ],
   "codeowners": [

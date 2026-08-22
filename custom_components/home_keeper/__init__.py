@@ -1481,6 +1481,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # restart. ``async_loaded_entries`` excludes the entry currently unloading.
     if unloaded and not hass.config_entries.async_loaded_entries(DOMAIN):
         panel.async_unregister_panel(hass)
+        await card.async_unregister_card(hass)
         for service in _SERVICES:
             hass.services.async_remove(DOMAIN, service)
     return unloaded

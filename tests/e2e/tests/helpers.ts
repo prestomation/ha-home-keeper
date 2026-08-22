@@ -113,26 +113,17 @@ export async function openDashboard(page: Page): Promise<void> {
  * Open the e2e dashboard and wait for the (first) custom Home Keeper card to
  * upgrade and render its first row. Returns the card locator. The card lives in
  * the dashboard's nested shadow DOM, which Playwright locators pierce.
+ *
+ * The card is loaded as a Lovelace module resource (declared in the dashboard
+ * YAML), imported after HA boots, so a plain define registers it reliably — no
+ * reload-retry loop is needed.
  */
 export async function openCardDashboard(page: Page) {
-  // The card JS is an auto-registered extra module. card-index.ts fires
-  // ll-custom-cards-update so the picker refreshes when the module loads late,
-  // but on a cold frontend the element may not yet be upgraded when we first
-  // arrive. Retry a couple of times so the first test isn't flaky.
-  let lastErr: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt === 0) await openDashboard(page);
-    else await page.reload({ waitUntil: 'domcontentloaded' });
-    const card = page.locator('home-keeper-card').first();
-    try {
-      await card.waitFor({ state: 'attached', timeout: 20_000 });
-      await expect(card.locator('.hk-row, .hk-empty').first()).toBeVisible({ timeout: 20_000 });
-      return card;
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr;
+  await openDashboard(page);
+  const card = page.locator('home-keeper-card').first();
+  await card.waitFor({ state: 'attached', timeout: 20_000 });
+  await expect(card.locator('.hk-row, .hk-empty').first()).toBeVisible({ timeout: 20_000 });
+  return card;
 }
 
 /** The native to-do card. Assumes the dashboard is already open. */
