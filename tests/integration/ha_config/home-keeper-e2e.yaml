@@ -24,8 +24,18 @@ views:
         labels:
           - dog
         show_labels: true
+      # Both to-do cards carry an explicit title: there are two of them now, and
+      # the card renders no heading of its own, so the title is what tells a test
+      # (and a reader of the screenshots) which list is which.
       - type: todo-list
+        title: Home Keeper tasks
         entity: todo.home_keeper_tasks
+      # The household's own shopping list, which the buy-reminder mirror writes
+      # onto when it is pointed at it. Here so a browser test can see what the
+      # shopper sees, rather than only what the service API reports.
+      - type: todo-list
+        title: Shopping list
+        entity: todo.shopping_list
       - type: calendar
         entities:
           - calendar.home_keeper_upcoming_tasks

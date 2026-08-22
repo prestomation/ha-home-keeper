@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Excluded devices",
           "problem_sensor_exclude_areas": "Excluded areas",
           "problem_sensor_exclude_labels": "Excluded labels",
-          "one_off_retention_days": "One-off retention (days)"
+          "one_off_retention_days": "One-off retention (days)",
+          "shopping_list_entity": "Shopping list"
         },
         "data_description": {
-          "one_off_retention_days": "Auto-delete a completed one-off task this many days after it is completed. 0 keeps completed one-offs forever."
+          "one_off_retention_days": "Auto-delete a completed one-off task this many days after it is completed. 0 keeps completed one-offs forever.",
+          "shopping_list_entity": "Mirror auto-buy reminders onto this to-do list. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the mirror off."
         }
       }
     }
@@ -678,6 +680,10 @@
         "one_off_retention_days": {
           "name": "One-off retention (days)",
           "description": "Auto-delete a completed one-off task this many days after completion. 0 keeps them forever."
+        },
+        "shopping_list_entity": {
+          "name": "Shopping list",
+          "description": "An existing to-do list to mirror auto-buy reminders onto. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the mirror off."
         },
         "dismissed_companions": {
           "name": "Dismissed companions",

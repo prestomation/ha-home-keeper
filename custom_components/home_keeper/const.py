@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.16.0b5"
+PANEL_VERSION = "0.16.0b6"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -173,6 +173,19 @@ OPTION_PROFILES = "profiles"
 # consumed by the notify service, the action listener, and the coordinator's automatic
 # source. See notifications.py and docs/PROFILES_REFACTOR_PLAN.md.
 OPTION_NOTIFICATIONS = "notifications"
+# An existing Home Assistant to-do list (a ``todo.*`` entity id) that auto-buy
+# reminders are mirrored onto — a shopping list, so "go buy more" reaches voice
+# assistants and list widgets. ``""`` (the default) turns the mirror off. The
+# mirror is two-way: ticking the item off there completes the Home Keeper
+# reminder, which restocks the part. See shopping.py / shopping_sync.py.
+OPTION_SHOPPING_LIST_ENTITY = "shopping_list_entity"
+
+# Opaque ``origin`` marker the shopping-list mirror passes to ``complete_task``
+# when a mirrored buy reminder is ticked off on the external list. Like
+# ``ORIGIN_SENSOR_RECOVER`` this authorizes nothing — a buy reminder is
+# completable by hand — it exists so an automation can tell "somebody ticked it
+# off at the shop" apart from "somebody pressed Done".
+ORIGIN_SHOPPING_LIST = f"{DOMAIN}_shopping_list"
 
 # Opaque ``origin`` marker the actionable-notification action listener passes to
 # ``complete_task`` / ``snooze_task`` / ``skip_task`` so an automation can recognise

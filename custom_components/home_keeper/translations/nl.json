@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Uitgesloten apparaten",
           "problem_sensor_exclude_areas": "Uitgesloten gebieden",
           "problem_sensor_exclude_labels": "Uitgesloten labels",
-          "one_off_retention_days": "Bewaartermijn eenmalige taken (dagen)"
+          "one_off_retention_days": "Bewaartermijn eenmalige taken (dagen)",
+          "shopping_list_entity": "Boodschappenlijst"
         },
         "data_description": {
-          "one_off_retention_days": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden voltooide one-offs voor altijd bewaard."
+          "one_off_retention_days": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden voltooide one-offs voor altijd bewaard.",
+          "shopping_list_entity": "Spiegelt automatische koopherinneringen naar deze takenlijst. Een item daar afvinken voltooit de herinnering in Home Keeper en vult de voorraad van het onderdeel aan. Laat leeg om het spiegelen uit te schakelen."
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "Bewaartermijn eenmalige taken (dagen)",
           "description": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden ze voor altijd bewaard."
+        },
+        "shopping_list_entity": {
+          "name": "Boodschappenlijst",
+          "description": "Een bestaande takenlijst om automatische koopherinneringen naartoe te spiegelen. Een item daar afvinken voltooit de herinnering en vult de voorraad aan. Een leeg veld schakelt dit uit."
         },
         "dismissed_companions": {
           "name": "Genegeerde companions",

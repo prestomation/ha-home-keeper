@@ -5,6 +5,7 @@ import {
   notifyFormData,
   notifyFormToNotification,
   notificationSchema,
+  shoppingSchema,
   taskFormData,
   taskSchema,
 } from '../src/forms.ts';
@@ -431,5 +432,30 @@ describe('notificationSchema', () => {
   it('keeps snooze hours at a minimum of one', () => {
     const field = notificationSchema([], []).find((f) => f.name === 'snooze_hours');
     expect(field.selector.number.min).toBe(1);
+  });
+});
+
+// The Settings tab's Shopping list card. The picker's shape is the whole
+// control: the wrong domain offers lists Home Keeper can't write to, and a
+// missing exclusion offers Home Keeper's own list — which would be a list
+// mirrored onto itself.
+describe('shoppingSchema', () => {
+  it('offers a single to-do entity picker', () => {
+    expect(shoppingSchema()).toEqual([
+      {
+        name: 'shopping_list_entity',
+        selector: { entity: { filter: { domain: 'todo' }, multiple: false } },
+      },
+    ]);
+  });
+
+  it("keeps Home Keeper's own to-do lists out of the picker", () => {
+    const [field] = shoppingSchema(['todo.home_keeper_tasks']);
+    expect(field.selector.entity.exclude_entities).toEqual(['todo.home_keeper_tasks']);
+  });
+
+  it('emits no exclusion key when there is nothing to exclude', () => {
+    const [field] = shoppingSchema([]);
+    expect('exclude_entities' in field.selector.entity).toBe(false);
   });
 });

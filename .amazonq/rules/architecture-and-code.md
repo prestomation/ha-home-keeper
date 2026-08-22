@@ -525,6 +525,45 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   device entities was created/removed — schedules a **deferred** entry reload (guarded
   like `problem_sync._reload_scheduled`), else a plain refresh. Asset-CRUD and setup
   call `store.reconcile_buy_tasks` directly (they already reload / run pre-forward).
+- **Shopping-list mirror.** A buy reminder can also be put on an *existing* HA to-do
+  list — the `shopping_list_entity` option, one list for the whole integration, `""`
+  off. Same split as the problem-sensor sync: pure `shopping.py` (the diff engine +
+  `normalize_target`, in `only_mutate`) and HA-aware `shopping_sync.py` (reads the list
+  over `todo.get_items`, applies with `todo.add_item`/`update_item`/`remove_item`).
+  Rules that hold it together:
+  - **Two-way.** A line ticked off on the external list completes the reminder with
+    `origin=ORIGIN_SHOPPING_LIST` (authorizes nothing, like `ORIGIN_SENSOR_RECOVER`),
+    which restocks the part and retires the reminder. A **completed item is never
+    touched** — an unbought reminder's line is *removed*, a bought one is *ticked off*.
+  - **Bookkeeping is persisted, keyed by part**, in the storage doc's `shopping_items`
+    (additive, no version bump, alongside `problem_notes`), because the moment the
+    mirror most needs to know which line is ours is *after* the reminder is deleted.
+    Written by `store.async_set_shopping_items`, which fires **no** event and skips an
+    unchanged write — internal state, same reasoning as `set_sensor_baseline(silent=True)`.
+  - **A failed call is retried, never compensated.** `plan_sync` returns the bookkeeping
+    as it reads *once every op succeeded*, and every op carries its `key` so the driver
+    can put an entry back when a call raises. Dropping an entry for a remove that never
+    happened orphans that line forever.
+  - **An unreadable list is not an empty one.** A list absent from `items_by_entity`
+    (unavailable, service raised) has nothing planned for it and keeps its tracking; only
+    a list that answered is acted on.
+  - **`needs_pass` gates the read.** The settle chokepoint fires on every completion and
+    stock nudge; most concern no mirrored part, so a pure "has anything drifted" check
+    from the two maps decides whether any `todo` service is called at all. The surfaces
+    watching the *shopper's* side (the target's state listener, the coordinator's
+    periodic `async_schedule_sweep`) force a full pass, since that side is invisible
+    from Home Keeper's state.
+  - `coordinator.async_settle_buy_tasks` runs the mirror on **both sides** of the
+    reconcile and **before** the deferred reload is scheduled: before, so a
+    just-completed reminder still exists to tick its line off; after, for whatever the
+    reconcile created or retired.
+  - Never mirror onto our own to-do list (`own_todo_entity_ids`, the registry-resolved
+    generalization of `problem_sync`'s `platform == DOMAIN` guard); it is a loop, and
+    ours declares only `UPDATE_TODO_ITEM`. The picker excludes it in both the options
+    flow and the panel (`ws_get_options` returns `own_todo_entities`).
+  - Every `todo.*` call is best-effort (the `notifier.py` precedent) and `async_sync`
+    swallows what reaches it: a pass runs off the back of a completion or a stock
+    adjustment and must never be the thing that fails.
 - **Problem-sensor sync.** When the `sync_problem_sensors` option is on, every
   `binary_sensor` with `device_class: problem` is mirrored as a **triggered** task by
   the pure `problem_tasks.reconcile_problem_tasks` (wrapped by
@@ -563,9 +602,16 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   exclusions, and `one_off_retention_days` (int; `0` = keep forever) which the
   **coordinator's periodic refresh** uses to auto-delete completed one-offs
   (`recurrence.one_off_expired` collects expired ids; `_purge_expired_one_offs` deletes
-  via `store.delete_task`). Put a new option's default/coercion in `options.py` and add
-  it to all three surfaces (flow schema, `SET_OPTIONS_SCHEMA`, Settings `settingsSchema`)
-  with `strings.json`/`services.yaml` parity.
+  via `store.delete_task`), and `shopping_list_entity` (a `todo.*` entity id; `""` =
+  off) driving the shopping-list mirror. Put a new option's default/coercion in
+  `options.py` and add it to all three surfaces (flow schema, `SET_OPTIONS_SCHEMA`,
+  Settings `settingsSchema`) with `strings.json`/`services.yaml` parity.
+  - **A single-value picker needs a clear-coercion on the panel side.** `ha-form`'s
+    entity selector emits `undefined` when cleared, and JSON drops it — so the key
+    never reaches `_normalize`'s `if key in updates` merge and "turn it off" silently
+    doesn't stick. `_settingsCard` takes an optional `coerce` for exactly this. The
+    existing multi-select options emit `[]` and never hit it, which is why the trap
+    went unnoticed until the first scalar picker.
   - **The service / ws write path `await`s the reload so the change takes effect
     immediately.** `async_set_options` updates the entry and then awaits
     `async_reload` itself (flagging the entry via `caller_is_reloading` so the update

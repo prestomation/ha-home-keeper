@@ -49,6 +49,7 @@ function makeHass(userDataStore = {}) {
     problem_sensor_exclude_entities: [],
     problem_sensor_exclude_areas: [],
     problem_sensor_exclude_labels: [],
+    shopping_list_entity: 'todo.shopping_list',
   };
   const hass = {
     language: 'en',
@@ -66,8 +67,12 @@ function makeHass(userDataStore = {}) {
         case 'config/label_registry/list':
           return Promise.resolve([]);
         case 'home_keeper/get_options':
-          return Promise.resolve({ options });
+          return Promise.resolve({
+            options,
+            own_todo_entities: ['todo.home_keeper_tasks'],
+          });
         case 'home_keeper/set_options':
+          calls.lastSetOptions = msg.options;
           Object.assign(options, msg.options);
           return Promise.resolve({ options });
         case 'frontend/get_user_data':
@@ -877,5 +882,65 @@ describe('Task detail — NFC tag chip and scan lock (issue #211)', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(toasts).toEqual(["Scan this task's tag to complete it."]);
     expect(calls['home_keeper/complete_task']).toBeUndefined();
+  });
+});
+
+describe('Settings tab — the Shopping list card', () => {
+  it("keeps Home Keeper's own to-do list out of the picker", async () => {
+    const { hass } = makeHass();
+    const panel = document.createElement('home-keeper-panel');
+    panel.route = { prefix: '/home-keeper', path: '/settings' };
+    document.body.appendChild(panel);
+    panel.hass = hass;
+
+    const form = await waitFor(() =>
+      panel.shadowRoot?.querySelector('#hk-settings-shopping ha-form'),
+    );
+    expect(form, 'shopping list card should render').toBeTruthy();
+    expect(form.schema[0].selector.entity.exclude_entities).toEqual([
+      'todo.home_keeper_tasks',
+    ]);
+  });
+
+  it('turns the mirror off when the picker is cleared', async () => {
+    // Clearing an entity picker emits `undefined`, which JSON drops on the way to
+    // the backend — the key would never reach the partial-update merge and the
+    // old list would quietly stay configured. Nothing about that is visible in
+    // the UI, which is exactly why it is pinned here.
+    const { hass, calls } = makeHass();
+    const panel = document.createElement('home-keeper-panel');
+    panel.route = { prefix: '/home-keeper', path: '/settings' };
+    document.body.appendChild(panel);
+    panel.hass = hass;
+
+    const form = await waitFor(() =>
+      panel.shadowRoot?.querySelector('#hk-settings-shopping ha-form'),
+    );
+    form.dispatchEvent(
+      new CustomEvent('value-changed', { detail: { value: { shopping_list_entity: undefined } } }),
+    );
+
+    await waitFor(() => (calls['home_keeper/set_options'] || 0) > 0);
+    expect(calls.lastSetOptions.shopping_list_entity).toBe('');
+  });
+
+  it('saves the list the user picked', async () => {
+    const { hass, calls } = makeHass();
+    const panel = document.createElement('home-keeper-panel');
+    panel.route = { prefix: '/home-keeper', path: '/settings' };
+    document.body.appendChild(panel);
+    panel.hass = hass;
+
+    const form = await waitFor(() =>
+      panel.shadowRoot?.querySelector('#hk-settings-shopping ha-form'),
+    );
+    form.dispatchEvent(
+      new CustomEvent('value-changed', {
+        detail: { value: { shopping_list_entity: 'todo.groceries' } },
+      }),
+    );
+
+    await waitFor(() => (calls['home_keeper/set_options'] || 0) > 0);
+    expect(calls.lastSetOptions.shopping_list_entity).toBe('todo.groceries');
   });
 });

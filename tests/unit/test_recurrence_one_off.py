@@ -141,3 +141,40 @@ def test_one_off_expired_ignores_uncompleted_and_other_kinds():
         "completions": [],
     }
     assert r.one_off_expired(triggered, 30, now=now) is False
+
+
+def test_one_off_completed_reads_the_dormant_and_completed_shape():
+    completed = _one_off(
+        due=dt(2026, 7, 1, 8).isoformat(),
+        next_due=None,
+        last_completed=dt(2026, 7, 1, 9).isoformat(),
+    )
+    assert r.one_off_completed(completed) is True
+    # Armed but never done, and done-then-re-armed, are both live tasks: the
+    # to-do list still offers them and the shopping-list mirror still wants
+    # their item on the list.
+    assert r.one_off_completed(_one_off(next_due=dt(2026, 7, 1).isoformat())) is False
+    rearmed = {**completed, "next_due": dt(2026, 9, 1).isoformat()}
+    assert r.one_off_completed(rearmed) is False
+    # Other recurrence kinds never match, however dormant they look.
+    assert (
+        r.one_off_completed(
+            {
+                "recurrence_type": "triggered",
+                "next_due": None,
+                "last_completed": dt(2026, 1, 1).isoformat(),
+            }
+        )
+        is False
+    )
+
+
+def test_one_off_expired_honours_a_single_day_retention():
+    completed_at = dt(2026, 7, 1, 9)
+    task = _one_off(
+        due=dt(2026, 7, 1, 8).isoformat(),
+        next_due=None,
+        last_completed=completed_at.isoformat(),
+    )
+    assert r.one_off_expired(task, 1, now=completed_at + timedelta(hours=23)) is False
+    assert r.one_off_expired(task, 1, now=completed_at + timedelta(days=1)) is True

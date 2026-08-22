@@ -55,6 +55,7 @@ from .const import (
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_PROFILES,
+    OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
     SENSOR_MODE_USAGE,
@@ -68,6 +69,7 @@ from .coordinator import (
 from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
 from .sensor_watcher import SensorTaskWatcher, read_sensor_value
+from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -442,6 +444,10 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS): vol.All(
             cv.ensure_list, [cv.string]
         ),
+        # The to-do list auto-buy reminders are mirrored onto; "" turns it off.
+        # Anything that isn't a ``todo.*`` entity id normalizes to "" (see
+        # shopping.normalize_target), so a typo disables rather than half-works.
+        vol.Optional(OPTION_SHOPPING_LIST_ENTITY): cv.string,
         # Catalog glue domains the user dismissed from the Companions "Suggested"
         # list. A list of domain strings.
         vol.Optional(OPTION_DISMISSED_COMPANIONS): vol.All(cv.ensure_list, [cv.string]),
@@ -549,6 +555,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await sensor_watcher.async_baseline()
     coordinator.sensor_watcher = sensor_watcher
     sensor_watcher.async_start_listeners()
+    # The shopping-list mirror. Its listeners can start now, but the first pass
+    # waits for HA to finish starting: the list it mirrors onto belongs to another
+    # integration, which may not have set up yet, and a target that reads as
+    # missing would leave the mirror with nothing to do.
+    shopping_sync = ShoppingListSync(hass, entry, coordinator)
+    coordinator.shopping_sync = shopping_sync
+    shopping_sync.async_start_listeners()
+
+    async def _mirror_when_started(_hass: HomeAssistant) -> None:
+        await shopping_sync.async_initial_sync()
+
+    entry.async_on_unload(async_at_started(hass, _mirror_when_started))
     # Listen for actionable-notification taps (mobile_app_notification_action) so a
     # Mark done / Snooze / Skip button routes back into the store and advances a walk.
     entry.async_on_unload(notifier.async_setup_notifications(hass, entry, coordinator))

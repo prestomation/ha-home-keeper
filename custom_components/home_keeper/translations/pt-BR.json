@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Dispositivos excluídos",
           "problem_sensor_exclude_areas": "Áreas excluídas",
           "problem_sensor_exclude_labels": "Etiquetas excluídas",
-          "one_off_retention_days": "Retenção de tarefas avulsas (dias)"
+          "one_off_retention_days": "Retenção de tarefas avulsas (dias)",
+          "shopping_list_entity": "Lista de compras"
         },
         "data_description": {
-          "one_off_retention_days": "Excluir automaticamente uma tarefa avulsa concluída este número de dias após sua conclusão. 0 mantém as tarefas avulsas concluídas para sempre."
+          "one_off_retention_days": "Excluir automaticamente uma tarefa avulsa concluída este número de dias após sua conclusão. 0 mantém as tarefas avulsas concluídas para sempre.",
+          "shopping_list_entity": "Espelha os lembretes de compra automática nesta lista de tarefas. Marcar um item ali conclui o lembrete do Home Keeper e repõe o estoque da peça. Deixe vazio para desativar o espelhamento."
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "Retenção de tarefas avulsas (dias)",
           "description": "Excluir automaticamente uma tarefa avulsa concluída este número de dias após a conclusão. 0 as mantém para sempre."
+        },
+        "shopping_list_entity": {
+          "name": "Lista de compras",
+          "description": "Uma lista de tarefas existente para espelhar os lembretes de compra automática. Marcar um item ali conclui o lembrete e repõe o estoque. Um campo vazio desativa o recurso."
         },
         "dismissed_companions": {
           "name": "Companions dispensados",

@@ -26,6 +26,11 @@ docs/videos/
 # test and the stub companion integrations (see tests/integration/docker-compose.yml).
 tests/integration/ha_config/custom_components/
 
+# Written by HA's own shopping_list integration the first time an item lands on
+# todo.shopping_list — which the shopping-list mirror suite does on every run.
+# Runtime state, not a fixture.
+tests/integration/ha_config/.shopping_list.json
+
 # Vale style packages fetched by `vale sync` per .vale.ini. This is a synced
 # dependency, not source: errata-ai/vale-action fetches its own copy in CI.
 styles/

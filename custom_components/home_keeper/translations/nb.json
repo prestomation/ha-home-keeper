@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Ekskluderte enheter",
           "problem_sensor_exclude_areas": "Ekskluderte områder",
           "problem_sensor_exclude_labels": "Ekskluderte etiketter",
-          "one_off_retention_days": "Oppbevaring av engangsoppgaver (dager)"
+          "one_off_retention_days": "Oppbevaring av engangsoppgaver (dager)",
+          "shopping_list_entity": "Handleliste"
         },
         "data_description": {
-          "one_off_retention_days": "Slett automatisk en fullført engangsoppgave så mange dager etter at den er fullført. 0 beholder fullførte engangsoppgaver for alltid."
+          "one_off_retention_days": "Slett automatisk en fullført engangsoppgave så mange dager etter at den er fullført. 0 beholder fullførte engangsoppgaver for alltid.",
+          "shopping_list_entity": "Speiler automatiske kjøpspåminnelser til denne oppgavelisten. Å krysse av et element der fullfører påminnelsen i Home Keeper og fyller på reservedelen. La feltet stå tomt for å slå av speilingen."
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "Oppbevaring av engangsoppgaver (dager)",
           "description": "Slett automatisk en fullført engangsoppgave så mange dager etter fullføring. 0 beholder dem for alltid."
+        },
+        "shopping_list_entity": {
+          "name": "Handleliste",
+          "description": "En eksisterende oppgaveliste å speile automatiske kjøpspåminnelser til. Å krysse av et element der fullfører påminnelsen og fyller på lageret. Et tomt felt slår funksjonen av."
         },
         "dismissed_companions": {
           "name": "Avviste følgesvenner",

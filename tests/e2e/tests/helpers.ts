@@ -135,9 +135,26 @@ export async function openCardDashboard(page: Page) {
   throw lastErr;
 }
 
-/** The native to-do card. Assumes the dashboard is already open. */
+/**
+ * The native to-do card backed by Home Keeper. Assumes the dashboard is open.
+ *
+ * Scoped by title, not position: the dashboard carries a second to-do card for
+ * the household shopping list (the buy-reminder mirror's target), and masonry
+ * reflows the column order, so `.first()` would silently pick whichever landed
+ * on top.
+ */
 export const todoCard = (page: Page) =>
-  page.locator('hui-todo-list-card, todo-list-card').first();
+  page
+    .locator('hui-todo-list-card, todo-list-card')
+    .filter({ hasText: 'Home Keeper tasks' })
+    .first();
+
+/** The household shopping list card — what the buy-reminder mirror writes onto. */
+export const shoppingListCard = (page: Page) =>
+  page
+    .locator('hui-todo-list-card, todo-list-card')
+    .filter({ hasText: 'Shopping list' })
+    .first();
 
 /** The native calendar card. Assumes the dashboard is already open. */
 export const calendarCard = (page: Page) => page.locator('ha-calendar, hui-calendar-card').first();
