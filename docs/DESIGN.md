@@ -204,8 +204,11 @@ device-info block and `configuration_url` belong to whoever owns the device:
   in the panel, reached in one click.
 - **Per-part spare-stock entities.** For each stock-tracked part (`assets.part_tracks_stock`)
   the `number` platform (`number.py`) adds a "<part> spares" control: its value is the
-  on-hand count and editing it delegates to `store.adjust_part_stock` (the same service
-  path, so the edge-triggered stock events still fire). For each part that also carries a
+  on-hand quantity and editing it delegates to `store.adjust_part_stock` (the same
+  service path, so the edge-triggered stock events still fire). The control takes the
+  part's own `stock_unit` as its unit of measurement, and steps in whole spares until
+  the part shows it deals in fractions (a unit, or a decimal stock / threshold /
+  per-use amount), at which point it steps finely. For each part that also carries a
   reorder threshold (`assets.part_has_reorder`) the `binary_sensor` platform adds a
   "<part> low stock" `PROBLEM` sensor (`is_on = assets.part_is_low`), making the
   *state* visible on the page, complementing the existing `part_*` device triggers that

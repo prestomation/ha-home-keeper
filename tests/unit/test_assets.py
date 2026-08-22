@@ -1011,10 +1011,21 @@ def test_stock_rounds_to_three_places():
     assert asset["parts"][0]["stock"] == 1.235
 
 
-def test_stock_unit_defaults_empty_and_is_length_capped():
-    asset = a.build_asset({"name": "X", "parts": [{"name": "F"}]}, now=NOW)
+@pytest.mark.parametrize("unit", [None, ""])
+def test_stock_unit_defaults_empty(unit):
+    part = {"name": "F"} if unit is None else {"name": "F", "stock_unit": unit}
+    asset = a.build_asset({"name": "X", "parts": [part]}, now=NOW)
     assert asset["parts"][0]["stock_unit"] == ""
     assert asset["parts"][0]["consume_quantity"] is None
+
+
+def test_stock_unit_is_length_capped_at_sixteen():
+    # A unit is a short label rendered beside a number, not prose. Exactly the cap
+    # is still a unit; one character more is not.
+    asset = a.build_asset(
+        {"name": "X", "parts": [{"name": "F", "stock_unit": "m" * 16}]}, now=NOW
+    )
+    assert asset["parts"][0]["stock_unit"] == "m" * 16
     with raises_exactly(
         a.AssetValidationError, "stock_unit must be at most 16 characters"
     ):
@@ -1023,13 +1034,35 @@ def test_stock_unit_defaults_empty_and_is_length_capped():
         )
 
 
-@pytest.mark.parametrize("value", [0, "0", -1, -0.5])
-def test_non_positive_consume_quantity_rejected(value):
+@pytest.mark.parametrize("value", [0, "0", 0.0])
+def test_zero_consume_quantity_rejected(value):
     # A completion that consumes nothing is a task that shouldn't be linked at all;
     # accepting it would make the UI promise a draw-down that never happens.
-    with pytest.raises(a.AssetValidationError):
+    with raises_exactly(
+        a.AssetValidationError, "consume_quantity must be greater than zero"
+    ):
         a.build_asset(
             {"name": "X", "parts": [{"name": "F", "consume_quantity": value}]}, now=NOW
+        )
+
+
+@pytest.mark.parametrize("value", [-1, -0.5])
+def test_negative_consume_quantity_rejected(value):
+    with raises_exactly(
+        a.AssetValidationError, "consume_quantity must not be negative"
+    ):
+        a.build_asset(
+            {"name": "X", "parts": [{"name": "F", "consume_quantity": value}]}, now=NOW
+        )
+
+
+def test_unparseable_consume_quantity_names_its_own_field():
+    # The shared quantity validator is told which field it is checking, so the error
+    # says consume_quantity rather than blaming stock.
+    with raises_exactly(a.AssetValidationError, "consume_quantity must be a number"):
+        a.build_asset(
+            {"name": "X", "parts": [{"name": "F", "consume_quantity": "a third"}]},
+            now=NOW,
         )
 
 
