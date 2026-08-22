@@ -270,6 +270,22 @@ class TestOrderedLists:
     def test_a_version_number_is_not_a_bullet(self):
         assert bullets("0.16.0b1 shipped this") == []
 
+    def test_a_decimal_in_prose_is_not_a_bullet(self):
+        # "2.5 seconds" must not start a list: the marker needs whitespace after it.
+        assert bullets("  it took 2.5 seconds") == []
+
+    def test_a_numeric_continuation_line_splits_but_keeps_the_reference(self):
+        # Known boundary, pinned deliberately. A wrapped line that begins with a
+        # number and a period ("30. Then …") is indistinguishable from an ordered
+        # list item, so it starts a new bullet and the quoted summary shifts to it.
+        # The reference is still found, so the issue still closes correctly — the
+        # cost is a less apt sentence in the comment, not a missed fix. Tracking
+        # indentation to tell the two apart would add more risk than the case is
+        # worth: the changelog has no ordered lists and no numeric continuations.
+        found = issues("- **Parent.** It takes\n  30. Then the rest. (Fixes #9)")
+        assert [entry["number"] for entry in found] == [9]
+        assert found[0]["summary"] == "Then the rest."
+
 
 class TestNestedBullets:
     """A nested bullet is its own entry, so its ref gets its own summary."""
