@@ -497,3 +497,69 @@ def test_the_periodic_sweep_costs_nothing_until_something_is_mirrored():
     sync2 = shopping_sync.ShoppingListSync(hass, entry, _FakeCoordinator(mirrored))
     sync2.async_schedule_sweep()
     assert len(hass.tasks) == 1
+
+
+def test_a_mirror_that_cannot_settle_says_so(caplog):
+    """The pass budget guarantees termination; it should not hide a failure.
+
+    Driven through ``_sync_once`` directly: every real path converges, which is
+    the point of the design, so the only way to reach the budget is a pass that
+    keeps asking for another one. The loop must still end — that is the budget's
+    job — but exiting quietly would leave the list stale with nothing in the log
+    to explain it.
+    """
+    hass = _FakeHass({TARGET: []})
+    entry = types.SimpleNamespace(
+        options={"shopping_list_entity": TARGET}, async_on_unload=lambda _cb: None
+    )
+    sync = shopping_sync.ShoppingListSync(hass, entry, _FakeCoordinator(_FakeStore()))
+    passes = []
+
+    async def _never_settles(*, force):
+        passes.append(force)
+        return True
+
+    sync._sync_once = _never_settles
+    with caplog.at_level("WARNING"):
+        asyncio.run(sync.async_sync(force=True))
+    assert len(passes) == shopping_sync._MAX_PASSES
+    assert "did not settle" in caplog.text
+    # The guard is released either way, so the next change is not locked out.
+    assert sync._running is False and sync._pending is False
+
+
+def test_a_settling_mirror_stays_quiet(caplog):
+    hass = _FakeHass({TARGET: []})
+    store = _FakeStore(tasks={"t1": _buy_task()})
+    with caplog.at_level("WARNING"):
+        _sync(hass, store)
+    assert "did not settle" not in caplog.text
+
+
+def test_a_reminder_still_open_after_a_tick_off_gets_a_fresh_line(caplog):
+    """The shopper ticked it off, but the reminder outlived the restock.
+
+    That happens when the restock quantity does not lift the part above its
+    threshold: the reminder stays open, so the mirror puts a new line on the
+    list rather than adopting the one already ticked off. Convergence here is
+    what keeps the pass budget out of it.
+    """
+    hass = _FakeHass({TARGET: [_item(status=sh.STATUS_COMPLETED)]})
+    store = _FakeStore(
+        tasks={"t1": _buy_task()},
+        items={KEY: {"entity_id": TARGET, "summary": "Buy Anode rod", "uid": "i1"}},
+    )
+
+    async def _complete(task_id, *, origin=None):
+        store.completed.append((task_id, origin))  # reminder stays low, so stays open
+
+    store.complete_task = _complete
+    with caplog.at_level("WARNING"):
+        _sync(hass, store)
+    assert store.completed == [("t1", ORIGIN)]
+    assert _services(hass, "add_item") == [
+        {"entity_id": TARGET, "item": "Buy Anode rod"}
+    ]
+    # The line they ticked off is left exactly as it is.
+    assert _services(hass, "remove_item") == []
+    assert "did not settle" not in caplog.text

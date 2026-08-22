@@ -168,6 +168,17 @@ class ShoppingListSync:
                 if not (again or self._pending):
                     break
                 self._pending = False
+            else:
+                # The budget exists so the loop always ends, not because ending
+                # this way is fine: a converging mirror settles in two passes.
+                # Burning the whole budget means something is failing and
+                # retrying — say so, rather than exiting quietly and leaving the
+                # list stale with no trace of why.
+                _LOGGER.warning(
+                    "Home Keeper's shopping-list sync did not settle in %d passes; "
+                    "the list may be out of step until the next change",
+                    _MAX_PASSES,
+                )
         except Exception:  # a broken list must never break a completion
             _LOGGER.exception(
                 "Home Keeper shopping-list sync failed; it will retry on the next "
