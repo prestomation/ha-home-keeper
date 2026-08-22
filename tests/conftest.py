@@ -42,6 +42,7 @@ _PURE_MODULES = (
     "events",
     "transitions",
     "reconcile",
+    "shopping",
     "problem_tasks",
     "sensor_tasks",
     "inventory",

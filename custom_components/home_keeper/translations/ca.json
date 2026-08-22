@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Dispositius exclosos",
           "problem_sensor_exclude_areas": "Àrees excloses",
           "problem_sensor_exclude_labels": "Etiquetes excloses",
-          "one_off_retention_days": "Retenció de tasques úniques (dies)"
+          "one_off_retention_days": "Retenció de tasques úniques (dies)",
+          "shopping_list_entity": "Llista de la compra"
         },
         "data_description": {
-          "one_off_retention_days": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 manté les tasques úniques completades per sempre."
+          "one_off_retention_days": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 manté les tasques úniques completades per sempre.",
+          "shopping_list_entity": "Reflecteix els recordatoris de compra automàtica en aquesta llista de tasques. Marcar-hi un element completa el recordatori de Home Keeper i reposa l'estoc de la peça. Deixa-ho buit per desactivar-ho."
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "Retenció de tasques úniques (dies)",
           "description": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 les manté per sempre."
+        },
+        "shopping_list_entity": {
+          "name": "Llista de la compra",
+          "description": "Una llista de tasques existent on reflectir els recordatoris de compra automàtica. Marcar-hi un element completa el recordatori i reposa l'estoc. Deixa-ho buit per desactivar-ho."
         },
         "dismissed_companions": {
           "name": "Companys descartats",

@@ -44,6 +44,9 @@ async def async_get_config_entry_diagnostics(
         },
         "tasks": async_redact_data(tasks, TO_REDACT),
         "assets": async_redact_data(assets, TO_REDACT),
+        # Which shopping-list item stands for which buy reminder. Summaries are
+        # buy-task names, which the task dump above already carries in full.
+        "shopping_items": coordinator.store.get_shopping_items(),
     }
 
 

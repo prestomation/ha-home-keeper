@@ -52,6 +52,12 @@ const ANCHOR_ROUTES = {
   '#link-a-task-to-a-consumable-auto-reorder':
     '/docs/guide/sensor-tasks#link-a-task-to-a-consumable-auto-reorder',
   '#parts--wear-items': '/docs/guide/appliances#parts--wear-items',
+  // Auto-buy and its shopping-list mirror are subsections of "Parts & wear items"
+  // (→ appliances page); the Settings and Events sections both link across to them.
+  '#auto-create-a-buy-task-when-a-part-runs-low':
+    '/docs/guide/appliances#auto-create-a-buy-task-when-a-part-runs-low',
+  '#send-buy-reminders-to-your-shopping-list':
+    '/docs/guide/appliances#send-buy-reminders-to-your-shopping-list',
   '#sync-problem-binary-sensors-as-tasks':
     '/docs/guide/triggered-tasks#sync-problem-binary-sensors-as-tasks',
 };

@@ -2,9 +2,10 @@
 
 A single config entry is supported; tasks are managed from the sidebar panel
 rather than the config flow, so setup is a one-click confirmation. An **options**
-flow exposes the integration-wide settings — currently the opt-in syncing of
-``device_class: problem`` binary sensors as tasks, with entity/area/label
-exclusions.
+flow exposes the integration-wide settings — the opt-in syncing of
+``device_class: problem`` binary sensors as tasks (with entity/area/label
+exclusions), completed one-off retention, and the to-do list auto-buy reminders
+are mirrored onto.
 """
 
 from __future__ import annotations
@@ -29,9 +30,12 @@ from .const import (
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
+    OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
     PANEL_TITLE,
 )
+from .shopping import TODO_DOMAIN
+from .shopping_sync import own_todo_entity_ids
 
 
 class HomeKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -59,7 +63,7 @@ class HomeKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class HomeKeeperOptionsFlow(OptionsFlow):
-    """Integration-wide options (problem-sensor syncing)."""
+    """Integration-wide options (problem-sensor syncing, retention, mirroring)."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -107,6 +111,24 @@ class HomeKeeperOptionsFlow(OptionsFlow):
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=0, max=3650, step=1, mode=selector.NumberSelectorMode.BOX
+                    )
+                ),
+                # The to-do list auto-buy reminders are mirrored onto. Deliberately
+                # has no ``default``: clearing the picker then leaves the key out of
+                # ``user_input`` entirely, which ``options.current_options`` reads
+                # back as ``""`` — the off switch. Home Keeper's own to-do list is
+                # excluded, since mirroring a list onto itself is a loop (and ours
+                # accepts no new items anyway).
+                vol.Optional(
+                    OPTION_SHOPPING_LIST_ENTITY,
+                    description={
+                        "suggested_value": current.get(OPTION_SHOPPING_LIST_ENTITY)
+                        or None
+                    },
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(
+                        domain=TODO_DOMAIN,
+                        exclude_entities=own_todo_entity_ids(self.hass),
                     )
                 ),
             }

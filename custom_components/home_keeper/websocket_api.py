@@ -20,6 +20,7 @@ from .backend_i18n import resolve_exception
 from .const import DOMAIN, OPTION_PROFILES
 from .coordinator import HomeKeeperCoordinator, entity_set_key, task_has_entities
 from .models import TaskValidationError
+from .shopping_sync import own_todo_entity_ids
 
 
 def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
@@ -867,7 +868,8 @@ async def ws_get_options(
 
     Also returns ``notify_targets`` — the ``mobile_app_*`` notify services available
     right now — so the Notifications card can offer them as a checklist instead of
-    making the user type service names.
+    making the user type service names, and ``own_todo_entities``, which the
+    shopping-list picker excludes so it can't be pointed at Home Keeper's own list.
     """
     coord = _coordinator(hass)
     if coord is None:
@@ -878,6 +880,7 @@ async def ws_get_options(
         {
             "options": options.current_options(coord.entry),
             "notify_targets": notifier.available_targets(hass),
+            "own_todo_entities": own_todo_entity_ids(hass),
         },
     )
 

@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Vyloučená zařízení",
           "problem_sensor_exclude_areas": "Vyloučené oblasti",
           "problem_sensor_exclude_labels": "Vyloučené štítky",
-          "one_off_retention_days": "Uchování jednorázových úkolů (dny)"
+          "one_off_retention_days": "Uchování jednorázových úkolů (dny)",
+          "shopping_list_entity": "Nákupní seznam"
         },
         "data_description": {
-          "one_off_retention_days": "Automaticky smazat dokončený jednorázový úkol tolik dní po jeho dokončení. Hodnota 0 ponechá dokončené jednorázové úkoly navždy."
+          "one_off_retention_days": "Automaticky smazat dokončený jednorázový úkol tolik dní po jeho dokončení. Hodnota 0 ponechá dokončené jednorázové úkoly navždy.",
+          "shopping_list_entity": "Zrcadlí automatické nákupní připomínky do tohoto seznamu úkolů. Odškrtnutí položky tam dokončí připomínku v Home Keeperu a doplní zásobu dílu. Ponechte prázdné pro vypnutí."
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "Uchování jednorázových úkolů (dny)",
           "description": "Automaticky smazat dokončený jednorázový úkol tolik dní po dokončení. Hodnota 0 je ponechá navždy."
+        },
+        "shopping_list_entity": {
+          "name": "Nákupní seznam",
+          "description": "Existující seznam úkolů, do kterého se zrcadlí automatické nákupní připomínky. Odškrtnutí položky tam připomínku dokončí a doplní zásobu. Prázdné pole funkci vypne."
         },
         "dismissed_companions": {
           "name": "Zamítnutí společníci",

@@ -411,10 +411,18 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);
 
-    // 5. Settings → Companions — integrations that work with Home Keeper. The card
-    //    sits below the General / Problem-sensor cards, so scroll it into view so the
-    //    recording actually lands on it.
+    // 5. Settings → Shopping list — where auto-buy reminders get mirrored onto an
+    //    existing to-do list, so "go buy more" reaches a voice assistant.
     await panel.locator('#tab-settings').click();
+    await expect(panel.locator('#hk-settings-shopping ha-form')).toBeVisible();
+    await page.waitForTimeout(BEAT);
+    await panel.locator('#hk-settings-shopping').scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(BEAT * 2);
+
+    // 6. Settings → Companions — integrations that work with Home Keeper. The card
+    //    sits below the General / Shopping / Problem-sensor cards, so scroll it into
+    //    view so the recording actually lands on it.
     await expect(panel.locator('#hk-companions')).toBeVisible();
     await page.waitForTimeout(BEAT);
     await panel.locator('#hk-companions').scrollIntoViewIfNeeded();
@@ -422,7 +430,7 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await page.mouse.move(0, 0);
     await page.waitForTimeout(BEAT * 2);
 
-    // 6. The usage surfaces — native to-do list + calendar on a dashboard.
+    // 7. The usage surfaces — native to-do list + calendar on a dashboard.
     await openDashboard(page);
     await page.waitForTimeout(BEAT * 3);
   } finally {

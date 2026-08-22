@@ -414,7 +414,15 @@ def async_setup_notifications(
                 err,
             )
             return
-        await coord.async_request_refresh()
+        if verb == notifications.ACTION_COMPLETE:
+            # Completing an auto-buy reminder restocks the part, so the reconciler
+            # has to settle (and the shopping-list mirror with it) — a bare refresh
+            # left the reminder standing until something else happened to settle
+            # it. Falls back to a refresh when nothing changed, and its reload is
+            # deferred, so the walk-advance below still runs.
+            await coord.async_settle_buy_tasks()
+        else:
+            await coord.async_request_refresh()
         # Advance the walk: the just-actioned task has left the due set, so re-sending
         # the notification's next due task replaces it in place; an empty queue closes
         # with an "all caught up" note. (Only for a saved walk notification.)

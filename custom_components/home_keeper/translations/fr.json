@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Appareils exclus",
           "problem_sensor_exclude_areas": "Zones exclues",
           "problem_sensor_exclude_labels": "Étiquettes exclues",
-          "one_off_retention_days": "Conservation des tâches ponctuelles (jours)"
+          "one_off_retention_days": "Conservation des tâches ponctuelles (jours)",
+          "shopping_list_entity": "Liste de courses"
         },
         "data_description": {
-          "one_off_retention_days": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 conserve indéfiniment les tâches ponctuelles terminées."
+          "one_off_retention_days": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 conserve indéfiniment les tâches ponctuelles terminées.",
+          "shopping_list_entity": "Recopie les rappels d'achat automatiques sur cette liste de tâches. Y cocher un élément termine le rappel Home Keeper et réapprovisionne la pièce. Laissez vide pour désactiver la recopie."
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "Conservation des tâches ponctuelles (jours)",
           "description": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 les conserve indéfiniment."
+        },
+        "shopping_list_entity": {
+          "name": "Liste de courses",
+          "description": "Une liste de tâches existante sur laquelle recopier les rappels d'achat automatiques. Y cocher un élément termine le rappel et réapprovisionne le stock. Un champ vide désactive la fonction."
         },
         "dismissed_companions": {
           "name": "Companions ignorés",

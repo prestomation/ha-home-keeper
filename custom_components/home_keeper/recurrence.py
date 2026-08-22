@@ -541,6 +541,23 @@ def is_due_soon(task: dict, window: timedelta, *, now: datetime) -> bool:
     return now < next_due <= now + window
 
 
+def one_off_completed(task: dict) -> bool:
+    """True for a do-once task that is already done (dormant, not re-armed).
+
+    Completing a one-off clears ``next_due`` permanently and stamps
+    ``last_completed``; undoing that completion re-arms ``next_due``. Several
+    surfaces need exactly this shape — the to-do list drops a finished one-off
+    (#221), the shopping-list mirror checks a bought reminder off, and
+    :func:`one_off_expired` layers a retention window on top — so it lives here
+    once rather than being re-derived at each call site.
+    """
+    return (
+        task.get("recurrence_type") == REC_ONE_OFF
+        and not task.get("next_due")
+        and bool(task.get("last_completed"))
+    )
+
+
 def one_off_expired(task: dict, retention_days: int, *, now: datetime) -> bool:
     """True when a completed one-off task is past its auto-delete retention window.
 
@@ -552,11 +569,9 @@ def one_off_expired(task: dict, retention_days: int, *, now: datetime) -> bool:
     """
     if retention_days <= 0:
         return False
-    if task.get("recurrence_type") != REC_ONE_OFF:
-        return False
-    if task.get("next_due") is not None:
+    if not one_off_completed(task):
         return False
     completed = _parse(task.get("last_completed"))
-    if completed is None:
-        return False
+    if completed is None:  # pragma: no mutate - unreachable: one_off_completed
+        return False  # pragma: no mutate - already required a truthy stamp
     return now >= completed + timedelta(days=retention_days)

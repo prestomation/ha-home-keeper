@@ -393,6 +393,8 @@ export interface HomeKeeperOptions {
   problem_sensor_exclude_labels: string[];
   // Auto-delete a completed one-off this many days after completion; 0 = keep forever.
   one_off_retention_days: number;
+  // The to-do list auto-buy reminders are mirrored onto; '' = mirror off.
+  shopping_list_entity: string;
   // Catalog glue domains dismissed from the Companions "Suggested" list.
   dismissed_companions?: string[];
   // Saved filters and the notifications that consume them.

@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Ausgeschlossene Geräte",
           "problem_sensor_exclude_areas": "Ausgeschlossene Bereiche",
           "problem_sensor_exclude_labels": "Ausgeschlossene Labels",
-          "one_off_retention_days": "Aufbewahrung einmaliger Aufgaben (Tage)"
+          "one_off_retention_days": "Aufbewahrung einmaliger Aufgaben (Tage)",
+          "shopping_list_entity": "Einkaufsliste"
         },
         "data_description": {
-          "one_off_retention_days": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach ihrem Abschluss automatisch löschen. 0 behält abgeschlossene Einmalaufgaben dauerhaft."
+          "one_off_retention_days": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach ihrem Abschluss automatisch löschen. 0 behält abgeschlossene Einmalaufgaben dauerhaft.",
+          "shopping_list_entity": "Spiegelt automatische Einkaufserinnerungen auf diese Aufgabenliste. Wird ein Eintrag dort abgehakt, schließt Home Keeper die Erinnerung ab und füllt den Bestand des Ersatzteils auf. Leer lassen, um die Spiegelung abzuschalten."
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "Aufbewahrung einmaliger Aufgaben (Tage)",
           "description": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach dem Abschluss automatisch löschen. 0 behält sie dauerhaft."
+        },
+        "shopping_list_entity": {
+          "name": "Einkaufsliste",
+          "description": "Eine vorhandene Aufgabenliste, auf die automatische Einkaufserinnerungen gespiegelt werden. Ein dort abgehakter Eintrag schließt die Erinnerung ab und füllt den Bestand auf. Ein leeres Feld schaltet das ab."
         },
         "dismissed_companions": {
           "name": "Ausgeblendete Companions",

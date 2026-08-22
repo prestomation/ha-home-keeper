@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Exkluderade enheter",
           "problem_sensor_exclude_areas": "Uteslutna områden",
           "problem_sensor_exclude_labels": "Uteslutna etiketter",
-          "one_off_retention_days": "Lagringstid för engångsuppgifter (dagar)"
+          "one_off_retention_days": "Lagringstid för engångsuppgifter (dagar)",
+          "shopping_list_entity": "Inköpslista"
         },
         "data_description": {
-          "one_off_retention_days": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter att den slutförts. 0 behåller slutförda engångsuppgifter för alltid."
+          "one_off_retention_days": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter att den slutförts. 0 behåller slutförda engångsuppgifter för alltid.",
+          "shopping_list_entity": "Speglar automatiska inköpspåminnelser till den här uppgiftslistan. Att bocka av en post där slutför påminnelsen i Home Keeper och fyller på reservdelen. Lämna tomt för att stänga av speglingen."
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "Lagringstid för engångsuppgifter (dagar)",
           "description": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter slutförandet. 0 behåller dem för alltid."
+        },
+        "shopping_list_entity": {
+          "name": "Inköpslista",
+          "description": "En befintlig uppgiftslista att spegla automatiska inköpspåminnelser till. Att bocka av en post där slutför påminnelsen och fyller på lagret. Ett tomt fält stänger av funktionen."
         },
         "dismissed_companions": {
           "name": "Avfärdade kompanjoner",

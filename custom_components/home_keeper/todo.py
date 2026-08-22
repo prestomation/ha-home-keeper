@@ -13,8 +13,6 @@ it is armed again.
 
 from __future__ import annotations
 
-from typing import Any
-
 from homeassistant.components.todo import (
     TodoItem,
     TodoItemStatus,
@@ -31,21 +29,7 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN, REC_ONE_OFF, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
 from .models import TaskValidationError
-
-
-def _completed_one_off(task: dict[str, Any]) -> bool:
-    """True for a do-once task that is already done (dormant, not re-armed).
-
-    The same dormant-and-completed shape ``recurrence.one_off_expired`` keys its
-    retention window on, and the panel's ``_statusBucket`` files under Completed.
-    Kept local rather than imported: ``one_off_expired`` answers the different
-    question "is this purgeable yet", and it takes a retention window to do it.
-    """
-    return (
-        task.get("recurrence_type") == REC_ONE_OFF
-        and not task.get("next_due")
-        and bool(task.get("last_completed"))
-    )
+from .recurrence import one_off_completed
 
 
 async def async_setup_entry(
@@ -124,7 +108,7 @@ class HomeKeeperTodoListEntity(
             return
         task = self.coordinator.store.get_task(item.uid)
         if item.status == TodoItemStatus.COMPLETED:
-            if task is not None and _completed_one_off(task):
+            if task is not None and one_off_completed(task):
                 return
             try:
                 await self.coordinator.store.complete_task(item.uid)

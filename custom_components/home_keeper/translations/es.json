@@ -21,10 +21,12 @@
           "problem_sensor_exclude_devices": "Dispositivos excluidos",
           "problem_sensor_exclude_areas": "Áreas excluidas",
           "problem_sensor_exclude_labels": "Etiquetas excluidas",
-          "one_off_retention_days": "Conservación de tareas únicas (días)"
+          "one_off_retention_days": "Conservación de tareas únicas (días)",
+          "shopping_list_entity": "Lista de la compra"
         },
         "data_description": {
-          "one_off_retention_days": "Eliminar automáticamente una tarea única completada transcurridos estos días desde su finalización. El valor 0 conserva las tareas únicas completadas para siempre."
+          "one_off_retention_days": "Eliminar automáticamente una tarea única completada transcurridos estos días desde su finalización. El valor 0 conserva las tareas únicas completadas para siempre.",
+          "shopping_list_entity": "Refleja los recordatorios de compra automática en esta lista de tareas. Al marcar un elemento allí se completa el recordatorio de Home Keeper y se repone el repuesto. Déjalo vacío para desactivarlo."
         }
       }
     }
@@ -590,6 +592,10 @@
         "one_off_retention_days": {
           "name": "Conservación de tareas únicas (días)",
           "description": "Eliminar automáticamente una tarea única completada transcurridos estos días desde su finalización. El valor 0 las conserva para siempre."
+        },
+        "shopping_list_entity": {
+          "name": "Lista de la compra",
+          "description": "Una lista de tareas existente donde reflejar los recordatorios de compra automática. Marcar un elemento allí completa el recordatorio y repone las existencias. Vacío lo desactiva."
         },
         "dismissed_companions": {
           "name": "Companions descartados",

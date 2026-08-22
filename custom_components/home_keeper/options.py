@@ -19,7 +19,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from . import notifications, profiles
+from . import notifications, profiles, shopping
 from .const import (
     OPTION_DISMISSED_COMPANIONS,
     OPTION_NOTIFICATIONS,
@@ -29,6 +29,7 @@ from .const import (
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_PROFILES,
+    OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
 )
 
@@ -66,6 +67,9 @@ def current_options(entry: ConfigEntry) -> dict[str, Any]:
         OPTION_ONE_OFF_RETENTION_DAYS: _coerce_days(
             opts.get(OPTION_ONE_OFF_RETENTION_DAYS, 0)
         ),
+        OPTION_SHOPPING_LIST_ENTITY: shopping.normalize_target(
+            opts.get(OPTION_SHOPPING_LIST_ENTITY, "")
+        ),
         OPTION_PROFILES: profiles.normalize_profiles(opts.get(OPTION_PROFILES, [])),
         OPTION_NOTIFICATIONS: notifications.normalize_notifications(
             opts.get(OPTION_NOTIFICATIONS, [])
@@ -93,6 +97,14 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
     if OPTION_ONE_OFF_RETENTION_DAYS in updates:
         merged[OPTION_ONE_OFF_RETENTION_DAYS] = _coerce_days(
             updates[OPTION_ONE_OFF_RETENTION_DAYS]
+        )
+    if OPTION_SHOPPING_LIST_ENTITY in updates:
+        # ``normalize_target`` collapses anything unusable (a cleared picker, an
+        # entity outside the ``todo`` domain) to ``""``, the off switch. The
+        # driver's registry check is the gate that also refuses Home Keeper's own
+        # to-do list — a pure coercion cannot see entity platforms.
+        merged[OPTION_SHOPPING_LIST_ENTITY] = shopping.normalize_target(
+            updates[OPTION_SHOPPING_LIST_ENTITY]
         )
     if OPTION_PROFILES in updates:
         merged[OPTION_PROFILES] = profiles.normalize_profiles(updates[OPTION_PROFILES])
