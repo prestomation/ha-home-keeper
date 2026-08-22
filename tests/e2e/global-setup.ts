@@ -6,16 +6,21 @@
  * 2. Wait for the seeded Home Keeper entities to appear.
  * 3. Drive a real browser login once and persist the storage state so every spec
  *    starts authenticated.
+ * 4. Persist the raw access token beside it, so specs can seed and (crucially)
+ *    **clean up** their own fixtures over REST — see `helpers.ts`. Without a
+ *    teardown path every run left its tasks in the seeded store, and eight of
+ *    those leaked records reached git.
  *
  * The API flow mirrors tests/integration/conftest.py.
  */
 import { chromium } from '@playwright/test';
-import { mkdirSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 
 const HA_URL = process.env.HA_URL || 'http://localhost:8123';
 const CLIENT_ID = `${HA_URL}/`;
 const STATE_PATH = resolve(__dirname, '.auth/state.json');
+const TOKEN_PATH = resolve(__dirname, '.auth/token.json');
 const USERNAME = 'test';
 const PASSWORD = 'testtest1';
 
@@ -148,6 +153,7 @@ export default async function globalSetup(): Promise<void> {
 
     mkdirSync(dirname(STATE_PATH), { recursive: true });
     await context.storageState({ path: STATE_PATH });
+    writeFileSync(TOKEN_PATH, JSON.stringify({ access_token: token }), 'utf8');
     // eslint-disable-next-line no-console
     console.log(`[global-setup] saved authenticated storage state to ${STATE_PATH}`);
   } finally {

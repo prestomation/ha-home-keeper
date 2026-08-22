@@ -1,5 +1,5 @@
 import { test, expect, Locator } from '@playwright/test';
-import { openCardDashboard, trackPanelErrors } from './helpers';
+import { deleteTask, listTasks, openCardDashboard, trackPanelErrors } from './helpers';
 
 /** Fill the nth `ha-selector-text` inside a scope (the card's inline form). */
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
@@ -9,6 +9,16 @@ async function fillText(scope: Locator, nth: number, value: string): Promise<voi
 }
 
 test.describe('Home Keeper card — dashboard', () => {
+  // Tasks this spec creates, torn down after each test. The e2e container's task
+  // store IS the committed seed fixture, so anything left behind is a permanent
+  // addition to it (see tests/unit/test_integration_fixture_clean.py).
+  let created: string[] = [];
+
+  test.afterEach(async () => {
+    await Promise.all(created.map(deleteTask));
+    created = [];
+  });
+
   test('renders seeded tasks with one-tap Done, no card errors', async ({ page }) => {
     const errors = trackPanelErrors(page);
     const card = await openCardDashboard(page);
@@ -116,7 +126,10 @@ test.describe('Home Keeper card — dashboard', () => {
     const errors = trackPanelErrors(page);
     const card = await openCardDashboard(page);
 
-    const NAME = `E2E card task ${Date.now()}`;
+    // A stable name, not `Date.now()`: a unique name per run made every leaked
+    // task look like a new record instead of the same test failing to clean up,
+    // which is how eight of them accumulated in the committed fixture.
+    const NAME = 'E2E card task probe';
 
     // ── Add (header button — still available; the add form has no Delete) ───
     await card.locator('#hk-add').click();
@@ -131,6 +144,10 @@ test.describe('Home Keeper card — dashboard', () => {
     // The new floating task (never completed) lands due-now -> overdue row.
     const row = card.locator('.hk-row', { hasText: NAME });
     await expect(row).toHaveCount(1, { timeout: 15_000 });
+    // Register for teardown as soon as it exists, so a later failure still cleans up.
+    const task = (await listTasks()).find((t) => t.name === NAME);
+    expect(task, 'the created task should be in the store').toBeTruthy();
+    created.push(task!.id);
     await expect(card.locator('.hk-row.overdue', { hasText: NAME })).toHaveCount(1);
 
     // ── Tapping the row no longer opens an inline edit form ────────────────
