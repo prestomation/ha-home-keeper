@@ -130,7 +130,22 @@ def _coerce_days(value: Any) -> int:
 
 
 def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
-    """Merge *updates* onto *base*, coercing to the stored shape (bool/int/id list)."""
+    """Merge *updates* onto *base*, coercing to the stored shape (bool/int/id list).
+
+    The one coercion table, shared by every read and every write. Each branch exists
+    because the value can arrive from a form, a service call or an automation, none of
+    which is obliged to send the stored shape:
+
+    - **the sync toggle** — anything truthy becomes a real ``bool``
+    - **retention days** — a ``NumberSelector`` sends a float, garbage becomes ``0``
+    - **the shopping target** — anything unusable collapses to ``""``, the off switch
+    - **profiles / notifications** — their own normalizers fill in per-item defaults
+    - **id lists** — stringified, and empties dropped: no registry id is falsy, and
+      without the filter a ``None`` in the list would be stored as ``"None"``
+
+    A key absent from *updates* keeps its value from *base*, which is what makes an
+    update partial.
+    """
     merged = dict(base)
     if OPTION_SYNC_PROBLEM_SENSORS in updates:
         merged[OPTION_SYNC_PROBLEM_SENSORS] = bool(updates[OPTION_SYNC_PROBLEM_SENSORS])
@@ -154,7 +169,7 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
         )
     for key in _LIST_OPTIONS:
         if key in updates:
-            merged[key] = [str(x) for x in (updates[key] or [])]
+            merged[key] = [str(x) for x in (updates[key] or []) if x]
     return merged
 
 
@@ -179,6 +194,10 @@ def merge_flow_input(entry: ConfigEntry, user_input: dict[str, Any]) -> dict[str
 
     Keys outside ``FLOW_OPTIONS`` are ignored even when present: the form can only
     change what the form owns.
+
+    This is the options flow's entry point and nothing else's. The ``set_options``
+    service and the panel's Settings tab already send partial updates, so they go
+    through ``async_set_options``, which persists and reloads as well.
     """
     empty = _empty_options()
     submitted = {

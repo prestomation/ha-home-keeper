@@ -263,6 +263,27 @@ def test_current_options_coerces_stored_garbage() -> None:
     assert result[const.OPTION_DISMISSED_COMPANIONS] == ["1", "2"]
 
 
+def test_id_lists_drop_empty_entries() -> None:
+    """No registry id is falsy, so a falsy entry is junk — and would stringify badly.
+
+    Without the filter a ``None`` in an exclusion list is stored as the literal
+    ``"None"``, which then sits in the entry forever matching nothing.
+    """
+    stored = {
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES: [
+            "binary_sensor.real",
+            None,
+            "",
+        ],
+    }
+
+    result = opts.current_options(_entry(stored))
+
+    assert result[const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES] == [
+        "binary_sensor.real"
+    ]
+
+
 def test_current_options_hands_out_fresh_lists() -> None:
     """Callers mutating a returned list must not corrupt the next read."""
     first = opts.current_options(_entry(_FULL))

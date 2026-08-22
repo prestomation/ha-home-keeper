@@ -51,6 +51,12 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
     ``tests/unit/test_config_flow.py`` fails the build if they drift, because both
     directions lose data. A field here that the tuple omits is discarded on save; a
     key in the tuple that this form omits is *cleared* on every save.
+
+    A field's ``default`` decides what an empty submission means, so choose it
+    deliberately when adding one. With a ``default``, voluptuous fills the value back
+    in and the key always reaches ``merge_flow_input``. Without one — which only
+    ``shopping_list_entity`` wants — the key drops out when the user clears it, and
+    that absence is read as "cleared" and reset.
     """
     return vol.Schema(
         {
