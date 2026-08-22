@@ -1,5 +1,5 @@
 import { test, expect, Locator } from '@playwright/test';
-import { openPanel, openDashboard, trackPanelErrors } from './helpers';
+import { calendarCard, openPanel, openDashboard, openTodoCard, trackPanelErrors } from './helpers';
 
 /**
  * Pick an option from an HA `ha-select` dropdown by visible label. HA's current
@@ -292,5 +292,18 @@ test.describe('Home Keeper panel — dashboard', () => {
     await expect(page.locator('ha-calendar, hui-calendar-card').first()).toBeVisible({
       timeout: 30_000,
     });
+  });
+
+  test('the native cards show the right tasks, not just some tasks', async ({ page }) => {
+    // "It renders" was the whole of this suite's coverage for the usage surfaces,
+    // which is how #221 shipped: the to-do card rendered perfectly while listing a
+    // task that had been completed months earlier. Assert contents, not presence.
+    const todo = await openTodoCard(page);
+    await expect(todo).toContainText('Replace water filter');
+    await expect(todo).not.toContainText('Renew car registration');
+
+    const calendar = calendarCard(page);
+    await expect(calendar).toBeVisible({ timeout: 30_000 });
+    await expect(calendar).not.toContainText('Renew car registration');
   });
 });

@@ -122,6 +122,12 @@
     (empty dialog, missing elements, `position:fixed` overlay not visible in a
     fullPage capture), diagnose the root cause and fix it before committing. Do not
     commit screenshots that don't clearly show the intended UI state.
+  - **A screenshot is documentation, not verification — capturing a surface is not
+    covering it.** `docs/images/4-usage-todo-and-calendar.png` showed #221 in plain
+    sight for months: stale to-do items sitting beside panel columns that marked those
+    same tasks Completed. Nothing failed, because no test asserted on that card's
+    contents. When a capture adds a surface, make sure something in `tests/e2e/tests/`
+    asserts on it too.
 - **Every PR that adds a _new user-facing UI feature_ MUST keep the video walkthrough
   current — but you don't capture or commit it; CI does.** Screenshots prove a surface
   renders; a video proves the *interaction* works (the flow, the transitions, the

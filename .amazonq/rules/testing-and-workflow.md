@@ -59,6 +59,28 @@
   (Playwright), `tests/upgrade` (two-phase HA version upgrade). Run e2e/integration
   with `bash ci/e2e-up.sh` / `ci/test-python-integration.sh`; stage the upgrade
   suite's fixtures with `bash ci/fetch-glues.sh` first.
+- **A panel assertion is not coverage for a native entity.** The panel and the
+  `todo`/`calendar` entities are separate projections of the same store, so the panel
+  being right proves nothing about them. #221 shipped with a passing e2e test that
+  created a one-off, completed it, and asserted the panel filed it under Completed —
+  while the to-do entity went on offering it as `needs_action` forever. A state change
+  that should be visible on a native surface needs an assertion **on that surface**.
+- **Assert disappearance, not just appearance.** Presence gets asserted by accident;
+  absence has to be asked for, and the interesting bugs are absences that didn't
+  happen. Test a state transition from both ends — present before, gone after — via
+  `expectAbsentFromActiveSurfaces` / `expectOnTodoList` in `tests/e2e/tests/helpers.ts`.
+  Asserting only the post-state also passes for a task that was never listed at all.
+- **A screenshot is documentation, not verification.** The capture harness wrote
+  `docs/images/4-usage-todo-and-calendar.png` showing #221 in plain sight — stale
+  to-do items beside panel columns marking those same tasks Completed — for months.
+  Capturing a surface is not covering it; if a screenshot shows a surface, something
+  should be asserting on it too.
+- **An e2e spec owns what it creates.** The container's task store *is* the committed
+  seed fixture (`tests/integration/ha_config/.storage/home_keeper`), so anything a
+  spec leaves behind is a permanent addition to it. Register created ids and delete
+  them in `afterEach` (`createTask`/`deleteTask` in `helpers.ts`), and give fixtures
+  **stable** names — a `Date.now()` suffix makes each leak look like a new record
+  instead of the same spec failing to clean up, which is how eight of them reached git.
 - **Anything that rests on an HA framework contract** — device registry, entity
   registry, device automation — **needs an integration-level assertion.** Unit tests
   mock the framework away and cannot see the contract change. #183 (devices split per

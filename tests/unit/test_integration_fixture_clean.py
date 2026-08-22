@@ -37,8 +37,19 @@ E2E_DIR = ROOT / "tests" / "e2e"
 #: `.detail-open[data-detail-id="…"]` — how the capture harnesses open a detail page.
 DETAIL_ID = re.compile(r'data-detail-id="([^"]+)"')
 
-#: Names the integration suite creates as it runs. None should ever be committed.
-TEST_CREATED_MARKERS = ("temp asset", "probe", "test clean gutters", "test water the")
+#: Names the integration and e2e suites create as they run. None should ever be
+#: committed. ``e2e`` is deliberately broad: the browser specs had no teardown at
+#: all until they grew one, and eight of their leftovers reached git precisely
+#: because every name carried a fresh ``Date.now()`` — so each leak read as a new
+#: record rather than the same spec failing to clean up. Matching the prefix
+#: catches them however they're named.
+TEST_CREATED_MARKERS = (
+    "temp asset",
+    "probe",
+    "test clean gutters",
+    "test water the",
+    "e2e",
+)
 
 
 def _records(payload: dict, key: str) -> list[dict]:
