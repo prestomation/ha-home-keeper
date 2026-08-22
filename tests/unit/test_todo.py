@@ -210,6 +210,10 @@ class FakeStore:
         return self._tasks.get(task_id)
 
     async def complete_task(self, task_id: str):
+        # The real store raises KeyError for an unknown id *before* recording
+        # anything (store.complete_task), so mirror that order here.
+        if task_id not in self._tasks:
+            raise KeyError(task_id)
         if self.raise_on_complete is not None:
             raise self.raise_on_complete
         self.completed.append(task_id)
@@ -390,6 +394,35 @@ def test_completing_a_recurring_task_still_completes_it() -> None:
         )
     )
     assert store.completed == ["float"]
+
+
+def test_completing_an_unknown_uid_still_reaches_the_store() -> None:
+    """Hoisting the get_task lookup must not swallow an unknown id.
+
+    ``task`` is now bound before the COMPLETED branch, so ``None`` has to keep
+    falling through to the store — which raises, as it did before the hoist.
+    """
+    entity, store, calls = _entity(_task("float", "floating", next_due=DUE.isoformat()))
+    with pytest.raises(KeyError):
+        asyncio.run(
+            entity.async_update_todo_item(
+                TodoItem(uid="ghost", summary="x", status=TodoItemStatus.COMPLETED)
+            )
+        )
+    assert store.completed == []
+    assert calls == []
+
+
+def test_item_without_a_uid_is_ignored() -> None:
+    entity, store, calls = _entity(_task("float", "floating", next_due=DUE.isoformat()))
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(uid=None, summary="x", status=TodoItemStatus.COMPLETED)
+        )
+    )
+    assert store.completed == []
+    assert store.updated == []
+    assert calls == []
 
 
 def test_completion_rejected_by_the_store_surfaces_as_ha_error() -> None:
