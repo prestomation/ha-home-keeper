@@ -44,12 +44,23 @@ _CLOSES = re.compile(rf"\b(?:{_CLOSING_WORDS})\s+#(\d+)\b", re.IGNORECASE)
 # cross-checking against the changelog, so this is the looser pattern.
 _MENTIONS = re.compile(rf"\b(?:{_CLOSING_WORDS}|refs?)\s+#(\d+)\b", re.IGNORECASE)
 
-# A bullet at any indent. A nested bullet is its own entry, not part of its parent's
-# text, so a ``Fixes #N`` inside one is summarised by the sentence that actually
-# describes it. An indented line that is *not* a bullet is still a continuation.
-_BULLET = re.compile(r"^\s*[-*] ")
+# A bullet at any indent, ordered or unordered. A nested bullet is its own entry, not
+# part of its parent's text, so a ``Fixes #N`` inside one is summarised by the sentence
+# that actually describes it. An indented line that is *not* a bullet is still a
+# continuation. Ordered items count too: dropping them would silently swallow a
+# ``Fixes #N`` written as ``1. …`` and leave that issue open forever.
+_BULLET = re.compile(r"^\s*(?:[-*]|\d+\.)\s")
 _HEADING = re.compile(r"^#")
-_FENCE = re.compile(r"^\s*```")
+
+# A thematic break (``---``, ``* * *``, ``- - -``). ``* * *`` and ``- - -`` otherwise
+# read as a bullet whose text is ``* *``, which then swallows the prose beneath it and
+# quotes that nonsense back at the reporter.
+_HRULE = re.compile(r"^\s*(?:[-*_]\s*){3,}$")
+
+# Both CommonMark fence styles. A ``~~~`` block used to sail straight through, so a
+# ``Fixes #N`` in a code sample would close a stranger's issue.
+_FENCE = re.compile(r"^\s*(?:`{3,}|~{3,})")
+
 _BOLD_LEAD = re.compile(r"^\*\*(.+?)\*\*")
 
 # vX.Y.Z with an optional PEP 440 pre-release suffix — the only shapes release.yml
@@ -85,14 +96,17 @@ def section(changelog: str, version: str) -> str:
 def bullets(text: str) -> list[str]:
     """Split *text* into its top-level Markdown bullets, each flattened to one line.
 
-    A bullet runs from a ``- `` (at any indent) until the next bullet, heading or blank
-    line. The changelog wraps prose across several indented continuation lines, and a
-    ``Fixes #N`` often lands on a different line from the sentence that describes it,
-    so the whole bullet has to be reassembled before either can be read.
+    A bullet runs from a ``- ``, ``* `` or ``1. `` (at any indent) until the next
+    bullet, heading, thematic break or blank line. The changelog wraps prose across
+    several indented continuation lines, and a ``Fixes #N`` often lands on a different
+    line from the sentence that describes it, so the whole bullet has to be reassembled
+    before either can be read.
 
-    Fenced code blocks are dropped first. A ``Fixes #N`` inside one is a code sample,
-    not a claim that this release fixed anything, and acting on it would close a
-    stranger's issue.
+    Fenced code blocks are dropped, in both ``` and ``~~~`` styles. A ``Fixes #N``
+    inside one is a code sample, not a claim that this release fixed anything, and
+    acting on it would close a stranger's issue. An unclosed fence therefore swallows
+    the rest of the section — the same thing a Markdown renderer does, and the safe
+    direction to err in when the alternative is closing an issue by accident.
     """
     out: list[str] = []
     current: list[str] = []
@@ -112,7 +126,9 @@ def bullets(text: str) -> list[str]:
             continue
         if fenced:
             continue
-        if _BULLET.match(line):
+        if _HRULE.match(line):
+            flush()
+        elif _BULLET.match(line):
             flush()
             current.append(_BULLET.sub("", line))
         elif not line.strip() or _HEADING.match(line):

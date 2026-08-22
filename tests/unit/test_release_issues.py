@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import textwrap
 from pathlib import Path
@@ -218,6 +219,57 @@ class TestFencedCode:
         text = "- **A.**\n```\nnoise\n```\n- **B.** (Fixes #6)"
         assert _numbers(text) == [6]
 
+    def test_tilde_fences_are_dropped_too(self):
+        # CommonMark accepts ~~~ as well as ```. A ~~~ block used to sail straight
+        # through and close whatever issue the code sample happened to mention.
+        assert _numbers("- **A.**\n~~~\nFixes #4\n~~~\n") == []
+
+    def test_a_longer_fence_run_is_still_a_fence(self):
+        assert _numbers("- **A.**\n````\nFixes #4\n````\n") == []
+
+    def test_an_unclosed_fence_swallows_the_rest(self):
+        # Erring toward dropping beats erring toward closing someone's issue.
+        assert _numbers("- **A.** (Fixes #1)\n```\nFixes #2\n- **B.** (Fixes #3)") == [
+            1
+        ]
+
+
+class TestThematicBreaks:
+    """`* * *` and `- - -` are horizontal rules, not bullets."""
+
+    @pytest.mark.parametrize("rule", ["---", "--- ", "***", "* * *", "- - -", "___"])
+    def test_rules_are_not_bullets(self, rule):
+        assert bullets(rule) == []
+
+    def test_a_rule_does_not_swallow_the_prose_below_it(self):
+        # `* * *` used to parse as a bullet with the text "* *", absorb the line
+        # under it, and quote that back at the reporter as the summary.
+        assert bullets("* * *\ncontinuation (Fixes #7)") == []
+
+    def test_a_rule_separates_two_bullets(self):
+        assert _numbers("- **A.** (Fixes #1)\n\n---\n\n- **B.** (Fixes #2)") == [1, 2]
+
+    def test_a_real_bullet_starting_with_a_dash_still_parses(self):
+        assert bullets("- - is a dash") == ["- is a dash"]
+
+
+class TestOrderedLists:
+    """A `Fixes #N` in a numbered item must not be silently dropped."""
+
+    def test_numbered_items_are_bullets(self):
+        assert bullets("1. one\n2. two") == ["one", "two"]
+
+    def test_a_reference_in_a_numbered_item_is_found(self):
+        assert issues("1. **First.** (Fixes #5)") == [
+            {"number": 5, "summary": "First."}
+        ]
+
+    def test_multi_digit_numbering(self):
+        assert bullets("10. ten") == ["ten"]
+
+    def test_a_version_number_is_not_a_bullet(self):
+        assert bullets("0.16.0b1 shipped this") == []
+
 
 class TestNestedBullets:
     """A nested bullet is its own entry, so its ref gets its own summary."""
@@ -401,21 +453,20 @@ class TestCli:
         assert self._run("--version", "0.15.0").returncode != 0
 
 
-@pytest.mark.parametrize(
-    "version",
-    [
-        "0.16.0b2",
-        "0.16.0b1",
-        "0.15.0",
-        "0.14.0",
-        "0.13.0",
-        "0.12.0",
-        "0.8.0",
-        "0.8.0b5",
-    ],
-)
+def _released_versions() -> list[str]:
+    """Every version with a section in the real CHANGELOG."""
+    text = _CHANGELOG.read_text(encoding="utf-8")
+    return re.findall(r"^## \[([^\]]+)\]", text, re.MULTILINE)
+
+
+@pytest.mark.parametrize("version", _released_versions())
 def test_notes_are_byte_identical_to_the_awk_it_replaced(version):
-    """Every shipped release's notes must come out unchanged."""
+    """Every shipped release's notes must come out unchanged.
+
+    Parametrized over the whole file rather than a sample: a hand-picked list can't
+    fail for a section nobody thought to add to it, and this test is the only thing
+    standing between a parser change and silently rewritten release bodies.
+    """
     expected = subprocess.run(
         ["awk", "-v", f"ver={version}", _AWK, str(_CHANGELOG)],
         capture_output=True,
@@ -426,14 +477,43 @@ def test_notes_are_byte_identical_to_the_awk_it_replaced(version):
     assert section(_CHANGELOG.read_text(encoding="utf-8"), version) == expected
 
 
-def test_real_changelog_never_yields_a_pull_request_number():
-    """A sweep of the whole file: no PR number may leak in as an issue."""
+# The complete set of issues the real CHANGELOG claims to close. Pinned rather than
+# recomputed: this is the list that decides whose issue gets closed, so a parser change
+# that quietly adds or drops one has to show up as a failing test, not a silent diff.
+_KNOWN_ISSUES = frozenset(
+    {
+        104,
+        105,
+        118,
+        119,
+        143,
+        144,
+        145,
+        150,
+        159,
+        160,
+        163,
+        164,
+        173,
+        182,
+        183,
+        204,
+        211,
+        214,
+        216,
+    }
+)
+
+
+def test_real_changelog_yields_exactly_the_known_issue_set():
     text = _CHANGELOG.read_text(encoding="utf-8")
     found = set()
-    for line in text.splitlines():
-        if line.startswith("## ["):
-            found.update(_numbers(section(text, line[4:].split("]")[0])))
-    # These are PR numbers appearing as "(#N)" in the same prose, plus the one
-    # "Related to" reference. None may be read as something to close.
-    assert found.isdisjoint({161, 189, 219, 222})
-    assert {214, 216, 211} <= found
+    for version in _released_versions():
+        found.update(_numbers(section(text, version)))
+    assert found == _KNOWN_ISSUES
+
+
+def test_real_changelog_never_yields_a_pull_request_number():
+    """No PR number, and no soft reference, may be read as something to close."""
+    # 189/219/222 appear as "(#N)" in the same prose; 161 is "(Related to #161)".
+    assert _KNOWN_ISSUES.isdisjoint({161, 189, 219, 222})
