@@ -58,6 +58,10 @@ const ANCHOR_ROUTES = {
     '/docs/guide/appliances#auto-create-a-buy-task-when-a-part-runs-low',
   '#send-buy-reminders-to-your-shopping-list':
     '/docs/guide/appliances#send-buy-reminders-to-your-shopping-list',
+  // So is measured stock, which the consumable-link section (→ sensor-tasks page)
+  // points at when explaining how much a completion draws down.
+  '#stock-you-measure-rather-than-count':
+    '/docs/guide/appliances#stock-you-measure-rather-than-count',
   '#sync-problem-binary-sensors-as-tasks':
     '/docs/guide/triggered-tasks#sync-problem-binary-sensors-as-tasks',
 };
