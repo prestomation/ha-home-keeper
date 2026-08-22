@@ -78,16 +78,19 @@ export async function listTasks(): Promise<Array<Record<string, any>>> {
   return (await callService('home_keeper', 'list_tasks', {}, true)).tasks;
 }
 
-/** The summaries the to-do entity is currently offering (all needs_action). */
+/**
+ * The summaries the to-do entity is currently offering (all needs_action).
+ *
+ * This — not the entity's *state* — is the authoritative, promptly-updated view
+ * of the list. `todo_items` is computed on demand, so it reflects a completion
+ * immediately; the state string (the needs_action count) is only rewritten when
+ * the coordinator refreshes, which is a 5-minute interval plus debounced explicit
+ * refreshes. Asserting on the count is therefore racy under load — it cost this
+ * suite a CI-only failure. Count `todoSummaries().length` instead.
+ */
 export async function todoSummaries(): Promise<string[]> {
   const resp = await callService('todo', 'get_items', { entity_id: TODO_ENTITY }, true);
   return resp[TODO_ENTITY].items.map((i: { summary: string }) => i.summary);
-}
-
-/** The to-do entity's state: the count of incomplete items. */
-export async function todoCount(): Promise<number> {
-  const state = (await api(`/api/states/${TODO_ENTITY}`)) as { state: string };
-  return Number(state.state);
 }
 
 /**

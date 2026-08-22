@@ -93,10 +93,16 @@ test.describe('Home Keeper — dormancy across surfaces', () => {
     });
   }
 
-  test('a sensor task is born dormant and appears on no active surface', async ({ page }) => {
-    // Unlike the others, a sensor task starts dormant: the watcher arms it only
-    // once the live reading meets its condition (models.build_task). So there is
-    // no completion to make here — being absent from the outset is the contract.
+  test('a sensor task is born dormant and stays dormant through a completion', async ({
+    page,
+  }) => {
+    // Unlike the others, a sensor task starts dormant: the watcher arms it only once
+    // the live reading meets its condition (models.build_task). Arming one from here
+    // would mean driving the bound entity's state — `trigger_task` is triggered-only
+    // — so this covers the two halves reachable end-to-end: born dormant, and still
+    // dormant after a completion (`apply_completion` groups sensor with one-off and
+    // triggered). The armed -> completed -> dormant path is pinned at unit level in
+    // tests/unit/test_recurrence_sensor.py.
     const NAME = 'E2E dormancy sensor probe';
     const id = await createTask({
       name: NAME,
@@ -108,6 +114,13 @@ test.describe('Home Keeper — dormancy across surfaces', () => {
     created.push(id);
 
     expect((await listTasks()).find((t) => t.id === id)!.next_due).toBeNull();
+    await expectAbsentFromActiveSurfaces(page, NAME);
+
+    await callService('home_keeper', 'complete_task', { task_id: id });
+
+    const task = (await listTasks()).find((t) => t.id === id)!;
+    expect(task.next_due, 'a completed sensor task stays dormant').toBeNull();
+    expect(task.completions).toHaveLength(1);
     await expectAbsentFromActiveSurfaces(page, NAME);
   });
 });

@@ -5,8 +5,7 @@ import {
   expectOnTodoList,
   listTasks,
   openPanel,
-  openTodoCard,
-  todoCount,
+  todoSummaries,
   trackPanelErrors,
 } from './helpers';
 
@@ -115,7 +114,7 @@ test.describe('Home Keeper panel — one-off tasks', () => {
     // The half of the transition the suite used to skip: without it, "absent
     // after" would also pass for a task that was never listed at all.
     await expectOnTodoList(page, NAME);
-    const before = await todoCount();
+    const before = (await todoSummaries()).length;
 
     // ── Complete it (one-tap Done) -> dormant ────────────────────────────────
     await openPanel(page);
@@ -135,10 +134,12 @@ test.describe('Home Keeper panel — one-off tasks', () => {
     // ...and it leaves the to-do list, the calendar and the panel's active list.
     await expectAbsentFromActiveSurfaces(page, NAME);
     // Exactly one item left the list — not zero (the bug), and not several.
-    // Polled, not read once: the entity's *state* (its needs_action count) is only
-    // rewritten on the next coordinator tick, so it trails its own item list by up
-    // to one interval. The items go first, the count catches up.
-    await expect.poll(async () => await todoCount(), { timeout: 30_000 }).toBe(before - 1);
+    // Counted from the item list, not the entity's state: the state string is only
+    // rewritten when the coordinator refreshes (a 5-minute interval plus debounced
+    // explicit refreshes), so it trails the list by an unbounded amount under load.
+    // `expectAbsentFromActiveSurfaces` has already polled the list to a settled
+    // state, so this reads it once.
+    expect((await todoSummaries()).length).toBe(before - 1);
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
