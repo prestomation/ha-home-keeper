@@ -1512,6 +1512,10 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     our stored tasks/assets document and the uploaded-documents blob tree so no
     residue is left behind.
     """
+    # The card's Lovelace resource is not entry-scoped state, so HA won't reap it.
+    # Removal — not unload, which also runs on every reload — is the one point where
+    # dropping it is right; left behind it would point at a 404 forever.
+    await card.async_unregister_card_resource(hass)
     discard_edge_state(hass, entry.entry_id)
     store = HomeKeeperStore(hass)
     await store.async_remove()

@@ -415,6 +415,34 @@ variables (`var(--primary-color)`, `var(--divider-color)`) — see the upload pr
 bar (`.hk-upload`). HA has broken us this way before (issue #144, `ha-dialog`'s slot
 API).
 
+### A dashboard asset ships as a Lovelace resource, not just an extra module URL
+`frontend.add_extra_js_url` reaches the browser exactly one way: `IndexView` renders an
+inline `import("<url>")` per extra module into the app-shell HTML — a response with no
+`Cache-Control` and no ETag, which HA's own service worker then serves
+`StaleWhileRevalidate` out of a 24h `file-cache`. A shell cached before the integration
+was installed replays forever with no import, and the custom element is never defined
+(#228). It reads as permanent rather than flaky because HA already recovers from a
+*late* definition (`customElements.whenDefined(tag)` → `ll-rebuild`), so a stuck error
+card proves the module never executed. `frontend/subscribe_extra_js` does not save you:
+it pushes only *changes* to already-connected clients, never the initial set.
+
+Register the bundle **additionally** as a Lovelace resource
+(`hass.data[LOVELACE_DATA].resources`), which the frontend fetches over the websocket on
+every dashboard load — the reason HACS cards were immune on the identical shell, and the
+only method HA's own docs describe for loading a custom card. Keep `add_extra_js_url`
+too: it is the only path when Lovelace is in yaml resource mode, and double delivery is
+inert because both name the same URL and `card-index.ts` guards its `define` and its
+`customCards` push. Reconcile idempotently — match on the URL *path* so a rebuilt
+bundle's new `?v=` token updates the row instead of adding one (`card_resource.py` is
+the pure planner; `card.py` does the talking). `ResourceStorageCollection` loads lazily,
+so call `async_get_info()` before reading `async_items()` or every start looks like a
+fresh install. Write `res_type`, read `type` — the collection renames the key on the way
+in. Skip `ResourceYAMLCollection` (it has no create/update/delete, and rewriting a
+user's YAML is out of bounds), delete only in `async_remove_entry` (never on unload,
+which also runs on every reload), and never let a failure break entry setup. Reading
+Lovelace internals means `lovelace` in `after_dependencies` — hassfest's dependency
+check runs for custom integrations and `lovelace` is not in its allow-list.
+
 ## Assets: metadata decoupled from device creation (implemented)
 The appliance/asset feature lives in `assets.py` (pure model — no HA imports, like
 `models.py`) and `devices.py` (registry provisioning). Keep the two concerns separate:

@@ -102,6 +102,13 @@
     SHOT_DIR=../../docs/images \
     npx playwright test --config=screenshots.config.ts
   ```
+  **`CHROMIUM_EXEC` is not the browser CI runs.** `e2e.yml` does `npx playwright install
+  chromium` with no override, so CI drives Playwright's **headless shell**, while
+  `/opt/pw-browsers/chromium-*` is an older full Chromium that enforces different
+  browser policy. A spec can pass here and fail on CI purely because of that —
+  `card-registration.spec.ts` did, three times. Before trusting a green e2e run on a spec
+  that touches browser plumbing (interception, service workers, storage), re-run it with
+  `CHROMIUM_EXEC` unset: `cd tests/e2e && CI=true npx playwright test <spec>`.
   Commit PNG(s) under `docs/images/`, and embed them in the PR via a
   `raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/images/<file>.png`
   URL pinned to the commit that added them. When a change adds a new UI surface,
