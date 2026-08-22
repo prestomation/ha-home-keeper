@@ -25,8 +25,8 @@
 | custom\_components/home\_keeper/inventory.py           |       66 |        0 |       14 |        0 |    100% |           |
 | custom\_components/home\_keeper/manuals.py             |      327 |      327 |       80 |        0 |      0% |    21-769 |
 | custom\_components/home\_keeper/models.py              |      354 |       10 |      206 |        6 |     97% |143, 146-147, 153, 328, 427, 431, 515, 519-520 |
-| custom\_components/home\_keeper/notifications.py       |      148 |        6 |       44 |        2 |     96% |169, 215-216, 224-225, 279 |
-| custom\_components/home\_keeper/notifier.py            |      150 |       94 |       58 |        5 |     31% |59-60, 64-65, 69-70, 96-98, 100-102, 120-126, 136-137, 157-166, 197, 203-209, 237-246, 259-264, 281-338, 346-416 |
+| custom\_components/home\_keeper/notifications.py       |      157 |        6 |       48 |        2 |     96% |218, 264-265, 273-274, 328 |
+| custom\_components/home\_keeper/notifier.py            |      154 |       98 |       60 |        5 |     30% |59-60, 64-65, 69-70, 96-98, 100-102, 120-126, 136-137, 157-166, 197, 203-209, 237-246, 259-264, 281-338, 346-445 |
 | custom\_components/home\_keeper/number.py              |       68 |       68 |       16 |        0 |      0% |    11-131 |
 | custom\_components/home\_keeper/options.py             |       47 |       47 |       16 |        0 |      0% |    15-135 |
 | custom\_components/home\_keeper/panel.py               |       29 |       29 |        4 |        0 |      0% |    10-101 |
@@ -44,7 +44,7 @@
 | custom\_components/home\_keeper/todo.py                |       61 |       61 |       18 |        0 |      0% |    10-130 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py      |      470 |      470 |       96 |        0 |      0% |     8-946 |
-| **TOTAL**                                              | **5333** | **3155** | **1862** |   **68** | **42%** |           |
+| **TOTAL**                                              | **5346** | **3159** | **1868** |   **68** | **42%** |           |
 
 
 ## Setup coverage badge
