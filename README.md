@@ -842,7 +842,9 @@ millilitres adjusts by `-250` and a bottle by `-0.33`. A part that never sets a 
 a per-use amount keeps stepping in whole spares, and its stock box still refuses "2.5
 filters".
 
-![The part editor for fabric softener, measured in bottles, with a fractional stock and a per-completion amount](docs/images/41-panel-part-measured-stock.png)
+![The part editor for a descaling solution measured in millilitres, with a stock unit and a used-per-completion amount](docs/images/47-panel-part-measured-stock.png)
+
+![The same part on the appliance page, its chips reading "In stock: 750 ml" and "Uses 250 ml per completion"](docs/images/47b-panel-part-measured-chips.png)
 
 #### Auto-create a buy task when a part runs low
 

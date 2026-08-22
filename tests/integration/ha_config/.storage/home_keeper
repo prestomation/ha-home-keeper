@@ -554,6 +554,23 @@
             "reorder_at": null
           },
           {
+            "id": "part_descaler",
+            "name": "Descaling solution",
+            "part_number": "DS-1000",
+            "type": "consumable",
+            "vendor": "Amazon",
+            "cost": 0.02,
+            "url": "",
+            "notes": "",
+            "replace_interval": null,
+            "replace_unit": null,
+            "last_replaced": null,
+            "stock": 750,
+            "reorder_at": 500,
+            "stock_unit": "ml",
+            "consume_quantity": 250
+          },
+          {
             "id": "part_sediment_filter",
             "name": "Sediment pre-filter",
             "part_number": "SF-20",

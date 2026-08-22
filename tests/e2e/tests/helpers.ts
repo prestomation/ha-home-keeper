@@ -79,6 +79,17 @@ export async function listTasks(): Promise<Array<Record<string, any>>> {
 }
 
 /**
+ * Every entity state, straight from the REST API.
+ *
+ * The service API answers questions about Home Keeper's own records; this is how
+ * a spec checks what the *entities* built from them look like to Home Assistant
+ * (a number's unit and step, a sensor's attributes).
+ */
+export async function listStates(): Promise<Array<Record<string, any>>> {
+  return (await api('/api/states')) as Array<Record<string, any>>;
+}
+
+/**
  * The summaries the to-do entity is currently offering (all needs_action).
  *
  * This — not the entity's *state* — is the authoritative, promptly-updated view
