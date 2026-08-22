@@ -5,7 +5,8 @@ in ``profiles.py`` that decides *which* tasks) by ``profile_id`` and adds *how* 
 deliver them — mobile targets, the button set, snooze duration, style (walk/digest),
 and automatic triggers. This module owns only that delivery concern: notification
 normalization, the mobile-app **payload builders**, and the **action-string**
-encode/decode that routes a notification tap back to the right task and notification.
+encode/decode that routes a notification tap back to the right task and notification
+(and tells a fresh tap from a stale one — see :func:`is_current_action`).
 The filter/queue live in ``profiles.py``; HA-aware sending in ``notifier.py``.
 
 See ``docs/PROFILES_REFACTOR_PLAN.md`` / ``docs/ACTIONABLE_NOTIFICATIONS_PLAN.md``.
@@ -52,36 +53,84 @@ STYLES = (STYLE_WALK, STYLE_DIGEST)
 
 DEFAULT_SNOOZE_HOURS = 24
 
-# Action-string scheme: ``home_keeper::<verb>::<task_id>::<notification_id>``. The
-# action string is the only field reliably echoed back in
-# ``mobile_app_notification_action``, so the verb, task, and notification are all
-# encoded into it. The prefix scopes ours on a global event bus that also carries
-# other integrations' actions.
+# Action-string scheme:
+# ``home_keeper::<verb>::<task_id>::<notification_id>::<due_token>``. The action string
+# is the only field reliably echoed back in ``mobile_app_notification_action``, so the
+# verb, task, notification and a freshness token are all encoded into it. The prefix
+# scopes ours on a global event bus that also carries other integrations' actions.
+#
+# The trailing ``due_token`` is the task's ``next_due`` at send time (see
+# :func:`due_token`), which makes the button a snapshot that can be checked against the
+# live task on tap — see :func:`is_current_action`. Notifications delivered *before*
+# tokens existed carry the older four-field form, which still decodes (with no token)
+# so buttons already sitting on someone's phone keep working.
 _ACTION_PREFIX = "home_keeper"
 _ACTION_SEP = "::"
 
 
-def encode_action(verb: str, task_id: str, notification_id: str) -> str:
-    """Build the action identifier carried on a notification button."""
-    return _ACTION_SEP.join((_ACTION_PREFIX, verb, task_id, notification_id))
+def due_token(task: dict[str, Any]) -> str:
+    """The freshness token for *task* — its ``next_due``, verbatim.
+
+    Raw rather than hashed on purpose: ISO-8601 never contains the ``::`` separator,
+    the values compare as exact strings with no parsing or timezone normalization, and
+    it reads plainly in a debug log or a hand-written test action string.
+    """
+    return str(task.get("next_due") or "")
 
 
-def decode_action(action: str | None) -> tuple[str, str, str] | None:
-    """Parse one of our action strings into ``(verb, task_id, notification_id)``.
+def is_current_action(
+    task: dict[str, Any], token: str | None, *, tokenless_ok: bool
+) -> bool:
+    """Whether a tapped action still matches the task state its button was built from.
 
-    Returns ``None`` for anything that isn't a well-formed Home Keeper action (a
-    foreign integration's action, or a malformed/empty value) so the listener can
-    ignore it.
+    *token* is the ``next_due`` snapshot the button carried. A mismatch means the task
+    moved between the send and the tap — completed, snoozed, skipped or rescheduled,
+    whether from this notification, a second card for the same task, or another surface
+    entirely — so the tap is stale and must not act on the task again.
+
+    Comparing against the task's *live* ``next_due`` (rather than anything scoped to the
+    notification the tap came from) is what makes two independent cards for one task
+    invalidate each other: they encode the same token, so whichever is tapped first
+    advances the task and strands the other.
+
+    A notification delivered before tokens existed carries ``token is None``. There is
+    nothing to compare, so the caller's own due-state check (*tokenless_ok*) decides.
+    """
+    if token is None:
+        return tokenless_ok
+    return token == due_token(task)
+
+
+def encode_action(verb: str, task_id: str, notification_id: str, token: str) -> str:
+    """Build the action identifier carried on a notification button.
+
+    *token* is the task's freshness token — see :func:`due_token`.
+    """
+    return _ACTION_SEP.join((_ACTION_PREFIX, verb, task_id, notification_id, token))
+
+
+def decode_action(action: str | None) -> tuple[str, str, str, str | None] | None:
+    """Parse an action string into ``(verb, task_id, notification_id, due_token)``.
+
+    Accepts both the current five-field form and the legacy four-field one, whose
+    ``due_token`` comes back as ``None``. Returns ``None`` for anything that isn't a
+    well-formed Home Keeper action (a foreign integration's action, or a
+    malformed/empty value) so the listener can ignore it.
     """
     if not action:
         return None
     parts = action.split(_ACTION_SEP)
-    if len(parts) != 4 or parts[0] != _ACTION_PREFIX:
+    if len(parts) not in (4, 5) or parts[0] != _ACTION_PREFIX:
         return None
-    _, verb, task_id, notification_id = parts
+    verb, task_id, notification_id = parts[1], parts[2], parts[3]
+    token = parts[4] if len(parts) == 5 else None
     if verb not in ACTIONS or not task_id or not notification_id:
         return None
-    return verb, task_id, notification_id
+    if token is not None and not token:
+        # Our builder always encodes a real ``next_due`` (a task only reaches a
+        # notification with one), so an empty token is malformed, not legacy.
+        return None
+    return verb, task_id, notification_id, token
 
 
 # ── notification normalization ───────────────────────────────────────────────────
@@ -291,7 +340,7 @@ def _action_button(
     lang: str = _DEFAULT_LANG,
 ) -> dict[str, Any]:
     """Build one mobile-app action button for *verb* on *task*."""
-    action_id = encode_action(verb, task["id"], notification["id"])
+    action_id = encode_action(verb, task["id"], notification["id"], due_token(task))
     if verb == ACTION_COMPLETE:
         return {"action": action_id, "title": _t(lang, "action_complete")}
     if verb == ACTION_SNOOZE:

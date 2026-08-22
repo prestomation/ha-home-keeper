@@ -343,21 +343,50 @@ def async_setup_notifications(
 ) -> CALLBACK_TYPE:
     """Subscribe to mobile-app action events; returns the unsubscribe callback."""
 
-    async def _handle(verb: str, task_id: str, notification_id: str) -> None:
+    async def _handle(
+        verb: str, task_id: str, notification_id: str, due_token: str | None
+    ) -> None:
         notification = notifications.resolve_notification(
             _notifications(entry), notification_id
         )
         now = dt_util.now()
         try:
             if verb == notifications.ACTION_COMPLETE:
-                # Gate a "Mark done" tap on the task still being armed/overdue, so a
-                # stale notification tapped after the task was already completed (or
-                # snoozed) elsewhere is a silent no-op rather than a double-advance.
+                # Gate a "Mark done" tap on the button still reflecting the task's
+                # current schedule, so a stale card — tapped after the task was
+                # completed/snoozed/skipped elsewhere, or a second card for the same
+                # task whose twin was already actioned — is a silent no-op rather than
+                # a double-advance (each completion advances next_due a full interval).
                 # A missing task (deleted) is likewise a no-op.
+                #
+                # NOTE: this check and the mutation it guards are atomic, and must
+                # stay that way. Everything from get_task() through complete_task()'s
+                # ``self._tasks[task_id] = updated`` runs without a yield point
+                # (awaiting a coroutine runs its body inline until *it* suspends, and
+                # complete_task's first suspension is the later ``await self._save()``),
+                # so two simultaneous taps — two phones on one card, or two cards for
+                # one task — cannot both read the pre-completion next_due. Introducing
+                # an await above that assignment would open that race.
                 task = coord.store.get_task(task_id)
-                if task is None or not recurrence.is_overdue(
-                    task, now=dt_util.utcnow()
+                if task is None:
+                    _LOGGER.debug(
+                        "Home Keeper notification action complete on %s ignored: "
+                        "task no longer exists",
+                        task_id,
+                    )
+                    return
+                if not notifications.is_current_action(
+                    task,
+                    due_token,
+                    tokenless_ok=recurrence.is_overdue(task, now=now),
                 ):
+                    _LOGGER.debug(
+                        "Home Keeper notification action complete on %s ignored: "
+                        "stale tap (button carried next_due %s, task is now at %s)",
+                        task_id,
+                        due_token,
+                        task.get("next_due"),
+                    )
                     return
                 await coord.store.complete_task(
                     task_id, origin=ORIGIN_NOTIFICATION_ACTION
@@ -410,7 +439,7 @@ def async_setup_notifications(
         decoded = notifications.decode_action(event.data.get("action"))
         if decoded is None:
             return
-        verb, task_id, notification_id = decoded
-        hass.async_create_task(_handle(verb, task_id, notification_id))
+        verb, task_id, notification_id, due_token = decoded
+        hass.async_create_task(_handle(verb, task_id, notification_id, due_token))
 
     return hass.bus.async_listen(EVENT_MOBILE_APP_ACTION, _on_action)

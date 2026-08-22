@@ -6,6 +6,19 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.16.0b2]
+
+### Fixed
+
+- **"Mark done" on a notification works before the task is due.** A notification built
+  from a Profile set to **Due soon** (or **All**) shows tasks that aren't overdue yet,
+  and its **Mark done** button did nothing at all when tapped. No completion, nothing in
+  the log, while **Snooze** and **Skip** on the same notification worked. The task then
+  went overdue as if it had been left alone. Tapping the button now completes the task
+  whenever it still reflects the task's current schedule. Taps that no longer do are
+  still ignored, so completing a task somewhere else (or on a second notification
+  covering the same task) can't push it out an extra cycle. (Fixes #216)
+
 ## [0.16.0b1] - 2026-08-21
 
 ### Added

@@ -25,8 +25,33 @@ def task(tid, name, next_due, **extra):
 
 
 def test_encode_decode_roundtrip():
-    a = n.encode_action(n.ACTION_SNOOZE, "task123", "notif456")
-    assert n.decode_action(a) == (n.ACTION_SNOOZE, "task123", "notif456")
+    a = n.encode_action(n.ACTION_SNOOZE, "task123", "notif456", "2026-06-16T10:00:00")
+    assert a == "home_keeper::snooze::task123::notif456::2026-06-16T10:00:00"
+    assert n.decode_action(a) == (
+        n.ACTION_SNOOZE,
+        "task123",
+        "notif456",
+        "2026-06-16T10:00:00",
+    )
+
+
+def test_decode_accepts_legacy_tokenless_action():
+    # A notification delivered before the freshness token existed is still sitting on
+    # someone's phone; its buttons must keep routing, with no token to check.
+    assert n.decode_action("home_keeper::complete::task123::notif456") == (
+        n.ACTION_COMPLETE,
+        "task123",
+        "notif456",
+        None,
+    )
+
+
+def test_decode_keeps_an_offset_bearing_token_intact():
+    # An aware ISO-8601 next_due carries '+'/'-' and single ':' but never the '::'
+    # separator, so it survives the split verbatim and compares as an exact string.
+    token = "2026-06-16T10:00:00+02:00"
+    a = n.encode_action(n.ACTION_COMPLETE, "t", "x", token)
+    assert n.decode_action(a) == (n.ACTION_COMPLETE, "t", "x", token)
 
 
 def test_decode_rejects_foreign_and_malformed():
@@ -36,6 +61,53 @@ def test_decode_rejects_foreign_and_malformed():
     assert n.decode_action("home_keeper::complete::t") is None  # too few parts
     assert n.decode_action("home_keeper::bogus::t::x") is None  # unknown verb
     assert n.decode_action("home_keeper::complete::::x") is None  # empty task id
+    assert n.decode_action("home_keeper::complete::t::") is None  # empty notif id
+    assert n.decode_action("home_keeper::complete::t::x::") is None  # empty token
+    assert n.decode_action("home_keeper::complete::t::x::d::extra") is None  # 6 parts
+
+
+# ── freshness token ─────────────────────────────────────────────────────────
+
+
+def test_due_token_is_the_raw_next_due():
+    t = task("t", "T", dt(2026, 6, 16, 10))
+    assert n.due_token(t) == "2026-06-16T10:00:00-04:00"
+
+
+def test_due_token_of_an_undated_task_is_empty():
+    assert n.due_token(task("t", "T", None)) == ""
+    assert n.due_token({}) == ""
+
+
+def test_is_current_action_accepts_a_matching_token():
+    # The early-tap case from #216: the task is not yet due, but the button still
+    # reflects its current schedule, so "Mark done" must act.
+    t = task("t", "T", dt(2026, 6, 16, 10))
+    assert n.is_current_action(t, n.due_token(t), tokenless_ok=False) is True
+
+
+def test_is_current_action_rejects_a_moved_task():
+    # The task advanced after the button was built (completed/snoozed/skipped
+    # elsewhere, or a twin card for the same task was tapped first).
+    t = task("t", "T", dt(2026, 6, 16, 10))
+    stale = n.due_token(t)
+    moved = task("t", "T", dt(2026, 6, 23, 10))
+    assert n.is_current_action(moved, stale, tokenless_ok=True) is False
+
+
+def test_is_current_action_defers_to_the_caller_when_tokenless():
+    t = task("t", "T", dt(2026, 6, 16, 10))
+    assert n.is_current_action(t, None, tokenless_ok=True) is True
+    assert n.is_current_action(t, None, tokenless_ok=False) is False
+
+
+def test_two_cards_for_one_task_encode_the_same_token():
+    # Why one card invalidates the other: the token is keyed on the *task*, not on the
+    # notification the tap came from, so independent cards agree on it.
+    t = task("t", "T", dt(2026, 6, 16, 10))
+    a = n.encode_action(n.ACTION_COMPLETE, t["id"], "notif_a", n.due_token(t))
+    b = n.encode_action(n.ACTION_COMPLETE, t["id"], "notif_b", n.due_token(t))
+    assert n.decode_action(a)[3] == n.decode_action(b)[3]
 
 
 # ── notification normalization ───────────────────────────────────────────────
@@ -194,8 +266,13 @@ def test_build_notification_walk_actions_and_tag():
     assert payload["data"]["tag"] == "home_keeper_n1"
     actions = payload["data"]["actions"]
     assert [a["title"] for a in actions] == ["Mark done", "Snooze 6h", "Open"]
-    assert actions[0]["action"] == "home_keeper::complete::t1::n1"
+    assert actions[0]["action"] == (
+        "home_keeper::complete::t1::n1::2026-06-10T00:00:00-04:00"
+    )
     assert actions[2]["uri"] == "/home-keeper/tasks/t1"
+    # Every button carries the task's next_due, so a tap on any of them can be checked
+    # for freshness — not just "Mark done".
+    assert all(a["action"].endswith(f"::{n.due_token(t)}") for a in actions)
 
 
 def test_overdue_phrase_singular_and_due_now():
@@ -243,8 +320,16 @@ def test_action_titles_translate_by_lang():
     )
     t = task("t1", "Furnace filter", dt(2026, 6, 10))
     payload = n.build_notification(t, notification=notif, now=now, lang="es")
-    titles = [a["title"] for a in payload["data"]["actions"]]
+    actions = payload["data"]["actions"]
+    titles = [a["title"] for a in actions]
     assert titles == ["Marcar como hecho", "Posponer 6 h", "Omitir", "Abrir"]
+    # The full button set, so this is where every verb's routing key is pinned: the
+    # companion app echoes back whatever sits under "action", so a mistyped key on any
+    # one of them ships a button that does nothing.
+    assert [a["action"] for a in actions] == [
+        n.encode_action(verb, "t1", "n1", n.due_token(t))
+        for verb in ("complete", "snooze", "skip", "open")
+    ]
 
 
 def test_overdue_phrase_translates_and_pluralizes():
