@@ -842,11 +842,11 @@ stays put until you actually restock.)
 #### Send buy reminders to your shopping list
 
 A reminder that only exists in Home Keeper is no help in the shop. Point **Settings →
-Shopping list** at a to-do list you already use (the built-in shopping list, a
-`local_todo` list, whatever your voice assistant reads out) and every auto-created
-**"Buy {part}"** reminder is put on it as an ordinary line. It shows up wherever that
-list shows up: the To-do card on your dashboard, the companion app, "hey, what's on my
-shopping list".
+Shopping list** at a to-do list you already use and every auto-created **"Buy {part}"**
+reminder is put on it as an ordinary line. Any `todo` entity works, from the built-in
+shopping list to whatever your voice assistant reads out. The reminder then turns up
+wherever that list does: on the To-do card on your dashboard, or read back when you ask
+what's on the shopping list.
 
 It works in both directions:
 

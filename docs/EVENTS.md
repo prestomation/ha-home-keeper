@@ -84,7 +84,7 @@ by hand through the `set_task_meter` service does fire `home_keeper_task_updated
 
 **Buy reminders ticked off on a mirrored shopping list** ride these same events too.
 When *Settings → Shopping list* points at a to-do list, each auto-created **"Buy
-{part}"** reminder is put on it; ticking that line off there fires an ordinary
+{part}"** reminder is put on it. Ticking that line off there fires an ordinary
 `home_keeper_task_completed` carrying `origin: home_keeper_shopping_list` and
 `source: {"buy": {"asset_id": …, "part_id": …}}`. Match on that origin to tell "bought
 at the shop" from a press of Done. Like any buy-reminder completion it restocks the part
