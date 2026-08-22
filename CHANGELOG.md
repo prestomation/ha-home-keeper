@@ -6,6 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.16.0b4]
+
+### Added
+
+- **Shopping filter in the panel and dashboard card.** A new "Shopping" option in the
+  task filter bar shows only the auto-created buy tasks (the ones Home Keeper generates
+  when a part's stock hits its reorder point), so you can see at a glance what needs
+  buying without scrolling through every task. The same filter is available as
+  `filter: shopping` on the dashboard card. (Fixes #220)
+
+### Fixed
+
+- **Documented that auto-clearing sensor tasks consume consumable stock.** When a
+  sensor task with *Clear when back to normal* is linked to a consumable part, the
+  auto-completion draws down one spare from stock, the same as completing by hand. This
+  was always the behavior but was not mentioned in the README or the events reference.
+
 ## [0.16.0b3]
 
 ### Fixed
