@@ -71,9 +71,9 @@ A `threshold` or `state` binding that sets **`clear_on_recover`** also clears it
 its condition goes away, and that path fires an ordinary `home_keeper_task_completed`
 carrying `origin: home_keeper_sensor_recover`. Match on that origin to tell a
 self-clearing sensor task from someone pressing Done. If the task is linked to a
-consumable, the auto-completion consumes one spare and can trigger
-`home_keeper_part_low_stock` or `home_keeper_part_out_of_stock`, the same as any other
-completion. A bound entity going
+consumable, the auto-completion consumes one spare, potentially producing
+`home_keeper_part_low_stock` or `home_keeper_part_out_of_stock` the same as any other
+completion path. A bound entity going
 `unavailable`/`unknown` counts as no reading rather than a recovery, and fires nothing,
 so a device dropping off the network never completes a task.
 
