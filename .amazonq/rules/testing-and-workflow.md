@@ -130,6 +130,24 @@
   deliberately does not use `openCardDashboard`: that helper reloads up to 3x to absorb
   cold-frontend flake, which here would only re-serve the stripped shell while turning
   a precise failure into an opaque timeout.
+- **Verify a browser-sensitive e2e spec with the browser CI actually uses.** `e2e.yml` runs
+  `npx playwright install chromium` and no `CHROMIUM_EXEC`, so CI drives Playwright's
+  **headless shell**; the `CHROMIUM_EXEC` override documented in AGENTS.md for the Claude Code
+  remote environment points at a *different, older* full Chromium. `card-registration.spec.ts`
+  passed locally and failed on CI three times for exactly that reason. Re-run a spec with
+  `CHROMIUM_EXEC` unset (`CI=true npx playwright test <spec>`) before trusting it.
+- **A spec that rewrites a document needs the Local Network Access flag.** Chrome classifies a
+  response synthesized by `route.fulfill` as coming from a public address space, then blocks the
+  page's own `ws://localhost:8123/api/websocket` as a local-network request
+  (`net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`). The frontend never connects, so nothing
+  websocket-delivered — Lovelace resources included — ever loads, and the failure looks like the
+  feature under test is broken. `playwright.config.ts` passes
+  `--disable-features=LocalNetworkAccessChecks` for this; every test here is localhost talking to
+  localhost, so the check can only produce false failures.
+- **Give an e2e assertion that depends on browser plumbing a failure message that names what it
+  saw.** The above took a CI round-trip per guess until the spec captured console errors and
+  whether the bundle was requested at all; "the bundle was never requested" is the line that
+  ended it. A bare `waitFor` timeout says only that something, somewhere, did not happen.
 
 ## Mutation testing (a PR gate)
 Coverage proves a line *ran*; mutation testing proves a test would have *failed*

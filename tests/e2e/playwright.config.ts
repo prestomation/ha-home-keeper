@@ -31,9 +31,23 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        ...(process.env.CHROMIUM_EXEC
-          ? { launchOptions: { executablePath: process.env.CHROMIUM_EXEC } }
-          : {}),
+        launchOptions: {
+          // Chrome's Local Network Access checks classify a response synthesized by
+          // `route.fulfill` as coming from a *public* address space, which then blocks
+          // the page's own `ws://localhost:8123/api/websocket` as a local-network
+          // request (`net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`). Any spec that
+          // rewrites a document — `card-registration.spec.ts` does, to simulate a stale
+          // app shell — loses the websocket entirely and fails for a reason that has
+          // nothing to do with Home Keeper. Every test here is localhost talking to
+          // localhost, so the check can only ever produce false failures.
+          // It bites only on newer Chromium: the headless shell CI installs enforces it,
+          // the full Chromium behind CHROMIUM_EXEC did not, which is why this passed
+          // locally and failed on CI.
+          args: ['--disable-features=LocalNetworkAccessChecks'],
+          ...(process.env.CHROMIUM_EXEC
+            ? { executablePath: process.env.CHROMIUM_EXEC }
+            : {}),
+        },
       },
     },
   ],

@@ -25,6 +25,10 @@ import { DASHBOARD } from './helpers';
 // the reload that follows would be served the original, unstripped shell and the card
 // would load for the wrong reason. Blocking it is not dodging the bug: the service
 // worker's caching is what we are simulating, not what we are exercising.
+//
+// The other half of making this run is in `playwright.config.ts`, which disables
+// Chrome's Local Network Access checks — they treat a `route.fulfill` response as
+// public and then block the page's own websocket. See the comment there.
 test.use({ serviceWorkers: 'block' });
 
 const CARD_BUNDLE = 'home-keeper-card.js';
@@ -34,6 +38,30 @@ const CARD_IMPORT = /import\(\s*(["'])[^"']*home-keeper-card\.js[^"']*\1\s*\)\s*
 
 test.describe('Home Keeper card — delivery (#228)', () => {
   test('renders from an app shell that never imported its bundle', async ({ page }) => {
+    // The card can only load once the websocket is up and the resource list has been
+    // fetched, which is later than the shell import the other card specs rely on.
+    test.setTimeout(120_000);
+
+    // Diagnosing this test from a CI log is otherwise guesswork: the first version
+    // failed on CI and passed locally, and the cause (the websocket never connecting)
+    // was invisible until the console was captured.
+    const problems: string[] = [];
+    const bundleTraffic: string[] = [];
+    page.on('console', (m) => {
+      if (m.type() === 'error') problems.push(`console: ${m.text().slice(0, 300)}`);
+    });
+    page.on('pageerror', (e) => problems.push(`pageerror: ${String(e).slice(0, 300)}`));
+    page.on('request', (r) => {
+      if (r.url().includes(CARD_BUNDLE)) bundleTraffic.push(`request ${r.url()}`);
+    });
+    page.on('response', (r) => {
+      if (r.url().includes(CARD_BUNDLE)) bundleTraffic.push(`response ${r.status()}`);
+    });
+    page.on('requestfailed', (r) => {
+      if (r.url().includes(CARD_BUNDLE))
+        problems.push(`bundle request failed: ${r.failure()?.errorText}`);
+    });
+
     // Captured in the handler and asserted after navigating: throwing inside a route
     // handler leaves the request unfulfilled and surfaces as an opaque goto timeout.
     let original: string | null = null;
@@ -74,7 +102,16 @@ test.describe('Home Keeper card — delivery (#228)', () => {
     // Deliberately not `helpers.openCardDashboard`: its 3x reload retry exists to
     // absorb exactly this class of failure and would mask the regression.
     const card = page.locator('home-keeper-card').first();
-    await card.waitFor({ state: 'attached', timeout: 30_000 });
+    try {
+      await card.waitFor({ state: 'attached', timeout: 60_000 });
+    } catch (err) {
+      throw new Error(
+        'the card never loaded from the Lovelace resource after its app-shell import ' +
+          `was removed — issue #228.\nbundle traffic: ${
+            bundleTraffic.length ? bundleTraffic.join(', ') : '(the bundle was never requested)'
+          }\nbrowser problems:\n${problems.join('\n') || '(none)'}\n\n${String(err)}`,
+      );
+    }
     await expect(card.locator('.hk-row, .hk-empty').first()).toBeVisible({ timeout: 30_000 });
     await expect(card.locator('.hk-title').first()).toContainText('Home maintenance');
 
