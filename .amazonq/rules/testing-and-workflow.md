@@ -176,11 +176,12 @@ gate); CI publishes it to the job summary.
   `preview-release.yml` publishes an installable ephemeral pre-release
   (`X.Y.Z.dev<pr>`) from the PR head for pre-merge HACS testing (auto-deleted on
   close; see RELEASE.md). Bug-fix/developer-only PRs don't.
-- **Shipping closes an issue, not merging.** A PR links its issue with `Refs #N`
-  (never `Fixes`/`Closes`/`Resolves`) so it stays open until users can install the
-  fix. `release.yml`'s `notify-issues` job reads the shipped version's CHANGELOG
-  section, comments on every issue it references, and — on a stable only — closes it
-  as completed. A beta comments and leaves the issue open.
+- **Shipping closes an issue, not merging.** Closing-on-merge is off for this repo, so
+  a PR's `Fixes #N` links the issue (filling its **Development** panel) without closing
+  it, and it stays open until users can install the fix. `release.yml`'s
+  `notify-issues` job reads the shipped version's CHANGELOG section, comments on every
+  issue it references, and — on a stable only — closes it as completed. A beta comments
+  and leaves the issue open.
 - **The `(Fixes #N)` refs in a CHANGELOG section are that release's issue list.**
   Leave an issue out and it is never notified and never closes. Only closing keywords
   are read; `(Related to #N)` and bare `(#N)` are ignored on purpose, since `(#N)` is
@@ -225,7 +226,7 @@ gate); CI publishes it to the job summary.
 - **Never comment on a GitHub issue.** Issues are the user↔maintainer channel;
   an agent posting there answers for the maintainer to someone who didn't ask.
   Analysis, findings and status go in the PR carrying the work. A PR that fixes
-  an issue links it (`Refs #N`) and the release shipping it closes it — that's the
+  an issue links it (`Fixes #N`) and the release shipping it closes it — that's the
   only signal the issue needs. PR comments are unaffected (the `/q review` above and
   replies to review threads are still required).
   - The ban is on *you* posting, not on repo automation working from a fixed

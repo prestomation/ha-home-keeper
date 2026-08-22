@@ -1,13 +1,16 @@
 <!--
-Link issues with `Refs #N`, not `Fixes #N`.
+Link the issue this fixes with `Fixes #N` below.
 
-Merging doesn't put anything in a user's Home Assistant. Issues stay open until the
-fix ships, and `release.yml`'s notify-issues job closes them on the release that
-carries it — so the reporter's "closed" notification names a version they can install.
-For that to happen the issue also needs a `(Fixes #N)` line in the CHANGELOG entry.
+Closing-on-merge is off for this repo, so the keyword links the PR to the issue
+without closing it. The issue stays open until the fix actually ships, and
+release.yml's notify-issues job closes it on the release that carries it — so the
+reporter's "closed" notification names a version they can install.
+
+For that to happen the issue also needs a `(Fixes #N)` line in the CHANGELOG entry:
+that section is what the release reads to decide who gets told.
 -->
 
-Refs #
+Fixes #
 
 ## What changed
 

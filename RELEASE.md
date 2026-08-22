@@ -35,8 +35,11 @@ the GitHub release automatically. No manual `git tag` step.
 
 An issue closes when its fix **ships**, not when its PR merges. A merged PR is not in
 anyone's Home Assistant yet — it may sit on `main` for days and go out in a beta before
-it reaches everyone — so a PR links its issue with `Refs #N` (never `Fixes #N`) and
-leaves it open.
+it reaches everyone.
+
+Closing-on-merge is turned off for this repository, so a PR's `Fixes #N` links the
+issue (filling in its **Development** panel) without closing it, and the issue stays
+open on its own. Keep writing `Fixes #N` — the link is worth having.
 
 The `notify-issues` job in `release.yml` closes the loop. It reads the shipped
 version's `## [X.Y.Z]` CHANGELOG section, pulls out every `(Fixes #N)` reference, and

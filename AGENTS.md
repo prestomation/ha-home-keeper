@@ -15,8 +15,8 @@
   mid-stream); don't carry beta-to-beta framing — e.g. a `### Changed` for something
   that didn't exist in the last stable — into the stable section. **Include a `###
   Fixed` section listing every GitHub issue fixed by commits since the last stable**
-  — check the git log for `Refs #N` / `(Fixes #N)` references and write each one into
-  the section as `(Fixes #N)`.
+  — check the git log for `(Fixes #N)` references and write each one into the section
+  as `(Fixes #N)`.
 - **A `(Fixes #N)` in a version's CHANGELOG section is what notifies and closes the
   issue.** `release.yml`'s `notify-issues` job reads the shipped version's section,
   comments on every issue it references, and closes it once the version is stable. An
@@ -26,12 +26,12 @@
   because `(#N)` is also the squash-merge PR number and the two can't be told apart.
   The job posts a CI warning naming any issue a shipped commit referenced that the
   section forgot.
-- **Link issues from a PR with `Refs #N`, never `Fixes`/`Closes`/`Resolves`.** Merging
-  ships nothing — the fix reaches users at a release, sometimes days and a beta later.
-  Keep the issue open until then and let `notify-issues` close it on the release that
-  actually carries the fix, so the reporter's "closed" notification names a version
-  they can install. (`Fixes #N` in a *CHANGELOG* entry is the opposite: that's the
-  bullet above, and it's required.)
+- **Keep linking issues from a PR with `Fixes #N`.** Closing-on-merge is turned off
+  for this repository, so the keyword links the PR to the issue — that's what fills in
+  the issue's **Development** panel and its linked-pull-request relationship — without
+  closing anything. The issue stays open until the fix actually reaches users, and
+  `notify-issues` closes it on the release that carries it, so the reporter's "closed"
+  notification names a version they can install.
 - **Beta versioning — always use the next release number.** After every stable
   `X.Y.0` ships, immediately bump `manifest.json` and `const.py` (`PANEL_VERSION`)
   to `X.(Y+1).0b1` on `main`, and rename the `## [Unreleased]` CHANGELOG section to
@@ -182,7 +182,7 @@
   maintainer, and an agent posting there answers on the maintainer's behalf to
   someone who didn't ask for it. Findings, analysis and status belong in the PR
   that carries the work, or in the reply to whoever asked. A PR that fixes an
-  issue links it (`Refs #N`) and the release that ships it closes it, which is the
+  issue links it (`Fixes #N`) and the release that ships it closes it, which is the
   only signal an issue needs. This does **not** restrict PR comments: the `/q review`
   request above and replies to review threads are still required.
   - The ban is on **you** posting. It does not cover repo automation, which posts
