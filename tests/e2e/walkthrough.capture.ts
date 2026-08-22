@@ -329,6 +329,16 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('.d-archive')).toBeVisible();
     await page.waitForTimeout(BEAT);
 
+    // 4a4. Stock that is measured, not counted — the descaling solution keeps its
+    //      stock in millilitres and uses 250 of them per completion, so its chips
+    //      read in real units instead of a bare count of somethings.
+    const measuredRow = panel
+      .locator('.hk-part-row')
+      .filter({ hasText: 'Descaling solution' });
+    await measuredRow.scrollIntoViewIfNeeded();
+    await expect(measuredRow.getByText('In stock: 750 ml')).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+
     // 4b. Auto-buy — open the editor, reveal the Parts section, and flip on
     //     "Auto-create buy task" for a stocked consumable so its Restock quantity
     //     appears: the low → buy → restocked loop, configured in a single toggle.
@@ -342,6 +352,12 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
       const open = await partsSection.first().evaluate((d: HTMLDetailsElement) => d.open);
       if (!open) await partsSection.first().locator('summary').click();
     }
+    // The measured part's own editor first: a Stock unit and a Used-per-completion
+    // amount sit beside the ordinary Stock and Reorder at.
+    const measuredPart = partsSection.locator('.hk-part').nth(2);
+    await measuredPart.scrollIntoViewIfNeeded();
+    await expect(measuredPart.getByText('Stock unit', { exact: false })).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
     const buyPart = partsSection.locator('.hk-part').last();
     await buyPart.scrollIntoViewIfNeeded();
     await page.waitForTimeout(BEAT);
