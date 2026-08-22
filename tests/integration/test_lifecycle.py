@@ -19,11 +19,76 @@ def _list_tasks(ha):
     return resp.get("service_response", resp)["tasks"]
 
 
+def _todo_summaries(ha):
+    """The to-do list's actual items, not just the count the entity state carries."""
+    resp = call_service(
+        ha,
+        "todo",
+        "get_items",
+        {"entity_id": "todo.home_keeper_tasks"},
+        return_response=True,
+    )
+    payload = resp.get("service_response", resp)
+    return [item["summary"] for item in payload["todo.home_keeper_tasks"]["items"]]
+
+
 def test_todo_entity_exists_with_seeded_tasks(ha):
     state = get_state(ha, "todo.home_keeper_tasks")
     assert state is not None
     # State is the count of incomplete items; 4 seeded tasks are enabled.
     assert int(state["state"]) >= 1
+    summaries = _todo_summaries(ha)
+    # An armed one-off is a normal item...
+    assert "Renew passport" in summaries
+    # ...but the seeded "Renew car registration" is already completed, so it is
+    # dormant (next_due None) and must not be on the list (#221).
+    assert "Renew car registration" not in summaries
+
+
+def test_completed_one_off_leaves_the_todo_list(ha):
+    """Regression (#221): a do-once task retires from the to-do list once it's done.
+
+    It used to sit there as an undated needs_action item forever — the entity only
+    emits needs_action, so nothing short of deleting the task could clear it.
+    """
+    name = "One-off todo probe"
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": name,
+            "recurrence_type": "one-off",
+            "due": "2026-07-15T09:00:00-04:00",
+        },
+        return_response=True,
+    )
+    task_id = resp.get("service_response", resp)["task_id"]
+    try:
+        assert name in _todo_summaries(ha), "an armed one-off belongs on the list"
+
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline and name in _todo_summaries(ha):
+            time.sleep(1)
+        assert name not in _todo_summaries(ha), "a completed one-off is dormant"
+
+        # The reporter's other symptom: checking the stale item off again appended a
+        # second completion. HA can no longer resolve an item that isn't listed...
+        rejected = ha.post(
+            f"{HA_URL}/api/services/todo/update_item",
+            json={
+                "entity_id": "todo.home_keeper_tasks",
+                "item": name,
+                "status": "completed",
+            },
+        )
+        assert rejected.status_code >= 400
+        # ...and the completion history stayed at the single real completion.
+        task = next(t for t in _list_tasks(ha) if t["id"] == task_id)
+        assert len(task["completions"]) == 1
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
 
 
 def test_calendar_entity_exists(ha):

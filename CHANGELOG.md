@@ -6,6 +6,21 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.16.0b3]
+
+### Fixed
+
+- **A do-once task you already finished no longer sits on the to-do list forever.**
+  Checking off a one-off task (renew the passport, register the car) retires it: it
+  goes dormant and leaves the calendar, the due-date sensors and the panel's active
+  list, landing in the panel's **Completed** section with its record intact. The native
+  `todo.home_keeper_tasks` list kept showing it anyway, unchecked and with its due date
+  gone, and nothing could clear it short of deleting the task and its history. A
+  finished one-off now drops off the to-do list as soon as it's done, and comes back at
+  its due date if you undo the completion. Checking one off a second time (through
+  `todo.update_item`, say) no longer records a second completion for work done once.
+  (Fixes #221)
+
 ## [0.16.0b2]
 
 ### Fixed

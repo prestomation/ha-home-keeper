@@ -25,80 +25,109 @@ def _dt(y, mo, d, h=0, mi=0) -> datetime:
     return datetime(y, mo, d, h, mi, tzinfo=TZ)
 
 
-def _install_ha_stubs() -> None:
-    """Register minimal stand-ins for the HA symbols ``calendar.py`` imports.
+def _real_ha_present() -> bool:
+    """True only when the *real* Home Assistant package is installed.
 
-    Only installed when Home Assistant isn't importable (the pure-unit
-    environment). When real HA is present these modules already exist and are
-    left untouched.
+    A hand-built stub ``homeassistant`` module (e.g. from ``test_todo.py``) has no
+    ``__file__``; the real package does. This distinguishes them so we fill gaps
+    over a stub tree but never shadow real submodules.
     """
-    try:  # pragma: no cover - depends on environment
-        import homeassistant  # noqa: F401
+    mod = sys.modules.get("homeassistant")
+    if mod is None:
+        try:  # pragma: no cover - depends on environment
+            import homeassistant as mod  # type: ignore[no-redef]
+        except ImportError:
+            return False
+    return getattr(mod, "__file__", None) is not None
 
+
+def _install_ha_stubs() -> None:
+    """Additively register the HA symbols ``calendar.py`` imports.
+
+    Idempotent and non-clobbering, on the same contract as
+    ``test_coordinator_purge.py``, ``test_device_heal.py`` and ``test_todo.py``:
+    each installs its own partial ``homeassistant`` stub tree, so we only *fill
+    gaps* rather than early-return or overwrite, and load order between the suites
+    stays irrelevant. (Early-returning on "some ``homeassistant`` module exists"
+    would leave ``homeassistant.components.calendar`` unregistered whenever another
+    suite's stubs landed first.)
+    """
+    if _real_ha_present():  # pragma: no cover - real HA env
         return
-    except ImportError:
-        pass
 
     def _mod(name: str) -> types.ModuleType:
+        existing = sys.modules.get(name)
+        if existing is not None:
+            return existing
         m = types.ModuleType(name)
         sys.modules[name] = m
         return m
 
     ha = _mod("homeassistant")
-    _mod("homeassistant.components")
-    ha.components = sys.modules["homeassistant.components"]
+    components = _mod("homeassistant.components")
+    ha.components = components
 
     comp_cal = _mod("homeassistant.components.calendar")
+    if not hasattr(comp_cal, "CalendarEntity"):
 
-    class CalendarEntity:
-        pass
+        class CalendarEntity:
+            pass
 
-    class CalendarEvent:
-        def __init__(self, summary, start, end, uid, description=None):
-            self.summary = summary
-            self.start = start
-            self.end = end
-            self.uid = uid
-            self.description = description
+        class CalendarEvent:
+            def __init__(self, summary, start, end, uid, description=None):
+                self.summary = summary
+                self.start = start
+                self.end = end
+                self.uid = uid
+                self.description = description
 
-    comp_cal.CalendarEntity = CalendarEntity
-    comp_cal.CalendarEvent = CalendarEvent
+        comp_cal.CalendarEntity = CalendarEntity
+        comp_cal.CalendarEvent = CalendarEvent
+    components.calendar = comp_cal
 
     config_entries = _mod("homeassistant.config_entries")
-    config_entries.ConfigEntry = type("ConfigEntry", (), {})
+    if not hasattr(config_entries, "ConfigEntry"):
+        config_entries.ConfigEntry = type("ConfigEntry", (), {})
 
     core = _mod("homeassistant.core")
-    core.HomeAssistant = type("HomeAssistant", (), {})
+    if not hasattr(core, "HomeAssistant"):
+        core.HomeAssistant = type("HomeAssistant", (), {})
 
-    _mod("homeassistant.helpers")
+    helpers = _mod("homeassistant.helpers")
     entity_platform = _mod("homeassistant.helpers.entity_platform")
-    entity_platform.AddEntitiesCallback = object
+    if not hasattr(entity_platform, "AddEntitiesCallback"):
+        entity_platform.AddEntitiesCallback = object
+    helpers.entity_platform = entity_platform
 
     update_coordinator = _mod("homeassistant.helpers.update_coordinator")
-    _T = typing.TypeVar("_T")
+    if not hasattr(update_coordinator, "CoordinatorEntity"):
+        _T = typing.TypeVar("_T")
 
-    class CoordinatorEntity(typing.Generic[_T]):
-        def __init__(self, coordinator):
-            self.coordinator = coordinator
+        class CoordinatorEntity(typing.Generic[_T]):
+            def __init__(self, coordinator):
+                self.coordinator = coordinator
 
-    update_coordinator.CoordinatorEntity = CoordinatorEntity
+        update_coordinator.CoordinatorEntity = CoordinatorEntity
 
     util = _mod("homeassistant.util")
     dt = _mod("homeassistant.util.dt")
+    if not hasattr(dt, "parse_datetime"):
 
-    def parse_datetime(value):
-        if not value:
-            return None
-        try:
-            return datetime.fromisoformat(value)
-        except (TypeError, ValueError):
-            return None
+        def parse_datetime(value):
+            if not value:
+                return None
+            try:
+                return datetime.fromisoformat(value)
+            except (TypeError, ValueError):
+                return None
 
-    def now():  # overridden per-test via monkeypatch
-        raise AssertionError("dt_util.now() must be patched in tests")
+        dt.parse_datetime = parse_datetime
+    if not hasattr(dt, "now"):
 
-    dt.parse_datetime = parse_datetime
-    dt.now = now
+        def now():  # overridden per-test via monkeypatch
+            raise AssertionError("dt_util.now() must be patched in tests")
+
+        dt.now = now
     util.dt = dt
 
 
