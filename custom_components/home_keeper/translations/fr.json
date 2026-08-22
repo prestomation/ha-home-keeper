@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Ajuster le stock de pièces",
-      "description": "Modifie le nombre de pièces de rechange disponibles d'un écart signé (limité à zéro). Lorsqu'une diminution atteint ou franchit le seuil de réapprovisionnement, un événement de stock bas est déclenché.",
+      "description": "Modifie la quantité de pièces de rechange disponibles d'un écart signé (limité à zéro) ; les décimales sont acceptées. Lorsqu'une diminution atteint ou franchit le seuil de réapprovisionnement, un événement de stock bas est déclenché.",
       "fields": {
         "asset_id": {
           "name": "ID du bien",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Écart",
-          "description": "Variation signée à appliquer au nombre de pièces de rechange (par ex. -1 pour consommer, 2 pour réapprovisionner)."
+          "description": "Variation signée à appliquer à la quantité en stock, décimales acceptées (par ex. -1 pour consommer une pièce, -250 pour 250 ml, 2 pour réapprovisionner)."
         }
       }
     },

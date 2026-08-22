@@ -83,6 +83,18 @@ def test_spares_value_is_cost_times_stock():
     assert row["part_count"] == 4
 
 
+def test_spares_value_counts_a_fractional_stock():
+    # Cost is per unit of stock, whatever unit the part counts itself in, so half a
+    # bottle on the shelf is worth half a bottle — not zero, and not a whole one.
+    asset = _asset(
+        parts=[
+            {"name": "Softener", "cost": 6.0, "stock": 0.5, "stock_unit": "bottles"},
+            {"name": "Line", "cost": 0.2, "stock": 12.5, "stock_unit": "m"},
+        ]
+    )
+    assert inv.build_inventory([asset])["assets"][0]["spares_value"] == 5.5
+
+
 def test_totals_roll_up_cost_and_spares():
     a = _asset(
         id="a1", name="A", cost=100.0, parts=[{"name": "p", "cost": 10.0, "stock": 2}]

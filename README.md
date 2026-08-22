@@ -510,11 +510,12 @@ anything you actually have to go and do.
 
 A maintenance task often **uses up a spare you keep on hand**, such as a fridge water filter,
 an HVAC filter, a brita cartridge. Home Keeper lets you **link any task to an appliance
-consumable** so that marking the task done **draws down one spare** from that part's
-[stock](#parts--wear-items), and fires a `home_keeper_part_low_stock` event once stock
-crosses the **reorder-at** threshold, so an automation can add it to your shopping
-list. The link is independent of the auto-generated wear-part tasks, so the task stays a
-normal, fully-editable task.
+consumable** so that marking the task done **draws down** that part's
+[stock](#parts--wear-items) by its per-use amount (one whole spare unless the part sets
+[its own](#stock-you-measure-rather-than-count)), and fires a
+`home_keeper_part_low_stock` event once stock crosses the **reorder-at** threshold, so
+an automation can add it to your shopping list. The link is independent of the
+auto-generated wear-part tasks, so the task stays a normal, fully-editable task.
 
 This is what makes the *"there's no schedule, my fridge tells me when the filter is
 spent"* case work end to end: create a **[sensor-based](#sensor-based-tasks-usage-meters-thresholds--states)**
@@ -819,6 +820,29 @@ limited to its own wear cadence: you can **[link any task to it](#link-a-task-to
 (including a sensor-driven one), so completing that task draws down the same stock.
 Stock deduction applies to every completion path: manual, tag scan, and
 [auto-clearing sensor tasks](#sensor-based-tasks-usage-meters-thresholds--states) alike.
+
+#### Stock you measure rather than count
+
+Not everything on the shelf is a countable thing. Fabric softener comes in a bottle you
+top up a third at a time. Trimmer line comes on a spool you use by the metre. Two
+optional fields on a stock-tracked part cover that.
+
+- **Stock unit** is what the numbers mean: `ml`, `m`, `bottles`. Set it and the unit
+  appears everywhere the amount does, on the part's chips, on a linked task's detail
+  line, on the stock control on the appliance's device page, and in the `unit` field of
+  the [stock events](docs/EVENTS.md). Leave it empty and a part counts whole spares
+  exactly as it always did.
+- **Used per completion** is how much one completion takes off. Leave it empty and a
+  completion uses one whole spare. Set it to `0.33` and three refills empty one bottle,
+  rather than three bottles.
+
+*Stock*, *reorder-at*, *used per completion* and *restock quantity* all accept decimals,
+as does the `delta` on `home_keeper.adjust_part_stock`, so a part measured in
+millilitres adjusts by `-250` and a bottle by `-0.33`. A part that never sets a unit or
+a per-use amount keeps stepping in whole spares, and its stock box still refuses "2.5
+filters".
+
+![The part editor for fabric softener, measured in bottles, with a fractional stock and a per-completion amount](docs/images/41-panel-part-measured-stock.png)
 
 #### Auto-create a buy task when a part runs low
 

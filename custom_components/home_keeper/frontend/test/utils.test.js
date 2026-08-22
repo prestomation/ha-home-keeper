@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   escapeHTML,
+  formatQuantity,
   isHttpUrl,
   isSafeImageUrl,
   safeFileHref,
@@ -110,6 +111,27 @@ describe('href/image URL guards', () => {
   it('safeFileHref escapes the value it returns', () => {
     // A quote that survived into an href would let the attribute be closed early.
     expect(safeFileHref('/api/f?a=1&b="x"')).toBe('/api/f?a=1&amp;b=&quot;x&quot;');
+  });
+});
+
+describe('formatQuantity', () => {
+  it('keeps a whole count bare', () => {
+    expect(formatQuantity(3)).toBe('3');
+    expect(formatQuantity(3, '')).toBe('3');
+    expect(formatQuantity(3, null)).toBe('3');
+    expect(formatQuantity(0)).toBe('0');
+  });
+
+  it('appends the part unit when it has one', () => {
+    expect(formatQuantity(250, 'ml')).toBe('250 ml');
+    expect(formatQuantity(0.5, ' bottles ')).toBe('0.5 bottles');
+  });
+
+  it('drops trailing zeros and float noise', () => {
+    expect(formatQuantity(1.5)).toBe('1.5');
+    expect(formatQuantity(2.0)).toBe('2');
+    expect(formatQuantity(0.1 + 0.2)).toBe('0.3');
+    expect(formatQuantity(1.23456)).toBe('1.235');
   });
 });
 

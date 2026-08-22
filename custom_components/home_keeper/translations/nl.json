@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Onderdeelvoorraad aanpassen",
-      "description": "Wijzig de beschikbare reservevoorraad van een onderdeel met een verschil met teken (begrensd op nul). Wanneer een verlaging de besteldrempel bereikt of overschrijdt, wordt een gebeurtenis voor lage voorraad geactiveerd.",
+      "description": "Wijzig de beschikbare reservevoorraad van een onderdeel met een verschil met teken (begrensd op nul); decimalen zijn toegestaan. Wanneer een verlaging de besteldrempel bereikt of overschrijdt, wordt een gebeurtenis voor lage voorraad geactiveerd.",
       "fields": {
         "asset_id": {
           "name": "Object-ID",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Verschil",
-          "description": "Wijziging met teken die op de reservevoorraad wordt toegepast (bijv. -1 om te verbruiken, 2 om aan te vullen)."
+          "description": "Wijziging met teken die op de voorraad wordt toegepast, decimalen toegestaan (bijv. -1 om één reserveonderdeel te verbruiken, -250 voor 250 ml, 2 om aan te vullen)."
         }
       }
     },

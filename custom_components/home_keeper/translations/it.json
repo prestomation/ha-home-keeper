@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Regola le scorte di ricambi",
-      "description": "Modifica il numero di ricambi disponibili di un delta con segno (limitato a zero). Quando una diminuzione raggiunge o supera la soglia di riordino, viene attivato un evento di scorte basse.",
+      "description": "Modifica la quantità di ricambi disponibili di un delta con segno (limitato a zero); sono ammessi i decimali. Quando una diminuzione raggiunge o supera la soglia di riordino, viene attivato un evento di scorte basse.",
       "fields": {
         "asset_id": {
           "name": "ID risorsa",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Delta",
-          "description": "Variazione con segno da applicare al conteggio dei ricambi (es. -1 per consumare, 2 per rifornire)."
+          "description": "Variazione con segno da applicare alla quantità in giacenza, decimali ammessi (es. -1 per consumare un ricambio, -250 per 250 ml, 2 per rifornire)."
         }
       }
     },

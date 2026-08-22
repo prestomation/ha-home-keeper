@@ -6,7 +6,20 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [Unreleased]
+## [0.16.0b7]
+
+### Added
+
+- **Stock you measure instead of count.** A spare part can now carry a **stock unit**
+  and a **used per completion** amount, and every spare quantity accepts decimals.
+  Fabric softener topped up a third of a bottle at a time no longer reads as three
+  bottles gone after three refills, and a part measured in millilitres or metres shows
+  real units rather than a bare number. Set both on the part, under Stock and Reorder
+  at. Leave them empty and a part counts whole spares and uses one per completion,
+  exactly as before. The unit follows the amount everywhere it appears: the part's
+  chips, a linked task's detail line, the stock control on the appliance's device page,
+  and the `unit` field the stock events now carry. `home_keeper.adjust_part_stock` takes
+  a decimal `delta` too, so `-250` and `-0.33` are both valid adjustments. (Fixes #220)
 
 ### Fixed
 

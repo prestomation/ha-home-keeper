@@ -260,11 +260,17 @@ export interface Part {
   replace_interval?: number | null;
   replace_unit?: Unit | null;
   last_replaced?: string | null;
-  // Spare-inventory tracking. `stock` is how many spares are on hand (decremented
-  // when a wear-part replacement is completed); `reorder_at` is the low-stock
-  // threshold at/below which a low-stock event fires. Both optional / untracked.
+  // Spare-inventory tracking. `stock` is how much is on hand (drawn down when a
+  // wear-part replacement or a linked task is completed); `reorder_at` is the
+  // low-stock threshold at/below which a low-stock event fires. Both optional /
+  // untracked, and both decimal — stock can be counted in millilitres or metres as
+  // easily as in whole spares. `stock_unit` is the label shown beside those numbers
+  // ("" for plain spares); `consume_quantity` is how much one completion uses up
+  // (unset means one whole spare).
   stock?: number | null;
   reorder_at?: number | null;
+  stock_unit?: string | null;
+  consume_quantity?: number | null;
   // Auto-buy: when true, a one-off "Buy {part}" task is auto-created while the part is
   // low and removed once restocked. `restock_quantity` is how many spares completing
   // that reminder adds back to `stock` (defaults to 1). Only meaningful with a

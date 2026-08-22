@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Ajustar estoque de peças",
-      "description": "Altera a quantidade de peças sobressalentes em estoque por um delta com sinal (limitado a zero). Quando uma redução atinge ou ultrapassa o limite de reposição, é disparado um evento de estoque baixo.",
+      "description": "Altera a quantidade de peças sobressalentes em estoque por um delta com sinal (limitado a zero); decimais são permitidos. Quando uma redução atinge ou ultrapassa o limite de reposição, é disparado um evento de estoque baixo.",
       "fields": {
         "asset_id": {
           "name": "ID do ativo",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Delta",
-          "description": "Alteração com sinal a aplicar à contagem de sobressalentes (ex.: -1 para consumir, 2 para repor)."
+          "description": "Alteração com sinal a aplicar à quantidade em estoque, com decimais (ex.: -1 para consumir uma peça, -250 para 250 ml, 2 para repor)."
         }
       }
     },

@@ -316,8 +316,9 @@ class HomeKeeperStore:
 
         A manual link sets the task's ``source`` to a part reference (flagged
         ``manual`` so the part-task reconciler leaves it alone — see
-        ``reconcile.is_manual_part_link``) so that *completing* the task consumes one
-        spare from the part's ``stock``, firing the edge-triggered low/out-of-stock
+        ``reconcile.is_manual_part_link``) so that *completing* the task draws the
+        part's per-use amount off its ``stock`` (one whole spare unless the part sets
+        its own ``consume_quantity``), firing the edge-triggered low/out-of-stock
         events when the reorder threshold is crossed — exactly like a wear-part
         replacement. This is how a user wires an arbitrary task (e.g. a sensor task
         armed by a fridge's filter-life entity) to the consumable it depletes.
@@ -1421,19 +1422,21 @@ class HomeKeeperStore:
         for part in asset.get("parts", []):
             if part.get("id") == src.get("part_id"):
                 part["last_replaced"] = when_date
-                # Completing a wear-part replacement consumes one stocked spare;
-                # signal a low/out-of-stock crossing so users can automate a reorder.
+                # Completing a wear-part replacement consumes the part's per-use
+                # amount (one whole spare unless it says otherwise); signal a
+                # low/out-of-stock crossing so users can automate a reorder.
                 self._emit_stock_event(assets.consume_part_stock(part), asset, part)
                 break
 
     def _stamp_buy_restock(self, task: dict[str, Any]) -> None:
         """On completing an auto-created buy task, restock its part.
 
-        Adds the part's ``restock_quantity`` (default 1) to ``stock`` and emits the
-        resulting stock transition — normally a ``restocked`` crossing, which the next
-        buy-task reconcile turns into removal of this now-satisfied reminder. Buy tasks
-        never carry a ``part`` source, so ``_stamp_part_replacement`` leaves them
-        untouched (no double-mutation).
+        Adds the part's ``restock_quantity`` (default 1, and decimal like every other
+        spare quantity — a bottle's worth can be 0.5 of a crate) to ``stock`` and
+        emits the resulting stock transition — normally a ``restocked`` crossing, which
+        the next buy-task reconcile turns into removal of this now-satisfied reminder.
+        Buy tasks never carry a ``part`` source, so ``_stamp_part_replacement`` leaves
+        them untouched (no double-mutation).
         """
         src = _buy_source(task)
         if not src:
@@ -1443,7 +1446,7 @@ class HomeKeeperStore:
             return
         for part in asset.get("parts", []):
             if part.get("id") == src.get("part_id"):
-                qty = max(1, int(part.get("restock_quantity") or 1))
+                qty = assets.part_restock_quantity(part)
                 self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
                 break
 
@@ -1467,9 +1470,9 @@ class HomeKeeperStore:
             self._hass.bus.async_fire(event, events.stock_event_data(asset, part))
 
     async def adjust_part_stock(
-        self, asset_id: str, part_id: str, delta: int
+        self, asset_id: str, part_id: str, delta: float
     ) -> dict[str, Any]:
-        """Change a part's on-hand spare count by ``delta`` (clamped at zero).
+        """Change a part's on-hand spare quantity by ``delta`` (clamped at zero).
 
         Persists and fires the matching edge-triggered stock event once when the
         adjustment crosses a threshold — low-stock, out-of-stock, or restocked (a

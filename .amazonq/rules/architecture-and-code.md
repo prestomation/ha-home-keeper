@@ -512,6 +512,21 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   the appliance the task is attached to** (its `device_id` / related devices) — you link
   a task to its own appliance's consumable, not an unrelated one — and re-scopes (clearing
   a now-out-of-scope link) when the attached device changes.
+- **Spare quantities are decimal, and a whole one stays an `int`.** `stock`,
+  `reorder_at`, `restock_quantity`, `consume_quantity` and the `adjust_part_stock`
+  `delta` are all floats: a part can be measured in millilitres or in thirds of a
+  bottle, not just in whole spares. Every write goes through `assets._round_stock`,
+  which rounds to `_STOCK_DECIMALS` (3) and **collapses a whole result back to `int`** —
+  so 0.1 taken ten times reaches exactly zero instead of a 1.4e-17 remainder that reads
+  as "still in stock", and the ordinary count-the-filters case keeps round-tripping as
+  `3`, not `3.0`, through storage, the panel and every event payload. Validation rejects
+  NaN/inf explicitly (they pass every bound comparison). `stock_unit` (free-form, ≤16
+  chars, purely presentational — Home Keeper never converts units) rides in the stock
+  event payload as `unit` and on the part's `number`/`binary_sensor`, and the panel
+  renders every quantity through `utils.formatQuantity`. The two per-completion amounts
+  have a **read-side floor**: `assets.part_consume_quantity` /
+  `part_restock_quantity` return 1 for unset, junk, zero or negative — records written
+  before the fields existed must keep consuming exactly one.
 - **Auto-buy tasks.** A part can opt in (`create_buy_task`, needs a `reorder_at`
   threshold) to a system-managed shopping reminder. The pure
   `reconcile.reconcile_buy_tasks` (wrapped by `store.reconcile_buy_tasks`) is

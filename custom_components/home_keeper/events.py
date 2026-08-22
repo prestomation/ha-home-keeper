@@ -100,7 +100,9 @@ def stock_event_data(asset: dict[str, Any], part: dict[str, Any]) -> dict[str, A
     template is interchangeable across them. Carries enough to drive an automation
     (notify, add to a shopping list, reorder) without re-querying: which appliance and
     part, the part/vendor identifiers needed to rebuy, and the current vs. threshold
-    counts.
+    quantities. Those quantities can be fractional, and ``unit`` is the label they are
+    counted in (``""`` for plain whole spares) so an automation can say "250 ml left"
+    without looking the part up.
     """
     return {
         "asset_id": asset.get("id"),
@@ -112,6 +114,7 @@ def stock_event_data(asset: dict[str, Any], part: dict[str, Any]) -> dict[str, A
         "vendor": part.get("vendor") or "",
         "stock": part.get("stock"),
         "reorder_at": part.get("reorder_at"),
+        "unit": part.get("stock_unit") or "",
     }
 
 

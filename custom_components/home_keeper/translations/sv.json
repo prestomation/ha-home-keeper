@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Justera reservdelslager",
-      "description": "Ändra en dels tillgängliga reservdelsantal med en differens med tecken (begränsad till noll). När en minskning når eller passerar beställningsgränsen utlöses en händelse för lågt lagersaldo.",
+      "description": "Ändra en dels tillgängliga lagermängd med en differens med tecken (begränsad till noll); decimaler tillåts. När en minskning når eller passerar beställningsgränsen utlöses en händelse för lågt lagersaldo.",
       "fields": {
         "asset_id": {
           "name": "Objekt-ID",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Differens",
-          "description": "Ändring med tecken som tillämpas på reservdelsantalet (t.ex. -1 för att förbruka, 2 för att fylla på)."
+          "description": "Ändring med tecken som tillämpas på lagermängden, decimaler tillåtna (t.ex. -1 för att förbruka en reservdel, -250 för 250 ml, 2 för att fylla på)."
         }
       }
     },

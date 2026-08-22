@@ -486,6 +486,97 @@ describe('Notes render as Markdown (issue #163)', () => {
     expect(schemaFieldNames(partForm.schema)).toContain('notes');
     expect(partForm.data.notes).toBe('Torque to 40 Nm');
   });
+
+  // Issue #220: stock that isn't a count of whole things — millilitres of softener,
+  // a bottle topped up a third at a time.
+  it('offers a unit and a per-completion amount once a part tracks stock', async () => {
+    const asset = {
+      id: 'a1',
+      kind: 'virtual',
+      name: 'Laundry',
+      parts: [
+        {
+          id: 'p1',
+          name: 'Fabric softener',
+          type: 'consumable',
+          stock: 1.5,
+          stock_unit: 'bottles',
+          consume_quantity: 0.33,
+        },
+      ],
+    };
+    const panel = await mountPanel(makeHassWith({ assets: [asset] }).hass, '/appliances/a1');
+
+    const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
+    editBtn.click();
+    panel.route = { prefix: '/home-keeper', path: '/appliances' };
+
+    const partForm = await waitFor(() => {
+      const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];
+      return forms.find((f) => schemaFieldNames(f.schema).includes('part_name'));
+    });
+    const names = schemaFieldNames(partForm.schema);
+    expect(names).toContain('stock_unit');
+    expect(names).toContain('consume_quantity');
+    expect(partForm.data.stock_unit).toBe('bottles');
+    expect(partForm.data.consume_quantity).toBe(0.33);
+    // The quantities must accept decimals, or the field silently refuses 0.33.
+    const flat = partForm.schema.flatMap((f) => f.schema || [f]);
+    for (const field of ['stock', 'reorder_at', 'consume_quantity']) {
+      const found = flat.find((f) => f.name === field);
+      expect(found?.selector?.number?.step, `${field} should accept decimals`).toBe('any');
+    }
+  });
+
+  it('hides the per-completion amount until the part tracks stock', async () => {
+    const asset = {
+      id: 'a1',
+      kind: 'virtual',
+      name: 'Laundry',
+      parts: [{ id: 'p1', name: 'Fabric softener', type: 'consumable' }],
+    };
+    const panel = await mountPanel(makeHassWith({ assets: [asset] }).hass, '/appliances/a1');
+
+    const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
+    editBtn.click();
+    panel.route = { prefix: '/home-keeper', path: '/appliances' };
+
+    const partForm = await waitFor(() => {
+      const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];
+      return forms.find((f) => schemaFieldNames(f.schema).includes('part_name'));
+    });
+    // A unit is always offered; how much a completion uses needs something to use.
+    expect(schemaFieldNames(partForm.schema)).toContain('stock_unit');
+    expect(schemaFieldNames(partForm.schema)).not.toContain('consume_quantity');
+  });
+
+  it("shows a measured part's stock with its unit, not as a bare count", async () => {
+    const asset = {
+      id: 'a1',
+      kind: 'virtual',
+      name: 'Laundry',
+      parts: [
+        {
+          id: 'p1',
+          name: 'Fabric softener',
+          type: 'consumable',
+          stock: 0.67,
+          reorder_at: 0.5,
+          stock_unit: 'bottles',
+          consume_quantity: 0.33,
+        },
+      ],
+    };
+    const panel = await mountPanel(makeHassWith({ assets: [asset] }).hass, '/appliances/a1');
+
+    const chips = await waitFor(() => {
+      const found = [...(panel.shadowRoot?.querySelectorAll('.hk-part-chips ha-assist-chip') || [])];
+      return found.length ? found : null;
+    });
+    const labels = chips.map((c) => c.getAttribute('label'));
+    expect(labels).toContain('In stock: 0.67 bottles');
+    expect(labels).toContain('Uses 0.33 bottles per completion');
+  });
 });
 
 describe('Markdown preview teardown (issue #163)', () => {

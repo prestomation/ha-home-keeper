@@ -377,12 +377,14 @@ UPDATE_ASSET_DOCUMENT_SCHEMA = vol.Schema(
     }
 )
 
-# Adjust a part's on-hand spare count by a (signed) delta; clamped at zero.
+# Adjust a part's on-hand spare quantity by a (signed) delta; clamped at zero. The
+# delta is a float because stock is: a part measured in millilitres draws down by 250,
+# a bottle topped up a third at a time by 0.33.
 ADJUST_PART_STOCK_SCHEMA = vol.Schema(
     {
         vol.Required("asset_id"): cv.string,
         vol.Required("part_id"): cv.string,
-        vol.Required("delta"): vol.Coerce(int),
+        vol.Required("delta"): vol.Coerce(float),
     }
 )
 # Detach a part's attached file (upload is HTTP-only — see manuals.py — since a

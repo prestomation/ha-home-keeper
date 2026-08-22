@@ -28,12 +28,16 @@ def _num(value: Any) -> float:
 
 
 def _spares_value(part: dict[str, Any]) -> float:
-    """On-hand value of a part: unit cost * stock (0 when either is unknown)."""
+    """On-hand value of a part: unit cost * stock (0 when either is unknown).
+
+    Stock can be fractional (half a bottle of softener), so the cost is per *unit of
+    stock* — whatever unit the part counts itself in — and half a unit is worth half.
+    """
     cost = part.get("cost")
     stock = part.get("stock")
     if cost is None or stock is None:
         return 0.0
-    return _num(cost) * int(stock)
+    return _num(cost) * _num(stock)
 
 
 def _metadata_details(asset: dict[str, Any]) -> str:

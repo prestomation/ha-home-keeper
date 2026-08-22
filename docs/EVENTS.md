@@ -129,11 +129,13 @@ low. A part must track **both** `stock` and `reorder_at` to fire anything. A sin
 change that drops an already-low part to zero fires **`out_of_stock`** (the more
 specific event), not `low_stock`.
 
-A spare is consumed (and these events fire) whenever a task **linked to that part** is
+Stock is drawn down (and these events fire) whenever a task **linked to that part** is
 completed. Both an auto-generated wear-part replacement task and a task you **manually
 linked** to a consumable (via `home_keeper.set_task_consumable`) count. This is how a
 sensor-armed "replace the fridge filter" task draws down inventory and signals a reorder
-when you mark it done.
+when you mark it done. How much a completion takes off is the part's **Used per
+completion** amount, one whole spare unless the part sets its own, so a refill task on
+a bottle can consume `0.33` of one.
 
 A part with **Auto-create buy task** enabled goes one step further: crossing the reorder
 threshold auto-creates a one-off *"Buy {part}"* task (a `home_keeper_task_created` event)
@@ -216,8 +218,14 @@ Every task event carries this core (per-event extras noted above are merged in):
 ### Stock event payload
 
 `asset_id`, `asset_name`, `device_id`, `part_id`, `part_name`, `part_number`, `vendor`,
-`stock`, `reorder_at`: enough to drive a reorder/notify without re-querying. The three
-stock events are interchangeable in one template.
+`stock`, `reorder_at`, `unit`: enough to drive a reorder/notify without re-querying. The
+three stock events are interchangeable in one template.
+
+`stock` and `reorder_at` are numbers, and they can be fractional. A part measured in
+millilitres or topped up a third of a bottle at a time reports `0.67`, not a rounded
+count. `unit` is what the part counts itself in (`"ml"`, `"bottles"`), or `""` for a
+part counted in whole spares, so a notification can read `{{ trigger.event.data.stock }}
+{{ trigger.event.data.unit }}` and be right either way.
 
 ### Asset event payload
 

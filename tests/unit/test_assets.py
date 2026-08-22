@@ -946,9 +946,17 @@ def test_negative_stock_rejected():
         a.build_asset({"name": "X", "parts": [{"name": "F", "stock": -1}]}, now=NOW)
 
 
-def test_non_integer_stock_rejected():
-    with raises_exactly(a.AssetValidationError, "stock must be an integer"):
+def test_unparseable_stock_rejected():
+    with raises_exactly(a.AssetValidationError, "stock must be a number"):
         a.build_asset({"name": "X", "parts": [{"name": "F", "stock": "lots"}]}, now=NOW)
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf", float("nan"), float("inf")])
+def test_non_finite_stock_rejected(value):
+    # NaN and the infinities survive float() and then compare falsely against every
+    # bound, so without an explicit guard they'd be stored as a "valid" quantity.
+    with raises_exactly(a.AssetValidationError, "stock must be a number"):
+        a.build_asset({"name": "X", "parts": [{"name": "F", "stock": value}]}, now=NOW)
 
 
 def test_oversized_stock_rejected():
@@ -956,6 +964,149 @@ def test_oversized_stock_rejected():
         a.build_asset(
             {"name": "X", "parts": [{"name": "F", "reorder_at": 10**9}]}, now=NOW
         )
+
+
+# ── decimal quantities, units and per-completion draw-down (issue #220) ────────
+def test_part_stock_accepts_decimals():
+    # Stock counted in millilitres (or in thirds of a bottle) is as valid as stock
+    # counted in whole spares.
+    asset = a.build_asset(
+        {
+            "name": "Laundry",
+            "parts": [
+                {
+                    "name": "Fabric softener",
+                    "stock": "1.5",
+                    "reorder_at": 0.5,
+                    "stock_unit": " bottles ",
+                    "consume_quantity": "0.33",
+                }
+            ],
+        },
+        now=NOW,
+    )
+    part = asset["parts"][0]
+    assert part["stock"] == 1.5
+    assert part["reorder_at"] == 0.5
+    assert part["stock_unit"] == "bottles"
+    assert part["consume_quantity"] == 0.33
+
+
+def test_whole_quantities_stay_integers():
+    # The ordinary count-the-filters case must keep round-tripping as an int, not
+    # turn into 4.0 in storage, the panel and every event payload.
+    asset = a.build_asset(
+        {"name": "X", "parts": [{"name": "F", "stock": 4.0, "reorder_at": "1.000"}]},
+        now=NOW,
+    )
+    part = asset["parts"][0]
+    assert part["stock"] == 4 and isinstance(part["stock"], int)
+    assert part["reorder_at"] == 1 and isinstance(part["reorder_at"], int)
+
+
+def test_stock_rounds_to_three_places():
+    asset = a.build_asset(
+        {"name": "X", "parts": [{"name": "F", "stock": 1.23456}]}, now=NOW
+    )
+    assert asset["parts"][0]["stock"] == 1.235
+
+
+def test_stock_unit_defaults_empty_and_is_length_capped():
+    asset = a.build_asset({"name": "X", "parts": [{"name": "F"}]}, now=NOW)
+    assert asset["parts"][0]["stock_unit"] == ""
+    assert asset["parts"][0]["consume_quantity"] is None
+    with raises_exactly(
+        a.AssetValidationError, "stock_unit must be at most 16 characters"
+    ):
+        a.build_asset(
+            {"name": "X", "parts": [{"name": "F", "stock_unit": "m" * 17}]}, now=NOW
+        )
+
+
+@pytest.mark.parametrize("value", [0, "0", -1, -0.5])
+def test_non_positive_consume_quantity_rejected(value):
+    # A completion that consumes nothing is a task that shouldn't be linked at all;
+    # accepting it would make the UI promise a draw-down that never happens.
+    with pytest.raises(a.AssetValidationError):
+        a.build_asset(
+            {"name": "X", "parts": [{"name": "F", "consume_quantity": value}]}, now=NOW
+        )
+
+
+def test_part_stock_unit_reads_through_missing_and_blank():
+    assert a.part_stock_unit({"stock_unit": " ml "}) == "ml"
+    assert a.part_stock_unit({"stock_unit": None}) == ""
+    assert a.part_stock_unit({}) == ""
+
+
+@pytest.mark.parametrize(
+    ("part", "expected"),
+    [
+        ({"consume_quantity": 0.25}, 0.25),
+        ({"consume_quantity": 2}, 2),
+        # Unset, junk, zero and negatives all mean "one whole spare" on read: parts
+        # written before the field existed must keep consuming exactly one.
+        ({}, 1),
+        ({"consume_quantity": None}, 1),
+        ({"consume_quantity": "lots"}, 1),
+        ({"consume_quantity": 0}, 1),
+        ({"consume_quantity": -3}, 1),
+        ({"consume_quantity": float("nan")}, 1),
+    ],
+)
+def test_part_consume_quantity_defaults_to_one(part, expected):
+    assert a.part_consume_quantity(part) == expected
+
+
+@pytest.mark.parametrize(
+    ("part", "expected"),
+    [
+        ({"restock_quantity": 4}, 4),
+        ({"restock_quantity": 0.5}, 0.5),
+        ({}, 1),
+        ({"restock_quantity": 0}, 1),
+        ({"restock_quantity": -2}, 1),
+    ],
+)
+def test_part_restock_quantity_defaults_to_one(part, expected):
+    assert a.part_restock_quantity(part) == expected
+
+
+def test_consume_part_stock_draws_the_parts_own_amount():
+    # The reported case: a bottle topped up a third at a time must last three
+    # completions, not one.
+    part = {"stock": 1, "reorder_at": 0.5, "consume_quantity": 0.33}
+    assert a.consume_part_stock(part) == a.STOCK_NONE
+    assert part["stock"] == 0.67
+    assert a.consume_part_stock(part) == a.STOCK_LOW
+    assert part["stock"] == 0.34
+    assert a.consume_part_stock(part) == a.STOCK_NONE
+    assert part["stock"] == 0.01
+
+
+def test_repeated_fractional_draw_down_reaches_exactly_zero():
+    # Rounding at each step is what keeps 0.1 taken ten times from leaving a
+    # 1.4e-17 remainder that would read as "still in stock" forever.
+    part = {"stock": 1, "reorder_at": 0.2, "consume_quantity": 0.1}
+    transitions = [a.consume_part_stock(part) for _ in range(10)]
+    assert part["stock"] == 0
+    assert transitions[-1] == a.STOCK_OUT
+
+
+def test_adjust_part_stock_accepts_a_fractional_delta():
+    part = {"stock": 500, "reorder_at": 250, "stock_unit": "ml"}
+    assert a.adjust_part_stock(part, -250.5) == a.STOCK_LOW
+    assert part["stock"] == 249.5
+    # A fractional top-up back over the threshold is a real recovery.
+    assert a.adjust_part_stock(part, 0.75) == a.STOCK_RESTOCKED
+    assert part["stock"] == 250.25
+
+
+def test_stock_transition_handles_fractional_crossings():
+    assert a.stock_transition(0.75, 0.5, 0.5) == a.STOCK_LOW
+    assert a.stock_transition(0.5, 0.25, 0.5) == a.STOCK_NONE
+    assert a.stock_transition(0.25, 0, 0.5) == a.STOCK_OUT
+    assert a.stock_transition(0, 0.75, 0.5) == a.STOCK_RESTOCKED
 
 
 def test_part_is_low():

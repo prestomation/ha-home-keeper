@@ -49,6 +49,15 @@ describe('selector factories', () => {
     expect(selNumber(-5)).toEqual({ number: { min: -5, mode: 'box' } });
   });
 
+  // A step is opt-in: whole numbers stay the default (an interval is 3 weeks, never
+  // 3.5), and a genuinely decimal quantity asks for `'any'` or the field refuses
+  // the value the user typed.
+  it('omits step unless the field is decimal', () => {
+    expect(selNumber(0)).not.toHaveProperty('number.step');
+    expect(selNumber(0, 'any')).toEqual({ number: { min: 0, mode: 'box', step: 'any' } });
+    expect(selNumber(2, 0.5)).toEqual({ number: { min: 2, mode: 'box', step: 0.5 } });
+  });
+
   it('builds the parameterless selectors', () => {
     expect(selBool()).toEqual({ boolean: {} });
     expect(selDate()).toEqual({ date: {} });

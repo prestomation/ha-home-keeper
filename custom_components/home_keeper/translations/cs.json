@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Upravit zásobu dílů",
-      "description": "Změní počet skladových náhradních dílů o znaménkovou hodnotu (omezeno na nulu). Když pokles dosáhne prahu pro doobjednání nebo ho překročí, spustí se událost nízké zásoby.",
+      "description": "Změní skladové množství náhradních dílů o znaménkovou hodnotu (omezeno na nulu); povolena jsou desetinná čísla. Když pokles dosáhne prahu pro doobjednání nebo ho překročí, spustí se událost nízké zásoby.",
       "fields": {
         "asset_id": {
           "name": "ID majetku",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Delta",
-          "description": "Znaménková změna, která se použije na počet náhradních dílů (např. -1 pro spotřebu, 2 pro doplnění)."
+          "description": "Znaménková změna, která se použije na skladové množství, včetně desetinných čísel (např. -1 pro spotřebu jednoho kusu, -250 pro 250 ml, 2 pro doplnění)."
         }
       }
     },
