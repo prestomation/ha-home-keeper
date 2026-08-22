@@ -51,6 +51,16 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);
 
+    // 1b. Shopping filter — show the filter bar's new Shopping pill, which isolates
+    //     auto-created buy tasks from the main task list.
+    const shoppingBtn = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="shopping"]');
+    await shoppingBtn.scrollIntoViewIfNeeded();
+    await shoppingBtn.click();
+    await page.waitForTimeout(BEAT * 2);
+    const allBtn = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]');
+    await allBtn.click();
+    await page.waitForTimeout(BEAT);
+
     // 2. Open a task's detail page — full schedule, notes, completion history, and
     //    (since this task is linked to a part with a product URL) a clickable
     //    "Consumable link" row that jumps straight to buying the replacement.
