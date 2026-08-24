@@ -66,7 +66,9 @@ def _finite_float(value: Any, field: str) -> float:
     return result
 
 
-def normalize_completion_metadata(data: Any) -> dict[str, Any]:
+def normalize_completion_metadata(
+    data: Any, *, allow_reading: bool = False
+) -> dict[str, Any]:
     """Clean optional per-completion metadata into a dict of non-empty keys.
 
     Accepts a mapping with any of ``note`` / ``cost`` / ``photo`` / ``who`` and
@@ -75,10 +77,25 @@ def normalize_completion_metadata(data: Any) -> dict[str, Any]:
     opaque id strings (an image-upload id and a ``person`` entity id respectively).
     The result is what gets merged into a completion's history entry, so an empty
     input yields an empty dict (a plain timestamped completion). Pure — no HA imports.
+
+    ``allow_reading`` opts in to the captured ``reading`` key — the bound sensor's
+    value at completion time. It is off by default and a disallowed ``reading``
+    **raises** rather than being dropped, mirroring :func:`_reject_fields`: silently
+    discarding it would let a caller believe a floating task's history recorded a
+    meter it has no sensor to read. Unlike ``cost`` there is no ``>= 0`` floor — a
+    net-energy or temperature sensor legitimately reads below zero, and
+    ``sensor.baseline`` (the number this has to stay comparable with) has none either.
     """
     if not isinstance(data, dict) or not data:
         return {}
     result: dict[str, Any] = {}
+    reading = data.get("reading")
+    if reading is not None and reading != "":
+        if not allow_reading:
+            raise TaskValidationError(
+                "reading is only valid for a sensor task with a numeric binding"
+            )
+        result["reading"] = _finite_float(reading, "reading")
     note = str(data.get("note") or "").strip()
     if note:
         result["note"] = note
@@ -109,6 +126,27 @@ def normalize_completion_metadata(data: Any) -> dict[str, Any]:
     return result
 
 
+def task_records_reading(task: Any) -> bool:
+    """Whether completing *task* should record the bound sensor's reading.
+
+    True for a sensor task in a **numeric** mode (``usage`` or ``threshold``). A
+    ``state`` binding compares a string (``on`` / ``docked``), so there is no number
+    to log. This is the single gate for the whole feature — the store consults it
+    before capturing, the metadata normalizer before accepting, and the panel before
+    offering the field — so widening it later (a future numeric mode) is one line.
+    Pure — takes a plain task dict, no HA imports.
+    """
+    if not isinstance(task, dict) or task.get("recurrence_type") != REC_SENSOR:
+        return False
+    cfg = task.get("sensor")
+    if not isinstance(cfg, dict):
+        return False
+    return cfg.get("mode", SENSOR_MODE_USAGE) in (
+        SENSOR_MODE_USAGE,
+        SENSOR_MODE_THRESHOLD,
+    )
+
+
 def normalize_completion_required_fields(value: Any, mode: str) -> list[str]:
     """Normalize a task's ``completion_required_fields`` for capture *mode*.
 
@@ -120,6 +158,10 @@ def normalize_completion_required_fields(value: Any, mode: str) -> list[str]:
     """
     if mode != COMPLETION_DETAIL_REQUIRED:
         return []
+    # Deliberately the *metadata* list, not COMPLETION_ENTRY_FIELDS: a captured field
+    # like ``reading`` is filled in by Home Keeper, so demanding it would gate the
+    # completion on something the user was never asked for — and on a task with no
+    # sensor bound, on something that can never arrive at all.
     allowed = set(COMPLETION_METADATA_FIELDS)
     result: list[str] = []
     if isinstance(value, (list, tuple)):
@@ -655,8 +697,18 @@ def build_task(data: dict, *, now: datetime) -> dict:
             # a machine serviced three months ago is three months into its calendar
             # interval rather than starting the clock today. ``apply_completion``
             # leaves a sensor task dormant, so this records history without arming.
+            #
+            # When the binding also carries an explicit ``baseline``, the two together
+            # describe one event — "serviced on that date, at that reading" — so the
+            # seeded history entry records the reading as well. That keeps the whole
+            # feature's invariant true from the very first row: a usage task's
+            # baseline *is* the reading on its latest completion.
+            meta: dict[str, Any] = {}
+            baseline = fields["sensor"].get("baseline")
+            if baseline is not None and task_records_reading(task):
+                meta["reading"] = baseline
             recurrence.apply_completion(
-                task, _coerce_seed(seed, tz=now.tzinfo), now=now
+                task, _coerce_seed(seed, tz=now.tzinfo), now=now, metadata=meta
             )
     elif seed not in (None, ""):
         # Recording the seed as a completion both stamps last_completed and lets the

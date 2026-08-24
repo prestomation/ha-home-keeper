@@ -459,3 +459,165 @@ def test_a_reload_with_the_sensor_already_on_does_not_rearm(ha):
     finally:
         _delete(ha, task_id)
         _set_flag(ha, False)
+
+
+# ── an explicit starting reading, and the reading recorded on completion (#235) ──
+
+
+def test_an_explicit_baseline_is_not_overwritten_and_shows_progress_immediately(ha):
+    # The reporter's case, in miniature: the meter is already at 100 and the last
+    # service happened at 70, so a target of 50 must read "30 used" from the moment
+    # the task exists and arm at 120 — not at 150.
+    _set_meter(ha, 100)
+    task_id = _add_sensor_task(
+        ha,
+        {"entity_id": METER, "mode": "usage", "target": 50, "baseline": 70},
+    )
+    try:
+        # The watcher stamps a baseline only when there isn't one; an explicit
+        # anchor has to survive both startup baselining and ordinary evaluation.
+        task = _poll_task(
+            ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 70
+        )
+        assert task["next_due"] is None, "30 of 50 used must not arm the task"
+
+        # 119 is 49 past the anchor — still short.
+        _set_meter(ha, 119)
+        time.sleep(3)
+        task = _get_task(ha, task_id)
+        assert task["sensor"]["baseline"] == 70
+        assert task["next_due"] is None
+
+        # 120 is exactly target past the anchor.
+        _set_meter(ha, 120)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+    finally:
+        _delete(ha, task_id)
+
+
+def test_completing_a_usage_task_records_the_meter_reading_in_history(ha):
+    _set_meter(ha, 200)
+    task_id = _add_sensor_task(ha, {"entity_id": METER, "mode": "usage", "target": 10})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 200)
+        _set_meter(ha, 215)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        task = _poll_task(ha, task_id, lambda t: len(t.get("completions") or []) == 1)
+        # The log says where the meter stood, and the anchor is the same number —
+        # they are resolved once, so they cannot drift.
+        assert task["completions"][0]["reading"] == 215
+        assert task["sensor"]["baseline"] == 215
+        assert task["next_due"] is None
+    finally:
+        _delete(ha, task_id)
+
+
+def test_a_caller_supplied_reading_wins_over_the_live_one(ha):
+    # Back-dating: the work happened at 300 but the meter has since moved to 340.
+    # Recording today's reading would put an obviously wrong number in the log and
+    # anchor the next interval 40 units late.
+    _set_meter(ha, 250)
+    task_id = _add_sensor_task(ha, {"entity_id": METER, "mode": "usage", "target": 10})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 250)
+        _set_meter(ha, 340)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+
+        call_service(
+            ha,
+            "home_keeper",
+            "complete_task",
+            {
+                "task_id": task_id,
+                "completed_at": (datetime.now(UTC) - timedelta(days=2)).isoformat(),
+                "reading": 300,
+            },
+        )
+        task = _poll_task(ha, task_id, lambda t: len(t.get("completions") or []) == 1)
+        assert task["completions"][0]["reading"] == 300
+        assert task["sensor"]["baseline"] == 300
+    finally:
+        _delete(ha, task_id)
+
+
+def test_editing_the_latest_readings_re_anchors_the_meter(ha):
+    # Ask #3: correcting the reading in the history has to move the anchor, or the
+    # correction is cosmetic and the task still comes due at the wrong point.
+    _set_meter(ha, 400)
+    task_id = _add_sensor_task(ha, {"entity_id": METER, "mode": "usage", "target": 100})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 400)
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        task = _poll_task(ha, task_id, lambda t: len(t.get("completions") or []) == 1)
+        ts = task["completions"][0]["ts"]
+        assert task["completions"][0]["reading"] == 400
+
+        call_service(
+            ha,
+            "home_keeper",
+            "update_completion",
+            {"task_id": task_id, "ts": ts, "reading": 350},
+        )
+        task = _poll_task(ha, task_id, lambda t: t["sensor"].get("baseline") == 350)
+        assert task["completions"][0]["reading"] == 350
+        # The timestamp itself is untouched — that is what move_completion is for.
+        assert task["completions"][0]["ts"] == ts
+    finally:
+        _delete(ha, task_id)
+
+
+def test_editing_an_older_completion_leaves_the_meter_alone(ha):
+    # Only the latest completion defines the anchor, so amending an older row is
+    # pure bookkeeping.
+    _set_meter(ha, 500)
+    task_id = _add_sensor_task(ha, {"entity_id": METER, "mode": "usage", "target": 100})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 500)
+        older = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        call_service(
+            ha,
+            "home_keeper",
+            "complete_task",
+            {"task_id": task_id, "completed_at": older, "reading": 450},
+        )
+        _set_meter(ha, 520)
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        task = _poll_task(ha, task_id, lambda t: len(t.get("completions") or []) == 2)
+        assert task["sensor"]["baseline"] == 520
+
+        older_ts = min(c["ts"] for c in task["completions"])
+        call_service(
+            ha,
+            "home_keeper",
+            "update_completion",
+            {"task_id": task_id, "ts": older_ts, "reading": 440},
+        )
+        time.sleep(3)
+        task = _get_task(ha, task_id)
+        assert task["sensor"]["baseline"] == 520, (
+            "an older row must not move the anchor"
+        )
+        edited = next(c for c in task["completions"] if c["ts"] == older_ts)
+        assert edited["reading"] == 440
+    finally:
+        _delete(ha, task_id)
+
+
+def test_a_state_mode_task_records_no_reading(ha):
+    # "on" is not a number, so there is nothing to log — and the field never appears.
+    task_id = _add_sensor_task(
+        ha,
+        {
+            "entity_id": "binary_sensor.hk_demo_water_tank_low",
+            "mode": "state",
+            "state": "on",
+        },
+    )
+    try:
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        task = _poll_task(ha, task_id, lambda t: len(t.get("completions") or []) == 1)
+        assert "reading" not in task["completions"][0]
+    finally:
+        _delete(ha, task_id)

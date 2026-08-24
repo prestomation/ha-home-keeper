@@ -164,6 +164,10 @@ export interface CompletionMetadata {
   cost?: number;
   photo?: string;
   who?: string;
+  /** A sensor task's meter reading for this completion. Numeric like `cost`, so it
+   *  needs the same `!= null` treatment — a genuine reading of 0 (a fresh hour
+   *  meter) is falsy and a truthiness check would silently drop it. */
+  reading?: number;
 }
 
 /** Drop empty metadata keys so we never send blank `note: ""` etc. */
@@ -174,6 +178,8 @@ function metadataMsg(metadata?: CompletionMetadata): Record<string, unknown> {
   if (metadata.cost != null && !Number.isNaN(metadata.cost)) out.cost = metadata.cost;
   if (metadata.photo) out.photo = metadata.photo;
   if (metadata.who) out.who = metadata.who;
+  if (metadata.reading != null && !Number.isNaN(metadata.reading))
+    out.reading = metadata.reading;
   return out;
 }
 

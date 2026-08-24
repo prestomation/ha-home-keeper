@@ -109,6 +109,63 @@ describe('api completion metadata', () => {
     });
   });
 
+
+  it('completeTask carries a meter reading', async () => {
+    const hass = fakeHass();
+    await api.completeTask(hass, 't1', { reading: 45000 });
+    expect(hass.calls[0]).toEqual({
+      type: 'home_keeper/complete_task',
+      task_id: 't1',
+      reading: 45000,
+    });
+  });
+
+  it('keeps a reading of 0 rather than dropping it as falsy', async () => {
+    // A brand-new hour meter reads 0. `if (metadata.reading)` would silently drop
+    // it and let the backend re-read the live sensor instead — the same trap `cost`
+    // already guards against with an explicit != null check.
+    const hass = fakeHass();
+    await api.completeTask(hass, 't1', { reading: 0 });
+    expect(hass.calls[0].reading).toBe(0);
+  });
+
+  it('keeps a negative reading', async () => {
+    const hass = fakeHass();
+    await api.completeTask(hass, 't1', { reading: -12.5 });
+    expect(hass.calls[0].reading).toBe(-12.5);
+  });
+
+  it('drops an absent or NaN reading', async () => {
+    const hass = fakeHass();
+    await api.completeTask(hass, 't1', { reading: undefined });
+    expect(hass.calls[0]).not.toHaveProperty('reading');
+    await api.completeTask(hass, 't2', { reading: Number.NaN });
+    expect(hass.calls[1]).not.toHaveProperty('reading');
+  });
+
+  it('updateCompletion carries the reading through an edit', async () => {
+    const hass = fakeHass();
+    await api.updateCompletion(hass, 't1', '2026-01-01T00:00:00+00:00', {
+      note: 'oil',
+      reading: 45000,
+    });
+    expect(hass.calls[0]).toEqual({
+      type: 'home_keeper/update_completion',
+      task_id: 't1',
+      ts: '2026-01-01T00:00:00+00:00',
+      note: 'oil',
+      reading: 45000,
+    });
+  });
+
+  it('updateCompletion omitting the reading clears it server-side', async () => {
+    // Documented backend behaviour, and the reason the panel's edit dialog seeds
+    // `reading` from the completion: editing only a note must not wipe the meter.
+    const hass = fakeHass();
+    await api.updateCompletion(hass, 't1', '2026-01-01T00:00:00+00:00', { note: 'oil' });
+    expect(hass.calls[0]).not.toHaveProperty('reading');
+  });
+
   it('moveCompletion sends old_ts and new_ts', async () => {
     const hass = fakeHass();
     await api.moveCompletion(

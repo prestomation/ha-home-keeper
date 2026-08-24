@@ -46,6 +46,7 @@ from . import (
 )
 from .assets import AssetValidationError, card_projection
 from .const import (
+    COMPLETION_ENTRY_FIELDS,
     DOMAIN,
     OPTION_DISMISSED_COMPANIONS,
     OPTION_NOTIFICATIONS,
@@ -229,6 +230,10 @@ COMPLETE_TASK_SCHEMA = vol.Schema(
         vol.Optional("cost"): vol.Coerce(float),
         vol.Optional("photo"): cv.string,
         vol.Optional("who"): cv.string,
+        # The bound sensor's value at the moment the work was done. Only meaningful
+        # for a sensor task; Home Keeper reads it live when the caller omits it, so
+        # pass it explicitly when back-dating (the meter has moved since).
+        vol.Optional("reading"): vol.Coerce(float),
     }
 )
 # Amend a recorded completion's metadata after the fact (identified by its ``ts``).
@@ -240,6 +245,7 @@ UPDATE_COMPLETION_SCHEMA = vol.Schema(
         vol.Optional("cost"): vol.Coerce(float),
         vol.Optional("photo"): cv.string,
         vol.Optional("who"): cv.string,
+        vol.Optional("reading"): vol.Coerce(float),
     }
 )
 
@@ -271,9 +277,10 @@ DELETE_ARCHIVED_COMPLETION_SCHEMA = vol.Schema(
     }
 )
 
-# The completion-metadata keys shared by complete_task / update_completion, lifted
-# out of a service call's data into the ``metadata`` mapping the store expects.
-_COMPLETION_METADATA_KEYS = ("note", "cost", "photo", "who")
+# The completion keys shared by complete_task / update_completion, lifted out of a
+# service call's data into the ``metadata`` mapping the store expects. Includes the
+# captured ``reading`` — the store decides whether the task may carry one.
+_COMPLETION_METADATA_KEYS = tuple(COMPLETION_ENTRY_FIELDS)
 
 # Structured part (wear item) for the add/update asset schema.
 _PART_SCHEMA = vol.Schema(

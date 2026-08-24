@@ -20,6 +20,7 @@ from homeassistant.util import dt as dt_util
 from . import assets, events, models, recurrence, sensor_tasks, sensor_watcher, tags
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
+    COMPLETION_ENTRY_FIELDS,
     EVENT_ASSET_ARCHIVED,
     EVENT_ASSET_CREATED,
     EVENT_ASSET_DELETED,
@@ -1207,11 +1208,26 @@ class HomeKeeperStore:
             # qualify with HA's configured zone (mirrors ``models._coerce_seed``)
             # so the event payload / part stamp / recurrence math all stay aware.
             when = when.replace(tzinfo=now.tzinfo)
-        clean_metadata = models.normalize_completion_metadata(metadata)
+        records_reading = models.task_records_reading(existing)
+        clean_metadata = models.normalize_completion_metadata(
+            metadata, allow_reading=records_reading
+        )
+        # Capture where the meter stood. The caller's own number wins — a back-dated
+        # completion logged through the panel carries the reading the user typed for
+        # *that* moment, and the live sensor is no longer any guide to it — otherwise
+        # we read the bound entity now. The same number then anchors the meter below,
+        # so the history row and the progress bar can never disagree.
+        reading: float | None = clean_metadata.get("reading")
+        if records_reading and reading is None:
+            reading = sensor_watcher.read_sensor_value(
+                self._hass, sensor_tasks.sensor_config(existing)
+            )
+            if reading is not None:
+                clean_metadata["reading"] = reading
         updated = recurrence.apply_completion(
             dict(existing), when, now=now, metadata=clean_metadata
         )
-        self._reset_usage_baseline(updated)
+        self._reset_usage_baseline(updated, reading)
         self._tasks[task_id] = updated
         # A task carries at most one reserved source, so exactly one stock side-effect
         # applies: a part-linked completion *consumes* a spare, a buy reminder
@@ -1237,39 +1253,88 @@ class HomeKeeperStore:
     async def update_completion(
         self, task_id: str, ts: str, metadata: dict[str, Any]
     ) -> dict[str, Any]:
-        """Amend a recorded completion's metadata (note/cost/photo/who).
+        """Amend a recorded completion's fields (note/cost/photo/who, and ``reading``).
 
         Edits the entry identified by ISO timestamp *ts* without touching the
-        schedule — amending the maintenance log must never rewind or re-arm a task.
-        Cleans the metadata the same way as :meth:`complete_task`, persists, and
-        fires ``home_keeper_task_completion_updated``. Raises ``KeyError`` for an
-        unknown task and ``TaskValidationError`` when no completion matches *ts* (or
-        the metadata is invalid). Returns the updated task.
+        **schedule** — amending the maintenance log never moves ``ts``,
+        ``last_completed`` or ``next_due``.
+
+        One thing it does move, deliberately: correcting the ``reading`` on the
+        **latest** completion of a **usage** sensor task re-anchors ``sensor.baseline``
+        to it. That isn't rewinding a schedule, it's keeping a derived value in step
+        with the fact it derives from — the baseline is *defined* as the reading at the
+        last completion (see :meth:`_reset_usage_baseline`), so leaving it behind would
+        make the store contradict its own history: "serviced at 45,000" beside a
+        progress bar counting from 48,000. The task may consequently arm on the
+        watcher's next tick, which is the correct answer (if the last change really was
+        10,000 miles ago, it really is due). ``delete_completion`` and
+        ``move_completion`` leave the baseline alone by the same rule — the meter
+        follows the *reading*, and neither of those changes one.
+
+        Cleans the fields the same way as :meth:`complete_task`, persists, and fires
+        ``home_keeper_task_completion_updated`` (carrying ``meter_baseline`` when the
+        anchor moved). Raises ``KeyError`` for an unknown task and
+        ``TaskValidationError`` when no completion matches *ts* (or the input is
+        invalid). Returns the updated task.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
         # A synced problem task's history is owned by the sync, not the user.
         _reject_synced_problem(existing, None)
-        clean_metadata = models.normalize_completion_metadata(metadata)
+        clean_metadata = models.normalize_completion_metadata(
+            metadata, allow_reading=models.task_records_reading(existing)
+        )
         try:
             updated, _replaced_photo = recurrence.update_completion(
                 dict(existing),
                 ts,
                 clean_metadata,
-                fields=tuple(models.COMPLETION_METADATA_FIELDS),
+                fields=tuple(COMPLETION_ENTRY_FIELDS),
             )
         except ValueError as err:
             raise models.TaskValidationError(str(err)) from err
+        moved_baseline = self._reanchor_from_completion(updated, ts)
         self._tasks[task_id] = updated
         await self._save()
         # NOTE: a replaced/cleared photo's image-upload blob is cleaned up at the
         # HA boundary once the panel actually uploads images (frontend phase).
+        extra: dict[str, Any] = {"ts": ts}
+        if moved_baseline is not None:
+            extra["meter_baseline"] = moved_baseline
         self._hass.bus.async_fire(
             EVENT_TASK_COMPLETION_UPDATED,
-            events.task_event_data(updated, extra={"ts": ts}),
+            events.task_event_data(updated, extra=extra),
         )
         return updated
+
+    def _reanchor_from_completion(self, task: dict[str, Any], ts: str) -> float | None:
+        """Move a usage meter's baseline to the reading just edited onto *ts*.
+
+        Only the **latest** completion anchors the meter, so editing an older row is
+        pure bookkeeping and leaves it alone. Returns the new baseline when it moved,
+        else ``None`` — the caller puts that in the event so a listener can see the
+        anchor followed. Clearing a reading is not a re-anchor: the user removed a
+        number, they didn't assert a new one.
+        """
+        cfg = sensor_tasks.sensor_config(task)
+        if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
+            return None
+        if ts != task.get("last_completed"):
+            return None
+        entry = next(
+            (c for c in task.get("completions", []) if c.get("ts") == ts), None
+        )
+        reading = (entry or {}).get("reading")
+        if reading is None or reading == cfg.get("baseline"):
+            return None
+        cfg["baseline"] = reading
+        _LOGGER.debug(
+            "Re-anchored usage baseline for task %s to %s from an edited completion",
+            task.get("id"),
+            reading,
+        )
+        return float(reading)
 
     async def delete_completion(
         self, task_id: str, ts: str, *, origin: str | None = None
@@ -1391,25 +1456,25 @@ class HomeKeeperStore:
             )
         return asset
 
-    def _reset_usage_baseline(self, task: dict[str, Any]) -> None:
-        """Reset a usage sensor task's meter baseline to the live reading on completion.
+    def _reset_usage_baseline(
+        self, task: dict[str, Any], reading: float | None
+    ) -> None:
+        """Re-anchor a usage sensor task's meter baseline to the reading at completion.
 
         Completing a usage task ("I changed the oil") resets its counter just as
         completing a floating task resets its clock: the next arming is measured from
-        the reading at completion. Done here (the store is HA-aware) rather than in the
-        pure recurrence layer. If the bound entity is currently unavailable the baseline
-        is cleared (``None``) so the watcher re-anchors on the first valid reading after
-        completion rather than measuring from the stale pre-completion baseline.
+        the reading at completion. *reading* is resolved once by the caller — the
+        number the completion also recorded in its history entry — so the log and the
+        anchor are the same figure by construction. ``None`` (the bound entity was
+        unavailable, or the caller supplied nothing) clears the baseline so the watcher
+        re-anchors on the first valid reading *after* completion rather than measuring
+        from the now stale pre-completion baseline, which could otherwise immediately
+        re-arm the task if the meter advanced past target while the entity was away.
         """
         cfg = sensor_tasks.sensor_config(task)
         if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
             return
-        # Reset the meter to the reading at completion. If the entity is currently
-        # unavailable, clear the baseline (``None``) so the watcher re-anchors to the
-        # first valid reading *after* completion rather than measuring from the now
-        # stale pre-completion baseline — which could otherwise immediately re-arm the
-        # task if the meter advanced past target while the entity was unavailable.
-        cfg["baseline"] = sensor_watcher.read_sensor_value(self._hass, cfg)
+        cfg["baseline"] = reading
 
     def _stamp_part_replacement(self, task: dict[str, Any], when: Any) -> None:
         src = _part_source(task)

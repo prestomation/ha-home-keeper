@@ -249,6 +249,10 @@
         "who": {
           "name": "Kuka",
           "description": "Valinnainen henkilö, joka suoritti tehtävän (person-entiteetin tunnus)."
+        },
+        "reading": {
+          "name": "Mittarilukema",
+          "description": "Käyttö- tai kynnystilassa olevan anturitehtävän sidotun anturin arvo työn tekohetkellä. Jos jätät sen pois, Home Keeper lukee anturin reaaliajassa. Anna se nimenomaisesti takautuvassa kirjauksessa, koska mittari on sen jälkeen liikkunut. Käyttötehtävässä siitä tulee samalla uusi aloituslukema."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Kuka",
           "description": "Uusi person-entiteetin tunnus (jätä pois tai tyhjäksi tyhjentääksesi sen)."
+        },
+        "reading": {
+          "name": "Mittarilukema",
+          "description": "Uusi anturilukema tälle suoritukselle (jätä pois tai tyhjäksi poistaaksesi sen). Kelpaa vain käyttö- tai kynnystilassa olevalle anturitehtävälle."
         }
       }
     },

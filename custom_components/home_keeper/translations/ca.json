@@ -249,6 +249,10 @@
         "who": {
           "name": "Qui",
           "description": "Persona opcional que ha fet la tasca (un id d'entitat de persona)."
+        },
+        "reading": {
+          "name": "Lectura del comptador",
+          "description": "Per a una tasca de sensor en mode ús o llindar, el valor del sensor vinculat quan es va fer la feina. Si l'omets, Home Keeper llegeix el sensor en directe. Indica'l explícitament si registres una data passada, perquè el comptador ja ha avançat. En una tasca d'ús també passa a ser la nova lectura inicial."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Qui",
           "description": "Id nou d'entitat de persona (ometeu-lo o deixeu-lo en blanc per esborrar-lo)."
+        },
+        "reading": {
+          "name": "Lectura del comptador",
+          "description": "Nova lectura del sensor per a aquesta realització (omet-la o deixa-la en blanc per esborrar-la). Només és vàlida per a una tasca de sensor en mode ús o llindar."
         }
       }
     },

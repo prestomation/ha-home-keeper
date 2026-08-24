@@ -81,13 +81,18 @@ add_task:
         For sensor tasks - a mapping describing the bound entity. Always
         entity_id and mode ("usage", "threshold" or "state"). For usage (a meter):
         target (arm once the reading advances this many units since the last
-        completion). For threshold: comparison (">=", "<=", ">", "<", "==", "!=") and
+        completion), plus optional baseline (the reading to count from, for a machine
+        already part-way through its interval - omit it to anchor at whatever the
+        sensor reads when the task is created), unit (a display label such as "h"),
+        also_every ({interval, unit}, the "or every 6 months" time backstop) and
+        combinator ("any", the default = whichever comes first; "all" = both). For
+        threshold: comparison (">=", "<=", ">", "<", "==", "!=") and
         value. For state (what makes a binary sensor usable): state, the state string
         the entity must enter, such as "on". Threshold and state also take an optional
         for_seconds hold and clear_on_recover (clear the task by itself once the
         condition goes away). Optional attribute reads an entity attribute
         instead of the state. Example - {"entity_id": "sensor.odometer", "mode":
-        "usage", "target": 15000}.
+        "usage", "target": 15000, "baseline": 45000}.
       example: '{"entity_id": "sensor.odometer", "mode": "usage", "target": 15000}'
       selector:
         object:
@@ -269,7 +274,10 @@ update_task:
       name: Sensor trigger
       description: >-
         Sensor binding for a sensor task (see add_task): entity_id, mode
-        (usage/threshold/state) and the mode's fields. Replaces the whole binding.
+        (usage/threshold/state) and the mode's fields. Replaces the whole binding,
+        except that a usage meter's accumulated baseline is carried over when the
+        binding still points at the same entity and you don't send one - so a plain
+        target tweak can't silently reset the counter.
       selector:
         object:
     device_id:
@@ -423,12 +431,28 @@ complete_task:
         entity:
           filter:
             domain: person
+    reading:
+      name: Meter reading
+      description: >-
+        For a sensor task in usage or threshold mode - the bound sensor's value when
+        the work was done. Omit it and Home Keeper reads the sensor live, which is
+        what you want for a completion happening now. Pass it explicitly when
+        back-dating (completed_at in the past), because the meter has moved since. On
+        a usage task this number also becomes the new baseline, so the history and
+        the progress bar can never disagree.
+      selector:
+        number:
+          mode: box
+          step: any
 
 update_completion:
   name: Update completion
   description: >-
-    Amend the metadata (note, cost, photo, who) of an already-recorded completion,
-    identified by its timestamp. Does not change the schedule or due date.
+    Amend the recorded detail (note, cost, photo, who, reading) of an
+    already-recorded completion, identified by its timestamp. Does not move the
+    timestamp, the last-completed date or the due date. One exception: correcting the
+    reading on the latest completion of a usage sensor task re-anchors that task's
+    meter baseline to it, because the baseline is the reading at the last completion.
   fields:
     task_id:
       name: Task ID
@@ -467,6 +491,15 @@ update_completion:
         entity:
           filter:
             domain: person
+    reading:
+      name: Meter reading
+      description: >-
+        New sensor reading for this completion (omit or leave blank to clear it).
+        Only valid for a sensor task in usage or threshold mode.
+      selector:
+        number:
+          mode: box
+          step: any
 
 move_completion:
   name: Move completion

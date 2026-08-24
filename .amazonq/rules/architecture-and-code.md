@@ -148,6 +148,40 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
     one.** The watcher skips a task whose bound entity is unavailable; a usage task
     carrying `also_every` is exempt, because an idle or unplugged machine is exactly
     the one whose annual service you most want to hear about.
+- **A usage meter's `baseline` is *the reading on its latest completion*.** That one
+  sentence settles every question about it. It is why `store._reset_usage_baseline`
+  takes the reading resolved for the history entry rather than re-reading the sensor
+  (the log and the anchor are then the same number by construction, back-dating
+  included); why `store.update_completion` re-anchors when you correct the `reading`
+  on the *latest* completion — and only then, and only in `usage` mode; and why
+  `delete_completion` / `move_completion` leave it alone, because neither changes a
+  reading. The re-anchor is the documented exception to "amending the log never
+  re-arms a task": if the last oil change really was 10,000 miles ago, the task really
+  is due, and the alternative is a history row saying 45,000 beside a progress bar
+  counting from 48,000. It fires no extra event — `EVENT_TASK_COMPLETION_UPDATED`
+  carries `meter_baseline` instead.
+- **A user may set `baseline` at creation; the watcher only fills a gap.** `sensor.
+  baseline` has always been accepted by `normalize_sensor`, and the panel now offers it
+  as **Starting reading** so a machine already partway through an interval doesn't
+  start a full one late. `sensor_watcher.async_baseline` and `evaluate_usage` stamp a
+  baseline only when there isn't one, so an explicit anchor survives. A baseline
+  *above* the live reading is deliberately not rejected — `evaluate_usage`'s debounced
+  meter-reset re-anchors it, which is right for a counter about to be zeroed — so the
+  form warns in `sensorHintText` rather than the backend refusing. Teaching the
+  evaluator to respect a "user-set" baseline would need provenance on the field and
+  would leave a task permanently stuck after a genuine reset.
+- **Completion fields split into requirable and captured.** `COMPLETION_METADATA_FIELDS`
+  (note/cost/photo/who) is what a user types, and doubles as the allowlist for a task's
+  `completion_required_fields`. `COMPLETION_CAPTURED_FIELDS` (`reading`) is what Home
+  Keeper fills in. Keep a captured field out of the metadata list: marking one required
+  would gate completion on something nobody was asked for, and on a task with no sensor
+  it could never arrive at all — an uncompletable task, from the panel, with no error
+  explaining why. `COMPLETION_ENTRY_FIELDS` is the union and is what you iterate when
+  lifting/echoing/persisting an entry; four separate literals used to duplicate it
+  (`sensor.py`, `websocket_api._ws_metadata`, `__init__._COMPLETION_METADATA_KEYS`, the
+  unit test) and every one of them silently skipped a new field. `reading` is recorded
+  for the **numeric** sensor modes only — the single gate is `models.task_records_reading`
+  / `utils.taskRecordsReading`, so widening it is one line on each side.
 - **Glue integrations own their default intervals, but never lock them.** A companion
   that pushes maintenance tasks (see `docs/GLUE_INTEGRATIONS.md`) should set a sourced
   default and leave `sensor` out of `managed_by.locked_fields`, so the panel's edit form

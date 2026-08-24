@@ -249,6 +249,10 @@
         "who": {
           "name": "Quién",
           "description": "Persona opcional que realizó la tarea (un id de entidad persona)."
+        },
+        "reading": {
+          "name": "Lectura del contador",
+          "description": "Para una tarea de sensor en modo uso o umbral, el valor del sensor vinculado cuando se hizo el trabajo. Si lo omites, Home Keeper lee el sensor en directo. Indícalo explícitamente al registrar una fecha pasada, porque el contador ya ha avanzado. En una tarea de uso también pasa a ser la nueva lectura inicial."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Quién",
           "description": "Nuevo id de entidad persona (omítelo o déjalo en blanco para borrarlo)."
+        },
+        "reading": {
+          "name": "Lectura del contador",
+          "description": "Nueva lectura del sensor para esta realización (omítela o déjala vacía para borrarla). Solo es válida en una tarea de sensor en modo uso o umbral."
         }
       }
     },

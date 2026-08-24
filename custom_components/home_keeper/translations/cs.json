@@ -249,6 +249,10 @@
         "who": {
           "name": "Kdo",
           "description": "Volitelná osoba, která úkol provedla (id entity osoby)."
+        },
+        "reading": {
+          "name": "Stav měřiče",
+          "description": "U senzorové úlohy v režimu využití nebo prahu hodnota připojeného senzoru v době provedení práce. Když ji vynecháte, Home Keeper načte senzor živě. Zadejte ji výslovně při zpětném datování, protože měřič se mezitím posunul. U úlohy využití se z ní zároveň stane nová výchozí hodnota."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Kdo",
           "description": "Nové id entity osoby (vynechte nebo nechte prázdné pro jeho vymazání)."
+        },
+        "reading": {
+          "name": "Stav měřiče",
+          "description": "Nová hodnota senzoru pro toto dokončení (vynechte nebo nechte prázdné pro smazání). Platí jen pro senzorovou úlohu v režimu využití nebo prahu."
         }
       }
     },

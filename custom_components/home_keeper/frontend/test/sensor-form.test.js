@@ -742,3 +742,186 @@ describe('state mode — binary sensors', () => {
     ).toBe('');
   });
 });
+
+// ── an explicit starting reading (issue #235) ────────────────────────────────
+
+describe('task form — the meter starting reading', () => {
+  const usage = (over = {}) => ({ recurrence_type: 'sensor', sensor_target: 100, ...over });
+
+  it('offers a starting-reading box in usage mode only', () => {
+    expect(taskSchema(usage()).map((f) => f.name)).toContain('sensor_baseline');
+    for (const mode of ['threshold', 'state']) {
+      const names = taskSchema({ recurrence_type: 'sensor', sensor_mode: mode }).map(
+        (f) => f.name,
+      );
+      expect(names, `${mode} mode`).not.toContain('sensor_baseline');
+    }
+  });
+
+  it('does not pin the box at min 0 — a meter can read negative', () => {
+    // `selNumber()` hardcodes min: 0, which is stricter than the backend
+    // (`_finite_float`, no range gate). A net-energy sensor reads below zero, and a
+    // stored float like 660.5 has to stay re-savable.
+    const field = taskSchema(usage()).find((f) => f.name === 'sensor_baseline');
+    expect(field.selector.number.min).toBeUndefined();
+    expect(field.selector.number.step).toBe('any');
+  });
+
+  it('flattens a stored baseline into the form', () => {
+    const data = taskFormData({
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.odo', mode: 'usage', target: 10000, baseline: 45000 },
+    });
+    expect(data.sensor_baseline).toBe(45000);
+  });
+
+  it('leaves the box undefined (not "") when nothing is stored', () => {
+    // `ha-selector-number` in box mode wants undefined, not an empty string — every
+    // other number field in this form seeds the same way.
+    expect(taskFormData({ recurrence_type: 'sensor' }).sensor_baseline).toBeUndefined();
+  });
+
+  it('sends the baseline when the box holds a number', () => {
+    const payload = buildTaskPayload(usage({ sensor_entity_id: 'sensor.odo', sensor_baseline: 45000 }));
+    expect(payload.sensor.baseline).toBe(45000);
+  });
+
+  it('sends a baseline of 0 rather than dropping it', () => {
+    // 0 is a valid anchor (a brand-new hour meter) and falsy, so the `|| 0` idiom
+    // used for `target` would be wrong here in both directions.
+    const payload = buildTaskPayload(usage({ sensor_entity_id: 'sensor.odo', sensor_baseline: 0 }));
+    expect(payload.sensor.baseline).toBe(0);
+  });
+
+  it('omits the baseline entirely when the box is blank', () => {
+    // Blank on create means "anchor at the live reading"; blank on edit is preserved
+    // by merge_update. Either way the key must not be sent.
+    for (const blank of ['', null, undefined]) {
+      const payload = buildTaskPayload(
+        usage({ sensor_entity_id: 'sensor.odo', sensor_baseline: blank }),
+      );
+      expect(payload.sensor, `blank=${String(blank)}`).not.toHaveProperty('baseline');
+    }
+  });
+
+  it('never sends a baseline in threshold mode, even with one in edit state', () => {
+    // The flat sensor_* state survives a mode switch, and the backend *rejects*
+    // sensor.baseline on a threshold binding — so a user who types a baseline and
+    // then picks Threshold would otherwise save a payload that fails validation.
+    const payload = buildTaskPayload({
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.odo',
+      sensor_mode: 'threshold',
+      sensor_value: 90,
+      sensor_baseline: 45000,
+    });
+    expect(payload.sensor).not.toHaveProperty('baseline');
+  });
+
+  it('offers "last completed" on a new sensor task', () => {
+    // It anchors the time backstop (`sensor.also_every`), so "every 10,000 mi or 12
+    // months" can start its calendar half where the meter half starts.
+    expect(taskSchema(usage()).map((f) => f.name)).toContain('last_completed');
+    // Still hidden when editing an existing task, like every other recurrence type.
+    expect(taskSchema(usage({ id: 't1' })).map((f) => f.name)).not.toContain(
+      'last_completed',
+    );
+  });
+});
+
+describe('sensorHintText — the starting-reading arithmetic', () => {
+  const usage = (over = {}) => ({ recurrence_type: 'sensor', sensor_target: 10000, ...over });
+
+  it('reads forward from the live value when no baseline is set', () => {
+    const hint = sensorHintText(usage(), { reading: 48000 });
+    expect(hint).toContain('48000');
+    expect(hint).toContain('58000');
+  });
+
+  it('reads from the baseline, naming what is already used and where it lands', () => {
+    const hint = sensorHintText(usage({ sensor_baseline: 45000 }), { reading: 48000 });
+    expect(hint).toContain('45000'); // counting from
+    expect(hint).toContain('3000'); // already used
+    expect(hint).toContain('55000'); // due at — NOT 58000
+    expect(hint).not.toContain('58000');
+  });
+
+  it('states the due point from the baseline when the sensor has no reading yet', () => {
+    const hint = sensorHintText(usage({ sensor_baseline: 45000 }), {});
+    expect(hint).toContain('45000');
+    expect(hint).toContain('55000');
+  });
+
+  it('warns when the starting reading is above the live one', () => {
+    // The watcher treats reading < baseline as a meter reset and re-anchors, so a
+    // typo silently loses the number. Say so before it is saved.
+    const hint = sensorHintText(usage({ sensor_baseline: 50000 }), { reading: 48000 });
+    expect(hint).toMatch(/above what the sensor reads now/i);
+    expect(hint).toContain('50000');
+    expect(hint).toContain('48000');
+  });
+
+  it('says so when the baseline already puts the task past its target', () => {
+    // usage_met is true on creation, so the watcher arms it seconds after Create.
+    const hint = sensorHintText(usage({ sensor_target: 1000, sensor_baseline: 45000 }), {
+      reading: 48000,
+    });
+    expect(hint).toMatch(/as soon as you save/i);
+    expect(hint).toContain('3000');
+  });
+
+  it('treats a baseline equal to the reading as zero used, not as a reset', () => {
+    const hint = sensorHintText(usage({ sensor_baseline: 48000 }), { reading: 48000 });
+    expect(hint).not.toMatch(/above what the sensor reads now/i);
+    expect(hint).toContain('58000');
+  });
+
+  it('keeps the unit on every figure', () => {
+    const hint = sensorHintText(usage({ sensor_target: 300, sensor_baseline: 660 }), {
+      reading: 780,
+      unit: 'h',
+    });
+    expect(hint).toContain('660 h');
+    expect(hint).toContain('120 h');
+    expect(hint).toContain('960 h');
+  });
+
+  it('rounds the consumed figure instead of showing float noise', () => {
+    const hint = sensorHintText(usage({ sensor_target: 300, sensor_baseline: 660.1 }), {
+      reading: 780.3,
+    });
+    expect(hint).toContain('120.2');
+    expect(hint).not.toMatch(/120\.19999/);
+  });
+
+  it('still appends the backstop clause when a baseline is set', () => {
+    const hint = sensorHintText(
+      usage({
+        sensor_baseline: 45000,
+        sensor_backstop_on: true,
+        sensor_also_every: 12,
+        sensor_also_unit: 'months',
+      }),
+      { reading: 48000 },
+    );
+    expect(hint).toContain('55000');
+    expect(hint).toMatch(/12 months/);
+  });
+
+  it('falls back to the stored binding when the form has no live baseline', () => {
+    const hint = sensorHintText(
+      {
+        recurrence_type: 'sensor',
+        sensor: { entity_id: 'sensor.odo', mode: 'usage', target: 10000, baseline: 45000 },
+      },
+      { reading: 48000 },
+    );
+    expect(hint).toContain('55000');
+  });
+
+  it('ignores a non-numeric baseline rather than rendering NaN', () => {
+    const hint = sensorHintText(usage({ sensor_baseline: 'abc' }), { reading: 48000 });
+    expect(hint).not.toContain('NaN');
+    expect(hint).toContain('58000');
+  });
+});

@@ -249,6 +249,10 @@
         "who": {
           "name": "Kto",
           "description": "Opcjonalna osoba, która wykonała zadanie (id encji person)."
+        },
+        "reading": {
+          "name": "Stan licznika",
+          "description": "W zadaniu czujnikowym w trybie użycia lub progu — wartość powiązanego czujnika w chwili wykonania pracy. Pominięta, zostanie odczytana z czujnika na żywo. Podaj ją wprost przy datowaniu wstecz, bo licznik od tego czasu się przesunął. W zadaniu użycia staje się też nowym stanem początkowym."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Kto",
           "description": "Nowy id encji person (pomiń lub pozostaw puste, aby go wyczyścić)."
+        },
+        "reading": {
+          "name": "Stan licznika",
+          "description": "Nowe wskazanie czujnika dla tego wykonania (pomiń lub zostaw puste, aby je usunąć). Dotyczy tylko zadania czujnikowego w trybie użycia lub progu."
         }
       }
     },

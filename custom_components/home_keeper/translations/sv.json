@@ -249,6 +249,10 @@
         "who": {
           "name": "Vem",
           "description": "Valfri person som utförde uppgiften (ett person-entitets-id)."
+        },
+        "reading": {
+          "name": "Mätarställning",
+          "description": "För en sensoruppgift i förbruknings- eller tröskelläge: den kopplade sensorns värde när arbetet utfördes. Utelämnas den läser Home Keeper sensorn direkt. Ange den uttryckligen vid bakåtdatering, eftersom mätaren har rört sig sedan dess. På en förbrukningsuppgift blir den samtidigt den nya startavläsningen."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Vem",
           "description": "Nytt person-entitets-id (utelämna eller lämna tom för att rensa det)."
+        },
+        "reading": {
+          "name": "Mätarställning",
+          "description": "Ny sensoravläsning för detta utförande (utelämna den eller lämna tom för att ta bort den). Gäller endast en sensoruppgift i förbruknings- eller tröskelläge."
         }
       }
     },

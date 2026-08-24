@@ -471,7 +471,9 @@ expected to set when it knows the answer better than the user does:
      "combinator": "any",
      # Start the meter somewhere other than the live reading, e.g. you already know
      # the machine was serviced 40 hours ago. Omit it and the watcher anchors to the
-     # first valid reading it sees.
+     # first valid reading it sees. Pair it with a top-level ``last_completed`` and
+     # the seeded history entry records the reading too, which also anchors the
+     # ``also_every`` backstop to the same service.
      "baseline": 660,
  }}
 ```
@@ -490,6 +492,22 @@ machine outside Home Keeper, or the meter itself was replaced), call
 `home_keeper.set_task_meter` with `{"task_id": ..., "baseline": 660}` (omit `baseline`
 to anchor to the live reading). It records no completion, and fires
 `home_keeper_task_updated` with `changed_fields: ["sensor"]`.
+
+#### The reading on a completion
+
+Completing a sensor task in `usage` or `threshold` mode records the bound sensor's
+value on the history entry as `reading`, and echoes it in the
+`home_keeper_task_completed` payload. Home Keeper reads the sensor live, so a glue
+integration mirroring work that happened earlier should pass `reading` to
+`home_keeper.complete_task` explicitly, because the meter has moved since. On a
+`usage` task
+that number also becomes the new baseline, so the two can never disagree.
+
+`home_keeper.update_completion` amends it after the fact. Note the standard
+omitted-key-clears semantics: send `reading` back with every edit you make to a sensor
+task's completion, or you will wipe it. Editing the reading on the **latest**
+completion re-anchors the meter and puts `meter_baseline` in the
+`home_keeper_task_completion_updated` payload.
 
 ### Linking a task to a consumable (draw down stock on completion)
 

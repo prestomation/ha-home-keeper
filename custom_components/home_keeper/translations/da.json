@@ -249,6 +249,10 @@
         "who": {
           "name": "Hvem",
           "description": "Valgfri person, der udførte opgaven (et person-entitets-id)."
+        },
+        "reading": {
+          "name": "Målerstand",
+          "description": "For en sensoropgave i forbrugs- eller tærskeltilstand: den tilknyttede sensors værdi, da arbejdet blev udført. Udelades den, aflæser Home Keeper sensoren live. Angiv den udtrykkeligt ved tilbagedatering, for måleren har flyttet sig siden. På en forbrugsopgave bliver den samtidig den nye startaflæsning."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Hvem",
           "description": "Nyt person-entitets-id (udelad eller lad stå tom for at rydde det)."
+        },
+        "reading": {
+          "name": "Målerstand",
+          "description": "Ny sensoraflæsning for denne udførelse (udelad den eller lad den stå tom for at fjerne den). Gælder kun en sensoropgave i forbrugs- eller tærskeltilstand."
         }
       }
     },

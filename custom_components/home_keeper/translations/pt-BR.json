@@ -249,6 +249,10 @@
         "who": {
           "name": "Quem",
           "description": "Pessoa opcional que realizou a tarefa (um id de entidade de pessoa)."
+        },
+        "reading": {
+          "name": "Leitura do medidor",
+          "description": "Para uma tarefa de sensor em modo de uso ou limite, o valor do sensor vinculado quando o trabalho foi feito. Se omitido, o Home Keeper lê o sensor ao vivo. Informe explicitamente ao retroagir a data, porque o medidor já avançou. Em uma tarefa de uso, também passa a ser a nova leitura inicial."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Quem",
           "description": "Novo id de entidade de pessoa (omita ou deixe em branco para limpá-lo)."
+        },
+        "reading": {
+          "name": "Leitura do medidor",
+          "description": "Nova leitura do sensor para esta conclusão (omita ou deixe em branco para apagá-la). Válida apenas para uma tarefa de sensor em modo de uso ou limite."
         }
       }
     },
