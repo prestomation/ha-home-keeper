@@ -69,6 +69,17 @@ class TestCheck:
         message = check(base, head, tag_exists=lambda v: True, section=_section)
         assert message is None
 
+    def test_version_bump_short_circuits_before_checking_any_tag(self):
+        # base_version != head_version names two different sections -- there is
+        # nothing to compare them for, so tag_exists() must never even be asked.
+        def tag_exists(version: str) -> bool:
+            raise AssertionError("tag_exists() called despite a version bump")
+
+        base = "## [0.16.0b7]\n\nold entry\n"
+        head = "## [0.16.0b8]\n\nold entry\n"  # identical body, only the heading moved
+        message = check(base, head, tag_exists=tag_exists, section=_section)
+        assert message is None
+
     def test_unchanged_section_on_a_released_version_is_clean(self):
         text = "## [0.16.0b7]\n\nsame entry\n"
         message = check(text, text, tag_exists=lambda v: True, section=_section)

@@ -66,7 +66,12 @@ def check(
     tag_exists: Callable[[str], bool],
     section: Callable[[str, str], str],
 ) -> str | None:
-    """Return a failure message, or None if the PR's changelog top section is clean."""
+    """Return a failure message, or None if the PR's changelog top section is clean.
+
+    A version bump always short-circuits here: once the top heading itself changes,
+    ``base_version`` and ``head_version`` name two different sections, so there is
+    nothing to compare them for and ``release.yml`` will see a new tag to cut.
+    """
     base_version = top_version(base_changelog)
     head_version = top_version(head_changelog)
     if base_version is None or head_version is None or base_version != head_version:
