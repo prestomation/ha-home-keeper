@@ -63,6 +63,9 @@ import type {
   AssetKind,
   Companion,
   Completion,
+  DeclarativeCompanion,
+  DeclarativeCompanionPreset,
+  DeclarativeCompanionPreviewResult,
   Hass,
   HomeKeeperOptions,
   ManagedBy,
@@ -382,6 +385,63 @@ const STYLES = `
   }
   ha-assist-chip.hk-comp-suggested {
     --ha-assist-chip-container-color: var(--warning-color, #ffa600);
+  }
+  .hk-companion-group-decl { margin-top: 16px; }
+  .hk-decl-actions { display: flex; gap: 8px; margin: 8px 0; }
+  .hk-decl-empty {
+    color: var(--secondary-text-color); font-style: italic; padding: 8px 0;
+  }
+  .hk-decl-matches { color: var(--secondary-text-color); font-size: 0.85rem; }
+  ha-assist-chip.hk-decl-preset-chip {
+    --ha-assist-chip-container-color: var(--divider-color);
+  }
+  .hk-decl-preset-list { display: grid; gap: 12px; padding: 8px 4px; max-width: 480px; }
+  .hk-decl-preset-card {
+    display: flex; gap: 12px; padding: 12px; border: 1px solid var(--divider-color);
+    border-radius: 8px; cursor: pointer;
+  }
+  .hk-decl-preset-card:hover { background: var(--secondary-background-color); }
+  .hk-decl-preset-disabled { opacity: 0.55; cursor: not-allowed; }
+  .hk-decl-preset-disabled:hover { background: transparent; }
+  .hk-decl-preset-card ha-icon { flex: 0 0 auto; align-self: center; }
+  .hk-decl-preset-text { flex: 1 1 auto; min-width: 0; }
+  .hk-decl-preset-name { font-weight: 500; }
+  .hk-decl-preset-desc { color: var(--secondary-text-color); font-size: 0.9rem; }
+  .hk-decl-preset-req { color: var(--warning-color); font-size: 0.85rem; margin-top: 4px; }
+  .hk-decl-dialog-body {
+    display: grid; grid-template-columns: minmax(280px, 1fr) minmax(240px, 1fr);
+    gap: 16px; min-width: min(640px, 90vw);
+  }
+  .hk-decl-form { display: flex; flex-direction: column; gap: 12px; }
+  .hk-decl-section { display: flex; flex-direction: column; gap: 6px; }
+  .hk-decl-section-title {
+    font-weight: 600; color: var(--secondary-text-color);
+    text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.04em;
+    margin-top: 4px;
+  }
+  .hk-decl-form label {
+    display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem;
+  }
+  .hk-decl-form input[type=text], .hk-decl-form input[type=number],
+  .hk-decl-form select, .hk-decl-form textarea {
+    padding: 6px 8px; border-radius: 6px;
+    border: 1px solid var(--divider-color); background: var(--card-background-color);
+    color: var(--primary-text-color); font: inherit;
+  }
+  .hk-decl-template-help { font-size: 0.8rem; color: var(--secondary-text-color); }
+  .hk-decl-preview {
+    padding: 12px; border: 1px dashed var(--divider-color); border-radius: 8px;
+    background: var(--secondary-background-color); font-size: 0.85rem;
+    max-height: 380px; overflow-y: auto;
+  }
+  .hk-decl-preview-header { font-weight: 500; margin-bottom: 6px; }
+  .hk-decl-preview-row { padding: 6px 0; border-bottom: 1px solid var(--divider-color); }
+  .hk-decl-preview-row:last-child { border-bottom: none; }
+  .hk-decl-preview-name { font-weight: 500; }
+  .hk-decl-preview-eid { color: var(--secondary-text-color); font-family: monospace; }
+  .hk-decl-preview-empty { color: var(--secondary-text-color); font-style: italic; }
+  @media (max-width: 720px) {
+    .hk-decl-dialog-body { grid-template-columns: 1fr; }
   }
   .hk-section {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
@@ -897,6 +957,17 @@ export class HomeKeeperPanel extends HTMLElement {
   private _ownTodoEntities: string[] = [];
   // Companion integrations shown on the Settings tab (loaded with the rest).
   private _companions: Companion[] = [];
+  // Declarative-companion specs stored on the config entry — recipes that
+  // materialize one managed sensor task per matching entity. Rendered as a
+  // third subsection under Settings → Companions.
+  private _declarativeCompanions: DeclarativeCompanion[] = [];
+  // Shipped declarative-companion presets shown in the "Add from preset"
+  // picker. Fetched lazily on the first picker open (so /list_declarative_presets
+  // isn't called on every panel load).
+  private _declarativePresets: DeclarativeCompanionPreset[] | null = null;
+  // Distinct entity-registry platforms, for the Add-declarative-companion
+  // dialog's integration autocomplete. Also lazy-loaded.
+  private _installedIntegrations: string[] | null = null;
   // HA tag-registry entries as picker options, for the task form's tag field and
   // the tag chip. Best-effort: an empty list still leaves a typable combo box.
   private _tags: { value: string; label: string }[] = [];
@@ -1180,6 +1251,7 @@ export class HomeKeeperPanel extends HTMLElement {
         loadedEntryIds,
         options,
         companions,
+        declarativeCompanions,
         introDismissed,
         tags,
       ] = await Promise.all([
@@ -1189,6 +1261,9 @@ export class HomeKeeperPanel extends HTMLElement {
         api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
         api.getOptions(this._hass).catch(() => null),
         api.getCompanions(this._hass).catch(() => [] as Companion[]),
+        api
+          .listDeclarativeCompanions(this._hass)
+          .catch(() => [] as DeclarativeCompanion[]),
         api.getIntroDismissed(this._hass).catch(() => false),
         // Best-effort: the tag registry is a convenience for the picker and the
         // chip label, never a precondition for the panel loading.
@@ -1202,6 +1277,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._notifyTargets = options?.notifyTargets ?? [];
       this._ownTodoEntities = options?.ownTodoEntities ?? [];
       this._companions = companions ?? [];
+      this._declarativeCompanions = declarativeCompanions ?? [];
       this._introDismissed = introDismissed;
       this._tags = tags;
       // Drop a remembered Profile filter that no longer exists (deleted since), so the
@@ -4188,10 +4264,579 @@ export class HomeKeeperPanel extends HTMLElement {
         ...suggested.map((c) => this._companionRow(c)),
       );
     }
+    // Declarative companions: Home-Keeper-owned recipes that materialize one
+    // managed sensor task per matching entity. Always render the header + Add
+    // controls even when empty so a first-time user knows they exist.
+    const declHeader = escapeHTML(t('declarative.companions.heading'));
+    const declHelp = escapeHTML(t('declarative.companions.help'));
+    const addLabel = escapeHTML(t('declarative.companions.add'));
+    const presetLabel = escapeHTML(t('declarative.companions.add_from_preset'));
+    sections.push(
+      `<div class="hk-companion-group hk-companion-group-decl">${declHeader}</div>`,
+      `<div class="hk-settings-intro">${declHelp}</div>`,
+      `<div class="hk-decl-actions">
+         <ha-button raised class="hk-decl-add">${addLabel}</ha-button>
+         <ha-button class="hk-decl-preset">${presetLabel}</ha-button>
+       </div>`,
+    );
+    if (this._declarativeCompanions.length) {
+      sections.push(
+        ...this._declarativeCompanions.map((c) => this._declarativeCompanionRow(c)),
+      );
+    } else {
+      sections.push(
+        `<div class="hk-decl-empty">${escapeHTML(t('declarative.companions.empty'))}</div>`,
+      );
+    }
     inner.innerHTML = sections.join('');
     card.appendChild(inner);
     host.appendChild(card);
     this._wireCompanions(inner);
+    this._wireDeclarativeCompanions(inner);
+  }
+
+  /** One declarative-companion row: name + preset badge + match count + row actions. */
+  private _declarativeCompanionRow(spec: DeclarativeCompanion): string {
+    const count = this._tasks.filter(
+      (t) =>
+        (t.source as { declarative_companion?: { spec_id?: string } } | null)
+          ?.declarative_companion?.spec_id === spec.id,
+    ).length;
+    const preset = spec.preset_id
+      ? `<ha-assist-chip class="hk-decl-preset-chip" label="${escapeHTML(
+          t('declarative.companions.preset_badge') + spec.preset_id,
+        )}"></ha-assist-chip>`
+      : '';
+    const enabled = spec.enabled
+      ? `<ha-assist-chip class="hk-comp-connected" label="${escapeHTML(
+          t('declarative.companions.enabled'),
+        )}"></ha-assist-chip>`
+      : `<ha-assist-chip class="hk-comp-suggested" label="${escapeHTML(
+          t('declarative.companions.disabled'),
+        )}"></ha-assist-chip>`;
+    const description = spec.description
+      ? `<div class="hk-companion-desc">${escapeHTML(spec.description)}</div>`
+      : '';
+    const matches = escapeHTML(
+      t('declarative.companions.matches', { count: String(count) }),
+    );
+    return `
+      <div class="hk-companion hk-decl-row" data-spec-id="${escapeHTML(spec.id)}">
+        <ha-icon class="hk-companion-ic" icon="mdi:puzzle-outline"></ha-icon>
+        <div class="hk-companion-body">
+          <div class="hk-companion-name">
+            ${escapeHTML(spec.name)}
+            ${enabled}
+            ${preset}
+          </div>
+          ${description}
+          <div class="hk-decl-matches">${matches}</div>
+        </div>
+        <div class="hk-companion-actions">
+          <ha-button class="hk-decl-edit" data-spec-id="${escapeHTML(spec.id)}">${escapeHTML(t('declarative.companions.edit'))}</ha-button>
+          <ha-button class="hk-decl-delete" data-spec-id="${escapeHTML(spec.id)}">${escapeHTML(t('declarative.companions.delete'))}</ha-button>
+        </div>
+      </div>`;
+  }
+
+  /** Wire the Add / Add-from-preset / Edit / Delete row actions in the section. */
+  private _wireDeclarativeCompanions(root: HTMLElement): void {
+    root.querySelectorAll<HTMLElement>('.hk-decl-add').forEach((b) =>
+      b.addEventListener('click', () => {
+        void this._openDeclarativeCompanionDialog(null);
+      }),
+    );
+    root.querySelectorAll<HTMLElement>('.hk-decl-preset').forEach((b) =>
+      b.addEventListener('click', () => {
+        void this._openDeclarativePresetPicker();
+      }),
+    );
+    root.querySelectorAll<HTMLElement>('.hk-decl-edit').forEach((b) =>
+      b.addEventListener('click', () => {
+        const id = b.dataset.specId;
+        if (!id) return;
+        const spec = this._declarativeCompanions.find((s) => s.id === id);
+        if (spec) void this._openDeclarativeCompanionDialog(spec);
+      }),
+    );
+    root.querySelectorAll<HTMLElement>('.hk-decl-delete').forEach((b) =>
+      b.addEventListener('click', () => {
+        const id = b.dataset.specId;
+        if (id) void this._deleteDeclarativeCompanion(id);
+      }),
+    );
+  }
+
+  /** Prompt then delete. Refreshes the panel afterwards. */
+  private async _deleteDeclarativeCompanion(id: string): Promise<void> {
+    if (!this._hass) return;
+    const spec = this._declarativeCompanions.find((s) => s.id === id);
+    if (!spec) return;
+    const ok = window.confirm(
+      t('declarative.companions.delete_confirm', { name: spec.name }),
+    );
+    if (!ok) return;
+    try {
+      await api.deleteDeclarativeCompanion(this._hass, id);
+      // The backend reloads the entry when the entity set changes; re-fetch to
+      // update the list regardless.
+      await this._refresh();
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
+    }
+  }
+
+  /** Open the preset picker modal; fetch presets on first open, cache after. */
+  private async _openDeclarativePresetPicker(): Promise<void> {
+    if (!this._hass) return;
+    if (this._declarativePresets === null) {
+      try {
+        this._declarativePresets = await api.listDeclarativePresets(this._hass);
+      } catch (err) {
+        this._toast(String((err as { message?: string })?.message || err));
+        return;
+      }
+    }
+    const installed = new Set(
+      (this._installedIntegrations ?? []).concat(
+        Object.values(this._entryDomains),
+      ),
+    );
+    // Also refresh installed-integrations best-effort so a preset requiring an
+    // integration installed since panel load can enable.
+    if (this._installedIntegrations === null) {
+      api
+        .listInstalledIntegrations(this._hass)
+        .then((list) => {
+          this._installedIntegrations = list;
+        })
+        .catch(() => {});
+    }
+    const dlg = document.createElement('ha-dialog') as HTMLElement & {
+      heading: string;
+      close: () => void;
+      show?: () => void;
+    };
+    dlg.heading = t('declarative.companions.preset_picker_title');
+    const wrap = document.createElement('div');
+    wrap.className = 'hk-decl-preset-list';
+    for (const preset of this._declarativePresets) {
+      const disabled =
+        preset.requires_integration !== null &&
+        !installed.has(preset.requires_integration);
+      const card = document.createElement('div');
+      card.className = 'hk-decl-preset-card';
+      if (disabled) card.classList.add('hk-decl-preset-disabled');
+      card.dataset.presetId = preset.id;
+      const requiresLine = preset.requires_integration
+        ? `<div class="hk-decl-preset-req">${escapeHTML(
+            t('declarative.companions.requires_integration', {
+              integration: preset.requires_integration,
+            }),
+          )}</div>`
+        : '';
+      card.innerHTML = `
+        <ha-icon icon="${escapeHTML(preset.icon)}"></ha-icon>
+        <div class="hk-decl-preset-text">
+          <div class="hk-decl-preset-name">${escapeHTML(preset.name)}</div>
+          <div class="hk-decl-preset-desc">${escapeHTML(preset.description)}</div>
+          ${requiresLine}
+        </div>`;
+      if (!disabled) {
+        card.addEventListener('click', () => {
+          dlg.close();
+          const seeded: DeclarativeCompanion = {
+            id: '',
+            ...(preset.default_spec as unknown as Omit<
+              DeclarativeCompanion,
+              'id'
+            >),
+          };
+          void this._openDeclarativeCompanionDialog(seeded);
+        });
+      }
+      wrap.appendChild(card);
+    }
+    dlg.appendChild(wrap);
+    const closeBtn = document.createElement('mwc-button');
+    closeBtn.slot = 'primaryAction';
+    closeBtn.textContent = t('cancel');
+    closeBtn.addEventListener('click', () => dlg.close());
+    dlg.appendChild(closeBtn);
+    (this.shadowRoot ?? document.body).appendChild(dlg);
+    // ha-dialog is a lit-element; give it a tick to upgrade.
+    await Promise.resolve();
+    (dlg as unknown as { show: () => void }).show?.();
+  }
+
+  /** Open the Add/Edit dialog; when *seed* is null this is Add-from-scratch. */
+  private async _openDeclarativeCompanionDialog(
+    seed: DeclarativeCompanion | null,
+  ): Promise<void> {
+    if (!this._hass) return;
+    // Best-effort populate the integration picker options once.
+    if (this._installedIntegrations === null) {
+      try {
+        this._installedIntegrations = await api.listInstalledIntegrations(
+          this._hass,
+        );
+      } catch {
+        this._installedIntegrations = [];
+      }
+    }
+    const draft: DeclarativeCompanion =
+      seed !== null
+        ? JSON.parse(JSON.stringify(seed))
+        : {
+            id: '',
+            name: '',
+            description: '',
+            enabled: true,
+            preset_id: null,
+            selection: {
+              area_ids: [],
+              label_ids: [],
+              exclude_entity_ids: [],
+              exclude_device_ids: [],
+              exclude_area_ids: [],
+              exclude_label_ids: [],
+            },
+            trigger: {
+              mode: 'state',
+              state: 'on',
+              clear_on_recover: true,
+            } as unknown as DeclarativeCompanion['trigger'],
+            task_template: {
+              name_template: '{{ friendly_name }}',
+              notes_template: '',
+              labels: [],
+            },
+            per_entity_overrides: {},
+          };
+    const isEdit = Boolean(draft.id);
+    const dlg = document.createElement('ha-dialog') as HTMLElement & {
+      heading: string;
+      close: () => void;
+      show?: () => void;
+    };
+    dlg.heading = isEdit
+      ? t('declarative.companions.edit_title', { name: draft.name })
+      : t('declarative.companions.add_title');
+    dlg.classList.add('hk-decl-dialog');
+    const body = document.createElement('div');
+    body.className = 'hk-decl-dialog-body';
+    const previewHost = document.createElement('div');
+    previewHost.className = 'hk-decl-preview';
+    previewHost.textContent = t('declarative.companions.preview_loading');
+    body.innerHTML = this._renderDeclarativeCompanionForm(draft);
+    body.appendChild(previewHost);
+    dlg.appendChild(body);
+    // Wire form → draft, and re-preview on debounce.
+    let previewTimer: number | undefined;
+    const schedulePreview = (): void => {
+      if (previewTimer) window.clearTimeout(previewTimer);
+      previewTimer = window.setTimeout(() => {
+        void this._previewDeclarativeCompanion(draft, previewHost);
+      }, 350);
+    };
+    this._wireDeclarativeCompanionForm(body, draft, schedulePreview);
+    schedulePreview();
+    // Save / Cancel actions
+    const cancel = document.createElement('mwc-button');
+    cancel.slot = 'secondaryAction';
+    cancel.textContent = t('cancel');
+    cancel.addEventListener('click', () => dlg.close());
+    dlg.appendChild(cancel);
+    const save = document.createElement('mwc-button');
+    save.slot = 'primaryAction';
+    save.textContent = t('save');
+    save.addEventListener('click', () => {
+      void this._saveDeclarativeCompanion(draft, dlg);
+    });
+    dlg.appendChild(save);
+    (this.shadowRoot ?? document.body).appendChild(dlg);
+    await Promise.resolve();
+    (dlg as unknown as { show: () => void }).show?.();
+  }
+
+  /** HTML for the Add/Edit form body — selection + trigger + task template. */
+  private _renderDeclarativeCompanionForm(spec: DeclarativeCompanion): string {
+    const trig = spec.trigger as {
+      mode?: string;
+      state?: string;
+      comparison?: string;
+      value?: number;
+      target?: number;
+      for_seconds?: number;
+      clear_on_recover?: boolean;
+      attribute?: string;
+    };
+    const integrations = (this._installedIntegrations ?? [])
+      .map((p) => `<option value="${escapeHTML(p)}">${escapeHTML(p)}</option>`)
+      .join('');
+    const modes = ['usage', 'threshold', 'state', 'availability']
+      .map(
+        (m) =>
+          `<option value="${m}"${trig.mode === m ? ' selected' : ''}>${escapeHTML(
+            t('declarative.companions.trigger_mode.' + m),
+          )}</option>`,
+      )
+      .join('');
+    const comparisons = ['>=', '<=', '>', '<', '==', '!=']
+      .map(
+        (c) =>
+          `<option value="${c}"${trig.comparison === c ? ' selected' : ''}>${c}</option>`,
+      )
+      .join('');
+    return `
+      <div class="hk-decl-form">
+        <div class="hk-decl-section">
+          <div class="hk-decl-section-title">${escapeHTML(t('declarative.companions.section_identity'))}</div>
+          <label>${escapeHTML(t('declarative.companions.field_name'))}
+            <input type="text" class="hk-decl-name" maxlength="100" value="${escapeHTML(spec.name)}"/>
+          </label>
+          <label>${escapeHTML(t('declarative.companions.field_description'))}
+            <input type="text" class="hk-decl-description" maxlength="500" value="${escapeHTML(spec.description)}"/>
+          </label>
+          <label><input type="checkbox" class="hk-decl-enabled" ${spec.enabled ? 'checked' : ''}/>${escapeHTML(t('declarative.companions.field_enabled'))}</label>
+        </div>
+        <div class="hk-decl-section">
+          <div class="hk-decl-section-title">${escapeHTML(t('declarative.companions.section_selection'))}</div>
+          <label>${escapeHTML(t('declarative.companions.field_integration'))}
+            <input type="text" class="hk-decl-integration" list="hk-decl-integrations" value="${escapeHTML(spec.selection.target_integration ?? '')}"/>
+            <datalist id="hk-decl-integrations">${integrations}</datalist>
+          </label>
+          <label>${escapeHTML(t('declarative.companions.field_domain'))}
+            <input type="text" class="hk-decl-domain" value="${escapeHTML(spec.selection.domain ?? '')}" placeholder="sensor / binary_sensor / update"/>
+          </label>
+          <label>${escapeHTML(t('declarative.companions.field_device_class'))}
+            <input type="text" class="hk-decl-device-class" value="${escapeHTML(spec.selection.device_class ?? '')}"/>
+          </label>
+          <label>${escapeHTML(t('declarative.companions.field_entity_regex'))}
+            <input type="text" class="hk-decl-entity-regex" maxlength="200" value="${escapeHTML(spec.selection.entity_regex ?? '')}" placeholder=".*"/>
+          </label>
+        </div>
+        <div class="hk-decl-section">
+          <div class="hk-decl-section-title">${escapeHTML(t('declarative.companions.section_trigger'))}</div>
+          <label>${escapeHTML(t('declarative.companions.field_mode'))}
+            <select class="hk-decl-mode">${modes}</select>
+          </label>
+          <label class="hk-decl-if-state">${escapeHTML(t('declarative.companions.field_state'))}
+            <input type="text" class="hk-decl-state" value="${escapeHTML(String(trig.state ?? 'on'))}"/>
+          </label>
+          <label class="hk-decl-if-threshold">${escapeHTML(t('declarative.companions.field_comparison'))}
+            <select class="hk-decl-comparison">${comparisons}</select>
+          </label>
+          <label class="hk-decl-if-threshold">${escapeHTML(t('declarative.companions.field_value'))}
+            <input type="number" step="any" class="hk-decl-value" value="${trig.value ?? 0}"/>
+          </label>
+          <label class="hk-decl-if-usage">${escapeHTML(t('declarative.companions.field_target'))}
+            <input type="number" step="any" class="hk-decl-target" value="${trig.target ?? 100}"/>
+          </label>
+          <label>${escapeHTML(t('declarative.companions.field_for_seconds'))}
+            <input type="number" min="0" class="hk-decl-for-seconds" value="${trig.for_seconds ?? 0}"/>
+          </label>
+          <label><input type="checkbox" class="hk-decl-clear-on-recover" ${trig.clear_on_recover !== false ? 'checked' : ''}/>${escapeHTML(t('declarative.companions.field_clear_on_recover'))}</label>
+          <label>${escapeHTML(t('declarative.companions.field_attribute'))}
+            <input type="text" class="hk-decl-attribute" value="${escapeHTML(trig.attribute ?? '')}"/>
+          </label>
+        </div>
+        <div class="hk-decl-section">
+          <div class="hk-decl-section-title">${escapeHTML(t('declarative.companions.section_template'))}</div>
+          <label>${escapeHTML(t('declarative.companions.field_name_template'))}
+            <input type="text" class="hk-decl-name-template" maxlength="200" value="${escapeHTML(spec.task_template.name_template)}"/>
+          </label>
+          <label>${escapeHTML(t('declarative.companions.field_notes_template'))}
+            <textarea class="hk-decl-notes-template" maxlength="2000" rows="3">${escapeHTML(spec.task_template.notes_template)}</textarea>
+          </label>
+          <div class="hk-decl-template-help">${escapeHTML(t('declarative.companions.template_help'))}</div>
+        </div>
+      </div>`;
+  }
+
+  /** Wire the form's inputs to the draft object; call *onChange* after any edit. */
+  private _wireDeclarativeCompanionForm(
+    body: HTMLElement,
+    draft: DeclarativeCompanion,
+    onChange: () => void,
+  ): void {
+    const on = <T extends Event>(
+      selector: string,
+      event: string,
+      handler: (el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement, ev: T) => void,
+    ): void => {
+      body.querySelectorAll<HTMLInputElement>(selector).forEach((el) =>
+        el.addEventListener(event, (ev) => {
+          handler(el, ev as T);
+          onChange();
+        }),
+      );
+    };
+    on('.hk-decl-name', 'input', (el) => {
+      draft.name = (el as HTMLInputElement).value;
+    });
+    on('.hk-decl-description', 'input', (el) => {
+      draft.description = (el as HTMLInputElement).value;
+    });
+    on('.hk-decl-enabled', 'change', (el) => {
+      draft.enabled = (el as HTMLInputElement).checked;
+    });
+    on('.hk-decl-integration', 'input', (el) => {
+      draft.selection.target_integration =
+        (el as HTMLInputElement).value.trim() || undefined;
+    });
+    on('.hk-decl-domain', 'input', (el) => {
+      draft.selection.domain =
+        (el as HTMLInputElement).value.trim() || undefined;
+    });
+    on('.hk-decl-device-class', 'input', (el) => {
+      draft.selection.device_class =
+        (el as HTMLInputElement).value.trim() || undefined;
+    });
+    on('.hk-decl-entity-regex', 'input', (el) => {
+      draft.selection.entity_regex =
+        (el as HTMLInputElement).value.trim() || undefined;
+    });
+    on('.hk-decl-mode', 'change', (el) => {
+      const trig = draft.trigger as Record<string, unknown>;
+      trig.mode = (el as HTMLSelectElement).value;
+      this._toggleModeFields(body, trig.mode as string);
+    });
+    on('.hk-decl-state', 'input', (el) => {
+      (draft.trigger as Record<string, unknown>).state = (
+        el as HTMLInputElement
+      ).value;
+    });
+    on('.hk-decl-comparison', 'change', (el) => {
+      (draft.trigger as Record<string, unknown>).comparison = (
+        el as HTMLSelectElement
+      ).value;
+    });
+    on('.hk-decl-value', 'input', (el) => {
+      const v = parseFloat((el as HTMLInputElement).value);
+      (draft.trigger as Record<string, unknown>).value = Number.isFinite(v)
+        ? v
+        : 0;
+    });
+    on('.hk-decl-target', 'input', (el) => {
+      const v = parseFloat((el as HTMLInputElement).value);
+      (draft.trigger as Record<string, unknown>).target = Number.isFinite(v)
+        ? v
+        : 0;
+    });
+    on('.hk-decl-for-seconds', 'input', (el) => {
+      const v = parseInt((el as HTMLInputElement).value, 10);
+      (draft.trigger as Record<string, unknown>).for_seconds =
+        Number.isFinite(v) && v >= 0 ? v : 0;
+    });
+    on('.hk-decl-clear-on-recover', 'change', (el) => {
+      (draft.trigger as Record<string, unknown>).clear_on_recover = (
+        el as HTMLInputElement
+      ).checked;
+    });
+    on('.hk-decl-attribute', 'input', (el) => {
+      const v = (el as HTMLInputElement).value.trim();
+      const trig = draft.trigger as Record<string, unknown>;
+      if (v) trig.attribute = v;
+      else delete trig.attribute;
+    });
+    on('.hk-decl-name-template', 'input', (el) => {
+      draft.task_template.name_template = (el as HTMLInputElement).value;
+    });
+    on('.hk-decl-notes-template', 'input', (el) => {
+      draft.task_template.notes_template = (
+        el as HTMLTextAreaElement
+      ).value;
+    });
+    this._toggleModeFields(
+      body,
+      (draft.trigger as { mode?: string }).mode ?? 'state',
+    );
+  }
+
+  /** Hide the trigger fields that don't apply to *mode*. */
+  private _toggleModeFields(body: HTMLElement, mode: string): void {
+    const show = (sel: string, on: boolean): void => {
+      body.querySelectorAll<HTMLElement>(sel).forEach((el) => {
+        el.style.display = on ? '' : 'none';
+      });
+    };
+    show('.hk-decl-if-state', mode === 'state');
+    show('.hk-decl-if-threshold', mode === 'threshold');
+    show('.hk-decl-if-usage', mode === 'usage');
+  }
+
+  /** Post the draft, render match count + first-10 rendered names. */
+  private async _previewDeclarativeCompanion(
+    draft: DeclarativeCompanion,
+    host: HTMLElement,
+  ): Promise<void> {
+    if (!this._hass) return;
+    try {
+      const result: DeclarativeCompanionPreviewResult =
+        await api.previewDeclarativeCompanion(this._hass, draft);
+      if (result.over_cap) {
+        host.innerHTML = `<ha-alert alert-type="error">${escapeHTML(
+          t('declarative.companions.preview_over_cap'),
+        )}</ha-alert>`;
+        return;
+      }
+      const count = result.count ?? 0;
+      const warning =
+        count > 50
+          ? `<ha-alert alert-type="warning">${escapeHTML(
+              t('declarative.companions.preview_many', {
+                count: String(count),
+              }),
+            )}</ha-alert>`
+          : '';
+      const rows = result.matched
+        .map(
+          (m) => `
+        <div class="hk-decl-preview-row">
+          <div class="hk-decl-preview-name">${escapeHTML(m.rendered_name)}</div>
+          <div class="hk-decl-preview-eid">${escapeHTML(m.entity_id)}</div>
+        </div>`,
+        )
+        .join('');
+      const summary = escapeHTML(
+        t('declarative.companions.preview_summary', {
+          shown: String(result.matched.length),
+          total: String(count),
+        }),
+      );
+      host.innerHTML = `
+        <div class="hk-decl-preview-header">${summary}</div>
+        ${warning}
+        ${rows || `<div class="hk-decl-preview-empty">${escapeHTML(t('declarative.companions.preview_empty'))}</div>`}
+      `;
+    } catch (err) {
+      host.innerHTML = `<ha-alert alert-type="error">${escapeHTML(
+        String((err as { message?: string })?.message || err),
+      )}</ha-alert>`;
+    }
+  }
+
+  /** Persist the draft — add or update depending on whether spec.id is set. */
+  private async _saveDeclarativeCompanion(
+    draft: DeclarativeCompanion,
+    dlg: HTMLElement,
+  ): Promise<void> {
+    if (!this._hass) return;
+    try {
+      if (draft.id) {
+        await api.updateDeclarativeCompanion(this._hass, draft.id, draft);
+      } else {
+        // The backend assigns the id.
+        const { id: _drop, ...body } = draft;
+        void _drop;
+        await api.addDeclarativeCompanion(this._hass, body);
+      }
+      (dlg as unknown as { close: () => void }).close();
+      await this._refresh();
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
+    }
   }
 
   /** One companion row's HTML (icon, name + status chip, description, actions). */
