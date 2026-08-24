@@ -497,11 +497,11 @@ to anchor to the live reading). It records no completion, and fires
 
 Completing a sensor task in `usage` or `threshold` mode records the bound sensor's
 value on the history entry as `reading`, and echoes it in the
-`home_keeper_task_completed` payload. Home Keeper reads the sensor live, so a glue
-integration mirroring work that happened earlier should pass `reading` to
-`home_keeper.complete_task` explicitly, because the meter has moved since. On a
-`usage` task
-that number also becomes the new baseline, so the two can never disagree.
+`home_keeper_task_completed` payload. Home Keeper reads the sensor live. A glue
+integration mirroring work that happened earlier needs to put an explicit
+`reading` on its `home_keeper.complete_task` call, since the meter has moved on
+in the meantime. On a `usage` task that same number becomes the new baseline, so the log and
+the anchor can never disagree.
 
 `home_keeper.update_completion` amends it after the fact. Note the standard
 omitted-key-clears semantics: send `reading` back with every edit you make to a sensor

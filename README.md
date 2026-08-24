@@ -458,9 +458,8 @@ go"* line under it. The **unit label** beside the target is what turns a bare "3
 "300 h"; Home Keeper prefills it from the sensor you pick, and you can change or clear
 it. The same figures ride as attributes on the task's next-due sensor entity
 (`usage_consumed`, `usage_remaining`, `usage_percent`, `usage_target`, `usage_unit`,
-`usage_baseline`, and `backstop_due`), so a template card or automation can read them
-without any parsing. The latest completion's reading is there too, as
-`last_completion_reading`.
+`usage_baseline`, `backstop_due`, and `last_completion_reading`), so a template card or
+automation can read them without any parsing.
 As with every per-task entity, that sensor exists for tasks **attached to a device**.
 
 **Where the meter was, in the history.** Completing a sensor task records the bound
