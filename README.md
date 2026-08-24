@@ -414,8 +414,8 @@ Pick **Based on a sensor** on the task form, choose the **sensor**, and pick a *
 A sensor task behaves like any other once **armed**: it shows on the to-do list and
 calendar, lights the device's overdue sensor, and fires the `home_keeper_task_overdue`
 event. While waiting, a **usage/meter** task reads as its live countdown in the task
-list — *"in 7,000 miles"*, the meter version of the *"in 3 days"* a time-based task
-shows — while a threshold or state task (no interval to count down) reads as
+list (*"in 7,000 miles"*, the meter version of the *"in 3 days"* a time-based task
+shows), while a threshold or state task (no interval to count down) reads as
 **Monitored**. The task detail shows fuller live progress (*"12,300 of 15,000 used"*
 for a meter, or the current reading vs. the limit). You can also create one from
 automations/scripts with the `home_keeper.add_task` service by passing a `sensor`
