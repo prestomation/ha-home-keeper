@@ -788,3 +788,154 @@ def test_normalize_sensor_allow_missing_still_carries_entity_when_present():
         allow_missing_entity=True,
     )
     assert cfg["entity_id"] == "sensor.x"
+
+
+# ── error-message text ──────────────────────────────────────────────────────
+# Message content is part of the contract — the panel echoes these into the form
+# error tooltip so the user knows which field to fix. The ``match=`` catches
+# mutations that swap the message body for ``None`` or a case-shifted variant.
+
+
+def test_normalize_sensor_entity_id_error_names_the_field():
+    with pytest.raises(m.TaskValidationError, match="sensor.entity_id is required"):
+        m.normalize_sensor({"mode": "state", "state": "on"})
+
+
+def test_normalize_sensor_usage_target_missing_error_names_the_field():
+    with pytest.raises(m.TaskValidationError, match="sensor.target must be a number"):
+        m.normalize_sensor({"entity_id": "sensor.x", "mode": "usage"})
+
+
+def test_normalize_sensor_usage_target_non_positive_error_names_the_field():
+    with pytest.raises(m.TaskValidationError, match="sensor.target must be > 0"):
+        m.normalize_sensor({"entity_id": "sensor.x", "mode": "usage", "target": 0})
+
+
+def test_normalize_sensor_usage_target_boundary_accepts_one():
+    # The lower gate is ``> 0``; a mutant that shifts it to ``> 1`` fails
+    # this because 1 is the smallest valid target.
+    cfg = m.normalize_sensor({"entity_id": "sensor.x", "mode": "usage", "target": 1})
+    assert cfg["target"] == 1
+
+
+def test_normalize_sensor_threshold_value_missing_error_names_the_field():
+    with pytest.raises(m.TaskValidationError, match="sensor.value must be a number"):
+        m.normalize_sensor(
+            {"entity_id": "sensor.x", "mode": "threshold", "comparison": ">"}
+        )
+
+
+def test_normalize_sensor_threshold_value_empty_string_still_rejected():
+    # ``value_raw == ""`` mutates to ``== "XXXX"`` — a real empty string must
+    # still take the "missing" path.
+    with pytest.raises(m.TaskValidationError, match="sensor.value must be a number"):
+        m.normalize_sensor(
+            {"entity_id": "sensor.x", "mode": "threshold", "comparison": ">", "value": ""}
+        )
+
+
+def test_normalize_sensor_threshold_value_error_reports_field_from_finite_float():
+    # ``_finite_float(value_raw, "sensor.value")`` — the field-name argument
+    # gets mutated; a NaN input triggers the numeric-domain error path that
+    # embeds the field name in the message.
+    with pytest.raises(m.TaskValidationError, match="sensor.value"):
+        m.normalize_sensor(
+            {
+                "entity_id": "sensor.x",
+                "mode": "threshold",
+                "comparison": ">",
+                "value": float("nan"),
+            }
+        )
+
+
+def test_normalize_sensor_usage_baseline_error_reports_field_from_finite_float():
+    with pytest.raises(m.TaskValidationError, match="sensor.baseline"):
+        m.normalize_sensor(
+            {
+                "entity_id": "sensor.x",
+                "mode": "usage",
+                "target": 10,
+                "baseline": float("nan"),
+            }
+        )
+
+
+def test_normalize_sensor_usage_unit_length_boundary():
+    # ``if len(unit_label) > MAX_SENSOR_UNIT_LEN`` — a mutant that shifts to
+    # ``>= MAX`` would reject a unit label of exactly MAX; assert it's kept.
+    unit = "u" * m.MAX_SENSOR_UNIT_LEN
+    cfg = m.normalize_sensor(
+        {"entity_id": "sensor.x", "mode": "usage", "target": 1, "unit": unit}
+    )
+    assert cfg["unit"] == unit
+    with pytest.raises(m.TaskValidationError, match="sensor.unit must be <="):
+        m.normalize_sensor(
+            {"entity_id": "sensor.x", "mode": "usage", "target": 1, "unit": unit + "!"}
+        )
+
+
+def test_normalize_sensor_usage_combinator_error_names_the_value():
+    with pytest.raises(m.TaskValidationError, match="invalid sensor.combinator"):
+        m.normalize_sensor(
+            {
+                "entity_id": "sensor.x",
+                "mode": "usage",
+                "target": 1,
+                "also_every": {"interval": 1, "unit": "days"},
+                "combinator": "bogus",
+            }
+        )
+
+
+def test_normalize_sensor_threshold_comparison_error_names_the_value():
+    with pytest.raises(m.TaskValidationError, match="invalid sensor comparison"):
+        m.normalize_sensor(
+            {
+                "entity_id": "sensor.x",
+                "mode": "threshold",
+                "comparison": "bogus",
+                "value": 5,
+            }
+        )
+
+
+# ── availability mode: message + clear_on_recover truthy path ───────────────
+
+
+def test_availability_rejects_field_with_mode_name_in_message():
+    # The rejection message includes the mode name ("availability-mode ...");
+    # a mutant that swaps that string for ``None``, ``XXavailabilityXX``, or
+    # ``AVAILABILITY`` breaks the exact ``availability-mode`` match.
+    with pytest.raises(m.TaskValidationError, match="availability-mode"):
+        m.normalize_sensor(
+            {"entity_id": "sensor.x", "mode": "availability", "state": "on"}
+        )
+
+
+def test_availability_clear_on_recover_explicit_true_is_stored():
+    # ``clear_on_recover is None or bool(clear_on_recover)`` — a mutant that
+    # collapses the second half to ``bool(None)`` still yields True on
+    # ``clear_on_recover=None`` (via the ``is None`` half). Passing True
+    # explicitly forces the second half to matter.
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.x",
+            "mode": "availability",
+            "clear_on_recover": True,
+        }
+    )
+    assert cfg["clear_on_recover"] is True
+
+
+def test_availability_clear_on_recover_truthy_non_bool_is_stored_as_true():
+    # A truthy non-bool exercises the ``bool(clear_on_recover)`` conversion
+    # and its coercion to a real ``True`` in the stored dict.
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.x",
+            "mode": "availability",
+            "clear_on_recover": "yes",
+        }
+    )
+    assert cfg["clear_on_recover"] is True

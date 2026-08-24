@@ -127,6 +127,14 @@ def test_normalize_trigger_allows_missing_entity_id():
     assert "entity_id" not in spec["trigger"]
 
 
+def test_normalize_rejects_non_string_field_with_field_name_in_error():
+    # ``_clean_str`` reports which field carried the non-string, so a bad
+    # payload from the panel points to what to fix. The ``match=`` catches a
+    # mutation that swaps the message body for ``None``.
+    with pytest.raises(TaskValidationError, match="name must be a string"):
+        dc.normalize_declarative_companion(_spec(name=42))
+
+
 def test_normalize_deduplicates_id_lists():
     spec = dc.normalize_declarative_companion(
         _spec(

@@ -213,3 +213,14 @@ def test_declarative_companion_event_tolerates_missing_enabled():
     )
     # Defaults to enabled=True so an automation never sees ``None`` for a bool.
     assert data["enabled"] is True
+
+
+def test_declarative_companion_event_reads_enabled_from_the_spec():
+    # A stored ``enabled=False`` must survive to the event; the paired
+    # ``missing`` test above catches the mirror mutation that hard-codes True.
+    # Together they prove ``spec.get("enabled", True)`` reads the key rather
+    # than always taking the default.
+    data = ev.declarative_companion_event_data(
+        {"id": "spec-1", "name": "x", "preset_id": None, "enabled": False}
+    )
+    assert data["enabled"] is False

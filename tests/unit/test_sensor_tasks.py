@@ -623,15 +623,21 @@ def test_availability_missing_status_is_indeterminate():
     """A not-yet-restored entity must never fabricate an arm or clear."""
     now = dt(2026, 6, 1, 10)
     task = _availability(armed=True, clear_on_recover=True)
+    prior_cross = dt(2026, 5, 30, 10)
     out = s.evaluate_availability(
         task,
         status=s.AVAILABILITY_MISSING,
         condition_met_prev=True,
-        crossed_at=None,
+        crossed_at=prior_cross,
         now=now,
     )
-    assert out["action"] is None
-    assert out["condition_met"] is True
+    # The whole return dict is asserted so a mutated key name (e.g. ``crossed_at`` →
+    # ``CROSSED_AT``) fails the equality even without a direct key read.
+    assert out == {
+        "action": None,
+        "condition_met": True,
+        "crossed_at": prior_cross,
+    }
 
 
 def test_availability_dormant_missing_never_arms():
@@ -644,5 +650,4 @@ def test_availability_dormant_missing_never_arms():
         crossed_at=None,
         now=now,
     )
-    assert out["action"] is None
-    assert out["condition_met"] is False
+    assert out == {"action": None, "condition_met": False, "crossed_at": None}
