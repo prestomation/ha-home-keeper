@@ -395,6 +395,28 @@ const STYLES = `
   ha-assist-chip.hk-decl-preset-chip {
     --ha-assist-chip-container-color: var(--divider-color);
   }
+  .hk-decl-modal {
+    border: 1px solid var(--divider-color); border-radius: 12px; padding: 16px;
+    background: var(--card-background-color); color: var(--primary-text-color);
+    max-width: 90vw; max-height: 90vh; overflow-y: auto;
+  }
+  .hk-decl-modal::backdrop { background: rgba(0,0,0,0.4); }
+  .hk-decl-modal-header {
+    font-size: 1.1rem; font-weight: 600; margin-bottom: 12px;
+  }
+  .hk-decl-modal-close, .hk-decl-modal-actions button {
+    padding: 8px 16px; border-radius: 6px; border: 1px solid var(--divider-color);
+    background: var(--card-background-color); color: var(--primary-text-color);
+    font: inherit; cursor: pointer;
+  }
+  .hk-decl-modal-close { margin-top: 12px; }
+  .hk-decl-modal-actions {
+    display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;
+  }
+  .hk-decl-modal-save {
+    background: var(--primary-color) !important; color: var(--text-primary-color) !important;
+    border-color: transparent !important;
+  }
   .hk-decl-preset-list { display: grid; gap: 12px; padding: 8px 4px; max-width: 480px; }
   .hk-decl-preset-card {
     display: flex; gap: 12px; padding: 12px; border: 1px solid var(--divider-color);
@@ -4412,12 +4434,12 @@ export class HomeKeeperPanel extends HTMLElement {
         })
         .catch(() => {});
     }
-    const dlg = document.createElement('ha-dialog') as HTMLElement & {
-      heading: string;
-      close: () => void;
-      show?: () => void;
-    };
-    dlg.heading = t('declarative.companions.preset_picker_title');
+    const dlg = document.createElement('dialog');
+    dlg.className = 'hk-decl-modal';
+    const header = document.createElement('div');
+    header.className = 'hk-decl-modal-header';
+    header.textContent = t('declarative.companions.preset_picker_title');
+    dlg.appendChild(header);
     const wrap = document.createElement('div');
     wrap.className = 'hk-decl-preset-list';
     for (const preset of this._declarativePresets) {
@@ -4458,15 +4480,14 @@ export class HomeKeeperPanel extends HTMLElement {
       wrap.appendChild(card);
     }
     dlg.appendChild(wrap);
-    const closeBtn = document.createElement('mwc-button');
-    closeBtn.slot = 'primaryAction';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'hk-decl-modal-close';
     closeBtn.textContent = t('cancel');
     closeBtn.addEventListener('click', () => dlg.close());
     dlg.appendChild(closeBtn);
+    dlg.addEventListener('close', () => dlg.remove());
     (this.shadowRoot ?? document.body).appendChild(dlg);
-    // ha-dialog is a lit-element; give it a tick to upgrade.
-    await Promise.resolve();
-    (dlg as unknown as { show: () => void }).show?.();
+    dlg.showModal();
   }
 
   /** Open the Add/Edit dialog; when *seed* is null this is Add-from-scratch. */
@@ -4514,15 +4535,14 @@ export class HomeKeeperPanel extends HTMLElement {
             per_entity_overrides: {},
           };
     const isEdit = Boolean(draft.id);
-    const dlg = document.createElement('ha-dialog') as HTMLElement & {
-      heading: string;
-      close: () => void;
-      show?: () => void;
-    };
-    dlg.heading = isEdit
+    const dlg = document.createElement('dialog');
+    dlg.className = 'hk-decl-modal hk-decl-dialog';
+    const header = document.createElement('div');
+    header.className = 'hk-decl-modal-header';
+    header.textContent = isEdit
       ? t('declarative.companions.edit_title', { name: draft.name })
       : t('declarative.companions.add_title');
-    dlg.classList.add('hk-decl-dialog');
+    dlg.appendChild(header);
     const body = document.createElement('div');
     body.className = 'hk-decl-dialog-body';
     const previewHost = document.createElement('div');
@@ -4542,21 +4562,23 @@ export class HomeKeeperPanel extends HTMLElement {
     this._wireDeclarativeCompanionForm(body, draft, schedulePreview);
     schedulePreview();
     // Save / Cancel actions
-    const cancel = document.createElement('mwc-button');
-    cancel.slot = 'secondaryAction';
+    const actions = document.createElement('div');
+    actions.className = 'hk-decl-modal-actions';
+    const cancel = document.createElement('button');
     cancel.textContent = t('cancel');
     cancel.addEventListener('click', () => dlg.close());
-    dlg.appendChild(cancel);
-    const save = document.createElement('mwc-button');
-    save.slot = 'primaryAction';
+    actions.appendChild(cancel);
+    const save = document.createElement('button');
+    save.className = 'hk-decl-modal-save';
     save.textContent = t('save');
     save.addEventListener('click', () => {
       void this._saveDeclarativeCompanion(draft, dlg);
     });
-    dlg.appendChild(save);
+    actions.appendChild(save);
+    dlg.appendChild(actions);
+    dlg.addEventListener('close', () => dlg.remove());
     (this.shadowRoot ?? document.body).appendChild(dlg);
-    await Promise.resolve();
-    (dlg as unknown as { show: () => void }).show?.();
+    dlg.showModal();
   }
 
   /** HTML for the Add/Edit form body — selection + trigger + task template. */
@@ -4820,7 +4842,7 @@ export class HomeKeeperPanel extends HTMLElement {
   /** Persist the draft — add or update depending on whether spec.id is set. */
   private async _saveDeclarativeCompanion(
     draft: DeclarativeCompanion,
-    dlg: HTMLElement,
+    dlg: HTMLDialogElement,
   ): Promise<void> {
     if (!this._hass) return;
     try {
@@ -4832,7 +4854,7 @@ export class HomeKeeperPanel extends HTMLElement {
         void _drop;
         await api.addDeclarativeCompanion(this._hass, body);
       }
-      (dlg as unknown as { close: () => void }).close();
+      dlg.close();
       await this._refresh();
     } catch (err) {
       this._toast(String((err as { message?: string })?.message || err));

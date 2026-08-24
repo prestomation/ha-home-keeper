@@ -1109,6 +1109,44 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
 
+  // 17c. The new "Declarative companions" subsection with its Add + Add-from-preset
+  // buttons visible. Empty state is enough for the shot — a populated row appears in
+  // the follow-up preset-picker + add-dialog steps.
+  await expect(panel.locator('.hk-companion-group-decl')).toBeVisible();
+  await panel.locator('.hk-companion-group-decl').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  await page.screenshot({
+    path: `${OUT}/21b-panel-declarative-companions-empty.png`,
+    fullPage: true,
+  });
+
+  // 17d. The preset picker modal: three cards, one per shipped preset.
+  await panel.locator('.hk-decl-preset').click();
+  const picker = page.locator('ha-dialog').filter({ hasText: /Choose a preset/i });
+  await expect(picker).toBeVisible();
+  await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(3);
+  await page.waitForTimeout(300);
+  await page.screenshot({
+    path: `${OUT}/21c-panel-declarative-preset-picker.png`,
+    fullPage: true,
+  });
+
+  // 17e. The Add dialog seeded from the Low Battery preset (works without any
+  // required upstream integration), showing the live preview panel — the whole
+  // point of the UX. Any entities matching device_class=battery from stub
+  // integrations will show up.
+  await picker.locator('.hk-decl-preset-card').filter({ hasText: /Low battery/i }).click();
+  const addDlg = page.locator('ha-dialog').filter({ hasText: /Add declarative companion/i });
+  await expect(addDlg).toBeVisible();
+  await expect(addDlg.locator('.hk-decl-preview')).toBeVisible();
+  // Wait for the debounced preview poll to return.
+  await page.waitForTimeout(1_500);
+  await page.screenshot({
+    path: `${OUT}/21d-panel-declarative-add-dialog.png`,
+    fullPage: true,
+  });
+  await addDlg.locator('mwc-button', { hasText: /Cancel|Avbryt|Annuller|Annuler|Cancelar|Annulla|Anuluj|Отмена|取消|Absagen|Ureung/i }).first().click();
+
   // 46. The payoff: the buy reminder sitting on the household's own shopping list,
   // where a voice assistant or a phone widget will read it out.
   await openDashboard(page);
