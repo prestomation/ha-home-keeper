@@ -804,7 +804,7 @@ export class HomeKeeperCard extends HTMLElement {
     const overdue = isOverdue(task);
     const statusChip = overdue
       ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-      : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
+      : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
     // Managed-by reads as a compact icon-only chip (the integration's own icon,
     // else a generic one) with the full "Managed by X" as a hover/long-press
     // tooltip — keeps the row tight instead of a full-width pill.

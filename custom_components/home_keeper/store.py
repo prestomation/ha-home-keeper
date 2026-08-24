@@ -1227,6 +1227,11 @@ class HomeKeeperStore:
         updated = recurrence.apply_completion(
             dict(existing), when, now=now, metadata=clean_metadata
         )
+        # Record the baseline this completion is about to replace *on the completion*
+        # (``meter_start``), before the reset below overwrites it. Undoing the
+        # completion then restores exactly the meter progress the user had, rather
+        # than leaving it stranded at zero (see ``delete_completion``).
+        self._stamp_meter_start(updated, when)
         self._reset_usage_baseline(updated, reading)
         self._tasks[task_id] = updated
         # A task carries at most one reserved source, so exactly one stock side-effect
@@ -1267,9 +1272,12 @@ class HomeKeeperStore:
         make the store contradict its own history: "serviced at 45,000" beside a
         progress bar counting from 48,000. The task may consequently arm on the
         watcher's next tick, which is the correct answer (if the last change really was
-        10,000 miles ago, it really is due). ``delete_completion`` and
-        ``move_completion`` leave the baseline alone by the same rule — the meter
-        follows the *reading*, and neither of those changes one.
+        10,000 miles ago, it really is due). ``delete_completion`` moves the baseline
+        for the same reason in reverse: undoing the anchoring completion restores the
+        baseline that completion had replaced (recorded on it as ``meter_start``), so
+        the meter reverts to the progress the user had. ``move_completion`` leaves the
+        baseline alone — the meter follows the *reading*, and re-timestamping a
+        completion changes none.
 
         Cleans the fields the same way as :meth:`complete_task`, persists, and fires
         ``home_keeper_task_completion_updated`` (carrying ``meter_baseline`` when the
@@ -1361,12 +1369,27 @@ class HomeKeeperStore:
         # A synced problem task's history is owned by the sync (arm/clear), not the
         # user; don't let the panel/websocket rewrite it.
         _reject_synced_problem(existing, None)
-        if not any(e.get("ts") == ts for e in existing.get("completions", [])):
+        removed_entry = next(
+            (e for e in existing.get("completions", []) if e.get("ts") == ts), None
+        )
+        if removed_entry is None:
             # Copy for the same reason the removal path does: this method's contract is
             # "returns the task", and handing back the live stored dict would make the
             # no-op branch the one place a caller could mutate the store by accident.
             return dict(existing)
+        was_latest = ts == existing.get("last_completed")
         updated = recurrence.remove_completion(dict(existing), ts, now=dt_util.now())
+        # Undoing the anchoring completion of a usage meter restores the baseline it
+        # moved — putting the partial progress the user had back, instead of leaving
+        # the meter stuck at zero. Only the latest completion anchors the meter, so
+        # undoing an older row leaves the baseline alone.
+        should_set, restored = sensor_tasks.baseline_after_delete(
+            updated, removed_entry, was_latest=was_latest
+        )
+        if should_set:
+            cfg = sensor_tasks.sensor_config(updated)
+            if cfg is not None:
+                cfg["baseline"] = restored
         self._tasks[task_id] = updated
         await self._save()
         self._hass.bus.async_fire(
@@ -1455,6 +1478,27 @@ class HomeKeeperStore:
                 ),
             )
         return asset
+
+    def _stamp_meter_start(self, task: dict[str, Any], when: Any) -> None:
+        """Record the pre-completion baseline on the completion entry at *when*.
+
+        For a usage task, the completion entry keeps ``meter_start`` — the meter
+        baseline in effect *before* this completion reset it — so undoing the
+        completion (:meth:`delete_completion`) can put the meter back exactly where
+        it was. Called before :meth:`_reset_usage_baseline` overwrites the baseline.
+        Internal bookkeeping, deliberately not a ``COMPLETION_*_FIELDS`` metadata
+        key: it is stamped by the store and survives ``update_completion`` (which
+        only touches its ``fields``) and ``move_completion`` (whole-entry).
+        """
+        cfg = sensor_tasks.sensor_config(task)
+        if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
+            return
+        ts = when.isoformat()
+        entry = next(
+            (c for c in task.get("completions", []) if c.get("ts") == ts), None
+        )
+        if entry is not None:
+            entry["meter_start"] = cfg.get("baseline")
 
     def _reset_usage_baseline(
         self, task: dict[str, Any], reading: float | None

@@ -2376,7 +2376,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const overdue = isOverdue(task);
     const statusChip = overdue
       ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-      : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
+      : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
     const dev = task.device_id ? this._deviceChip(task.device_id) : '';
     const tagChip = this._tagChip(task);
     const managedChip = this._managedChip(task);
@@ -2606,7 +2606,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const overdue = isOverdue(task);
     const statusChip = overdue
       ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-      : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
+      : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
     const dev = task.device_id ? this._deviceChip(task.device_id) : '';
     // The task's *effective* area — its own, else its device's — so the page explains
     // which "Group by → Area" section the task lands in. When it's inherited, the
@@ -2934,7 +2934,7 @@ export class HomeKeeperPanel extends HTMLElement {
         const overdue = isOverdue(task);
         const chip = overdue
           ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-          : `<ha-assist-chip label="${escapeHTML(dueLabel(task))}"></ha-assist-chip>`;
+          : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
         return `
           <div class="hk-rel detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(
             task.id,

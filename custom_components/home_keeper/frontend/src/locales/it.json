@@ -121,6 +121,7 @@
   "due.in_days.many": "tra {n} giorni",
   "due.in_days.one": "tra {n} giorno",
   "due.in_days.other": "tra {n} giorni",
+  "due.in_units": "tra {value}",
   "due.monitored": "Monitorato",
   "due.none": "—",
   "due.overdue_by.many": "{n} giorni di ritardo",

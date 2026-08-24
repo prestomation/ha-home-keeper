@@ -194,14 +194,54 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
   return new Date(task.next_due).getTime() <= now.getTime();
 }
 
+/**
+ * Units left before a dormant usage/meter task next comes due, or `null` when there
+ * is no live countdown to show.
+ *
+ * `target - max(0, currentReading - baseline)`, clamped at 0 — the same arithmetic
+ * the detail page's meter bar uses (`panel._sensorProgressBar`). Returns `null` for
+ * anything that isn't a `usage` sensor task with a numeric `target`/`baseline` and a
+ * readable numeric value on the bound entity (a threshold/state task, an un-anchored
+ * meter, or an unavailable sensor), so a caller falls back to "Monitored".
+ */
+export function meterRemaining(
+  task: Partial<Task> | null | undefined,
+  hass?: Hass,
+): number | null {
+  const s = task?.sensor;
+  if (!s || task?.recurrence_type !== 'sensor' || s.mode !== 'usage') return null;
+  if (typeof s.target !== 'number' || typeof s.baseline !== 'number') return null;
+  const state = s.entity_id ? hass?.states?.[s.entity_id] : undefined;
+  const raw = state
+    ? s.attribute
+      ? (state.attributes?.[s.attribute] as unknown)
+      : state.state
+    : undefined;
+  if (raw == null || raw === '') return null;
+  const reading = Number(raw);
+  if (Number.isNaN(reading)) return null;
+  const consumed = Math.max(0, reading - s.baseline);
+  return Math.max(0, s.target - consumed);
+}
+
 /** Compact relative description of a due date, e.g. "in 3 days" / "2 days ago". */
-export function dueLabel(task: Task, now: Date = new Date()): string {
+export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): string {
   // A dormant triggered/sensor task is armed-but-not-due: show "Monitored", not "no
   // date" — Home Keeper is watching the condition / sensor and will arm it.
   if (
     (task.recurrence_type === 'triggered' || task.recurrence_type === 'sensor') &&
     !task.next_due
   ) {
+    // A dormant usage/meter task can read as a live countdown ("in 7000 miles") — the
+    // meter analogue of a time task's "in 3 days" — when its bound sensor gives one.
+    // Every other dormant sensor/triggered task (threshold, state, integration-armed,
+    // or a meter with no reading yet) has no number, so it stays "Monitored".
+    const remaining = meterRemaining(task, hass);
+    if (remaining !== null) {
+      const unit = readingUnit(task, hass);
+      const value = unit ? `${round1(remaining)} ${unit}` : `${round1(remaining)}`;
+      return t('due.in_units', { value });
+    }
     return t('due.monitored');
   }
   // A completed one-off (do-once, now dormant) reads as "Completed".

@@ -121,6 +121,7 @@
   "due.in_days.many": "dans {n} jours",
   "due.in_days.one": "dans {n} jour",
   "due.in_days.other": "dans {n} jours",
+  "due.in_units": "dans {value}",
   "due.monitored": "Surveillé",
   "due.none": "—",
   "due.overdue_by.many": "{n} jours de retard",

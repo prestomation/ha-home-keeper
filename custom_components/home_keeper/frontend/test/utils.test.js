@@ -11,6 +11,7 @@ import {
   isArmedTriggered,
   isOverdue,
   dueLabel,
+  meterRemaining,
   taskRecordsReading,
   readingUnit,
   deviceName,
@@ -204,6 +205,68 @@ describe('dueLabel', () => {
     expect(dueLabel({ recurrence_type: 'triggered' }, now)).toBe('Monitored');
     expect(dueLabel({ recurrence_type: 'triggered', next_due: null }, now)).toBe('Monitored');
   });
+  it('reads a dormant usage meter as a live countdown "in X units"', () => {
+    // 45,000-start, every 10,000 mi, odometer now at 48,000 → 7,000 to go.
+    const task = {
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.odometer',
+        mode: 'usage',
+        target: 10000,
+        baseline: 45000,
+        unit: 'miles',
+      },
+    };
+    const hass = { states: { 'sensor.odometer': { state: '48000' } } };
+    expect(dueLabel(task, now, hass)).toBe('in 7000 miles');
+  });
+  it('falls back to the entity unit_of_measurement when the binding has no unit', () => {
+    const task = {
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.hours', mode: 'usage', target: 300, baseline: 100 },
+    };
+    const hass = {
+      states: { 'sensor.hours': { state: '150', attributes: { unit_of_measurement: 'h' } } },
+    };
+    expect(dueLabel(task, now, hass)).toBe('in 250 h');
+  });
+  it('omits the unit entirely when neither the binding nor the entity supplies one', () => {
+    const task = {
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.bare', mode: 'usage', target: 300, baseline: 100 },
+    };
+    const hass = { states: { 'sensor.bare': { state: '150' } } };
+    expect(dueLabel(task, now, hass)).toBe('in 250');
+  });
+  it('stays Monitored for a usage meter with no live reading or no hass', () => {
+    const task = {
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.odometer', mode: 'usage', target: 10000, baseline: 45000 },
+    };
+    expect(dueLabel(task, now)).toBe('Monitored');
+    expect(dueLabel(task, now, { states: {} })).toBe('Monitored');
+    expect(
+      dueLabel(task, now, { states: { 'sensor.odometer': { state: 'unavailable' } } }),
+    ).toBe('Monitored');
+  });
+  it('stays Monitored for a threshold/state sensor task or an un-anchored meter', () => {
+    const hass = { states: { 'sensor.x': { state: '95' } } };
+    expect(
+      dueLabel(
+        { recurrence_type: 'sensor', sensor: { entity_id: 'sensor.x', mode: 'threshold' } },
+        now,
+        hass,
+      ),
+    ).toBe('Monitored');
+    // usage mode but no baseline yet (freshly created, watcher hasn't anchored).
+    expect(
+      dueLabel(
+        { recurrence_type: 'sensor', sensor: { entity_id: 'sensor.x', mode: 'usage', target: 50 } },
+        now,
+        hass,
+      ),
+    ).toBe('Monitored');
+  });
   it('counts calendar days, not rolling 24h windows, at time-of-day boundaries', () => {
     // Local dates so the assertion holds regardless of the test runner's timezone
     // (dueLabel's day diff is computed from local midnights).
@@ -222,6 +285,59 @@ describe('dueLabel', () => {
     expect(dueLabel({ next_due: new Date(2026, 5, 12, 20, 0, 0).toISOString() }, morning)).toBe(
       'yesterday',
     );
+  });
+});
+
+describe('meterRemaining', () => {
+  const usage = (over = {}) => ({
+    recurrence_type: 'sensor',
+    sensor: { entity_id: 'sensor.m', mode: 'usage', target: 100, baseline: 20, ...over },
+  });
+  const at = (v) => ({ states: { 'sensor.m': { state: String(v) } } });
+
+  it('returns target minus consumed', () => {
+    expect(meterRemaining(usage(), at(50))).toBe(70); // 100 - (50 - 20)
+  });
+  it('clamps consumed at 0 when the reading is below the baseline (meter reset)', () => {
+    expect(meterRemaining(usage(), at(10))).toBe(100); // consumed can't go negative
+  });
+  it('clamps remaining at 0 when consumption has passed the target', () => {
+    expect(meterRemaining(usage(), at(200))).toBe(0);
+  });
+  it('reads an attribute when the binding names one', () => {
+    const task = usage({ attribute: 'liters' });
+    const hass = { states: { 'sensor.m': { state: '5', attributes: { liters: 60 } } } };
+    expect(meterRemaining(task, hass)).toBe(60); // 100 - (60 - 20)
+  });
+  it('is null when the named attribute is absent', () => {
+    const task = usage({ attribute: 'liters' });
+    const hass = { states: { 'sensor.m': { state: '5', attributes: {} } } };
+    expect(meterRemaining(task, hass)).toBeNull();
+  });
+  it('is null for a non-sensor task even if it carries a sensor binding', () => {
+    // Exercises the recurrence_type guard specifically (the binding is present).
+    expect(meterRemaining({ ...usage(), recurrence_type: 'floating' }, at(50))).toBeNull();
+  });
+  it('is null for a threshold-mode sensor task', () => {
+    expect(meterRemaining(usage({ mode: 'threshold' }), at(50))).toBeNull();
+  });
+  it('is null for a null task or an absent binding', () => {
+    expect(meterRemaining(null, at(50))).toBeNull();
+    expect(meterRemaining({ recurrence_type: 'sensor' }, at(50))).toBeNull();
+  });
+  it('is null without a numeric target or a numeric baseline', () => {
+    expect(meterRemaining(usage({ target: undefined }), at(50))).toBeNull();
+    expect(meterRemaining(usage({ baseline: undefined }), at(50))).toBeNull();
+  });
+  it('is null when hass, its states map, or the entity are missing', () => {
+    expect(meterRemaining(usage())).toBeNull(); // no hass at all
+    expect(meterRemaining(usage(), {})).toBeNull(); // hass but no states map
+    expect(meterRemaining(usage(), { states: {} })).toBeNull(); // entity not in states
+  });
+  it('is null when the reading is empty, absent, or non-numeric', () => {
+    expect(meterRemaining(usage(), at(''))).toBeNull(); // empty-string state
+    expect(meterRemaining(usage(), { states: { 'sensor.m': {} } })).toBeNull(); // no state prop
+    expect(meterRemaining(usage(), at('unavailable'))).toBeNull(); // non-numeric
   });
 });
 

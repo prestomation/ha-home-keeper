@@ -50,6 +50,7 @@ from .const import (
     SENSOR_CMP_LT,
     SENSOR_CMP_NE,
     SENSOR_COMBINATOR_ALL,
+    SENSOR_MODE_USAGE,
 )
 
 # Decision actions returned by the evaluators (the store/watcher dispatches on these):
@@ -130,6 +131,53 @@ def backstop_due(task: dict[str, Any], cfg: dict[str, Any]) -> datetime | None:
     return recurrence.add_interval(
         anchor, int(also_every["interval"]), str(also_every["unit"])
     )
+
+
+def baseline_after_delete(
+    task: dict[str, Any],
+    removed_entry: dict[str, Any] | None,
+    *,
+    was_latest: bool,
+) -> tuple[bool, float | None]:
+    """Decide a usage meter's baseline after a completion is undone.
+
+    Completing a usage task moves ``sensor.baseline`` forward to the completion
+    reading (see ``store._reset_usage_baseline``), so undoing that completion must
+    put the baseline back where it was — otherwise the partial progress the user had
+    (3,000 of 10,000 miles) stays lost at zero. Only the **latest** completion
+    anchors the meter, so undoing an older row is pure bookkeeping and leaves the
+    baseline alone.
+
+    *task* is the task **after** the entry was removed (its ``completions`` no longer
+    include *removed_entry*); *removed_entry* is the entry that was deleted; and
+    *was_latest* is whether that entry was the anchor (its ``ts`` equalled
+    ``last_completed``) before removal.
+
+    Returns ``(should_set, new_baseline)``:
+
+    * ``(False, None)`` — leave ``sensor.baseline`` untouched (not a usage task, or
+      an older row was undone).
+    * ``(True, value)`` — set ``sensor.baseline`` to *value*. The value is the
+      baseline the undone completion had replaced, recorded on it as ``meter_start``
+      when it was completed. A completion recorded before that field existed has no
+      ``meter_start``; fall back to the now-latest remaining completion's ``reading``
+      (which is what the baseline would have been anchored to), or ``None`` when no
+      completion remains — clearing the baseline so the watcher re-anchors on its
+      next valid reading rather than measuring from a stale figure.
+    """
+    cfg = sensor_config(task)
+    if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE or not was_latest:
+        return (False, None)
+    if removed_entry is not None and "meter_start" in removed_entry:
+        return (True, removed_entry.get("meter_start"))
+    # Backward compatibility: an entry stamped before ``meter_start`` existed. The
+    # baseline was anchored to the reading at the previous completion, which is the
+    # latest one still in the history now.
+    latest_ts = task.get("last_completed")
+    latest = next(
+        (c for c in task.get("completions", []) if c.get("ts") == latest_ts), None
+    )
+    return (True, (latest or {}).get("reading"))
 
 
 def evaluate_usage(

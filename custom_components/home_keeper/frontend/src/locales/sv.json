@@ -115,6 +115,7 @@
   "due.days_ago.other": "för {n} dagar sedan",
   "due.in_days.one": "om {n} dag",
   "due.in_days.other": "om {n} dagar",
+  "due.in_units": "om {value}",
   "due.monitored": "Övervakad",
   "due.none": "—",
   "due.overdue_by.one": "{n} dag försenad",

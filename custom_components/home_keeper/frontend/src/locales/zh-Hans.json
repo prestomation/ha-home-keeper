@@ -115,6 +115,7 @@
   "due.days_ago.other": "{n} 天前",
   "due.in_days.one": "{n} 天后",
   "due.in_days.other": "{n} 天后",
+  "due.in_units": "{value} 后",
   "due.monitored": "监控中",
   "due.none": "—",
   "due.overdue_by.one": "逾期 {n} 天",
