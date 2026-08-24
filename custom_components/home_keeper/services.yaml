@@ -85,7 +85,8 @@ add_task:
         already part-way through its interval - omit it to anchor at whatever the
         sensor reads when the task is created), unit (a display label such as "h"),
         also_every ({interval, unit}, the "or every 6 months" time backstop) and
-        combinator ("any", the default = whichever comes first; "all" = both). For
+        combinator ("any", the default, means whichever comes first, and "all" means
+        both must be met). For
         threshold: comparison (">=", "<=", ">", "<", "==", "!=") and
         value. For state (what makes a binary sensor usable): state, the state string
         the entity must enter, such as "on". Threshold and state also take an optional
@@ -450,9 +451,9 @@ update_completion:
   description: >-
     Amend the recorded detail (note, cost, photo, who, reading) of an
     already-recorded completion, identified by its timestamp. Does not move the
-    timestamp, the last-completed date or the due date. One exception: correcting the
-    reading on the latest completion of a usage sensor task re-anchors that task's
-    meter baseline to it, because the baseline is the reading at the last completion.
+    timestamp, the last-completed date or the due date. Correcting the reading on the
+    latest completion of a usage sensor task does re-anchor that task's meter baseline
+    to it, because the baseline is the reading at the last completion.
   fields:
     task_id:
       name: Task ID

@@ -69,4 +69,60 @@ test.describe('Home Keeper panel — completion dialog', () => {
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
+
+  test('editing a meter reading in history re-anchors the usage task (#235)', async ({
+    page,
+  }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    // The seeded nozzle task meters printer hours (a constant 780 h) against a 300 h
+    // target, anchored at 660 — so its one completion reads "at 660 h" and the bar
+    // shows 120 of 300 used. That equality is the whole invariant: a usage task's
+    // baseline *is* the reading on its latest completion.
+    const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');
+    if (!(await monitored.evaluate((el: HTMLDetailsElement) => el.open))) {
+      await monitored.locator('summary').click();
+    }
+    await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
+    const row = panel.locator('.hk-hist-list li').first();
+    await expect(row.locator('.hk-hist-chips')).toContainText('at 660 h');
+    await expect(panel.locator('.hk-meter-note').first()).toHaveText('180 h to go');
+
+    await row.locator('.hk-hist-edit').click();
+    const dialog = panel.locator('ha-dialog[open]');
+    // Two number fields — cost, plus the meter reading this task gets for being bound
+    // to a numeric sensor. The reading must arrive *seeded*: update_completion treats
+    // an omitted key as "clear it", so a blank box here would mean editing a note
+    // silently destroyed a value the user never typed and doesn't know is there.
+    const numbers = dialog.locator('ha-selector-number input');
+    await expect(numbers).toHaveCount(2);
+    await expect(numbers.last()).toHaveValue('660');
+
+    // Correct it downwards: the last service really happened 40 h earlier than logged.
+    await numbers.last().fill('620');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+
+    // The log now says 620 — and so does the meter, which is the point. Left alone,
+    // the bar would still be counting from 660 and contradicting the history above it.
+    await expect(row.locator('.hk-hist-chips')).toContainText('at 620 h', {
+      timeout: 10_000,
+    });
+    await expect(panel.locator('.hk-meter-note').first()).toHaveText('140 h to go');
+
+    // Put it back. The seeded store is bind-mounted, so a spec that edits it has to
+    // undo itself or the next run starts from a state its own preconditions deny —
+    // and the screenshot harness photographs this very row.
+    await row.locator('.hk-hist-edit').click();
+    await dialog.locator('ha-selector-number input').last().fill('660');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+    await expect(row.locator('.hk-hist-chips')).toContainText('at 660 h', {
+      timeout: 10_000,
+    });
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
 });
