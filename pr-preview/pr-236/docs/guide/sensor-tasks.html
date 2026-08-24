@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Sensor-based tasks | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/docs/guide/sensor-tasks"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Sensor-based tasks | Home Keeper"><meta data-rh="true" name="description" content="Some maintenance isn&#x27;t measured in time but in use: oil every 15,000 km, a"><meta data-rh="true" property="og:description" content="Some maintenance isn&#x27;t measured in time but in use: oil every 15,000 km, a"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-236/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/docs/guide/sensor-tasks"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/docs/guide/sensor-tasks" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/docs/guide/sensor-tasks" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Sensor-based tasks","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/docs/guide/sensor-tasks"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-236/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-236/assets/js/runtime~main.92113a95.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-236/assets/js/runtime~main.e7f2ec93.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-236/assets/js/main.d4c2d9eb.js" defer="defer"></script>
 </head>
 <body>
@@ -109,9 +109,8 @@ go&quot;</em> line under it. The <strong>unit label</strong> beside the target i
 &quot;300 h&quot;; Home Keeper prefills it from the sensor you pick, and you can change or clear
 it. The same figures ride as attributes on the task&#x27;s next-due sensor entity
 (<code>usage_consumed</code>, <code>usage_remaining</code>, <code>usage_percent</code>, <code>usage_target</code>, <code>usage_unit</code>,
-<code>usage_baseline</code>, and <code>backstop_due</code>), so a template card or automation can read them
-without any parsing. The latest completion&#x27;s reading is there too, as
-<code>last_completion_reading</code>.
+<code>usage_baseline</code>, <code>backstop_due</code>, and <code>last_completion_reading</code>), so a template card or
+automation can read them without any parsing.
 As with every per-task entity, that sensor exists for tasks <strong>attached to a device</strong>.</p>
 <p><strong>Where the meter was, in the history.</strong> Completing a sensor task records the bound
 sensor&#x27;s reading alongside the note, cost and photo, so the log answers the question a

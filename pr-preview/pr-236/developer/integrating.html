@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Integrating with Home Keeper | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/developer/integrating"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Integrating with Home Keeper | Home Keeper"><meta data-rh="true" name="description" content="This guide is for authors of other Home Assistant integrations who want to push"><meta data-rh="true" property="og:description" content="This guide is for authors of other Home Assistant integrations who want to push"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-236/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/developer/integrating"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/developer/integrating" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/developer/integrating" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Integrating","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/developer/integrating"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-236/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-236/assets/js/runtime~main.92113a95.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-236/assets/js/runtime~main.e7f2ec93.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-236/assets/js/main.d4c2d9eb.js" defer="defer"></script>
 </head>
 <body>
@@ -373,11 +373,11 @@ to anchor to the live reading). It records no completion, and fires
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="the-reading-on-a-completion">The reading on a completion<a href="#the-reading-on-a-completion" class="hash-link" aria-label="Direct link to The reading on a completion" title="Direct link to The reading on a completion" translate="no">​</a></h4>
 <p>Completing a sensor task in <code>usage</code> or <code>threshold</code> mode records the bound sensor&#x27;s
 value on the history entry as <code>reading</code>, and echoes it in the
-<code>home_keeper_task_completed</code> payload. Home Keeper reads the sensor live, so a glue
-integration mirroring work that happened earlier should pass <code>reading</code> to
-<code>home_keeper.complete_task</code> explicitly, because the meter has moved since. On a
-<code>usage</code> task
-that number also becomes the new baseline, so the two can never disagree.</p>
+<code>home_keeper_task_completed</code> payload. Home Keeper reads the sensor live. A glue
+integration mirroring work that happened earlier needs to put an explicit
+<code>reading</code> on its <code>home_keeper.complete_task</code> call, since the meter has moved on
+in the meantime. On a <code>usage</code> task that same number becomes the new baseline, so the log and
+the anchor can never disagree.</p>
 <p><code>home_keeper.update_completion</code> amends it after the fact. Note the standard
 omitted-key-clears semantics: send <code>reading</code> back with every edit you make to a sensor
 task&#x27;s completion, or you will wipe it. Editing the reading on the <strong>latest</strong>
