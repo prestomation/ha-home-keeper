@@ -142,6 +142,7 @@ def test_low_stock_payload_has_reorder_fields():
     }
     data = ev.low_stock_event_data(asset, part)
     assert data == {
+        "unit": "",
         "asset_id": "a1",
         "asset_name": "Furnace",
         "device_id": "dev1",
@@ -158,3 +159,16 @@ def test_low_stock_payload_tolerates_missing_fields():
     data = ev.low_stock_event_data({}, {})
     assert data["asset_name"] == "" and data["part_name"] == ""
     assert data["device_id"] is None and data["stock"] is None
+    assert data["unit"] == ""
+
+
+def test_low_stock_payload_carries_fractional_stock_and_its_unit():
+    # A part measured in millilitres reports both the fraction and the unit, so an
+    # automation can say "250 ml left" without looking the part up.
+    data = ev.low_stock_event_data(
+        {"id": "a1"},
+        {"id": "p1", "stock": 250.5, "reorder_at": 500, "stock_unit": "ml"},
+    )
+    assert data["stock"] == 250.5
+    assert data["reorder_at"] == 500
+    assert data["unit"] == "ml"

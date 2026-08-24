@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Adjust part stock",
-      "description": "Change a part's on-hand spare count by a signed delta (clamped at zero). When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
+      "description": "Change a part's on-hand spare quantity by a signed delta (clamped at zero). Decimals are allowed. When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
         "asset_id": {
           "name": "Asset ID",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Delta",
-          "description": "Signed change to apply to the spare count (e.g. -1 to consume, 2 to restock)."
+          "description": "Signed change to apply to the spare quantity, decimals allowed (e.g. -1 to consume a spare, -250 for 250 ml, 2 to restock)."
         }
       }
     },

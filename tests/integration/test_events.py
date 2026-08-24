@@ -341,6 +341,9 @@ def test_stock_transition_events(ha, ha_token):
     assert events["home_keeper_part_low_stock"][0]["part_name"] == "Widget"
     assert events["home_keeper_part_out_of_stock"][0]["stock"] == 0
     assert "home_keeper_part_restocked" in events
+    # Every stock event carries the part's unit, empty for a part counted in spares,
+    # so one automation template reads correctly either way.
+    assert events["home_keeper_part_low_stock"][0]["unit"] == ""
 
     # Clean up the asset we created.
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": ids["asset_id"]})

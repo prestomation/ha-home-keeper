@@ -502,7 +502,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const wh = assets.find((a: any) => a.name === 'Garage water heater');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const part = (wh.parts || []).find((p: any) => p.type === 'consumable');
+    // By id, not by type: the water heater also carries a consumable measured in
+    // millilitres, and this shot is about the plain whole-spares case.
+    const part = (wh.parts || []).find((p: any) => p.id === 'part_sediment_filter');
     // Attach the demo task to the appliance (so the picker scopes to it), then link it
     // to that appliance's spare.
     // The update_task *service* takes flat fields (task_id + device_id), unlike the
@@ -837,6 +839,28 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await buyPart.scrollIntoViewIfNeeded();
   await buyPart.screenshot({ path: `${OUT}/39-panel-part-auto-buy.png` });
 
+  // 47. Stock measured rather than counted (issue #220): the seeded "Descaling
+  // solution" part (third, the only one with a unit) keeps its stock in millilitres
+  // and uses 250 of them per completion, so its editor shows the Stock unit and
+  // Used-per-completion fields alongside a decimal-capable Stock and Reorder at.
+  const measuredPart = partsDetails.locator('.hk-part').nth(2);
+  await measuredPart.scrollIntoViewIfNeeded();
+  await expect(measuredPart.getByText('Stock unit', { exact: false })).toBeVisible();
+  await expect(measuredPart.getByText('Used per completion', { exact: false })).toBeVisible();
+  await page.waitForTimeout(400);
+  await measuredPart.screenshot({ path: `${OUT}/47-panel-part-measured-stock.png` });
+
+  // 47b. The same part in the appliance's read view: the unit rides with the amount
+  // on both the on-hand chip and the per-completion chip.
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  const measuredRow = panel.locator('.hk-part-row').filter({ hasText: 'Descaling solution' });
+  await measuredRow.scrollIntoViewIfNeeded();
+  await expect(measuredRow.getByText('In stock: 750 ml')).toBeVisible();
+  await page.waitForTimeout(400);
+  await measuredRow.screenshot({ path: `${OUT}/47b-panel-part-measured-chips.png` });
+
   // 17-pre. Point the buy-reminder mirror at the household shopping list and opt
   // the seeded anode rod (already sitting at its reorder point) into auto-buy, so
   // the Settings shots below show the picker holding a real list and the dashboard
@@ -869,6 +893,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
       'last_replaced',
       'stock',
       'reorder_at',
+      'stock_unit',
+      'consume_quantity',
       'create_buy_task',
       'restock_quantity',
     ];

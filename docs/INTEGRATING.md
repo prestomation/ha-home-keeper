@@ -494,10 +494,12 @@ to anchor to the live reading). It records no completion, and fires
 ### Linking a task to a consumable (draw down stock on completion)
 
 Any task (sensor-armed or not) can be **linked to an appliance consumable/part** so
-that completing it consumes one spare from the part's `stock` and fires the
+that completing it draws the part's per-use amount off its `stock` and fires the
 edge-triggered `home_keeper_part_low_stock` / `_out_of_stock` events at the reorder
-threshold (see [docs/EVENTS.md](EVENTS.md)). Use the `home_keeper.set_task_consumable`
-service:
+threshold (see [docs/EVENTS.md](EVENTS.md)). That amount is one whole spare unless the
+part sets a `consume_quantity`, and both it and `stock` may be fractional. A part
+measured in millilitres draws down by `250`, a bottle topped up in thirds by `0.33`.
+Use the `home_keeper.set_task_consumable` service:
 
 ```yaml
 service: home_keeper.set_task_consumable

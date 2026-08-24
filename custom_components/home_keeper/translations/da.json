@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Juster reservedelslager",
-      "description": "Ændr en reservedels lagerantal med en fortegnsbestemt differens (begrænset til nul). Når et fald når eller krydser genbestillingstærsklen, udløses en hændelse om lavt lager.",
+      "description": "Ændr en reservedels lagermængde med en fortegnsbestemt differens (begrænset til nul); decimaler er tilladt. Når et fald når eller krydser genbestillingstærsklen, udløses en hændelse om lavt lager.",
       "fields": {
         "asset_id": {
           "name": "Aktiv-ID",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Differens",
-          "description": "Fortegnsbestemt ændring, der skal anvendes på reservedelsantallet (f.eks. -1 for at forbruge, 2 for at genopfylde)."
+          "description": "Fortegnsbestemt ændring, der skal anvendes på lagermængden, decimaler tilladt (f.eks. -1 for at forbruge en reservedel, -250 for 250 ml, 2 for at genopfylde)."
         }
       }
     },

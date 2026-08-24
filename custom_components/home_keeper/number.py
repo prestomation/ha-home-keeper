@@ -74,7 +74,10 @@ class HomeKeeperPartStockNumber(CoordinatorEntity[HomeKeeperCoordinator], Number
     _attr_mode = NumberMode.BOX
     _attr_native_min_value = 0
     _attr_native_max_value = float(MAX_INTERVAL)
-    _attr_native_step = 1
+    # Stock is decimal (a part can be measured in millilitres), but a part counted in
+    # whole spares should still refuse "2.5 filters" in the UI — so the step follows
+    # the part, see ``native_step``.
+    _FRACTIONAL_STEP = 0.001
 
     def __init__(
         self,
@@ -110,18 +113,45 @@ class HomeKeeperPartStockNumber(CoordinatorEntity[HomeKeeperCoordinator], Number
         stock = part.get("stock")
         return float(stock) if stock is not None else None
 
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """The part's own unit (``ml``, ``m``…), or none for plain whole spares."""
+        return asset_model.part_stock_unit(self._part() or {}) or None
+
+    @property
+    def native_step(self) -> float:
+        """A whole step for a part counted in spares, a fine one for a measured part.
+
+        A part only deals in fractions once the user says so — by giving it a unit, a
+        fractional stock/threshold, or a fractional per-completion amount. Until then
+        the box keeps rejecting "2.5 filters" the way it always did.
+        """
+        part = self._part() or {}
+        if asset_model.part_stock_unit(part):
+            return self._FRACTIONAL_STEP
+        quantities = (
+            part.get("stock"),
+            part.get("reorder_at"),
+            part.get("consume_quantity"),
+            part.get("restock_quantity"),
+        )
+        if any(q is not None and float(q) != int(float(q)) for q in quantities):
+            return self._FRACTIONAL_STEP
+        return 1
+
     async def async_set_native_value(self, value: float) -> None:
-        """Set the on-hand count by adjusting toward *value* (fires stock events)."""
+        """Set the on-hand quantity by adjusting toward *value* (fires stock events)."""
         part = self._part()
         if part is None:
             # The part (or its appliance) was removed between render and submit — the
             # entity will be pruned on the next reload, so there's nothing to adjust
             # (and adjust_part_stock would raise an unlocalized KeyError).
             return
-        current = int(part.get("stock") or 0)
-        # round() (not int()) so a raw service call with a fractional value snaps to the
-        # nearest whole spare rather than truncating toward zero.
-        delta = round(value) - current
+        current = float(part.get("stock") or 0)
+        # Snap to the part's own step so a raw service call can't push a whole-spare
+        # part off its integers, while a measured part keeps its decimals.
+        step = self.native_step
+        delta = round(round(value / step) * step - current, 3)
         if delta:
             await self.coordinator.store.adjust_part_stock(
                 self._asset_id, self._part_id, delta

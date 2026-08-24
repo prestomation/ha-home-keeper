@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Teilebestand anpassen",
-      "description": "Den vorhandenen Ersatzteilbestand um eine vorzeichenbehaftete Differenz ändern (bei null begrenzt). Wenn eine Verringerung die Nachbestellschwelle erreicht oder unterschreitet, wird ein Ereignis für niedrigen Bestand ausgelöst.",
+      "description": "Den vorhandenen Ersatzteilbestand um eine vorzeichenbehaftete Differenz ändern (bei null begrenzt); Dezimalwerte sind erlaubt. Wenn eine Verringerung die Nachbestellschwelle erreicht oder unterschreitet, wird ein Ereignis für niedrigen Bestand ausgelöst.",
       "fields": {
         "asset_id": {
           "name": "Objekt-ID",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Differenz",
-          "description": "Vorzeichenbehaftete Änderung des Ersatzteilbestands (z. B. -1 zum Verbrauchen, 2 zum Auffüllen)."
+          "description": "Vorzeichenbehaftete Änderung des Bestands, Dezimalwerte erlaubt (z. B. -1 zum Verbrauchen eines Ersatzteils, -250 für 250 ml, 2 zum Auffüllen)."
         }
       }
     },

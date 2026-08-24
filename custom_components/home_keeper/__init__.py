@@ -289,10 +289,15 @@ _PART_SCHEMA = vol.Schema(
         vol.Optional("replace_interval"): vol.Coerce(int),
         vol.Optional("replace_unit"): cv.string,
         vol.Optional("last_replaced"): cv.string,
-        vol.Optional("stock"): vol.Coerce(int),
-        vol.Optional("reorder_at"): vol.Coerce(int),
+        # Spare quantities are floats: a part can be measured in millilitres or in
+        # thirds of a bottle. ``assets._round_stock`` collapses a whole value back to
+        # an int, so a plain count still stores as one.
+        vol.Optional("stock"): vol.Coerce(float),
+        vol.Optional("reorder_at"): vol.Coerce(float),
+        vol.Optional("stock_unit"): cv.string,
+        vol.Optional("consume_quantity"): vol.Coerce(float),
         vol.Optional("create_buy_task"): cv.boolean,
-        vol.Optional("restock_quantity"): vol.Coerce(int),
+        vol.Optional("restock_quantity"): vol.Coerce(float),
         # file_name/file_content_type/file_size are deliberately absent: a part's
         # attached file is upload-only (see manuals.HomeKeeperPartFileView) and must
         # never be settable through add_asset/update_asset — voluptuous rejects any
@@ -377,12 +382,14 @@ UPDATE_ASSET_DOCUMENT_SCHEMA = vol.Schema(
     }
 )
 
-# Adjust a part's on-hand spare count by a (signed) delta; clamped at zero.
+# Adjust a part's on-hand spare quantity by a (signed) delta; clamped at zero. The
+# delta is a float because stock is: a part measured in millilitres draws down by 250,
+# a bottle topped up a third at a time by 0.33.
 ADJUST_PART_STOCK_SCHEMA = vol.Schema(
     {
         vol.Required("asset_id"): cv.string,
         vol.Required("part_id"): cv.string,
-        vol.Required("delta"): vol.Coerce(int),
+        vol.Required("delta"): vol.Coerce(float),
     }
 )
 # Detach a part's attached file (upload is HTTP-only — see manuals.py — since a

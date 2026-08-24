@@ -30,6 +30,7 @@ by the caller.
 
 from __future__ import annotations
 
+import math
 import re
 import uuid
 from datetime import date, datetime
@@ -98,6 +99,13 @@ _MAX_DOCUMENTS = 50
 
 _MAX_URL_LEN = 2048
 _ICON_RE = re.compile(r"^[a-z0-9-]+:[a-z0-9-]+$")
+
+# Spare quantities are decimal. Three places is enough for the units people actually
+# keep stock in (millilitres of softener, metres of trimmer line, thirds of a bottle)
+# while staying far short of the noise floor of a binary float.
+_STOCK_DECIMALS = 3
+# A unit is a short label rendered beside a number ("ml", "m", "bottles"), not prose.
+_MAX_UNIT_LEN = 16
 
 
 def _is_safe_basename(name: str) -> bool:
@@ -387,19 +395,88 @@ def _normalize_interval(value: Any) -> int | None:
     return interval
 
 
-def _normalize_stock(value: Any, field: str) -> int | None:
-    """Validate an optional non-negative spare-count (``stock`` / ``reorder_at``)."""
+def _round_stock(value: float) -> float:
+    """Round a spare quantity, collapsing a whole result back to an ``int``.
+
+    Quantities are decimal because a part can be measured in millilitres or metres
+    as easily as in whole filters. Rounding to a fixed number of places keeps a run
+    of fractional draw-downs from accumulating binary-float drift (0.1 taken ten
+    times must reach exactly zero, not 1.4e-17), and handing back an ``int`` for a
+    whole result keeps the ordinary count-the-spares case round-tripping through
+    JSON, the panel and the event payloads exactly as it always did.
+    """
+    rounded = round(float(value), _STOCK_DECIMALS)
+    return int(rounded) if rounded == int(rounded) else rounded
+
+
+def _normalize_stock(value: Any, field: str) -> float | None:
+    """Validate an optional non-negative spare quantity (``stock`` / ``reorder_at``).
+
+    Decimals are allowed (see :func:`_round_stock`): stock counted in millilitres,
+    metres or thirds-of-a-bottle is as valid as stock counted in whole spares.
+    """
     if value in (None, ""):
         return None
     try:
-        count = int(value)
+        count = float(value)
     except (TypeError, ValueError) as err:
-        raise AssetValidationError(f"{field} must be an integer") from err
+        raise AssetValidationError(f"{field} must be a number") from err
+    # NaN and the infinities survive float() but compare falsely against every
+    # bound below, so they'd sail through as a "valid" quantity.
+    if not math.isfinite(count):
+        raise AssetValidationError(f"{field} must be a number")
     if count < 0:
         raise AssetValidationError(f"{field} must not be negative")
     if count > MAX_INTERVAL:
         raise AssetValidationError(f"{field} must be <= {MAX_INTERVAL}")
-    return count
+    return _round_stock(count)
+
+
+def _normalize_consume_quantity(value: Any) -> float | None:
+    """Validate the optional per-completion draw-down (must be positive).
+
+    Unset means one whole spare (:func:`part_consume_quantity`). Zero is rejected
+    rather than silently meaning "one": a completion that consumes nothing is a task
+    that shouldn't be linked to the part at all, and accepting it would make the
+    linked-consumable UI claim a draw-down that never happens.
+    """
+    quantity = _normalize_stock(value, "consume_quantity")
+    if quantity is not None and quantity <= 0:
+        raise AssetValidationError("consume_quantity must be greater than zero")
+    return quantity
+
+
+def _normalize_restock_quantity(value: Any) -> float | None:
+    """Validate how much completing a buy reminder puts back, folding zero to unset.
+
+    Zero and unset already mean the same thing on read (:func:`part_restock_quantity`
+    floors both to one spare), so a stored zero was a record claiming something the
+    code never did. Normalizing it away makes the record honest instead.
+
+    Unlike ``consume_quantity``, which is new and simply rejects zero, this one
+    *forgives* it: the field predates this validator, and its service schema accepted
+    zero, so a stored zero may already exist. Raising here would make an untouched
+    part unsaveable the next time its appliance is edited.
+    """
+    quantity = _normalize_stock(value, "restock_quantity")
+    return None if quantity == 0 else quantity
+
+
+def _normalize_stock_unit(value: Any) -> str:
+    """Validate the optional unit a part's stock is counted in (``ml``, ``m``…).
+
+    Free-form and purely presentational: Home Keeper never converts between units,
+    it only shows the one you chose next to the numbers. Empty means "whole spares",
+    which is what every part was before units existed.
+    """
+    if value in (None, ""):
+        return ""
+    text = str(value).strip()
+    if len(text) > _MAX_UNIT_LEN:
+        raise AssetValidationError(
+            f"stock_unit must be at most {_MAX_UNIT_LEN} characters"
+        )
+    return text
 
 
 def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
@@ -438,12 +515,17 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
         "replace_interval": _normalize_interval(raw.get("replace_interval")),
         "replace_unit": None,
         "last_replaced": _normalize_date(raw.get("last_replaced"), "last_replaced"),
-        # Spare-inventory tracking. ``stock`` is how many spares are on hand
-        # (decremented when a wear-part replacement is completed); ``reorder_at``
-        # is the low-stock threshold that, when reached, fires a low-stock event.
-        # Both are optional — a part without ``stock`` simply isn't tracked.
+        # Spare-inventory tracking. ``stock`` is how much is on hand (drawn down when
+        # a wear-part replacement or a linked task is completed); ``reorder_at`` is the
+        # low-stock threshold that, when reached, fires a low-stock event. Both are
+        # optional — a part without ``stock`` simply isn't tracked — and both are
+        # decimal, so stock can be counted in millilitres or metres, not just in whole
+        # spares. ``stock_unit`` is the label shown beside those numbers, and
+        # ``consume_quantity`` is how much one completion draws down (default 1).
         "stock": _normalize_stock(raw.get("stock"), "stock"),
         "reorder_at": _normalize_stock(raw.get("reorder_at"), "reorder_at"),
+        "stock_unit": _normalize_stock_unit(raw.get("stock_unit")),
+        "consume_quantity": _normalize_consume_quantity(raw.get("consume_quantity")),
         # Auto-buy: when on, a "Buy {part}" task is auto-created while the part is low
         # (stock <= reorder_at) and removed once restocked above the threshold — owned
         # by the buy-task reconciler (see reconcile.reconcile_buy_tasks). Only
@@ -451,9 +533,7 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
         # completing that buy task adds back to ``stock`` (defaults to 1 at bump time
         # when unset).
         "create_buy_task": bool(raw.get("create_buy_task")),
-        "restock_quantity": _normalize_stock(
-            raw.get("restock_quantity"), "restock_quantity"
-        ),
+        "restock_quantity": _normalize_restock_quantity(raw.get("restock_quantity")),
         # Upload-only; see the docstring. Always absent here — _merge_parts restores
         # the stored values (or set_part_file/clear_part_file set them directly).
         "file_name": None,
@@ -500,8 +580,9 @@ def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
     stored value unless the caller explicitly set one. ``stock``/``reorder_at`` are
     ordinary user-editable fields — incoming wins, including a ``None`` that clears
     them — so they are intentionally *not* preserved here (otherwise stock tracking
-    could never be switched back off). ``create_buy_task``/``restock_quantity`` are
-    likewise ordinary incoming-wins fields (so auto-buy can be toggled back off).
+    could never be switched back off). ``create_buy_task``/``restock_quantity`` and
+    ``stock_unit``/``consume_quantity`` are likewise ordinary incoming-wins fields (so
+    auto-buy can be toggled back off, and a unit or a part-use amount can be cleared).
 
     ``file_name``/``file_content_type``/``file_size`` are **always** restored from the
     stored part, unconditionally — like an asset's ``file`` documents, a part's
@@ -603,6 +684,50 @@ def part_is_low(part: dict) -> bool:
     return stock is not None and reorder is not None and stock <= reorder
 
 
+def part_stock_unit(part: dict) -> str:
+    """The label a part's stock is counted in (``""`` for plain whole spares)."""
+    return str(part.get("stock_unit") or "").strip()
+
+
+def _positive_quantity(value: Any, default: float) -> float:
+    """A stored quantity if it is a usable positive number, else *default*.
+
+    Both per-completion amounts (:func:`part_consume_quantity`,
+    :func:`part_restock_quantity`) mean "one whole spare" when unset, and a stored
+    zero / negative / junk value would silently turn a completion into a no-op (or,
+    worse, an increase). Normalization keeps those out on the way in — rejected for
+    ``consume_quantity``, folded to unset for ``restock_quantity`` — so this floor is
+    only reached by records written before those validators existed, and by a part
+    dict some other code path assembled by hand. It is deliberately total rather than
+    raising: a completion is a user action, and refusing to record one because a
+    field is malformed would be worse than consuming the default.
+    """
+    if value is None:
+        return default
+    try:
+        quantity = float(value)
+    except (TypeError, ValueError):
+        return default
+    if quantity <= 0 or not math.isfinite(quantity):
+        return default
+    return _round_stock(quantity)
+
+
+def part_consume_quantity(part: dict) -> float:
+    """How much of a part one completion uses up (one whole spare by default).
+
+    This is what makes a fractional consumable work: a refill task on a part measured
+    in bottles can take a third of one, instead of the flat single spare a
+    replacement-style part consumes.
+    """
+    return _positive_quantity(part.get("consume_quantity"), 1)
+
+
+def part_restock_quantity(part: dict) -> float:
+    """How much completing a part's buy reminder puts back (one spare by default)."""
+    return _positive_quantity(part.get("restock_quantity"), 1)
+
+
 def part_wants_buy_task(part: dict) -> bool:
     """True when a part opts into an auto-created "buy" task while it's low.
 
@@ -620,7 +745,7 @@ STOCK_OUT = "out"
 STOCK_RESTOCKED = "restocked"
 
 
-def stock_transition(old: int, new: int, reorder_at: int | None) -> str:
+def stock_transition(old: float, new: float, reorder_at: float | None) -> str:
     """Classify a stock change from *old* to *new* as a single edge transition.
 
     Returns one of ``"none" | "low" | "out" | "restocked"``. This is the pure core
@@ -628,11 +753,12 @@ def stock_transition(old: int, new: int, reorder_at: int | None) -> str:
     every step. Precedence matters — ``"out"`` (reaching zero) wins over ``"low"`` so a
     single decrement that drops an already-low part to zero is reported as out-of-stock,
     not a (repeat) low-stock. A part with no ``reorder_at`` threshold is untracked and
-    never transitions.
+    never transitions. Quantities may be fractional; a draw-down that lands *below*
+    zero is clamped by the callers, so ``<= 0`` and ``== 0`` mean the same thing here.
     """
     if reorder_at is None:
         return STOCK_NONE
-    if new == 0 and old > 0:
+    if new <= 0 and old > 0:
         return STOCK_OUT
     if new <= reorder_at and old > reorder_at:
         return STOCK_LOW
@@ -642,31 +768,35 @@ def stock_transition(old: int, new: int, reorder_at: int | None) -> str:
 
 
 def consume_part_stock(part: dict) -> str:
-    """Decrement a part's on-hand ``stock`` by one (never below zero).
+    """Draw a part's ``consume_quantity`` off its on-hand ``stock`` (never below zero).
 
-    A no-op (``STOCK_NONE``) for parts that don't track stock. Otherwise returns the
-    edge transition (``stock_transition``) this consumption caused, so the caller emits
-    at most one stock event per crossing rather than on every step while already low.
+    Defaults to one whole spare, so a filter replacement behaves exactly as before; a
+    part that measures itself in millilitres (or in thirds of a bottle) sets its own
+    amount instead. A no-op (``STOCK_NONE``) for parts that don't track stock.
+    Otherwise returns the edge transition (``stock_transition``) this consumption
+    caused, so the caller emits at most one stock event per crossing rather than on
+    every step while already low.
     """
     stock = part.get("stock")
     if stock is None:
         return STOCK_NONE
-    old = int(stock)
-    new = max(0, old - 1)
+    old = _round_stock(stock)
+    new = _round_stock(max(0.0, old - part_consume_quantity(part)))
     part["stock"] = new
     return stock_transition(old, new, part.get("reorder_at"))
 
 
-def adjust_part_stock(part: dict, delta: int) -> str:
+def adjust_part_stock(part: dict, delta: float) -> str:
     """Adjust a part's on-hand ``stock`` by ``delta`` (clamped at zero).
 
-    Begins tracking from zero for a previously untracked part. Returns the edge
+    Begins tracking from zero for a previously untracked part. ``delta`` may be
+    fractional (``-0.33`` of a bottle is as valid as ``-1`` filter). Returns the edge
     transition (``stock_transition``) the adjustment caused — ``"low"`` / ``"out"`` on a
     decrease that crosses a threshold, ``"restocked"`` when a restock lifts it above
     the reorder point, else ``"none"``.
     """
-    old = int(part.get("stock") or 0)
-    new = max(0, old + int(delta))
+    old = _round_stock(part.get("stock") or 0)
+    new = _round_stock(max(0.0, old + float(delta)))
     part["stock"] = new
     return stock_transition(old, new, part.get("reorder_at"))
 

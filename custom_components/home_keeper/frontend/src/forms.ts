@@ -46,7 +46,15 @@ export interface FormField {
 export const selText = (multiline = false): Selector => ({
   text: multiline ? { multiline: true } : {},
 });
-export const selNumber = (min = 0): Selector => ({ number: { min, mode: 'box' } });
+/**
+ * A number box. `step` is omitted by default, which leaves Home Assistant on its
+ * whole-number step — a task interval is 3 weeks, never 3.5. Pass `'any'` for a
+ * quantity that is genuinely decimal (spare stock measured in millilitres), or the
+ * field silently refuses the value the user typed.
+ */
+export const selNumber = (min = 0, step?: number | 'any'): Selector => ({
+  number: step === undefined ? { min, mode: 'box' } : { min, mode: 'box', step },
+});
 export const selBool = (): Selector => ({ boolean: {} });
 export const selDate = (): Selector => ({ date: {} });
 export const selDateTime = (): Selector => ({ datetime: {} });

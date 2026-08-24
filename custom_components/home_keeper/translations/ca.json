@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Ajustar estoc de peces",
-      "description": "Canvia el nombre de peces de recanvi disponibles per un delta amb signe (limitat a zero). Quan una disminució arriba o supera el llindar de reabastiment, es dispara un esdeveniment d'estoc baix.",
+      "description": "Canvia la quantitat de recanvis disponibles per un delta amb signe (limitat a zero); s'admeten decimals. Quan una disminució arriba o supera el llindar de reabastiment, es dispara un esdeveniment d'estoc baix.",
       "fields": {
         "asset_id": {
           "name": "ID de l'actiu",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Delta",
-          "description": "Canvi amb signe que s'aplica al nombre de recanvis (p. ex. -1 per consumir, 2 per reabastir)."
+          "description": "Canvi amb signe que s'aplica a la quantitat de recanvis, amb decimals admesos (p. ex. -1 per consumir un recanvi, -250 per a 250 ml, 2 per reabastir)."
         }
       }
     },

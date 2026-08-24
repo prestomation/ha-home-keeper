@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Juster reservedelslager",
-      "description": "Endre antall reservedeler på lager med en fortegnsbestemt differanse (begrenset til null). Når en reduksjon når eller krysser bestillingsterskelen, utløses en hendelse om lavt lager.",
+      "description": "Endre en reservedels lagermengde med en fortegnsbestemt differanse (begrenset til null); desimaler er tillatt. Når en reduksjon når eller krysser bestillingsterskelen, utløses en hendelse om lavt lager.",
       "fields": {
         "asset_id": {
           "name": "Eiendels-ID",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Differanse",
-          "description": "Fortegnsbestemt endring som skal brukes på reservedelsantallet (f.eks. -1 for å forbruke, 2 for å fylle på)."
+          "description": "Fortegnsbestemt endring som skal brukes på lagermengden, desimaler tillatt (f.eks. -1 for å forbruke en reservedel, -250 for 250 ml, 2 for å fylle på)."
         }
       }
     },

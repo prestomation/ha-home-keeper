@@ -165,4 +165,5 @@ class HomeKeeperPartLowStockBinarySensor(
             "part_id": self._part_id,
             "stock": part.get("stock"),
             "reorder_at": part.get("reorder_at"),
+            "unit": part.get("stock_unit") or "",
         }

@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Säädä varaosavarastoa",
-      "description": "Muuta varaosan varastomäärää etumerkillisellä erotuksella (rajoitettu nollaan). Kun vähennys saavuttaa tilausrajan tai ylittää sen, käynnistyy alhaisen varaston tapahtuma.",
+      "description": "Muuta varaosan varastomäärää etumerkillisellä erotuksella (rajoitettu nollaan); desimaalit ovat sallittuja. Kun vähennys saavuttaa tilausrajan tai ylittää sen, käynnistyy alhaisen varaston tapahtuma.",
       "fields": {
         "asset_id": {
           "name": "Kohteen tunnus",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Erotus",
-          "description": "Etumerkillinen muutos, joka kohdistetaan varaosamäärään (esim. -1 kuluttaaksesi, 2 täydentääksesi)."
+          "description": "Etumerkillinen muutos, joka kohdistetaan varastomäärään, desimaalit sallittuja (esim. -1 kuluttaaksesi yhden varaosan, -250 tarkoittaa 250 ml:aa, 2 täydentääksesi)."
         }
       }
     },

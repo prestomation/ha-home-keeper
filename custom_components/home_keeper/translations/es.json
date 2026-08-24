@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Ajustar el stock de piezas",
-      "description": "Cambia el número de piezas de repuesto disponibles según un delta con signo (limitado a cero). Cuando una disminución alcanza o cruza el umbral de reposición, se dispara un evento de stock bajo.",
+      "description": "Cambia la cantidad de repuestos disponibles según un delta con signo (limitado a cero); se admiten decimales. Cuando una disminución alcanza o cruza el umbral de reposición, se dispara un evento de stock bajo.",
       "fields": {
         "asset_id": {
           "name": "ID del activo",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Delta",
-          "description": "Cambio con signo a aplicar al recuento de repuestos (p. ej. -1 para consumir, 2 para reponer)."
+          "description": "Cambio con signo a aplicar a la cantidad de repuestos, con decimales (p. ej. -1 para consumir un repuesto, -250 para 250 ml, 2 para reponer)."
         }
       }
     },

@@ -600,7 +600,8 @@ async def ws_restore_asset(
         vol.Required("type"): "home_keeper/adjust_part_stock",
         vol.Required("asset_id"): str,
         vol.Required("part_id"): str,
-        vol.Required("delta"): int,
+        # Fractional, like stock itself — 0.33 of a bottle is a real adjustment.
+        vol.Required("delta"): vol.Coerce(float),
     }
 )
 @websocket_api.require_admin

@@ -90,6 +90,21 @@ export function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+/**
+ * A spare quantity as text, with the part's unit appended when it has one.
+ *
+ * Stock is decimal (a part can be measured in millilitres or in thirds of a bottle),
+ * but the ordinary count-the-filters case must still read "3", not "3.000" — so
+ * trailing zeros go, and the unit only appears when the part actually set one.
+ */
+export function formatQuantity(value: number, unit?: string | null): string {
+  // parseFloat on the fixed form drops trailing zeros without exposing float noise
+  // (0.1 + 0.2 would otherwise render as 0.30000000000000004).
+  const text = String(parseFloat(value.toFixed(3)));
+  const label = (unit || '').trim();
+  return label ? `${text} ${label}` : text;
+}
+
 /** Human-readable summary of a task's recurrence rule. */
 export function recurrenceSummary(task: Task): string {
   // A triggered task has no schedule — it is "monitored" and only due when its

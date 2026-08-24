@@ -84,6 +84,7 @@ import {
   deviceName,
   dueLabel,
   escapeHTML,
+  formatQuantity,
   isHttpUrl,
   isOverdue,
   isSafeImageUrl,
@@ -190,6 +191,11 @@ const MDI_CONSUMABLE =
   '6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,' +
   '9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z';
 
+// The smallest a part quantity that must be *positive* can be. Stock itself may be
+// zero (you're out), but "how much a completion uses" and "how much a restock adds"
+// can't be — a zero there is a field that quietly does nothing. A number selector
+// has no exclusive minimum, so the floor is one step of the stored precision.
+const MIN_POSITIVE_QUANTITY = 0.001;
 
 const STYLES = `
   :host { display: block; }
@@ -2845,10 +2851,19 @@ export class HomeKeeperPanel extends HTMLElement {
         }
         const low = p.stock != null && p.reorder_at != null && p.stock <= p.reorder_at;
         if (p.stock != null) {
+          // "In stock: 250 ml" — the unit rides with the number wherever stock is
+          // shown, so a measured part never reads as a bare count of somethings.
+          const onHand = formatQuantity(p.stock, p.stock_unit);
           chips.push(
             low
-              ? chip(t('part.lowStock', { n: p.stock }), 'hk-overdue')
-              : chip(t('part.inStock', { n: p.stock })),
+              ? chip(t('part.lowStock', { n: onHand }), 'hk-overdue')
+              : chip(t('part.inStock', { n: onHand })),
+          );
+        }
+        // What one completion takes off, when it isn't the plain single spare.
+        if (p.stock != null && p.consume_quantity != null) {
+          chips.push(
+            chip(t('part.perUse', { n: formatQuantity(p.consume_quantity, p.stock_unit) })),
           );
         }
         const chipRow = chips.length ? `<div class="hk-part-chips">${chips.join('')}</div>` : '';
@@ -3276,21 +3291,33 @@ export class HomeKeeperPanel extends HTMLElement {
       // detail page) — the field has always existed in the stored model but had no
       // editor until now.
       { name: 'notes', selector: selText(true) },
+      // Spare quantities are decimal (`'any'`): a part measured in millilitres or
+      // topped up a third of a bottle at a time is as valid as one counted in whole
+      // filters. `stock_unit` is the label those numbers are shown with.
       {
         name: '',
         type: 'grid',
         schema: [
-          { name: 'stock', selector: selNumber(0) },
-          { name: 'reorder_at', selector: selNumber(0) },
+          { name: 'stock', selector: selNumber(0, 'any') },
+          { name: 'reorder_at', selector: selNumber(0, 'any') },
+          { name: 'stock_unit', selector: selText() },
         ],
       },
     ];
+    // How much one completion draws down. Only meaningful once the part is tracking
+    // stock at all — with nothing to draw from, the field would promise nothing.
+    if (p.stock != null) {
+      base.push({ name: 'consume_quantity', selector: selNumber(MIN_POSITIVE_QUANTITY, 'any') });
+    }
     // Auto-buy: only meaningful once a reorder threshold is set (that's what defines
     // "low"). When enabled, offer the restock quantity added on completing the reminder.
     if (p.reorder_at != null) {
       base.push({ name: 'create_buy_task', selector: selBool() });
       if (p.create_buy_task) {
-        base.push({ name: 'restock_quantity', selector: selNumber(1) });
+        base.push({
+          name: 'restock_quantity',
+          selector: selNumber(MIN_POSITIVE_QUANTITY, 'any'),
+        });
       }
     }
     if (isWear) {
@@ -4359,7 +4386,7 @@ export class HomeKeeperPanel extends HTMLElement {
         ? ` · ${escapeHTML(
             t(
               p.reorder_at != null && p.stock <= p.reorder_at ? 'part.lowStock' : 'part.inStock',
-              { n: p.stock },
+              { n: formatQuantity(p.stock, p.stock_unit) },
             ),
           )}`
         : '';
@@ -5648,6 +5675,8 @@ export class HomeKeeperPanel extends HTMLElement {
           notes: p.notes ?? '',
           stock: p.stock ?? undefined,
           reorder_at: p.reorder_at ?? undefined,
+          stock_unit: p.stock_unit ?? '',
+          consume_quantity: p.consume_quantity ?? undefined,
           create_buy_task: p.create_buy_task ?? false,
           restock_quantity: p.restock_quantity ?? undefined,
           replace_interval: p.replace_interval ?? undefined,
@@ -5662,6 +5691,8 @@ export class HomeKeeperPanel extends HTMLElement {
           // quantity. Re-render when one of them flips so the dependent field appears.
           const prevHasReorder = prevPart?.reorder_at != null;
           const prevBuy = Boolean(prevPart?.create_buy_task);
+          // Tracking stock at all is what reveals the per-completion amount.
+          const prevTracksStock = prevPart?.stock != null;
           partNotePreview?.update(String(value.notes ?? ''));
           const updated: Part = {
             id: p.id,
@@ -5684,6 +5715,14 @@ export class HomeKeeperPanel extends HTMLElement {
             reorder_at:
               value.reorder_at != null && value.reorder_at !== ''
                 ? Number(value.reorder_at)
+                : null,
+            // What the numbers above are counted in ("ml", "bottles"), and how much
+            // one completion takes off. Both free of a value means the part behaves
+            // exactly as parts did before units existed: whole spares, one per use.
+            stock_unit: String(value.stock_unit ?? '').trim(),
+            consume_quantity:
+              value.consume_quantity != null && value.consume_quantity !== ''
+                ? Number(value.consume_quantity)
                 : null,
             // Auto-buy a low spare. Only exposed once a reorder threshold is set (the
             // field is hidden otherwise, so value.create_buy_task is then undefined →
@@ -5718,6 +5757,7 @@ export class HomeKeeperPanel extends HTMLElement {
           if (
             value.type !== prevType ||
             nowHasReorder !== prevHasReorder ||
+            (updated.stock != null) !== prevTracksStock ||
             Boolean(updated.create_buy_task) !== prevBuy
           )
             this._render();

@@ -605,6 +605,64 @@ def test_add_asset_service_accepts_part_stock(ha):
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
+def test_add_asset_service_accepts_a_measured_part(ha):
+    # Same regression, one field-set later (issue #220): the service schema must
+    # accept a unit, a per-completion amount, and *decimal* quantities. Coercing
+    # stock to an int here would silently store 0 for half a bottle.
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": "Measured widget",
+            "parts": [
+                {
+                    "name": "Softener",
+                    "type": "consumable",
+                    "stock": 1.5,
+                    "reorder_at": 0.5,
+                    "stock_unit": "bottles",
+                    "consume_quantity": 0.33,
+                    "create_buy_task": True,
+                    "restock_quantity": 2.5,
+                }
+            ],
+        },
+    )
+    asset = next(a for a in _assets(ha) if a["name"] == "Measured widget")
+    part = asset["parts"][0]
+    assert part["stock"] == 1.5 and part["reorder_at"] == 0.5
+    assert part["stock_unit"] == "bottles"
+    assert part["consume_quantity"] == 0.33
+    assert part["restock_quantity"] == 2.5
+    # A fractional delta must survive the service boundary too.
+    call_service(
+        ha,
+        "home_keeper",
+        "adjust_part_stock",
+        {"asset_id": asset["id"], "part_id": part["id"], "delta": -0.25},
+    )
+    part = next(a for a in _assets(ha) if a["id"] == asset["id"])["parts"][0]
+    assert part["stock"] == 1.25
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_measured_part_stock_number_carries_its_unit(ha):
+    # The seeded "Descaling solution" is measured in millilitres, so its stock
+    # `number` must report that unit and step finely enough to hold a decimal.
+    stock = _find_state(
+        ha,
+        lambda s: (
+            s["entity_id"].startswith("number.") and "descaling" in s["entity_id"]
+        ),
+    )
+    assert stock, "expected a stock number for the measured part"
+    attrs = stock[0]["attributes"]
+    assert attrs.get("unit_of_measurement") == "ml"
+    assert attrs.get("step", 1) < 1
+    assert float(stock[0]["state"]) == 750
+
+
 def test_low_stock_event_fires_on_crossing_not_on_restock(ha):
     # A `home_keeper_part_low_stock` event must fire once when stock crosses from
     # not-low into low, and NOT on a restock. A configuration.yaml automation mirrors

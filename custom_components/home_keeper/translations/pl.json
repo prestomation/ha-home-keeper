@@ -550,7 +550,7 @@
     },
     "adjust_part_stock": {
       "name": "Dostosuj zapas części",
-      "description": "Zmienia liczbę dostępnych części zapasowych o wartość ze znakiem (ograniczoną do zera). Gdy zmniejszenie osiągnie lub przekroczy próg ponownego zamówienia, wyzwalane jest zdarzenie niskiego stanu zapasów.",
+      "description": "Zmienia ilość dostępnych części zapasowych o wartość ze znakiem (ograniczoną do zera); dozwolone są wartości dziesiętne. Gdy zmniejszenie osiągnie lub przekroczy próg ponownego zamówienia, wyzwalane jest zdarzenie niskiego stanu zapasów.",
       "fields": {
         "asset_id": {
           "name": "Identyfikator zasobu",
@@ -562,7 +562,7 @@
         },
         "delta": {
           "name": "Delta",
-          "description": "Zmiana ze znakiem stosowana do liczby części zapasowych (np. -1, aby zużyć, 2, aby uzupełnić)."
+          "description": "Zmiana ze znakiem stosowana do ilości zapasów, z wartościami dziesiętnymi (np. -1, aby zużyć jedną część, -250 dla 250 ml, 2, aby uzupełnić)."
         }
       }
     },
