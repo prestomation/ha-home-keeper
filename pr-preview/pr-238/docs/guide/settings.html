@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Settings | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-238/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-238/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-238/docs/guide/settings"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Settings | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper&#x27;s integration options are editable right in the panel (a Settings"><meta data-rh="true" property="og:description" content="Home Keeper&#x27;s integration options are editable right in the panel (a Settings"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-238/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-238/docs/guide/settings"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-238/docs/guide/settings" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-238/docs/guide/settings" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Settings","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-238/docs/guide/settings"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-238/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-238/assets/js/runtime~main.105f8a9a.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-238/assets/js/runtime~main.5f6c8fee.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-238/assets/js/main.1c088b47.js" defer="defer"></script>
 </head>
 <body>
@@ -49,22 +49,22 @@ small <a href="https://github.com/prestomation/ha-home-keeper/blob/main/docs/GLU
 so we can add it to the suggested-companions catalog.</p>
 <p><img decoding="async" loading="lazy" alt="The Companions section on the Settings tab: connected integrations with Configure buttons" src="/ha-home-keeper/pr-preview/pr-238/assets/images/21-panel-companions-2b893d64c8d7d5333e83e8c0a2ccff17.png" width="1280" height="2001" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="declarative-companions-config-driven-no-separate-integration">Declarative companions (config-driven, no separate integration)<a href="#declarative-companions-config-driven-no-separate-integration" class="hash-link" aria-label="Direct link to Declarative companions (config-driven, no separate integration)" title="Direct link to Declarative companions (config-driven, no separate integration)" translate="no">​</a></h4>
-<p>A <strong>declarative companion</strong> is a recipe you configure from the panel: point it at a
-target integration (or use an entity id regex), pick a trigger mode
-(<em>usage meter</em> / <em>threshold</em> / <em>state</em> / <strong>availability</strong> — new), and give it Jinja
+<p>A <strong>declarative companion</strong> is a recipe you configure from the panel. You point it
+at a target integration (or use an entity id regex), pick a trigger mode
+(<em>usage meter</em>, <em>threshold</em>, <em>state</em>, or the new <strong>availability</strong>), and provide Jinja
 templates for the task name and notes. Home Keeper materializes one managed sensor
-task per matching entity — one <em>&quot;Replace {device} battery&quot;</em> task per binary sensor
+task per matching entity, one <em>&quot;Replace {device} battery&quot;</em> task per binary sensor
 reporting low battery, one <em>&quot;Update {friendly_name}&quot;</em> per update entity flipping on,
 one per Device Pulse per-device sensor above zero failed pings. Tasks live in the
-same to-do / calendar / device-page surfaces as any hand-created task and auto-clear
+same to-do, calendar, and device-page surfaces as any hand-created task and auto-clear
 when the condition recovers.</p>
-<p>Three presets ship in the <em>Add from preset</em> picker:</p>
+<p>The <em>Add from preset</em> picker offers:</p>
 <ul>
-<li class=""><strong>Device Pulse</strong> — targets <a href="https://github.com/studiobts/home-assistant-device-pulse" target="_blank" rel="noopener noreferrer" class="">studiobts/home-assistant-device-pulse</a>&#x27;s per-device
+<li class=""><strong>Device Pulse</strong>, targets <a href="https://github.com/studiobts/home-assistant-device-pulse" target="_blank" rel="noopener noreferrer" class="">studiobts/home-assistant-device-pulse</a>&#x27;s per-device
 ping sensors. Requires the Device Pulse integration installed.</li>
-<li class=""><strong>Low battery</strong> — matches every <code>binary_sensor</code> with <code>device_class: battery</code> reporting
+<li class=""><strong>Low battery</strong>, matches every <code>binary_sensor</code> with <code>device_class: battery</code> reporting
 <code>on</code>. Works alongside the Battery Notes glue if you have both.</li>
-<li class=""><strong>Firmware update available</strong> — matches every <code>update.*</code> entity reporting <code>on</code>.
+<li class=""><strong>Firmware update available</strong>, matches every <code>update.*</code> entity reporting <code>on</code>.
 Covers UniFi, ESPHome, HACS, Reolink, Bambu Lab firmware updates in one recipe.</li>
 </ul>
 <p>The <em>Add companion</em> dialog shows a live preview of every match, so you know before you
