@@ -498,3 +498,14 @@ describe('readingUnit', () => {
     expect(readingUnit({ sensor: { entity_id: 'sensor.coolant' } }, undefined)).toBe('');
   });
 });
+
+describe('readingUnit — entities without attributes', () => {
+  it('returns nothing when the entity carries no attributes at all', () => {
+    const hass = { states: { 'sensor.x': { state: '5' } } };
+    expect(readingUnit({ sensor: { entity_id: 'sensor.x' } }, hass)).toBe('');
+  });
+
+  it('returns nothing when hass has no states map', () => {
+    expect(readingUnit({ sensor: { entity_id: 'sensor.x' } }, {})).toBe('');
+  });
+});

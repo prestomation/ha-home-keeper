@@ -391,3 +391,26 @@ def _sensor_task(mode: str = "usage") -> dict:
         "completions": [],
         "last_completed": None,
     }
+
+
+def test_a_cost_of_zero_is_recorded_rather_than_rejected():
+    # The gate is `< 0`, not `<= 0`: a free job (warranty, DIY) legitimately costs
+    # nothing, and recording that is different from recording no cost at all.
+    assert m.normalize_completion_metadata({"cost": 0}) == {"cost": 0.0}
+
+
+def test_an_uppercase_url_scheme_is_still_a_valid_photo():
+    # The scheme check runs against a lowercased copy, so "HTTP://..." must pass —
+    # comparing the original would reject a perfectly good URL.
+    assert m.normalize_completion_metadata({"photo": "HTTP://x/i.png"}) == {
+        "photo": "HTTP://x/i.png"
+    }
+    assert m.normalize_completion_metadata({"photo": "HTTPS://x/i.png"}) == {
+        "photo": "HTTPS://x/i.png"
+    }
+
+
+def test_a_non_mapping_input_yields_no_metadata():
+    # Reached from the websocket/service edge, where the payload is caller-shaped.
+    for junk in ([1], "note", 5, None, {}, []):
+        assert m.normalize_completion_metadata(junk) == {}

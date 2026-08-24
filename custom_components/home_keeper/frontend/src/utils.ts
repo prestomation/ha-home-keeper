@@ -116,9 +116,9 @@ export function formatQuantity(value: number, unit?: string | null): string {
  */
 export function taskRecordsReading(task: Partial<Task> | null | undefined): boolean {
   if (!task || task.recurrence_type !== 'sensor') return false;
-  // A malformed/absent binding has nothing to read, so check for it before applying
+  // An absent binding has nothing to read, so check for it before applying
   // `normalize_sensor`'s default of `usage` to a binding that merely omits `mode`.
-  if (!task.sensor || typeof task.sensor !== 'object') return false;
+  if (!task.sensor) return false;
   const mode = task.sensor.mode ?? 'usage';
   return mode === 'usage' || mode === 'threshold';
 }

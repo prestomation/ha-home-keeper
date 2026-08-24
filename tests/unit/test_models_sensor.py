@@ -684,3 +684,33 @@ def test_a_state_mode_seed_records_no_reading():
         now=NOW,
     )
     assert task["completions"][0] == {"ts": seed.isoformat()}
+
+
+def test_a_naive_seed_on_a_sensor_task_is_qualified_with_the_configured_zone():
+    # AGENTS.md: every stored datetime is timezone-aware. A naive `last_completed`
+    # (the service accepts offset-less strings) that reached the store unqualified
+    # would poison it — every later aware-vs-naive comparison raises TypeError until
+    # the storage file is hand-edited. The sensor branch builds its own
+    # apply_completion call, so it needs its own proof that it passes the zone on.
+    task = m.build_task(
+        {**_oil_change(baseline=45000), "last_completed": "2026-03-13T10:00:00"},
+        now=NOW,
+    )
+    assert datetime.fromisoformat(task["last_completed"]).tzinfo is not None
+    assert datetime.fromisoformat(task["last_completed"]).utcoffset() == TZ.utcoffset(
+        None
+    )
+    assert datetime.fromisoformat(task["completions"][0]["ts"]).tzinfo is not None
+
+
+def test_a_blank_seed_is_not_treated_as_a_date():
+    # "" reaches here from a cleared form field, and must mean "no seed" rather than
+    # an unparseable date.
+    task = m.build_task({**_oil_change(), "last_completed": ""}, now=NOW)
+    assert task["completions"] == []
+    assert task["last_completed"] is None
+
+
+def test_a_sensor_task_records_when_it_was_created():
+    task = m.build_task(_oil_change(), now=NOW)
+    assert task["created"] == NOW.isoformat()

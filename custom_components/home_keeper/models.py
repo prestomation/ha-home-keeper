@@ -686,35 +686,32 @@ def build_task(data: dict, *, now: datetime) -> dict:
         **fields,
     }
     seed = data.get("last_completed")
-    if task["recurrence_type"] == REC_SENSOR:
+    if seed not in (None, ""):
+        # Recording the seed as a completion both stamps last_completed and lets the
+        # recurrence engine derive next_due (floating -> seed + interval; fixed stays
+        # anchor-driven, the seed just becomes its first history entry). A sensor task
+        # takes one too: it anchors the time backstop (``sensor.also_every``), so a
+        # task created for a machine serviced three months ago is three months into its
+        # calendar interval rather than starting the clock today. ``apply_completion``
+        # leaves a sensor task dormant, so this records history without arming it.
+        #
+        # When a sensor binding also carries an explicit ``baseline``, the date and the
+        # reading describe one event — "serviced then, at that reading" — so the seeded
+        # entry records the reading too. That makes the feature's invariant true from
+        # the very first row: a usage task's baseline is the reading on its latest
+        # completion, which is what lets a history edit re-anchor the meter.
+        meta: dict[str, Any] = {}
+        baseline = (fields.get("sensor") or {}).get("baseline")
+        if baseline is not None and task_records_reading(task):
+            meta["reading"] = baseline
+        recurrence.apply_completion(
+            task, _coerce_seed(seed, tz=now.tzinfo), now=now, metadata=meta
+        )
+    elif task["recurrence_type"] == REC_SENSOR:
         # A sensor task is born dormant: the watcher arms it (via ``trigger_task``)
         # only once the live reading actually meets its condition. ``compute_next_due``
         # would read as due-now (the re-arm contract), so set ``None`` directly.
         task["next_due"] = None
-        if seed not in (None, ""):
-            # A seeded "last serviced" date is meaningful for a sensor task too: it
-            # anchors the time backstop (``sensor.also_every``), so a task created for
-            # a machine serviced three months ago is three months into its calendar
-            # interval rather than starting the clock today. ``apply_completion``
-            # leaves a sensor task dormant, so this records history without arming.
-            #
-            # When the binding also carries an explicit ``baseline``, the two together
-            # describe one event — "serviced on that date, at that reading" — so the
-            # seeded history entry records the reading as well. That keeps the whole
-            # feature's invariant true from the very first row: a usage task's
-            # baseline *is* the reading on its latest completion.
-            meta: dict[str, Any] = {}
-            baseline = fields["sensor"].get("baseline")
-            if baseline is not None and task_records_reading(task):
-                meta["reading"] = baseline
-            recurrence.apply_completion(
-                task, _coerce_seed(seed, tz=now.tzinfo), now=now, metadata=meta
-            )
-    elif seed not in (None, ""):
-        # Recording the seed as a completion both stamps last_completed and lets the
-        # recurrence engine derive next_due (floating -> seed + interval; fixed stays
-        # anchor-driven, the seed just becomes its first history entry).
-        recurrence.apply_completion(task, _coerce_seed(seed, tz=now.tzinfo), now=now)
     else:
         task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
     return task

@@ -818,6 +818,14 @@ describe('task form — the meter starting reading', () => {
     expect(payload.sensor).not.toHaveProperty('baseline');
   });
 
+  it('respects a managed integration locking last_completed', () => {
+    const locked = {
+      ...usage(),
+      managed_by: { integration: 'x', display_name: 'X', locked_fields: ['last_completed'] },
+    };
+    expect(taskSchema(locked).map((f) => f.name)).not.toContain('last_completed');
+  });
+
   it('offers "last completed" on a new sensor task', () => {
     // It anchors the time backstop (`sensor.also_every`), so "every 10,000 mi or 12
     // months" can start its calendar half where the meter half starts.
@@ -850,6 +858,38 @@ describe('sensorHintText — the starting-reading arithmetic', () => {
     const hint = sensorHintText(usage({ sensor_baseline: 45000 }), {});
     expect(hint).toContain('45000');
     expect(hint).toContain('55000');
+    // With no live value there is nothing to say about what's already used — the
+    // with-reading wording would be a claim the panel can't back up.
+    expect(hint).toMatch(/that's 10000 of use/i);
+    expect(hint).not.toMatch(/already used/i);
+  });
+
+  it('treats a blank or missing baseline as "no baseline", not as zero', () => {
+    // Number('') and Number(null) are both 0, which is finite — so dropping either
+    // guard would silently anchor the task at zero and quote a due point of 10000.
+    for (const blank of ['', null, undefined]) {
+      const hint = sensorHintText(usage({ sensor_baseline: blank }), { reading: 48000 });
+      // The forward-looking wording, anchored at the live value...
+      expect(hint, `blank=${String(blank)}`).toMatch(/sensor reads 48000 now/i);
+      expect(hint, `blank=${String(blank)}`).toContain('58000');
+      // ...and never the anchored wording, which at a phantom baseline of 0 would
+      // read "counting from 0, the sensor is already 48000 past it".
+      expect(hint, `blank=${String(blank)}`).not.toMatch(/counting from/i);
+    }
+  });
+
+  it('counts consumed exactly equal to the target as already due', () => {
+    // The boundary: `>=`, not `>`. 45,000 + 3,000 used against a 3,000 target is due.
+    const hint = sensorHintText(usage({ sensor_target: 3000, sensor_baseline: 45000 }), {
+      reading: 48000,
+    });
+    expect(hint).toMatch(/as soon as you save/i);
+  });
+
+  it('distinguishes the already-used wording from the plain due-point wording', () => {
+    const hint = sensorHintText(usage({ sensor_baseline: 45000 }), { reading: 48000 });
+    expect(hint).toMatch(/already used/i);
+    expect(hint).not.toMatch(/as soon as you save/i);
   });
 
   it('warns when the starting reading is above the live one', () => {
