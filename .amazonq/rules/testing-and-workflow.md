@@ -229,6 +229,17 @@ gate); CI publishes it to the job summary.
   `PANEL_VERSION` → next `bN`, plus a matching `## [X.Y.0bN]` CHANGELOG section)
   so it reaches beta testers. Fold into the current top beta if it's still
   unreleased; otherwise open the next `bN`. Bug-fix/developer-only PRs don't.
+- **`lint.yml`'s `changelog-release-gap` job guards the "fold into the current top
+  beta" rule above.** `release.yml` keys off `manifest.json`'s version and skips
+  tagging silently when that version is already tagged — so a PR that edits the top
+  `## [X.Y.ZbN]` CHANGELOG section without bumping the version, after that version
+  has already shipped, merges clean and then never actually ships (#236 did exactly
+  this: it landed ~50 minutes after `v0.16.0b7` was tagged, reusing the b7 heading,
+  and sat unreleased on `main` until #237 caught it). `ci/check-changelog-release-gap.py`
+  compares the top section between the PR's merge-base and `HEAD`: unchanged content,
+  or a version bump, or a still-unreleased top section, all pass; changed content
+  under an already-tagged version fails. Pure logic lives in `check()`, tested in
+  `tests/unit/test_check_changelog_release_gap.py`.
 - **Always add the `preview-release` label to a new-feature PR** once it's open, so
   `preview-release.yml` publishes an installable ephemeral pre-release
   (`X.Y.Z.dev<pr>`) from the PR head for pre-merge HACS testing (auto-deleted on

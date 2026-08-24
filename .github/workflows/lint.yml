@@ -59,3 +59,19 @@ jobs:
           fail_level: any
           reporter: github-pr-review
           filter_mode: added
+
+  changelog-release-gap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # ci/check-changelog-release-gap.py needs the base branch's history and
+          # every release tag to tell an already-shipped section from one still
+          # being iterated.
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Guard against editing an already-released CHANGELOG section
+        run: python3 ci/check-changelog-release-gap.py

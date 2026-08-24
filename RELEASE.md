@@ -20,7 +20,12 @@ the GitHub release automatically. No manual `git tag` step.
    1. Read the version from `manifest.json`.
    2. Verify a matching `## [X.Y.Z]` entry exists in `CHANGELOG.md` and that
       `PANEL_VERSION` matches. If either check fails, the workflow fails loudly.
-   3. Skip silently if tag `vX.Y.Z` already exists.
+   3. Skip silently if tag `vX.Y.Z` already exists. This is why a PR must bump the
+      version for *every* release, including a beta iteration: folding a new entry
+      into an already-tagged `## [X.Y.Z]` section without bumping the version merges
+      clean and then ships nothing, because this step sees nothing new to tag.
+      `lint.yml`'s `changelog-release-gap` job (`ci/check-changelog-release-gap.py`)
+      catches that case at PR time.
    4. Build `dist/home-keeper-panel.js` from TypeScript via Rollup.
    5. Build `home_keeper.zip` (the HACS asset).
    6. Push tag `vX.Y.Z` and create the GitHub Release with the changelog section as
