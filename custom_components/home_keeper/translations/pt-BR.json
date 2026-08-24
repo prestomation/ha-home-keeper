@@ -790,6 +790,34 @@
           "description": "O id da peça cujo arquivo anexado deve ser assinado."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Adicionar companion declarativo",
+      "description": "Registra um companion declarativo — uma receita que materializa uma tarefa de sensor gerenciada por cada entidade que corresponde aos filtros (integração alvo + filtros de entidade), com nome de tarefa e notas usando modelos Jinja. Apenas administradores."
+    },
+    "update_declarative_companion": {
+      "name": "Atualizar companion declarativo",
+      "description": "Atualiza campos de uma especificação de companion declarativo armazenada por id. Apenas administradores.",
+      "fields": {
+        "id": {
+          "name": "Id do companion",
+          "description": "O uuid estável da especificação, de list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Excluir companion declarativo",
+      "description": "Remove uma especificação de companion declarativo e todas as tarefas gerenciadas que ela materializou. Apenas administradores.",
+      "fields": {
+        "id": {
+          "name": "Id do companion",
+          "description": "O uuid estável da especificação, de list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Listar companions declarativos",
+      "description": "Retorna cada especificação de companion declarativo armazenada como resposta."
     }
   },
   "entity": {
@@ -897,6 +925,12 @@
     },
     "failed_to_store_file": {
       "message": "Não foi possível salvar o arquivo."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Companion declarativo não encontrado: {spec_id}"
     }
   }
 }

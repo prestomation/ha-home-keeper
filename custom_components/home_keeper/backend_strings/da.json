@@ -9,5 +9,11 @@
   "inventory.csv.cost": "Pris",
   "inventory.csv.spares_value": "Værdi af reservedele",
   "inventory.csv.details": "Detaljer",
-  "inventory.csv.total": "I ALT"
+  "inventory.csv.total": "I ALT",
+  "declarative_preset.device_pulse.name": "Device Pulse",
+  "declarative_preset.device_pulse.description": "Overvåger ping-sensorerne pr. enhed fra din Device Pulse-integration og åbner en opgave for hver enhed, der har fejlet ping i mere end en time. Kræver Device Pulse-integrationen.",
+  "declarative_preset.low_battery.name": "Lavt batteri",
+  "declarative_preset.low_battery.description": "Overvåger enhver binær sensor med lavt batteri og åbner en opgave for at udskifte batteriet. Fungerer sammen med Battery Notes glue-integrationen, hvis du har den installeret.",
+  "declarative_preset.firmware_update_available.name": "Firmwareopdatering tilgængelig",
+  "declarative_preset.firmware_update_available.description": "Overvåger enhver opdateringsentitet (UniFi, ESPHome, HACS, kameraer, printere osv.) og åbner en opgave for at installere den nye version."
 }

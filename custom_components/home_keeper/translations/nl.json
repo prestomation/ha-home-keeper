@@ -790,6 +790,34 @@
           "description": "De id van het onderdeel waarvan het bijgevoegde bestand moet worden ondertekend."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Declaratieve companion toevoegen",
+      "description": "Registreert een declaratieve companion — een recept dat één beheerde sensortaak materialiseert per entiteit die overeenkomt met de filters (doelintegratie + entiteitsfilters), met Jinja-templated taaknaam en notities. Alleen beheerders."
+    },
+    "update_declarative_companion": {
+      "name": "Declaratieve companion bijwerken",
+      "description": "Werkt velden van een opgeslagen declaratieve companion-specificatie bij op id. Alleen beheerders.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "De stabiele uuid van de specificatie, uit list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Declaratieve companion verwijderen",
+      "description": "Verwijdert een declaratieve companion-specificatie en elke beheerde taak die deze heeft gematerialiseerd. Alleen beheerders.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "De stabiele uuid van de specificatie, uit list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Declaratieve companions weergeven",
+      "description": "Geeft elke opgeslagen declaratieve companion-specificatie terug als antwoord."
     }
   },
   "entity": {
@@ -897,6 +925,12 @@
     },
     "failed_to_store_file": {
       "message": "Bestand kon niet worden opgeslagen."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Declaratieve companion niet gevonden: {spec_id}"
     }
   }
 }

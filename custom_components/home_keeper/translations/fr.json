@@ -790,6 +790,34 @@
           "description": "L'identifiant de la pièce dont le fichier joint doit être signé."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Ajouter un companion déclaratif",
+      "description": "Enregistre un companion déclaratif — une recette qui matérialise une tâche de capteur gérée par entité correspondant aux filtres (intégration cible + filtres d'entité), avec un nom de tâche et des notes utilisant des modèles Jinja. Réservé aux administrateurs."
+    },
+    "update_declarative_companion": {
+      "name": "Mettre à jour un companion déclaratif",
+      "description": "Met à jour les champs d'une spécification de companion déclaratif enregistrée par identifiant. Réservé aux administrateurs.",
+      "fields": {
+        "id": {
+          "name": "Identifiant du companion",
+          "description": "L'uuid stable de la spécification, depuis list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Supprimer un companion déclaratif",
+      "description": "Supprime une spécification de companion déclaratif et toutes les tâches gérées qu'elle a matérialisées. Réservé aux administrateurs.",
+      "fields": {
+        "id": {
+          "name": "Identifiant du companion",
+          "description": "L'uuid stable de la spécification, depuis list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Lister les companions déclaratifs",
+      "description": "Retourne chaque spécification de companion déclaratif enregistrée en réponse."
     }
   },
   "entity": {
@@ -897,6 +925,12 @@
     },
     "failed_to_store_file": {
       "message": "Impossible d'enregistrer le fichier."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Companion déclaratif introuvable : {spec_id}"
     }
   }
 }

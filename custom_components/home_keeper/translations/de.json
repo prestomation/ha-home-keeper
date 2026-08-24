@@ -790,6 +790,34 @@
           "description": "Die ID des Teils, dessen angehängte Datei signiert werden soll."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Deklarativen Companion hinzufügen",
+      "description": "Registriert einen deklarativen Companion — ein Rezept, das eine verwaltete Sensor-Aufgabe pro Entität erzeugt, die den Filtern (Ziel-Integration + Entitätsfilter) entspricht, mit Jinja-templated Aufgabennamen und Notizen. Nur für Administratoren."
+    },
+    "update_declarative_companion": {
+      "name": "Deklarativen Companion aktualisieren",
+      "description": "Aktualisiert Felder einer gespeicherten deklarativen Companion-Spezifikation anhand der ID. Nur für Administratoren.",
+      "fields": {
+        "id": {
+          "name": "Companion-ID",
+          "description": "Die stabile UUID der Spezifikation, aus list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Deklarativen Companion löschen",
+      "description": "Entfernt eine deklarative Companion-Spezifikation und alle daraus erzeugten verwalteten Aufgaben. Nur für Administratoren.",
+      "fields": {
+        "id": {
+          "name": "Companion-ID",
+          "description": "Die stabile UUID der Spezifikation, aus list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Deklarative Companions auflisten",
+      "description": "Gibt jede gespeicherte deklarative Companion-Spezifikation als Antwort zurück."
     }
   },
   "entity": {
@@ -897,6 +925,12 @@
     },
     "failed_to_store_file": {
       "message": "Datei konnte nicht gespeichert werden."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativer Companion nicht gefunden: {spec_id}"
     }
   }
 }

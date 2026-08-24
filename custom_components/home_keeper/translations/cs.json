@@ -790,6 +790,34 @@
           "description": "Id dílu, jehož přiložený soubor se má podepsat."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Přidat deklarativního společníka",
+      "description": "Zaregistruje deklarativního společníka — recept, který vytvoří spravovanou senzorovou úlohu pro každou entitu odpovídající filtrům (cílová integrace + filtry entit), s názvem úlohy a poznámkami pomocí šablon Jinja. Pouze pro správce."
+    },
+    "update_declarative_companion": {
+      "name": "Aktualizovat deklarativního společníka",
+      "description": "Aktualizuje pole uložené specifikace deklarativního společníka podle id. Pouze pro správce.",
+      "fields": {
+        "id": {
+          "name": "Id společníka",
+          "description": "Stabilní uuid specifikace, z list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Smazat deklarativního společníka",
+      "description": "Odstraní specifikaci deklarativního společníka a všechny spravované úlohy, které vytvořil. Pouze pro správce.",
+      "fields": {
+        "id": {
+          "name": "Id společníka",
+          "description": "Stabilní uuid specifikace, z list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Vypsat deklarativní společníky",
+      "description": "Vrátí každou uloženou specifikaci deklarativního společníka jako odpověď."
     }
   },
   "entity": {
@@ -897,6 +925,12 @@
     },
     "failed_to_store_file": {
       "message": "Soubor se nepodařilo uložit."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativní společník nebyl nalezen: {spec_id}"
     }
   }
 }

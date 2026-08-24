@@ -790,6 +790,34 @@
           "description": "要签署其附件文件 URL 的零件的 ID。"
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "添加声明式搭档",
+      "description": "注册声明式搭档 — 一种配方，为与筛选器（目标集成 + 实体筛选器）匹配的每个实体生成一个受管理的传感器任务，任务名称和备注使用 Jinja 模板。仅限管理员。"
+    },
+    "update_declarative_companion": {
+      "name": "更新声明式搭档",
+      "description": "按 id 更新已存储的声明式搭档规范的字段。仅限管理员。",
+      "fields": {
+        "id": {
+          "name": "搭档 id",
+          "description": "规范的稳定 uuid，来自 list_declarative_companions。"
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "删除声明式搭档",
+      "description": "移除声明式搭档规范及其生成的所有受管理任务。仅限管理员。",
+      "fields": {
+        "id": {
+          "name": "搭档 id",
+          "description": "规范的稳定 uuid，来自 list_declarative_companions。"
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "列出声明式搭档",
+      "description": "以响应形式返回每个已存储的声明式搭档规范。"
     }
   },
   "entity": {
@@ -897,6 +925,12 @@
     },
     "failed_to_store_file": {
       "message": "无法保存文件。"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "未找到声明式搭档：{spec_id}"
     }
   }
 }

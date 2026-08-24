@@ -790,6 +790,34 @@
           "description": "ID för delen vars bifogade fil ska signeras."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Lägg till deklarativ companion",
+      "description": "Registrerar en deklarativ companion — ett recept som materialiserar en hanterad sensoruppgift per enhet som matchar filtren (målintegration + enhetsfilter), med Jinja-templated uppgiftsnamn och anteckningar. Endast administratörer."
+    },
+    "update_declarative_companion": {
+      "name": "Uppdatera deklarativ companion",
+      "description": "Uppdaterar fält i en sparad deklarativ companion-specifikation utifrån id. Endast administratörer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Specifikationens stabila uuid, från list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Ta bort deklarativ companion",
+      "description": "Tar bort en deklarativ companion-specifikation och varje hanterad uppgift den materialiserade. Endast administratörer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Specifikationens stabila uuid, från list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Visa deklarativa companions",
+      "description": "Returnerar varje sparad deklarativ companion-specifikation som svar."
     }
   },
   "entity": {
@@ -897,6 +925,12 @@
     },
     "failed_to_store_file": {
       "message": "Det gick inte att spara filen."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativ companion hittades inte: {spec_id}"
     }
   }
 }

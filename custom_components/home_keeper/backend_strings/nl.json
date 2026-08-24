@@ -9,5 +9,11 @@
   "inventory.csv.cost": "Kosten",
   "inventory.csv.spares_value": "Waarde reserveonderdelen",
   "inventory.csv.details": "Details",
-  "inventory.csv.total": "TOTAAL"
+  "inventory.csv.total": "TOTAAL",
+  "declarative_preset.device_pulse.name": "Device Pulse",
+  "declarative_preset.device_pulse.description": "Bewaakt de ping-sensoren per apparaat van je Device Pulse-integratie en opent een taak voor elk apparaat dat langer dan een uur pings mist. Vereist de Device Pulse-integratie.",
+  "declarative_preset.low_battery.name": "Batterij laag",
+  "declarative_preset.low_battery.description": "Bewaakt elke binaire batterijsensor en opent een taak om de batterij te vervangen. Werkt naast de Battery Notes-glue-integratie als je die hebt geïnstalleerd.",
+  "declarative_preset.firmware_update_available.name": "Firmware-update beschikbaar",
+  "declarative_preset.firmware_update_available.description": "Bewaakt elke update-entiteit (UniFi, ESPHome, HACS, camera's, printers enz.) en opent een taak om de nieuwe versie te installeren."
 }

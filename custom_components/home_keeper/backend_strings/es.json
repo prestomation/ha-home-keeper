@@ -9,5 +9,11 @@
   "inventory.csv.cost": "Coste",
   "inventory.csv.spares_value": "Valor de los repuestos",
   "inventory.csv.details": "Detalles",
-  "inventory.csv.total": "TOTAL"
+  "inventory.csv.total": "TOTAL",
+  "declarative_preset.device_pulse.name": "Device Pulse",
+  "declarative_preset.device_pulse.description": "Monitorea los sensores de ping por dispositivo de tu integración Device Pulse y abre una tarea por cada dispositivo que ha fallado pings durante más de una hora. Requiere la integración Device Pulse.",
+  "declarative_preset.low_battery.name": "Batería baja",
+  "declarative_preset.low_battery.description": "Monitorea cada sensor binario de batería baja y abre una tarea para reemplazar la batería. Funciona junto con la integración glue Battery Notes si la tienes instalada.",
+  "declarative_preset.firmware_update_available.name": "Actualización de firmware disponible",
+  "declarative_preset.firmware_update_available.description": "Monitorea cada entidad de actualización (UniFi, ESPHome, HACS, cámaras, impresoras, etc.) y abre una tarea para aplicar la nueva versión."
 }

@@ -790,6 +790,34 @@
           "description": "The id of the part whose attached file to sign a URL for."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Add declarative companion",
+      "description": "Register a declarative companion — a recipe that materializes one managed sensor task per entity matched by target integration + entity filters, with Jinja-templated task name and notes. Admin-only."
+    },
+    "update_declarative_companion": {
+      "name": "Update declarative companion",
+      "description": "Update fields of a stored declarative-companion spec by id. Admin-only.",
+      "fields": {
+        "id": {
+          "name": "Companion id",
+          "description": "The spec's stable uuid, from list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Delete declarative companion",
+      "description": "Remove a declarative-companion spec and every managed task it materialized. Admin-only.",
+      "fields": {
+        "id": {
+          "name": "Companion id",
+          "description": "The spec's stable uuid, from list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "List declarative companions",
+      "description": "Return every stored declarative-companion spec as a response."
     }
   },
   "entity": {
@@ -897,6 +925,12 @@
     },
     "failed_to_store_file": {
       "message": "Failed to store the file."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Declarative companion not found: {spec_id}"
     }
   }
 }

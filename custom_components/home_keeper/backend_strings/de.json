@@ -9,5 +9,11 @@
   "inventory.csv.cost": "Kosten",
   "inventory.csv.spares_value": "Ersatzteilwert",
   "inventory.csv.details": "Details",
-  "inventory.csv.total": "GESAMT"
+  "inventory.csv.total": "GESAMT",
+  "declarative_preset.device_pulse.name": "Device Pulse",
+  "declarative_preset.device_pulse.description": "Beobachtet die Ping-Sensoren pro Gerät deiner Device Pulse-Integration und erstellt für jedes Gerät eine Aufgabe, das seit mehr als einer Stunde Pings verpasst. Erfordert die Device Pulse-Integration.",
+  "declarative_preset.low_battery.name": "Niedriger Akku",
+  "declarative_preset.low_battery.description": "Beobachtet jeden Batteriestand-Binärsensor und erstellt eine Aufgabe zum Batteriewechsel. Funktioniert parallel zur Battery Notes-Glue-Integration, falls installiert.",
+  "declarative_preset.firmware_update_available.name": "Firmware-Update verfügbar",
+  "declarative_preset.firmware_update_available.description": "Beobachtet jede Update-Entität (UniFi, ESPHome, HACS, Kameras, Drucker etc.) und erstellt eine Aufgabe, um die neue Version zu installieren."
 }
