@@ -387,7 +387,11 @@ siblings instead of their fakes.
 
 ## CI
 
-- `lint.yml` — ruff lint + format check, and **mypy** strict typing (HA installed).
+- `lint.yml` — ruff lint + format check, **mypy** strict typing (HA installed), vale
+  prose linting, and `changelog-release-gap` — fails a PR that edits the top
+  `## [X.Y.ZbN]` CHANGELOG section without a version bump once that version is
+  already a published release tag (the gap that let #236 merge without ever
+  shipping as a beta; see "Always cut a beta release for a new feature" above).
 - `test.yml` — vitest, pytest unit, HACS validation, hassfest.
 - `mutation.yml` — mutation testing (mutmut + Stryker) on the code a PR changed;
   fails below an 80% mutation score. `skip-mutation` label bypasses it.
