@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Appliances | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/docs/guide/appliances"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Appliances | Home Keeper"><meta data-rh="true" name="description" content="Most appliances you actually maintain (a &quot;dumb&quot; fridge, furnace, or water heater)"><meta data-rh="true" property="og:description" content="Most appliances you actually maintain (a &quot;dumb&quot; fridge, furnace, or water heater)"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-236/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/docs/guide/appliances"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/docs/guide/appliances" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/docs/guide/appliances" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Appliances","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-236/docs/guide/appliances"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-236/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-236/assets/js/runtime~main.d1659784.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-236/assets/js/runtime~main.92113a95.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-236/assets/js/main.d4c2d9eb.js" defer="defer"></script>
 </head>
 <body>
@@ -42,7 +42,7 @@ deleted while still assigned to it). The tab also has an <strong>Export inventor
 that downloads a CSV <strong>home inventory</strong>: make/model, replacement cost, value of spares
 on hand (with a grand total), and a Details column flattening each appliance&#x27;s custom
 fields. It&#x27;s the grab-and-go record you want for an insurance claim.</p>
-<p><img decoding="async" loading="lazy" alt="Appliance detail page" src="/ha-home-keeper/pr-preview/pr-236/assets/images/8-panel-appliance-detail-ac8e83393eea49971b8c39e44ddf6087.png" width="1280" height="2291" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="Appliance detail page" src="/ha-home-keeper/pr-preview/pr-236/assets/images/8-panel-appliance-detail-f3a0abf833716559484ecba586c3d4c0.png" width="1280" height="2392" class="img_ev3q"></p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="archiving-appliances">Archiving appliances<a href="#archiving-appliances" class="hash-link" aria-label="Direct link to Archiving appliances" title="Direct link to Archiving appliances" translate="no">​</a></h3>
 <p>Replaced an appliance but don&#x27;t want to lose its history? <strong>Archive</strong> it instead of
 deleting it: its documents, parts, metadata and maintenance history all stay intact,
@@ -50,7 +50,7 @@ and its device page and entities keep working (Home Keeper just tucks it out of 
 default appliance list). An <strong>Active / Archived</strong> toggle at the top of the Appliances
 tab switches between the two views, and an archived appliance can be <strong>restored</strong> any
 time, or permanently <strong>deleted</strong> from its own detail page.</p>
-<p><img decoding="async" loading="lazy" alt="Archived appliance detail page" src="/ha-home-keeper/pr-preview/pr-236/assets/images/8c-panel-appliance-archived-detail-e0570601d93aa1f0edfd0841baad78f4.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="Archived appliance detail page" src="/ha-home-keeper/pr-preview/pr-236/assets/images/8c-panel-appliance-archived-detail-24e6015b9b9f10621397533217e472ee.png" width="1280" height="720" class="img_ev3q"></p>
 <p><strong>Delete</strong> now asks for confirmation too, on both appliances and tasks, and is styled
 as a clearly destructive action, so a stray click can no longer wipe out an
 appliance&#x27;s history
@@ -84,6 +84,27 @@ limited to its own wear cadence: you can <strong><a class="" href="/ha-home-keep
 (including a sensor-driven one), so completing that task draws down the same stock.
 Stock deduction applies to every completion path: manual, tag scan, and
 <a class="" href="/ha-home-keeper/pr-preview/pr-236/docs/guide/sensor-tasks">auto-clearing sensor tasks</a> alike.</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="stock-you-measure-rather-than-count">Stock you measure rather than count<a href="#stock-you-measure-rather-than-count" class="hash-link" aria-label="Direct link to Stock you measure rather than count" title="Direct link to Stock you measure rather than count" translate="no">​</a></h4>
+<p>Not everything on the shelf is a countable thing. Fabric softener comes in a bottle you
+top up a third at a time. Trimmer line comes on a spool you use by the metre. Two
+optional fields on a stock-tracked part cover that.</p>
+<ul>
+<li class=""><strong>Stock unit</strong> is what the numbers mean: <code>ml</code>, <code>m</code>, <code>bottles</code>. Set it and the unit
+appears everywhere the amount does, on the part&#x27;s chips, on a linked task&#x27;s detail
+line, on the stock control on the appliance&#x27;s device page, and in the <code>unit</code> field of
+the <a class="" href="/ha-home-keeper/pr-preview/pr-236/developer/events">stock events</a>. Leave it empty and a part counts whole spares
+exactly as it always did.</li>
+<li class=""><strong>Used per completion</strong> is how much one completion takes off. Leave it empty and a
+completion uses one whole spare. Set it to <code>0.33</code> and three refills empty one bottle,
+rather than three bottles.</li>
+</ul>
+<p><em>Stock</em>, <em>reorder-at</em>, <em>used per completion</em> and <em>restock quantity</em> all accept decimals,
+as does the <code>delta</code> on <code>home_keeper.adjust_part_stock</code>, so a part measured in
+millilitres adjusts by <code>-250</code> and a bottle by <code>-0.33</code>. A part that never sets a unit or
+a per-use amount keeps stepping in whole spares, and its stock box still refuses &quot;2.5
+filters&quot;.</p>
+<p><img decoding="async" loading="lazy" alt="The part editor for a descaling solution measured in millilitres, with a stock unit and a used-per-completion amount" src="/ha-home-keeper/pr-preview/pr-236/assets/images/47-panel-part-measured-stock-b20cc60e53032749526811bb30597771.png" width="886" height="800" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same part on the appliance page, its chips reading &amp;quot;In stock: 750 ml&amp;quot; and &amp;quot;Uses 250 ml per completion&amp;quot;" src="/ha-home-keeper/pr-preview/pr-236/assets/images/47b-panel-part-measured-chips-0acfbf36b5e6f3c645a54697adc0a2ea.png" width="886" height="101" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="auto-create-a-buy-task-when-a-part-runs-low">Auto-create a buy task when a part runs low<a href="#auto-create-a-buy-task-when-a-part-runs-low" class="hash-link" aria-label="Direct link to Auto-create a buy task when a part runs low" title="Direct link to Auto-create a buy task when a part runs low" translate="no">​</a></h4>
 <p>If you&#x27;d rather have a <strong>built-in shopping reminder</strong> than wire up your own automation,
 turn on <strong>Auto-create buy task</strong> on a stock-tracked part (the option appears once the
@@ -100,7 +121,7 @@ threshold and clears the reminder in the same step. So the whole loop
 (<em>low → buy → restocked</em>) closes with a single tap and no automation to write. (Set the
 restock quantity high enough to clear the threshold; if it isn&#x27;t, the completed reminder
 stays put until you actually restock.)</p>
-<p><img decoding="async" loading="lazy" alt="A part editor with Auto-create buy task enabled and a Restock quantity field" src="/ha-home-keeper/pr-preview/pr-236/assets/images/39-panel-part-auto-buy-4cdadc2825e65e3d61e5e4682c9224e5.png" width="886" height="800" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="A part editor with Auto-create buy task enabled and a Restock quantity field" src="/ha-home-keeper/pr-preview/pr-236/assets/images/39-panel-part-auto-buy-1badf9ca68d9385ea2ff55ce23dfa881.png" width="886" height="908" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="send-buy-reminders-to-your-shopping-list">Send buy reminders to your shopping list<a href="#send-buy-reminders-to-your-shopping-list" class="hash-link" aria-label="Direct link to Send buy reminders to your shopping list" title="Direct link to Send buy reminders to your shopping list" translate="no">​</a></h4>
 <p>A reminder that only exists in Home Keeper is no help in the shop. Point <strong>Settings →
 Shopping list</strong> at a to-do list the household already uses. Every auto-created
@@ -141,7 +162,7 @@ appliance. Uploading a file waits until the appliance is saved (the file is keye
 <code>home_keeper.update_asset_document</code> and <code>home_keeper.remove_asset_document</code> (links; files
 upload from the panel), so automations can attach, rename or detach a receipt or manual
 link too.</p>
-<p><img decoding="async" loading="lazy" alt="The appliance Manuals &amp;amp; documents editor: existing documents as cards with Open / Edit / Remove actions, plus an add-a-document area with add-link and upload-file controls" src="/ha-home-keeper/pr-preview/pr-236/assets/images/32-panel-appliance-documents-f6dc84d484c4a2029eafd6a735ea5b14.png" width="1280" height="6733" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The appliance Manuals &amp;amp; documents editor: existing documents as cards with Open / Edit / Remove actions, plus an add-a-document area with add-link and upload-file controls" src="/ha-home-keeper/pr-preview/pr-236/assets/images/32-panel-appliance-documents-8fabbb81dee1a9f0ea3d85b6573e2f97.png" width="1280" height="7759" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="upload-progress-and-failures">Upload progress and failures<a href="#upload-progress-and-failures" class="hash-link" aria-label="Direct link to Upload progress and failures" title="Direct link to Upload progress and failures" translate="no">​</a></h4>
 <p>An upload shows a <strong>progress bar</strong> with the percentage and byte count while it runs,
 plus a <strong>Cancel upload</strong> button; once the last byte is sent it switches to <em>&quot;Saving…&quot;</em>
@@ -150,7 +171,7 @@ are disabled meanwhile, so a save can&#x27;t race an upload in flight.</p>
 <p>If an upload fails, the reason appears <strong>right under the button you pressed</strong> and as a
 Home Assistant notification toast, so it&#x27;s easy to find.</p>
 <p><img decoding="async" loading="lazy" alt="An upload rejected for exceeding the 100 MB limit: the error appears directly under the Upload file button, and as a notification toast" src="/ha-home-keeper/pr-preview/pr-236/assets/images/32b-panel-appliance-upload-error-a6baf2e22cab43d5fb9992d571a208ad.png" width="1280" height="720" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="An upload in progress: a progress bar with percentage and byte count, and a Cancel upload button" src="/ha-home-keeper/pr-preview/pr-236/assets/images/32c-panel-appliance-upload-progress-ee2edddffdcd0a0bb93786f4c29ee745.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="An upload in progress: a progress bar with percentage and byte count, and a Cancel upload button" src="/ha-home-keeper/pr-preview/pr-236/assets/images/32c-panel-appliance-upload-progress-5776443fef480623ce76053738bfe87e.png" width="1280" height="720" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="large-uploads-413">Large uploads (413)<a href="#large-uploads-413" class="hash-link" aria-label="Direct link to Large uploads (413)" title="Direct link to Large uploads (413)" translate="no">​</a></h4>
 <p>Home Keeper accepts uploads up to <strong>100 MB</strong>, and the panel checks the file&#x27;s size
 <em>before</em> uploading, so an oversized file is refused immediately, naming the file, its
