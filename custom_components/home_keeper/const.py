@@ -251,7 +251,20 @@ SENSOR_MODE_THRESHOLD = "threshold"  # arm on a numeric crossing of value
 # report ``on``/``off``, never a figure. It is not binary-only — any state-y entity
 # works (``vacuum.x == "docked"``, ``sensor.washer == "finished"``).
 SENSOR_MODE_STATE = "state"
-SENSOR_MODES = [SENSOR_MODE_USAGE, SENSOR_MODE_THRESHOLD, SENSOR_MODE_STATE]
+# ``availability`` inverts the "no reading = do nothing" policy the other three modes
+# share: it arms *because* the entity is ``unavailable``/``unknown`` (or a bound
+# ``attribute`` is missing) for at least ``for_seconds``. This is the mode a
+# user-authored companion uses to say "task me when an entity goes offline"; no
+# shipped preset uses it today. Baseline: an entity that starts life unavailable
+# does NOT arm a fresh task (matches ``problem_sync`` "indeterminate does not
+# fabricate").
+SENSOR_MODE_AVAILABILITY = "availability"
+SENSOR_MODES = [
+    SENSOR_MODE_USAGE,
+    SENSOR_MODE_THRESHOLD,
+    SENSOR_MODE_STATE,
+    SENSOR_MODE_AVAILABILITY,
+]
 
 # Max length of a ``state`` binding's target state. Home Assistant caps a state string
 # at 255 characters, so anything longer could never match a real entity.
@@ -375,6 +388,52 @@ EVENT_REGISTER_COMPANIONS = f"{DOMAIN}_register_companions"
 # upstream's glue is first suggested. Payload built by events.companion_event_data.
 EVENT_COMPANION_CONNECTED = f"{DOMAIN}_companion_connected"
 EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
+
+# ── Declarative companions ─────────────────────────────────────────────────────
+# A **declarative companion** is a Home-Keeper-owned recipe (target integration +
+# entity filters + sensor-task trigger + Jinja-templated task fields) that expands
+# into one managed sensor task per matching entity. Unlike a hand-coded glue
+# integration (see EVENT_REGISTER_COMPANIONS above) it needs no separate repo —
+# users create them from the panel, or install one from a shipped preset (see
+# declarative_presets.py). The reconciler (declarative_companion_sync.py) enumerates
+# matches from the entity registry, renders templates, and delegates trigger
+# evaluation to the existing SensorTaskWatcher. Managed tasks carry
+# ``managed_by.integration = home_keeper`` and
+# ``source = {"declarative_companion": {"spec_id", "entity_registry_id", "entity_id"}}``.
+# Dedupe is on ``entity_registry_id`` so a rename does not churn the task.
+#
+# Upper bound on how many declarative-companion specs are stored, matching MAX_COMPANIONS.
+MAX_DECLARATIVE_COMPANIONS = 50
+# Length bounds on user-visible strings on a spec — prevents runaway names/notes/regex
+# from wedging the panel or blowing the JSON store.
+MAX_DECLARATIVE_SPEC_NAME_LEN = 100
+MAX_DECLARATIVE_SPEC_DESCRIPTION_LEN = 500
+MAX_DECLARATIVE_ENTITY_REGEX_LEN = 200
+MAX_DECLARATIVE_NAME_TEMPLATE_LEN = 200
+MAX_DECLARATIVE_NOTES_TEMPLATE_LEN = 2000
+# Cap the number of tasks a single declarative spec can materialize. A poorly
+# narrowed regex (``.*``) against a big HA config would otherwise fan out to
+# hundreds of tasks silently. The preview warns at WARN and hard-fails at HARD so
+# a runaway spec cannot be saved.
+MAX_DECLARATIVE_MATCH_WARN = 50
+MAX_DECLARATIVE_MATCH_HARD = 500
+# Provenance key on a managed task's ``source`` dict identifying it as materialized
+# by a declarative-companion spec: ``task["source"] = {"declarative_companion":
+# {"spec_id", "entity_registry_id", "entity_id"}}``. The reconciler exclusively
+# owns these tasks; ``entity_registry_id`` is the survives-rename dedupe key.
+TASK_SOURCE_DECLARATIVE_COMPANION = "declarative_companion"
+# Dispatcher signal the store fires when a spec is added / updated / deleted /
+# toggled; the reconciler subscribes to re-materialize managed tasks without
+# needing a config-entry reload.
+SIGNAL_DECLARATIVE_SPECS_CHANGED = f"{DOMAIN}_declarative_specs_changed"
+# Bus events fired on spec-level mutations. Managed tasks still emit the standard
+# ``home_keeper_task_*`` events; automations filter to declarative tasks via
+# ``managed_by.integration == "home_keeper"`` +
+# ``source.declarative_companion.spec_id``. Payload built by
+# ``events.declarative_companion_event_data``.
+EVENT_DECLARATIVE_COMPANION_ADDED = f"{DOMAIN}_declarative_companion_added"
+EVENT_DECLARATIVE_COMPANION_UPDATED = f"{DOMAIN}_declarative_companion_updated"
+EVENT_DECLARATIVE_COMPANION_REMOVED = f"{DOMAIN}_declarative_companion_removed"
 
 # Well-known field on a task dict that Home Keeper inspects (unlike the opaque
 # ``source`` field). Declares the integration that owns the task: which fields

@@ -32,6 +32,8 @@ from .const import (
     SENSOR_COMBINATOR_ANY,
     SENSOR_COMBINATORS,
     SENSOR_COMPARISONS,
+    SENSOR_MODE_AVAILABILITY,
+    SENSOR_MODE_STATE,
     SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_USAGE,
     SENSOR_MODES,
@@ -231,7 +233,7 @@ def _reject_fields(data: dict[str, Any], fields: tuple[str, ...], mode: str) -> 
             )
 
 
-def normalize_sensor(data: Any) -> dict[str, Any]:
+def normalize_sensor(data: Any, *, allow_missing_entity: bool = False) -> dict[str, Any]:
     """Validate and normalize a sensor-based task's ``sensor`` binding.
 
     A sensor task derives its armed/dormant state from a bound entity. The
@@ -251,24 +253,39 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
     * ``state`` — a ``state`` string the entity must enter, with the same optional
       ``for_seconds`` hold. This is the binary-sensor mode (``on``/``off``), though any
       state-y entity works.
+    * ``availability`` — arm when the entity (or a bound ``attribute``) is
+      ``unavailable``/``unknown`` / missing for at least ``for_seconds``. **Inverts**
+      the "no reading = do nothing" policy of the other three modes: this mode
+      exists precisely to task the user when a device stops reporting. An entity
+      that starts life unavailable does NOT arm a fresh task (see
+      ``sensor_watcher.async_baseline``); only a live transition from available →
+      unavailable does.
 
-    ``threshold`` and ``state`` also accept ``clear_on_recover``: when set, an armed
-    task clears itself once the condition goes away again, instead of waiting to be
-    completed by hand.
+    ``threshold``, ``state`` and ``availability`` also accept ``clear_on_recover``:
+    when set, an armed task clears itself once the condition goes away again,
+    instead of waiting to be completed by hand.
 
     An optional ``attribute`` reads that entity attribute instead of the state. Raises
     :class:`TaskValidationError` on any malformed field so bad input fails at the edge
     rather than persisting. Pure — no HA imports.
+
+    ``allow_missing_entity`` opts out of the "``entity_id`` is required" gate — used
+    by ``declarative_companions`` to validate a spec's trigger block without stamping
+    a placeholder entity id (the reconciler stamps the real id per matching entity
+    when it materializes the task).
     """
     if not isinstance(data, dict):
         raise TaskValidationError("a sensor task requires a sensor configuration")
     entity_id = str(data.get("entity_id") or "").strip()
-    if not entity_id:
+    if not entity_id and not allow_missing_entity:
         raise TaskValidationError("sensor.entity_id is required")
     mode = data.get("mode") or SENSOR_MODE_USAGE
     if mode not in SENSOR_MODES:
         raise TaskValidationError(f"invalid sensor mode: {mode!r}")
-    result: dict[str, Any] = {"entity_id": entity_id, "mode": mode}
+    result: dict[str, Any] = {}
+    if entity_id:
+        result["entity_id"] = entity_id
+    result["mode"] = mode
     attribute = str(data.get("attribute") or "").strip()
     if attribute:
         result["attribute"] = attribute
@@ -313,7 +330,7 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):
             result["clear_on_recover"] = True
-    else:  # SENSOR_MODE_STATE
+    elif mode == SENSOR_MODE_STATE:
         _reject_fields(
             data, (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value"), "state"
         )
@@ -328,6 +345,25 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
         if for_seconds := _normalize_for_seconds(data):
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):
+            result["clear_on_recover"] = True
+    else:  # SENSOR_MODE_AVAILABILITY
+        # Inverts the "no reading = do nothing" policy: this mode arms *because* the
+        # entity is unavailable/unknown (or the bound ``attribute`` is missing) for
+        # ``for_seconds``. Rejects every numeric/state-comparison field — the
+        # condition is simply "no reading", no operator or target to configure.
+        _reject_fields(
+            data,
+            (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value", "state"),
+            "availability",
+        )
+        if for_seconds := _normalize_for_seconds(data):
+            result["for_seconds"] = for_seconds
+        # ``clear_on_recover`` defaults to True in this mode (an offline device
+        # returning to reachable *is* the recovery signal); the panel still surfaces
+        # a checkbox, and an explicit ``False`` disables auto-clear. Stored only when
+        # True so a dict-equality test does not care about default padding.
+        clear_on_recover = data.get("clear_on_recover")
+        if clear_on_recover is None or bool(clear_on_recover):
             result["clear_on_recover"] = True
     return result
 

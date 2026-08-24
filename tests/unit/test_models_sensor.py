@@ -714,3 +714,81 @@ def test_a_blank_seed_is_not_treated_as_a_date():
 def test_a_sensor_task_records_when_it_was_created():
     task = m.build_task(_oil_change(), now=NOW)
     assert task["created"] == NOW.isoformat()
+
+
+# ── availability mode ────────────────────────────────────────────────────────
+def test_availability_mode_normalizes_with_defaults():
+    """Availability is the fourth mode; clear_on_recover defaults to True."""
+    cfg = m.normalize_sensor(
+        {"entity_id": "sensor.zwave_node", "mode": "availability"}
+    )
+    assert cfg == {
+        "entity_id": "sensor.zwave_node",
+        "mode": "availability",
+        "clear_on_recover": True,
+    }
+
+
+def test_availability_carries_for_seconds():
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.node",
+            "mode": "availability",
+            "for_seconds": 3600,
+        }
+    )
+    assert cfg["for_seconds"] == 3600
+
+
+def test_availability_clear_on_recover_can_be_disabled():
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.node",
+            "mode": "availability",
+            "clear_on_recover": False,
+        }
+    )
+    assert "clear_on_recover" not in cfg
+
+
+@pytest.mark.parametrize(
+    "sensor",
+    [
+        # Threshold-only fields are meaningless for availability.
+        {"entity_id": "sensor.x", "mode": "availability", "comparison": ">"},
+        {"entity_id": "sensor.x", "mode": "availability", "value": 10},
+        # State fields likewise.
+        {"entity_id": "sensor.x", "mode": "availability", "state": "on"},
+        # Usage-only fields.
+        {"entity_id": "sensor.x", "mode": "availability", "target": 100},
+    ],
+)
+def test_availability_rejects_cross_mode_fields(sensor):
+    with pytest.raises(m.TaskValidationError):
+        m.normalize_sensor(sensor)
+
+
+# ── allow_missing_entity kwarg ──────────────────────────────────────────────
+def test_normalize_sensor_requires_entity_id_by_default():
+    with pytest.raises(m.TaskValidationError):
+        m.normalize_sensor(
+            {"mode": "state", "state": "on"}, allow_missing_entity=False
+        )
+
+
+def test_normalize_sensor_allows_missing_entity_id_when_opted_in():
+    """Declarative-companion specs use this to validate a trigger template."""
+    cfg = m.normalize_sensor(
+        {"mode": "state", "state": "on"}, allow_missing_entity=True
+    )
+    assert "entity_id" not in cfg
+    assert cfg["mode"] == "state"
+    assert cfg["state"] == "on"
+
+
+def test_normalize_sensor_allow_missing_still_carries_entity_when_present():
+    cfg = m.normalize_sensor(
+        {"entity_id": "sensor.x", "mode": "state", "state": "on"},
+        allow_missing_entity=True,
+    )
+    assert cfg["entity_id"] == "sensor.x"

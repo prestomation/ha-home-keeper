@@ -540,3 +540,109 @@ def test_threshold_without_clear_on_recover_still_stays_armed():
         task, reading=70, condition_met_prev=True, crossed_at=None, now=now
     )
     assert out["action"] is None
+
+
+# ── availability mode ────────────────────────────────────────────────────────
+def _availability(*, armed=False, for_seconds=0, clear_on_recover=True):
+    sensor = {"entity_id": "sensor.zwave_node", "mode": "availability"}
+    if for_seconds:
+        sensor["for_seconds"] = for_seconds
+    if clear_on_recover:
+        sensor["clear_on_recover"] = True
+    return {
+        "recurrence_type": "sensor",
+        "sensor": sensor,
+        "next_due": dt(2026, 1, 1).isoformat() if armed else None,
+    }
+
+
+def test_availability_arms_on_unavailable_with_no_hold():
+    now = dt(2026, 6, 1, 10)
+    task = _availability()
+    out = s.evaluate_availability(
+        task,
+        status=s.AVAILABILITY_UNAVAILABLE,
+        condition_met_prev=False,
+        crossed_at=None,
+        now=now,
+    )
+    assert out["action"] == "arm"
+    assert out["condition_met"] is True
+    # Crossing consumed so a steady-unavailable entity never re-arms.
+    assert out["crossed_at"] is None
+
+
+def test_availability_waits_for_hold():
+    now = dt(2026, 6, 1, 10)
+    task = _availability(for_seconds=300)
+    # First tick: unavailable observed.
+    out = s.evaluate_availability(
+        task,
+        status=s.AVAILABILITY_UNAVAILABLE,
+        condition_met_prev=False,
+        crossed_at=None,
+        now=now,
+    )
+    assert out["action"] is None
+    assert out["crossed_at"] == now
+    # Second tick 60 s later: hold not yet met.
+    out = s.evaluate_availability(
+        task,
+        status=s.AVAILABILITY_UNAVAILABLE,
+        condition_met_prev=True,
+        crossed_at=now,
+        now=now + timedelta(seconds=60),
+    )
+    assert out["action"] is None
+    # Third tick past the hold: arms.
+    out = s.evaluate_availability(
+        task,
+        status=s.AVAILABILITY_UNAVAILABLE,
+        condition_met_prev=True,
+        crossed_at=now,
+        now=now + timedelta(seconds=301),
+    )
+    assert out["action"] == "arm"
+
+
+def test_availability_clears_on_recover_when_armed():
+    now = dt(2026, 6, 1, 10)
+    task = _availability(armed=True, clear_on_recover=True)
+    out = s.evaluate_availability(
+        task,
+        status=s.AVAILABILITY_AVAILABLE,
+        condition_met_prev=True,
+        crossed_at=None,
+        now=now,
+    )
+    assert out["action"] == "clear"
+    assert out["condition_met"] is False
+
+
+def test_availability_missing_status_is_indeterminate():
+    """A not-yet-restored entity must never fabricate an arm or clear."""
+    now = dt(2026, 6, 1, 10)
+    task = _availability(armed=True, clear_on_recover=True)
+    out = s.evaluate_availability(
+        task,
+        status=s.AVAILABILITY_MISSING,
+        condition_met_prev=True,
+        crossed_at=None,
+        now=now,
+    )
+    assert out["action"] is None
+    assert out["condition_met"] is True
+
+
+def test_availability_dormant_missing_never_arms():
+    now = dt(2026, 6, 1, 10)
+    task = _availability()
+    out = s.evaluate_availability(
+        task,
+        status=s.AVAILABILITY_MISSING,
+        condition_met_prev=False,
+        crossed_at=None,
+        now=now,
+    )
+    assert out["action"] is None
+    assert out["condition_met"] is False
