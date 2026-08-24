@@ -89,6 +89,45 @@ describe('README same-page anchors', () => {
     expect(unroutedReadmeAnchors(md, {})).toEqual([]);
   });
 
+  it('gives a repeated heading GitHub’s -1 suffix', () => {
+    // Without this the second "Installation" would overwrite the first in the
+    // heading map, and a valid `#installation-1` link would be cried wolf over.
+    const md = [
+      '## Settings',
+      '',
+      '### Installation',
+      '',
+      '### Installation',
+      '',
+      'Jump to [the second one](#installation-1).',
+      '',
+    ].join('\n');
+    expect(unroutedReadmeAnchors(md, {})).toEqual([]);
+    // A third would be `-2`; a fourth that does not exist is still unknown.
+    expect(unroutedReadmeAnchors(md.replace('installation-1', 'installation-2'), {})).toEqual([
+      {anchor: '#installation-2', from: 'Settings', reason: 'unknown'},
+    ]);
+  });
+
+  it('checks reference-style and raw HTML anchors too', () => {
+    const refStyle = [
+      '## Settings',
+      '',
+      'See [measured stock][ms].',
+      '',
+      '[ms]: #no-such-heading',
+      '',
+    ].join('\n');
+    expect(unroutedReadmeAnchors(refStyle, {})).toEqual([
+      {anchor: '#no-such-heading', from: 'Settings', reason: 'unknown'},
+    ]);
+
+    const html = '## Settings\n\n<a href="#no-such-heading">jump</a>\n';
+    expect(unroutedReadmeAnchors(html, {})).toEqual([
+      {anchor: '#no-such-heading', from: 'Settings', reason: 'unknown'},
+    ]);
+  });
+
   it('ignores an anchor-like string inside a fenced code block', () => {
     const md = [
       '## Settings',

@@ -137,29 +137,42 @@ function stripFences(lines) {
 }
 
 // Every heading in `md`, paired with the `## ` section it sits under.
+//
+// Repeated headings get GitHub's disambiguating suffix: the second "Installation"
+// anchors at `#installation-1`, the third at `#installation-2`. Without that, a
+// perfectly good `](#installation-1)` link would be reported as pointing at nothing,
+// and a guard that cries wolf is a guard someone turns off.
 function headingSections(md) {
   const {sections} = splitByH2(md);
   const found = new Map();
+  const seen = new Map();
+  const add = (heading, sectionTitle) => {
+    const base = slugify(heading);
+    const count = seen.get(base) ?? 0;
+    seen.set(base, count + 1);
+    found.set(count === 0 ? base : `${base}-${count}`, sectionTitle);
+  };
   for (const section of sections) {
-    found.set(slugify(section.title), section.title);
-    let inFence = false;
-    let fence = '';
-    for (const line of section.body) {
-      const fenceMatch = line.match(/^(```|~~~)/);
-      if (fenceMatch) {
-        if (!inFence) {
-          inFence = true;
-          fence = fenceMatch[1];
-        } else if (line.startsWith(fence)) {
-          inFence = false;
-        }
-        continue;
-      }
-      const heading = !inFence && line.match(/^#{3,6} (.+)$/);
-      if (heading) found.set(slugify(heading[1].trim()), section.title);
+    add(section.title, section.title);
+    for (const line of stripFences(section.body)) {
+      const heading = line.match(/^#{3,6} (.+)$/);
+      if (heading) add(heading[1].trim(), section.title);
     }
   }
   return found;
+}
+
+// Every `#anchor` a section's prose points at. Inline `[text](#a)` is the form the
+// README actually uses; reference definitions (`[ref]: #a`) and raw `<a href="#a">`
+// are checked too, so the guard doesn't quietly ignore a link written another way.
+// A link split across a newline is the one form still missed.
+function anchorsIn(prose) {
+  const patterns = [
+    /\]\((#[^)\s]+)\)/g, // [text](#anchor)
+    /^\s*\[[^\]]+\]:\s*(#\S+)/gm, // [ref]: #anchor
+    /<a\s[^>]*href=["'](#[^"']+)["']/gi, // <a href="#anchor">
+  ];
+  return patterns.flatMap((re) => [...prose.matchAll(re)].map((m) => m[1]));
 }
 
 /**
@@ -174,7 +187,11 @@ function headingSections(md) {
  * Returns `{anchor, from, reason}` for each problem: `unknown` when no heading in
  * README matches at all, `cross-section` when the link leaves its own page with no
  * route. Anchors in sections the guide doesn't publish are ignored — they never
- * reach the site.
+ * reach the site, and so is anything inside a fenced code block.
+ *
+ * This narrows the window, it does not close it: a link whose `](` and `#anchor` sit
+ * on different lines still slips past (see :func:`anchorsIn`), and the Docusaurus
+ * build stays the backstop.
  */
 export function unroutedReadmeAnchors(md, anchorRoutes) {
   const published = new Set(USER_SECTIONS.map((s) => s.h));
@@ -184,7 +201,7 @@ export function unroutedReadmeAnchors(md, anchorRoutes) {
   for (const section of sections) {
     if (!published.has(section.title)) continue;
     const prose = stripFences(section.body).join('\n');
-    for (const [, anchor] of prose.matchAll(/\]\((#[^)]+)\)/g)) {
+    for (const anchor of anchorsIn(prose)) {
       if (anchorRoutes[anchor]) continue;
       const owner = owners.get(anchor.slice(1));
       if (owner === undefined) {
