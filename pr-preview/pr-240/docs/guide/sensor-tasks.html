@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Sensor-based tasks | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/docs/guide/sensor-tasks"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Sensor-based tasks | Home Keeper"><meta data-rh="true" name="description" content="Some maintenance isn&#x27;t measured in time but in use: oil every 15,000 km, a"><meta data-rh="true" property="og:description" content="Some maintenance isn&#x27;t measured in time but in use: oil every 15,000 km, a"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-240/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/docs/guide/sensor-tasks"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/docs/guide/sensor-tasks" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/docs/guide/sensor-tasks" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Sensor-based tasks","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/docs/guide/sensor-tasks"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-240/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-240/assets/js/runtime~main.ff994f32.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-240/assets/js/runtime~main.9578a798.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-240/assets/js/main.a8338e29.js" defer="defer"></script>
 </head>
 <body>
@@ -72,8 +72,8 @@ work the same way. See <a href="#when-a-device-just-tells-you" class="">below</a
 <p>A sensor task behaves like any other once <strong>armed</strong>: it shows on the to-do list and
 calendar, lights the device&#x27;s overdue sensor, and fires the <code>home_keeper_task_overdue</code>
 event. While waiting, a <strong>usage/meter</strong> task reads as its live countdown in the task
-list — <em>&quot;in 7,000 miles&quot;</em>, the meter version of the <em>&quot;in 3 days&quot;</em> a time-based task
-shows — while a threshold or state task (no interval to count down) reads as
+list (<em>&quot;in 7,000 miles&quot;</em>, the meter version of the <em>&quot;in 3 days&quot;</em> a time-based task
+shows), while a threshold or state task (no interval to count down) reads as
 <strong>Monitored</strong>. The task detail shows fuller live progress (<em>&quot;12,300 of 15,000 used&quot;</em>
 for a meter, or the current reading vs. the limit). You can also create one from
 automations/scripts with the <code>home_keeper.add_task</code> service by passing a <code>sensor</code>

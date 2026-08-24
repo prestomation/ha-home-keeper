@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-240/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-240/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-240/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-240/assets/js/runtime~main.ff994f32.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-240/assets/js/runtime~main.9578a798.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-240/assets/js/main.a8338e29.js" defer="defer"></script>
 </head>
 <body>
@@ -19,7 +19,7 @@ versioning, with PEP 440 pre-release suffixes (<code>bN</code>/<code>aN</code>/<
 <ul>
 <li class=""><strong>Usage/meter tasks now count down on the overview.</strong> A meter task waiting for its
 sensor to advance used to read only &quot;Monitored&quot; in the task list. It now shows how
-far off it is — &quot;in 7000 miles&quot; — the meter version of the &quot;in 3 days&quot; a time-based
+far off it is, &quot;in 7000 miles&quot;, the meter version of the &quot;in 3 days&quot; a time-based
 task shows, so you can see at a glance which of your metered jobs is closest without
 opening each one. (Threshold and state tasks, which have no interval to count down,
 still read &quot;Monitored&quot;.)</li>
@@ -28,7 +28,7 @@ still read &quot;Monitored&quot;.)</li>
 <ul>
 <li class=""><strong>Undoing a meter task&#x27;s completion keeps your partial progress.</strong> Deleting a
 usage/meter completion (undoing an accidental &quot;done&quot;) reset the meter to zero and
-left it there. It now reverts to exactly where it was before that completion — 3,000
+left it there. It now reverts to exactly where it was before that completion: 3,000
 of 10,000 miles goes back to 3,000, not zero. (Fixes #235)</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0160b8">[0.16.0b8]<a href="#0160b8" class="hash-link" aria-label="Direct link to [0.16.0b8]" title="Direct link to [0.16.0b8]" translate="no">​</a></h2>
