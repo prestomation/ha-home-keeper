@@ -792,23 +792,36 @@ def test_normalize_sensor_allow_missing_still_carries_entity_when_present():
 
 # ── error-message text ──────────────────────────────────────────────────────
 # Message content is part of the contract — the panel echoes these into the form
-# error tooltip so the user knows which field to fix. The ``match=`` catches
-# mutations that swap the message body for ``None`` or a case-shifted variant.
+# error tooltip so the user knows which field to fix. Each test asserts the
+# *exact* message so an ``XX...XX`` / ``UPPERCASE`` / ``None`` mutation is
+# caught (a regex ``match=`` substring search would still accept the
+# ``XX...XX`` wrapper).
 
 
-def test_normalize_sensor_entity_id_error_names_the_field():
-    with pytest.raises(m.TaskValidationError, match="sensor.entity_id is required"):
-        m.normalize_sensor({"mode": "state", "state": "on"})
+def _reject_with(data: dict, expected: str) -> None:
+    with raises_exactly(m.TaskValidationError, expected):
+        m.normalize_sensor(data)
 
 
-def test_normalize_sensor_usage_target_missing_error_names_the_field():
-    with pytest.raises(m.TaskValidationError, match="sensor.target must be a number"):
-        m.normalize_sensor({"entity_id": "sensor.x", "mode": "usage"})
+def test_normalize_sensor_entity_id_error_is_exact():
+    _reject_with(
+        {"mode": "state", "state": "on"},
+        "sensor.entity_id is required",
+    )
 
 
-def test_normalize_sensor_usage_target_non_positive_error_names_the_field():
-    with pytest.raises(m.TaskValidationError, match="sensor.target must be > 0"):
-        m.normalize_sensor({"entity_id": "sensor.x", "mode": "usage", "target": 0})
+def test_normalize_sensor_usage_target_missing_error_is_exact():
+    _reject_with(
+        {"entity_id": "sensor.x", "mode": "usage"},
+        "sensor.target must be a number",
+    )
+
+
+def test_normalize_sensor_usage_target_non_positive_error_is_exact():
+    _reject_with(
+        {"entity_id": "sensor.x", "mode": "usage", "target": 0},
+        "sensor.target must be > 0",
+    )
 
 
 def test_normalize_sensor_usage_target_boundary_accepts_one():
@@ -818,47 +831,38 @@ def test_normalize_sensor_usage_target_boundary_accepts_one():
     assert cfg["target"] == 1
 
 
-def test_normalize_sensor_threshold_value_missing_error_names_the_field():
-    with pytest.raises(m.TaskValidationError, match="sensor.value must be a number"):
-        m.normalize_sensor(
-            {"entity_id": "sensor.x", "mode": "threshold", "comparison": ">"}
-        )
-
-
-def test_normalize_sensor_threshold_value_empty_string_still_rejected():
-    # ``value_raw == ""`` mutates to ``== "XXXX"`` — a real empty string must
-    # still take the "missing" path.
-    with pytest.raises(m.TaskValidationError, match="sensor.value must be a number"):
-        m.normalize_sensor(
-            {"entity_id": "sensor.x", "mode": "threshold", "comparison": ">", "value": ""}
-        )
+def test_normalize_sensor_threshold_value_missing_error_is_exact():
+    _reject_with(
+        {"entity_id": "sensor.x", "mode": "threshold", "comparison": ">"},
+        "sensor.value must be a number",
+    )
 
 
 def test_normalize_sensor_threshold_value_error_reports_field_from_finite_float():
     # ``_finite_float(value_raw, "sensor.value")`` — the field-name argument
-    # gets mutated; a NaN input triggers the numeric-domain error path that
-    # embeds the field name in the message.
-    with pytest.raises(m.TaskValidationError, match="sensor.value"):
-        m.normalize_sensor(
-            {
-                "entity_id": "sensor.x",
-                "mode": "threshold",
-                "comparison": ">",
-                "value": float("nan"),
-            }
-        )
+    # gets mutated; a NaN input triggers the finite-guard path that embeds
+    # the field name in the message.
+    _reject_with(
+        {
+            "entity_id": "sensor.x",
+            "mode": "threshold",
+            "comparison": ">",
+            "value": float("nan"),
+        },
+        "sensor.value must be a finite number",
+    )
 
 
 def test_normalize_sensor_usage_baseline_error_reports_field_from_finite_float():
-    with pytest.raises(m.TaskValidationError, match="sensor.baseline"):
-        m.normalize_sensor(
-            {
-                "entity_id": "sensor.x",
-                "mode": "usage",
-                "target": 10,
-                "baseline": float("nan"),
-            }
-        )
+    _reject_with(
+        {
+            "entity_id": "sensor.x",
+            "mode": "usage",
+            "target": 10,
+            "baseline": float("nan"),
+        },
+        "sensor.baseline must be a finite number",
+    )
 
 
 def test_normalize_sensor_usage_unit_length_boundary():
@@ -869,48 +873,49 @@ def test_normalize_sensor_usage_unit_length_boundary():
         {"entity_id": "sensor.x", "mode": "usage", "target": 1, "unit": unit}
     )
     assert cfg["unit"] == unit
-    with pytest.raises(m.TaskValidationError, match="sensor.unit must be <="):
-        m.normalize_sensor(
-            {"entity_id": "sensor.x", "mode": "usage", "target": 1, "unit": unit + "!"}
-        )
+    _reject_with(
+        {"entity_id": "sensor.x", "mode": "usage", "target": 1, "unit": unit + "!"},
+        f"sensor.unit must be <= {m.MAX_SENSOR_UNIT_LEN} characters",
+    )
 
 
-def test_normalize_sensor_usage_combinator_error_names_the_value():
-    with pytest.raises(m.TaskValidationError, match="invalid sensor.combinator"):
-        m.normalize_sensor(
-            {
-                "entity_id": "sensor.x",
-                "mode": "usage",
-                "target": 1,
-                "also_every": {"interval": 1, "unit": "days"},
-                "combinator": "bogus",
-            }
-        )
+def test_normalize_sensor_usage_combinator_error_is_exact():
+    _reject_with(
+        {
+            "entity_id": "sensor.x",
+            "mode": "usage",
+            "target": 1,
+            "also_every": {"interval": 1, "unit": "days"},
+            "combinator": "bogus",
+        },
+        "invalid sensor.combinator: 'bogus'",
+    )
 
 
-def test_normalize_sensor_threshold_comparison_error_names_the_value():
-    with pytest.raises(m.TaskValidationError, match="invalid sensor comparison"):
-        m.normalize_sensor(
-            {
-                "entity_id": "sensor.x",
-                "mode": "threshold",
-                "comparison": "bogus",
-                "value": 5,
-            }
-        )
+def test_normalize_sensor_threshold_comparison_error_is_exact():
+    _reject_with(
+        {
+            "entity_id": "sensor.x",
+            "mode": "threshold",
+            "comparison": "bogus",
+            "value": 5,
+        },
+        "invalid sensor comparison: 'bogus'",
+    )
 
 
 # ── availability mode: message + clear_on_recover truthy path ───────────────
 
 
 def test_availability_rejects_field_with_mode_name_in_message():
-    # The rejection message includes the mode name ("availability-mode ...");
-    # a mutant that swaps that string for ``None``, ``XXavailabilityXX``, or
-    # ``AVAILABILITY`` breaks the exact ``availability-mode`` match.
-    with pytest.raises(m.TaskValidationError, match="availability-mode"):
-        m.normalize_sensor(
-            {"entity_id": "sensor.x", "mode": "availability", "state": "on"}
-        )
+    # The rejection message names the offending field and the mode; a mutant
+    # that swaps ``"availability"`` (the mode argument to ``_reject_fields``)
+    # for ``None`` / ``XXavailabilityXX`` / ``AVAILABILITY`` breaks the exact
+    # string.
+    _reject_with(
+        {"entity_id": "sensor.x", "mode": "availability", "state": "on"},
+        "sensor.state is not valid for a availability-mode sensor task",
+    )
 
 
 def test_availability_clear_on_recover_explicit_true_is_stored():

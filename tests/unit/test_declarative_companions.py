@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 import hk_declarative_companions as dc
 import hk_declarative_presets as presets
 import pytest
+from asserts import raises_exactly
 from hk_models import TaskValidationError
 
 TZ = timezone(timedelta(hours=-4))
@@ -127,12 +128,78 @@ def test_normalize_trigger_allows_missing_entity_id():
     assert "entity_id" not in spec["trigger"]
 
 
-def test_normalize_rejects_non_string_field_with_field_name_in_error():
-    # ``_clean_str`` reports which field carried the non-string, so a bad
-    # payload from the panel points to what to fix. The ``match=`` catches a
-    # mutation that swaps the message body for ``None``.
-    with pytest.raises(TaskValidationError, match="name must be a string"):
+# ── validation-error exact messages ────────────────────────────────────────
+# Every message the panel echoes back to the user is asserted verbatim so a
+# mutation that swaps the string for ``None`` / ``XX...XX`` / uppercase is
+# caught. Each of the ``_clean_str`` call-site tests below also pins the
+# field-name argument (``"id"`` / ``"name"`` / ``"description"`` /
+# ``"preset_id"``) that gets mutated independently.
+
+
+def test_normalize_rejects_non_mapping_input_exact_message():
+    with raises_exactly(
+        TaskValidationError, "a declarative companion requires a mapping"
+    ):
+        dc.normalize_declarative_companion("not-a-mapping")
+
+
+def test_normalize_id_non_string_names_id_field():
+    with raises_exactly(TaskValidationError, "id must be a string"):
+        dc.normalize_declarative_companion(_spec(id=42))
+
+
+def test_normalize_id_boundary_max_100_chars():
+    # ``_clean_str(..., "id", 100)`` — a mutant that shifts the max to 101
+    # would accept a 101-char id; the exact-message boundary catches it.
+    spec = dc.normalize_declarative_companion(_spec(id="i" * 100))
+    assert spec["id"] == "i" * 100
+    with raises_exactly(TaskValidationError, "id must be <= 100 characters"):
+        dc.normalize_declarative_companion(_spec(id="i" * 101))
+
+
+def test_normalize_name_non_string_names_name_field():
+    with raises_exactly(TaskValidationError, "name must be a string"):
         dc.normalize_declarative_companion(_spec(name=42))
+
+
+def test_normalize_description_non_string_names_description_field():
+    with raises_exactly(TaskValidationError, "description must be a string"):
+        dc.normalize_declarative_companion(_spec(description=42))
+
+
+def test_normalize_preset_id_non_string_names_preset_id_field():
+    with raises_exactly(TaskValidationError, "preset_id must be a string"):
+        dc.normalize_declarative_companion(_spec(preset_id=42))
+
+
+def test_normalize_preset_id_boundary_max_100_chars():
+    spec = dc.normalize_declarative_companion(_spec(preset_id="p" * 100))
+    assert spec["preset_id"] == "p" * 100
+    with raises_exactly(TaskValidationError, "preset_id must be <= 100 characters"):
+        dc.normalize_declarative_companion(_spec(preset_id="p" * 101))
+
+
+def test_normalize_per_entity_overrides_empty_string_normalizes_to_empty_dict():
+    # ``overrides in (None, "", {})`` — a mutant that swaps ``""`` for
+    # ``"XXXX"`` sends a real empty string through the ``isinstance(...,
+    # dict)`` gate and raises instead of the None/""/dict short-circuit.
+    spec = dc.normalize_declarative_companion(_spec(per_entity_overrides=""))
+    assert spec["per_entity_overrides"] == {}
+
+
+def test_normalize_per_entity_overrides_non_mapping_exact_message():
+    with raises_exactly(TaskValidationError, "per_entity_overrides must be a mapping"):
+        dc.normalize_declarative_companion(_spec(per_entity_overrides="not-a-mapping"))
+
+
+def test_normalize_created_must_be_string_exact_message():
+    with raises_exactly(TaskValidationError, "created must be an ISO timestamp string"):
+        dc.normalize_declarative_companion(_spec(created=1234567890))
+
+
+def test_normalize_updated_must_be_string_exact_message():
+    with raises_exactly(TaskValidationError, "updated must be an ISO timestamp string"):
+        dc.normalize_declarative_companion(_spec(updated=1234567890))
 
 
 def test_normalize_deduplicates_id_lists():
@@ -336,6 +403,67 @@ def test_expand_hard_caps_matches():
         dc.expand_spec(spec, entities)
 
 
+def test_expand_at_hard_cap_still_accepts():
+    # ``if len(matches) > MAX`` — a mutant that shifts to ``>= MAX`` would
+    # reject at exactly the cap. Pin that the cap itself is inclusive.
+    spec = _normalized_spec(selection={"entity_regex": ".*"})
+    entities = _snapshot(
+        *(
+            _entity(f"sensor.x_{i}_total_failed_pings", platform="device_pulse")
+            for i in range(dc.MAX_DECLARATIVE_MATCH_HARD)
+        )
+    )
+    matches = dc.expand_spec(spec, entities)
+    assert len(matches) == dc.MAX_DECLARATIVE_MATCH_HARD
+
+
+def test_expand_hard_cap_error_names_spec_and_hint():
+    spec = _normalized_spec(name="My spec")
+    entities = _snapshot(
+        *(
+            _entity(f"sensor.x_{i}_total_failed_pings", platform="device_pulse")
+            for i in range(dc.MAX_DECLARATIVE_MATCH_HARD + 1)
+        )
+    )
+    with raises_exactly(
+        TaskValidationError,
+        f"spec 'My spec' matches more than "
+        f"{dc.MAX_DECLARATIVE_MATCH_HARD} entities; narrow the selection",
+    ):
+        dc.expand_spec(spec, entities)
+
+
+def test_expand_continues_past_non_matching_entities():
+    # The skip on a non-matching entity is ``continue``, not ``break`` — a
+    # broken loop would drop every match after the first miss.
+    spec = _normalized_spec()
+    entities = _snapshot(
+        _entity("sensor.other_state", platform="mqtt"),  # non-match first
+        _entity("sensor.hub_total_failed_pings"),  # match second
+    )
+    matches = dc.expand_spec(spec, entities)
+    assert len(matches) == 1
+    (_spec_id, ent_reg_id), _ = next(iter(matches.items()))
+    assert ent_reg_id == "reg_hub_total_failed_pings"
+
+
+def test_expand_falls_back_to_entity_id_when_registry_id_missing():
+    # ``entry.get("entity_registry_id") or entry.get("entity_id")`` — a mutant
+    # that mangles the second key (``None`` / ``XX...XX`` / ``ENTITY_ID``)
+    # loses the fallback path.
+    spec = _normalized_spec()
+    entry = _entity("sensor.hub_total_failed_pings")
+    entry["entity_registry_id"] = None
+    matches = dc.expand_spec(spec, _snapshot(entry))
+    assert len(matches) == 1
+    (((_spec_id, ent_reg_id), match),) = matches.items()
+    assert ent_reg_id == "sensor.hub_total_failed_pings"
+    # The dict key ``"entity_registry_id"`` on the returned meta must survive
+    # (mutants 41/42 rename it).
+    assert "entity_registry_id" in match
+    assert match["entity_registry_id"] == "sensor.hub_total_failed_pings"
+
+
 # --- Reconcile diff ---------------------------------------------------------
 
 
@@ -455,6 +583,65 @@ def test_reconcile_survives_entity_rename():
     assert changed is True
 
 
+def test_reconcile_created_task_has_full_source_and_managed_by_shape():
+    # Structural equality on the ``source`` / ``managed_by`` blocks: a mutant
+    # that renames a key (``spec_id`` → ``SPEC_ID`` / ``XXspec_idXX``,
+    # ``entity_registry_id`` → ``ENTITY_REGISTRY_ID`` / …) breaks the dict
+    # equality even without a direct key read.
+    spec = _normalized_spec()
+    key, m = _match("sensor.hub_total_failed_pings", spec["id"])
+    _new, ops, _ = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        tasks={},
+        rendered_by_key=_rendered(key),
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    created = ops[0][1]
+    assert created["source"]["declarative_companion"] == {
+        "spec_id": spec["id"],
+        "entity_registry_id": m["entity_registry_id"],
+        "entity_id": "sensor.hub_total_failed_pings",
+    }
+    assert created["managed_by"] == {
+        "integration": "home_keeper",
+        "display_name": spec["name"],
+        "config_entry_id": ENTRY,
+        "deletion_protected": True,
+        "locked_fields": ["name", "recurrence_type", "device_id", "area_id", "sensor"],
+        "completion_blocked": False,
+    }
+
+
+def test_reconcile_rerun_with_same_inputs_reports_no_change():
+    # After a first pass creates the task, a second identical pass must
+    # detect zero drift: the field loop's ``if task.get(field) != value``
+    # gates ``task_changed``. Mutants that shift ``task_changed=False``
+    # start-state to ``True`` (mutant 83) or ``None`` (82), or that mangle
+    # the field-name key read (mutant 106), all flip this test red.
+    spec = _normalized_spec()
+    key, m = _match("sensor.hub_total_failed_pings", spec["id"])
+    stored, _, _ = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        tasks={},
+        rendered_by_key=_rendered(key),
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    _new, ops, changed = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        tasks=stored,
+        rendered_by_key=_rendered(key),
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    assert changed is False
+    assert ops == []
+
+
 def test_reconcile_carries_through_unrelated_tasks():
     spec = _normalized_spec()
     unrelated = {
@@ -475,6 +662,53 @@ def test_reconcile_carries_through_unrelated_tasks():
     )
     assert changed is False
     assert new_tasks == unrelated
+
+
+def test_task_key_returns_none_when_only_spec_id_is_missing():
+    # ``if not spec_id or not ent_reg_id: return None`` — a mutant that swaps
+    # ``or`` for ``and`` returns the tuple when only one half is missing.
+    task = {
+        "source": {
+            "declarative_companion": {
+                "spec_id": "",
+                "entity_registry_id": "reg_x",
+                "entity_id": "sensor.x",
+            }
+        }
+    }
+    assert dc.task_key(task) is None
+
+
+def test_task_key_returns_none_when_only_entity_registry_id_is_missing():
+    task = {
+        "source": {
+            "declarative_companion": {
+                "spec_id": "spec-1",
+                "entity_registry_id": "",
+                "entity_id": "sensor.x",
+            }
+        }
+    }
+    assert dc.task_key(task) is None
+
+
+def test_collect_orphans_leaves_non_declarative_tasks_alone():
+    # ``if key is not None and key[0] == removed_spec_id`` — a mutant that
+    # swaps ``and`` for ``or`` deletes every task whose key check is None
+    # (i.e. every non-declarative task), which is what this proves does not
+    # happen.
+    non_declarative = {
+        "user-task": {
+            "id": "user-task",
+            "name": "Change bulb",
+            "recurrence_type": "floating",
+        }
+    }
+    new_tasks, ops = dc.collect_orphans_for_removed_spec(
+        "some-spec-id", non_declarative
+    )
+    assert ops == []
+    assert new_tasks == non_declarative
 
 
 def test_collect_orphans_deletes_all_specs_tasks():
