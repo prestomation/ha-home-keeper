@@ -349,8 +349,12 @@ def test_reconcile_creates_missing_tasks():
     key, m = _match("sensor.hub_total_failed_pings", spec["id"])
     matches = {key: m}
     _new_tasks, ops, changed = dc.reconcile_declarative_tasks(
-        spec, matches, tasks={}, rendered_by_key=_rendered(key),
-        config_entry_id=ENTRY, now=NOW,
+        spec,
+        matches,
+        tasks={},
+        rendered_by_key=_rendered(key),
+        config_entry_id=ENTRY,
+        now=NOW,
     )
     assert changed is True
     assert len(ops) == 1
@@ -369,18 +373,25 @@ def test_reconcile_deletes_orphaned_tasks():
     key, m = _match("sensor.hub_total_failed_pings", spec["id"])
     # Round-trip: create a task, then reconcile against zero matches.
     stored, _ops, _ = dc.reconcile_declarative_tasks(
-        spec, {key: m}, {}, _rendered(key), config_entry_id=ENTRY, now=NOW,
+        spec,
+        {key: m},
+        {},
+        _rendered(key),
+        config_entry_id=ENTRY,
+        now=NOW,
     )
     new_tasks, ops, changed = dc.reconcile_declarative_tasks(
-        spec, matches={}, tasks=stored, rendered_by_key={},
-        config_entry_id=ENTRY, now=NOW,
+        spec,
+        matches={},
+        tasks=stored,
+        rendered_by_key={},
+        config_entry_id=ENTRY,
+        now=NOW,
     )
     assert changed is True
     assert len(ops) == 1
     assert ops[0][0] == "deleted"
-    assert not any(
-        dc.task_key(t) is not None for t in new_tasks.values()
-    )
+    assert not any(dc.task_key(t) is not None for t in new_tasks.values())
 
 
 def test_reconcile_survives_entity_rename():
@@ -388,7 +399,12 @@ def test_reconcile_survives_entity_rename():
     spec = _normalized_spec()
     key, m = _match("sensor.old_total_failed_pings", spec["id"])
     stored, _, _ = dc.reconcile_declarative_tasks(
-        spec, {key: m}, {}, _rendered(key), config_entry_id=ENTRY, now=NOW,
+        spec,
+        {key: m},
+        {},
+        _rendered(key),
+        config_entry_id=ENTRY,
+        now=NOW,
     )
     original_ids = list(stored.keys())
 
@@ -407,14 +423,17 @@ def test_reconcile_survives_entity_rename():
         }
     }
     new_tasks, ops, changed = dc.reconcile_declarative_tasks(
-        spec, renamed_match, stored,
+        spec,
+        renamed_match,
+        stored,
         rendered_by_key={
             (spec["id"], m["entity_registry_id"]): (
                 "Rendered new",
                 "Notes for new",
             )
         },
-        config_entry_id=ENTRY, now=NOW,
+        config_entry_id=ENTRY,
+        now=NOW,
     )
     # Task list length unchanged, task id preserved.
     assert list(new_tasks.keys()) == original_ids
@@ -439,8 +458,12 @@ def test_reconcile_carries_through_unrelated_tasks():
         }
     }
     new_tasks, _ops, changed = dc.reconcile_declarative_tasks(
-        spec, matches={}, tasks=unrelated, rendered_by_key={},
-        config_entry_id=ENTRY, now=NOW,
+        spec,
+        matches={},
+        tasks=unrelated,
+        rendered_by_key={},
+        config_entry_id=ENTRY,
+        now=NOW,
     )
     assert changed is False
     assert new_tasks == unrelated
@@ -450,7 +473,12 @@ def test_collect_orphans_deletes_all_specs_tasks():
     spec = _normalized_spec()
     key, m = _match("sensor.hub_total_failed_pings", spec["id"])
     stored, _, _ = dc.reconcile_declarative_tasks(
-        spec, {key: m}, {}, _rendered(key), config_entry_id=ENTRY, now=NOW,
+        spec,
+        {key: m},
+        {},
+        _rendered(key),
+        config_entry_id=ENTRY,
+        now=NOW,
     )
     new_tasks, ops = dc.collect_orphans_for_removed_spec(spec["id"], stored)
     assert len(ops) == 1

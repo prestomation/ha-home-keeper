@@ -719,9 +719,7 @@ def test_a_sensor_task_records_when_it_was_created():
 # ── availability mode ────────────────────────────────────────────────────────
 def test_availability_mode_normalizes_with_defaults():
     """Availability is the fourth mode; clear_on_recover defaults to True."""
-    cfg = m.normalize_sensor(
-        {"entity_id": "sensor.zwave_node", "mode": "availability"}
-    )
+    cfg = m.normalize_sensor({"entity_id": "sensor.zwave_node", "mode": "availability"})
     assert cfg == {
         "entity_id": "sensor.zwave_node",
         "mode": "availability",
@@ -771,9 +769,7 @@ def test_availability_rejects_cross_mode_fields(sensor):
 # ── allow_missing_entity kwarg ──────────────────────────────────────────────
 def test_normalize_sensor_requires_entity_id_by_default():
     with pytest.raises(m.TaskValidationError):
-        m.normalize_sensor(
-            {"mode": "state", "state": "on"}, allow_missing_entity=False
-        )
+        m.normalize_sensor({"mode": "state", "state": "on"}, allow_missing_entity=False)
 
 
 def test_normalize_sensor_allows_missing_entity_id_when_opted_in():

@@ -142,9 +142,7 @@ class DeclarativeCompanionSync:
         return {"entities": entries}
 
     # ── rendering ────────────────────────────────────────────────────────────
-    def _template_variables(
-        self, entry: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _template_variables(self, entry: dict[str, Any]) -> dict[str, Any]:
         """Assemble the Jinja render context for a single matched entity.
 
         The context flattens registry + state + device + area lookups so a
@@ -163,10 +161,7 @@ class DeclarativeCompanionSync:
             attributes = dict(state.attributes)
             friendly = attributes.get("friendly_name")
         friendly = (
-            friendly
-            or entry.get("name")
-            or entry.get("original_name")
-            or entity_id
+            friendly or entry.get("name") or entry.get("original_name") or entity_id
         )
         device_name = None
         if entry.get("device_id"):
@@ -248,7 +243,10 @@ class DeclarativeCompanionSync:
                 # matches), so toggling enabled off cleans up without deleting the spec.
                 store = self._coordinator.store
                 changed = await store.reconcile_declarative_companion_tasks(
-                    spec, {}, {}, config_entry_id=self._entry.entry_id,
+                    spec,
+                    {},
+                    {},
+                    config_entry_id=self._entry.entry_id,
                 )
                 entity_set_changed = entity_set_changed or changed
                 continue

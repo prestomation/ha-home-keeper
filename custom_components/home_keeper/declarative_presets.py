@@ -132,9 +132,7 @@ CATALOG_PRESETS: list[PresetDefinition] = [
     {
         "id": "firmware_update_available",
         "name_key": "declarative_preset.firmware_update_available.name",
-        "description_key": (
-            "declarative_preset.firmware_update_available.description"
-        ),
+        "description_key": ("declarative_preset.firmware_update_available.description"),
         "icon": "mdi:update",
         "requires_integration": None,
         "default_spec": {
@@ -159,8 +157,7 @@ CATALOG_PRESETS: list[PresetDefinition] = [
             "task_template": {
                 "name_template": "Update {{ friendly_name }}",
                 "notes_template": (
-                    "Latest version: "
-                    "{{ attributes.latest_version or 'unknown' }}"
+                    "Latest version: {{ attributes.latest_version or 'unknown' }}"
                 ),
                 "labels": [],
             },

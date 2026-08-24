@@ -1469,9 +1469,7 @@ def _register_services(hass: HomeAssistant) -> None:
     ) -> dict[str, Any]:
         coord = _coordinator()
         return {
-            "companions": list(
-                coord.store.get_declarative_companions().values()
-            ),
+            "companions": list(coord.store.get_declarative_companions().values()),
         }
 
     hass.services.async_register(

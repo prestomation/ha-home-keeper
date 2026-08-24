@@ -136,9 +136,7 @@ def _normalize_selection(data: Any) -> dict[str, Any]:
     domain = _clean_str(data.get("domain"), "selection.domain", 100)
     if domain:
         result["domain"] = domain
-    device_class = _clean_str(
-        data.get("device_class"), "selection.device_class", 100
-    )
+    device_class = _clean_str(data.get("device_class"), "selection.device_class", 100)
     if device_class:
         result["device_class"] = device_class
     entity_regex = _clean_str(
@@ -240,9 +238,7 @@ def normalize_declarative_companion(data: Any) -> dict[str, Any]:
     enabled = data.get("enabled")
     enabled = True if enabled is None else bool(enabled)
     selection = _normalize_selection(data.get("selection"))
-    trigger = models.normalize_sensor(
-        data.get("trigger"), allow_missing_entity=True
-    )
+    trigger = models.normalize_sensor(data.get("trigger"), allow_missing_entity=True)
     task_template = _normalize_task_template(data.get("task_template"))
     # ``per_entity_overrides`` is a reserved v1 field — the panel UI is deferred, but
     # the slot exists on-disk so a follow-up doesn't need a storage migration.
@@ -392,9 +388,7 @@ def expand_spec(
 # --- Managed-by + reconcile -------------------------------------------------
 
 
-def build_managed_by(
-    spec: dict[str, Any], config_entry_id: str
-) -> dict[str, Any]:
+def build_managed_by(spec: dict[str, Any], config_entry_id: str) -> dict[str, Any]:
     """Ownership block stamped on a task materialized from *spec*.
 
     ``deletion_protected`` requires ``config_entry_id`` (see

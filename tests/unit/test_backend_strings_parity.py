@@ -34,9 +34,7 @@ _TOKEN_RE = re.compile(r"\{(\w+)\}")
 # ``declarative_preset.device_pulse.name`` is the product name of an upstream
 # HA integration (studiobts/home-assistant-device-pulse) — brand names are not
 # translated. Applies to every locale.
-_BRAND_IDENTICAL: frozenset[str] = frozenset(
-    {"declarative_preset.device_pulse.name"}
-)
+_BRAND_IDENTICAL: frozenset[str] = frozenset({"declarative_preset.device_pulse.name"})
 _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     "ca": frozenset(
         {"inventory.csv.cost", "inventory.csv.model", "inventory.csv.total"}

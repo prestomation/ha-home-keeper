@@ -994,9 +994,7 @@ async def ws_list_declarative_companions(
     connection.send_result(
         msg["id"],
         {
-            "companions": list(
-                coord.store.get_declarative_companions().values()
-            ),
+            "companions": list(coord.store.get_declarative_companions().values()),
         },
     )
 
@@ -1121,6 +1119,7 @@ async def ws_list_declarative_presets(
     so the panel doesn't need to know which locale to render.
     """
     from .backend_i18n import resolve_string  # local import: no HA dep in presets
+
     if _coordinator(hass) is None:
         _not_loaded(hass, connection, msg)
         return
@@ -1161,6 +1160,7 @@ async def ws_preview_declarative_companion(
     renders as a red banner.
     """
     from . import declarative_companions as dc  # avoid an import cycle at top
+
     coord = _coordinator(hass)
     if coord is None:
         _not_loaded(hass, connection, msg)
@@ -1206,6 +1206,4 @@ async def ws_installed_integrations(
     if sync is None:
         _not_loaded(hass, connection, msg)
         return
-    connection.send_result(
-        msg["id"], {"integrations": sync.installed_integrations()}
-    )
+    connection.send_result(msg["id"], {"integrations": sync.installed_integrations()})
