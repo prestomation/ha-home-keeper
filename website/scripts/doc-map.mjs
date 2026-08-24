@@ -189,9 +189,13 @@ function anchorsIn(prose) {
  * route. Anchors in sections the guide doesn't publish are ignored — they never
  * reach the site, and so is anything inside a fenced code block.
  *
- * This narrows the window, it does not close it: a link whose `](` and `#anchor` sit
- * on different lines still slips past (see :func:`anchorsIn`), and the Docusaurus
- * build stays the backstop.
+ * This narrows the window, it does not close it, and the Docusaurus build stays the
+ * backstop for two known holes. A link whose `](` and `#anchor` sit on different
+ * lines slips past (see :func:`anchorsIn`). And repeat-heading numbering is counted
+ * across the whole README, the way GitHub numbers it — but the guide splits into a
+ * page per section, so two same-named headings in *different* sections are each the
+ * only one on their own page and lose the suffix there. A same-section repeat, the
+ * case where the link has to survive on one page, numbers identically both ways.
  */
 export function unroutedReadmeAnchors(md, anchorRoutes) {
   const published = new Set(USER_SECTIONS.map((s) => s.h));
