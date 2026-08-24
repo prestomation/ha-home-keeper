@@ -7,6 +7,7 @@ capture-mode fields (including the forward-compatible ``completion_required_fiel
 
 from datetime import datetime, timedelta, timezone
 
+import hk_const as const
 import hk_events as events
 import hk_models as m
 import hk_recurrence as r
@@ -15,7 +16,9 @@ from asserts import raises_exactly
 TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 13, 10, tzinfo=TZ)
 
-FIELDS = ("note", "cost", "photo", "who")
+# The keys an edit may carry. Driven off the const rather than a literal so this
+# tier notices a new completion field instead of quietly ignoring it.
+FIELDS = tuple(const.COMPLETION_ENTRY_FIELDS)
 
 
 # ── metadata normalization ───────────────────────────────────────────────────
@@ -253,3 +256,161 @@ def test_merge_update_can_change_capture_mode():
     merged = m.merge_update(task, {"completion_detail": "none"}, now=NOW)
     assert merged["completion_detail"] == "none"
     assert merged["completion_required_fields"] == []
+
+
+# ── the captured meter reading ───────────────────────────────────────────────
+#
+# ``reading`` is the bound sensor's value at completion time. It rides the same
+# metadata plumbing as note/cost/photo/who but is *captured*, not asked for, so it
+# sits in its own const list and is gated on the task actually having a sensor.
+
+
+def test_reading_is_rejected_unless_the_task_has_a_numeric_binding():
+    # Silently dropping it would let a caller believe a floating task's history
+    # recorded a meter it has no sensor to read. Same discipline as _reject_fields.
+    with raises_exactly(
+        m.TaskValidationError,
+        "reading is only valid for a sensor task with a numeric binding",
+    ):
+        m.normalize_completion_metadata({"reading": 45000})
+
+
+def test_reading_is_kept_when_allowed():
+    out = m.normalize_completion_metadata({"reading": "45000.5"}, allow_reading=True)
+    assert out == {"reading": 45000.5}
+
+
+def test_reading_allows_zero_and_negative_values():
+    # A brand-new hour meter reads 0; a net-energy or temperature sensor goes below
+    # it. Unlike ``cost`` there is deliberately no >= 0 floor — ``sensor.baseline``,
+    # the number this has to stay comparable with, has none either.
+    assert m.normalize_completion_metadata({"reading": 0}, allow_reading=True) == {
+        "reading": 0.0
+    }
+    assert m.normalize_completion_metadata({"reading": -12.5}, allow_reading=True) == {
+        "reading": -12.5
+    }
+
+
+def test_blank_reading_drops_the_key_rather_than_raising():
+    # A blank form field is "no reading", not "a reading on a task that can't have
+    # one" — so it must not trip the gate even when readings are disallowed.
+    assert m.normalize_completion_metadata({"reading": "", "note": "x"}) == {
+        "note": "x"
+    }
+    assert m.normalize_completion_metadata({"reading": None, "note": "x"}) == {
+        "note": "x"
+    }
+
+
+def test_reading_rejects_non_numeric_and_infinite_values():
+    # NaN would serialize to null on the JSON round-trip and compares False against
+    # every baseline, so it has to fail at the edge rather than persist.
+    with raises_exactly(m.TaskValidationError, "reading must be a number"):
+        m.normalize_completion_metadata({"reading": "abc"}, allow_reading=True)
+    for bad in (float("nan"), float("inf")):
+        with raises_exactly(m.TaskValidationError, "reading must be a finite number"):
+            m.normalize_completion_metadata({"reading": bad}, allow_reading=True)
+
+
+def test_reading_is_not_requirable():
+    # COMPLETION_METADATA_FIELDS doubles as the allowlist for a task's
+    # ``completion_required_fields``. A captured field must stay out of it: the user
+    # is never asked for a reading, and on a task with no sensor one can never
+    # arrive at all — a required-but-unfillable field is an uncompletable task.
+    assert "reading" not in const.COMPLETION_METADATA_FIELDS
+    assert "reading" in const.COMPLETION_ENTRY_FIELDS
+    assert m.normalize_completion_required_fields(["reading"], "required") == ["note"]
+    assert m.normalize_completion_required_fields(["reading", "cost"], "required") == [
+        "cost"
+    ]
+
+
+def test_a_zero_reading_survives_an_edit_rather_than_being_cleared():
+    # ``update_completion`` clears a field whose new value is None/"". 0.0 is neither,
+    # but it *is* falsy — one `if not value:` refactor away from silently wiping the
+    # reading on a meter that legitimately sits at zero. Pin the behaviour.
+    task = _sensor_task()
+    r.apply_completion(task, NOW, now=NOW, metadata={"reading": 12.0})
+    ts = task["completions"][0]["ts"]
+    updated, _ = r.update_completion(task, ts, {"reading": 0.0}, fields=FIELDS)
+    assert updated["completions"][0]["reading"] == 0.0
+
+
+def test_editing_only_a_note_would_clear_an_unsent_reading():
+    # The panel's edit dialog must therefore seed `reading` from the completion (see
+    # _openCompletionEdit) — an omitted key clears it, which would destroy a captured
+    # value the user never typed and doesn't know is there.
+    task = _sensor_task()
+    r.apply_completion(task, NOW, now=NOW, metadata={"reading": 780.0})
+    ts = task["completions"][0]["ts"]
+    updated, _ = r.update_completion(task, ts, {"note": "oil"}, fields=FIELDS)
+    assert "reading" not in updated["completions"][0]
+    # ...whereas sending it back through keeps it.
+    again, _ = r.update_completion(
+        task, ts, {"note": "oil", "reading": 780.0}, fields=FIELDS
+    )
+    assert again["completions"][0]["reading"] == 780.0
+
+
+def test_task_records_reading_covers_the_numeric_modes_only():
+    assert m.task_records_reading(_sensor_task()) is True
+    assert m.task_records_reading(_sensor_task(mode="threshold")) is True
+    # A ``state`` binding compares a string ("on", "docked") — no number to log.
+    assert m.task_records_reading(_sensor_task(mode="state")) is False
+    assert m.task_records_reading({"recurrence_type": "floating"}) is False
+    # A sensor task with a malformed/absent binding can't be read either.
+    assert m.task_records_reading({"recurrence_type": "sensor"}) is False
+    assert m.task_records_reading({"recurrence_type": "sensor", "sensor": []}) is False
+    assert m.task_records_reading(None) is False
+
+
+def test_task_records_reading_defaults_a_missing_mode_to_usage():
+    # ``normalize_sensor`` defaults ``mode`` to usage, so a binding that omits it is
+    # a meter and does record a reading.
+    assert (
+        m.task_records_reading(
+            {"recurrence_type": "sensor", "sensor": {"entity_id": "sensor.x"}}
+        )
+        is True
+    )
+
+
+def _sensor_task(mode: str = "usage") -> dict:
+    sensor: dict = {"entity_id": "sensor.odometer", "mode": mode}
+    if mode == "usage":
+        sensor["target"] = 10000
+    elif mode == "threshold":
+        sensor.update({"comparison": ">=", "value": 90})
+    else:
+        sensor["state"] = "on"
+    return {
+        "recurrence_type": "sensor",
+        "sensor": sensor,
+        "next_due": None,
+        "completions": [],
+        "last_completed": None,
+    }
+
+
+def test_a_cost_of_zero_is_recorded_rather_than_rejected():
+    # The gate is `< 0`, not `<= 0`: a free job (warranty, DIY) legitimately costs
+    # nothing, and recording that is different from recording no cost at all.
+    assert m.normalize_completion_metadata({"cost": 0}) == {"cost": 0.0}
+
+
+def test_an_uppercase_url_scheme_is_still_a_valid_photo():
+    # The scheme check runs against a lowercased copy, so "HTTP://..." must pass —
+    # comparing the original would reject a perfectly good URL.
+    assert m.normalize_completion_metadata({"photo": "HTTP://x/i.png"}) == {
+        "photo": "HTTP://x/i.png"
+    }
+    assert m.normalize_completion_metadata({"photo": "HTTPS://x/i.png"}) == {
+        "photo": "HTTPS://x/i.png"
+    }
+
+
+def test_a_non_mapping_input_yields_no_metadata():
+    # Reached from the websocket/service edge, where the payload is caller-shaped.
+    for junk in ([1], "note", 5, None, {}, []):
+        assert m.normalize_completion_metadata(junk) == {}

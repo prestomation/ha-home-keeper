@@ -538,3 +538,179 @@ def test_converting_a_usage_task_to_state_drops_the_meter():
     }
     # Still dormant: switching how a task is driven must not arm it.
     assert updated["next_due"] is None
+
+
+# ── an explicit starting reading (issue #235) ────────────────────────────────
+#
+# A usage task anchors at whatever the sensor reads when it is created, which puts
+# every task made for an already-serviced machine a full interval late. An explicit
+# ``baseline`` says "the last service happened at this reading" instead.
+
+
+def _oil_change(**sensor):
+    binding = {"entity_id": "sensor.odometer", "mode": "usage", "target": 10000}
+    binding.update(sensor)
+    return {"name": "Oil change", "recurrence_type": "sensor", "sensor": binding}
+
+
+def test_an_explicit_baseline_is_stored_and_leaves_the_task_dormant():
+    # The reporter's case: odometer at 48,000, last change at 45,000, 10,000-mile
+    # interval. 3,000 already used, due at 55,000 — not 58,000.
+    task = m.build_task(_oil_change(baseline=45000), now=NOW)
+    assert task["sensor"]["baseline"] == 45000.0
+    # Storing an anchor is not arming: the watcher decides that from a live reading.
+    assert task["next_due"] is None
+
+
+def test_a_baseline_of_zero_is_kept_rather_than_treated_as_absent():
+    # A brand-new hour meter genuinely starts at 0, and 0 is falsy — the exact value
+    # a truthiness check would silently drop, leaving the watcher to re-anchor.
+    task = m.build_task(_oil_change(baseline=0), now=NOW)
+    assert task["sensor"]["baseline"] == 0.0
+
+
+def test_no_baseline_leaves_the_key_unset_for_the_watcher_to_stamp():
+    task = m.build_task(_oil_change(), now=NOW)
+    assert "baseline" not in task["sensor"]
+
+
+def test_a_baseline_is_rejected_for_the_edge_driven_modes():
+    # ``baseline`` is meaningless without a target to count towards. Rejecting beats
+    # dropping: the panel keeps flat sensor_* state across a mode switch, so a user
+    # who types a baseline and then picks Threshold must be told, not ignored.
+    for mode, extra in (
+        ("threshold", {"comparison": ">=", "value": 90}),
+        ("state", {"state": "on"}),
+    ):
+        with raises_exactly(
+            m.TaskValidationError,
+            f"sensor.baseline is not valid for a {mode}-mode sensor task",
+        ):
+            m.build_task(
+                {
+                    "name": "T",
+                    "recurrence_type": "sensor",
+                    "sensor": {
+                        "entity_id": "sensor.x",
+                        "mode": mode,
+                        "baseline": 5,
+                        **extra,
+                    },
+                },
+                now=NOW,
+            )
+
+
+def test_an_explicit_baseline_on_update_overrides_the_accumulated_one():
+    # merge_update carries the watcher's baseline forward across an edit so a rename
+    # can't reset "12,000 of 15,000" — but an explicitly sent one is a correction and
+    # must win over that carry-forward.
+    task = m.build_task(_oil_change(baseline=45000), now=NOW)
+    updated = m.merge_update(
+        task, {"sensor": {**task["sensor"], "baseline": 44000}}, now=NOW
+    )
+    assert updated["sensor"]["baseline"] == 44000.0
+
+
+def test_an_omitted_baseline_on_update_keeps_the_accumulated_one():
+    task = m.build_task(_oil_change(baseline=45000), now=NOW)
+    binding = {k: v for k, v in task["sensor"].items() if k != "baseline"}
+    updated = m.merge_update(task, {"sensor": binding}, now=NOW)
+    assert updated["sensor"]["baseline"] == 45000.0
+
+
+# ── seeding "last serviced" on a sensor task ─────────────────────────────────
+
+
+def test_a_seeded_last_completed_anchors_the_backstop_without_arming():
+    # The calendar half of "every 10,000 mi or 12 months" measures from the last
+    # completion, so a task for a machine serviced in March starts three months in.
+    seed = datetime(2026, 3, 13, 10, tzinfo=TZ)
+    task = m.build_task(
+        {
+            **_oil_change(also_every={"interval": 12, "unit": "months"}),
+            "last_completed": seed.isoformat(),
+        },
+        now=NOW,
+    )
+    assert task["last_completed"] == seed.isoformat()
+    assert len(task["completions"]) == 1
+    # Recording history is not arming — the meter still decides that.
+    assert task["next_due"] is None
+
+
+def test_a_seeded_completion_records_the_starting_reading():
+    # The date and the baseline describe one event ("serviced then, at that
+    # reading"), so the seeded history row carries both. That makes the feature's
+    # invariant true from the first row: a usage task's baseline IS the reading on
+    # its latest completion, which is what lets a history edit re-anchor the meter.
+    seed = datetime(2026, 3, 13, 10, tzinfo=TZ)
+    task = m.build_task(
+        {**_oil_change(baseline=45000), "last_completed": seed.isoformat()}, now=NOW
+    )
+    assert task["completions"][0]["reading"] == 45000.0
+
+
+def test_a_seeded_completion_without_a_baseline_records_no_reading():
+    seed = datetime(2026, 3, 13, 10, tzinfo=TZ)
+    task = m.build_task({**_oil_change(), "last_completed": seed.isoformat()}, now=NOW)
+    assert "reading" not in task["completions"][0]
+
+
+def test_a_baseline_alone_records_no_history():
+    # Setting only a starting reading says where the meter is, not that a service
+    # happened on a particular day — fabricating a completion would put a phantom
+    # row in the maintenance log and move the time backstop.
+    task = m.build_task(_oil_change(baseline=45000), now=NOW)
+    assert task["completions"] == []
+    assert task["last_completed"] is None
+
+
+def test_a_state_mode_seed_records_no_reading():
+    # A state binding has no number to record, and carries no baseline to record it
+    # from — the seed still anchors the history, just without a reading.
+    seed = datetime(2026, 3, 13, 10, tzinfo=TZ)
+    task = m.build_task(
+        {
+            "name": "T",
+            "recurrence_type": "sensor",
+            "sensor": {
+                "entity_id": "binary_sensor.tank_low",
+                "mode": "state",
+                "state": "on",
+            },
+            "last_completed": seed.isoformat(),
+        },
+        now=NOW,
+    )
+    assert task["completions"][0] == {"ts": seed.isoformat()}
+
+
+def test_a_naive_seed_on_a_sensor_task_is_qualified_with_the_configured_zone():
+    # AGENTS.md: every stored datetime is timezone-aware. A naive `last_completed`
+    # (the service accepts offset-less strings) that reached the store unqualified
+    # would poison it — every later aware-vs-naive comparison raises TypeError until
+    # the storage file is hand-edited. The sensor branch builds its own
+    # apply_completion call, so it needs its own proof that it passes the zone on.
+    task = m.build_task(
+        {**_oil_change(baseline=45000), "last_completed": "2026-03-13T10:00:00"},
+        now=NOW,
+    )
+    assert datetime.fromisoformat(task["last_completed"]).tzinfo is not None
+    assert datetime.fromisoformat(task["last_completed"]).utcoffset() == TZ.utcoffset(
+        None
+    )
+    assert datetime.fromisoformat(task["completions"][0]["ts"]).tzinfo is not None
+
+
+def test_a_blank_seed_is_not_treated_as_a_date():
+    # "" reaches here from a cleared form field, and must mean "no seed" rather than
+    # an unparseable date.
+    task = m.build_task({**_oil_change(), "last_completed": ""}, now=NOW)
+    assert task["completions"] == []
+    assert task["last_completed"] is None
+
+
+def test_a_sensor_task_records_when_it_was_created():
+    task = m.build_task(_oil_change(), now=NOW)
+    assert task["created"] == NOW.isoformat()

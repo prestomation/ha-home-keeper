@@ -249,6 +249,10 @@
         "who": {
           "name": "Wie",
           "description": "Optionele persoon die de taak heeft uitgevoerd (een persoon-entiteits-id)."
+        },
+        "reading": {
+          "name": "Meterstand",
+          "description": "Voor een sensortaak in verbruiks- of drempelmodus: de waarde van de gekoppelde sensor toen het werk gedaan werd. Laat je hem weg, dan leest Home Keeper de sensor live uit. Geef hem expliciet op bij terugdateren, want de meter is intussen verder gelopen. Bij een verbruikstaak wordt hij tevens de nieuwe beginstand."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Wie",
           "description": "Nieuwe persoon-entiteits-id (weglaten of leeg laten om te wissen)."
+        },
+        "reading": {
+          "name": "Meterstand",
+          "description": "Nieuwe sensorstand voor deze uitvoering (weglaten of leeg laten om hem te wissen). Alleen geldig bij een sensortaak in verbruiks- of drempelmodus."
         }
       }
     },

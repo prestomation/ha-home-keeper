@@ -249,6 +249,10 @@
         "who": {
           "name": "Qui",
           "description": "Personne facultative ayant réalisé la tâche (un id d'entité personne)."
+        },
+        "reading": {
+          "name": "Relevé du compteur",
+          "description": "Pour une tâche capteur en mode utilisation ou seuil, la valeur du capteur lié au moment des travaux. Sans valeur, Home Keeper interroge le capteur en direct. Indiquez-la explicitement en cas d'antidatage, car le compteur a avancé depuis. Sur une tâche d'utilisation, elle devient aussi le nouveau relevé de départ."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Qui",
           "description": "Nouvel id d'entité personne (à omettre ou laisser vide pour l'effacer)."
+        },
+        "reading": {
+          "name": "Relevé du compteur",
+          "description": "Nouveau relevé du capteur pour cette réalisation (omettez-le ou laissez-le vide pour l'effacer). Valable uniquement pour une tâche capteur en mode utilisation ou seuil."
         }
       }
     },

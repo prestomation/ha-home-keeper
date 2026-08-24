@@ -91,9 +91,10 @@ EVENT_TASK_DUE_SOON = f"{DOMAIN}_task_due_soon"  # + ``due_in_hours``
 # way (see assets.stock_transition). out_of_stock wins over low on a single step.
 EVENT_PART_OUT_OF_STOCK = f"{DOMAIN}_part_out_of_stock"
 EVENT_PART_RESTOCKED = f"{DOMAIN}_part_restocked"
-# Fired when a recorded completion's metadata (note/cost/photo/who) is edited
+# Fired when a recorded completion's detail (note/cost/photo/who/reading) is edited
 # after the fact — a state change distinct from completing/uncompleting. Carries
-# the task spine plus the edited completion's ``ts``. See docs/EVENTS.md.
+# the task spine plus the edited completion's ``ts``, and ``meter_baseline`` when the
+# edit re-anchored a usage meter (see store.update_completion). See docs/EVENTS.md.
 EVENT_TASK_COMPLETION_UPDATED = f"{DOMAIN}_task_completion_updated"
 # Asset (appliance) lifecycle — fired at the store.py asset chokepoints.
 EVENT_ASSET_CREATED = f"{DOMAIN}_asset_created"
@@ -303,6 +304,21 @@ COMPLETION_DETAIL_MODES = [
 # per-task "which fields are required" editor needs only to populate the list — no
 # storage migration. v1 derives it from the mode (required -> ["note"]).
 COMPLETION_METADATA_FIELDS = ["note", "cost", "photo", "who"]
+
+# Completion fields Home Keeper *captures* rather than asks for: ``reading`` is the
+# bound sensor's value at the moment a sensor task was completed ("the odometer read
+# 45,000"). Deliberately NOT in COMPLETION_METADATA_FIELDS, which doubles as the
+# allowlist for ``completion_required_fields``: a task can't demand a number the user
+# never types, and a floating task with no sensor at all could otherwise be marked as
+# requiring one and become uncompletable from the panel. Editable after the fact (a
+# back-dated completion records today's reading, so it often needs correcting) — just
+# never mandatory.
+COMPLETION_CAPTURED_FIELDS = ["reading"]
+
+# Every key a completion history entry may carry beside its mandatory ``ts``. This is
+# the list to iterate when lifting/echoing/persisting a completion's fields; only
+# ``completion_required_fields`` validation uses the narrower metadata list above.
+COMPLETION_ENTRY_FIELDS = [*COMPLETION_METADATA_FIELDS, *COMPLETION_CAPTURED_FIELDS]
 
 # Floating interval units.
 UNIT_DAYS = "days"

@@ -212,12 +212,19 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await numberAt(0).fill('300'); // Target (units of use)
     await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
+    // Type a **starting reading** and watch the hint rewrite itself from a forward
+    // guess ("reads 780 now, due at 1080") into a statement about where this machine
+    // actually is ("counting from 700, 80 of 300 already used, due at 1000"). That
+    // rewrite is the argument for the field, and only motion shows it.
+    await numberAt(1).fill('700'); // Starting reading
+    await expect(panel.locator('#hk-sensor-hint')).toContainText('Counting from 700');
+    await page.waitForTimeout(BEAT * 3);
     // Flip "Also come due on a schedule" — the three backstop fields appear, already
     // seeded, and the summary gains its second half. That reveal is the beat.
     await panel.locator('#hk-task-form ha-selector-boolean ha-switch').first().click();
-    await expect(panel.locator('#hk-task-form ha-selector-number')).toHaveCount(2);
+    await expect(panel.locator('#hk-task-form ha-selector-number')).toHaveCount(3);
     await page.waitForTimeout(BEAT);
-    await numberAt(1).fill('6'); // Or every … (the time backstop)
+    await numberAt(2).fill('6'); // Or every … (the time backstop)
     await expect(panel.locator('#hk-form-summary-value')).toHaveText(
       'Every 300 of use, or every 6 months',
     );

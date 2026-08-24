@@ -383,6 +383,16 @@ Pick **Based on a sensor** on the task form, choose the **sensor**, and pick a *
   Home Keeper re-anchors automatically so it never gets stuck. Great for odometers,
   runtime-hours, and cycle counters.
 
+  > **Already partway through?** Anchoring at "now" is wrong for a machine you've
+  > already serviced. It starts the task a whole interval late. Fill in **Starting
+  > reading** and Home Keeper counts from there instead. Your odometer reads
+  > **48,000**, you change the oil every **10,000 miles**, and the last change was at
+  > **45,000**: set the starting reading to 45,000 and the task reads *"3,000 of 10,000
+  > used"* straight away and comes due at 55,000. Leave it blank for the anchor-at-now
+  > behaviour. **Last completed** does the same job for the calendar half of the rule
+  > (see [below](#hours-or-months-whichever-comes-first)), so a machine serviced in
+  > March is three months into its 12-month backstop rather than starting today.
+
   > **Where the numbers show up.** As you fill in the form, a live hint reads your
   > chosen sensor and spells this out (*"This sensor reads 660 h now. The task becomes
   > due at 760 h, then every 100 h after each completion."*), and a **?** by the form
@@ -447,14 +457,30 @@ annual service you'd otherwise never hear about.
 go"* line under it. The **unit label** beside the target is what turns a bare "300" into
 "300 h"; Home Keeper prefills it from the sensor you pick, and you can change or clear
 it. The same figures ride as attributes on the task's next-due sensor entity
-(`usage_consumed`, `usage_remaining`, `usage_percent`, `usage_target`, `usage_unit`, and
-`backstop_due`), so a template card or automation can read them without any parsing.
+(`usage_consumed`, `usage_remaining`, `usage_percent`, `usage_target`, `usage_unit`,
+`usage_baseline`, `backstop_due`, and `last_completion_reading`), so a template card or
+automation can read them without any parsing.
 As with every per-task entity, that sensor exists for tasks **attached to a device**.
+
+**Where the meter was, in the history.** Completing a sensor task records the bound
+sensor's reading alongside the note, cost and photo, so the log answers the question a
+mileage- or hours-based service actually turns on: *"what did the odometer say when I
+last changed the oil?"* Each history row shows it, and the pencil on that row edits it
+like any other detail. Correcting the reading on the **most recent** completion also
+moves the meter's anchor, because that reading is the anchor. Otherwise the history
+would say 45,000 while the progress bar counted from 48,000. Older rows are just log
+entries and leave the meter alone.
+
+The completion dialog pre-fills the reading from the live sensor, which is right for
+work you're logging as you finish it. It's a plain field, so **back-dating** works too:
+set **Completed at** to when you actually did the job and type the reading it had then,
+rather than the one the meter has drifted to since.
 
 **Already done it?** `home_keeper.set_task_meter` re-anchors a usage task's baseline
 without recording a completion, for work you did before Home Keeper was watching, or
 when the meter itself was swapped or zeroed. Omit `baseline` and it anchors to whatever
-the sensor reads right now.
+the sensor reads right now. (To set the anchor while *creating* a task, use the
+**Starting reading** field instead. This service is for changing it afterwards.)
 
 ![Creating a usage/meter sensor task: pick the sensor and a target; no clock cadence](docs/images/30-panel-create-sensor-task.png)
 

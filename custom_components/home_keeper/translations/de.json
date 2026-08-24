@@ -249,6 +249,10 @@
         "who": {
           "name": "Wer",
           "description": "Optionale Person, die die Aufgabe ausgeführt hat (die Entitäts-ID einer Person)."
+        },
+        "reading": {
+          "name": "Zählerstand",
+          "description": "Bei einer Sensoraufgabe im Verbrauchs- oder Schwellenmodus der Wert des gebundenen Sensors zum Zeitpunkt der Arbeit. Ohne Angabe liest Home Keeper den Sensor live aus. Bei Rückdatierung ausdrücklich angeben, da der Zähler inzwischen weitergelaufen ist. Bei einer Verbrauchsaufgabe wird daraus zugleich der neue Startwert."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Wer",
           "description": "Neue Entitäts-ID einer Person (weglassen oder leer lassen, um sie zu löschen)."
+        },
+        "reading": {
+          "name": "Zählerstand",
+          "description": "Neuer Sensorwert für diese Erledigung (weglassen oder leer lassen, um ihn zu entfernen). Nur bei einer Sensoraufgabe im Verbrauchs- oder Schwellenmodus gültig."
         }
       }
     },

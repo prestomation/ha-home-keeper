@@ -249,6 +249,10 @@
         "who": {
           "name": "Chi",
           "description": "Persona facoltativa che ha eseguito l'attività (un id di entità persona)."
+        },
+        "reading": {
+          "name": "Lettura del contatore",
+          "description": "Per un'attività a sensore in modalità utilizzo o soglia, il valore del sensore collegato quando è stato svolto il lavoro. Se lo ometti, Home Keeper legge il sensore in tempo reale. Indicalo esplicitamente quando retrodati, perché nel frattempo il contatore è avanzato. In un'attività di utilizzo diventa anche la nuova lettura iniziale."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Chi",
           "description": "Nuovo id di entità persona (ometti o lascia vuoto per cancellarlo)."
+        },
+        "reading": {
+          "name": "Lettura del contatore",
+          "description": "Nuova lettura del sensore per questo completamento (omettila o lasciala vuota per cancellarla). Valida solo per un'attività a sensore in modalità utilizzo o soglia."
         }
       }
     },

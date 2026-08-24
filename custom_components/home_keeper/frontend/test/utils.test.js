@@ -11,6 +11,8 @@ import {
   isArmedTriggered,
   isOverdue,
   dueLabel,
+  taskRecordsReading,
+  readingUnit,
   deviceName,
   deviceDomain,
   brandLogoUrl,
@@ -420,5 +422,90 @@ describe('buildPath', () => {
     for (const loc of locs) {
       expect(parseRoute(buildPath(loc))).toEqual(loc);
     }
+  });
+});
+
+// ── the meter-reading helpers (issue #235) ───────────────────────────────────
+
+describe('taskRecordsReading', () => {
+  const sensor = (mode, over = {}) => ({
+    recurrence_type: 'sensor',
+    sensor: { entity_id: 'sensor.odo', mode, ...over },
+  });
+
+  it('is true for the numeric modes', () => {
+    expect(taskRecordsReading(sensor('usage'))).toBe(true);
+    expect(taskRecordsReading(sensor('threshold'))).toBe(true);
+  });
+
+  it('is false for state mode — "on" is not a number to log', () => {
+    expect(taskRecordsReading(sensor('state'))).toBe(false);
+  });
+
+  it('defaults a binding with no mode to usage, matching normalize_sensor', () => {
+    expect(taskRecordsReading({ recurrence_type: 'sensor', sensor: { entity_id: 'x' } })).toBe(
+      true,
+    );
+  });
+
+  it('is false for every non-sensor task and for missing input', () => {
+    for (const rec of ['floating', 'fixed', 'one-off', 'triggered']) {
+      expect(taskRecordsReading({ recurrence_type: rec }), rec).toBe(false);
+    }
+    expect(taskRecordsReading({ recurrence_type: 'sensor' })).toBe(false);
+    expect(taskRecordsReading(null)).toBe(false);
+    expect(taskRecordsReading(undefined)).toBe(false);
+  });
+});
+
+describe('readingUnit', () => {
+  const hass = {
+    states: {
+      'sensor.coolant': { state: '94', attributes: { unit_of_measurement: '°C' } },
+      'sensor.bare': { state: '5', attributes: {} },
+    },
+  };
+
+  it("prefers the usage binding's own unit label", () => {
+    const task = {
+      sensor: { entity_id: 'sensor.coolant', mode: 'usage', unit: 'h' },
+    };
+    // The label the user typed wins over the entity's — that is the whole point of
+    // the field, and the meter arithmetic is unit-agnostic anyway.
+    expect(readingUnit(task, hass)).toBe('h');
+  });
+
+  it("falls back to the entity's unit when the binding has none", () => {
+    // A threshold binding carries no `unit` at all — it is usage-only in the model.
+    const task = { sensor: { entity_id: 'sensor.coolant', mode: 'threshold' } };
+    expect(readingUnit(task, hass)).toBe('°C');
+  });
+
+  it('returns nothing for an attribute binding', () => {
+    // An arbitrary attribute's unit is not described by the entity's own
+    // unit_of_measurement, so borrowing it would label the number wrongly.
+    const task = {
+      sensor: { entity_id: 'sensor.coolant', mode: 'threshold', attribute: 'humidity' },
+    };
+    expect(readingUnit(task, hass)).toBe('');
+  });
+
+  it('returns nothing when there is no task, binding, entity or unit', () => {
+    expect(readingUnit(undefined, hass)).toBe('');
+    expect(readingUnit({}, hass)).toBe('');
+    expect(readingUnit({ sensor: { entity_id: 'sensor.gone' } }, hass)).toBe('');
+    expect(readingUnit({ sensor: { entity_id: 'sensor.bare' } }, hass)).toBe('');
+    expect(readingUnit({ sensor: { entity_id: 'sensor.coolant' } }, undefined)).toBe('');
+  });
+});
+
+describe('readingUnit — entities without attributes', () => {
+  it('returns nothing when the entity carries no attributes at all', () => {
+    const hass = { states: { 'sensor.x': { state: '5' } } };
+    expect(readingUnit({ sensor: { entity_id: 'sensor.x' } }, hass)).toBe('');
+  });
+
+  it('returns nothing when hass has no states map', () => {
+    expect(readingUnit({ sensor: { entity_id: 'sensor.x' } }, {})).toBe('');
   });
 });

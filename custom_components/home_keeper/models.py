@@ -66,7 +66,9 @@ def _finite_float(value: Any, field: str) -> float:
     return result
 
 
-def normalize_completion_metadata(data: Any) -> dict[str, Any]:
+def normalize_completion_metadata(
+    data: Any, *, allow_reading: bool = False
+) -> dict[str, Any]:
     """Clean optional per-completion metadata into a dict of non-empty keys.
 
     Accepts a mapping with any of ``note`` / ``cost`` / ``photo`` / ``who`` and
@@ -75,10 +77,25 @@ def normalize_completion_metadata(data: Any) -> dict[str, Any]:
     opaque id strings (an image-upload id and a ``person`` entity id respectively).
     The result is what gets merged into a completion's history entry, so an empty
     input yields an empty dict (a plain timestamped completion). Pure — no HA imports.
+
+    ``allow_reading`` opts in to the captured ``reading`` key — the bound sensor's
+    value at completion time. It is off by default and a disallowed ``reading``
+    **raises** rather than being dropped, mirroring :func:`_reject_fields`: silently
+    discarding it would let a caller believe a floating task's history recorded a
+    meter it has no sensor to read. Unlike ``cost`` there is no ``>= 0`` floor — a
+    net-energy or temperature sensor legitimately reads below zero, and
+    ``sensor.baseline`` (the number this has to stay comparable with) has none either.
     """
     if not isinstance(data, dict) or not data:
         return {}
     result: dict[str, Any] = {}
+    reading = data.get("reading")
+    if reading is not None and reading != "":
+        if not allow_reading:
+            raise TaskValidationError(
+                "reading is only valid for a sensor task with a numeric binding"
+            )
+        result["reading"] = _finite_float(reading, "reading")
     note = str(data.get("note") or "").strip()
     if note:
         result["note"] = note
@@ -109,6 +126,27 @@ def normalize_completion_metadata(data: Any) -> dict[str, Any]:
     return result
 
 
+def task_records_reading(task: Any) -> bool:
+    """Whether completing *task* should record the bound sensor's reading.
+
+    True for a sensor task in a **numeric** mode (``usage`` or ``threshold``). A
+    ``state`` binding compares a string (``on`` / ``docked``), so there is no number
+    to log. This is the single gate for the whole feature — the store consults it
+    before capturing, the metadata normalizer before accepting, and the panel before
+    offering the field — so widening it later (a future numeric mode) is one line.
+    Pure — takes a plain task dict, no HA imports.
+    """
+    if not isinstance(task, dict) or task.get("recurrence_type") != REC_SENSOR:
+        return False
+    cfg = task.get("sensor")
+    if not isinstance(cfg, dict):
+        return False
+    return cfg.get("mode", SENSOR_MODE_USAGE) in (
+        SENSOR_MODE_USAGE,
+        SENSOR_MODE_THRESHOLD,
+    )
+
+
 def normalize_completion_required_fields(value: Any, mode: str) -> list[str]:
     """Normalize a task's ``completion_required_fields`` for capture *mode*.
 
@@ -120,6 +158,10 @@ def normalize_completion_required_fields(value: Any, mode: str) -> list[str]:
     """
     if mode != COMPLETION_DETAIL_REQUIRED:
         return []
+    # Deliberately the *metadata* list, not COMPLETION_ENTRY_FIELDS: a captured field
+    # like ``reading`` is filled in by Home Keeper, so demanding it would gate the
+    # completion on something the user was never asked for — and on a task with no
+    # sensor bound, on something that can never arrive at all.
     allowed = set(COMPLETION_METADATA_FIELDS)
     result: list[str] = []
     if isinstance(value, (list, tuple)):
@@ -644,25 +686,32 @@ def build_task(data: dict, *, now: datetime) -> dict:
         **fields,
     }
     seed = data.get("last_completed")
-    if task["recurrence_type"] == REC_SENSOR:
+    if seed not in (None, ""):
+        # Recording the seed as a completion both stamps last_completed and lets the
+        # recurrence engine derive next_due (floating -> seed + interval; fixed stays
+        # anchor-driven, the seed just becomes its first history entry). A sensor task
+        # takes one too: it anchors the time backstop (``sensor.also_every``), so a
+        # task created for a machine serviced three months ago is three months into its
+        # calendar interval rather than starting the clock today. ``apply_completion``
+        # leaves a sensor task dormant, so this records history without arming it.
+        #
+        # When a sensor binding also carries an explicit ``baseline``, the date and the
+        # reading describe one event — "serviced then, at that reading" — so the seeded
+        # entry records the reading too. That makes the feature's invariant true from
+        # the very first row: a usage task's baseline is the reading on its latest
+        # completion, which is what lets a history edit re-anchor the meter.
+        meta: dict[str, Any] = {}
+        baseline = (fields.get("sensor") or {}).get("baseline")
+        if baseline is not None and task_records_reading(task):
+            meta["reading"] = baseline
+        recurrence.apply_completion(
+            task, _coerce_seed(seed, tz=now.tzinfo), now=now, metadata=meta
+        )
+    elif task["recurrence_type"] == REC_SENSOR:
         # A sensor task is born dormant: the watcher arms it (via ``trigger_task``)
         # only once the live reading actually meets its condition. ``compute_next_due``
         # would read as due-now (the re-arm contract), so set ``None`` directly.
         task["next_due"] = None
-        if seed not in (None, ""):
-            # A seeded "last serviced" date is meaningful for a sensor task too: it
-            # anchors the time backstop (``sensor.also_every``), so a task created for
-            # a machine serviced three months ago is three months into its calendar
-            # interval rather than starting the clock today. ``apply_completion``
-            # leaves a sensor task dormant, so this records history without arming.
-            recurrence.apply_completion(
-                task, _coerce_seed(seed, tz=now.tzinfo), now=now
-            )
-    elif seed not in (None, ""):
-        # Recording the seed as a completion both stamps last_completed and lets the
-        # recurrence engine derive next_due (floating -> seed + interval; fixed stays
-        # anchor-driven, the seed just becomes its first history entry).
-        recurrence.apply_completion(task, _coerce_seed(seed, tz=now.tzinfo), now=now)
     else:
         task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
     return task

@@ -249,6 +249,10 @@
         "who": {
           "name": "Hvem",
           "description": "Valgfri person som utførte oppgaven (en person-entitets-id)."
+        },
+        "reading": {
+          "name": "Måleravlesning",
+          "description": "For en sensoroppgave i bruks- eller terskelmodus: verdien til den tilknyttede sensoren da arbeidet ble gjort. Utelates den, leser Home Keeper sensoren direkte. Oppgi den uttrykkelig ved tilbakedatering, siden måleren har beveget seg etterpå. På en bruksoppgave blir den samtidig den nye startavlesningen."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Hvem",
           "description": "Ny person-entitets-id (utelat eller la stå tomt for å fjerne den)."
+        },
+        "reading": {
+          "name": "Måleravlesning",
+          "description": "Ny sensoravlesning for denne utførelsen (utelat den eller la den stå tom for å fjerne den). Gjelder bare en sensoroppgave i bruks- eller terskelmodus."
         }
       }
     },

@@ -249,6 +249,10 @@
         "who": {
           "name": "Who",
           "description": "Optional person who performed the task (a person entity id)."
+        },
+        "reading": {
+          "name": "Meter reading",
+          "description": "For a sensor task in usage or threshold mode, the bound sensor's value when the work was done. Omit it and Home Keeper reads the sensor live. Pass it explicitly when back-dating, because the meter has moved since. On a usage task it also becomes the new baseline."
         }
       }
     },
@@ -279,6 +283,10 @@
         "who": {
           "name": "Who",
           "description": "New person entity id (omit or leave blank to clear it)."
+        },
+        "reading": {
+          "name": "Meter reading",
+          "description": "New sensor reading for this completion (omit or leave blank to clear it). Only valid for a sensor task in usage or threshold mode."
         }
       }
     },

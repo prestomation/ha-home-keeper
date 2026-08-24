@@ -17,7 +17,7 @@ from homeassistant.util import dt as dt_util
 from . import companions, devices, inventory, manuals, notifier, options
 from .assets import AssetValidationError, card_projection
 from .backend_i18n import resolve_exception
-from .const import DOMAIN, OPTION_PROFILES
+from .const import COMPLETION_ENTRY_FIELDS, DOMAIN, OPTION_PROFILES
 from .coordinator import HomeKeeperCoordinator, entity_set_key, task_has_entities
 from .models import TaskValidationError
 from .shopping_sync import own_todo_entity_ids
@@ -248,8 +248,12 @@ async def ws_set_task_consumable(
 
 
 def _ws_metadata(msg: dict[str, Any]) -> dict[str, Any]:
-    """Lift the optional per-completion metadata keys out of a websocket message."""
-    return {k: msg[k] for k in ("note", "cost", "photo", "who") if k in msg}
+    """Lift the optional per-completion keys out of a websocket message.
+
+    Driven off the shared field list rather than a local literal so a new completion
+    field reaches the store instead of being silently dropped here.
+    """
+    return {k: msg[k] for k in COMPLETION_ENTRY_FIELDS if k in msg}
 
 
 @websocket_api.websocket_command(
@@ -261,6 +265,7 @@ def _ws_metadata(msg: dict[str, Any]) -> dict[str, Any]:
         vol.Optional("cost"): vol.Coerce(float),
         vol.Optional("photo"): str,
         vol.Optional("who"): str,
+        vol.Optional("reading"): vol.Coerce(float),
     }
 )
 @websocket_api.async_response
@@ -302,6 +307,7 @@ async def ws_complete_task(
         vol.Optional("cost"): vol.Coerce(float),
         vol.Optional("photo"): str,
         vol.Optional("who"): str,
+        vol.Optional("reading"): vol.Coerce(float),
     }
 )
 @websocket_api.async_response

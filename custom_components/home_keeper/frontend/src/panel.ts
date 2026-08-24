@@ -90,12 +90,14 @@ import {
   isSafeImageUrl,
   parseRoute,
   randomId,
+  readingUnit,
   round1,
   safeFileHref,
   safeHref,
   recurrenceSummary,
   scanRequired,
   tagName,
+  taskRecordsReading,
   tasksForAsset,
   type PanelLocation,
 } from './utils';
@@ -793,7 +795,14 @@ interface CompletionDialogState {
   open: boolean;
   task: Task | null;
   ts?: string;
-  data: { completedAt?: string; note?: string; cost?: number; photo?: string; who?: string };
+  data: {
+    completedAt?: string;
+    note?: string;
+    cost?: number;
+    photo?: string;
+    who?: string;
+    reading?: number;
+  };
   required: string[];
   error?: string;
 }
@@ -1473,7 +1482,7 @@ export class HomeKeeperPanel extends HTMLElement {
       open: true,
       task,
       ts: c.ts,
-      data: { note: c.note, cost: c.cost, photo: c.photo, who: c.who },
+      data: { note: c.note, cost: c.cost, photo: c.photo, who: c.who, reading: c.reading },
       required: [],
     };
     this._render();
@@ -4640,6 +4649,18 @@ export class HomeKeeperPanel extends HTMLElement {
       { name: 'cost', required: req.has('cost'), selector: selNumber(0) },
       { name: 'who', required: req.has('who'), selector: selEntity({ domain: 'person' }) },
     );
+    // A sensor task in a numeric mode also logs where its meter stood. Home Keeper
+    // fills this in from the live sensor, so it is never *required* — but it is
+    // editable, which matters twice: back-dating records today's reading (the meter
+    // has moved since the work was done), and on a usage task correcting it on the
+    // latest completion re-anchors the meter itself. Bare number selector, like the
+    // form's starting-reading box: a reading can be 0 or negative.
+    const live = taskRecordsReading(c.task) ? this._sensorLive(c.task) : null;
+    if (live)
+      schema.push({
+        name: 'reading',
+        selector: { number: { mode: 'box', step: 'any' } },
+      });
     // A completion note renders as Markdown in the history list, so it gets the same
     // live preview as every other notes field.
     let notePreview: MarkdownPreview | null = null;
@@ -4650,6 +4671,9 @@ export class HomeKeeperPanel extends HTMLElement {
         note: c.data.note ?? '',
         cost: c.data.cost ?? undefined,
         who: c.data.who ?? undefined,
+        // Logging a new completion pre-fills the live reading (that *is* where the
+        // meter stands); editing shows what was recorded at the time.
+        reading: c.data.reading ?? (editing ? undefined : live?.reading),
       },
       (value) => {
         this._completion.data = {
@@ -4658,6 +4682,8 @@ export class HomeKeeperPanel extends HTMLElement {
           note: (value.note as string) || undefined,
           cost: value.cost == null || value.cost === '' ? undefined : Number(value.cost),
           who: (value.who as string) || undefined,
+          reading:
+            value.reading == null || value.reading === '' ? undefined : Number(value.reading),
         };
         this._completion.error = undefined;
         notePreview?.update(String(value.note ?? ''));
@@ -5989,6 +6015,12 @@ export class HomeKeeperPanel extends HTMLElement {
     // Editing a completion's metadata only applies to a live task (the backend's
     // update_completion works on tasks, not an appliance's archived history).
     const editTask = !group.archived ? group.taskId : undefined;
+    // The unit for any meter readings in this group, resolved once rather than per
+    // row. An archived group has no live task, so its rows show a bare number.
+    const unit = readingUnit(
+      group.taskId ? this._tasks.find((x) => x.id === group.taskId) : undefined,
+      this._hass,
+    );
     const items = comps
       .map((c) => {
         const d = new Date(c.ts);
@@ -6011,16 +6043,33 @@ export class HomeKeeperPanel extends HTMLElement {
               <span class="when">${escapeHTML(this._relativeDay(d))}</span>
               <span class="hk-hist-actions">${moveBtn}${editBtn}<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button></span>
             </div>
-            ${this._completionMeta(c)}
+            ${this._completionMeta(c, unit)}
           </li>`;
       })
       .join('');
     return `<div class="hk-hist-group">${head}<ul class="hk-hist-list">${items}</ul></div>`;
   }
 
-  /** Render a completion's recorded metadata (note / cost / who / photo), if any. */
-  private _completionMeta(c: Completion): string {
+  /**
+   * Render a completion's recorded detail (reading / cost / who / note / photo).
+   *
+   * `unit` is resolved once per history group by the caller rather than looked up
+   * here: a `Completion` is a bare history entry and knows nothing about the sensor
+   * it came from, and an archived group has no live task to ask at all (its rows then
+   * show a bare number, which is still the figure that matters).
+   */
+  private _completionMeta(c: Completion, unit = ''): string {
     const bits: string[] = [];
+    // The meter reading leads: on a usage task it is the number the whole task is
+    // measured in, and it is what the cost/who chips are context for.
+    if (c.reading != null)
+      bits.push(
+        escapeHTML(
+          t('completion.reading', {
+            reading: `${round1(c.reading)}${unit ? ` ${unit}` : ''}`,
+          }),
+        ),
+      );
     if (c.cost != null) bits.push(escapeHTML(this._formatCost(c.cost)));
     if (c.who) bits.push(escapeHTML(t('completion.by', { who: this._personName(c.who) })));
     const line = bits.length

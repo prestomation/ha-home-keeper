@@ -1,5 +1,5 @@
 import { t, tn } from './i18n';
-import type { Asset, HassArea, HassLabel, Task } from './types';
+import type { Asset, Hass, HassArea, HassLabel, Task } from './types';
 
 /** Escape user-provided text before injecting into innerHTML. */
 export function escapeHTML(value: unknown): string {
@@ -103,6 +103,45 @@ export function formatQuantity(value: number, unit?: string | null): string {
   const text = String(parseFloat(value.toFixed(3)));
   const label = (unit || '').trim();
   return label ? `${text} ${label}` : text;
+}
+
+/**
+ * Whether completing `task` records the bound sensor's reading.
+ *
+ * True for a sensor task in a *numeric* mode — `usage` or `threshold`. A `state`
+ * binding compares a string (`on`, `docked`), so there is no number to log. Mirrors
+ * `models.task_records_reading` on the backend; both exist so the panel can decide
+ * whether to offer the field without a round trip, and both are the single place the
+ * scope is written down, so widening it later is one line on each side.
+ */
+export function taskRecordsReading(task: Partial<Task> | null | undefined): boolean {
+  if (!task || task.recurrence_type !== 'sensor') return false;
+  // An absent binding has nothing to read, so check for it before applying
+  // `normalize_sensor`'s default of `usage` to a binding that merely omits `mode`.
+  if (!task.sensor) return false;
+  const mode = task.sensor.mode ?? 'usage';
+  return mode === 'usage' || mode === 'threshold';
+}
+
+/**
+ * The unit label to show beside a meter reading for `task`.
+ *
+ * A usage binding carries its own `unit` (the label the user typed, e.g. "h"), which
+ * wins. A threshold binding has no `unit` field at all — it is usage-only in the
+ * backend model — so fall back to the bound entity's `unit_of_measurement`. An
+ * `attribute` binding reads an arbitrary attribute whose unit the entity does not
+ * describe, so that falls through to no label rather than borrowing a wrong one.
+ */
+export function readingUnit(
+  task: Partial<Task> | null | undefined,
+  hass?: Hass,
+): string {
+  const s = task?.sensor;
+  if (!s) return '';
+  if (s.unit) return s.unit;
+  if (s.attribute) return '';
+  const state = s.entity_id ? hass?.states?.[s.entity_id] : undefined;
+  return (state?.attributes?.unit_of_measurement as string | undefined) || '';
 }
 
 /** Human-readable summary of a task's recurrence rule. */

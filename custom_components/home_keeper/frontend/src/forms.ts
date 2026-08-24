@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import { recurrenceSummary } from './utils';
+import { recurrenceSummary, round1 } from './utils';
 import type {
   Hass,
   Notification,
@@ -310,6 +310,19 @@ export function taskSchema(
           : [
               { name: 'sensor_target', required: true, selector: selNumber(0) } as FormField,
               { name: 'sensor_unit', selector: selText() } as FormField,
+              // Where the meter counts from. Left blank, Home Keeper anchors at the
+              // sensor's reading when you save — the original behaviour, and still the
+              // common case. Filled in, it says "the last service happened at this
+              // reading", so a task created for a car serviced 3,000 miles ago starts
+              // 3,000 miles in instead of a whole interval late. Bare number selector
+              // rather than `selNumber(0)`: that helper pins `min: 0`, and neither the
+              // backend (`_finite_float`, no range gate) nor a real meter agrees — a
+              // net-energy or temperature sensor reads below zero, and a stored float
+              // like 660.5 must stay re-savable.
+              {
+                name: 'sensor_baseline',
+                selector: { number: { mode: 'box', step: 'any' } },
+              } as FormField,
               // The time backstop, behind its own switch. A real service interval is
               // usually "every N hours *or* every M months", and without the second
               // half a machine that sits idle never comes due — but a pure meter is
@@ -369,7 +382,13 @@ export function taskSchema(
     ...(isOneOff && !locked.has('due')
       ? [{ name: 'due', selector: selDateTime() } as FormField]
       : []),
-    ...(!task.id && !isOneOff && !isSensor && !locked.has('last_completed')
+    // "Last completed" seeds the first history entry. For a scheduled task that
+    // places the first due date; for a *sensor* task it anchors the time backstop
+    // (`sensor.also_every`), so "every 10,000 mi or 12 months" starts its calendar
+    // half where the meter half starts rather than restarting today. `build_task`
+    // has always handled the sensor case (recording history without arming) — only
+    // this predicate hid the field.
+    ...(!task.id && !isOneOff && !locked.has('last_completed')
       ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
       : []),
     ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
@@ -449,6 +468,7 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
     sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
     sensor_unit: sd.sensor_unit ?? task.sensor?.unit ?? '',
+    sensor_baseline: sd.sensor_baseline ?? task.sensor?.baseline ?? undefined,
     sensor_backstop_on: backstopEnabled(task),
     // Seeded rather than left at 0 so switching the backstop on gives a working rule
     // straight away instead of three fields that quietly do nothing until you notice
@@ -578,6 +598,15 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       sensor.target = Number(sd.sensor_target ?? task.sensor?.target) || 0;
       const unit = String(sd.sensor_unit ?? task.sensor?.unit ?? '').trim();
       if (unit) sensor.unit = unit;
+      // The meter's starting point. Only sent when the box actually holds a number:
+      // blank on create means "anchor at the live reading" (the backend leaves
+      // `baseline` unset for the watcher to stamp), and blank on edit is preserved
+      // by `merge_update`. Note the deliberate absence of the `|| 0` fallback used
+      // for `target` above — 0 is a *valid* baseline (a brand-new hour meter) and
+      // that idiom would turn a cleared box into a real anchor at zero.
+      const rawBaseline = sd.sensor_baseline ?? task.sensor?.baseline;
+      if (rawBaseline != null && rawBaseline !== '' && Number.isFinite(Number(rawBaseline)))
+        sensor.baseline = Number(rawBaseline);
       // The backstop applies only when its switch is on; a blank or zero interval
       // still drops it, so a half-filled form can't save a meaningless "every 0".
       const alsoEvery = Number(sd.sensor_also_every ?? task.sensor?.also_every?.interval) || 0;
@@ -705,6 +734,76 @@ const COMPARISON_SYMBOLS: Record<string, string> = {
 };
 
 /**
+ * The meter half of `sensorHintText`: where counting starts, and where that lands.
+ *
+ * Split out because a usage task now has two anchors rather than one. Without an
+ * explicit starting reading the meter anchors at whatever the sensor says when you
+ * save, which is the original behaviour and reads forward ("reads 660, due at 760").
+ * With one, the anchor is a fact about the past ("the oil was changed at 45,000"),
+ * so the sentence has to say how much of the interval that already spends — the
+ * whole point of the field is that you're partway through before you begin.
+ *
+ * Two cases the arithmetic has to call out rather than leave the reader to spot:
+ * a starting reading *above* the live one (a typo, or a meter about to be reset —
+ * either way the watcher will re-anchor, so say so), and one far enough back that
+ * the target is already met, which arms the task moments after you save.
+ */
+function usageHint(
+  task: Partial<Task>,
+  ctx: { reading?: number; unit?: string },
+  target: number,
+  targetStr: string,
+  unit: string,
+): string {
+  const sd = task as Record<string, unknown>;
+  const rawBaseline = sd.sensor_baseline ?? task.sensor?.baseline;
+  const baseline = Number(rawBaseline);
+  const hasBaseline =
+    rawBaseline != null && rawBaseline !== '' && Number.isFinite(baseline);
+  const hasReading = ctx.reading != null && !Number.isNaN(ctx.reading);
+
+  if (!hasBaseline) {
+    return hasReading
+      ? t('hint.sensor.usage', {
+          reading: `${ctx.reading}${unit}`,
+          due: `${round1((ctx.reading as number) + target)}${unit}`,
+          target: targetStr,
+        })
+      : t('hint.sensor.usageNoReading', { target: targetStr });
+  }
+
+  const due = `${round1(baseline + target)}${unit}`;
+  if (!hasReading) {
+    return t('hint.sensor.usageFromBaselineNoReading', {
+      baseline: `${baseline}${unit}`,
+      due,
+      target: targetStr,
+    });
+  }
+  const reading = ctx.reading as number;
+  if (reading < baseline) {
+    return t('hint.sensor.usageBaselineAhead', {
+      baseline: `${baseline}${unit}`,
+      reading: `${reading}${unit}`,
+    });
+  }
+  const consumed = round1(reading - baseline);
+  if (consumed >= target) {
+    return t('hint.sensor.usageAlreadyDue', {
+      baseline: `${baseline}${unit}`,
+      consumed: `${consumed}${unit}`,
+      target: targetStr,
+    });
+  }
+  return t('hint.sensor.usageFromBaseline', {
+    baseline: `${baseline}${unit}`,
+    consumed: `${consumed}${unit}`,
+    due,
+    target: targetStr,
+  });
+}
+
+/**
  * A plain-language sentence explaining when a sensor-based task will next become
  * due, given the sensor's live reading. Pure (no DOM) so the panel can render it
  * under the sensor fields and unit tests can assert the wording and arithmetic.
@@ -759,14 +858,7 @@ export function sensorHintText(
   const target = Number(rawTarget);
   if (rawTarget == null || rawTarget === '' || Number.isNaN(target) || target <= 0) return '';
   const targetStr = `${target}${unit}`;
-  const base =
-    ctx.reading == null || Number.isNaN(ctx.reading)
-      ? t('hint.sensor.usageNoReading', { target: targetStr })
-      : t('hint.sensor.usage', {
-          reading: `${ctx.reading}${unit}`,
-          due: `${ctx.reading + target}${unit}`,
-          target: targetStr,
-        });
+  const base = usageHint(task, ctx, target, targetStr, unit);
   const alsoEvery = Number(sd.sensor_also_every ?? task.sensor?.also_every?.interval) || 0;
   if (!backstopEnabled(task) || alsoEvery <= 0) return base;
   const alsoUnit = String(sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months');

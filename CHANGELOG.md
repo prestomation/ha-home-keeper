@@ -21,6 +21,26 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   and the `unit` field the stock events now carry. `home_keeper.adjust_part_stock` takes
   a decimal `delta` too, so `-250` and `-0.33` are both valid adjustments. (Fixes #220)
 
+- **Start a usage meter somewhere other than "now", and see the meter in your
+  history.** A usage/meter task used to anchor at whatever the sensor read the moment
+  you created it, which starts every task for an already-serviced machine a full
+  interval late. The task form now has a **Starting reading**: your odometer reads
+  48,000, you change the oil every 10,000 miles, and the last change was at 45,000, so
+  you type 45,000 and the task says *"3,000 of 10,000 used"* straight away and comes
+  due at 55,000. The live hint does the arithmetic as you type, including warning you
+  if the number you typed is above what the sensor currently reads. **Last completed**
+  now appears on sensor tasks too, so the calendar half of "every 10,000 miles or 12
+  months" starts where the meter half does instead of restarting today.
+
+  Completing a sensor task also records what the sensor read at the time, next to the
+  note, cost and photo. Every history row shows it, and the pencil edits it, which
+  you need when you back-date a job you did last month and the meter has moved since.
+  Correcting the reading on the most recent completion re-anchors the meter to match,
+  so the history and the progress bar can't contradict each other. The figures are
+  automatable too: `usage_baseline` and `last_completion_reading` join the task's
+  next-due sensor attributes, and `complete_task` / `update_completion` both take a
+  `reading`. (Fixes #235)
+
 ### Fixed
 
 - **Opening Configure no longer wipes your notifications and profiles.** Saving the

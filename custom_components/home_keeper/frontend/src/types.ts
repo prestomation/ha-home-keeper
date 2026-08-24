@@ -58,6 +58,11 @@ export interface Completion {
   cost?: number;
   photo?: string;
   who?: string;
+  /** The bound sensor's value when a sensor task was completed — "the odometer read
+   *  45,000". Captured by the backend rather than typed, and correctable from the
+   *  history row; on a usage task, editing it on the latest completion re-anchors
+   *  the meter. Absent on non-sensor tasks and on history predating the feature. */
+  reading?: number;
 }
 
 /** Ownership block set by an integration at task-creation time. Home Keeper

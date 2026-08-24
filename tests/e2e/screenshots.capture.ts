@@ -47,15 +47,22 @@ async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Pr
  * isn't already in the wanted state, and waits for the schema to actually change.
  */
 async function setBackstop(panel: Locator, on: boolean): Promise<void> {
-  const numbers = panel.locator('#hk-task-form ha-selector-number');
-  const wanted = on ? 2 : 1;
-  if ((await numbers.count()) !== wanted) {
+  // Decide from the switch's own state, not from how many number fields are on
+  // screen. Inferring it from the count silently stops working the moment the usage
+  // form grows a field: adding "Starting reading" made the switched-*off* count equal
+  // the old switched-on count, so this helper concluded it had nothing to do, never
+  // clicked, and the assertion below passed on a form whose backstop was still off.
+  const sw = panel.locator('#hk-task-form ha-selector-boolean ha-switch').first();
+  const isOn = await sw.evaluate((el: HTMLElement & { checked?: boolean }) => !!el.checked);
+  if (isOn !== on) {
     // Click the switch itself, not its `ha-selector-boolean` wrapper: the wrapper
     // spans the full row, so a centred click lands in the dead space between the
     // label and the control and toggles nothing.
-    await panel.locator('#hk-task-form ha-selector-boolean ha-switch').first().click();
+    await sw.click();
   }
-  await expect(numbers).toHaveCount(wanted);
+  // Settle on the revealed/hidden fields: target + starting reading, plus the
+  // backstop interval when it's on.
+  await expect(panel.locator('#hk-task-form ha-selector-number')).toHaveCount(on ? 3 : 2);
 }
 
 /** Fill the input of the nth ha-form number selector within a scope. */
@@ -245,6 +252,44 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-meter').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/14b-panel-usage-progress.png`, fullPage: true });
+
+  // 48. The same page's history, now carrying the meter reading each completion was
+  // logged at (#235) — the number a mileage- or hours-based service actually turns
+  // on. Assert the chip as well as photographing it: #221 sat in plain sight in a
+  // committed screenshot for months because nothing tested what the picture showed.
+  const usageHistoryRow = panel.locator('.hk-hist-list li').first();
+  await expect(usageHistoryRow.locator('.hk-hist-chips')).toContainText('at 660 h');
+  await usageHistoryRow.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  await page.screenshot({
+    path: `${OUT}/48-panel-history-meter-reading.png`,
+    fullPage: true,
+  });
+
+  // 48b. Editing that reading. The pencil opens the same dialog that edits a note or
+  // cost, with the reading seeded from the completion — and on a usage task, saving a
+  // corrected value on the latest completion re-anchors the meter to match, so the
+  // progress bar can't contradict the log.
+  //
+  // Re-resolve the row and scroll it back into view first: the `fullPage` capture
+  // above resizes the viewport to stitch the page, and clicking straight afterwards
+  // can land before the layout has settled back.
+  await panel.locator('.hk-hist-list li').first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  await panel.locator('.hk-hist-list li').first().locator('.hk-hist-edit').click();
+  const readingDialog = panel.locator('ha-dialog[open]');
+  await expect(readingDialog).toHaveCount(1);
+  // Two number fields: the cost every completion has, and the meter reading this one
+  // has because its task is bound to a numeric sensor. A non-sensor task shows one.
+  await expect(readingDialog.locator('ha-selector-number')).toHaveCount(2);
+  await page.waitForTimeout(500);
+  await page.screenshot({
+    path: `${OUT}/48b-panel-history-edit-reading.png`,
+    fullPage: true,
+  });
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
@@ -426,13 +471,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/30-panel-create-sensor-task.png`, fullPage: true });
 
+
   // 30b. The same usage form with a **time backstop** — "every 100 h, or every 6
   // months, whichever comes first", which is how manufacturers actually write a
   // service interval. It lives behind the "Also come due on a schedule" switch, which
   // reveals the interval, its unit and the combinator; switching it on seeds a usable
   // interval so the revealed fields describe a real rule straight away.
   await setBackstop(panel, true);
-  await fillNumber(panel.locator('#hk-task-form'), 1, '6');
+  // Third number field now: target, starting reading, then the backstop interval.
+  await fillNumber(panel.locator('#hk-task-form'), 2, '6');
   await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
   // The summary strip above the submit button states the assembled rule in one
   // sentence. Several fields add up to it and none of them says it, so this is the
@@ -487,6 +534,45 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/43-panel-create-sensor-state.png`, fullPage: true });
+
+  // 47. A usage form with a **starting reading** (#235). Anchoring at "now" starts a
+  // task for an already-serviced machine a whole interval late, so this field says
+  // where the last service happened and the live hint re-does its arithmetic from
+  // there. On its own fresh form: it binds an entity and the shots above deliberately
+  // don't, and threading that through them coupled steps that have no business
+  // depending on each other. Assert the sentence rather than only photographing it —
+  // the numbers *are* the feature, and a picture can't prove they're right.
+  await openPanel(page);
+  await expect(panel.locator('#add-btn')).toBeVisible();
+  await panel.locator('#add-btn').click();
+  await expect(panel.locator('#hk-form')).toBeVisible();
+  await fillText(panel.locator('#hk-task-form'), 0, 'Service generator (runtime hours)');
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Based on a sensor/);
+  await expect(panel.locator('#hk-task-form ha-selector-entity').first()).toBeVisible();
+  // Target first, then the entity. Picking an entity re-emits the whole form value,
+  // so anything typed in the same tick is overwritten — fill each field only once the
+  // previous change has visibly landed. Bind the demo run-hours sensor (a constant
+  // 780 h) so the hint has a live value to work against: counting from 700 leaves
+  // 80 h of the 100 h target already spent.
+  await fillNumber(panel.locator('#hk-task-form'), 0, '100');
+  await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
+  await chooseEntity(
+    panel.locator('#hk-task-form'),
+    0,
+    'demo_printer_hours',
+    /Demo printer hours/,
+  );
+  await expect(panel.locator('#hk-sensor-hint')).toContainText('This sensor reads 780 h now');
+  await fillNumber(panel.locator('#hk-task-form'), 1, '700');
+  await expect(panel.locator('#hk-sensor-hint')).toContainText(
+    'Counting from 700 h, so 80 h of 100 h is already used and the task becomes due at 800 h.',
+  );
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: `${OUT}/47-panel-sensor-starting-reading.png`,
+    fullPage: true,
+  });
 
   // 33 + 34. Linked consumable (sensor-driven reorder). Attach a task to an appliance,
   // then its "Linked consumable" picker is scoped to that appliance's consumables;

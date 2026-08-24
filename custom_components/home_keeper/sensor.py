@@ -25,7 +25,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from . import sensor_tasks
-from .const import DOMAIN, SENSOR_MODE_USAGE
+from .const import COMPLETION_ENTRY_FIELDS, DOMAIN, SENSOR_MODE_USAGE
 from .coordinator import HomeKeeperCoordinator
 from .entity import HomeKeeperTaskEntity
 from .sensor_watcher import read_sensor_value
@@ -122,14 +122,17 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
             "last_completed": task.get("last_completed"),
             "completions_count": len(completions),
         }
-        # Surface the most recent completion's metadata so automations/dashboards can
-        # read "who did it / what did it cost / the note / the photo" without parsing
-        # the history array. Keys are only present when that completion recorded them.
+        # Surface the most recent completion's fields so automations/dashboards can
+        # read "who did it / what did it cost / the note / the photo / where the meter
+        # stood" without parsing the history array. Driven off the shared field list
+        # rather than a local literal, so a new completion field lands here too — this
+        # loop silently skipped ``reading`` for exactly that reason. Keys are only
+        # present when that completion recorded them.
         if completions:
             # Match ``last_completed`` (the chronologically latest), not merely the
             # last appended, so an out-of-order seed can't shadow a real completion.
             latest = max(completions, key=lambda c: c.get("ts") or "")
-            for key in ("note", "cost", "photo", "who"):
+            for key in COMPLETION_ENTRY_FIELDS:
                 if key in latest:
                     attrs[f"last_completion_{key}"] = latest[key]
         attrs.update(self._usage_attributes(task))
@@ -153,6 +156,12 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
             attrs["usage_unit"] = unit
         reading = read_sensor_value(self.hass, cfg)
         baseline = cfg.get("baseline")
+        if baseline is not None:
+            # The anchor the consumed figure is measured from. Worth exposing in its
+            # own right now that it is user-settable at creation and correctable from
+            # the history: a dashboard showing "3,000 of 10,000 used" can say what the
+            # odometer read when the oil was last changed.
+            attrs["usage_baseline"] = float(baseline)
         if reading is not None and baseline is not None:
             consumed = max(0.0, reading - float(baseline))
             attrs["usage_consumed"] = round(consumed, 3)

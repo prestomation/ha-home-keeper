@@ -1446,3 +1446,41 @@ def test_merge_update_with_empty_locked_fields_applies_everything():
     )
     updated = m.merge_update(task, {"name": "Renamed"}, now=NOW)
     assert updated["name"] == "Renamed"
+
+
+def test_a_blank_last_completed_seed_is_treated_as_absent():
+    # "" arrives from a cleared form field. Treating it as a date would fail the
+    # ISO parse and reject the whole task.
+    task = m.build_task(
+        {
+            "name": "Furnace filter",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+            "last_completed": "",
+        },
+        now=NOW,
+    )
+    assert task["completions"] == []
+    assert task["last_completed"] is None
+    assert task["next_due"] == NOW.isoformat()
+
+
+def test_a_seeded_fixed_task_derives_its_next_occurrence_from_now():
+    # A fixed schedule is anchor-driven: the seed only becomes its first history
+    # entry, and next_due is the next occurrence after *now* — not after the seed.
+    # Proves the caller's clock reaches the recurrence engine.
+    task = m.build_task(
+        {
+            "name": "Bin day",
+            "recurrence_type": "fixed",
+            "interval": 1,
+            "freq": "DAILY",
+            "anchor": datetime(2026, 1, 1, 7, tzinfo=TZ).isoformat(),
+            "last_completed": datetime(2026, 3, 1, 7, tzinfo=TZ).isoformat(),
+        },
+        now=NOW,
+    )
+    next_due = datetime.fromisoformat(task["next_due"])
+    assert next_due > NOW
+    assert next_due == datetime(2026, 6, 14, 7, tzinfo=TZ)
