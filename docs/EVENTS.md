@@ -195,6 +195,24 @@ on reload) to ask companions to (re-)announce themselves:
 |---|---|
 | `home_keeper_register_companions` | Home Keeper has set up. Companion integrations should (re-)call `home_keeper.register_companion`. The event has no data payload. |
 
+### Declarative companion CRUD
+
+A **declarative companion** is a Home-Keeper-owned recipe (target integration + entity
+filters + Jinja-templated task name/notes; see [INTEGRATING.md](INTEGRATING.md) §7)
+that materializes one managed sensor task per matching entity. Spec-level CRUD fires
+its own bus events so an automation can react to the recipe list changing; the
+materialized sensor tasks themselves emit the ordinary `home_keeper_task_created` /
+`_updated` / `_deleted` / `_triggered` / `_completed` events, so an automation that
+already listens to `home_keeper_task_completed` just works. Automations that want to
+filter to declarative tasks read `managed_by.integration == "home_keeper"` and
+`source.declarative_companion.spec_id`.
+
+| Event | Fires when |
+|---|---|
+| `home_keeper_declarative_companion_added` | a spec was created (via the panel, `home_keeper.add_declarative_companion`, or the matching WS command); payload adds `spec_id`, `name`, `enabled`, `preset_id` |
+| `home_keeper_declarative_companion_updated` | any field of a stored spec was changed; same payload |
+| `home_keeper_declarative_companion_removed` | a spec was deleted (also fires `home_keeper_task_deleted` once per materialized task the spec had); same payload |
+
 ## Payloads
 
 ### Task event spine

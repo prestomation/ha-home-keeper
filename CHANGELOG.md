@@ -6,6 +6,49 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.16.0b9]
+
+### Added
+
+- **Declarative companions: task-per-entity recipes without a separate integration.**
+  A companion for Home Keeper used to mean a hand-coded glue integration in a separate
+  repo (Battery Notes is the reference). A **declarative companion** is a recipe you
+  configure from the panel: point it at a target integration (or use an entity id
+  regex), pick a trigger mode (usage / threshold / state / **availability** —
+  new), and give it a Jinja template for the task name and notes. Home Keeper
+  then materializes one managed sensor task per matching entity — one to check
+  when a battery goes low, one to update firmware when the update entity flips on,
+  one per Nest Hub Device Pulse is telling you has been failing pings, and so on.
+  Tasks live in the same to-do / calendar / device-page surfaces as any hand-created
+  task, complete auto-clearing when the condition recovers, and survive entity renames
+  (dedupe is on `entity_registry_id`, not `entity_id`).
+
+  Three shipped presets — **Device Pulse** (targets studiobts/home-assistant-device-pulse's
+  per-device ping sensors; requires the integration), **Low battery** (device_class
+  battery, works alongside the Battery Notes glue), and **Firmware update available**
+  (update domain — covers UniFi, ESPHome, HACS, Reolink, Bambu Lab in one recipe).
+  Open Settings → Companions → *Add from preset*, review the seeded form, save. The
+  Add dialog has a live-preview panel that shows how many entities match and what
+  the first ten task names will render as, with a soft warning at >50 matches and a
+  hard 500-match cap so a runaway regex can't fan out silently.
+
+  A new `availability` sensor mode arms when an entity is `unavailable`/`unknown` for
+  a hold interval — inverts the "no reading = do nothing" policy of the other three
+  modes so this is the arm signal, not something to skip. Baseline-safe: an entity
+  that starts life unavailable does NOT arm a fresh task. No shipped preset uses
+  availability today; the mode exists for user-authored companions ("task me when
+  my ZHA devices go offline") and covers the "useful without a specific integration"
+  case from the issue.
+
+  Fully scripted via services: `add_declarative_companion`, `update_declarative_companion`,
+  `delete_declarative_companion`, `list_declarative_companions` (admin-only), plus
+  matching WebSocket commands and a read-only `preview_declarative_companion` the
+  panel uses for the live-preview poll. Spec CRUD also fires
+  `home_keeper_declarative_companion_added` / `_updated` / `_removed` bus events;
+  the managed tasks themselves emit the ordinary `home_keeper_task_*` events, so
+  automations that already listen there just work. See docs/INTEGRATING.md and
+  docs/EVENTS.md. (Fixes #231)
+
 ## [0.16.0b8]
 
 ### Added
