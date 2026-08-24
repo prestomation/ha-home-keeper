@@ -446,6 +446,22 @@ def _normalize_consume_quantity(value: Any) -> float | None:
     return quantity
 
 
+def _normalize_restock_quantity(value: Any) -> float | None:
+    """Validate how much completing a buy reminder puts back, folding zero to unset.
+
+    Zero and unset already mean the same thing on read (:func:`part_restock_quantity`
+    floors both to one spare), so a stored zero was a record claiming something the
+    code never did. Normalizing it away makes the record honest instead.
+
+    Unlike ``consume_quantity``, which is new and simply rejects zero, this one
+    *forgives* it: the field predates this validator, and its service schema accepted
+    zero, so a stored zero may already exist. Raising here would make an untouched
+    part unsaveable the next time its appliance is edited.
+    """
+    quantity = _normalize_stock(value, "restock_quantity")
+    return None if quantity == 0 else quantity
+
+
 def _normalize_stock_unit(value: Any) -> str:
     """Validate the optional unit a part's stock is counted in (``ml``, ``m``…).
 
@@ -517,9 +533,7 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
         # completing that buy task adds back to ``stock`` (defaults to 1 at bump time
         # when unset).
         "create_buy_task": bool(raw.get("create_buy_task")),
-        "restock_quantity": _normalize_stock(
-            raw.get("restock_quantity"), "restock_quantity"
-        ),
+        "restock_quantity": _normalize_restock_quantity(raw.get("restock_quantity")),
         # Upload-only; see the docstring. Always absent here — _merge_parts restores
         # the stored values (or set_part_file/clear_part_file set them directly).
         "file_name": None,
@@ -681,8 +695,12 @@ def _positive_quantity(value: Any, default: float) -> float:
     Both per-completion amounts (:func:`part_consume_quantity`,
     :func:`part_restock_quantity`) mean "one whole spare" when unset, and a stored
     zero / negative / junk value would silently turn a completion into a no-op (or,
-    worse, an increase). Normalization already rejects those on the way in; this is
-    the read-side floor for records written before the field existed.
+    worse, an increase). Normalization keeps those out on the way in — rejected for
+    ``consume_quantity``, folded to unset for ``restock_quantity`` — so this floor is
+    only reached by records written before those validators existed, and by a part
+    dict some other code path assembled by hand. It is deliberately total rather than
+    raising: a completion is a user action, and refusing to record one because a
+    field is malformed would be worse than consuming the default.
     """
     if value is None:
         return default

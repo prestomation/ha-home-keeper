@@ -15,7 +15,7 @@ import {readFile, writeFile, mkdir, rm} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {posix} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {splitByH2, USER_SECTIONS, DEV_DOCS} from './doc-map.mjs';
+import {ANCHOR_ROUTES, splitByH2, USER_SECTIONS, DEV_DOCS} from './doc-map.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const website = resolve(here, '..');
@@ -32,38 +32,6 @@ const DOC_ROUTES = {
   'docs/EVENTS.md': '/developer/events',
   'docs/DESIGN.md': '/developer/architecture',
   'docs/SECURITY.md': '/developer/security',
-};
-
-// README same-page anchors that now live on their own User Guide pages.
-const ANCHOR_ROUTES = {
-  '#one-off-do-once-tasks': '/docs/guide/one-off-tasks',
-  '#sensor-based-tasks-usage-meters-thresholds--states': '/docs/guide/sensor-tasks',
-  '#appliances--virtual-devices': '/docs/guide/appliances',
-  '#notes-are-markdown': '/docs/guide/markdown-notes',
-  // The "Companions" subsection lives under the Settings section (→ settings page).
-  '#companions': '/docs/guide/settings#companions',
-  '#notifications-actionable-reminders-on-your-phone': '/docs/guide/notifications',
-  '#profiles-saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
-  '#dashboard-task-card': '/docs/guide/dashboard-card',
-  // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
-  // section (→ sensor-tasks page); "Parts & wear items" under Appliances; and
-  // "Sync problem binary sensors" under Condition-driven tasks (→ triggered-tasks),
-  // which the Sensor-based tasks page links across to when contrasting the two.
-  '#link-a-task-to-a-consumable-auto-reorder':
-    '/docs/guide/sensor-tasks#link-a-task-to-a-consumable-auto-reorder',
-  '#parts--wear-items': '/docs/guide/appliances#parts--wear-items',
-  // Auto-buy and its shopping-list mirror are subsections of "Parts & wear items"
-  // (→ appliances page); the Settings and Events sections both link across to them.
-  '#auto-create-a-buy-task-when-a-part-runs-low':
-    '/docs/guide/appliances#auto-create-a-buy-task-when-a-part-runs-low',
-  '#send-buy-reminders-to-your-shopping-list':
-    '/docs/guide/appliances#send-buy-reminders-to-your-shopping-list',
-  // So is measured stock, which the consumable-link section (→ sensor-tasks page)
-  // points at when explaining how much a completion draws down.
-  '#stock-you-measure-rather-than-count':
-    '/docs/guide/appliances#stock-you-measure-rather-than-count',
-  '#sync-problem-binary-sensors-as-tasks':
-    '/docs/guide/triggered-tasks#sync-problem-binary-sensors-as-tasks',
 };
 
 // Rewrite every Markdown link/image target. `sourceDir` is the canonical file's

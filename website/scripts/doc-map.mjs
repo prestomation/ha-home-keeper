@@ -68,3 +68,131 @@ export const DEV_DOCS = [
   {file: 'docs/DESIGN.md', out: 'architecture.md', title: 'Architecture', label: 'Architecture', pos: 4},
   {file: 'docs/SECURITY.md', out: 'security.md', title: 'Security model', label: 'Security', pos: 5},
 ];
+
+// README same-page anchors that now live on their own User Guide pages.
+export const ANCHOR_ROUTES = {
+  '#one-off-do-once-tasks': '/docs/guide/one-off-tasks',
+  '#sensor-based-tasks-usage-meters-thresholds--states': '/docs/guide/sensor-tasks',
+  '#appliances--virtual-devices': '/docs/guide/appliances',
+  '#notes-are-markdown': '/docs/guide/markdown-notes',
+  // The "Companions" subsection lives under the Settings section (→ settings page).
+  '#companions': '/docs/guide/settings#companions',
+  '#notifications-actionable-reminders-on-your-phone': '/docs/guide/notifications',
+  '#profiles-saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
+  '#dashboard-task-card': '/docs/guide/dashboard-card',
+  // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
+  // section (→ sensor-tasks page); "Parts & wear items" under Appliances; and
+  // "Sync problem binary sensors" under Condition-driven tasks (→ triggered-tasks),
+  // which the Sensor-based tasks page links across to when contrasting the two.
+  '#link-a-task-to-a-consumable-auto-reorder':
+    '/docs/guide/sensor-tasks#link-a-task-to-a-consumable-auto-reorder',
+  '#parts--wear-items': '/docs/guide/appliances#parts--wear-items',
+  // Auto-buy and its shopping-list mirror are subsections of "Parts & wear items"
+  // (→ appliances page); the Settings and Events sections both link across to them.
+  '#auto-create-a-buy-task-when-a-part-runs-low':
+    '/docs/guide/appliances#auto-create-a-buy-task-when-a-part-runs-low',
+  '#send-buy-reminders-to-your-shopping-list':
+    '/docs/guide/appliances#send-buy-reminders-to-your-shopping-list',
+  // So is measured stock, which the consumable-link section (→ sensor-tasks page)
+  // points at when explaining how much a completion draws down.
+  '#stock-you-measure-rather-than-count':
+    '/docs/guide/appliances#stock-you-measure-rather-than-count',
+  '#sync-problem-binary-sensors-as-tasks':
+    '/docs/guide/triggered-tasks#sync-problem-binary-sensors-as-tasks',
+};
+
+
+// GitHub's heading-slug rules, which Docusaurus also follows: lowercase, drop
+// punctuation, turn each remaining space into a hyphen. Two spaces left behind by a
+// dropped "&" therefore become "--", which is why the real anchors read
+// `#parts--wear-items`.
+export function slugify(heading) {
+  return heading
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/\s/g, '-');
+}
+
+// Drop fenced code blocks. A `](#anchor)` inside one is shown literally, never
+// linked, so it must not be mistaken for a link the site has to resolve.
+function stripFences(lines) {
+  const kept = [];
+  let inFence = false;
+  let fence = '';
+  for (const line of lines) {
+    const fenceMatch = line.match(/^(```|~~~)/);
+    if (fenceMatch) {
+      if (!inFence) {
+        inFence = true;
+        fence = fenceMatch[1];
+      } else if (line.startsWith(fence)) {
+        inFence = false;
+      }
+      continue;
+    }
+    if (!inFence) kept.push(line);
+  }
+  return kept;
+}
+
+// Every heading in `md`, paired with the `## ` section it sits under.
+function headingSections(md) {
+  const {sections} = splitByH2(md);
+  const found = new Map();
+  for (const section of sections) {
+    found.set(slugify(section.title), section.title);
+    let inFence = false;
+    let fence = '';
+    for (const line of section.body) {
+      const fenceMatch = line.match(/^(```|~~~)/);
+      if (fenceMatch) {
+        if (!inFence) {
+          inFence = true;
+          fence = fenceMatch[1];
+        } else if (line.startsWith(fence)) {
+          inFence = false;
+        }
+        continue;
+      }
+      const heading = !inFence && line.match(/^#{3,6} (.+)$/);
+      if (heading) found.set(slugify(heading[1].trim()), section.title);
+    }
+  }
+  return found;
+}
+
+/**
+ * README same-page anchors the generated site would break on.
+ *
+ * The User Guide splits README by `## ` section, so a `](#some-heading)` link only
+ * survives when its target heading is in the *same* section — otherwise the anchor
+ * lands on the wrong page and Docusaurus fails the build on a broken link, unless
+ * `ANCHOR_ROUTES` redirects it. That failure only ever shows up in a full site build,
+ * which is a slow way to learn you forgot a one-line map entry.
+ *
+ * Returns `{anchor, from, reason}` for each problem: `unknown` when no heading in
+ * README matches at all, `cross-section` when the link leaves its own page with no
+ * route. Anchors in sections the guide doesn't publish are ignored — they never
+ * reach the site.
+ */
+export function unroutedReadmeAnchors(md, anchorRoutes) {
+  const published = new Set(USER_SECTIONS.map((s) => s.h));
+  const owners = headingSections(md);
+  const {sections} = splitByH2(md);
+  const issues = [];
+  for (const section of sections) {
+    if (!published.has(section.title)) continue;
+    const prose = stripFences(section.body).join('\n');
+    for (const [, anchor] of prose.matchAll(/\]\((#[^)]+)\)/g)) {
+      if (anchorRoutes[anchor]) continue;
+      const owner = owners.get(anchor.slice(1));
+      if (owner === undefined) {
+        issues.push({anchor, from: section.title, reason: 'unknown'});
+      } else if (owner !== section.title) {
+        issues.push({anchor, from: section.title, reason: 'cross-section'});
+      }
+    }
+  }
+  return issues;
+}

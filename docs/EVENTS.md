@@ -136,7 +136,7 @@ sensor-armed "replace the fridge filter" task draws down inventory and signals a
 when you mark it done.
 
 Each completion takes off the part's **Used per completion** amount. A part that leaves
-it unset gives up one whole spare; a bottle that sets `0.33` lasts three refills.
+it unset gives up one whole spare. A bottle that sets `0.33` lasts three refills.
 
 A part with **Auto-create buy task** enabled goes one step further: crossing the reorder
 threshold auto-creates a one-off *"Buy {part}"* task (a `home_keeper_task_created` event)

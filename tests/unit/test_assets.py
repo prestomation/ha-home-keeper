@@ -1142,6 +1142,23 @@ def test_stock_transition_handles_fractional_crossings():
     assert a.stock_transition(0, 0.75, 0.5) == a.STOCK_RESTOCKED
 
 
+def test_stock_transition_reads_a_negative_new_as_out_of_stock():
+    # Both callers clamp at zero, so this is defence in depth rather than a live
+    # path: if one ever stopped clamping, "below empty" must still report
+    # out-of-stock rather than sliding into the restocked branch.
+    assert a.stock_transition(2, -1, 1) == a.STOCK_OUT
+    assert a.stock_transition(0, -1, 1) == a.STOCK_NONE
+
+
+@pytest.mark.parametrize("stock", [3, 0.5, 0])
+def test_consume_and_adjust_never_drive_stock_below_zero(stock):
+    part = {"stock": stock, "reorder_at": 1, "consume_quantity": 99}
+    a.consume_part_stock(part)
+    assert part["stock"] == 0
+    a.adjust_part_stock(part, -99)
+    assert part["stock"] == 0
+
+
 def test_part_is_low():
     assert a.part_is_low({"stock": 1, "reorder_at": 1}) is True
     assert a.part_is_low({"stock": 0, "reorder_at": 1}) is True
@@ -1203,6 +1220,19 @@ def test_negative_restock_quantity_rejected():
         a.build_asset(
             {"name": "X", "parts": [{"name": "F", "restock_quantity": -2}]}, now=NOW
         )
+
+
+@pytest.mark.parametrize("value", [0, "0", 0.0])
+def test_zero_restock_quantity_stores_as_unset(value):
+    # Zero and unset already behave identically on read (both restock one spare), so
+    # a stored zero was a record claiming something the code never did. It is folded
+    # rather than rejected: the field predates the validator, so a zero may already
+    # be sitting in someone's store, and refusing it would make that part unsaveable.
+    asset = a.build_asset(
+        {"name": "X", "parts": [{"name": "F", "restock_quantity": value}]}, now=NOW
+    )
+    assert asset["parts"][0]["restock_quantity"] is None
+    assert a.part_restock_quantity(asset["parts"][0]) == 1
 
 
 def test_part_wants_buy_task_requires_option_and_threshold():

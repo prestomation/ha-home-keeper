@@ -526,7 +526,13 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   renders every quantity through `utils.formatQuantity`. The two per-completion amounts
   have a **read-side floor**: `assets.part_consume_quantity` /
   `part_restock_quantity` return 1 for unset, junk, zero or negative — records written
-  before the fields existed must keep consuming exactly one.
+  before the fields existed must keep consuming exactly one, and a completion must
+  never fail because a stored field is malformed. Because that floor makes zero and
+  unset indistinguishable, the writers refuse to store a zero that would lie about it:
+  `consume_quantity` **rejects** it (the field is new, so nothing can already hold
+  one), while `restock_quantity` **folds it to `None`** (it predates the validator and
+  its service schema accepted zero, so raising would make an untouched part
+  unsaveable). Prefer that asymmetry to a stored value the code ignores.
 - **Auto-buy tasks.** A part can opt in (`create_buy_task`, needs a `reorder_at`
   threshold) to a system-managed shopping reminder. The pure
   `reconcile.reconcile_buy_tasks` (wrapped by `store.reconcile_buy_tasks`) is
