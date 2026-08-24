@@ -6,6 +6,24 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.16.0b9]
+
+### Added
+
+- **Usage/meter tasks now count down on the overview.** A meter task waiting for its
+  sensor to advance used to read only "Monitored" in the task list. It now shows how
+  far off it is, "in 7000 miles", the meter version of the "in 3 days" a time-based
+  task shows, so you can see at a glance which of your metered jobs is closest without
+  opening each one. (Threshold and state tasks, which have no interval to count down,
+  still read "Monitored".)
+
+### Fixed
+
+- **Undoing a meter task's completion keeps your partial progress.** Deleting a
+  usage/meter completion (undoing an accidental "done") reset the meter to zero and
+  left it there. It now reverts to exactly where it was before that completion: 3,000
+  of 10,000 miles goes back to 3,000, not zero. (Fixes #235)
+
 ## [0.16.0b8]
 
 ### Added

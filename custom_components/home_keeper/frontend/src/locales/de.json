@@ -115,6 +115,7 @@
   "due.days_ago.other": "vor {n} Tagen",
   "due.in_days.one": "in {n} Tag",
   "due.in_days.other": "in {n} Tagen",
+  "due.in_units": "in {value}",
   "due.monitored": "Überwacht",
   "due.none": "—",
   "due.overdue_by.one": "{n} Tag überfällig",

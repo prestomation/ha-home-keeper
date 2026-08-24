@@ -127,6 +127,7 @@
   "due.in_days.many": "za {n} dni",
   "due.in_days.one": "za {n} dzień",
   "due.in_days.other": "za {n} dnia",
+  "due.in_units": "za {value}",
   "due.monitored": "Monitorowane",
   "due.none": "—",
   "due.overdue_by.few": "{n} dni po terminie",

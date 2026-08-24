@@ -121,6 +121,7 @@
   "due.in_days.many": "d'aquí a {n} dies",
   "due.in_days.one": "d'aquí a {n} dia",
   "due.in_days.other": "d'aquí a {n} dies",
+  "due.in_units": "d'aquí a {value}",
   "due.monitored": "Supervisat",
   "due.none": "—",
   "due.overdue_by.many": "fa {n} dies de retard",

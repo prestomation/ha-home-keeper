@@ -127,6 +127,7 @@
   "due.in_days.many": "za {n} dne",
   "due.in_days.one": "za {n} den",
   "due.in_days.other": "za {n} dní",
+  "due.in_units": "za {value}",
   "due.monitored": "Sledováno",
   "due.none": "—",
   "due.overdue_by.few": "{n} dny po splatnosti",

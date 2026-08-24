@@ -127,6 +127,7 @@
   "due.in_days.many": "через {n} дней",
   "due.in_days.one": "через {n} день",
   "due.in_days.other": "через {n} дней",
+  "due.in_units": "через {value}",
   "due.monitored": "Отслеживается",
   "due.none": "—",
   "due.overdue_by.few": "{n} дня просрочки",

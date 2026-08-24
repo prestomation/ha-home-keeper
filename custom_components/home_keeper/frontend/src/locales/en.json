@@ -115,6 +115,7 @@
   "due.days_ago.other": "{n} days ago",
   "due.in_days.one": "in {n} day",
   "due.in_days.other": "in {n} days",
+  "due.in_units": "in {value}",
   "due.monitored": "Monitored",
   "due.none": "-",
   "due.overdue_by.one": "{n} day overdue",

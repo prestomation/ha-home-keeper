@@ -248,6 +248,20 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     'details.hk-group[data-group-key="status:monitored"]',
   );
   await expandGroup(monitoredForUsage);
+
+  // 1h2b. The overview reads a dormant usage/meter task as a live countdown — "in 180
+  // h" for the nozzle task (300 h target, 120 h used) — the meter analogue of the "in
+  // 3 days" a time-based task shows, rather than a bare "Monitored" (#235). The group
+  // still buckets it under Monitored; it's the card's own due chip that counts down.
+  // Assert the chip as well as photographing it (capture != coverage, #221).
+  const nozzleDueChip = panel
+    .locator('ha-card.hk-card[data-id="task_nozzle_usage"] .hk-chips ha-assist-chip')
+    .first();
+  await expect(nozzleDueChip).toHaveAttribute('label', 'in 180 h');
+  await nozzleDueChip.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/1c-panel-usage-countdown.png`, fullPage: true });
+
   await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
   await expect(panel.locator('.hk-meter').first()).toBeVisible();
   await page.waitForTimeout(400);

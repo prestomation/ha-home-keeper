@@ -115,6 +115,7 @@
   "due.days_ago.other": "{n} dagen geleden",
   "due.in_days.one": "over {n} dag",
   "due.in_days.other": "over {n} dagen",
+  "due.in_units": "over {value}",
   "due.monitored": "Bewaakt",
   "due.none": "—",
   "due.overdue_by.one": "{n} dag te laat",

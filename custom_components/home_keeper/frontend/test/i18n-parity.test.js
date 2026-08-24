@@ -28,7 +28,7 @@ const COGNATE_IDENTICAL = {
   ca: ['field.cost', 'field.doc_url', 'field.model', 'field.notes', 'field.sensor_entity_id', 'meta.seed.notes', 'opt.meta.text', 'section.notes', 'settings.general_heading'],
   cs: ['field.doc_url', 'field.model', 'opt.meta.text'],
   da: ['chip.orphaned', 'field.doc_url', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
-  de: ['chip.orphaned', 'detail.about', 'field.doc_name', 'field.doc_url', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
+  de: ['chip.orphaned', 'detail.about', 'due.in_units', 'field.doc_name', 'field.doc_url', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
   es: ['field.doc_url', 'field.sensor_entity_id', 'settings.general_heading'],
   fi: ['field.doc_url'],
   fr: ['completion.photo', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'section.notes'],

@@ -115,6 +115,7 @@
   "due.days_ago.other": "{n} päivää sitten",
   "due.in_days.one": "{n} päivän kuluttua",
   "due.in_days.other": "{n} päivän kuluttua",
+  "due.in_units": "{value} kuluttua",
   "due.monitored": "Valvotaan",
   "due.none": "—",
   "due.overdue_by.one": "{n} päivä myöhässä",
