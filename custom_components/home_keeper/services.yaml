@@ -1267,3 +1267,50 @@ list_companions:
   description: >-
     Return the merged companion list (self-registered integrations plus detected
     upstreams whose glue isn't installed yet) as a response.
+
+add_declarative_companion:
+  name: Add declarative companion
+  description: >-
+    Register a declarative companion — a recipe that materializes one managed
+    Home Keeper sensor task per entity matched by target integration + entity
+    filters, with Jinja-templated task name and notes. Fields on the payload:
+    name, description, enabled, preset_id, selection ({target_integration,
+    domain, device_class, entity_regex, area_ids, label_ids, exclude_*}), trigger
+    (same shape as sensor task binding, plus the new availability mode), and
+    task_template ({name_template, notes_template, category, priority, labels}).
+    Admin-only.
+
+update_declarative_companion:
+  name: Update declarative companion
+  description: >-
+    Update fields of a stored declarative-companion spec by id. Any subset of
+    the spec's fields may be passed; the merge is re-normalized as a whole.
+    Admin-only.
+  fields:
+    id:
+      name: Companion id
+      description: The spec's stable uuid, from list_declarative_companions.
+      required: true
+      example: 5f9e...uuid
+      selector:
+        text:
+
+delete_declarative_companion:
+  name: Delete declarative companion
+  description: >-
+    Remove a declarative-companion spec and every managed task it materialized.
+    Admin-only.
+  fields:
+    id:
+      name: Companion id
+      description: The spec's stable uuid, from list_declarative_companions.
+      required: true
+      example: 5f9e...uuid
+      selector:
+        text:
+
+list_declarative_companions:
+  name: List declarative companions
+  description: >-
+    Return every stored declarative-companion spec as a response, for the panel
+    to render or an automation to inspect.
