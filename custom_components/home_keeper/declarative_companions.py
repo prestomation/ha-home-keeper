@@ -90,7 +90,7 @@ def _clean_str(value: Any, field: str, max_len: int, *, required: bool = False) 
 def _clean_id_list(value: Any, field: str) -> list[str]:
     """Normalize a filter-list-of-ids to a de-duplicated list of stripped strings.
 
-    Accepts a list/tuple of strings or a single string; ``None``/``""``/``[]`` -> ``[]``.
+    Accepts a list/tuple of strings or a single string; falsy input becomes ``[]``.
     Same shape as :func:`models.normalize_labels` but reused here rather than imported
     so ``TaskValidationError`` from that helper doesn't leak through with a labels
     message on an area-id list.
@@ -105,7 +105,9 @@ def _clean_id_list(value: Any, field: str) -> list[str]:
     result: list[str] = []
     for item in value:
         if not isinstance(item, str):
-            raise DeclarativeCompanionValidationError(f"{field} entries must be strings")
+            raise DeclarativeCompanionValidationError(
+                f"{field} entries must be strings"
+            )
         text = item.strip()
         if text and text not in seen:
             seen.add(text)
@@ -228,7 +230,9 @@ def normalize_declarative_companion(data: Any) -> dict[str, Any]:
             "a declarative companion requires a mapping"
         )
     spec_id = _clean_str(data.get("id"), "id", 100) or uuid.uuid4().hex
-    name = _clean_str(data.get("name"), "name", MAX_DECLARATIVE_SPEC_NAME_LEN, required=True)
+    name = _clean_str(
+        data.get("name"), "name", MAX_DECLARATIVE_SPEC_NAME_LEN, required=True
+    )
     description = _clean_str(
         data.get("description"), "description", MAX_DECLARATIVE_SPEC_DESCRIPTION_LEN
     )
@@ -288,7 +292,11 @@ def _labels_intersect(entity_labels: Any, wanted: list[str]) -> bool:
     return any(label in entity_labels for label in wanted)
 
 
-def _entity_matches(entry: dict[str, Any], selection: dict[str, Any], regex: re.Pattern[str] | None) -> bool:
+def _entity_matches(
+    entry: dict[str, Any],
+    selection: dict[str, Any],
+    regex: re.Pattern[str] | None,
+) -> bool:
     """Whether *entry* (a registry-snapshot dict) satisfies *selection*.
 
     Applies each filter as an AND. Empty filters match everything. See
@@ -330,9 +338,7 @@ def _entity_matches(entry: dict[str, Any], selection: dict[str, Any], regex: re.
     if area_ids and entry.get("area_id") not in area_ids:
         return False
     label_ids = selection.get("label_ids") or []
-    if label_ids and not _labels_intersect(entry.get("labels"), label_ids):
-        return False
-    return True
+    return not (label_ids and not _labels_intersect(entry.get("labels"), label_ids))
 
 
 def expand_spec(
@@ -409,7 +415,7 @@ def build_managed_by(
 
 
 def declarative_source(task: dict[str, Any]) -> dict[str, Any] | None:
-    """Return the ``{spec_id, entity_registry_id, entity_id}`` provenance, or ``None``."""
+    """Return the ``{spec_id, entity_registry_id, entity_id}`` provenance, if any."""
     source = task.get("source")
     if isinstance(source, dict) and isinstance(
         source.get(TASK_SOURCE_DECLARATIVE_COMPANION), dict

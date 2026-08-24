@@ -399,10 +399,12 @@ EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
 # matches from the entity registry, renders templates, and delegates trigger
 # evaluation to the existing SensorTaskWatcher. Managed tasks carry
 # ``managed_by.integration = home_keeper`` and
-# ``source = {"declarative_companion": {"spec_id", "entity_registry_id", "entity_id"}}``.
+# ``source = {"declarative_companion":
+# {"spec_id", "entity_registry_id", "entity_id"}}``.
 # Dedupe is on ``entity_registry_id`` so a rename does not churn the task.
 #
-# Upper bound on how many declarative-companion specs are stored, matching MAX_COMPANIONS.
+# Upper bound on how many declarative-companion specs are stored.
+# Matches MAX_COMPANIONS.
 MAX_DECLARATIVE_COMPANIONS = 50
 # Length bounds on user-visible strings on a spec — prevents runaway names/notes/regex
 # from wedging the panel or blowing the JSON store.

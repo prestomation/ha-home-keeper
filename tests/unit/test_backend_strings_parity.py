@@ -48,7 +48,8 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     "es": frozenset({"inventory.csv.total"}) | _BRAND_IDENTICAL,
     "fr": frozenset({"inventory.csv.total"}) | _BRAND_IDENTICAL,
     "it": frozenset({"inventory.csv.area"}) | _BRAND_IDENTICAL,
-    "nl": frozenset({"inventory.csv.details", "inventory.csv.model"}) | _BRAND_IDENTICAL,
+    "nl": frozenset({"inventory.csv.details", "inventory.csv.model"})
+    | _BRAND_IDENTICAL,
     "pl": frozenset({"inventory.csv.model"}) | _BRAND_IDENTICAL,
     "pt-BR": frozenset({"inventory.csv.total"}) | _BRAND_IDENTICAL,
     "fi": _BRAND_IDENTICAL,

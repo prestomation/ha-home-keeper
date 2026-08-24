@@ -348,7 +348,7 @@ def test_reconcile_creates_missing_tasks():
     spec = _normalized_spec()
     key, m = _match("sensor.hub_total_failed_pings", spec["id"])
     matches = {key: m}
-    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+    _new_tasks, ops, changed = dc.reconcile_declarative_tasks(
         spec, matches, tasks={}, rendered_by_key=_rendered(key),
         config_entry_id=ENTRY, now=NOW,
     )
@@ -384,7 +384,7 @@ def test_reconcile_deletes_orphaned_tasks():
 
 
 def test_reconcile_survives_entity_rename():
-    """When the entity_id changes but registry_id stays, task stays, source echoes new id."""
+    """entity_id change + registry_id stable: task stays, source echoes new id."""
     spec = _normalized_spec()
     key, m = _match("sensor.old_total_failed_pings", spec["id"])
     stored, _, _ = dc.reconcile_declarative_tasks(
@@ -438,7 +438,7 @@ def test_reconcile_carries_through_unrelated_tasks():
             "source": {"user": True},
         }
     }
-    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+    new_tasks, _ops, changed = dc.reconcile_declarative_tasks(
         spec, matches={}, tasks=unrelated, rendered_by_key={},
         config_entry_id=ENTRY, now=NOW,
     )
@@ -477,7 +477,7 @@ def test_preset_by_id_lookup():
 
 
 def test_device_pulse_preset_uses_threshold_mode():
-    """Sanity check: Device Pulse rides on the existing threshold mode, not availability."""
+    """Device Pulse rides on the existing threshold mode, not availability."""
     preset = presets.preset_by_id("device_pulse")
     assert preset["default_spec"]["trigger"]["mode"] == "threshold"
 

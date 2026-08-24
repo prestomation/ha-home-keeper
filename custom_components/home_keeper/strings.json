@@ -793,7 +793,7 @@
     },
     "add_declarative_companion": {
       "name": "Add declarative companion",
-      "description": "Register a declarative companion — a recipe that materializes one managed sensor task per entity matched by target integration + entity filters, with Jinja-templated task name and notes. Admin-only."
+      "description": "Register a declarative companion. The recipe materializes one managed sensor task per entity matched by target integration and entity filters, with Jinja-templated task name and notes. Admin-only."
     },
     "update_declarative_companion": {
       "name": "Update declarative companion",

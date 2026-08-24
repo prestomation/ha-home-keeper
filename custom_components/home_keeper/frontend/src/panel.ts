@@ -4482,7 +4482,7 @@ export class HomeKeeperPanel extends HTMLElement {
     dlg.appendChild(wrap);
     const closeBtn = document.createElement('button');
     closeBtn.className = 'hk-decl-modal-close';
-    closeBtn.textContent = t('cancel');
+    closeBtn.textContent = t('btn.cancel');
     closeBtn.addEventListener('click', () => dlg.close());
     dlg.appendChild(closeBtn);
     dlg.addEventListener('close', () => dlg.remove());
@@ -4565,12 +4565,12 @@ export class HomeKeeperPanel extends HTMLElement {
     const actions = document.createElement('div');
     actions.className = 'hk-decl-modal-actions';
     const cancel = document.createElement('button');
-    cancel.textContent = t('cancel');
+    cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => dlg.close());
     actions.appendChild(cancel);
     const save = document.createElement('button');
     save.className = 'hk-decl-modal-save';
-    save.textContent = t('save');
+    save.textContent = t('btn.save');
     save.addEventListener('click', () => {
       void this._saveDeclarativeCompanion(draft, dlg);
     });

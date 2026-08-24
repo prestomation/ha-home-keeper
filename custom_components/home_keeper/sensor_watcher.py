@@ -94,7 +94,7 @@ def read_sensor_state(hass: HomeAssistant, cfg: dict[str, Any] | None) -> str | 
 def read_availability_status(
     hass: HomeAssistant, cfg: dict[str, Any] | None
 ) -> str:
-    """Classify a sensor binding's *availability* as ``available``/``unavailable``/``missing``.
+    """Classify a binding's *availability*: available / unavailable / missing.
 
     The ``availability`` mode's counterpart to :func:`read_sensor_value` and
     :func:`read_sensor_state`, and **inverts** the "no reading = do nothing" policy

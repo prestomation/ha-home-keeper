@@ -32,7 +32,6 @@ from .const import (
     SENSOR_COMBINATOR_ANY,
     SENSOR_COMBINATORS,
     SENSOR_COMPARISONS,
-    SENSOR_MODE_AVAILABILITY,
     SENSOR_MODE_STATE,
     SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_USAGE,
@@ -233,7 +232,9 @@ def _reject_fields(data: dict[str, Any], fields: tuple[str, ...], mode: str) -> 
             )
 
 
-def normalize_sensor(data: Any, *, allow_missing_entity: bool = False) -> dict[str, Any]:
+def normalize_sensor(
+    data: Any, *, allow_missing_entity: bool = False
+) -> dict[str, Any]:
     """Validate and normalize a sensor-based task's ``sensor`` binding.
 
     A sensor task derives its armed/dormant state from a bound entity. The

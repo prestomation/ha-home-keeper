@@ -1194,7 +1194,7 @@ async def ws_installed_integrations(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Return the sorted, deduplicated set of integration domains in the entity registry.
+    """Return sorted, deduped integration domains from the entity registry.
 
     Feeds the Add-declarative-companion dialog's integration-picker autocomplete.
     """

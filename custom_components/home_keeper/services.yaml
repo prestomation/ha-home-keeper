@@ -1271,8 +1271,8 @@ list_companions:
 add_declarative_companion:
   name: Add declarative companion
   description: >-
-    Register a declarative companion — a recipe that materializes one managed
-    Home Keeper sensor task per entity matched by target integration + entity
+    Register a declarative companion. The recipe materializes one managed
+    Home Keeper sensor task per entity matched by target integration and entity
     filters, with Jinja-templated task name and notes. Fields on the payload:
     name, description, enabled, preset_id, selection ({target_integration,
     domain, device_class, entity_regex, area_ids, label_ids, exclude_*}), trigger
@@ -1284,7 +1284,7 @@ update_declarative_companion:
   name: Update declarative companion
   description: >-
     Update fields of a stored declarative-companion spec by id. Any subset of
-    the spec's fields may be passed; the merge is re-normalized as a whole.
+    the spec's fields may be passed. The merge is re-normalized as a whole.
     Admin-only.
   fields:
     id:

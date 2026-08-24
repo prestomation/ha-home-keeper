@@ -80,20 +80,27 @@ class DeclarativeCompanionSync:
         Registered via ``entry.async_on_unload`` so teardown is automatic on
         unload/reload — no explicit stop needed.
         """
+        # Three thin wrappers rather than one shared handler: HA's event bus is
+        # strictly typed per event kind (entity vs device vs area registry each
+        # carry a different data mapping), and a single ``Event[Mapping[str,Any]]``
+        # signature fails mypy. Each wrapper is a per-event-kind adapter that
+        # discards the payload and calls the shared reconcile trigger.
         self._entry.async_on_unload(
             self._hass.bus.async_listen(
-                er.EVENT_ENTITY_REGISTRY_UPDATED, self._handle_registry_event
+                er.EVENT_ENTITY_REGISTRY_UPDATED,
+                self._on_entity_registry_updated,
             )
         )
         self._entry.async_on_unload(
             self._hass.bus.async_listen(
                 dr.EVENT_DEVICE_REGISTRY_UPDATED,
-                self._handle_registry_event,
+                self._on_device_registry_updated,
             )
         )
         self._entry.async_on_unload(
             self._hass.bus.async_listen(
-                ar.EVENT_AREA_REGISTRY_UPDATED, self._handle_registry_event
+                ar.EVENT_AREA_REGISTRY_UPDATED,
+                self._on_area_registry_updated,
             )
         )
         self._unsub_specs = async_dispatcher_connect(
@@ -155,7 +162,12 @@ class DeclarativeCompanionSync:
             state_value = state.state
             attributes = dict(state.attributes)
             friendly = attributes.get("friendly_name")
-        friendly = friendly or entry.get("name") or entry.get("original_name") or entity_id
+        friendly = (
+            friendly
+            or entry.get("name")
+            or entry.get("original_name")
+            or entity_id
+        )
         device_name = None
         if entry.get("device_id"):
             dev_reg = dr.async_get(self._hass)
@@ -226,7 +238,8 @@ class DeclarativeCompanionSync:
             if not spec.get("enabled", True):
                 # A disabled spec's managed tasks are dropped (reconcile with empty
                 # matches), so toggling enabled off cleans up without deleting the spec.
-                changed = await self._coordinator.store.reconcile_declarative_companion_tasks(
+                store = self._coordinator.store
+                changed = await store.reconcile_declarative_companion_tasks(
                     spec, {}, {}, config_entry_id=self._entry.entry_id,
                 )
                 entity_set_changed = entity_set_changed or changed
@@ -241,7 +254,8 @@ class DeclarativeCompanionSync:
             rendered = {
                 key: self._render_match(spec, match) for key, match in matches.items()
             }
-            changed = await self._coordinator.store.reconcile_declarative_companion_tasks(
+            store = self._coordinator.store
+            changed = await store.reconcile_declarative_companion_tasks(
                 spec,
                 matches,
                 rendered,
@@ -252,8 +266,29 @@ class DeclarativeCompanionSync:
 
     # ── event handlers ───────────────────────────────────────────────────────
     @callback
-    def _handle_registry_event(self, event: Event) -> None:
-        """Any registry change may add/remove/re-home a matched entity."""
+    def _on_entity_registry_updated(
+        self, event: Event[er.EventEntityRegistryUpdatedData]
+    ) -> None:
+        """Entity added/removed/rehomed/relabeled may match a different spec now."""
+        self._trigger_reconcile()
+
+    @callback
+    def _on_device_registry_updated(
+        self, event: Event[dr.EventDeviceRegistryUpdatedData]
+    ) -> None:
+        """Device renamed/relabeled/rehomed rerenders templated names."""
+        self._trigger_reconcile()
+
+    @callback
+    def _on_area_registry_updated(
+        self, event: Event[ar.EventAreaRegistryUpdatedData]
+    ) -> None:
+        """Area renamed rerenders every task template that reads ``area_name``."""
+        self._trigger_reconcile()
+
+    @callback
+    def _trigger_reconcile(self) -> None:
+        """Schedule a reconcile pass (shared by every registry-event wrapper)."""
         self._hass.async_create_task(self._async_reconcile_and_maybe_reload())
 
     @callback
@@ -305,7 +340,7 @@ class DeclarativeCompanionSync:
         # are insertion-ordered and expand_spec walks the registry in registry
         # order, which is stable across boots for the same HA config).
         sample: list[dict[str, Any]] = []
-        for (spec_id_key, ent_reg_id), match in list(matches.items())[:10]:
+        for (_spec_id_key, ent_reg_id), match in list(matches.items())[:10]:
             variables = self._template_variables(match["entity"])
             rendered_name = self._render_one(
                 spec.get("task_template", {}).get("name_template", ""), variables

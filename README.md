@@ -607,23 +607,23 @@ so we can add it to the suggested-companions catalog.
 
 #### Declarative companions (config-driven, no separate integration)
 
-A **declarative companion** is a recipe you configure from the panel: point it at a
-target integration (or use an entity id regex), pick a trigger mode
-(*usage meter* / *threshold* / *state* / **availability** — new), and give it Jinja
+A **declarative companion** is a recipe you configure from the panel. You point it
+at a target integration (or use an entity id regex), pick a trigger mode
+(*usage meter*, *threshold*, *state*, or the new **availability**), and provide Jinja
 templates for the task name and notes. Home Keeper materializes one managed sensor
-task per matching entity — one *"Replace {device} battery"* task per binary sensor
+task per matching entity, one *"Replace {device} battery"* task per binary sensor
 reporting low battery, one *"Update {friendly_name}"* per update entity flipping on,
 one per Device Pulse per-device sensor above zero failed pings. Tasks live in the
-same to-do / calendar / device-page surfaces as any hand-created task and auto-clear
+same to-do, calendar, and device-page surfaces as any hand-created task and auto-clear
 when the condition recovers.
 
-Three presets ship in the *Add from preset* picker:
+The *Add from preset* picker offers:
 
-- **Device Pulse** — targets [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse)'s per-device
+- **Device Pulse**, targets [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse)'s per-device
   ping sensors. Requires the Device Pulse integration installed.
-- **Low battery** — matches every `binary_sensor` with `device_class: battery` reporting
+- **Low battery**, matches every `binary_sensor` with `device_class: battery` reporting
   `on`. Works alongside the Battery Notes glue if you have both.
-- **Firmware update available** — matches every `update.*` entity reporting `on`.
+- **Firmware update available**, matches every `update.*` entity reporting `on`.
   Covers UniFi, ESPHome, HACS, Reolink, Bambu Lab firmware updates in one recipe.
 
 The *Add companion* dialog shows a live preview of every match, so you know before you

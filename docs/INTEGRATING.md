@@ -644,31 +644,31 @@ is rebuilt on restart as companions re-announce. Registering fires
 > if you're writing a Home-Keeper-aware integration, just register. The glue itself
 > registers like any other companion once installed.
 
-### Declarative companions (no code — for users AND for you)
+### Declarative companions (no code, for users AND for you)
 
 Not every companion needs to be a separate integration. If your case is "watch these
 entities and open a task per match, with a templated name", the panel's
-**Settings → Companions → Declarative** section covers it: pick a target integration
-(or leave blank and use an entity id regex), pick a trigger mode (usage / threshold /
-state / **availability** — new; arms when an entity is `unavailable`/`unknown` for a
-hold interval), and give it Jinja templates for the task name and notes. Home Keeper
+**Settings → Companions → Declarative** section covers it. You pick a target integration
+(or leave blank and use an entity id regex), pick a trigger mode (usage, threshold,
+state, or the new **availability**, which arms when an entity is `unavailable`/`unknown` for a
+hold interval), and provide Jinja templates for the task name and notes. Home Keeper
 materializes one managed sensor task per matching entity and keeps it in sync as
-entities are added / renamed / removed.
+entities are added, renamed, or removed.
 
-Three presets ship: **Device Pulse** (per-device ping sensors from
-studiobts/home-assistant-device-pulse), **Low battery** (device_class battery), and
-**Firmware update available** (update domain — covers UniFi, ESPHome, HACS, Reolink,
+The bundled presets include **device_pulse** (per-device ping sensors from
+studiobts/home-assistant-device-pulse), **low_battery** (device_class battery), and
+**firmware_update_available** (update domain, covers UniFi, ESPHome, HACS, Reolink,
 Bambu Lab in one recipe). Full config surface via `home_keeper.add_declarative_companion` /
 `update_declarative_companion` / `delete_declarative_companion` /
 `list_declarative_companions` services (admin-only). Managed tasks fire the ordinary
-`home_keeper_task_*` events; filter to declarative tasks via
+`home_keeper_task_*` events. Filter to declarative tasks via
 `managed_by.integration == "home_keeper"` and `source.declarative_companion.spec_id`.
 
 **When to build a hand-coded companion instead.** A declarative companion is a good fit
 when the trigger is "an entity crosses a condition." It's the wrong fit when your
 integration needs to *write back* to the upstream (Battery Notes' `set_battery_replaced`
-on completion), maintain domain state across completions (replacement history), or run a
-per-task state machine beyond simple arm/clear. For those cases, ship a glue integration
+on completion) or has to maintain domain state across completions (replacement history).
+For those cases, publish a glue integration
 per this section and use `home_keeper.add_task` + `complete_task` + the events.
 
 ## Testing your integration

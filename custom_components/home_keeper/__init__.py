@@ -67,8 +67,8 @@ from .coordinator import (
     entity_set_key,
     task_has_entities,
 )
-from .models import TaskValidationError
 from .declarative_companion_sync import DeclarativeCompanionSync
+from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
 from .sensor_watcher import SensorTaskWatcher, read_sensor_value
 from .shopping_sync import ShoppingListSync
