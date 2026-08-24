@@ -230,6 +230,14 @@ class DeclarativeCompanionSync:
         Returns whether *any* spec's entity set changed (a task was created or
         removed) so the caller can decide between an entry reload and a plain
         coordinator refresh.
+
+        Complexity: the snapshot is built once per pass, then each spec walks
+        every entity to apply its filters (O(N specs x M entities)). For the
+        expected load (~10 specs, ~500 entities) that's ~5,000 predicate
+        evaluations per pass, which the dispatcher already debounces to at most
+        one pass per burst of registry events. If users report slowness with
+        many specs, index the snapshot by domain/platform/device_class once and
+        filter the pre-indexed subset per spec.
         """
         snapshot = self._registry_snapshot()
         entity_set_changed = False
