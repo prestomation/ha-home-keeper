@@ -96,6 +96,13 @@ export const selSelectCustom = (options: { value: string; label: string }[]): Se
   select: { mode: 'dropdown', options, custom_value: true },
 });
 
+function monthOptions(): { value: string; label: string }[] {
+  return Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1),
+    label: t(`opt.month.${i + 1}`),
+  }));
+}
+
 // ── datetime <-> HA selector string helpers ────────────────────────────────
 // HA's datetime selector uses local "YYYY-MM-DD HH:mm:ss"; we persist ISO.
 export function isoToHaDateTime(iso?: string | null): string | undefined {
@@ -137,6 +144,12 @@ export function backstopEnabled(task: Partial<Task>): boolean {
   const flag = (task as Record<string, unknown>).sensor_backstop_on;
   if (flag !== undefined && flag !== null) return Boolean(flag);
   return Boolean(task.sensor?.also_every);
+}
+
+export function seasonEnabled(task: Partial<Task>): boolean {
+  const flag = (task as Record<string, unknown>).season_on;
+  if (flag !== undefined && flag !== null) return Boolean(flag);
+  return Boolean(task.active_season);
 }
 
 /**
@@ -207,6 +220,7 @@ export function taskSchema(
     ];
   }
 
+  const isFloating = task.recurrence_type === 'floating';
   const isFixed = task.recurrence_type === 'fixed';
   // A one-off (do-once) task has no cadence at all — just a single due date.
   const isOneOff = task.recurrence_type === 'one-off';
@@ -375,6 +389,23 @@ export function taskSchema(
         ]
       : []),
     ...(cadence ? [cadence] : []),
+    ...((isFloating || isFixed) && !locked.has('active_season')
+      ? [
+          { name: 'season_on', selector: selBool() } as FormField,
+          ...(seasonEnabled(task)
+            ? [
+                {
+                  name: '',
+                  type: 'grid',
+                  schema: [
+                    { name: 'season_start_month', selector: selSelect(monthOptions()) },
+                    { name: 'season_end_month', selector: selSelect(monthOptions()) },
+                  ] as FormField[],
+                } as FormField,
+              ]
+            : []),
+        ]
+      : []),
     ...sensorFields,
     ...(isFixed && !locked.has('anchor')
       ? [{ name: 'anchor', selector: selDateTime() } as FormField]
@@ -483,6 +514,11 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // than pre-selecting a blank option.
     tag_id: task.tag_id ?? undefined,
     require_tag_scan: task.require_tag_scan ?? false,
+    season_on: seasonEnabled(task),
+    season_start_month: sd.season_start_month ??
+      (task.active_season ? String(parseInt(task.active_season.start, 10)) : '4'),
+    season_end_month: sd.season_end_month ??
+      (task.active_season ? String(parseInt(task.active_season.end, 10)) : '9'),
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
     // task's current part source.
@@ -520,6 +556,7 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
     d.recurrence_type,
     d.sensor_mode,
     d.sensor_backstop_on,
+    d.season_on,
     // State mode's value control follows the bound entity: an on/off picker for a
     // binary sensor, free text for anything else. This predicate reads the flat and the
     // nested binding itself, so it needs no normalizing pass of its own.
@@ -663,9 +700,18 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       payload.freq = task.freq || 'DAILY';
       payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
     }
-    // Capture mode applies to scheduled tasks; the backend derives which fields a
-    // `required` task makes mandatory (v1: the note).
     payload.completion_detail = task.completion_detail || 'none';
+    if (seasonEnabled(task) && task.recurrence_type !== 'one-off') {
+      const sm = Number((task as Record<string, unknown>).season_start_month ?? 4);
+      const em = Number((task as Record<string, unknown>).season_end_month ?? 9);
+      const lastDay = new Date(2000, em, 0).getDate();
+      payload.active_season = {
+        start: `${String(sm).padStart(2, '0')}-01`,
+        end: `${String(em).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
+      };
+    } else {
+      payload.active_season = null;
+    }
   }
   // Area applies to every task kind (including triggered) and always round-trips, so
   // clearing the picker sends an explicit null and drops the task's own area rather

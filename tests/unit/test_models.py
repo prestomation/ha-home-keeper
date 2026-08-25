@@ -1484,3 +1484,154 @@ def test_a_seeded_fixed_task_derives_its_next_occurrence_from_now():
     next_due = datetime.fromisoformat(task["next_due"])
     assert next_due > NOW
     assert next_due == datetime(2026, 6, 14, 7, tzinfo=TZ)
+
+
+# ---------------------------------------------------------------------------
+# active_season
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeActiveSeason:
+    def test_valid_non_wrapping(self):
+        result = m.normalize_active_season({"start": "04-01", "end": "09-30"})
+        assert result == {"start": "04-01", "end": "09-30"}
+
+    def test_valid_wrapping(self):
+        result = m.normalize_active_season({"start": "11-01", "end": "03-31"})
+        assert result == {"start": "11-01", "end": "03-31"}
+
+    def test_rejects_non_dict(self):
+        with pytest.raises(m.TaskValidationError, match="must be an object"):
+            m.normalize_active_season("bad")
+
+    def test_rejects_missing_start(self):
+        with pytest.raises(m.TaskValidationError, match="requires start and end"):
+            m.normalize_active_season({"end": "09-30"})
+
+    def test_rejects_invalid_month(self):
+        with pytest.raises(m.TaskValidationError, match="month must be 1-12"):
+            m.normalize_active_season({"start": "13-01", "end": "09-30"})
+
+    def test_rejects_invalid_day(self):
+        with pytest.raises(m.TaskValidationError, match="day must be 1-29"):
+            m.normalize_active_season({"start": "02-30", "end": "09-30"})
+
+    def test_allows_feb_29_leap_year_basis(self):
+        result = m.normalize_active_season({"start": "02-29", "end": "09-30"})
+        assert result == {"start": "02-29", "end": "09-30"}
+
+
+class TestBuildTaskWithSeason:
+    def test_floating_with_season_persists(self):
+        task = m.build_task(
+            {
+                "name": "Fertilize",
+                "recurrence_type": "floating",
+                "interval": 2,
+                "unit": "months",
+                "active_season": {"start": "04-01", "end": "09-30"},
+            },
+            now=NOW,
+        )
+        assert task["active_season"] == {"start": "04-01", "end": "09-30"}
+
+    def test_floating_with_season_clamps_next_due(self):
+        task = m.build_task(
+            {
+                "name": "Fertilize",
+                "recurrence_type": "floating",
+                "interval": 2,
+                "unit": "months",
+                "last_completed": datetime(2026, 9, 15, 10, tzinfo=TZ).isoformat(),
+                "active_season": {"start": "04-01", "end": "09-30"},
+            },
+            now=datetime(2026, 9, 15, 10, tzinfo=TZ),
+        )
+        next_due = datetime.fromisoformat(task["next_due"])
+        assert next_due == datetime(2027, 4, 1, 0, 0, tzinfo=TZ)
+
+    def test_triggered_clears_season(self):
+        task = m.build_task(
+            {
+                "name": "Motion",
+                "recurrence_type": "triggered",
+                "active_season": {"start": "04-01", "end": "09-30"},
+            },
+            now=NOW,
+        )
+        assert task["active_season"] is None
+
+    def test_sensor_clears_season(self):
+        task = m.build_task(
+            {
+                "name": "Oil",
+                "recurrence_type": "sensor",
+                "sensor": {
+                    "entity_id": "sensor.oil_life",
+                    "mode": "state",
+                    "state": "on",
+                },
+                "active_season": {"start": "04-01", "end": "09-30"},
+            },
+            now=NOW,
+        )
+        assert task["active_season"] is None
+
+    def test_one_off_clears_season(self):
+        task = m.build_task(
+            {
+                "name": "Once",
+                "recurrence_type": "one-off",
+                "due": NOW.isoformat(),
+                "active_season": {"start": "04-01", "end": "09-30"},
+            },
+            now=NOW,
+        )
+        assert task["active_season"] is None
+
+
+class TestMergeUpdateSeason:
+    def _floating_task(self):
+        return m.build_task(
+            {
+                "name": "Fertilize",
+                "recurrence_type": "floating",
+                "interval": 2,
+                "unit": "months",
+            },
+            now=NOW,
+        )
+
+    def test_adding_season_triggers_recompute(self):
+        task = self._floating_task()
+        old_due = task["next_due"]
+        merged = m.merge_update(
+            task,
+            {"active_season": {"start": "04-01", "end": "09-30"}},
+            now=NOW,
+        )
+        assert merged["active_season"] == {"start": "04-01", "end": "09-30"}
+        assert merged["next_due"] == old_due
+
+    def test_changing_season_triggers_recompute(self):
+        task = self._floating_task()
+        task["active_season"] = {"start": "04-01", "end": "09-30"}
+        task["last_completed"] = datetime(2026, 9, 15, 10, tzinfo=TZ).isoformat()
+        task["next_due"] = datetime(2027, 4, 1, 0, 0, tzinfo=TZ).isoformat()
+        now = datetime(2026, 9, 20, 10, tzinfo=TZ)
+        merged = m.merge_update(
+            task,
+            {"active_season": {"start": "05-01", "end": "10-31"}},
+            now=now,
+        )
+        assert merged["active_season"] == {"start": "05-01", "end": "10-31"}
+
+    def test_clearing_season(self):
+        task = self._floating_task()
+        task["active_season"] = {"start": "04-01", "end": "09-30"}
+        merged = m.merge_update(
+            task,
+            {"active_season": None},
+            now=NOW,
+        )
+        assert merged["active_season"] is None

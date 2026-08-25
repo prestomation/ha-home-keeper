@@ -104,6 +104,10 @@
           "name": "Exigir leitura da etiqueta",
           "description": "Só a etiqueta vinculada pode concluir esta tarefa. Qualquer outra forma de marcá-la como feita é recusada. Exige uma etiqueta."
         },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Outside the season the next due date is pushed to the start of the next active period. Pass an object with start and end as MM-DD strings; wrapping seasons (e.g. Nov through Mar) are supported. Pass null to clear."
+        },
         "source": {
           "name": "Origem",
           "description": "Procedência opaca de propriedade da integração que criou a tarefa. O Home Keeper a armazena e a repassa textualmente e nunca a inspeciona. Consulte docs/INTEGRATING.md."
@@ -189,6 +193,10 @@
         "require_tag_scan": {
           "name": "Exigir leitura da etiqueta",
           "description": "Só a etiqueta vinculada pode concluir esta tarefa. Exige uma etiqueta."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Pass an object with start and end as MM-DD strings, or null to clear. See add_task."
         },
         "source": {
           "name": "Origem",

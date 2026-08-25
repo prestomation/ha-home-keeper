@@ -104,6 +104,10 @@
           "name": "Kræv scanning af tag",
           "description": "Lad kun det tilknyttede tag fuldføre denne opgave. Alle andre måder at markere den som udført på afvises. Kræver et tag."
         },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Outside the season the next due date is pushed to the start of the next active period. Pass an object with start and end as MM-DD strings; wrapping seasons (e.g. Nov through Mar) are supported. Pass null to clear."
+        },
         "source": {
           "name": "Kilde",
           "description": "Uigennemsigtig oprindelse ejet af den integration, der oprettede opgaven. Home Keeper gemmer og gengiver den ordret og inspicerer den aldrig. Se docs/INTEGRATING.md."
@@ -189,6 +193,10 @@
         "require_tag_scan": {
           "name": "Kræv scanning af tag",
           "description": "Lad kun det tilknyttede tag fuldføre denne opgave. Kræver et tag."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Pass an object with start and end as MM-DD strings, or null to clear. See add_task."
         },
         "source": {
           "name": "Kilde",

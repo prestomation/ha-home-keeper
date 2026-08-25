@@ -164,6 +164,16 @@ add_task:
         Needs a tag.
       selector:
         boolean:
+    active_season:
+      name: Active season
+      description: >-
+        Restrict this task to a date range each year. Outside the season the
+        next due date is pushed to the start of the next active period.
+        Pass an object with "start" and "end" as MM-DD strings; wrapping
+        seasons (e.g. Nov through Mar) are supported. Pass null to clear.
+      example: '{"start": "04-01", "end": "09-30"}'
+      selector:
+        object:
     source:
       name: Source
       description: >-
@@ -330,6 +340,14 @@ update_task:
         Only let the linked tag complete this task. Needs a tag.
       selector:
         boolean:
+    active_season:
+      name: Active season
+      description: >-
+        Restrict this task to a date range each year. Pass an object with
+        "start" and "end" as MM-DD strings, or null to clear. See add_task.
+      example: '{"start": "04-01", "end": "09-30"}'
+      selector:
+        object:
     source:
       name: Source
       description: >-

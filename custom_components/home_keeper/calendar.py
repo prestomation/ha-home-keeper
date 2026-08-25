@@ -92,17 +92,23 @@ class HomeKeeperCalendarEntity(
             anchor = dt_util.parse_datetime(task["anchor"])
             if anchor is None:
                 return None
-            # Keep a fixed occurrence active during its event window: query from
-            # ``now - EVENT_DURATION`` so an in-progress occurrence (whose
-            # ``start + EVENT_DURATION`` still covers ``now``) isn't skipped past.
-            # ``start > now - EVENT_DURATION`` ⇔ ``start + EVENT_DURATION > now``,
-            # mirroring the floating branch below.
-            return recurrence.next_fixed_occurrence(
+            season = task.get("active_season")
+            occ = recurrence.next_fixed_occurrence(
                 anchor,
                 task["freq"],
                 int(task["interval"]),
                 after=now - EVENT_DURATION,
             )
+            if season:
+                for _ in range(recurrence.MAX_EXPAND_ITERATIONS):
+                    if recurrence.in_season(occ, season):
+                        break
+                    occ = recurrence.next_fixed_occurrence(
+                        anchor, task["freq"], int(task["interval"]), after=occ
+                    )
+                else:
+                    return None
+            return occ
         due_iso = task.get("next_due")
         due = dt_util.parse_datetime(due_iso) if due_iso else None
         # Only treat a floating task as "upcoming" while its event hasn't ended.
@@ -128,10 +134,7 @@ class HomeKeeperCalendarEntity(
                 anchor = dt_util.parse_datetime(task["anchor"])
                 if anchor is None:
                     continue
-                # Expand from ``start_date - EVENT_DURATION`` so an occurrence that
-                # started just before the window but whose event still overlaps the
-                # window start is included. The half-open upper bound (``< end_date``)
-                # is preserved, so nothing is double-counted.
+                season = task.get("active_season")
                 for occ in recurrence.expand_fixed_occurrences(
                     anchor,
                     task["freq"],
@@ -139,6 +142,8 @@ class HomeKeeperCalendarEntity(
                     start_date - EVENT_DURATION,
                     end_date,
                 ):
+                    if season and not recurrence.in_season(occ, season):
+                        continue
                     events.append(_event_for(task, occ))
             else:
                 due_iso = task.get("next_due")

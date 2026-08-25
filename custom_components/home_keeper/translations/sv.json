@@ -104,6 +104,10 @@
           "name": "Kräv skanning av taggen",
           "description": "Bara den kopplade taggen får slutföra den här uppgiften. Alla andra sätt att markera den som utförd avvisas. Kräver en tagg."
         },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Outside the season the next due date is pushed to the start of the next active period. Pass an object with start and end as MM-DD strings; wrapping seasons (e.g. Nov through Mar) are supported. Pass null to clear."
+        },
         "source": {
           "name": "Källa",
           "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Home Keeper lagrar och återger den ordagrant och inspekterar den aldrig. Se docs/INTEGRATING.md."
@@ -189,6 +193,10 @@
         "require_tag_scan": {
           "name": "Kräv skanning av taggen",
           "description": "Bara den kopplade taggen får slutföra den här uppgiften. Kräver en tagg."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Pass an object with start and end as MM-DD strings, or null to clear. See add_task."
         },
         "source": {
           "name": "Källa",

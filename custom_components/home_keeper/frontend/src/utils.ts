@@ -173,19 +173,27 @@ export function recurrenceSummary(task: Task): string {
       : t('recurrence.sensorUsageAny', { summary, every });
   }
   const n = task.interval || 1;
+  let summary: string;
   if (task.recurrence_type === 'floating') {
     const base = (task.unit || 'days').replace(/s$/, ''); // day / week / month
     const unit = tn(`recurrence.unit.${base}`, n);
-    return tn('recurrence.floating', n, { unit });
+    summary = tn('recurrence.floating', n, { unit });
+  } else {
+    const freqBase: Record<string, string> = {
+      DAILY: 'day',
+      WEEKLY: 'week',
+      MONTHLY: 'month',
+    };
+    const base = freqBase[task.freq || 'DAILY'] || 'day';
+    const unit = tn(`recurrence.unit.${base}`, n);
+    summary = tn('recurrence.fixed', n, { unit });
   }
-  const freqBase: Record<string, string> = {
-    DAILY: 'day',
-    WEEKLY: 'week',
-    MONTHLY: 'month',
-  };
-  const base = freqBase[task.freq || 'DAILY'] || 'day';
-  const unit = tn(`recurrence.unit.${base}`, n);
-  return tn('recurrence.fixed', n, { unit });
+  if (task.active_season) {
+    const startMonth = t(`opt.month.${parseInt(task.active_season.start, 10)}`);
+    const endMonth = t(`opt.month.${parseInt(task.active_season.end, 10)}`);
+    summary = t('recurrence.season', { summary, start: startMonth, end: endMonth });
+  }
+  return summary;
 }
 
 /** True when the task's next due date is at or before now. */

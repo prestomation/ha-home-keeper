@@ -104,6 +104,10 @@
           "name": "Richiedi la scansione dell'etichetta",
           "description": "Solo l'etichetta collegata può completare questa attività. Qualsiasi altro modo di segnarla come fatta viene rifiutato. Richiede un'etichetta."
         },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Outside the season the next due date is pushed to the start of the next active period. Pass an object with start and end as MM-DD strings; wrapping seasons (e.g. Nov through Mar) are supported. Pass null to clear."
+        },
         "source": {
           "name": "Origine",
           "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Home Keeper la memorizza e la restituisce testualmente e non la ispeziona mai. Vedi docs/INTEGRATING.md."
@@ -189,6 +193,10 @@
         "require_tag_scan": {
           "name": "Richiedi la scansione dell'etichetta",
           "description": "Solo l'etichetta collegata può completare questa attività. Richiede un'etichetta."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Pass an object with start and end as MM-DD strings, or null to clear. See add_task."
         },
         "source": {
           "name": "Origine",

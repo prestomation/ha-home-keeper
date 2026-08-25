@@ -197,6 +197,24 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
 
+    // 3b. Active season — switch back to floating, toggle the season on, and let the
+    //     month pickers and the live hint ("every month after completion, Apr–Sep")
+    //     settle so the video shows the feature end to end.
+    await recurrence.click();
+    await page.getByRole('menuitem', { name: /after each completion/i }).first().click();
+    await page.waitForTimeout(BEAT);
+    const seasonSwitch = panel.locator('#hk-task-form ha-selector-boolean ha-switch').first();
+    if (!(await seasonSwitch.evaluate((el: HTMLInputElement) => el.checked))) {
+      await seasonSwitch.click();
+    }
+    await expect(panel.locator('#hk-task-form ha-select').nth(2)).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    // Turn season off again before the next section.
+    if (await seasonSwitch.evaluate((el: HTMLInputElement) => el.checked)) {
+      await seasonSwitch.click();
+    }
+    await page.waitForTimeout(BEAT);
+
     // 3a. Switch the same form to a **sensor** task and build the shape a real service
     //     interval has: a meter target plus a time backstop. Typing the target, then
     //     the "Or every" months, makes the live hint *and* the rule summary above the

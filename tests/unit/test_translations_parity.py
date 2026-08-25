@@ -173,7 +173,11 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
 # in, those values are intentionally identical to English, so the untranslated-leak
 # guard skips them. Key parity and placeholder parity still apply to them, and the
 # moment a locale's exception strings are translated they simply stop matching.
-_PENDING_TRANSLATION_PREFIXES = ("exceptions.",)
+_PENDING_TRANSLATION_PREFIXES = (
+    "exceptions.",
+    "services.add_task.fields.active_season.",
+    "services.update_task.fields.active_season.",
+)
 
 # Token of the form ``{name}`` used by HA/Python ``str.format`` placeholders.
 _TOKEN_RE = re.compile(r"\{(\w+)\}")

@@ -104,6 +104,10 @@
           "name": "Vaadi tunnisteen lukemista",
           "description": "Vain liitetty tunniste voi suorittaa tämän tehtävän. Kaikki muut tavat merkitä se tehdyksi hylätään. Vaatii tunnisteen."
         },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Outside the season the next due date is pushed to the start of the next active period. Pass an object with start and end as MM-DD strings; wrapping seasons (e.g. Nov through Mar) are supported. Pass null to clear."
+        },
         "source": {
           "name": "Lähde",
           "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Home Keeper tallentaa ja toistaa sen sanatarkasti eikä koskaan tarkastele sitä. Katso docs/INTEGRATING.md."
@@ -189,6 +193,10 @@
         "require_tag_scan": {
           "name": "Vaadi tunnisteen lukemista",
           "description": "Vain liitetty tunniste voi suorittaa tämän tehtävän. Vaatii tunnisteen."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Pass an object with start and end as MM-DD strings, or null to clear. See add_task."
         },
         "source": {
           "name": "Lähde",

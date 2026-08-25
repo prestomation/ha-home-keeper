@@ -163,6 +163,30 @@ describe('recurrenceSummary', () => {
       recurrenceSummary({ recurrence_type: 'triggered', next_due: '2026-06-01T00:00:00Z' }),
     ).toBe('Monitored');
   });
+  it('appends season range for floating tasks with active_season', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 2, unit: 'months',
+        active_season: { start: '04-01', end: '09-30' },
+      }),
+    ).toBe('every 2 months after completion, April–September');
+  });
+  it('appends season range for fixed tasks with active_season', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY',
+        active_season: { start: '11-01', end: '03-31' },
+      }),
+    ).toBe('every month, November–March');
+  });
+  it('omits season range when active_season is null', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 1, unit: 'months',
+        active_season: null,
+      }),
+    ).toBe('every month after completion');
+  });
 });
 
 describe('isArmedTriggered', () => {

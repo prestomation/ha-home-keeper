@@ -32,6 +32,7 @@ describe('taskSchema by recurrence type', () => {
       'recurrence_type',
       'interval',
       'unit',
+      'season_on',
       'last_completed',
       'device_id',
       'area_id',
@@ -49,6 +50,7 @@ describe('taskSchema by recurrence type', () => {
       'recurrence_type',
       'interval',
       'freq',
+      'season_on',
       'anchor',
       'last_completed',
       'device_id',
@@ -457,5 +459,80 @@ describe('shoppingSchema', () => {
   it('emits no exclusion key when there is nothing to exclude', () => {
     const [field] = shoppingSchema([]);
     expect('exclude_entities' in field.selector.entity).toBe(false);
+  });
+});
+
+describe('active season fields', () => {
+  it('shows season toggle for floating tasks', () => {
+    const fieldNames = names(taskSchema({ recurrence_type: 'floating' }));
+    expect(fieldNames).toContain('season_on');
+  });
+
+  it('shows season toggle for fixed tasks', () => {
+    const fieldNames = names(taskSchema({ recurrence_type: 'fixed' }));
+    expect(fieldNames).toContain('season_on');
+  });
+
+  it('hides season toggle for one-off tasks', () => {
+    const fieldNames = names(taskSchema({ recurrence_type: 'one-off' }));
+    expect(fieldNames).not.toContain('season_on');
+  });
+
+  it('hides season toggle for sensor tasks', () => {
+    const fieldNames = names(taskSchema({ recurrence_type: 'sensor' }));
+    expect(fieldNames).not.toContain('season_on');
+  });
+
+  it('taskFormData defaults season months to April/September', () => {
+    const fd = taskFormData({ recurrence_type: 'floating', interval: 1, unit: 'months' });
+    expect(fd.season_on).toBe(false);
+    expect(fd.season_start_month).toBe('4');
+    expect(fd.season_end_month).toBe('9');
+  });
+
+  it('taskFormData reads existing active_season', () => {
+    const fd = taskFormData({
+      recurrence_type: 'floating', interval: 1, unit: 'months',
+      active_season: { start: '11-01', end: '03-31' },
+    });
+    expect(fd.season_on).toBe(true);
+    expect(fd.season_start_month).toBe('11');
+    expect(fd.season_end_month).toBe('3');
+  });
+
+  it('buildTaskPayload assembles active_season when season_on', () => {
+    const payload = buildTaskPayload({
+      name: 'Mow', recurrence_type: 'floating', interval: 2, unit: 'months',
+      season_on: true, season_start_month: '4', season_end_month: '9',
+    });
+    expect(payload.active_season).toEqual({ start: '04-01', end: '09-30' });
+  });
+
+  it('buildTaskPayload sends null when season_on is false', () => {
+    const payload = buildTaskPayload({
+      name: 'Mow', recurrence_type: 'floating', interval: 2, unit: 'months',
+      season_on: false,
+    });
+    expect(payload.active_season).toBeNull();
+  });
+
+  it('buildTaskPayload handles February end month correctly', () => {
+    const payload = buildTaskPayload({
+      name: 'T', recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY',
+      season_on: true, season_start_month: '1', season_end_month: '2',
+      anchor: '2026-01-15T10:00:00',
+    });
+    expect(payload.active_season).toEqual({ start: '01-01', end: '02-29' });
+  });
+
+  it('round-trips a season through taskFormData and buildTaskPayload', () => {
+    const task = {
+      id: 't1', name: 'Fertilize', recurrence_type: 'floating',
+      interval: 2, unit: 'months',
+      active_season: { start: '04-01', end: '09-30' },
+    };
+    const fd = taskFormData(task);
+    const payload = buildTaskPayload({ ...task, ...fd });
+    expect(payload.active_season).toEqual({ start: '04-01', end: '09-30' });
   });
 });

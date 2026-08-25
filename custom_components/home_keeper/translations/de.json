@@ -104,6 +104,10 @@
           "name": "Scan des Tags verlangen",
           "description": "Diese Aufgabe lässt sich nur mit dem verknüpften Tag abschließen. Jeder andere Weg, sie als erledigt zu markieren, wird abgelehnt. Erfordert ein Tag."
         },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Outside the season the next due date is pushed to the start of the next active period. Pass an object with start and end as MM-DD strings; wrapping seasons (e.g. Nov through Mar) are supported. Pass null to clear."
+        },
         "source": {
           "name": "Quelle",
           "description": "Undurchsichtige Herkunftsangabe, die der Integration gehört, die die Aufgabe erstellt hat. Home Keeper speichert und gibt sie unverändert zurück und wertet sie nie aus. Siehe docs/INTEGRATING.md."
@@ -189,6 +193,10 @@
         "require_tag_scan": {
           "name": "Scan des Tags verlangen",
           "description": "Diese Aufgabe lässt sich nur mit dem verknüpften Tag abschließen. Erfordert ein Tag."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Pass an object with start and end as MM-DD strings, or null to clear. See add_task."
         },
         "source": {
           "name": "Quelle",

@@ -16,7 +16,7 @@ import unusedKeysBaseline from './unused-keys-baseline.json';
 // Strings identical to English by design in every language. `app.title` is the
 // product name, `due.none` is an em dash, and `managed.completionHint` is the
 // bare `{prompt}` placeholder (no translatable text). Keep this tiny.
-const INTENTIONALLY_IDENTICAL = new Set(['app.title', 'due.none', 'managed.completionHint']);
+const INTENTIONALLY_IDENTICAL = new Set(['app.title', 'due.none', 'managed.completionHint', 'recurrence.season']);
 
 // Per-locale cognates / loanwords whose translation is genuinely identical to
 // English in that language (reviewed individually): German "Name"/"Status",
@@ -27,18 +27,18 @@ const INTENTIONALLY_IDENTICAL = new Set(['app.title', 'due.none', 'managed.compl
 const COGNATE_IDENTICAL = {
   ca: ['field.cost', 'field.doc_url', 'field.model', 'field.notes', 'field.sensor_entity_id', 'meta.seed.notes', 'opt.meta.text', 'section.notes', 'settings.general_heading'],
   cs: ['field.doc_url', 'field.model', 'opt.meta.text'],
-  da: ['chip.orphaned', 'field.doc_url', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.type', 'group.integration', 'group.status', 'opt.meta.link'],
-  de: ['chip.orphaned', 'detail.about', 'due.in_units', 'field.doc_name', 'field.doc_url', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text'],
+  da: ['chip.orphaned', 'field.doc_url', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.type', 'group.integration', 'group.status', 'opt.meta.link', 'opt.month.4', 'opt.month.8', 'opt.month.9', 'opt.month.11', 'opt.month.12'],
+  de: ['chip.orphaned', 'detail.about', 'due.in_units', 'field.doc_name', 'field.doc_url', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.link', 'opt.meta.text', 'opt.month.4', 'opt.month.8', 'opt.month.9', 'opt.month.11'],
   es: ['field.doc_url', 'field.sensor_entity_id', 'settings.general_heading'],
   fi: ['field.doc_url'],
   fr: ['completion.photo', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'section.notes'],
   it: ['field.area_id', 'field.doc_url', 'group.area', 'opt.meta.link'],
-  nb: ['field.doc_url', 'field.kind', 'field.sensor_entity_id', 'field.type', 'group.status'],
-  nl: ['detail.about', 'field.doc_url', 'field.kind', 'field.label', 'field.model', 'field.sensor_entity_id', 'field.type', 'group.status', 'opt.meta.link', 'recurrence.unit.week.one', 'section.later'],
+  nb: ['field.doc_url', 'field.kind', 'field.sensor_entity_id', 'field.type', 'group.status', 'opt.month.4', 'opt.month.8', 'opt.month.9', 'opt.month.11'],
+  nl: ['detail.about', 'field.doc_url', 'field.kind', 'field.label', 'field.model', 'field.sensor_entity_id', 'field.type', 'group.status', 'opt.meta.link', 'opt.month.4', 'opt.month.9', 'opt.month.11', 'opt.month.12', 'recurrence.unit.week.one', 'section.later'],
   pl: ['field.doc_url', 'field.model', 'group.status', 'opt.meta.link'],
   'pt-BR': ['field.doc_url', 'field.sensor_entity_id', 'group.status', 'opt.meta.link'],
   ru: ['field.doc_url'],
-  sv: ['chip.orphaned', 'field.doc_url', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.text'],
+  sv: ['chip.orphaned', 'field.doc_url', 'field.sensor_entity_id', 'group.integration', 'group.status', 'opt.meta.text', 'opt.month.4', 'opt.month.9', 'opt.month.11', 'opt.month.12'],
   'zh-Hans': ['field.doc_url'],
 };
 

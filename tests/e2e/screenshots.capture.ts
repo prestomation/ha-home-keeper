@@ -457,6 +457,22 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/3-panel-create-fixed.png`, fullPage: true });
 
+  // 3b. Active season toggle on the floating task form — the season restricts the
+  // task to a date range each year. Switch back to floating, turn on the toggle, and
+  // pick start/end months so the month selectors are visible.
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /after each completion/i);
+  const seasonSwitch = panel.locator('#hk-task-form ha-selector-boolean ha-switch').first();
+  if (!(await seasonSwitch.evaluate((el: HTMLInputElement) => el.checked))) {
+    await seasonSwitch.click();
+  }
+  await expect(panel.locator('#hk-task-form ha-select').nth(2)).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/3b-panel-create-season.png`, fullPage: true });
+  // Turn season off again and switch back to fixed for the next shot.
+  if (await seasonSwitch.evaluate((el: HTMLInputElement) => el.checked)) {
+    await seasonSwitch.click();
+  }
+
   // 20. Create form switched to a one-off (do-once) task — no cadence, just a single
   // Due date picker. Completing it later sends it to the Completed section.
   await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Just once/);

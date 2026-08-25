@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.17.0b1]
+
+### Added
+
+- **Active season for floating and fixed tasks.** Restrict a recurring task to
+  a date range each year (e.g. April through September). Outside the season the
+  next due date moves to the start of the next active period. (Fixes #242)
+
 ## [0.16.0] - 2026-08-25
 
 ### Added

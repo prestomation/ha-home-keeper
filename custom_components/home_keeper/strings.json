@@ -104,6 +104,10 @@
           "name": "Require tag scan",
           "description": "Only let the linked tag complete this task. Every other way of marking it done is refused. Needs a tag."
         },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Outside the season the next due date is pushed to the start of the next active period. Pass an object with start and end as MM-DD strings; wrapping seasons (e.g. Nov through Mar) are supported. Pass null to clear."
+        },
         "source": {
           "name": "Source",
           "description": "Opaque provenance owned by the integration that created the task. Home Keeper stores and echoes it verbatim and never inspects it. See docs/INTEGRATING.md."
@@ -189,6 +193,10 @@
         "require_tag_scan": {
           "name": "Require tag scan",
           "description": "Only let the linked tag complete this task. Needs a tag."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to a date range each year. Pass an object with start and end as MM-DD strings, or null to clear. See add_task."
         },
         "source": {
           "name": "Source",

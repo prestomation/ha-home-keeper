@@ -41,6 +41,7 @@ def task_event_data(
         "managed_by": task.get("managed_by"),
         "task_chips": task.get("task_chips", []),
         "tag_id": task.get("tag_id"),
+        "active_season": task.get("active_season"),
     }
     if extra:
         data.update(extra)
