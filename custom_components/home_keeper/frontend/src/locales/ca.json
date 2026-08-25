@@ -61,7 +61,6 @@
   "chip.orphaned": "Integració fora de línia",
   "chip.overdue": "Endarrerit",
   "chip.scanLock.tip": "Aquesta tasca només es pot completar escanejant la seva etiqueta.",
-  "chip.subdeviceOf": "subdispositiu de {name}",
   "chip.virtualDevice": "Dispositiu virtual",
   "chip.virtualDevice.tip": "Obre la pàgina del dispositiu de Home Assistant d'aquest aparell.",
   "companions.chip.connected": "Connectat",

@@ -61,7 +61,6 @@
   "chip.orphaned": "Intégration hors ligne",
   "chip.overdue": "En retard",
   "chip.scanLock.tip": "Cette tâche ne peut être terminée qu'en scannant son badge.",
-  "chip.subdeviceOf": "sous-appareil de {name}",
   "chip.virtualDevice": "Appareil virtuel",
   "chip.virtualDevice.tip": "Ouvrir la page de l'appareil Home Assistant de cet équipement.",
   "companions.chip.connected": "Connecté",

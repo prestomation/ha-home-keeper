@@ -61,7 +61,6 @@
   "chip.orphaned": "Integração offline",
   "chip.overdue": "Atrasado",
   "chip.scanLock.tip": "Esta tarefa só pode ser concluída lendo a etiqueta dela.",
-  "chip.subdeviceOf": "subdispositivo de {name}",
   "chip.virtualDevice": "Dispositivo virtual",
   "chip.virtualDevice.tip": "Abrir a página do dispositivo Home Assistant deste aparelho.",
   "companions.chip.connected": "Conectado",

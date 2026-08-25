@@ -65,7 +65,6 @@
   "chip.orphaned": "Integracja offline",
   "chip.overdue": "Zaległe",
   "chip.scanLock.tip": "To zadanie można ukończyć tylko przez zeskanowanie jego tagu.",
-  "chip.subdeviceOf": "podurządzenie {name}",
   "chip.virtualDevice": "Urządzenie wirtualne",
   "chip.virtualDevice.tip": "Otwórz stronę urządzenia Home Assistant tego sprzętu.",
   "companions.chip.connected": "Połączono",

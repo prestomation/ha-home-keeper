@@ -57,7 +57,6 @@
   "chip.orphaned": "集成离线",
   "chip.overdue": "已逾期",
   "chip.scanLock.tip": "此任务只能通过扫描其标签来完成。",
-  "chip.subdeviceOf": "{name} 的子设备",
   "chip.virtualDevice": "虚拟设备",
   "chip.virtualDevice.tip": "打开此设备的 Home Assistant 设备页面。",
   "companions.chip.connected": "已连接",

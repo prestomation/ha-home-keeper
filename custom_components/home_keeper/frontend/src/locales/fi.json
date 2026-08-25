@@ -57,7 +57,6 @@
   "chip.orphaned": "Integraatio offline-tilassa",
   "chip.overdue": "Myöhässä",
   "chip.scanLock.tip": "Tämän tehtävän voi merkitä valmiiksi vain lukemalla sen tunnisteen.",
-  "chip.subdeviceOf": "laitteen {name} alalaite",
   "chip.virtualDevice": "Virtuaalilaite",
   "chip.virtualDevice.tip": "Avaa tämän laitteen Home Assistant -laitesivu.",
   "companions.chip.connected": "Yhdistetty",

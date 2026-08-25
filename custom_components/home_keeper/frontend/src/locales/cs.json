@@ -65,7 +65,6 @@
   "chip.orphaned": "Integrace offline",
   "chip.overdue": "Po termínu",
   "chip.scanLock.tip": "Tento úkol lze dokončit pouze naskenováním jeho štítku.",
-  "chip.subdeviceOf": "podzařízení {name}",
   "chip.virtualDevice": "Virtuální zařízení",
   "chip.virtualDevice.tip": "Otevřít stránku zařízení Home Assistant tohoto spotřebiče.",
   "companions.chip.connected": "Připojeno",

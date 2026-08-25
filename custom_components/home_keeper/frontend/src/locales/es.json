@@ -61,7 +61,6 @@
   "chip.orphaned": "Integración desconectada",
   "chip.overdue": "Vencida",
   "chip.scanLock.tip": "Esta tarea solo se puede completar escaneando su etiqueta.",
-  "chip.subdeviceOf": "subdispositivo de {name}",
   "chip.virtualDevice": "Dispositivo virtual",
   "chip.virtualDevice.tip": "Abrir la página del dispositivo de Home Assistant de este aparato.",
   "companions.chip.connected": "Conectado",

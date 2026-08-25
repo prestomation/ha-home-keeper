@@ -65,7 +65,6 @@
   "chip.orphaned": "Интеграция офлайн",
   "chip.overdue": "Просрочено",
   "chip.scanLock.tip": "Эту задачу можно завершить только сканированием её метки.",
-  "chip.subdeviceOf": "подустройство {name}",
   "chip.virtualDevice": "Виртуальное устройство",
   "chip.virtualDevice.tip": "Открыть страницу устройства Home Assistant этого прибора.",
   "companions.chip.connected": "Подключено",

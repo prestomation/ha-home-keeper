@@ -57,7 +57,6 @@
   "chip.orphaned": "Integration offline",
   "chip.overdue": "Försenad",
   "chip.scanLock.tip": "Den här uppgiften kan bara slutföras genom att skanna dess tagg.",
-  "chip.subdeviceOf": "underenhet till {name}",
   "chip.virtualDevice": "Virtuell enhet",
   "chip.virtualDevice.tip": "Öppna den här apparatens Home Assistant-enhetssida.",
   "companions.chip.connected": "Ansluten",

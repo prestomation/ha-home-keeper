@@ -57,7 +57,6 @@
   "chip.orphaned": "Integration offline",
   "chip.overdue": "Forfalden",
   "chip.scanLock.tip": "Denne opgave kan kun fuldføres ved at skanne dens tag.",
-  "chip.subdeviceOf": "underenhed af {name}",
   "chip.virtualDevice": "Virtuel enhed",
   "chip.virtualDevice.tip": "Åbn dette apparats Home Assistant-enhedsside.",
   "companions.chip.connected": "Forbundet",

@@ -530,22 +530,23 @@ const STYLES = `
   .hk-card-row .grow.clickable { cursor: pointer; }
   ha-card.hk-card.overdue { border-left: 3px solid var(--error-color); }
   ha-card.hk-card.hk-tree-child {
-    margin-left: calc(var(--hk-tree-depth, 0) * 32px);
+    margin-left: calc(var(--hk-tree-depth, 0) * 14px);
     position: relative;
+    background: color-mix(in srgb, var(--primary-color) calc(var(--hk-tree-depth, 0) * 4%), var(--card-background-color, #fff));
   }
   ha-card.hk-card.hk-tree-child::before {
     content: '';
     position: absolute;
-    left: -20px;
+    left: -10px;
     top: 50%;
-    width: 16px;
+    width: 7px;
     height: 2px;
     background: var(--divider-color);
   }
   ha-card.hk-card.hk-tree-child::after {
     content: '';
     position: absolute;
-    left: -20px;
+    left: -10px;
     top: 0;
     height: 100%;
     width: 2px;
@@ -2573,7 +2574,7 @@ export class HomeKeeperPanel extends HTMLElement {
         : '',
       x.parent_asset_id
         ? `<ha-assist-chip label="${escapeHTML(
-            t('chip.subdeviceOf', { name: this._assetName(x.parent_asset_id) }),
+            '↳ ' + this._assetAncestry(x.parent_asset_id),
           )}"></ha-assist-chip>`
         : '',
       x.archived_at
@@ -2596,6 +2597,20 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _assetName(assetId: string): string {
     return this._assets.find((a) => a.id === assetId)?.name || assetId;
+  }
+
+  private _assetAncestry(assetId: string): string {
+    const path: string[] = [];
+    const seen = new Set<string>();
+    let cur: string | null = assetId;
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      const a = this._assets.find((x) => x.id === cur);
+      if (!a) break;
+      path.unshift(a.name || cur);
+      cur = a.parent_asset_id ?? null;
+    }
+    return path.join(' › ');
   }
 
   // ── detail page ─────────────────────────────────────────────────────────────
@@ -2848,7 +2863,7 @@ export class HomeKeeperPanel extends HTMLElement {
           : '';
     const parentChip = asset.parent_asset_id
       ? `<ha-assist-chip label="${escapeHTML(
-          t('chip.subdeviceOf', { name: this._assetName(asset.parent_asset_id) }),
+          '↳ ' + this._assetAncestry(asset.parent_asset_id),
         )}"></ha-assist-chip>`
       : '';
     const title =
