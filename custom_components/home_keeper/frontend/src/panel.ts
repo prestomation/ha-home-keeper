@@ -2459,35 +2459,34 @@ export class HomeKeeperPanel extends HTMLElement {
     const cmp = (a: Asset, b: Asset) => (a.name || '').localeCompare(b.name || '');
     if (this._assetView === 'tree') {
       const tree = buildAssetTree(filtered, cmp);
-      let html = '';
-      let i = 0;
-      while (i < tree.length) {
-        const entry = tree[i];
-        if (entry.depth === 0) {
-          const children: typeof tree = [];
-          let j = i + 1;
-          while (j < tree.length && tree[j].depth > 0) {
-            children.push(tree[j]);
-            j++;
-          }
-          if (children.length > 0) {
+      const renderSubtree = (start: number, parentDepth: number): [string, number] => {
+        let html = '';
+        let i = start;
+        while (i < tree.length && tree[i].depth > parentDepth) {
+          const entry = tree[i];
+          const depth = entry.depth;
+          const hasChildren = i + 1 < tree.length && tree[i + 1].depth > depth;
+          if (hasChildren) {
+            const [childrenHtml, nextI] = renderSubtree(i + 1, depth);
+            const isLast = nextI >= tree.length || tree[nextI].depth <= parentDepth;
             const isOpen = !this._treeCollapsed.has(entry.item.id);
             html += `<div class="hk-tree-group${isOpen ? ' hk-tree-open' : ''}">
               <div class="hk-tree-parent-row">
                 <span class="hk-chevron" data-tree-toggle="${escapeHTML(entry.item.id)}"></span>
-                ${this._assetCard(entry.item, 0)}
+                ${this._assetCard(entry.item, depth, isLast)}
               </div>
-              <div class="hk-tree-children">${children.map((c, idx) => this._assetCard(c.item, c.depth, idx === children.length - 1)).join('')}</div>
+              <div class="hk-tree-children">${childrenHtml}</div>
             </div>`;
+            i = nextI;
           } else {
-            html += this._assetCard(entry.item, 0);
+            i++;
+            const isLast = i >= tree.length || tree[i].depth <= parentDepth;
+            html += this._assetCard(entry.item, depth, isLast);
           }
-          i = j;
-        } else {
-          html += this._assetCard(entry.item, entry.depth);
-          i++;
         }
-      }
+        return [html, i];
+      };
+      const [html] = renderSubtree(0, -1);
       return html;
     }
     const assets = [...filtered].sort(cmp);
