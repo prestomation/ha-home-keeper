@@ -705,9 +705,9 @@ included, hide checked-off items from Home Assistant, so an item that disappears
 read as "done". If your list reports completions properly (a `local_todo` list does)
 you can switch it off, and a deleted item is re-added on the next pass instead.
 
-Tasks that [require a tag scan](#complete-tasks-with-nfcrfid-tags) still mirror, but
-checking one off remotely does not complete anything. The item comes back, which is
-the point of requiring the scan.
+Tasks that require an NFC/RFID tag scan to complete still mirror, but checking one
+off remotely does not complete anything. The item comes back, which is the point of
+requiring the scan.
 
 **The Todoist recipe.** Install Home Assistant's own
 [Todoist integration](https://www.home-assistant.io/integrations/todoist/) and give it

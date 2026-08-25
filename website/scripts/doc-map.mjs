@@ -49,6 +49,7 @@ export const USER_SECTIONS = [
   {h: 'Sensor-based tasks (usage meters, thresholds & states)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks'},
   {h: 'Settings', slug: 'settings', title: 'Settings'},
   {h: 'Profiles (saved filters you reuse everywhere)', slug: 'profiles', title: 'Profiles', label: 'Profiles'},
+  {h: 'Send tasks to your to-do lists', slug: 'todo-sync', title: 'To-do list sync', label: 'To-do list sync'},
   {h: 'Notifications (actionable reminders on your phone)', slug: 'notifications', title: 'Notifications', label: 'Notifications'},
   {h: 'Dashboard task card', slug: 'dashboard-card', title: 'Dashboard card', label: 'Dashboard card'},
   {h: 'Appliances & virtual devices', slug: 'appliances', title: 'Appliances', label: 'Appliances'},
@@ -113,6 +114,8 @@ export const ANCHOR_ROUTES = {
   '#companions': '/docs/guide/settings#companions',
   '#notifications-actionable-reminders-on-your-phone': '/docs/guide/notifications',
   '#profiles-saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
+  // The Settings section links across to the task-mirror section (→ todo-sync page).
+  '#send-tasks-to-your-to-do-lists': '/docs/guide/todo-sync',
   '#dashboard-task-card': '/docs/guide/dashboard-card',
   // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
   // section (→ sensor-tasks page); "Parts & wear items" under Appliances; and
