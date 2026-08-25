@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "hver {n}. {unit}",
   "recurrence.floating.one": "hver {unit} etter fullføring",
   "recurrence.floating.other": "hver {n}. {unit} etter fullføring",
-  "recurrence.season": "{summary}, {start}-{end}",
+  "recurrence.season": "{summary}, {range}",
   "recurrence.oneOff": "Engangs",
   "recurrence.sensor": "Sensorbasert",
   "recurrence.sensorState": "Når den går til {state}",
@@ -445,5 +445,9 @@
   "tasks.intro.monitored": "<b>Overvåket</b> — utløst av en sensor eller tilstand og ryddet automatisk; noen kan ikke merkes som ferdige manuelt.",
   "tasks.intro.recurring": "<b>Gjentakende</b> — gjentas etter en plan eller hver gang du fullfører den (filterbytte, veterinær, batterier).",
   "tasks.intro.title": "Velkommen til Home Keeper",
-  "tasks.noMatch": "Ingen oppgaver samsvarer med dette filteret."
+  "tasks.noMatch": "Ingen oppgaver samsvarer med dette filteret.",
+  "field.season_2_on": "Andre vindu",
+  "field.season_2_start_month": "Startmåned",
+  "field.season_2_end_month": "Sluttmåned",
+  "help.season_2_on": "Legg til et andre aktivt vindu, for oppgaver som utføres i to separate deler av året (vår og høst, for eksempel)."
 }

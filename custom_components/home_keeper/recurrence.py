@@ -82,43 +82,63 @@ def _parse_mmdd(mmdd: str) -> tuple[int, int]:
     return int(parts[0]), int(parts[1])
 
 
-def in_season(dt_val: datetime, season: dict) -> bool:
-    """True when *dt_val*'s month-day falls inside the active season.
+def _normalize_season(season: dict | list) -> list[dict]:
+    """Coerce *season* to a list of ``{"start": ..., "end": ...}`` windows."""
+    if isinstance(season, dict):
+        return [season]
+    return list(season)
+
+
+def in_season(dt_val: datetime, season: dict | list) -> bool:
+    """True when *dt_val*'s month-day falls inside any active-season window.
 
     Non-wrapping (e.g. Apr-Sep): ``start <= md <= end``.
     Wrapping (e.g. Nov-Mar): ``md >= start or md <= end``.
     """
-    s_m, s_d = _parse_mmdd(season["start"])
-    e_m, e_d = _parse_mmdd(season["end"])
     md = (dt_val.month, dt_val.day)
-    start = (s_m, s_d)
-    end = (e_m, e_d)
-    if start <= end:
-        return start <= md <= end
-    return md >= start or md <= end
+    for window in _normalize_season(season):
+        s_m, s_d = _parse_mmdd(window["start"])
+        e_m, e_d = _parse_mmdd(window["end"])
+        start = (s_m, s_d)
+        end = (e_m, e_d)
+        if start <= end:
+            if start <= md <= end:
+                return True
+        elif md >= start or md <= end:
+            return True
+    return False
 
 
-def _next_season_start(dt_val: datetime, season: dict) -> datetime:
-    """Earliest datetime at the season's start on or after *dt_val*.
+def _next_season_start(dt_val: datetime, season: dict | list) -> datetime:
+    """Earliest datetime at any window's start on or after *dt_val*.
 
     Clamps the day via ``calendar.monthrange`` so a season start like ``"01-31"``
     landing in February becomes Feb 28/29.
     """
-    s_m, s_d = _parse_mmdd(season["start"])
-    year = dt_val.year
-    last_day = _calendar.monthrange(year, s_m)[1]
-    day = min(s_d, last_day)
-    candidate = dt_val.replace(
-        month=s_m, day=day, hour=0, minute=0, second=0, microsecond=0
-    )
-    if candidate < dt_val:
-        year += 1
+    candidates: list[datetime] = []
+    for window in _normalize_season(season):
+        s_m, s_d = _parse_mmdd(window["start"])
+        year = dt_val.year
         last_day = _calendar.monthrange(year, s_m)[1]
         day = min(s_d, last_day)
         candidate = dt_val.replace(
-            year=year, month=s_m, day=day, hour=0, minute=0, second=0, microsecond=0
+            month=s_m, day=day, hour=0, minute=0, second=0, microsecond=0
         )
-    return candidate
+        if candidate < dt_val:
+            year += 1
+            last_day = _calendar.monthrange(year, s_m)[1]
+            day = min(s_d, last_day)
+            candidate = dt_val.replace(
+                year=year,
+                month=s_m,
+                day=day,
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+        candidates.append(candidate)
+    return min(candidates)
 
 
 def _clamp_season(next_due: datetime, task: dict) -> datetime:

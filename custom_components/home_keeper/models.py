@@ -453,39 +453,49 @@ def normalize_task_chips(value: Any) -> list[dict[str, str]]:
     return result
 
 
-def normalize_active_season(data: Any) -> dict:
-    """Validate and normalize an ``active_season`` object.
-
-    Accepts ``{"start": "MM-DD", "end": "MM-DD"}`` and validates that month is
-    1-12 and day is valid for that month (using leap year 2000 for Feb to allow 29).
-    """
+def _validate_season_window(data: Any, *, index: int | None = None) -> dict:
+    """Validate a single ``{"start": "MM-DD", "end": "MM-DD"}`` window."""
+    prefix = f"active_season[{index}]" if index is not None else "active_season"
     if not isinstance(data, dict):
-        raise TaskValidationError("active_season must be an object")
+        raise TaskValidationError(f"{prefix} must be an object")
     start = data.get("start")
     end = data.get("end")
     if not start or not end:
-        raise TaskValidationError("active_season requires start and end")
+        raise TaskValidationError(f"{prefix} requires start and end")
     for label, mmdd in (("start", start), ("end", end)):
         try:
             parts = str(mmdd).split("-")
             month, day = int(parts[0]), int(parts[1])
         except (ValueError, IndexError) as err:
             raise TaskValidationError(
-                f"active_season {label} must be MM-DD: {mmdd!r}"
+                f"{prefix} {label} must be MM-DD: {mmdd!r}"
             ) from err
         if month < 1 or month > 12:
-            raise TaskValidationError(
-                f"active_season {label} month must be 1-12: {month}"
-            )
+            raise TaskValidationError(f"{prefix} {label} month must be 1-12: {month}")
         import calendar as _cal
 
         max_day = _cal.monthrange(2000, month)[1]
         if day < 1 or day > max_day:
             raise TaskValidationError(
-                f"active_season {label} day must be 1-{max_day} "
-                f"for month {month}: {day}"
+                f"{prefix} {label} day must be 1-{max_day} for month {month}: {day}"
             )
     return {"start": str(start), "end": str(end)}
+
+
+def normalize_active_season(data: Any) -> list[dict]:
+    """Validate and normalize an ``active_season`` value.
+
+    Accepts a single ``{"start": "MM-DD", "end": "MM-DD"}`` window or a list of
+    windows. Validates each and returns a list. Month must be 1-12 and day valid
+    for that month (using leap year 2000 for Feb to allow 29).
+    """
+    if isinstance(data, dict):
+        return [_validate_season_window(data)]
+    if isinstance(data, list):
+        if not data:
+            raise TaskValidationError("active_season list must not be empty")
+        return [_validate_season_window(w, index=i) for i, w in enumerate(data)]
+    raise TaskValidationError("active_season must be an object or a list of objects")
 
 
 def normalize_fields(data: dict, *, tz: Any = None) -> dict:
@@ -613,7 +623,7 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         fields["anchor"] = parsed_anchor.isoformat()
 
     season = data.get("active_season")
-    if season not in (None, "", {}):
+    if season not in (None, "", {}, []):
         fields["active_season"] = normalize_active_season(season)
 
     return fields

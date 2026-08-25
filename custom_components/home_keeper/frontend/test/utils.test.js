@@ -187,6 +187,17 @@ describe('recurrenceSummary', () => {
       }),
     ).toBe('every month after completion');
   });
+  it('shows multi-window season with ampersand', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 1, unit: 'months',
+        active_season: [
+          { start: '04-01', end: '05-31' },
+          { start: '09-01', end: '10-31' },
+        ],
+      }),
+    ).toBe('every month after completion, April-May & September-October');
+  });
   it('defaults to daily when freq is missing for a fixed task', () => {
     expect(
       recurrenceSummary({ recurrence_type: 'fixed', interval: 1 }),

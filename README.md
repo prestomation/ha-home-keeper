@@ -81,12 +81,14 @@ A **task** has a name, notes, an optional device it's attached to, and a recurre
   when airflow drops below 60%"*, or *"fill the tank when the vacuum says it's empty"* (see
   [Sensor-based tasks](#sensor-based-tasks-usage-meters-thresholds--states) below).
 
-Floating and fixed tasks support an optional **active season** (start and end month).
-Outside the season the next due date moves forward to the start of the next active
-period. *"Fertilize the yard every 2 months, April through September"* completed
-September 15 becomes due April 1 of the following year instead of November 15.
-Wrapping seasons (November through March) work too. Toggle **Active season** in the
-task form and pick the months.
+Floating and fixed tasks support an optional **active season** with up to two
+windows per year. Outside the active windows the next due date moves forward to the
+nearest upcoming window start. *"Fertilize the yard every 2 months, April through
+September"* completed September 15 becomes due April 1 of the following year instead
+of November 15. Tasks that run in two separate parts of the year (spring lawn care
+and fall lawn care, for example) use a second window. Wrapping seasons (November
+through March) work too. Toggle **Active season** in the task form and pick the
+months.
 
 An **appliance** (asset) is the physical thing a task is about: a fridge, furnace,
 water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).

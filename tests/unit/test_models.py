@@ -1494,14 +1494,14 @@ def test_a_seeded_fixed_task_derives_its_next_occurrence_from_now():
 class TestNormalizeActiveSeason:
     def test_valid_non_wrapping(self):
         result = m.normalize_active_season({"start": "04-01", "end": "09-30"})
-        assert result == {"start": "04-01", "end": "09-30"}
+        assert result == [{"start": "04-01", "end": "09-30"}]
 
     def test_valid_wrapping(self):
         result = m.normalize_active_season({"start": "11-01", "end": "03-31"})
-        assert result == {"start": "11-01", "end": "03-31"}
+        assert result == [{"start": "11-01", "end": "03-31"}]
 
-    def test_rejects_non_dict(self):
-        with pytest.raises(m.TaskValidationError, match="must be an object"):
+    def test_rejects_non_dict_non_list(self):
+        with pytest.raises(m.TaskValidationError, match="must be an object or a list"):
             m.normalize_active_season("bad")
 
     def test_rejects_missing_start(self):
@@ -1518,7 +1518,32 @@ class TestNormalizeActiveSeason:
 
     def test_allows_feb_29_leap_year_basis(self):
         result = m.normalize_active_season({"start": "02-29", "end": "09-30"})
-        assert result == {"start": "02-29", "end": "09-30"}
+        assert result == [{"start": "02-29", "end": "09-30"}]
+
+    def test_list_of_windows(self):
+        result = m.normalize_active_season(
+            [
+                {"start": "04-01", "end": "05-31"},
+                {"start": "09-01", "end": "10-31"},
+            ]
+        )
+        assert result == [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+
+    def test_rejects_empty_list(self):
+        with pytest.raises(m.TaskValidationError, match="list must not be empty"):
+            m.normalize_active_season([])
+
+    def test_rejects_invalid_window_in_list(self):
+        with pytest.raises(m.TaskValidationError, match=r"active_season\[1\]"):
+            m.normalize_active_season(
+                [
+                    {"start": "04-01", "end": "05-31"},
+                    {"start": "13-01", "end": "10-31"},
+                ]
+            )
 
 
 class TestBuildTaskWithSeason:
@@ -1533,7 +1558,7 @@ class TestBuildTaskWithSeason:
             },
             now=NOW,
         )
-        assert task["active_season"] == {"start": "04-01", "end": "09-30"}
+        assert task["active_season"] == [{"start": "04-01", "end": "09-30"}]
 
     def test_floating_with_season_clamps_next_due(self):
         task = m.build_task(
@@ -1589,6 +1614,25 @@ class TestBuildTaskWithSeason:
         )
         assert task["active_season"] is None
 
+    def test_multi_window_persists(self):
+        task = m.build_task(
+            {
+                "name": "Lawn care",
+                "recurrence_type": "floating",
+                "interval": 1,
+                "unit": "months",
+                "active_season": [
+                    {"start": "04-01", "end": "05-31"},
+                    {"start": "09-01", "end": "10-31"},
+                ],
+            },
+            now=NOW,
+        )
+        assert task["active_season"] == [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+
 
 class TestMergeUpdateSeason:
     def _floating_task(self):
@@ -1610,12 +1654,12 @@ class TestMergeUpdateSeason:
             {"active_season": {"start": "04-01", "end": "09-30"}},
             now=NOW,
         )
-        assert merged["active_season"] == {"start": "04-01", "end": "09-30"}
+        assert merged["active_season"] == [{"start": "04-01", "end": "09-30"}]
         assert merged["next_due"] == old_due
 
     def test_changing_season_triggers_recompute(self):
         task = self._floating_task()
-        task["active_season"] = {"start": "04-01", "end": "09-30"}
+        task["active_season"] = [{"start": "04-01", "end": "09-30"}]
         task["last_completed"] = datetime(2026, 9, 15, 10, tzinfo=TZ).isoformat()
         task["next_due"] = datetime(2027, 4, 1, 0, 0, tzinfo=TZ).isoformat()
         now = datetime(2026, 9, 20, 10, tzinfo=TZ)
@@ -1624,11 +1668,11 @@ class TestMergeUpdateSeason:
             {"active_season": {"start": "05-01", "end": "10-31"}},
             now=now,
         )
-        assert merged["active_season"] == {"start": "05-01", "end": "10-31"}
+        assert merged["active_season"] == [{"start": "05-01", "end": "10-31"}]
 
     def test_clearing_season(self):
         task = self._floating_task()
-        task["active_season"] = {"start": "04-01", "end": "09-30"}
+        task["active_season"] = [{"start": "04-01", "end": "09-30"}]
         merged = m.merge_update(
             task,
             {"active_season": None},

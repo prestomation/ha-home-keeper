@@ -189,9 +189,17 @@ export function recurrenceSummary(task: Task): string {
     summary = tn('recurrence.fixed', n, { unit });
   }
   if (task.active_season) {
-    const startMonth = t(`opt.month.${parseInt(task.active_season.start, 10)}`);
-    const endMonth = t(`opt.month.${parseInt(task.active_season.end, 10)}`);
-    summary = t('recurrence.season', { summary, start: startMonth, end: endMonth });
+    const windows = Array.isArray(task.active_season)
+      ? task.active_season
+      : [task.active_season];
+    const range = windows
+      .map((w) => {
+        const s = t(`opt.month.${parseInt(w.start, 10)}`);
+        const e = t(`opt.month.${parseInt(w.end, 10)}`);
+        return `${s}-${e}`;
+      })
+      .join(' & ');
+    summary = t('recurrence.season', { summary, range });
   }
   return summary;
 }

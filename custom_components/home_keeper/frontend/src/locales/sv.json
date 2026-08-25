@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "var {n} {unit}",
   "recurrence.floating.one": "var {unit} efter slutförande",
   "recurrence.floating.other": "var {n} {unit} efter slutförande",
-  "recurrence.season": "{summary}, {start}-{end}",
+  "recurrence.season": "{summary}, {range}",
   "recurrence.oneOff": "Engångs",
   "recurrence.sensor": "Sensorbaserad",
   "recurrence.sensorState": "När den växlar till {state}",
@@ -445,5 +445,9 @@
   "tasks.intro.monitored": "<b>Bevakad</b> — utlöst av en sensor eller ett villkor och löses automatiskt; vissa kan inte markeras klara för hand.",
   "tasks.intro.recurring": "<b>Återkommande</b> — upprepas enligt schema eller efter varje gång du slutfört den (filterbyten, veterinärbesök, batterier).",
   "tasks.intro.title": "Välkommen till Home Keeper",
-  "tasks.noMatch": "Inga uppgifter matchar detta filter."
+  "tasks.noMatch": "Inga uppgifter matchar detta filter.",
+  "field.season_2_on": "Andra fönstret",
+  "field.season_2_start_month": "Startmånad",
+  "field.season_2_end_month": "Slutmånad",
+  "help.season_2_on": "Lägg till ett andra aktivt fönster, för uppgifter som utförs under två separata delar av året (vår och höst, till exempel)."
 }

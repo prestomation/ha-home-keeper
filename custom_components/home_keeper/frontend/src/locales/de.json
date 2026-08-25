@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "alle {n} {unit}",
   "recurrence.floating.one": "{unit} nach Abschluss",
   "recurrence.floating.other": "alle {n} {unit} nach Abschluss",
-  "recurrence.season": "{summary}, {start}-{end}",
+  "recurrence.season": "{summary}, {range}",
   "recurrence.oneOff": "Einmalig",
   "recurrence.sensor": "Sensorbasiert",
   "recurrence.sensorState": "Wenn er auf {state} wechselt",
@@ -445,5 +445,9 @@
   "tasks.intro.monitored": "<b>Überwacht</b> – durch einen Sensor oder Zustand ausgelöst und automatisch gelöscht; manche lassen sich nicht von Hand abschließen.",
   "tasks.intro.recurring": "<b>Wiederkehrend</b> – wiederholt sich nach Zeitplan oder nach jedem Erledigen (Filterwechsel, Tierarzttermine, Batterien).",
   "tasks.intro.title": "Willkommen bei Home Keeper",
-  "tasks.noMatch": "Keine Aufgaben entsprechen diesem Filter."
+  "tasks.noMatch": "Keine Aufgaben entsprechen diesem Filter.",
+  "field.season_2_on": "Zweites Fenster",
+  "field.season_2_start_month": "Startmonat",
+  "field.season_2_end_month": "Endmonat",
+  "help.season_2_on": "Fügen Sie ein zweites aktives Fenster hinzu, für Aufgaben, die in zwei getrennten Teilen des Jahres anfallen (Frühling und Herbst, zum Beispiel)."
 }

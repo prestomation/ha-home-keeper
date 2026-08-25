@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "tous les {n} {unit}",
   "recurrence.floating.one": "{unit} après l'achèvement",
   "recurrence.floating.other": "tous les {n} {unit} après l'achèvement",
-  "recurrence.season": "{summary}, {start}-{end}",
+  "recurrence.season": "{summary}, {range}",
   "recurrence.oneOff": "Ponctuel",
   "recurrence.sensor": "Basé sur un capteur",
   "recurrence.sensorState": "Quand il passe à {state}",
@@ -459,5 +459,9 @@
   "recurrence.floating.many": "tous les {n} {unit} après l'achèvement",
   "recurrence.unit.day.many": "jours",
   "recurrence.unit.month.many": "mois",
-  "recurrence.unit.week.many": "semaines"
+  "recurrence.unit.week.many": "semaines",
+  "field.season_2_on": "Deuxième fenêtre",
+  "field.season_2_start_month": "Mois de début",
+  "field.season_2_end_month": "Mois de fin",
+  "help.season_2_on": "Ajoutez une deuxième fenêtre active, pour les tâches qui se déroulent en deux parties de l'année (printemps et automne, par exemple)."
 }

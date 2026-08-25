@@ -146,10 +146,20 @@ export function backstopEnabled(task: Partial<Task>): boolean {
   return Boolean(task.sensor?.also_every);
 }
 
+function seasonWindows(
+  task: Partial<Task>,
+): Array<{ start: string; end: string }> {
+  const s = task.active_season;
+  if (!s) return [];
+  if (Array.isArray(s)) return s;
+  if (typeof s === 'object' && 'start' in s) return [s];
+  return [];
+}
+
 export function seasonEnabled(task: Partial<Task>): boolean {
   const flag = (task as Record<string, unknown>).season_on;
   if (flag !== undefined && flag !== null) return Boolean(flag);
-  return Boolean(task.active_season);
+  return seasonWindows(task).length > 0;
 }
 
 /**
@@ -402,6 +412,19 @@ export function taskSchema(
                     { name: 'season_end_month', selector: selSelect(monthOptions()) },
                   ] as FormField[],
                 } as FormField,
+                { name: 'season_2_on', selector: selBool() } as FormField,
+                ...((task as Record<string, unknown>).season_2_on
+                  ? [
+                      {
+                        name: '',
+                        type: 'grid',
+                        schema: [
+                          { name: 'season_2_start_month', selector: selSelect(monthOptions()) },
+                          { name: 'season_2_end_month', selector: selSelect(monthOptions()) },
+                        ] as FormField[],
+                      } as FormField,
+                    ]
+                  : []),
               ]
             : []),
         ]
@@ -516,9 +539,14 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     require_tag_scan: task.require_tag_scan ?? false,
     season_on: seasonEnabled(task),
     season_start_month: sd.season_start_month ??
-      (task.active_season ? String(parseInt(task.active_season.start, 10)) : '4'),
+      (seasonWindows(task)[0] ? String(parseInt(seasonWindows(task)[0].start, 10)) : '4'),
     season_end_month: sd.season_end_month ??
-      (task.active_season ? String(parseInt(task.active_season.end, 10)) : '9'),
+      (seasonWindows(task)[0] ? String(parseInt(seasonWindows(task)[0].end, 10)) : '9'),
+    season_2_on: sd.season_2_on ?? seasonWindows(task).length > 1,
+    season_2_start_month: sd.season_2_start_month ??
+      (seasonWindows(task)[1] ? String(parseInt(seasonWindows(task)[1].start, 10)) : '9'),
+    season_2_end_month: sd.season_2_end_month ??
+      (seasonWindows(task)[1] ? String(parseInt(seasonWindows(task)[1].end, 10)) : '10'),
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
     // task's current part source.
@@ -557,6 +585,7 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
     d.sensor_mode,
     d.sensor_backstop_on,
     d.season_on,
+    d.season_2_on,
     // State mode's value control follows the bound entity: an on/off picker for a
     // binary sensor, free text for anything else. This predicate reads the flat and the
     // nested binding itself, so it needs no normalizing pass of its own.
@@ -702,14 +731,28 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     }
     payload.completion_detail = task.completion_detail || 'none';
     if (seasonEnabled(task) && task.recurrence_type !== 'one-off') {
-      const sm = Number((task as Record<string, unknown>).season_start_month ?? 4);
-      const em = Number((task as Record<string, unknown>).season_end_month ?? 9);
-      const lastDay = new Date(2000, em, 0).getDate();
-      payload.active_season = {
-        start: `${String(sm).padStart(2, '0')}-01`,
-        // Stryker disable next-line StringLiteral: lastDay is always >= 28, so padStart is a no-op
-        end: `${String(em).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
-      };
+      const r = task as Record<string, unknown>;
+      const sm = Number(r.season_start_month ?? 4);
+      const em = Number(r.season_end_month ?? 9);
+      const lastDay1 = new Date(2000, em, 0).getDate();
+      const windows: Array<{ start: string; end: string }> = [
+        {
+          start: `${String(sm).padStart(2, '0')}-01`,
+          // Stryker disable next-line StringLiteral: lastDay is always >= 28, so padStart is a no-op
+          end: `${String(em).padStart(2, '0')}-${String(lastDay1).padStart(2, '0')}`,
+        },
+      ];
+      if (r.season_2_on) {
+        const sm2 = Number(r.season_2_start_month ?? 9);
+        const em2 = Number(r.season_2_end_month ?? 10);
+        const lastDay2 = new Date(2000, em2, 0).getDate();
+        windows.push({
+          start: `${String(sm2).padStart(2, '0')}-01`,
+          // Stryker disable next-line StringLiteral: lastDay is always >= 28, so padStart is a no-op
+          end: `${String(em2).padStart(2, '0')}-${String(lastDay2).padStart(2, '0')}`,
+        });
+      }
+      payload.active_season = windows;
     } else {
       payload.active_season = null;
     }

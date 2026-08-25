@@ -63,6 +63,41 @@ class TestInSeason:
         season = {"start": "11-01", "end": "03-31"}
         assert r.in_season(dt(2026, 10, 31), season) is False
 
+    def test_multi_window_in_first(self):
+        season = [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+        assert r.in_season(dt(2026, 4, 15), season) is True
+
+    def test_multi_window_in_second(self):
+        season = [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+        assert r.in_season(dt(2026, 9, 15), season) is True
+
+    def test_multi_window_between_windows(self):
+        season = [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+        assert r.in_season(dt(2026, 7, 1), season) is False
+
+    def test_multi_window_before_all(self):
+        season = [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+        assert r.in_season(dt(2026, 2, 1), season) is False
+
+    def test_multi_window_after_all(self):
+        season = [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+        assert r.in_season(dt(2026, 12, 1), season) is False
+
 
 # ---------------------------------------------------------------------------
 # _next_season_start
@@ -104,6 +139,22 @@ class TestNextSeasonStart:
         season = {"start": "06-15", "end": "09-30"}
         result = r._next_season_start(dt(2026, 7, 1), season)
         assert result == dt(2027, 6, 15)
+
+    def test_multi_window_picks_nearest(self):
+        season = [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+        result = r._next_season_start(dt(2026, 6, 15), season)
+        assert result == dt(2026, 9, 1)
+
+    def test_multi_window_wraps_to_first(self):
+        season = [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+        result = r._next_season_start(dt(2026, 11, 15), season)
+        assert result == dt(2027, 4, 1)
 
 
 # ---------------------------------------------------------------------------
@@ -378,3 +429,104 @@ class TestWrappingSeasonEndToEnd:
         now = dt(2026, 5, 15)
         result = r.compute_next_due(task, now=now)
         assert result == dt(2026, 11, 1)
+
+
+# ---------------------------------------------------------------------------
+# Multi-window season end-to-end
+# ---------------------------------------------------------------------------
+
+
+class TestMultiWindowSeason:
+    def test_floating_between_windows_picks_second(self):
+        """Completed May 15 + 2 months = Jul 15, between Apr-May and Sep-Oct.
+        Clamped to Sep 1 (start of second window)."""
+        task = {
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "months",
+            "last_completed": dt(2026, 5, 15).isoformat(),
+            "active_season": [
+                {"start": "04-01", "end": "05-31"},
+                {"start": "09-01", "end": "10-31"},
+            ],
+        }
+        result = r.compute_next_due(task, now=dt(2026, 5, 15))
+        assert result == dt(2026, 9, 1)
+
+    def test_floating_after_all_windows_wraps_to_first(self):
+        """Completed Oct 15 + 2 months = Dec 15, after both windows.
+        Clamped to Apr 1 next year."""
+        task = {
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "months",
+            "last_completed": dt(2026, 10, 15).isoformat(),
+            "active_season": [
+                {"start": "04-01", "end": "05-31"},
+                {"start": "09-01", "end": "10-31"},
+            ],
+        }
+        result = r.compute_next_due(task, now=dt(2026, 10, 15))
+        assert result == dt(2027, 4, 1)
+
+    def test_floating_in_second_window_unchanged(self):
+        """Completed Sep 1 + 1 month = Oct 1, inside second window."""
+        task = {
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "months",
+            "last_completed": dt(2026, 9, 1).isoformat(),
+            "active_season": [
+                {"start": "04-01", "end": "05-31"},
+                {"start": "09-01", "end": "10-31"},
+            ],
+        }
+        result = r.compute_next_due(task, now=dt(2026, 9, 1))
+        assert result == dt(2026, 10, 1)
+
+    def test_fixed_multi_window_grid_aligned(self):
+        """Monthly from Jan 1, two windows. Now is Jun → between windows.
+        Next season start is Sep 1 → grid occurrence Sep 1."""
+        task = {
+            "recurrence_type": "fixed",
+            "freq": "MONTHLY",
+            "interval": 1,
+            "anchor": dt(2026, 1, 1).isoformat(),
+            "active_season": [
+                {"start": "04-01", "end": "05-31"},
+                {"start": "09-01", "end": "10-31"},
+            ],
+        }
+        now = dt(2026, 6, 15)
+        result = r.compute_next_due(task, now=now)
+        assert result == dt(2026, 9, 1)
+
+    def test_apply_completion_multi_window(self):
+        task = {
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "months",
+            "last_completed": None,
+            "completions": [],
+            "active_season": [
+                {"start": "04-01", "end": "05-31"},
+                {"start": "09-01", "end": "10-31"},
+            ],
+        }
+        completed = dt(2026, 5, 1)
+        r.apply_completion(task, completed, now=completed)
+        assert task["next_due"] == dt(2026, 9, 1).isoformat()
+
+    def test_skip_occurrence_multi_window(self):
+        task = {
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+            "next_due": dt(2026, 10, 1).isoformat(),
+            "active_season": [
+                {"start": "04-01", "end": "05-31"},
+                {"start": "09-01", "end": "10-31"},
+            ],
+        }
+        r.skip_occurrence(task, now=dt(2026, 10, 1))
+        assert task["next_due"] == dt(2027, 4, 1).isoformat()

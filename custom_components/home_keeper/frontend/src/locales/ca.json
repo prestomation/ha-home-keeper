@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "cada {n} {unit}",
   "recurrence.floating.one": "cada {unit} després de la finalització",
   "recurrence.floating.other": "cada {n} {unit} després de la finalització",
-  "recurrence.season": "{summary}, {start}-{end}",
+  "recurrence.season": "{summary}, {range}",
   "recurrence.oneOff": "Única",
   "recurrence.sensor": "Basat en sensor",
   "recurrence.sensorState": "Quan canviï a {state}",
@@ -459,5 +459,9 @@
   "recurrence.floating.many": "cada {n} {unit} després de la realització",
   "recurrence.unit.day.many": "dies",
   "recurrence.unit.month.many": "mesos",
-  "recurrence.unit.week.many": "setmanes"
+  "recurrence.unit.week.many": "setmanes",
+  "field.season_2_on": "Segona finestra",
+  "field.season_2_start_month": "Mes d'inici",
+  "field.season_2_end_month": "Mes final",
+  "help.season_2_on": "Afegiu una segona finestra activa, per a tasques que es fan en dues parts de l'any (primavera i tardor, per exemple)."
 }

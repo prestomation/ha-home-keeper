@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "každých {n} {unit}",
   "recurrence.floating.one": "každý {unit} po dokončení",
   "recurrence.floating.other": "každých {n} {unit} po dokončení",
-  "recurrence.season": "{summary}, {start}-{end}",
+  "recurrence.season": "{summary}, {range}",
   "recurrence.oneOff": "Jednorázový",
   "recurrence.sensor": "Podle senzoru",
   "recurrence.sensorState": "Když se změní na {state}",
@@ -473,5 +473,9 @@
   "recurrence.unit.month.few": "měsíce",
   "recurrence.unit.month.many": "měsíce",
   "recurrence.unit.week.few": "týdny",
-  "recurrence.unit.week.many": "týdne"
+  "recurrence.unit.week.many": "týdne",
+  "field.season_2_on": "Druhé okno",
+  "field.season_2_start_month": "Počáteční měsíc",
+  "field.season_2_end_month": "Koncový měsíc",
+  "help.season_2_on": "Přidejte druhé aktivní okno pro úkoly, které probíhají ve dvou různých částech roku (jaro a podzim, například)."
 }

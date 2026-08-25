@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "{n} {unit} välein",
   "recurrence.floating.one": "joka {unit} valmistumisen jälkeen",
   "recurrence.floating.other": "{n} {unit} välein valmistumisen jälkeen",
-  "recurrence.season": "{summary}, {start}-{end}",
+  "recurrence.season": "{summary}, {range}",
   "recurrence.oneOff": "Kertaluonteinen",
   "recurrence.sensor": "Anturipohjainen",
   "recurrence.sensorState": "Kun se vaihtuu tilaan {state}",
@@ -445,5 +445,9 @@
   "tasks.intro.monitored": "<b>Valvottu</b> — anturin tai ehdon laukaisema ja poistuu automaattisesti; joitakin ei voi merkitä valmiiksi käsin.",
   "tasks.intro.recurring": "<b>Toistuva</b> — toistuu aikataulun mukaan tai aina kun suoritat sen (suodattimet, eläinlääkäri, paristot).",
   "tasks.intro.title": "Tervetuloa Home Keeperiin",
-  "tasks.noMatch": "Mikään tehtävä ei vastaa tätä suodatinta."
+  "tasks.noMatch": "Mikään tehtävä ei vastaa tätä suodatinta.",
+  "field.season_2_on": "Toinen ikkuna",
+  "field.season_2_start_month": "Alkukuukausi",
+  "field.season_2_end_month": "Loppukuukausi",
+  "help.season_2_on": "Lisää toinen aktiivinen ikkuna tehtäville, jotka suoritetaan kahdessa eri osassa vuotta (kevät ja syksy, esimerkiksi)."
 }

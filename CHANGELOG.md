@@ -11,8 +11,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **Active season for floating and fixed tasks.** Restrict a recurring task to
-  a date range each year (e.g. April through September). Outside the season the
-  next due date moves to the start of the next active period. (Fixes #242)
+  one or two date ranges per year (e.g. April-May and September-October for
+  spring/fall lawn care). Outside the active windows the next due date moves to
+  the nearest upcoming window start. (Fixes #242)
 
 ## [0.16.0] - 2026-08-25
 

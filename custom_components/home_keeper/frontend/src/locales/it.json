@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "ogni {n} {unit}",
   "recurrence.floating.one": "ogni {unit} dopo il completamento",
   "recurrence.floating.other": "ogni {n} {unit} dopo il completamento",
-  "recurrence.season": "{summary}, {start}-{end}",
+  "recurrence.season": "{summary}, {range}",
   "recurrence.oneOff": "Una tantum",
   "recurrence.sensor": "Basato su sensore",
   "recurrence.sensorState": "Quando passa a {state}",
@@ -459,5 +459,9 @@
   "recurrence.floating.many": "ogni {n} {unit} dopo il completamento",
   "recurrence.unit.day.many": "giorni",
   "recurrence.unit.month.many": "mesi",
-  "recurrence.unit.week.many": "settimane"
+  "recurrence.unit.week.many": "settimane",
+  "field.season_2_on": "Seconda finestra",
+  "field.season_2_start_month": "Mese di inizio",
+  "field.season_2_end_month": "Mese di fine",
+  "help.season_2_on": "Aggiungere una seconda finestra attiva, per attività che si svolgono in due periodi separati dell'anno (primavera e autunno, ad esempio)."
 }
