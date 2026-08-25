@@ -6,6 +6,123 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.16.0] - 2026-08-25
+
+### Added
+
+- **Profiles can now leave tasks out, not just let them in.** A Profile's filter gains
+  **Exclude labels**, **Exclude areas** and **Exclude devices** alongside the existing
+  include pickers. They subtract from whatever the include filters selected, and they
+  win: a task that matched everything else is still dropped if it carries an excluded
+  label, sits in an excluded area, or hangs off an excluded device. Tag the jobs that
+  need a tradesperson `professional` and exclude that one label, and you have an
+  "everything I can do myself" list, without tagging every task that *isn't* a call-out.
+  Exclusions follow the same inheritance as the include pickers, so excluding a label
+  also drops a task that carries it only via its device or area. Because a Profile is
+  the shared saved filter, the exclusions apply everywhere it is used: the notifications
+  built on it, the **Profile** dropdown on the Tasks tab, and the dashboard card's
+  **Filter by profile**. Profiles saved before this release keep working unchanged. The
+  new pickers start empty, and an empty picker excludes nothing. (Fixes #214)
+- **Buy reminders now reach your own shopping list.** Point **Settings → Shopping
+  list** at a to-do list the household already uses. Every auto-created "Buy {part}"
+  reminder is then put on it, so it turns up on your voice assistant and on whatever
+  list widget lives on the fridge tablet. It works both ways. Ticking the line off at
+  the shop completes the Home Keeper reminder and restocks the part. Completing the
+  reminder in Home Keeper ticks the line off to match. Topping the stock up some other
+  way removes the line, because nothing was bought. A line already ticked off is never
+  touched. Only the lines Home Keeper added are ever managed. Leave the setting empty to
+  turn it off. (Fixes #220)
+- **Shopping filter in the panel and dashboard card.** A new "Shopping" option in the
+  task filter bar shows only the auto-created buy tasks (the ones Home Keeper generates
+  when a part's stock hits its reorder point), so you can see at a glance what needs
+  buying without scrolling through every task. The same filter is available as
+  `filter: shopping` on the dashboard card. (Fixes #220)
+- **Stock you measure instead of count.** A spare part can now carry a **stock unit**
+  and a **used per completion** amount, and every spare quantity accepts decimals.
+  Fabric softener topped up a third of a bottle at a time no longer reads as three
+  bottles gone after three refills, and a part measured in millilitres or metres shows
+  real units rather than a bare number. Set both on the part, under Stock and Reorder
+  at. Leave them empty and a part counts whole spares and uses one per completion,
+  exactly as before. The unit follows the amount everywhere it appears: the part's
+  chips, a linked task's detail line, the stock control on the appliance's device page,
+  and the `unit` field the stock events now carry. `home_keeper.adjust_part_stock` takes
+  a decimal `delta` too, so `-250` and `-0.33` are both valid adjustments. (Fixes #220)
+- **Start a usage meter somewhere other than "now", and see the meter in your
+  history.** A usage/meter task used to anchor at whatever the sensor read the moment
+  you created it, which starts every task for an already-serviced machine a full
+  interval late. The task form now has a **Starting reading**: your odometer reads
+  48,000, you change the oil every 10,000 miles, and the last change was at 45,000, so
+  you type 45,000 and the task says *"3,000 of 10,000 used"* straight away and comes
+  due at 55,000. The live hint does the arithmetic as you type, including warning you
+  if the number you typed is above what the sensor currently reads. **Last completed**
+  now appears on sensor tasks too, so the calendar half of "every 10,000 miles or 12
+  months" starts where the meter half does instead of restarting today. (Fixes #235)
+
+  Completing a sensor task also records what the sensor read at the time, next to the
+  note, cost and photo. Every history row shows it, and the pencil edits it, which
+  you need when you back-date a job you did last month and the meter has moved since.
+  Correcting the reading on the most recent completion re-anchors the meter to match,
+  so the history and the progress bar can't contradict each other. The figures are
+  automatable too: `usage_baseline` and `last_completion_reading` join the task's
+  next-due sensor attributes, and `complete_task` / `update_completion` both take a
+  `reading`. (Fixes #235)
+- **Usage/meter tasks now count down on the overview.** A meter task waiting for its
+  sensor to advance used to read only "Monitored" in the task list. It now shows how
+  far off it is, "in 7000 miles", the meter version of the "in 3 days" a time-based
+  task shows, so you can see at a glance which of your metered jobs is closest without
+  opening each one. (Threshold and state tasks, which have no interval to count down,
+  still read "Monitored".)
+
+### Fixed
+
+- **"Mark done" on a notification works before the task is due.** A notification built
+  from a Profile set to **Due soon** (or **All**) shows tasks that aren't overdue yet,
+  and its **Mark done** button did nothing at all when tapped. No completion, nothing in
+  the log, while **Snooze** and **Skip** on the same notification worked. The task then
+  went overdue as if it had been left alone. Tapping the button now completes the task
+  whenever it still reflects the task's current schedule. Taps that no longer do are
+  still ignored, so completing a task somewhere else (or on a second notification
+  covering the same task) can't push it out an extra cycle. (Fixes #216)
+- **A do-once task you already finished no longer sits on the to-do list forever.**
+  Checking off a one-off task (renew the passport, register the car) retires it: it
+  goes dormant and leaves the calendar, the due-date sensors and the panel's active
+  list, landing in the panel's **Completed** section with its record intact. The native
+  `todo.home_keeper_tasks` list kept showing it anyway, unchecked and with its due date
+  gone, and nothing could clear it short of deleting the task and its history. A
+  finished one-off now drops off the to-do list as soon as it's done, and comes back at
+  its due date if you undo the completion. Checking one off a second time (through
+  `todo.update_item`, say) no longer records a second completion for work done once.
+  (Fixes #221)
+- **The dashboard card no longer breaks on an ordinary page reload.** A dashboard using
+  the Home Keeper card could show a configuration error reading "Custom element doesn't
+  exist: home-keeper-card". Reloading with the browser cache disabled brought the card
+  back, and the next normal reload broke it again. Home Keeper handed the card to the
+  frontend in a way that only reaches the browser through the page Home Assistant
+  caches, so a page cached before Home Keeper was installed never loaded it. The card
+  is now registered the way every other custom card is, as a dashboard resource under
+  **Settings > Dashboards > Resources**, which the frontend fetches fresh on every
+  dashboard load. Existing installs get the entry on the next restart, and removing
+  Home Keeper takes it away again. (Fixes #228)
+- **Opening Configure no longer wipes your notifications and profiles.** Saving the
+  integration's options dialog (Settings → Devices & services → Home Keeper →
+  Configure) replaced the whole settings object with just the seven fields on that
+  form. Every notification, every profile, and every companion suggestion you had
+  dismissed was deleted. Notifications then stopped arriving, with nothing on screen
+  to say why. The dialog now changes only its own fields and leaves what you set in
+  the panel alone.
+- **Undoing a meter task's completion keeps your partial progress.** Deleting a
+  usage/meter completion (undoing an accidental "done") reset the meter to zero and
+  left it there. It now reverts to exactly where it was before that completion: 3,000
+  of 10,000 miles goes back to 3,000, not zero. (Fixes #235)
+- **"Mark done" on a notification now clears an auto-buy reminder.** Completing a
+  "Buy {part}" reminder from a notification restocked the part but left the reminder
+  standing until something else happened to settle it, so it kept showing up as due.
+  Every other way of completing it already cleared it.
+- **Documented that auto-clearing sensor tasks consume consumable stock.** When a
+  sensor task with *Clear when back to normal* is linked to a consumable part, the
+  auto-completion draws down one spare from stock, the same as completing by hand. This
+  was always the behavior but was not mentioned in the README or the events reference.
+
 ## [0.16.0b9]
 
 ### Added
