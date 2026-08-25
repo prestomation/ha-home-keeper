@@ -100,6 +100,7 @@ import {
   taskRecordsReading,
   tasksForAsset,
   buildAssetTree,
+  type AssetTreeEntry,
   type PanelLocation,
 } from './utils';
 
@@ -2104,10 +2105,7 @@ export class HomeKeeperPanel extends HTMLElement {
           { value: 'area', label: t('group.area') },
           { value: 'none', label: t('group.none') },
         ];
-    const groupControl =
-      this._view === 'appliances' && this._assetView === 'tree'
-        ? ''
-        : `<div class="hk-control">
+    const groupControl = `<div class="hk-control">
             <span class="hk-seg-label">${escapeHTML(t('group.by'))}</span>
             ${this._seg('group', this._effectiveGroup(), groupOpts)}
           </div>`;
@@ -2438,30 +2436,51 @@ export class HomeKeeperPanel extends HTMLElement {
     const cmp = (a: Asset, b: Asset) => (a.name || '').localeCompare(b.name || '');
     if (this._assetView === 'tree') {
       const tree = buildAssetTree(filtered, cmp);
-      const renderSubtree = (start: number, parentDepth: number): [string, number] => {
-        let html = '';
-        let i = start;
-        while (i < tree.length && tree[i].depth > parentDepth) {
-          const entry = tree[i];
-          const depth = entry.depth;
-          const hasChildren = i + 1 < tree.length && tree[i + 1].depth > depth;
-          if (hasChildren) {
-            const [childrenHtml, nextI] = renderSubtree(i + 1, depth);
-            const isOpen = !this._treeCollapsed.has(entry.item.id);
-            html += `<div class="hk-tree-group${isOpen ? ' hk-tree-open' : ''}">
-              ${this._assetCard(entry.item, depth, false, entry.item.id)}
-              <div class="hk-tree-children">${childrenHtml}</div>
-            </div>`;
-            i = nextI;
-          } else {
-            i++;
-            html += this._assetCard(entry.item, depth);
+      const renderEntries = (entries: AssetTreeEntry<Asset>[]): string => {
+        const sub = (start: number, parentDepth: number): [string, number] => {
+          let html = '';
+          let i = start;
+          while (i < entries.length && entries[i].depth > parentDepth) {
+            const entry = entries[i];
+            const depth = entry.depth;
+            const hasChildren = i + 1 < entries.length && entries[i + 1].depth > depth;
+            if (hasChildren) {
+              const [childrenHtml, nextI] = sub(i + 1, depth);
+              const isOpen = !this._treeCollapsed.has(entry.item.id);
+              html += `<div class="hk-tree-group${isOpen ? ' hk-tree-open' : ''}">
+                ${this._assetCard(entry.item, depth, false, entry.item.id)}
+                <div class="hk-tree-children">${childrenHtml}</div>
+              </div>`;
+              i = nextI;
+            } else {
+              i++;
+              html += this._assetCard(entry.item, depth);
+            }
           }
-        }
-        return [html, i];
+          return [html, i];
+        };
+        const [html] = sub(0, -1);
+        return html;
       };
-      const [html] = renderSubtree(0, -1);
-      return html;
+      if (this._effectiveGroup() === 'area') {
+        const chunks: Array<{ root: Asset; entries: AssetTreeEntry<Asset>[] }> = [];
+        for (let i = 0; i < tree.length; ) {
+          const rootEntry = tree[i];
+          let j = i + 1;
+          while (j < tree.length && tree[j].depth > rootEntry.depth) j++;
+          chunks.push({ root: rootEntry.item, entries: tree.slice(i, j) });
+          i = j;
+        }
+        const areaGroups = this._groupByKey(
+          chunks,
+          (c) => c.root.area_id ?? undefined,
+          (id) => areaName(this._hass?.areas, id),
+          t('section.unassigned'),
+          'area',
+        );
+        return this._renderGroups(areaGroups, (c) => renderEntries(c.entries));
+      }
+      return renderEntries(tree);
     }
     const assets = [...filtered].sort(cmp);
     return this._renderGroups(this._groupAssets(assets), (asset) => this._assetCard(asset));
