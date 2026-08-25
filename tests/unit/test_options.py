@@ -5,7 +5,7 @@ Three surfaces write ``entry.options`` and they share one coercion table in
 tab) send a *partial* update, which is merged onto what is stored. The options flow
 can't: Home Assistant stores whatever an options flow returns from
 ``async_create_entry`` as ``entry.options`` **verbatim**, and its form renders only
-seven of the ten keys. Returning the submission as-is deleted every saved profile,
+seven of the eleven keys. Returning the submission as-is deleted every saved profile,
 notification and dismissed companion on each save — with nothing on screen to say so,
 because a missing key reads back as an empty list and notifications simply stopped
 arriving. ``merge_flow_input`` turns that submission back into a partial update.
@@ -53,6 +53,9 @@ _FULL: dict[str, Any] = {
     ],
     const.OPTION_NOTIFICATIONS: [
         {"id": "n1", "name": "Walk", "profile_id": "p1", "targets": []}
+    ],
+    const.OPTION_TASK_MIRRORS: [
+        {"id": "m1", "entity_id": "todo.family", "profile_id": "p1"}
     ],
 }
 
@@ -197,6 +200,7 @@ _PROBES: dict[str, Any] = {
     const.OPTION_DISMISSED_COMPANIONS: ["some_domain"],
     const.OPTION_PROFILES: [{"id": "px", "name": "X", "filter": {"status": "all"}}],
     const.OPTION_NOTIFICATIONS: [{"id": "nx", "name": "X", "profile_id": "px"}],
+    const.OPTION_TASK_MIRRORS: [{"id": "mx", "entity_id": "todo.family"}],
 }
 
 
@@ -349,6 +353,7 @@ def test_the_defaults_are_all_off() -> None:
         "shopping_list_entity": "",
         "profiles": [],
         "notifications": [],
+        "task_mirrors": [],
         "problem_sensor_exclude_entities": [],
         "problem_sensor_exclude_devices": [],
         "problem_sensor_exclude_areas": [],

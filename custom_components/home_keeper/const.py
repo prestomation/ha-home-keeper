@@ -180,6 +180,13 @@ OPTION_NOTIFICATIONS = "notifications"
 # mirror is two-way: ticking the item off there completes the Home Keeper
 # reminder, which restocks the part. See shopping.py / shopping_sync.py.
 OPTION_SHOPPING_LIST_ENTITY = "shopping_list_entity"
+# Task mirrors: profile-filtered tasks kept in step with existing Home Assistant
+# to-do lists (``todo.*`` entities), so chores reach Todoist, Google Tasks, or a
+# local family list. A list of ``{id, entity_id, profile_id, two_way,
+# vanish_as_completed}`` dicts, edited from the panel's Settings → "To-do list
+# sync" card and the ``set_options`` service; normalized by
+# ``task_mirror.normalize_task_mirrors``. See task_mirror.py / task_mirror_sync.py.
+OPTION_TASK_MIRRORS = "task_mirrors"
 
 # Opaque ``origin`` marker the shopping-list mirror passes to ``complete_task``
 # when a mirrored buy reminder is ticked off on the external list. Like
@@ -187,6 +194,14 @@ OPTION_SHOPPING_LIST_ENTITY = "shopping_list_entity"
 # completable by hand — it exists so an automation can tell "somebody ticked it
 # off at the shop" apart from "somebody pressed Done".
 ORIGIN_SHOPPING_LIST = f"{DOMAIN}_shopping_list"
+
+# Opaque ``origin`` marker the task mirror passes to ``complete_task`` when a
+# mirrored task is ticked off on an external to-do list. Like
+# ``ORIGIN_SHOPPING_LIST`` it authorizes nothing — it exists so an automation can
+# tell "checked off on a to-do list" apart from "somebody pressed Done", and it is
+# how the mirror's own completions stay recognisable in the event stream. See
+# task_mirror_sync.py.
+ORIGIN_TODO_MIRROR = f"{DOMAIN}_todo_mirror"
 
 # Opaque ``origin`` marker the actionable-notification action listener passes to
 # ``complete_task`` / ``snooze_task`` / ``skip_task`` so an automation can recognise

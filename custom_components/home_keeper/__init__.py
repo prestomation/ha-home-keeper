@@ -60,6 +60,7 @@ from .const import (
     OPTION_PROFILES,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
+    OPTION_TASK_MIRRORS,
     PLATFORMS,
     SENSOR_MODE_USAGE,
 )
@@ -475,10 +476,12 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         # Catalog glue domains the user dismissed from the Companions "Suggested"
         # list. A list of domain strings.
         vol.Optional(OPTION_DISMISSED_COMPANIONS): vol.All(cv.ensure_list, [cv.string]),
-        # Profiles (saved filters) and notifications (delivery) — the panel saves each
-        # whole list; normalization happens in profiles/notifications.normalize_*.
+        # Profiles (saved filters), notifications (delivery) and task mirrors — the
+        # panel saves each whole list; normalization happens in the matching
+        # profiles/notifications/task_mirror.normalize_* helper.
         vol.Optional(OPTION_PROFILES): list,
         vol.Optional(OPTION_NOTIFICATIONS): list,
+        vol.Optional(OPTION_TASK_MIRRORS): list,
     }
 )
 
