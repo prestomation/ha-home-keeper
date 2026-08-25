@@ -530,8 +530,54 @@ const STYLES = `
   .hk-card-row .grow.clickable { cursor: pointer; }
   ha-card.hk-card.overdue { border-left: 3px solid var(--error-color); }
   ha-card.hk-card.hk-tree-child {
-    margin-left: calc(var(--hk-tree-depth, 0) * 24px);
-    border-left: 2px solid var(--divider-color);
+    margin-left: calc(var(--hk-tree-depth, 0) * 32px);
+    position: relative;
+  }
+  ha-card.hk-card.hk-tree-child::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 50%;
+    width: 16px;
+    height: 2px;
+    background: var(--divider-color);
+  }
+  ha-card.hk-card.hk-tree-child::after {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background: var(--divider-color);
+  }
+  ha-card.hk-card.hk-tree-child.hk-tree-last::after {
+    height: 50%;
+  }
+  .hk-tree-group { margin: 0; }
+  .hk-tree-parent-row {
+    display: flex; align-items: flex-start; gap: 0;
+  }
+  .hk-tree-parent-row > ha-card { flex: 1; min-width: 0; }
+  .hk-tree-group:not(.hk-tree-open) > .hk-tree-children { display: none; }
+  .hk-chevron {
+    display: flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; flex-shrink: 0;
+    margin-top: 16px; margin-right: 4px;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .hk-chevron:hover { background: var(--secondary-background-color); }
+  .hk-chevron::after {
+    content: '';
+    display: inline-block;
+    width: 0; height: 0;
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 6px solid var(--secondary-text-color);
+    transition: transform 0.15s ease;
+  }
+  .hk-tree-group:not(.hk-tree-open) .hk-chevron::after {
+    transform: rotate(-90deg);
   }
 
   /* Filter / group-by controls */
@@ -856,6 +902,7 @@ const LS_FILTER = 'home-keeper.filter';
 const LS_ASSET_FILTER = 'home-keeper.assetFilter';
 const LS_PROFILE = 'home-keeper.profile';
 const LS_ASSET_VIEW = 'home-keeper.assetView';
+const LS_TREE_COLLAPSED = 'home-keeper.treeCollapsed';
 
 export class HomeKeeperPanel extends HTMLElement {
   private _hass?: Hass;
@@ -912,6 +959,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private _filter: TaskFilter = 'all';
   private _assetFilter: AssetFilter = 'active';
   private _assetView: AssetView = 'flat';
+  private _treeCollapsed = new Set<string>();
   // Selected saved Profile id to filter the task list by ('' = no profile).
   private _profile = '';
   // Group sections collapsed by the user, keyed by "<group>:<bucket>".
@@ -1096,6 +1144,13 @@ export class HomeKeeperPanel extends HTMLElement {
       if (af === 'active' || af === 'archived') this._assetFilter = af;
       const av = localStorage.getItem(LS_ASSET_VIEW);
       if (av === 'flat' || av === 'tree') this._assetView = av;
+      const tc = localStorage.getItem(LS_TREE_COLLAPSED);
+      if (tc) {
+        try {
+          const arr = JSON.parse(tc);
+          if (Array.isArray(arr)) this._treeCollapsed = new Set(arr.filter((x: unknown) => typeof x === 'string'));
+        } catch { /* ignore malformed */ }
+      }
       this._profile = localStorage.getItem(LS_PROFILE) ?? '';
     } catch {
       // localStorage unavailable (e.g. private mode) — fall back to defaults.
@@ -2404,7 +2459,36 @@ export class HomeKeeperPanel extends HTMLElement {
     const cmp = (a: Asset, b: Asset) => (a.name || '').localeCompare(b.name || '');
     if (this._assetView === 'tree') {
       const tree = buildAssetTree(filtered, cmp);
-      return tree.map((entry) => this._assetCard(entry.item, entry.depth)).join('');
+      let html = '';
+      let i = 0;
+      while (i < tree.length) {
+        const entry = tree[i];
+        if (entry.depth === 0) {
+          const children: typeof tree = [];
+          let j = i + 1;
+          while (j < tree.length && tree[j].depth > 0) {
+            children.push(tree[j]);
+            j++;
+          }
+          if (children.length > 0) {
+            const isOpen = !this._treeCollapsed.has(entry.item.id);
+            html += `<div class="hk-tree-group${isOpen ? ' hk-tree-open' : ''}">
+              <div class="hk-tree-parent-row">
+                <span class="hk-chevron" data-tree-toggle="${escapeHTML(entry.item.id)}"></span>
+                ${this._assetCard(entry.item, 0)}
+              </div>
+              <div class="hk-tree-children">${children.map((c, idx) => this._assetCard(c.item, c.depth, idx === children.length - 1)).join('')}</div>
+            </div>`;
+          } else {
+            html += this._assetCard(entry.item, 0);
+          }
+          i = j;
+        } else {
+          html += this._assetCard(entry.item, entry.depth);
+          i++;
+        }
+      }
+      return html;
     }
     const assets = [...filtered].sort(cmp);
     return this._renderGroups(this._groupAssets(assets), (asset) => this._assetCard(asset));
@@ -2470,7 +2554,7 @@ export class HomeKeeperPanel extends HTMLElement {
       </ha-card>`;
   }
 
-  private _assetCard(x: Asset, depth = 0): string {
+  private _assetCard(x: Asset, depth = 0, isLast = false): string {
     const kindChip =
       x.kind === 'virtual'
         ? this._virtualDeviceChip(x)
@@ -2497,7 +2581,7 @@ export class HomeKeeperPanel extends HTMLElement {
         ? `<ha-assist-chip class="hk-archived" label="${escapeHTML(t('chip.archived'))}"></ha-assist-chip>`
         : '',
     ].join('');
-    const depthClass = depth > 0 ? ' hk-tree-child' : '';
+    const depthClass = depth > 0 ? ` hk-tree-child${isLast ? ' hk-tree-last' : ''}` : '';
     const depthStyle = depth > 0 ? ` style="--hk-tree-depth: ${depth}"` : '';
     return `
       <ha-card class="hk-card${depthClass}" data-id="${escapeHTML(x.id)}"${depthStyle}>
@@ -3495,6 +3579,20 @@ export class HomeKeeperPanel extends HTMLElement {
         const key = d.dataset.groupKey || '';
         if (d.open) this._collapsed.delete(key);
         else this._collapsed.add(key);
+      }),
+    );
+    // Tree view: expand/collapse parent groups.
+    root.querySelectorAll<HTMLElement>('.hk-chevron[data-tree-toggle]').forEach((ch) =>
+      ch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const group = ch.closest('.hk-tree-group');
+        if (group) group.classList.toggle('hk-tree-open');
+        const id = ch.dataset.treeToggle;
+        if (id) {
+          if (this._treeCollapsed.has(id)) this._treeCollapsed.delete(id);
+          else this._treeCollapsed.add(id);
+          try { localStorage.setItem(LS_TREE_COLLAPSED, JSON.stringify([...this._treeCollapsed])); } catch { /* quota */ }
+        }
       }),
     );
 
