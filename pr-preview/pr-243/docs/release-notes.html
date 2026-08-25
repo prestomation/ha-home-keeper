@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-243/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-243/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-243/assets/js/runtime~main.c81abef5.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-243/assets/js/runtime~main.b1f44971.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-243/assets/js/main.4b6e5cc8.js" defer="defer"></script>
 </head>
 <body>
@@ -17,129 +17,66 @@ versioning, with PEP 440 pre-release suffixes (<code>bN</code>/<code>aN</code>/<
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0160---2026-08-25">[0.16.0] - 2026-08-25<a href="#0160---2026-08-25" class="hash-link" aria-label="Direct link to [0.16.0] - 2026-08-25" title="Direct link to [0.16.0] - 2026-08-25" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added">Added<a href="#added" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
 <ul>
-<li class="">
-<p><strong>Profiles can now leave tasks out, not just let them in.</strong> A Profile&#x27;s filter gains
-<strong>Exclude labels</strong>, <strong>Exclude areas</strong> and <strong>Exclude devices</strong> alongside the existing
-include pickers. They subtract from whatever the include filters selected, and they
-win: a task that matched everything else is still dropped if it carries an excluded
-label, sits in an excluded area, or hangs off an excluded device. Tag the jobs that
-need a tradesperson <code>professional</code> and exclude that one label, and you have an
-&quot;everything I can do myself&quot; list, without tagging every task that <em>isn&#x27;t</em> a call-out.
-Exclusions follow the same inheritance as the include pickers, so excluding a label
-also drops a task that carries it only via its device or area. Because a Profile is
-the shared saved filter, the exclusions apply everywhere it is used: the notifications
-built on it, the <strong>Profile</strong> dropdown on the Tasks tab, and the dashboard card&#x27;s
-<strong>Filter by profile</strong>. Profiles saved before this release keep working unchanged. The
-new pickers start empty, and an empty picker excludes nothing. (Fixes #214)</p>
-</li>
-<li class="">
-<p><strong>Buy reminders now reach your own shopping list.</strong> Point <strong>Settings → Shopping
-list</strong> at a to-do list the household already uses. Every auto-created &quot;Buy {part}&quot;
-reminder is then put on it, so it turns up on your voice assistant and on whatever
-list widget lives on the fridge tablet. It works both ways. Ticking the line off at
-the shop completes the Home Keeper reminder and restocks the part. Completing the
-reminder in Home Keeper ticks the line off to match. Topping the stock up some other
-way removes the line, because nothing was bought. A line already ticked off is never
-touched. Only the lines Home Keeper added are ever managed. Leave the setting empty to
-turn it off. (Fixes #220)</p>
-</li>
-<li class="">
-<p><strong>Shopping filter in the panel and dashboard card.</strong> A new &quot;Shopping&quot; option in the
-task filter bar shows only the auto-created buy tasks (the ones Home Keeper generates
-when a part&#x27;s stock hits its reorder point), so you can see at a glance what needs
-buying without scrolling through every task. The same filter is available as
-<code>filter: shopping</code> on the dashboard card. (Fixes #220)</p>
-</li>
-<li class="">
-<p><strong>Stock you measure instead of count.</strong> A spare part can now carry a <strong>stock unit</strong>
-and a <strong>used per completion</strong> amount, and every spare quantity accepts decimals.
-Fabric softener topped up a third of a bottle at a time no longer reads as three
-bottles gone after three refills, and a part measured in millilitres or metres shows
-real units rather than a bare number. Set both on the part, under Stock and Reorder
-at. Leave them empty and a part counts whole spares and uses one per completion,
-exactly as before. The unit follows the amount everywhere it appears: the part&#x27;s
-chips, a linked task&#x27;s detail line, the stock control on the appliance&#x27;s device page,
-and the <code>unit</code> field the stock events now carry. <code>home_keeper.adjust_part_stock</code> takes
-a decimal <code>delta</code> too, so <code>-250</code> and <code>-0.33</code> are both valid adjustments. (Fixes #220)</p>
-</li>
-<li class="">
-<p><strong>Start a usage meter somewhere other than &quot;now&quot;, and see the meter in your
-history.</strong> A usage/meter task used to anchor at whatever the sensor read the moment
-you created it, which starts every task for an already-serviced machine a full
-interval late. The task form now has a <strong>Starting reading</strong>: your odometer reads
-48,000, you change the oil every 10,000 miles, and the last change was at 45,000, so
-you type 45,000 and the task says <em>&quot;3,000 of 10,000 used&quot;</em> straight away and comes
-due at 55,000. The live hint does the arithmetic as you type, including warning you
-if the number you typed is above what the sensor currently reads. <strong>Last completed</strong>
-now appears on sensor tasks too, so the calendar half of &quot;every 10,000 miles or 12
-months&quot; starts where the meter half does instead of restarting today. (Fixes #235)</p>
-<p>Completing a sensor task also records what the sensor read at the time, next to the
-note, cost and photo. Every history row shows it, and the pencil edits it, which
-you need when you back-date a job you did last month and the meter has moved since.
-Correcting the reading on the most recent completion re-anchors the meter to match,
-so the history and the progress bar can&#x27;t contradict each other. The figures are
-automatable too: <code>usage_baseline</code> and <code>last_completion_reading</code> join the task&#x27;s
-next-due sensor attributes, and <code>complete_task</code> / <code>update_completion</code> both take a
-<code>reading</code>. (Fixes #235)</p>
-</li>
-<li class="">
-<p><strong>Usage/meter tasks now count down on the overview.</strong> A meter task waiting for its
-sensor to advance used to read only &quot;Monitored&quot; in the task list. It now shows how
-far off it is, &quot;in 7000 miles&quot;, the meter version of the &quot;in 3 days&quot; a time-based
-task shows, so you can see at a glance which of your metered jobs is closest without
-opening each one. (Threshold and state tasks, which have no interval to count down,
-still read &quot;Monitored&quot;.)</p>
-</li>
+<li class=""><strong>Profiles can now exclude tasks, not just include them.</strong> A Profile&#x27;s filter gains
+<strong>Exclude labels</strong>, <strong>Exclude areas</strong> and <strong>Exclude devices</strong>, which subtract from
+whatever the include pickers selected and win any tie. Exclusions inherit the same
+way the include pickers do and apply everywhere the Profile is used, and Profiles
+saved before this release keep working unchanged. (Fixes #214)</li>
+<li class=""><strong>Buy reminders now reach your own shopping list.</strong> Point <strong>Settings → Shopping
+list</strong> at a to-do list the household already uses and every auto-created &quot;Buy {part}&quot;
+reminder is put on it. It works both ways: ticking the line off at the shop completes
+the reminder and restocks the part, and only the lines Home Keeper added are ever
+managed. (Fixes #220)</li>
+<li class=""><strong>Shopping filter in the panel and dashboard card.</strong> A new &quot;Shopping&quot; option in the
+task filter bar shows only the auto-created buy tasks, and the same filter is
+available as <code>filter: shopping</code> on the dashboard card. (Fixes #220)</li>
+<li class=""><strong>Stock you measure instead of count.</strong> A spare part can now carry a <strong>stock unit</strong>
+and a <strong>used per completion</strong> amount, and every spare quantity accepts decimals, so
+fabric softener topped up a third of a bottle at a time no longer reads as three
+bottles gone. Leave both empty and a part counts whole spares and uses one per
+completion, exactly as before. (Fixes #220)</li>
+<li class=""><strong>Start a usage meter somewhere other than &quot;now&quot;.</strong> A usage/meter task&#x27;s new
+<strong>Starting reading</strong> anchors it where the machine was actually last serviced instead
+of at whatever the sensor reads today, and <strong>Last completed</strong> now appears on sensor
+tasks too. Completing a sensor task also records what the sensor read at the time,
+which every history row shows and the pencil edits. (Fixes #235)</li>
+<li class=""><strong>Usage/meter tasks now count down on the overview.</strong> A meter task shows how far off
+it is, &quot;in 7000 miles&quot;, rather than only &quot;Monitored&quot;. (Threshold and state tasks,
+which have no interval to count down, still read &quot;Monitored&quot;.)</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed">Fixed<a href="#fixed" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>&quot;Mark done&quot; on a notification works before the task is due.</strong> A notification built
-from a Profile set to <strong>Due soon</strong> (or <strong>All</strong>) shows tasks that aren&#x27;t overdue yet,
-and its <strong>Mark done</strong> button did nothing at all when tapped. No completion, nothing in
-the log, while <strong>Snooze</strong> and <strong>Skip</strong> on the same notification worked. The task then
-went overdue as if it had been left alone. Tapping the button now completes the task
-whenever it still reflects the task&#x27;s current schedule. Taps that no longer do are
-still ignored, so completing a task somewhere else (or on a second notification
-covering the same task) can&#x27;t push it out an extra cycle. (Fixes #216)</li>
+from a Profile set to <strong>Due soon</strong> or <strong>All</strong> shows tasks that aren&#x27;t overdue yet, and
+its <strong>Mark done</strong> button did nothing at all when tapped. It now completes the task
+whenever the notification still reflects that task&#x27;s current schedule. (Fixes #216)</li>
 <li class=""><strong>A do-once task you already finished no longer sits on the to-do list forever.</strong>
-Checking off a one-off task (renew the passport, register the car) retires it: it
-goes dormant and leaves the calendar, the due-date sensors and the panel&#x27;s active
-list, landing in the panel&#x27;s <strong>Completed</strong> section with its record intact. The native
-<code>todo.home_keeper_tasks</code> list kept showing it anyway, unchecked and with its due date
-gone, and nothing could clear it short of deleting the task and its history. A
-finished one-off now drops off the to-do list as soon as it&#x27;s done, and comes back at
-its due date if you undo the completion. Checking one off a second time (through
-<code>todo.update_item</code>, say) no longer records a second completion for work done once.
+Checking off a one-off task retires it everywhere else, but <code>todo.home_keeper_tasks</code>
+kept showing it anyway, unchecked and with its due date gone. It now drops off the
+list as soon as it&#x27;s done, and comes back at its due date if you undo the completion.
 (Fixes #221)</li>
 <li class=""><strong>The dashboard card no longer breaks on an ordinary page reload.</strong> A dashboard using
-the Home Keeper card could show a configuration error reading &quot;Custom element doesn&#x27;t
-exist: home-keeper-card&quot;. Reloading with the browser cache disabled brought the card
-back, and the next normal reload broke it again. Home Keeper handed the card to the
-frontend in a way that only reaches the browser through the page Home Assistant
-caches, so a page cached before Home Keeper was installed never loaded it. The card
-is now registered the way every other custom card is, as a dashboard resource under
-<strong>Settings &gt; Dashboards &gt; Resources</strong>, which the frontend fetches fresh on every
-dashboard load. Existing installs get the entry on the next restart, and removing
-Home Keeper takes it away again. (Fixes #228)</li>
+the Home Keeper card could show &quot;Custom element doesn&#x27;t exist: home-keeper-card&quot;,
+because the card reached the browser only through the page Home Assistant caches. It
+is now registered as a dashboard resource under <strong>Settings &gt; Dashboards &gt; Resources</strong>,
+which the frontend fetches fresh on every load, and existing installs get the entry on
+the next restart. (Fixes #228)</li>
 <li class=""><strong>Opening Configure no longer wipes your notifications and profiles.</strong> Saving the
-integration&#x27;s options dialog (Settings → Devices &amp; services → Home Keeper →
-Configure) replaced the whole settings object with just the seven fields on that
-form. Every notification, every profile, and every companion suggestion you had
-dismissed was deleted. Notifications then stopped arriving, with nothing on screen
-to say why. The dialog now changes only its own fields and leaves what you set in
-the panel alone.</li>
+integration&#x27;s options dialog replaced the whole settings object with just the seven
+fields on that form, deleting every notification, every profile and every dismissed
+companion suggestion. The dialog now changes only its own fields.</li>
 <li class=""><strong>Undoing a meter task&#x27;s completion keeps your partial progress.</strong> Deleting a
-usage/meter completion (undoing an accidental &quot;done&quot;) reset the meter to zero and
-left it there. It now reverts to exactly where it was before that completion: 3,000
-of 10,000 miles goes back to 3,000, not zero. (Fixes #235)</li>
+usage/meter completion reset the meter to zero and left it there. It now reverts to
+where it was before that completion, so 3,000 of 10,000 miles goes back to 3,000.
+(Fixes #235)</li>
 <li class=""><strong>&quot;Mark done&quot; on a notification now clears an auto-buy reminder.</strong> Completing a
 &quot;Buy {part}&quot; reminder from a notification restocked the part but left the reminder
-standing until something else happened to settle it, so it kept showing up as due.
-Every other way of completing it already cleared it.</li>
-<li class=""><strong>Documented that auto-clearing sensor tasks consume consumable stock.</strong> When a
-sensor task with <em>Clear when back to normal</em> is linked to a consumable part, the
-auto-completion draws down one spare from stock, the same as completing by hand. This
-was always the behavior but was not mentioned in the README or the events reference.</li>
+standing until something else settled it. Every other way of completing it already
+cleared it.</li>
+<li class=""><strong>Documented that auto-clearing sensor tasks consume consumable stock.</strong> A sensor task
+with <em>Clear when back to normal</em> linked to a consumable part draws down one spare on
+auto-completion, the same as completing it by hand. This was always the behavior but
+was not mentioned in the README or the events reference.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0160b9">[0.16.0b9]<a href="#0160b9" class="hash-link" aria-label="Direct link to [0.16.0b9]" title="Direct link to [0.16.0b9]" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-1">Added<a href="#added-1" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
