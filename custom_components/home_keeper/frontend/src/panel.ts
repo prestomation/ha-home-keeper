@@ -214,7 +214,7 @@ const STYLES = `
   .hk-wrap { padding: 16px; max-width: 920px; margin: 0 auto; }
   ha-tab-group { margin-bottom: 16px; }
   .hk-actionbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
-  ha-card.hk-card { margin-bottom: 12px; }
+  ha-card.hk-card { margin-bottom: 12px; position: relative; }
   .hk-card-row {
     display: flex; align-items: center; gap: 12px; padding: 12px 16px;
   }
@@ -530,51 +530,29 @@ const STYLES = `
   .hk-card-row .grow.clickable { cursor: pointer; }
   ha-card.hk-card.overdue { border-left: 3px solid var(--error-color); }
   ha-card.hk-card.hk-tree-child {
-    margin-left: calc(var(--hk-tree-depth, 0) * 14px);
-    position: relative;
+    border-left: 3px solid color-mix(in srgb, var(--primary-color) calc(40% + var(--hk-tree-depth, 0) * 15%), transparent);
     background: color-mix(in srgb, var(--primary-color) calc(var(--hk-tree-depth, 0) * 4%), var(--card-background-color, #fff));
   }
-  ha-card.hk-card.hk-tree-child::before {
-    content: '';
-    position: absolute;
-    left: -10px;
-    top: 50%;
-    width: 7px;
-    height: 2px;
-    background: var(--divider-color);
-  }
-  ha-card.hk-card.hk-tree-child::after {
-    content: '';
-    position: absolute;
-    left: -10px;
-    top: 0;
-    height: 100%;
-    width: 2px;
-    background: var(--divider-color);
-  }
-  ha-card.hk-card.hk-tree-child.hk-tree-last::after {
-    height: 50%;
-  }
   .hk-tree-group { margin: 0; }
-  .hk-tree-parent-row {
-    display: flex; align-items: flex-start; gap: 0;
-  }
-  .hk-tree-parent-row > ha-card { flex: 1; min-width: 0; }
   .hk-tree-group:not(.hk-tree-open) > .hk-tree-children { display: none; }
   .hk-chevron {
+    position: absolute;
+    top: 8px;
+    right: 8px;
     display: flex; align-items: center; justify-content: center;
-    width: 24px; height: 24px; flex-shrink: 0;
-    margin-top: 16px; margin-right: 4px;
-    border-radius: 50%;
+    width: 24px; height: 24px;
+    border-radius: 6px;
     cursor: pointer;
+    background: var(--secondary-background-color);
+    z-index: 1;
   }
-  .hk-chevron:hover { background: var(--secondary-background-color); }
+  .hk-chevron:hover { background: var(--divider-color); }
   .hk-chevron::after {
     content: '';
     display: inline-block;
     width: 0; height: 0;
-    border-left: 5px solid transparent; border-right: 5px solid transparent;
-    border-top: 6px solid var(--secondary-text-color);
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-top: 5px solid var(--secondary-text-color);
     transition: transform 0.15s ease;
   }
   .hk-tree-group:not(.hk-tree-open) .hk-chevron::after {
@@ -2469,20 +2447,15 @@ export class HomeKeeperPanel extends HTMLElement {
           const hasChildren = i + 1 < tree.length && tree[i + 1].depth > depth;
           if (hasChildren) {
             const [childrenHtml, nextI] = renderSubtree(i + 1, depth);
-            const isLast = nextI >= tree.length || tree[nextI].depth <= parentDepth;
             const isOpen = !this._treeCollapsed.has(entry.item.id);
             html += `<div class="hk-tree-group${isOpen ? ' hk-tree-open' : ''}">
-              <div class="hk-tree-parent-row">
-                <span class="hk-chevron" data-tree-toggle="${escapeHTML(entry.item.id)}"></span>
-                ${this._assetCard(entry.item, depth, isLast)}
-              </div>
+              ${this._assetCard(entry.item, depth, false, entry.item.id)}
               <div class="hk-tree-children">${childrenHtml}</div>
             </div>`;
             i = nextI;
           } else {
             i++;
-            const isLast = i >= tree.length || tree[i].depth <= parentDepth;
-            html += this._assetCard(entry.item, depth, isLast);
+            html += this._assetCard(entry.item, depth);
           }
         }
         return [html, i];
@@ -2554,7 +2527,7 @@ export class HomeKeeperPanel extends HTMLElement {
       </ha-card>`;
   }
 
-  private _assetCard(x: Asset, depth = 0, isLast = false): string {
+  private _assetCard(x: Asset, depth = 0, isLast = false, toggleId = ''): string {
     const kindChip =
       x.kind === 'virtual'
         ? this._virtualDeviceChip(x)
@@ -2581,10 +2554,14 @@ export class HomeKeeperPanel extends HTMLElement {
         ? `<ha-assist-chip class="hk-archived" label="${escapeHTML(t('chip.archived'))}"></ha-assist-chip>`
         : '',
     ].join('');
-    const depthClass = depth > 0 ? ` hk-tree-child${isLast ? ' hk-tree-last' : ''}` : '';
+    const depthClass = depth > 0 ? ' hk-tree-child' : '';
     const depthStyle = depth > 0 ? ` style="--hk-tree-depth: ${depth}"` : '';
+    const chevron = toggleId
+      ? `<span class="hk-chevron" data-tree-toggle="${escapeHTML(toggleId)}"></span>`
+      : '';
     return `
       <ha-card class="hk-card${depthClass}" data-id="${escapeHTML(x.id)}"${depthStyle}>
+        ${chevron}
         <div class="hk-card-row">
           <div class="grow clickable detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(x.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(title)}</div>
