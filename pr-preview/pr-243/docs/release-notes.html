@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-243/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-243/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-243/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-243/assets/js/runtime~main.b1f44971.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-243/assets/js/runtime~main.357a8f42.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-243/assets/js/main.4b6e5cc8.js" defer="defer"></script>
 </head>
 <body>
@@ -17,11 +17,10 @@ versioning, with PEP 440 pre-release suffixes (<code>bN</code>/<code>aN</code>/<
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0160---2026-08-25">[0.16.0] - 2026-08-25<a href="#0160---2026-08-25" class="hash-link" aria-label="Direct link to [0.16.0] - 2026-08-25" title="Direct link to [0.16.0] - 2026-08-25" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added">Added<a href="#added" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
 <ul>
-<li class=""><strong>Profiles can now exclude tasks, not just include them.</strong> A Profile&#x27;s filter gains
-<strong>Exclude labels</strong>, <strong>Exclude areas</strong> and <strong>Exclude devices</strong>, which subtract from
-whatever the include pickers selected and win any tie. Exclusions inherit the same
-way the include pickers do and apply everywhere the Profile is used, and Profiles
-saved before this release keep working unchanged. (Fixes #214)</li>
+<li class=""><strong>Profiles gain exclusion filters.</strong> A Profile&#x27;s filter now has an <strong>Exclude</strong>
+counterpart for its label, area and device pickers. An exclusion beats the include side
+and inherits the same way it does, so a task carrying an excluded label through its
+device or area is dropped too. (Fixes #214)</li>
 <li class=""><strong>Buy reminders now reach your own shopping list.</strong> Point <strong>Settings → Shopping
 list</strong> at a to-do list the household already uses and every auto-created &quot;Buy {part}&quot;
 reminder is put on it. It works both ways: ticking the line off at the shop completes
@@ -30,11 +29,10 @@ managed. (Fixes #220)</li>
 <li class=""><strong>Shopping filter in the panel and dashboard card.</strong> A new &quot;Shopping&quot; option in the
 task filter bar shows only the auto-created buy tasks, and the same filter is
 available as <code>filter: shopping</code> on the dashboard card. (Fixes #220)</li>
-<li class=""><strong>Stock you measure instead of count.</strong> A spare part can now carry a <strong>stock unit</strong>
-and a <strong>used per completion</strong> amount, and every spare quantity accepts decimals, so
-fabric softener topped up a third of a bottle at a time no longer reads as three
-bottles gone. Leave both empty and a part counts whole spares and uses one per
-completion, exactly as before. (Fixes #220)</li>
+<li class=""><strong>Stock you measure instead of count.</strong> A spare part carries an optional <strong>stock unit</strong>
+and a <strong>used per completion</strong> amount, and every spare quantity now accepts decimals so
+fabric softener topped up a third of a bottle no longer reads as three bottles gone.
+Leaving both fields empty keeps the whole-spare counting from before. (Fixes #220)</li>
 <li class=""><strong>Start a usage meter somewhere other than &quot;now&quot;.</strong> A usage/meter task&#x27;s new
 <strong>Starting reading</strong> anchors it where the machine was actually last serviced instead
 of at whatever the sensor reads today, and <strong>Last completed</strong> now appears on sensor
@@ -50,16 +48,15 @@ which have no interval to count down, still read &quot;Monitored&quot;.)</li>
 from a Profile set to <strong>Due soon</strong> or <strong>All</strong> shows tasks that aren&#x27;t overdue yet, and
 its <strong>Mark done</strong> button did nothing at all when tapped. It now completes the task
 whenever the notification still reflects that task&#x27;s current schedule. (Fixes #216)</li>
-<li class=""><strong>A do-once task you already finished no longer sits on the to-do list forever.</strong>
-Checking off a one-off task retires it everywhere else, but <code>todo.home_keeper_tasks</code>
-kept showing it anyway, unchecked and with its due date gone. It now drops off the
-list as soon as it&#x27;s done, and comes back at its due date if you undo the completion.
-(Fixes #221)</li>
+<li class=""><strong>A finished do-once task no longer sits on the to-do list forever.</strong> Checking off a
+one-off task retires it everywhere else, but <code>todo.home_keeper_tasks</code> kept showing it
+unchecked with its due date gone. It now drops off the list as soon as it is done and
+comes back at its due date if the completion is undone. (Fixes #221)</li>
 <li class=""><strong>The dashboard card no longer breaks on an ordinary page reload.</strong> A dashboard using
-the Home Keeper card could show &quot;Custom element doesn&#x27;t exist: home-keeper-card&quot;,
-because the card reached the browser only through the page Home Assistant caches. It
-is now registered as a dashboard resource under <strong>Settings &gt; Dashboards &gt; Resources</strong>,
-which the frontend fetches fresh on every load, and existing installs get the entry on
+the Home Keeper card could show &quot;Custom element doesn&#x27;t exist: home-keeper-card&quot;
+because the card reached the browser only through the page Home Assistant caches. It is
+now registered as a dashboard resource under <strong>Settings &gt; Dashboards &gt; Resources</strong>,
+which the frontend fetches fresh on every load and which existing installs pick up on
 the next restart. (Fixes #228)</li>
 <li class=""><strong>Opening Configure no longer wipes your notifications and profiles.</strong> Saving the
 integration&#x27;s options dialog replaced the whole settings object with just the seven
