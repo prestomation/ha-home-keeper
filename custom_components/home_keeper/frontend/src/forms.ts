@@ -12,6 +12,7 @@ import type {
   SensorComparison,
   SensorMode,
   Task,
+  TaskMirror,
   Unit,
 } from './types';
 
@@ -1028,5 +1029,65 @@ export function notifyFormToNotification(
     style: (data.style as NotifyStyle) ?? 'walk',
     snooze_hours: Number(data.snooze_hours ?? 24) || 24,
     auto: { overdue: !!data.auto_overdue, due_soon: !!data.auto_due_soon },
+  };
+}
+
+// ── task mirrors (to-do list sync) ──────────────────────────────────────────
+
+/**
+ * A switch whose stored default is **on**. `!!v` would read a missing key as off,
+ * which silently turns two-way sync (or vanish-as-completed) off for any form
+ * snapshot that predates the field — the opposite of what the backend normalizer
+ * fills in.
+ */
+const boolOr = (value: unknown, fallback: boolean): boolean =>
+  value == null ? fallback : Boolean(value);
+
+/**
+ * The `ha-form` schema for one **task mirror** — an external to-do list kept in
+ * step with the tasks a profile selects.
+ *
+ * *profiles* populates the "what to send" dropdown, whose leading blank option is
+ * the default filter (everything due now) rather than a saved profile — the same
+ * "no profile" meaning `profile_id: null` carries in storage. *exclude* drops Home
+ * Keeper's own to-do lists from the picker, exactly as `shoppingSchema` does:
+ * mirroring a list onto itself is a loop, and ours accepts no new items anyway.
+ */
+export function taskMirrorSchema(profiles: Profile[], exclude: string[] = []): FormField[] {
+  return [
+    { name: 'entity_id', selector: selEntity({ domain: 'todo' }, false, exclude) },
+    {
+      name: 'profile_id',
+      selector: selSelect([
+        { value: '', label: t('mirror.profile_default') },
+        ...profiles.map((p) => ({ value: p.id, label: p.name })),
+      ]),
+    },
+    { name: 'two_way', selector: selBool() },
+    { name: 'vanish_as_completed', selector: selBool() },
+  ];
+}
+
+/** Flatten a mirror to the flat `ha-form` data the schema expects. */
+export function taskMirrorFormData(m: TaskMirror): Record<string, unknown> {
+  return {
+    // '' rather than null/undefined: an entity picker renders a null as a
+    // selected "null" option, and the select has no concept of null at all.
+    entity_id: m.entity_id ?? '',
+    profile_id: m.profile_id ?? '',
+    two_way: boolOr(m.two_way, true),
+    vanish_as_completed: boolOr(m.vanish_as_completed, true),
+  };
+}
+
+/** Rebuild a mirror from the flat form data, keeping *id*. */
+export function taskMirrorFormToMirror(id: string, data: Record<string, unknown>): TaskMirror {
+  return {
+    id,
+    entity_id: String(data.entity_id ?? ''),
+    // The blank option is the default filter, which storage spells `null`.
+    profile_id: data.profile_id ? String(data.profile_id) : null,
+    two_way: boolOr(data.two_way, true),
+    vanish_as_completed: boolOr(data.vanish_as_completed, true),
   };
 }

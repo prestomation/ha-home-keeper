@@ -32,6 +32,9 @@ import {
   profileFormToProfile,
   profileSchema,
   shoppingSchema,
+  taskMirrorFormData,
+  taskMirrorFormToMirror,
+  taskMirrorSchema,
   selDevice,
   selIcon,
   selNumber,
@@ -73,6 +76,7 @@ import type {
   Part,
   Profile,
   Task,
+  TaskMirror,
 } from './types';
 import {
   areaName,
@@ -2064,7 +2068,7 @@ export class HomeKeeperPanel extends HTMLElement {
         </div>
         ${this._detailView()}`;
     } else if (this._view === 'settings') {
-      inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-profiles-host"></div><div id="hk-notifications-host"></div><div id="hk-companions-host"></div>`;
+      inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-profiles-host"></div><div id="hk-notifications-host"></div><div id="hk-task-mirrors-host"></div><div id="hk-companions-host"></div>`;
     } else {
       const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
       inner = `
@@ -3676,6 +3680,8 @@ export class HomeKeeperPanel extends HTMLElement {
     if (profilesHost) this._renderProfiles(profilesHost);
     const notificationsHost = root.getElementById('hk-notifications-host');
     if (notificationsHost) this._renderNotifications(notificationsHost);
+    const taskMirrorsHost = root.getElementById('hk-task-mirrors-host');
+    if (taskMirrorsHost) this._renderTaskMirrors(taskMirrorsHost);
     const companionsHost = root.getElementById('hk-companions-host');
     if (companionsHost) this._renderCompanions(companionsHost);
 
@@ -3912,6 +3918,7 @@ export class HomeKeeperPanel extends HTMLElement {
       shopping_list_entity: '',
       profiles: [],
       notifications: [],
+      task_mirrors: [],
     };
     // General — settings independent of any single feature (e.g. one-off retention).
     host.appendChild(
@@ -4380,6 +4387,190 @@ export class HomeKeeperPanel extends HTMLElement {
       } as Partial<HomeKeeperOptions>);
       if (expandLast) {
         const saved = this._options?.notifications ?? [];
+        if (saved.length) this._itemExpanded.add(saved[saved.length - 1].id);
+      }
+      if (render) this._render();
+      this._toast(t('settings.saved'));
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
+    }
+  }
+
+  /** Render the Settings → To-do list sync card: each row pairs a profile (or the
+   *  default filter) with an existing `todo.*` list and keeps the two in step —
+   *  see the backend `task_mirror.py`. */
+  private _renderTaskMirrors(host: HTMLElement): void {
+    const profiles = this._options?.profiles ?? [];
+    const mirrors = this._options?.task_mirrors ?? [];
+    const isCollapsed = this._settingsSectionCollapsed.has('task_mirrors');
+
+    const card = document.createElement('ha-card');
+    card.className = 'hk-form-card';
+    card.id = 'hk-task-mirrors';
+    const inner = document.createElement('div');
+    inner.className = 'hk-form-inner';
+
+    // Clickable header (always visible)
+    const header = document.createElement('button');
+    header.className = 'hk-section-header';
+    header.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    header.innerHTML = `
+      <span class="hk-form-title hk-section-title">${escapeHTML(t('mirror.heading'))}</span>
+      ${mirrors.length ? `<span class="hk-section-count">${mirrors.length}</span>` : ''}
+      <ha-icon icon="mdi:chevron-down" class="hk-section-chevron${isCollapsed ? '' : ' open'}"></ha-icon>`;
+    inner.appendChild(header);
+
+    // Collapsible body
+    const body = document.createElement('div');
+    if (isCollapsed) body.style.display = 'none';
+    const intro = document.createElement('div');
+    intro.className = 'hk-settings-intro';
+    intro.textContent = t('mirror.help');
+    body.appendChild(intro);
+    if (!mirrors.length) {
+      const alert = document.createElement('ha-alert');
+      alert.setAttribute('alert-type', 'info');
+      alert.textContent = t('mirror.empty');
+      body.appendChild(alert);
+    }
+    for (const mirror of mirrors) body.appendChild(this._taskMirrorEditor(mirror, profiles));
+    const add = document.createElement('ha-button');
+    add.id = 'hk-mirror-add';
+    add.className = 'hk-notify-add';
+    add.textContent = t('mirror.add');
+    add.addEventListener('click', () => void this._addTaskMirror());
+    body.appendChild(add);
+    inner.appendChild(body);
+    card.appendChild(inner);
+
+    header.addEventListener('click', () => {
+      const collapsed = this._settingsSectionCollapsed.has('task_mirrors');
+      const chevron = header.querySelector<HTMLElement>('.hk-section-chevron');
+      if (collapsed) {
+        this._settingsSectionCollapsed.delete('task_mirrors');
+        body.style.display = '';
+        header.setAttribute('aria-expanded', 'true');
+        chevron?.classList.add('open');
+      } else {
+        this._settingsSectionCollapsed.add('task_mirrors');
+        body.style.display = 'none';
+        header.setAttribute('aria-expanded', 'false');
+        chevron?.classList.remove('open');
+      }
+    });
+
+    host.appendChild(card);
+  }
+
+  /** The target list's friendly name — what the collapsed row is called. A mirror
+   *  with no list picked yet says so rather than showing a blank header. */
+  private _mirrorTitle(entityId: string): string {
+    if (!entityId) return t('mirror.unconfigured');
+    const friendly = this._hass?.states?.[entityId]?.attributes?.friendly_name;
+    return typeof friendly === 'string' && friendly ? friendly : entityId;
+  }
+
+  private _taskMirrorEditor(mirror: TaskMirror, profiles: Profile[]): HTMLElement {
+    const isExpanded = this._itemExpanded.has(mirror.id);
+
+    const card = document.createElement('div');
+    card.className = 'hk-item-card';
+
+    // Clickable header showing the target list
+    const header = document.createElement('button');
+    header.className = 'hk-item-header';
+    header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'hk-item-name';
+    nameSpan.textContent = this._mirrorTitle(mirror.entity_id);
+    header.appendChild(nameSpan);
+    const chevron = document.createElement('ha-icon');
+    (chevron as unknown as Record<string, string>).icon = 'mdi:chevron-down';
+    chevron.className = 'hk-section-chevron' + (isExpanded ? ' open' : '');
+    header.appendChild(chevron);
+    card.appendChild(header);
+
+    // Collapsible body
+    const body = document.createElement('div');
+    body.className = 'hk-item-body';
+    if (!isExpanded) body.style.display = 'none';
+
+    const form = document.createElement('ha-form') as HaFormElement;
+    form.hass = this._hass;
+    form.schema = taskMirrorSchema(profiles, this._ownTodoEntities);
+    form.data = taskMirrorFormData(mirror);
+    form.computeLabel = (s: { name: string }): string => (s.name ? t('mirror.' + s.name) : '');
+    form.addEventListener('value-changed', (e: Event) => {
+      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      // Clearing the entity picker emits `undefined`; the round-trip turns that
+      // back into '' so the header falls back to "not configured".
+      nameSpan.textContent = this._mirrorTitle(String(value.entity_id ?? ''));
+      const next = (this._options?.task_mirrors ?? []).map((m) =>
+        m.id === mirror.id ? taskMirrorFormToMirror(mirror.id, value) : m,
+      );
+      this._debounce('task_mirrors', () => void this._persistTaskMirrors(next, false));
+    });
+    this._liveHassEls.push(form);
+    body.appendChild(form);
+
+    const del = document.createElement('ha-button');
+    del.className = 'hk-notify-delete';
+    del.textContent = t('notify.delete');
+    del.addEventListener('click', () => void this._deleteTaskMirror(mirror.id));
+    body.appendChild(del);
+    card.appendChild(body);
+
+    header.addEventListener('click', () => {
+      const expanded = this._itemExpanded.has(mirror.id);
+      const chev = header.querySelector<HTMLElement>('.hk-section-chevron');
+      if (expanded) {
+        this._itemExpanded.delete(mirror.id);
+        body.style.display = 'none';
+        header.setAttribute('aria-expanded', 'false');
+        chev?.classList.remove('open');
+      } else {
+        this._itemExpanded.add(mirror.id);
+        body.style.display = '';
+        header.setAttribute('aria-expanded', 'true');
+        chev?.classList.add('open');
+      }
+    });
+
+    return card;
+  }
+
+  private _addTaskMirror(): Promise<void> {
+    // A blank id: the backend mints a stable one (bookkeeping keys reference it),
+    // exactly as it does for a new profile or notification.
+    const blank: TaskMirror = {
+      id: '',
+      entity_id: '',
+      profile_id: null,
+      two_way: true,
+      vanish_as_completed: true,
+    };
+    return this._persistTaskMirrors([...(this._options?.task_mirrors ?? []), blank], true, true);
+  }
+
+  private _deleteTaskMirror(id: string): Promise<void> {
+    this._itemExpanded.delete(id);
+    const next = (this._options?.task_mirrors ?? []).filter((m) => m.id !== id);
+    return this._persistTaskMirrors(next, true);
+  }
+
+  private async _persistTaskMirrors(
+    task_mirrors: TaskMirror[],
+    render: boolean,
+    expandLast = false,
+  ): Promise<void> {
+    if (!this._hass) return;
+    this._options = { ...(this._options as HomeKeeperOptions), task_mirrors };
+    try {
+      this._options = await api.setOptions(this._hass, {
+        task_mirrors,
+      } as Partial<HomeKeeperOptions>);
+      if (expandLast) {
+        const saved = this._options?.task_mirrors ?? [];
         if (saved.length) this._itemExpanded.add(saved[saved.length - 1].id);
       }
       if (render) this._render();

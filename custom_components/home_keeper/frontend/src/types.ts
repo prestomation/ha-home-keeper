@@ -394,6 +394,21 @@ export interface Notification {
   auto: { overdue: boolean; due_soon: boolean };
 }
 
+/** One **task mirror**: an external `todo.*` list kept in step with the tasks a
+ *  profile selects (see backend task_mirror.py). `profile_id` is null for the
+ *  default filter — every enabled, scheduled task that is due now — and an empty
+ *  `entity_id` means the mirror has no list picked yet, so it does nothing. */
+export interface TaskMirror {
+  id: string;
+  entity_id: string;
+  profile_id: string | null;
+  /** Ticking an item off the external list completes the Home Keeper task. */
+  two_way: boolean;
+  /** A tracked item that vanished counts as completed (Todoist drops its
+   *  completed items rather than reporting them). */
+  vanish_as_completed: boolean;
+}
+
 /** Integration-wide options, edited from the panel's Settings tab (and mirrored by
  *  the options flow + the `home_keeper.set_options` service). */
 export interface HomeKeeperOptions {
@@ -411,6 +426,8 @@ export interface HomeKeeperOptions {
   // Saved filters and the notifications that consume them.
   profiles: Profile[];
   notifications: Notification[];
+  // External to-do lists kept in step with a profile's tasks.
+  task_mirrors: TaskMirror[];
 }
 
 /**
