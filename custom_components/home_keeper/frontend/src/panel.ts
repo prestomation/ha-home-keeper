@@ -99,6 +99,7 @@ import {
   tagName,
   taskRecordsReading,
   tasksForAsset,
+  buildAssetTree,
   type PanelLocation,
 } from './utils';
 
@@ -528,6 +529,10 @@ const STYLES = `
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
   .hk-card-row .grow.clickable { cursor: pointer; }
   ha-card.hk-card.overdue { border-left: 3px solid var(--error-color); }
+  ha-card.hk-card.hk-tree-child {
+    margin-left: calc(var(--hk-tree-depth, 0) * 24px);
+    border-left: 2px solid var(--divider-color);
+  }
 
   /* Filter / group-by controls */
   .hk-controls {
@@ -835,6 +840,7 @@ type GroupBy = 'none' | 'status' | 'area' | 'device' | 'integration';
 type TaskFilter = 'all' | 'overdue' | 'soon' | 'shopping';
 /** Appliance-list quick filter. */
 type AssetFilter = 'active' | 'archived';
+type AssetView = 'flat' | 'tree';
 /** One bucket of rows rendered under a collapsible section header. */
 interface Group<T> {
   /** Stable key for remembering collapse state, e.g. "status:overdue". */
@@ -849,6 +855,7 @@ const LS_GROUP = 'home-keeper.groupBy';
 const LS_FILTER = 'home-keeper.filter';
 const LS_ASSET_FILTER = 'home-keeper.assetFilter';
 const LS_PROFILE = 'home-keeper.profile';
+const LS_ASSET_VIEW = 'home-keeper.assetView';
 
 export class HomeKeeperPanel extends HTMLElement {
   private _hass?: Hass;
@@ -904,6 +911,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private _groupBy: GroupBy = 'status';
   private _filter: TaskFilter = 'all';
   private _assetFilter: AssetFilter = 'active';
+  private _assetView: AssetView = 'flat';
   // Selected saved Profile id to filter the task list by ('' = no profile).
   private _profile = '';
   // Group sections collapsed by the user, keyed by "<group>:<bucket>".
@@ -1086,6 +1094,8 @@ export class HomeKeeperPanel extends HTMLElement {
       if (f === 'all' || f === 'overdue' || f === 'soon') this._filter = f;
       const af = localStorage.getItem(LS_ASSET_FILTER);
       if (af === 'active' || af === 'archived') this._assetFilter = af;
+      const av = localStorage.getItem(LS_ASSET_VIEW);
+      if (av === 'flat' || av === 'tree') this._assetView = av;
       this._profile = localStorage.getItem(LS_PROFILE) ?? '';
     } catch {
       // localStorage unavailable (e.g. private mode) — fall back to defaults.
@@ -1119,6 +1129,17 @@ export class HomeKeeperPanel extends HTMLElement {
     this._assetFilter = value;
     try {
       localStorage.setItem(LS_ASSET_FILTER, value);
+    } catch {
+      /* ignore */
+    }
+    this._render();
+  }
+
+  private _setAssetView(value: AssetView): void {
+    if (this._assetView === value) return;
+    this._assetView = value;
+    try {
+      localStorage.setItem(LS_ASSET_VIEW, value);
     } catch {
       /* ignore */
     }
@@ -2049,11 +2070,13 @@ export class HomeKeeperPanel extends HTMLElement {
           { value: 'area', label: t('group.area') },
           { value: 'none', label: t('group.none') },
         ];
-    const groupControl = `
-      <div class="hk-control">
-        <span class="hk-seg-label">${escapeHTML(t('group.by'))}</span>
-        ${this._seg('group', this._effectiveGroup(), groupOpts)}
-      </div>`;
+    const groupControl =
+      this._view === 'appliances' && this._assetView === 'tree'
+        ? ''
+        : `<div class="hk-control">
+            <span class="hk-seg-label">${escapeHTML(t('group.by'))}</span>
+            ${this._seg('group', this._effectiveGroup(), groupOpts)}
+          </div>`;
     // A saved Profile, when picked, drives the status/label/area/device filter, so
     // the inline all/overdue/soon segment is hidden while one is active.
     const profile = this._activeProfile();
@@ -2073,7 +2096,17 @@ export class HomeKeeperPanel extends HTMLElement {
             { value: 'archived', label: t('filter.archived') },
           ])}</div>`
         : '';
-    return `<div class="hk-controls">${filterControl}${assetFilterControl}${this._profileControl()}${groupControl}</div>`;
+    const viewControl =
+      this._view === 'appliances'
+        ? `<div class="hk-control">
+            <span class="hk-seg-label">${escapeHTML(t('view.label'))}</span>
+            ${this._seg('assetView', this._assetView, [
+              { value: 'flat', label: t('view.flat') },
+              { value: 'tree', label: t('view.tree') },
+            ])}
+          </div>`
+        : '';
+    return `<div class="hk-controls">${filterControl}${assetFilterControl}${viewControl}${this._profileControl()}${groupControl}</div>`;
   }
 
   /** The saved Profile currently selected for the list filter, or null. */
@@ -2368,7 +2401,12 @@ export class HomeKeeperPanel extends HTMLElement {
       const emptyKey = archived ? 'appliances.archivedEmpty' : 'appliances.noMatch';
       return `<ha-alert alert-type="info">${escapeHTML(t(emptyKey))}</ha-alert>`;
     }
-    const assets = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const cmp = (a: Asset, b: Asset) => (a.name || '').localeCompare(b.name || '');
+    if (this._assetView === 'tree') {
+      const tree = buildAssetTree(filtered, cmp);
+      return tree.map((entry) => this._assetCard(entry.item, entry.depth)).join('');
+    }
+    const assets = [...filtered].sort(cmp);
     return this._renderGroups(this._groupAssets(assets), (asset) => this._assetCard(asset));
   }
 
@@ -2432,7 +2470,7 @@ export class HomeKeeperPanel extends HTMLElement {
       </ha-card>`;
   }
 
-  private _assetCard(x: Asset): string {
+  private _assetCard(x: Asset, depth = 0): string {
     const kindChip =
       x.kind === 'virtual'
         ? this._virtualDeviceChip(x)
@@ -2459,8 +2497,10 @@ export class HomeKeeperPanel extends HTMLElement {
         ? `<ha-assist-chip class="hk-archived" label="${escapeHTML(t('chip.archived'))}"></ha-assist-chip>`
         : '',
     ].join('');
+    const depthClass = depth > 0 ? ' hk-tree-child' : '';
+    const depthStyle = depth > 0 ? ` style="--hk-tree-depth: ${depth}"` : '';
     return `
-      <ha-card class="hk-card" data-id="${escapeHTML(x.id)}">
+      <ha-card class="hk-card${depthClass}" data-id="${escapeHTML(x.id)}"${depthStyle}>
         <div class="hk-card-row">
           <div class="grow clickable detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(x.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(title)}</div>
@@ -3440,6 +3480,7 @@ export class HomeKeeperPanel extends HTMLElement {
         if (seg === 'group') this._setGroupBy(val as GroupBy);
         else if (seg === 'filter') this._setFilter(val as TaskFilter);
         else if (seg === 'assetFilter') this._setAssetFilter(val as AssetFilter);
+        else if (seg === 'assetView') this._setAssetView(val as AssetView);
       }),
     );
     // Saved-Profile filter dropdown.

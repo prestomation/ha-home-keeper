@@ -286,6 +286,16 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await panel.locator('#tab-appliances').click();
     await expect(panel.locator('.hk-name').first()).toBeVisible();
     await page.waitForTimeout(BEAT);
+
+    // 4-tree. Tree view — toggle from the flat list to the tree so the
+    //         parent/child nesting is visible, then switch back.
+    await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="tree"]').click();
+    await expect(panel.locator('.hk-tree-child').first()).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="flat"]').click();
+    await expect(panel.locator('.hk-name').first()).toBeVisible();
+    await page.waitForTimeout(BEAT);
+
     const applianceRow = panel.locator('.detail-open[data-detail-id="asset_water_heater"]');
     await expect(applianceRow).toBeVisible();
     await applianceRow.click();
