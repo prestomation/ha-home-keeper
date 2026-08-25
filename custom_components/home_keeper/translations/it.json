@@ -106,7 +106,7 @@
         },
         "active_season": {
           "name": "Active season",
-          "description": "Restrict this task to a date range each year. Outside the season the next due date is pushed to the start of the next active period. Pass an object with start and end as MM-DD strings; wrapping seasons (e.g. Nov through Mar) are supported. Pass null to clear."
+          "description": "Restrict this task to a date range each year. Outside the season the next due date is pushed to the start of the next active period. Pass an object with start and end as MM-DD strings. Wrapping seasons (e.g. Nov through Mar) are supported. Pass null to clear."
         },
         "source": {
           "name": "Origine",

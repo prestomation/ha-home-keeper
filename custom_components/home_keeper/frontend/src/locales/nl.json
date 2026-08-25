@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "om de {n} {unit}",
   "recurrence.floating.one": "elke {unit} na voltooiing",
   "recurrence.floating.other": "om de {n} {unit} na voltooiing",
-  "recurrence.season": "{summary}, {start}–{end}",
+  "recurrence.season": "{summary}, {start}-{end}",
   "recurrence.oneOff": "Eenmalig",
   "recurrence.sensor": "Sensorgebaseerd",
   "recurrence.sensorState": "Wanneer hij naar {state} gaat",

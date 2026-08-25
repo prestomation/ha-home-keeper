@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "hver {n}. {unit}",
   "recurrence.floating.one": "hver {unit} etter fullføring",
   "recurrence.floating.other": "hver {n}. {unit} etter fullføring",
-  "recurrence.season": "{summary}, {start}–{end}",
+  "recurrence.season": "{summary}, {start}-{end}",
   "recurrence.oneOff": "Engangs",
   "recurrence.sensor": "Sensorbasert",
   "recurrence.sensorState": "Når den går til {state}",

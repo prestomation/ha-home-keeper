@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "每 {n} {unit}",
   "recurrence.floating.one": "完成后{unit}",
   "recurrence.floating.other": "完成后每 {n} {unit}",
-  "recurrence.season": "{summary}, {start}–{end}",
+  "recurrence.season": "{summary}, {start}-{end}",
   "recurrence.oneOff": "一次性",
   "recurrence.sensor": "基于传感器",
   "recurrence.sensorState": "当变为 {state} 时",

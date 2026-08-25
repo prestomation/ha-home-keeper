@@ -85,8 +85,8 @@ def _parse_mmdd(mmdd: str) -> tuple[int, int]:
 def in_season(dt_val: datetime, season: dict) -> bool:
     """True when *dt_val*'s month-day falls inside the active season.
 
-    Non-wrapping (e.g. Apr–Sep): ``start <= md <= end``.
-    Wrapping (e.g. Nov–Mar): ``md >= start or md <= end``.
+    Non-wrapping (e.g. Apr-Sep): ``start <= md <= end``.
+    Wrapping (e.g. Nov-Mar): ``md >= start or md <= end``.
     """
     s_m, s_d = _parse_mmdd(season["start"])
     e_m, e_d = _parse_mmdd(season["end"])

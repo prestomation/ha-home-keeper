@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "var {n} {unit}",
   "recurrence.floating.one": "var {unit} efter slutförande",
   "recurrence.floating.other": "var {n} {unit} efter slutförande",
-  "recurrence.season": "{summary}, {start}–{end}",
+  "recurrence.season": "{summary}, {start}-{end}",
   "recurrence.oneOff": "Engångs",
   "recurrence.sensor": "Sensorbaserad",
   "recurrence.sensorState": "När den växlar till {state}",

@@ -707,6 +707,7 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       const lastDay = new Date(2000, em, 0).getDate();
       payload.active_season = {
         start: `${String(sm).padStart(2, '0')}-01`,
+        // Stryker disable next-line StringLiteral: lastDay is always >= 28, so padStart is a no-op
         end: `${String(em).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
       };
     } else {

@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "{n} {unit} välein",
   "recurrence.floating.one": "joka {unit} valmistumisen jälkeen",
   "recurrence.floating.other": "{n} {unit} välein valmistumisen jälkeen",
-  "recurrence.season": "{summary}, {start}–{end}",
+  "recurrence.season": "{summary}, {start}-{end}",
   "recurrence.oneOff": "Kertaluonteinen",
   "recurrence.sensor": "Anturipohjainen",
   "recurrence.sensorState": "Kun se vaihtuu tilaan {state}",

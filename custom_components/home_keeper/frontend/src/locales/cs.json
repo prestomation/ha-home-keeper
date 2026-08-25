@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "každých {n} {unit}",
   "recurrence.floating.one": "každý {unit} po dokončení",
   "recurrence.floating.other": "každých {n} {unit} po dokončení",
-  "recurrence.season": "{summary}, {start}–{end}",
+  "recurrence.season": "{summary}, {start}-{end}",
   "recurrence.oneOff": "Jednorázový",
   "recurrence.sensor": "Podle senzoru",
   "recurrence.sensorState": "Když se změní na {state}",

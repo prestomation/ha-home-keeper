@@ -535,4 +535,35 @@ describe('active season fields', () => {
     const payload = buildTaskPayload({ ...task, ...fd });
     expect(payload.active_season).toEqual({ start: '04-01', end: '09-30' });
   });
+
+  it('shows month pickers when active_season is set (no season_on flag)', () => {
+    const fields = taskSchema({
+      recurrence_type: 'floating', interval: 2, unit: 'months',
+      active_season: { start: '04-01', end: '09-30' },
+    });
+    const fieldNames = names(fields);
+    expect(fieldNames).toContain('season_start_month');
+    expect(fieldNames).toContain('season_end_month');
+    const grid = fields.find((f) => f.schema?.some((s) => s.name === 'season_start_month'));
+    const monthField = grid.schema.find((s) => s.name === 'season_start_month');
+    expect(monthField.selector.select.options).toHaveLength(12);
+    expect(monthField.selector.select.options[0]).toEqual({ value: '1', label: 'January' });
+    expect(monthField.selector.select.options[11]).toEqual({ value: '12', label: 'December' });
+  });
+
+  it('hides month pickers when season_on is false for floating tasks', () => {
+    const fieldNames = names(taskSchema({ recurrence_type: 'floating', season_on: false }));
+    expect(fieldNames).toContain('season_on');
+    expect(fieldNames).not.toContain('season_start_month');
+    expect(fieldNames).not.toContain('season_end_month');
+  });
+
+  it('buildTaskPayload ignores season_on for one-off tasks', () => {
+    const payload = buildTaskPayload({
+      name: 'Paint', recurrence_type: 'one-off',
+      season_on: true, season_start_month: '4', season_end_month: '9',
+      due: '2026-06-15T10:00:00',
+    });
+    expect(payload.active_season).toBeNull();
+  });
 });

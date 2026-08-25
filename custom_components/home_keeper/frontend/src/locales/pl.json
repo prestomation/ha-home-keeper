@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "co {n} {unit}",
   "recurrence.floating.one": "co {unit} po ukończeniu",
   "recurrence.floating.other": "co {n} {unit} po ukończeniu",
-  "recurrence.season": "{summary}, {start}–{end}",
+  "recurrence.season": "{summary}, {start}-{end}",
   "recurrence.oneOff": "Jednorazowe",
   "recurrence.sensor": "Na podstawie czujnika",
   "recurrence.sensorState": "Gdy zmieni się na {state}",

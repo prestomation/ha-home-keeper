@@ -384,7 +384,7 @@
   "recurrence.fixed.other": "каждые {n} {unit}",
   "recurrence.floating.one": "{unit} после завершения",
   "recurrence.floating.other": "каждые {n} {unit} после завершения",
-  "recurrence.season": "{summary}, {start}–{end}",
+  "recurrence.season": "{summary}, {start}-{end}",
   "recurrence.oneOff": "Разовое",
   "recurrence.sensor": "На основе датчика",
   "recurrence.sensorState": "Когда сменится на {state}",
