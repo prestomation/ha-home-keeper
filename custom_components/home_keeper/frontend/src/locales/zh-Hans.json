@@ -449,5 +449,5 @@
   "field.season_2_on": "第二个窗口",
   "field.season_2_start_month": "开始月份",
   "field.season_2_end_month": "结束月份",
-  "help.season_2_on": "添加第二个活跃窗口，用于一年中分两个时期执行的任务（例如春季和秋季）。"
+  "help.season_2_on": "添加第二个活跃窗口，用于一年中分两个时期执行的任务——如春季和秋季的草坪护理。"
 }

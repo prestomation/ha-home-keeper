@@ -242,7 +242,7 @@
   "help.recurrence_type": "How this task repeats. Pick after each completion, a fixed schedule, or just once, or let a sensor decide.",
   "help.reorder_at": "At or below this, a low-stock event fires. Automate on it, or enable Auto-create buy task below.",
   "help.require_tag_scan": "Blocks the Done button, so the task can only be completed by scanning its tag.",
-  "help.season_2_on": "Add a second active window, for tasks that run in two separate parts of the year (spring and fall, for example).",
+  "help.season_2_on": "Add a second active window, for tasks that run in two separate parts of the year — like spring and fall lawn care.",
   "help.season_on": "Only schedule this task during part of the year. Outside the season the next due date moves to the start of the next active period.",
   "help.restock_quantity": "Spares added back when you complete the Buy task. Enough to clear the threshold.",
   "help.sensor.section": "This task has no schedule. A sensor decides when it's due. Home Keeper notes the sensor's reading now and counts from there. Completing the task starts a fresh count. <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">Learn more</a>.",
