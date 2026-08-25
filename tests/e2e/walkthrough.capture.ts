@@ -209,7 +209,18 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     }
     await expect(panel.locator('#hk-task-form ha-select').nth(2)).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
-    // Turn season off again before the next section.
+
+    // 3c. Second season window — toggle it on so the viewer sees a spring + fall
+    //     layout and the live hint rewrites to "Apr–Sep & Sep–Oct".
+    const secondWindowSwitch = panel.locator('#hk-task-form ha-selector-boolean ha-switch').nth(1);
+    if (!(await secondWindowSwitch.evaluate((el: HTMLInputElement) => el.checked))) {
+      await secondWindowSwitch.click();
+    }
+    await page.waitForTimeout(BEAT * 2);
+    // Turn both off before the next section.
+    if (await secondWindowSwitch.evaluate((el: HTMLInputElement) => el.checked)) {
+      await secondWindowSwitch.click();
+    }
     if (await seasonSwitch.evaluate((el: HTMLInputElement) => el.checked)) {
       await seasonSwitch.click();
     }
