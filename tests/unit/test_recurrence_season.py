@@ -70,7 +70,6 @@ class TestInSeason:
 
 
 class TestNextSeasonStart:
-
     def test_forward_same_year(self):
         season = {"start": "04-01", "end": "09-30"}
         result = r._next_season_start(dt(2026, 1, 15), season)
@@ -113,7 +112,6 @@ class TestNextSeasonStart:
 
 
 class TestFloatingClamping:
-
     def test_in_season_unchanged(self):
         """A next_due inside the season is returned as-is."""
         task = {
@@ -194,7 +192,6 @@ class TestFloatingClamping:
 
 
 class TestFixedClamping:
-
     def test_in_season_unchanged(self):
         task = {
             "recurrence_type": "fixed",
@@ -254,7 +251,6 @@ class TestFixedClamping:
 
 
 class TestApplyCompletionSeason:
-
     def test_floating_clamped(self):
         task = {
             "recurrence_type": "floating",
@@ -301,7 +297,6 @@ class TestApplyCompletionSeason:
 
 
 class TestSkipOccurrenceSeason:
-
     def test_floating_skip_clamped(self):
         task = {
             "recurrence_type": "floating",
@@ -346,7 +341,6 @@ class TestSkipOccurrenceSeason:
 
 
 class TestWrappingSeasonEndToEnd:
-
     def test_floating_wrapping_in_season(self):
         """Nov-Mar season: completed Dec 1 + 1 month = Jan 1, still in season."""
         task = {
