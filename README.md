@@ -32,6 +32,9 @@ changes, water filters, taking medicine, and anything else that recurs).
 - **Used through native HA entities**: a `todo` list, an upcoming-tasks `calendar`,
   and per-device **button / next-due sensor / overdue binary_sensor** on a task's
   device page.
+- **Mirror tasks onto other to-do lists**: profile-filtered chores land in a Todoist
+  project (or any `todo` entity) as they come due, and checking one off there
+  completes it here.
 - **Dashboard task card**: a bundled, auto-registered `custom:home-keeper-card` with
   one-tap **Done**, inline add/edit, and rich filtering/grouping.
 - **Markdown notes**: every notes field (task, appliance, part, completion) renders
@@ -577,6 +580,8 @@ Devices & services → Configure*. It's a plain form that mirrors the options fl
 **saves as you change it**. The **General** card holds how long to keep completed
 one-offs. **Shopping list** picks the to-do list
 [buy reminders are mirrored onto](#send-buy-reminders-to-your-shopping-list).
+**To-do list sync** manages the
+[mirrors that send tasks to other to-do lists](#send-tasks-to-your-to-do-lists).
 **Problem sensor sync** carries the toggle plus entity / area / label exclusions. The
 same options remain available through the HA options flow and the
 `home_keeper.set_options` service (for automations).
@@ -629,10 +634,12 @@ due in the next three days.
 point every list at it."* *"My partner and I each save a Profile filtered to our own
 label, and reuse it on our phones and our dashboards."*
 
-The same Profile drives filtering in three places:
+The same Profile drives filtering in four places:
 
 - **Notifications**: a notification points at a Profile to decide which tasks it pushes
   (see below). Profiles with different labels make separate people's lists.
+- **To-do list sync**: a mirror points at a Profile to decide which tasks land on an
+  external to-do list, and when (next section).
 - **The admin task list**: the **Profile** dropdown on the **Tasks** tab narrows the
   panel list to a saved Profile's tasks.
 - **The dashboard card**: the card editor's **Filter by profile** picker points a card
@@ -659,6 +666,54 @@ integration can decide the problem is dealt with.
 ![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
 
 ![The Tasks tab filtered to a saved Profile via the Profile dropdown](docs/images/23-panel-profile-filter.png)
+
+## Send tasks to your to-do lists
+
+A chore that only exists in Home Keeper is easy to ignore. **Settings → To-do list
+sync** mirrors tasks onto to-do lists the household already checks. Any `todo` entity
+works, whether that's a Todoist project, Google Tasks, or a `local_todo` list on the
+kitchen tablet.
+
+Each **mirror** pairs one list with one
+[Profile](#profiles-saved-filters-you-reuse-everywhere), and the Profile decides both
+*which* tasks appear and *when*. Its status is the timing. **Overdue** puts a task on
+the list the moment it falls due, **due soon** three days ahead, **all** as soon as it
+is scheduled. Leaving the Profile unset mirrors every task, when due.
+
+**Use cases.** *"House chores land in the same Todoist project as the rest of my
+life, and checking one off at work marks it done at home."* *"Each kid's chores go to
+a list of their own."* Make a Profile per person, point each mirror at its own list,
+and add as many mirrors as you need.
+
+It works in both directions:
+
+- **Check the item off anywhere** and Home Keeper completes the task, logging it in
+  the completion history like any other Done. A recurring task then reschedules, and a
+  fresh item appears when it next falls due. The checked-off item stays put as your
+  record.
+- **Complete the task in Home Keeper** and the item is ticked off to match.
+- **A task that stops qualifying** (rescheduled, disabled, filtered out of the
+  Profile) has its open item removed, because there is nothing left to do.
+
+Items carry the task's due date and notes when the list supports them. Home Keeper
+only manages the items it added, and it never touches anything already checked off.
+
+Two per-mirror switches cover the awkward cases. **Two-way sync** is on by default;
+switch it off for a display-only mirror that never completes tasks. **Treat removed
+items as completed** (also on by default) exists because some providers, Todoist
+included, hide checked-off items from Home Assistant, so an item that disappears is
+read as "done". If your list reports completions properly (a `local_todo` list does)
+you can switch it off, and a deleted item is re-added on the next pass instead.
+
+Tasks that [require a tag scan](#complete-tasks-with-nfcrfid-tags) still mirror, but
+checking one off remotely does not complete anything. The item comes back, which is
+the point of requiring the scan.
+
+**The Todoist recipe.** Install Home Assistant's own
+[Todoist integration](https://www.home-assistant.io/integrations/todoist/) and give it
+your Todoist API token; every Todoist project then shows up as a `todo` entity. Point
+a mirror at the project's entity and your chores follow you onto every device Todoist
+reaches.
 
 <!-- vale ai-tells.OverusedVocabulary = NO -->
 ## Notifications (actionable reminders on your phone)
