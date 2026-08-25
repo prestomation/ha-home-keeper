@@ -97,10 +97,12 @@ def test_merge_flow_input_preserves_the_keys_the_form_does_not_render() -> None:
     for key in (
         const.OPTION_PROFILES,
         const.OPTION_NOTIFICATIONS,
+        const.OPTION_TASK_MIRRORS,
         const.OPTION_DISMISSED_COMPANIONS,
     ):
         assert merged[key] == before[key], f"{key} was not preserved"
     assert merged[const.OPTION_PROFILES], "sanity: the fixture must seed profiles"
+    assert merged[const.OPTION_TASK_MIRRORS], "sanity: the fixture must seed a mirror"
     # ...and the fields the form *does* own took their new values.
     for key, value in _SUBMISSION.items():
         assert merged[key] == value
