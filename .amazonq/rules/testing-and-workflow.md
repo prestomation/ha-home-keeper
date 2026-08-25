@@ -37,7 +37,12 @@
   `services.yaml`, and `locales/en.json` (not the other locales or `translations/`,
   since the rules are English-phrase regexes). It's diff-scoped (`filter_mode: added`),
   so only new/changed lines can fail CI. The existing corpus is cleaned up
-  separately. Run locally with `vale sync && vale <paths>`. Disable an accepted false
+  separately. Run locally with `vale sync && vale <paths>`, but treat a clean local run
+  as weak evidence: `lint.yml`'s action pins its own binary and has reported hits a local
+  Vale found nowhere in the file. To be sure, match the rule's `tokens` regexes from
+  `styles/ai-tells/<Rule>.yml` against the text yourself, scoped per **block** (a list
+  item plus its continuation lines is one string, and `[^,]+` spans sentence boundaries).
+  Keep at most one comma after a modal or pronoun in a bullet. Disable an accepted false
   positive per-file in `.vale.ini` (`ai-tells.RuleName = NO`) or inline with
   `<!-- vale ai-tells.RuleName = NO -->` / `... = YES -->`. For example,
   `services.yaml` disables `ColonUsage`, which otherwise fires on every unquoted

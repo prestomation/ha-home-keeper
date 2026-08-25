@@ -10,11 +10,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **Profiles can now exclude tasks, not just include them.** A Profile's filter gains
-  **Exclude labels**, **Exclude areas** and **Exclude devices**, which subtract from
-  whatever the include pickers selected and win any tie. Exclusions inherit the same
-  way the include pickers do and apply everywhere the Profile is used, and Profiles
-  saved before this release keep working unchanged. (Fixes #214)
+- **Profiles gain exclusion filters.** A Profile's filter now has an **Exclude**
+  counterpart for its label, area and device pickers. An exclusion beats the include side
+  and inherits the same way it does, so a task carrying an excluded label through its
+  device or area is dropped too. (Fixes #214)
 - **Buy reminders now reach your own shopping list.** Point **Settings → Shopping
   list** at a to-do list the household already uses and every auto-created "Buy {part}"
   reminder is put on it. It works both ways: ticking the line off at the shop completes
@@ -23,11 +22,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Shopping filter in the panel and dashboard card.** A new "Shopping" option in the
   task filter bar shows only the auto-created buy tasks, and the same filter is
   available as `filter: shopping` on the dashboard card. (Fixes #220)
-- **Stock you measure instead of count.** A spare part can now carry a **stock unit**
-  and a **used per completion** amount, and every spare quantity accepts decimals, so
-  fabric softener topped up a third of a bottle at a time no longer reads as three
-  bottles gone. Leave both empty and a part counts whole spares and uses one per
-  completion, exactly as before. (Fixes #220)
+- **Stock you measure instead of count.** A spare part carries an optional **stock unit**
+  and a **used per completion** amount, and every spare quantity now accepts decimals so
+  fabric softener topped up a third of a bottle no longer reads as three bottles gone.
+  Leaving both fields empty keeps the whole-spare counting from before. (Fixes #220)
 - **Start a usage meter somewhere other than "now".** A usage/meter task's new
   **Starting reading** anchors it where the machine was actually last serviced instead
   of at whatever the sensor reads today, and **Last completed** now appears on sensor
@@ -43,16 +41,15 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   from a Profile set to **Due soon** or **All** shows tasks that aren't overdue yet, and
   its **Mark done** button did nothing at all when tapped. It now completes the task
   whenever the notification still reflects that task's current schedule. (Fixes #216)
-- **A do-once task you already finished no longer sits on the to-do list forever.**
-  Checking off a one-off task retires it everywhere else, but `todo.home_keeper_tasks`
-  kept showing it anyway, unchecked and with its due date gone. It now drops off the
-  list as soon as it's done, and comes back at its due date if you undo the completion.
-  (Fixes #221)
+- **A finished do-once task no longer sits on the to-do list forever.** Checking off a
+  one-off task retires it everywhere else, but `todo.home_keeper_tasks` kept showing it
+  unchecked with its due date gone. It now drops off the list as soon as it is done and
+  comes back at its due date if the completion is undone. (Fixes #221)
 - **The dashboard card no longer breaks on an ordinary page reload.** A dashboard using
-  the Home Keeper card could show "Custom element doesn't exist: home-keeper-card",
-  because the card reached the browser only through the page Home Assistant caches. It
-  is now registered as a dashboard resource under **Settings > Dashboards > Resources**,
-  which the frontend fetches fresh on every load, and existing installs get the entry on
+  the Home Keeper card could show "Custom element doesn't exist: home-keeper-card"
+  because the card reached the browser only through the page Home Assistant caches. It is
+  now registered as a dashboard resource under **Settings > Dashboards > Resources**,
+  which the frontend fetches fresh on every load and which existing installs pick up on
   the next restart. (Fixes #228)
 - **Opening Configure no longer wipes your notifications and profiles.** Saving the
   integration's options dialog replaced the whole settings object with just the seven

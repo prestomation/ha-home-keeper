@@ -80,6 +80,16 @@
   For an accepted false positive, either disable the rule for that file in
   `.vale.ini` (`ai-tells.RuleName = NO`) or wrap the exception inline with
   `<!-- vale ai-tells.RuleName = NO -->` / `<!-- vale ai-tells.RuleName = YES -->`.
+  **A clean local `vale` run is not proof CI is clean.** The `vale-action` in `lint.yml`
+  pins its own binary, and a locally-installed one can miss hits it reports:
+  `ai-tells.VerbTricolon` fired on a rewritten CHANGELOG bullet in CI while local Vale
+  3.9.1 found nothing in the whole file. When a run matters, check the rule's own regexes
+  against the text directly (`styles/ai-tells/<Rule>.yml` is plain YAML `tokens`). Match
+  Vale's scope when you do: the rules apply per **block**, so a list item and all its
+  continuation lines are one string, and patterns like `[^,]+` happily span sentence
+  boundaries — a "three items in series" rule can fire across two sentences of one
+  bullet. In practice keep at most one comma in a bullet after a modal (`can`, `could`,
+  `will`) or a pronoun (`you`, `we`, `they`); a second one is usually what trips it.
   Diff-scoping only checks added/changed lines, so a wholesale rewrite of a file's
   prose (not just a small edit) can surface pre-existing hits on lines that just
   moved. Run `vale <file>` on the whole file yourself before a rewrite-style PR to
