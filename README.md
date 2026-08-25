@@ -32,9 +32,9 @@ changes, water filters, taking medicine, and anything else that recurs).
 - **Used through native HA entities**: a `todo` list, an upcoming-tasks `calendar`,
   and per-device **button / next-due sensor / overdue binary_sensor** on a task's
   device page.
-- **Mirror tasks onto other to-do lists**: profile-filtered chores land in a Todoist
-  project (or any `todo` entity) as they come due, and checking one off there
-  completes it here.
+- **Mirror tasks onto other to-do lists**: profile-filtered chores are mirrored onto
+  a Todoist project (or any `todo` entity) as they come due, and checking one off
+  there completes it here.
 - **Dashboard task card**: a bundled, auto-registered `custom:home-keeper-card` with
   one-tap **Done**, inline add/edit, and rich filtering/grouping.
 - **Markdown notes**: every notes field (task, appliance, part, completion) renders
@@ -638,8 +638,8 @@ The same Profile drives filtering in four places:
 
 - **Notifications**: a notification points at a Profile to decide which tasks it pushes
   (see below). Profiles with different labels make separate people's lists.
-- **To-do list sync**: a mirror points at a Profile to decide which tasks land on an
-  external to-do list, and when (next section).
+- **To-do list sync**: a mirror points at a Profile to decide which tasks are sent to
+  an external to-do list, and when (next section).
 - **The admin task list**: the **Profile** dropdown on the **Tasks** tab narrows the
   panel list to a saved Profile's tasks.
 - **The dashboard card**: the card editor's **Filter by profile** picker points a card
@@ -680,7 +680,7 @@ Each **mirror** pairs one list with one
 the list the moment it falls due, **due soon** three days ahead, **all** as soon as it
 is scheduled. Leaving the Profile unset mirrors every task, when due.
 
-**Use cases.** *"House chores land in the same Todoist project as the rest of my
+**Use cases.** *"House chores turn up in the same Todoist project as the rest of my
 life, and checking one off at work marks it done at home."* *"Each kid's chores go to
 a list of their own."* Make a Profile per person, point each mirror at its own list,
 and add as many mirrors as you need.
@@ -711,7 +711,7 @@ the point of requiring the scan.
 
 **The Todoist recipe.** Install Home Assistant's own
 [Todoist integration](https://www.home-assistant.io/integrations/todoist/) and give it
-your Todoist API token; every Todoist project then shows up as a `todo` entity. Point
+your Todoist API token. Every Todoist project then shows up as a `todo` entity. Point
 a mirror at the project's entity and your chores follow you onto every device Todoist
 reaches.
 
