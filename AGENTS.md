@@ -7,6 +7,15 @@
 - **Always squash merge PRs.**
 - **CHANGELOG.md** — update for every user-facing change before tagging a release.
   Developer-only changes (CI config, AGENTS.md, IDEAS.md) don't need entries.
+- **Keep every CHANGELOG bullet to three sentences at most.** A bold lead naming the
+  change, then what a user notices, then a caveat or `(Fixes #N)` if one is needed.
+  That is the whole budget. Cut the worked example ("your odometer reads 48,000…"),
+  the before-and-after story, the list of every surface the new value shows up on, and
+  the inventory of new service fields and entity attributes — those read as release
+  notes written for the person who wrote the code. Detail belongs in `README.md`,
+  `docs/`, or the PR body; the changelog says what changed and stops. One bullet per
+  change, never a second paragraph. `(Fixes #N)` must land in the bullet's **first**
+  paragraph, because `ci/release-issues.py` quotes the bullet it first appears in.
 - **A stable release's `## [X.Y.Z]` notes describe what changed since the last
   _stable_ release — not since its betas.** When cutting `X.Y.Z` from an `X.Y.ZbN`
   line, write the section for someone upgrading from the previous stable version and
