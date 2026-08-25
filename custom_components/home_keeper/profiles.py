@@ -125,7 +125,7 @@ def matches_filter(
 
     This pure matcher reads the ``labels``/``area_id``/
     ``device_id`` on the task dict; the HA-aware caller
-    (``notifier._effective_filter_tasks``) enriches those with **effective**
+    (``notifier.effective_filter_tasks``) enriches those with **effective**
     (device/area-inherited) ids before calling, so a Profile selects the same tasks here
     as it does on the panel/card, which resolve inheritance inline. The shared
     ``tests/fixtures/profile_filter_cases.json`` pins this agreement.
