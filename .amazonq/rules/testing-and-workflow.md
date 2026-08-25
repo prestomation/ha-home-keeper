@@ -9,7 +9,8 @@
   Cut the worked example, the before-and-after story, the list of every surface the
   value now appears on, and the API/attribute inventory. Detail belongs in `README.md`,
   `docs/`, or the PR; the changelog says what changed and stops. One bullet per change,
-  never a second paragraph.
+  never a second paragraph. Three sentences is the budget for the **whole bullet**,
+  counting the bold lead as the first, not three per paragraph.
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).

@@ -14,7 +14,9 @@
   the inventory of new service fields and entity attributes — those read as release
   notes written for the person who wrote the code. Detail belongs in `README.md`,
   `docs/`, or the PR body; the changelog says what changed and stops. One bullet per
-  change, never a second paragraph. `(Fixes #N)` must land in the bullet's **first**
+  change, never a second paragraph. Three sentences is the budget for the **whole
+  bullet**, counting the bold lead as the first — not three per paragraph, and not three
+  on top of the lead. `(Fixes #N)` must land in the bullet's **first**
   paragraph, because `ci/release-issues.py` quotes the bullet it first appears in.
 - **A stable release's `## [X.Y.Z]` notes describe what changed since the last
   _stable_ release — not since its betas.** When cutting `X.Y.Z` from an `X.Y.ZbN`
