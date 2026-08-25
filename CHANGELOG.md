@@ -6,6 +6,68 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.16.0] - 2026-08-25
+
+### Added
+
+- **Profiles gain exclusion filters.** A Profile's filter now has an **Exclude**
+  counterpart for its label, area and device pickers. An exclusion beats the include side
+  and inherits the same way it does, so a task carrying an excluded label through its
+  device or area is dropped too. (Fixes #214)
+- **Buy reminders now reach your own shopping list.** Point **Settings → Shopping
+  list** at a to-do list the household already uses and every auto-created "Buy {part}"
+  reminder is put on it. It works both ways: ticking the line off at the shop completes
+  the reminder and restocks the part, and only the lines Home Keeper added are ever
+  managed. (Fixes #220)
+- **Shopping filter in the panel and dashboard card.** A new "Shopping" option in the
+  task filter bar shows only the auto-created buy tasks, and the same filter is
+  available as `filter: shopping` on the dashboard card. (Fixes #220)
+- **Stock you measure instead of count.** A spare part carries an optional **stock unit**
+  and a **used per completion** amount, and every spare quantity now accepts decimals so
+  fabric softener topped up a third of a bottle no longer reads as three bottles gone.
+  Leaving both fields empty keeps the whole-spare counting from before. (Fixes #220)
+- **Start a usage meter somewhere other than "now".** A usage/meter task's new
+  **Starting reading** anchors it where the machine was actually last serviced instead
+  of at whatever the sensor reads today, and **Last completed** now appears on sensor
+  tasks too. Completing a sensor task also records what the sensor read at the time,
+  which every history row shows and the pencil edits. (Fixes #235)
+- **Usage/meter tasks now count down on the overview.** A meter task shows how far off
+  it is, "in 7000 miles", rather than only "Monitored". (Threshold and state tasks,
+  which have no interval to count down, still read "Monitored".)
+
+### Fixed
+
+- **"Mark done" on a notification works before the task is due.** A notification built
+  from a Profile set to **Due soon** or **All** shows tasks that aren't overdue yet, and
+  its **Mark done** button did nothing at all when tapped. It now completes the task
+  whenever the notification still reflects that task's current schedule. (Fixes #216)
+- **A finished do-once task no longer sits on the to-do list forever.** Checking off a
+  one-off task retires it everywhere else, but `todo.home_keeper_tasks` kept showing it
+  unchecked with its due date gone. It now drops off the list as soon as it is done and
+  comes back at its due date if the completion is undone. (Fixes #221)
+- **The dashboard card no longer breaks on an ordinary page reload.** A dashboard using
+  the Home Keeper card could show "Custom element doesn't exist: home-keeper-card"
+  because the card reached the browser only through the page Home Assistant caches. It is
+  now registered as a dashboard resource under **Settings > Dashboards > Resources**,
+  which the frontend fetches fresh on every load and which existing installs pick up on
+  the next restart. (Fixes #228)
+- **Opening Configure no longer wipes your notifications and profiles.** Saving the
+  integration's options dialog replaced the whole settings object with just the seven
+  fields on that form, deleting every notification, every profile and every dismissed
+  companion suggestion. The dialog now changes only its own fields.
+- **Undoing a meter task's completion keeps your partial progress.** Deleting a
+  usage/meter completion reset the meter to zero and left it there. It now reverts to
+  where it was before that completion, so 3,000 of 10,000 miles goes back to 3,000.
+  (Fixes #235)
+- **"Mark done" on a notification now clears an auto-buy reminder.** Completing a
+  "Buy {part}" reminder from a notification restocked the part but left the reminder
+  standing until something else settled it. Every other way of completing it already
+  cleared it.
+- **Documented that auto-clearing sensor tasks consume consumable stock.** A sensor task
+  with *Clear when back to normal* linked to a consumable part draws down one spare on
+  auto-completion, the same as completing it by hand. This was always the behavior but
+  was not mentioned in the README or the events reference.
+
 ## [0.16.0b9]
 
 ### Added

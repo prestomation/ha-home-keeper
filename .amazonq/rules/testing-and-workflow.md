@@ -4,6 +4,13 @@
 - Never push directly to `main`. Work on a feature branch and open a PR; squash
   merge.
 - Update `CHANGELOG.md` for every user-facing change before a release.
+- **Keep every CHANGELOG bullet to three sentences at most.** A bold lead naming the
+  change, then what a user notices, then a caveat or `(Fixes #N)` if one is needed.
+  Cut the worked example, the before-and-after story, the list of every surface the
+  value now appears on, and the API/attribute inventory. Detail belongs in `README.md`,
+  `docs/`, or the PR; the changelog says what changed and stops. One bullet per change,
+  never a second paragraph. Three sentences is the budget for the **whole bullet**,
+  counting the bold lead as the first, not three per paragraph.
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).
@@ -31,7 +38,12 @@
   `services.yaml`, and `locales/en.json` (not the other locales or `translations/`,
   since the rules are English-phrase regexes). It's diff-scoped (`filter_mode: added`),
   so only new/changed lines can fail CI. The existing corpus is cleaned up
-  separately. Run locally with `vale sync && vale <paths>`. Disable an accepted false
+  separately. Run locally with `vale sync && vale <paths>`, but treat a clean local run
+  as weak evidence: `lint.yml`'s action pins its own binary and has reported hits a local
+  Vale found nowhere in the file. To be sure, match the rule's `tokens` regexes from
+  `styles/ai-tells/<Rule>.yml` against the text yourself, scoped per **block** (a list
+  item plus its continuation lines is one string, and `[^,]+` spans sentence boundaries).
+  Keep at most one comma after a modal or pronoun in a bullet. Disable an accepted false
   positive per-file in `.vale.ini` (`ai-tells.RuleName = NO`) or inline with
   `<!-- vale ai-tells.RuleName = NO -->` / `... = YES -->`. For example,
   `services.yaml` disables `ColonUsage`, which otherwise fires on every unquoted
