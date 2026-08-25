@@ -85,8 +85,8 @@ Floating and fixed tasks support an optional **active season** with up to two
 windows per year. Outside the active windows the next due date moves forward to the
 nearest upcoming window start. *"Fertilize the yard every 2 months, April through
 September"* completed September 15 becomes due April 1 of the following year instead
-of November 15. Tasks that run in two separate parts of the year — spring lawn care
-and fall lawn care — use a second window. Wrapping seasons (November
+of November 15. Tasks that run in two separate parts of the year (spring lawn care
+and fall lawn care) use a second window. Wrapping seasons (November
 through March) work too. Toggle **Active season** in the task form and pick the
 months.
 
