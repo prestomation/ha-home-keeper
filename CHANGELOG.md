@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.17.0b1]
+
+### Added
+
+- **Tree view for the appliance list.** A View toggle on the Appliances tab
+  switches between the flat list and a tree that nests child devices under their
+  parents. (Fixes #215)
+
 ## [0.16.0] - 2026-08-25
 
 ### Added

@@ -99,6 +99,8 @@ import {
   tagName,
   taskRecordsReading,
   tasksForAsset,
+  buildAssetTree,
+  type AssetTreeEntry,
   type PanelLocation,
 } from './utils';
 
@@ -213,7 +215,7 @@ const STYLES = `
   .hk-wrap { padding: 16px; max-width: 920px; margin: 0 auto; }
   ha-tab-group { margin-bottom: 16px; }
   .hk-actionbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
-  ha-card.hk-card { margin-bottom: 12px; }
+  ha-card.hk-card { margin-bottom: 12px; position: relative; }
   .hk-card-row {
     display: flex; align-items: center; gap: 12px; padding: 12px 16px;
   }
@@ -528,6 +530,36 @@ const STYLES = `
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
   .hk-card-row .grow.clickable { cursor: pointer; }
   ha-card.hk-card.overdue { border-left: 3px solid var(--error-color); }
+  ha-card.hk-card.hk-tree-child {
+    margin-left: calc(var(--hk-tree-depth, 0) * 32px);
+    border-left: 3px solid color-mix(in srgb, var(--primary-color) calc(40% + var(--hk-tree-depth, 0) * 15%), transparent);
+    background: color-mix(in srgb, var(--primary-color) calc(var(--hk-tree-depth, 0) * 4%), var(--card-background-color, #fff));
+  }
+  .hk-tree-group { margin: 0; }
+  .hk-tree-group:not(.hk-tree-open) > .hk-tree-children { display: none; }
+  .hk-chevron {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    background: var(--secondary-background-color);
+    z-index: 1;
+  }
+  .hk-chevron:hover { background: var(--divider-color); }
+  .hk-chevron::after {
+    content: '';
+    display: inline-block;
+    width: 0; height: 0;
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-top: 5px solid var(--secondary-text-color);
+    transition: transform 0.15s ease;
+  }
+  .hk-tree-group:not(.hk-tree-open) .hk-chevron::after {
+    transform: rotate(-90deg);
+  }
 
   /* Filter / group-by controls */
   .hk-controls {
@@ -835,6 +867,7 @@ type GroupBy = 'none' | 'status' | 'area' | 'device' | 'integration';
 type TaskFilter = 'all' | 'overdue' | 'soon' | 'shopping';
 /** Appliance-list quick filter. */
 type AssetFilter = 'active' | 'archived';
+type AssetView = 'flat' | 'tree';
 /** One bucket of rows rendered under a collapsible section header. */
 interface Group<T> {
   /** Stable key for remembering collapse state, e.g. "status:overdue". */
@@ -849,6 +882,8 @@ const LS_GROUP = 'home-keeper.groupBy';
 const LS_FILTER = 'home-keeper.filter';
 const LS_ASSET_FILTER = 'home-keeper.assetFilter';
 const LS_PROFILE = 'home-keeper.profile';
+const LS_ASSET_VIEW = 'home-keeper.assetView';
+const LS_TREE_COLLAPSED = 'home-keeper.treeCollapsed';
 
 export class HomeKeeperPanel extends HTMLElement {
   private _hass?: Hass;
@@ -904,6 +939,8 @@ export class HomeKeeperPanel extends HTMLElement {
   private _groupBy: GroupBy = 'status';
   private _filter: TaskFilter = 'all';
   private _assetFilter: AssetFilter = 'active';
+  private _assetView: AssetView = 'flat';
+  private _treeCollapsed = new Set<string>();
   // Selected saved Profile id to filter the task list by ('' = no profile).
   private _profile = '';
   // Group sections collapsed by the user, keyed by "<group>:<bucket>".
@@ -1086,6 +1123,15 @@ export class HomeKeeperPanel extends HTMLElement {
       if (f === 'all' || f === 'overdue' || f === 'soon') this._filter = f;
       const af = localStorage.getItem(LS_ASSET_FILTER);
       if (af === 'active' || af === 'archived') this._assetFilter = af;
+      const av = localStorage.getItem(LS_ASSET_VIEW);
+      if (av === 'flat' || av === 'tree') this._assetView = av;
+      const tc = localStorage.getItem(LS_TREE_COLLAPSED);
+      if (tc) {
+        try {
+          const arr = JSON.parse(tc);
+          if (Array.isArray(arr)) this._treeCollapsed = new Set(arr.filter((x: unknown) => typeof x === 'string'));
+        } catch { /* ignore malformed */ }
+      }
       this._profile = localStorage.getItem(LS_PROFILE) ?? '';
     } catch {
       // localStorage unavailable (e.g. private mode) — fall back to defaults.
@@ -1119,6 +1165,17 @@ export class HomeKeeperPanel extends HTMLElement {
     this._assetFilter = value;
     try {
       localStorage.setItem(LS_ASSET_FILTER, value);
+    } catch {
+      /* ignore */
+    }
+    this._render();
+  }
+
+  private _setAssetView(value: AssetView): void {
+    if (this._assetView === value) return;
+    this._assetView = value;
+    try {
+      localStorage.setItem(LS_ASSET_VIEW, value);
     } catch {
       /* ignore */
     }
@@ -2049,11 +2106,10 @@ export class HomeKeeperPanel extends HTMLElement {
           { value: 'area', label: t('group.area') },
           { value: 'none', label: t('group.none') },
         ];
-    const groupControl = `
-      <div class="hk-control">
-        <span class="hk-seg-label">${escapeHTML(t('group.by'))}</span>
-        ${this._seg('group', this._effectiveGroup(), groupOpts)}
-      </div>`;
+    const groupControl = `<div class="hk-control">
+            <span class="hk-seg-label">${escapeHTML(t('group.by'))}</span>
+            ${this._seg('group', this._effectiveGroup(), groupOpts)}
+          </div>`;
     // A saved Profile, when picked, drives the status/label/area/device filter, so
     // the inline all/overdue/soon segment is hidden while one is active.
     const profile = this._activeProfile();
@@ -2073,7 +2129,17 @@ export class HomeKeeperPanel extends HTMLElement {
             { value: 'archived', label: t('filter.archived') },
           ])}</div>`
         : '';
-    return `<div class="hk-controls">${filterControl}${assetFilterControl}${this._profileControl()}${groupControl}</div>`;
+    const viewControl =
+      this._view === 'appliances'
+        ? `<div class="hk-control">
+            <span class="hk-seg-label">${escapeHTML(t('view.label'))}</span>
+            ${this._seg('assetView', this._assetView, [
+              { value: 'flat', label: t('view.flat') },
+              { value: 'tree', label: t('view.tree') },
+            ])}
+          </div>`
+        : '';
+    return `<div class="hk-controls">${filterControl}${assetFilterControl}${viewControl}${this._profileControl()}${groupControl}</div>`;
   }
 
   /** The saved Profile currently selected for the list filter, or null. */
@@ -2368,7 +2434,56 @@ export class HomeKeeperPanel extends HTMLElement {
       const emptyKey = archived ? 'appliances.archivedEmpty' : 'appliances.noMatch';
       return `<ha-alert alert-type="info">${escapeHTML(t(emptyKey))}</ha-alert>`;
     }
-    const assets = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const cmp = (a: Asset, b: Asset) => (a.name || '').localeCompare(b.name || '');
+    if (this._assetView === 'tree') {
+      const tree = buildAssetTree(filtered, cmp);
+      const renderEntries = (entries: AssetTreeEntry<Asset>[]): string => {
+        const sub = (start: number, parentDepth: number): [string, number] => {
+          let html = '';
+          let i = start;
+          while (i < entries.length && entries[i].depth > parentDepth) {
+            const entry = entries[i];
+            const depth = entry.depth;
+            const hasChildren = i + 1 < entries.length && entries[i + 1].depth > depth;
+            if (hasChildren) {
+              const [childrenHtml, nextI] = sub(i + 1, depth);
+              const isOpen = !this._treeCollapsed.has(entry.item.id);
+              html += `<div class="hk-tree-group${isOpen ? ' hk-tree-open' : ''}">
+                ${this._assetCard(entry.item, depth, false, entry.item.id)}
+                <div class="hk-tree-children">${childrenHtml}</div>
+              </div>`;
+              i = nextI;
+            } else {
+              i++;
+              html += this._assetCard(entry.item, depth);
+            }
+          }
+          return [html, i];
+        };
+        const [html] = sub(0, -1);
+        return html;
+      };
+      if (this._effectiveGroup() === 'area') {
+        const chunks: Array<{ root: Asset; entries: AssetTreeEntry<Asset>[] }> = [];
+        for (let i = 0; i < tree.length; ) {
+          const rootEntry = tree[i];
+          let j = i + 1;
+          while (j < tree.length && tree[j].depth > rootEntry.depth) j++;
+          chunks.push({ root: rootEntry.item, entries: tree.slice(i, j) });
+          i = j;
+        }
+        const areaGroups = this._groupByKey(
+          chunks,
+          (c) => c.root.area_id ?? undefined,
+          (id) => areaName(this._hass?.areas, id),
+          t('section.unassigned'),
+          'area',
+        );
+        return this._renderGroups(areaGroups, (c) => renderEntries(c.entries));
+      }
+      return renderEntries(tree);
+    }
+    const assets = [...filtered].sort(cmp);
     return this._renderGroups(this._groupAssets(assets), (asset) => this._assetCard(asset));
   }
 
@@ -2432,7 +2547,7 @@ export class HomeKeeperPanel extends HTMLElement {
       </ha-card>`;
   }
 
-  private _assetCard(x: Asset): string {
+  private _assetCard(x: Asset, depth = 0, isLast = false, toggleId = ''): string {
     const kindChip =
       x.kind === 'virtual'
         ? this._virtualDeviceChip(x)
@@ -2452,15 +2567,21 @@ export class HomeKeeperPanel extends HTMLElement {
         : '',
       x.parent_asset_id
         ? `<ha-assist-chip label="${escapeHTML(
-            t('chip.subdeviceOf', { name: this._assetName(x.parent_asset_id) }),
+            '↳ ' + this._assetAncestry(x.parent_asset_id),
           )}"></ha-assist-chip>`
         : '',
       x.archived_at
         ? `<ha-assist-chip class="hk-archived" label="${escapeHTML(t('chip.archived'))}"></ha-assist-chip>`
         : '',
     ].join('');
+    const depthClass = depth > 0 ? ' hk-tree-child' : '';
+    const depthStyle = depth > 0 ? ` style="--hk-tree-depth: ${depth}"` : '';
+    const chevron = toggleId
+      ? `<span class="hk-chevron" data-tree-toggle="${escapeHTML(toggleId)}"></span>`
+      : '';
     return `
-      <ha-card class="hk-card" data-id="${escapeHTML(x.id)}">
+      <ha-card class="hk-card${depthClass}" data-id="${escapeHTML(x.id)}"${depthStyle}>
+        ${chevron}
         <div class="hk-card-row">
           <div class="grow clickable detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(x.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(title)}</div>
@@ -2473,6 +2594,20 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _assetName(assetId: string): string {
     return this._assets.find((a) => a.id === assetId)?.name || assetId;
+  }
+
+  private _assetAncestry(assetId: string): string {
+    const path: string[] = [];
+    const seen = new Set<string>();
+    let cur: string | null = assetId;
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      const a = this._assets.find((x) => x.id === cur);
+      if (!a) break;
+      path.unshift(a.name || cur);
+      cur = a.parent_asset_id ?? null;
+    }
+    return path.join(' › ');
   }
 
   // ── detail page ─────────────────────────────────────────────────────────────
@@ -2725,7 +2860,7 @@ export class HomeKeeperPanel extends HTMLElement {
           : '';
     const parentChip = asset.parent_asset_id
       ? `<ha-assist-chip label="${escapeHTML(
-          t('chip.subdeviceOf', { name: this._assetName(asset.parent_asset_id) }),
+          '↳ ' + this._assetAncestry(asset.parent_asset_id),
         )}"></ha-assist-chip>`
       : '';
     const title =
@@ -3440,6 +3575,7 @@ export class HomeKeeperPanel extends HTMLElement {
         if (seg === 'group') this._setGroupBy(val as GroupBy);
         else if (seg === 'filter') this._setFilter(val as TaskFilter);
         else if (seg === 'assetFilter') this._setAssetFilter(val as AssetFilter);
+        else if (seg === 'assetView') this._setAssetView(val as AssetView);
       }),
     );
     // Saved-Profile filter dropdown.
@@ -3454,6 +3590,20 @@ export class HomeKeeperPanel extends HTMLElement {
         const key = d.dataset.groupKey || '';
         if (d.open) this._collapsed.delete(key);
         else this._collapsed.add(key);
+      }),
+    );
+    // Tree view: expand/collapse parent groups.
+    root.querySelectorAll<HTMLElement>('.hk-chevron[data-tree-toggle]').forEach((ch) =>
+      ch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const group = ch.closest('.hk-tree-group');
+        if (group) group.classList.toggle('hk-tree-open');
+        const id = ch.dataset.treeToggle;
+        if (id) {
+          if (this._treeCollapsed.has(id)) this._treeCollapsed.delete(id);
+          else this._treeCollapsed.add(id);
+          try { localStorage.setItem(LS_TREE_COLLAPSED, JSON.stringify([...this._treeCollapsed])); } catch { /* quota */ }
+        }
       }),
     );
 

@@ -25,6 +25,7 @@ import {
   tasksForAsset,
   parseRoute,
   buildPath,
+  buildAssetTree,
 } from '../src/utils.ts';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -623,5 +624,116 @@ describe('readingUnit — entities without attributes', () => {
 
   it('returns nothing when hass has no states map', () => {
     expect(readingUnit({ sensor: { entity_id: 'sensor.x' } }, {})).toBe('');
+  });
+});
+
+describe('buildAssetTree', () => {
+  const cmp = (a, b) => (a.name || '').localeCompare(b.name || '');
+  const asset = (id, name, parent_asset_id = null) => ({ id, name, parent_asset_id });
+
+  it('returns an empty array for empty input', () => {
+    expect(buildAssetTree([], cmp)).toEqual([]);
+  });
+
+  it('puts all parentless assets at depth 0, sorted', () => {
+    const result = buildAssetTree(
+      [asset('c', 'Cherry'), asset('a', 'Apple'), asset('b', 'Banana')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Apple', 0],
+      ['Banana', 0],
+      ['Cherry', 0],
+    ]);
+  });
+
+  it('nests a child under its parent', () => {
+    const result = buildAssetTree(
+      [asset('p', 'Parent'), asset('c', 'Child', 'p')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Parent', 0],
+      ['Child', 1],
+    ]);
+  });
+
+  it('handles multi-level nesting', () => {
+    const result = buildAssetTree(
+      [asset('g', 'Grandchild', 'c'), asset('p', 'Parent'), asset('c', 'Child', 'p')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Parent', 0],
+      ['Child', 1],
+      ['Grandchild', 2],
+    ]);
+  });
+
+  it('sorts siblings alphabetically within each level', () => {
+    const result = buildAssetTree(
+      [asset('p', 'Parent'), asset('d', 'Delta', 'p'), asset('a', 'Alpha', 'p'), asset('b', 'Bravo', 'p')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Parent', 0],
+      ['Alpha', 1],
+      ['Bravo', 1],
+      ['Delta', 1],
+    ]);
+  });
+
+  it('interleaves multiple root trees', () => {
+    const result = buildAssetTree(
+      [asset('x', 'Xray'), asset('x1', 'Xchild', 'x'), asset('a', 'Alpha'), asset('a1', 'Achild', 'a')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Alpha', 0],
+      ['Achild', 1],
+      ['Xray', 0],
+      ['Xchild', 1],
+    ]);
+  });
+
+  it('promotes a child to root when its parent is absent', () => {
+    const result = buildAssetTree(
+      [asset('c', 'Child', 'missing'), asset('r', 'Root')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Child', 0],
+      ['Root', 0],
+    ]);
+  });
+
+  it('handles mixed present and absent parents', () => {
+    const result = buildAssetTree(
+      [asset('a', 'Alpha'), asset('b', 'Bravo', 'a'), asset('c', 'Charlie', 'gone')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Alpha', 0],
+      ['Bravo', 1],
+      ['Charlie', 0],
+    ]);
+  });
+
+  it('respects a custom comparator', () => {
+    const reverse = (a, b) => b.name.localeCompare(a.name);
+    const result = buildAssetTree(
+      [asset('a', 'Alpha'), asset('b', 'Bravo'), asset('c', 'Charlie')],
+      reverse,
+    );
+    expect(result.map((e) => e.item.name)).toEqual(['Charlie', 'Bravo', 'Alpha']);
+  });
+
+  it('terminates on a hypothetical cycle without infinite loop', () => {
+    const result = buildAssetTree(
+      [asset('a', 'A', 'b'), asset('b', 'B', 'a')],
+      cmp,
+    );
+    expect(result.length).toBe(2);
+    expect(result.every((e) => e.depth >= 0)).toBe(true);
   });
 });
