@@ -669,6 +669,18 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   re-hydrates it onto a freshly built mirror (`notes_by_entity`), so a note outlives
   the task being deleted and recreated (sync toggled, sensor excluded) and reappears
   the next time the same problem fires.
+  - **A synced task is an ordinary member of a Profile; only a *walk* leaves it out.**
+    `profiles.matches_filter` and its TS twin `card-filter.profileMatches` used to drop
+    these outright, so no Profile ever saw one — in the panel, on the card, or in a
+    notification (#248). An armed mirror is real overdue work and belongs in the filter.
+    The one place it can't go is a **walk** notification: that style advances only when
+    complete/snooze/skip lands, and `store` rejects all three, so one at the head of the
+    queue would re-send forever. `notifier._send` narrows a walk queue with
+    `notifications.walk_queue` (keyed on `managed_by.completion_blocked`, the same marker
+    every surface uses to hide *Done*, not on the `problem_sensor` source). Put a rule
+    like this in **delivery**, never in the filter: the two matchers are pinned to each
+    other by `tests/fixtures/profile_filter_cases.json` and must keep selecting the same
+    tasks for the panel, the card and the server.
 - **Options have three editing surfaces that share `options.py`.** Config-entry
   `options` are edited from the **options flow**, the **`home_keeper.set_options`
   service**, AND the panel's **Settings tab** (via `home_keeper/get_options` +

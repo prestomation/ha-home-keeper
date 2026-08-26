@@ -6,6 +6,20 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.18.0b1]
+
+### Fixed
+
+- **Synced problem sensors show up in Profiles again.** Picking any Profile in the
+  panel or on a card made every mirrored `problem` sensor vanish from the list, whatever
+  status the Profile asked for. (Fixes #248)
+
+### Changed
+
+- **The Profile status choices say what they cover.** They were always cumulative, so
+  the old *Due soon* already listed overdue tasks; they now read *Overdue only*,
+  *Overdue and due soon* and *Every scheduled task*.
+
 ## [0.17.0] - 2026-08-26
 
 ### Added

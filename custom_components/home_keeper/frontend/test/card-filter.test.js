@@ -258,10 +258,12 @@ describe('profileMatches (saved-filter predicate)', () => {
     expect(profileMatches(later, F({ status: 'all' }), {}, {}, NOW)).toBe(true);
   });
 
-  it('excludes disabled, dormant, and problem-sensor tasks', () => {
+  it('excludes disabled and dormant tasks, but not an armed problem sensor (#248)', () => {
     expect(profileMatches(task({ next_due: new Date(NOW - DAY).toISOString(), enabled: false }), F({ status: 'all' }), {}, {}, NOW)).toBe(false);
     expect(profileMatches(task({ next_due: null }), F({ status: 'all' }), {}, {}, NOW)).toBe(false);
-    expect(profileMatches(task({ next_due: new Date(NOW - DAY).toISOString(), source: { problem_sensor: { entity_id: 'x' } } }), F({ status: 'all' }), {}, {}, NOW)).toBe(false);
+    expect(profileMatches(task({ next_due: new Date(NOW - DAY).toISOString(), source: { problem_sensor: { entity_id: 'x' } } }), F({ status: 'all' }), {}, {}, NOW)).toBe(true);
+    // Dormant (sensor back to OK) is undated, so the rule above still drops it.
+    expect(profileMatches(task({ next_due: null, source: { problem_sensor: { entity_id: 'x' } } }), F({ status: 'all' }), {}, {}, NOW)).toBe(false);
   });
 
   it('matches own labels and inherited (device/area) labels', () => {

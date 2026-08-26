@@ -25,6 +25,7 @@
           "shopping_list_entity": "Liste de courses"
         },
         "data_description": {
+          "sync_problem_sensors": "Une tâche synchronisée ne se referme que lorsque l'intégration d'origine résout le problème, pas en appuyant sur Terminé. Les profils et les notifications de résumé l'affichent. Une notification une par une l'écarte, car aucun bouton ne peut la faire avancer.",
           "one_off_retention_days": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 conserve indéfiniment les tâches ponctuelles terminées.",
           "shopping_list_entity": "Recopie les rappels d'achat automatiques sur cette liste de tâches. Y cocher un élément termine le rappel Home Keeper et réapprovisionne la pièce. Laissez vide pour désactiver la recopie."
         }

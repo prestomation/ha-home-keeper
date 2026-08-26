@@ -234,6 +234,32 @@ def resolve_notification(
     return None
 
 
+# ── delivery-style gating ───────────────────────────────────────────────────────
+
+
+def is_walkable(task: dict[str, Any]) -> bool:
+    """Whether a *walk*'s buttons can actually move *task* on.
+
+    A walk shows one task and advances when the user taps Mark done, Snooze or Skip.
+    A ``completion_blocked`` task — today, a ``problem``-sensor-synced mirror — rejects
+    all three in the store, and ``notifier`` swallows the rejection, so one at the head
+    of the queue would re-send forever and the walk would never reach the tasks behind
+    it. ``notifier._send`` therefore drops these from a walk queue only; a digest just
+    lists names, so it carries them like any other due task.
+
+    This reads ``managed_by.completion_blocked`` rather than the ``problem_sensor``
+    source, matching what the panel and the card already use to hide *Done*, so a
+    future completion-blocked source is covered without another edit here.
+    """
+    managed_by = task.get("managed_by")
+    return not (isinstance(managed_by, dict) and managed_by.get("completion_blocked"))
+
+
+def walk_queue(queue: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """*queue* less the tasks a walk's buttons can't move on."""
+    return [task for task in queue if is_walkable(task)]
+
+
 # ── payload text translation ─────────────────────────────────────────────────────
 #
 # Notification payloads go straight to the mobile app, outside HA's own frontend

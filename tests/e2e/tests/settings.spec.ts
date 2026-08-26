@@ -24,4 +24,16 @@ test.describe('Home Keeper panel — Settings tab', () => {
     const panel = page.locator('home-keeper-panel').first();
     await expect(panel.locator('#hk-settings ha-form')).toBeVisible();
   });
+
+  test('the problem-sensor toggle explains what clears a synced task', async ({ page }) => {
+    // The consequences of the toggle aren't guessable from its label: such a task
+    // clears only when its source integration resolves the problem, and a
+    // one-at-a-time notification therefore skips it. The helper says so in place.
+    await page.goto('/home-keeper/settings');
+    const panel = page.locator('home-keeper-panel').first();
+    const card = panel.locator('#hk-settings');
+    await expect(card.locator('ha-form')).toBeVisible();
+    await expect(card).toContainText(/clears only when the source integration/i);
+    await expect(card).toContainText(/one-at-a-time notification leaves it out/i);
+  });
 });

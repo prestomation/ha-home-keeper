@@ -25,6 +25,7 @@
           "shopping_list_entity": "Lista della spesa"
         },
         "data_description": {
+          "sync_problem_sensors": "Un'attività sincronizzata si chiude solo quando l'integrazione di origine risolve il problema, non toccando Fatto. I profili e le notifiche di riepilogo la elencano. Una notifica uno alla volta la esclude, perché nessun pulsante può farla avanzare.",
           "one_off_retention_days": "Elimina automaticamente un'attività singola completata dopo questo numero di giorni dal suo completamento. 0 conserva le attività singole completate per sempre.",
           "shopping_list_entity": "Rispecchia i promemoria di acquisto automatico su questa lista attività. Spuntare una voce lì completa il promemoria di Home Keeper e ripristina la scorta del ricambio. Lascia vuoto per disattivare."
         }

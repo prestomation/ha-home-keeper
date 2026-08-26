@@ -25,6 +25,7 @@
           "shopping_list_entity": "Handleliste"
         },
         "data_description": {
+          "sync_problem_sensors": "En synkronisert oppgave lukkes først når kildeintegrasjonen løser problemet, ikke når du trykker Ferdig. Profiler og oversiktsvarsler viser den. Et varsel med én om gangen utelater den, fordi ingen knapp kan flytte den videre.",
           "one_off_retention_days": "Slett automatisk en fullført engangsoppgave så mange dager etter at den er fullført. 0 beholder fullførte engangsoppgaver for alltid.",
           "shopping_list_entity": "Speiler automatiske kjøpspåminnelser til denne oppgavelisten. Å krysse av et element der fullfører påminnelsen i Home Keeper og fyller på reservedelen. La feltet stå tomt for å slå av speilingen."
         }

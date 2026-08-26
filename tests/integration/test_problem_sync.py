@@ -86,3 +86,89 @@ def test_synced_problem_task_note_is_editable_and_persists(ha):
     assert again is not None and again["notes"] == note, (
         "note did not persist on the synced task"
     )
+
+
+def test_synced_problem_task_reaches_a_profile_but_not_a_walk(ha):
+    """#248: a Profile lists a synced problem task; a *walk* notification skips it.
+
+    The bug was that ``profiles.matches_filter`` dropped these outright, so no Profile
+    ever saw one — in the panel, on the card, or in a notification. They belong in the
+    filter (an armed mirror is real overdue work), but a walk advances only when Mark
+    done / Snooze / Skip lands, and the store rejects all three for a synced task, so a
+    walk parked on one would re-send it forever. This pins both halves over the real
+    round trip: ``set_options`` -> storage -> ``notifier`` -> ``due_queue``.
+    """
+    task = _synced_task(ha)
+    assert task is not None
+    label = "hk_problem_notify_test"
+
+    # Tag the mirror so the profile below selects it and nothing else. `labels` is not
+    # one of the sync's locked fields, so the edit survives the next reconcile.
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/update_task",
+        json={"task_id": task["id"], "labels": [label]},
+    )
+    assert r.status_code < 400, f"labelling the synced task failed: {r.status_code}"
+
+    try:
+        call_service(
+            ha,
+            "home_keeper",
+            "set_options",
+            {
+                "profiles": [
+                    {
+                        "id": "problemprofile",
+                        "name": "The sump pump",
+                        "filter": {"status": "all", "labels": [label]},
+                    }
+                ],
+                "notifications": [
+                    {
+                        "id": "problemdigest",
+                        "name": "Digest",
+                        "profile_id": "problemprofile",
+                        "style": "digest",
+                        "targets": ["mobile_app_test"],
+                    },
+                    {
+                        "id": "problemwalk",
+                        "name": "Walk",
+                        "profile_id": "problemprofile",
+                        "style": "walk",
+                        "targets": ["mobile_app_test"],
+                    },
+                ],
+            },
+        )
+
+        # A digest just lists names, so it carries the mirror like any other due task.
+        resp = call_service(
+            ha,
+            "home_keeper",
+            "notify",
+            {"notification": "problemdigest"},
+            return_response=True,
+        )
+        digest = resp.get("service_response", resp)
+        assert digest["matched"] == 1, digest
+
+        # The walk sees the same profile and finds nothing it can move on.
+        resp = call_service(
+            ha,
+            "home_keeper",
+            "notify",
+            {"notification": "problemwalk"},
+            return_response=True,
+        )
+        walk = resp.get("service_response", resp)
+        assert walk["matched"] == 0, walk
+        assert walk["sent"] is None, walk
+    finally:
+        ha.post(
+            f"{HA_URL}/api/services/home_keeper/update_task",
+            json={"task_id": task["id"], "labels": []},
+        )
+        call_service(
+            ha, "home_keeper", "set_options", {"profiles": [], "notifications": []}
+        )

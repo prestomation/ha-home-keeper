@@ -193,6 +193,16 @@ async def _send(
     now = dt_util.now()
     tasks = _effective_filter_tasks(hass, list(coord.store.get_tasks().values()))
     queue = profiles.due_queue(tasks, profile["filter"], now=now)
+    if notification["style"] == notifications.STYLE_WALK:
+        # A walk advances only when a button moves the task on, and a completion-blocked
+        # task (a synced problem sensor) rejects all three verbs — so one would pin the
+        # walk in place. Narrowing here, above the empty check, means a walk whose only
+        # matches are blocked tasks reports ``matched: 0`` and closes with the usual
+        # "all caught up" note instead of stalling. The filter belongs to delivery, not
+        # to the Profile: the digest below, and the panel and card, still show them.
+        # ``normalize_notification`` defaults ``style`` to walk, so a bare
+        # ``home_keeper.notify`` with only a ``profile:`` takes this path too.
+        queue = notifications.walk_queue(queue)
     if not queue:
         return 0, None
     if not notification["targets"]:

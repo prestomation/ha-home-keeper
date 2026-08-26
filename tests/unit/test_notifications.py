@@ -245,6 +245,40 @@ def test_resolve_notification_by_id_then_name():
     assert n.resolve_notification(notifs, None) is None
 
 
+# ── delivery-style gating ───────────────────────────────────────────────────
+
+
+def test_is_walkable_rejects_a_completion_blocked_task():
+    # A synced problem sensor rejects complete/snooze/skip in the store, so a walk
+    # parked on one would re-send it forever instead of reaching the tasks behind it.
+    assert not n.is_walkable({"id": "t", "managed_by": {"completion_blocked": True}})
+
+
+def test_is_walkable_accepts_everything_a_button_can_move():
+    assert n.is_walkable({"id": "t"})
+    assert n.is_walkable({"id": "t", "managed_by": None})
+    assert n.is_walkable({"id": "t", "managed_by": {}})
+    assert n.is_walkable({"id": "t", "managed_by": {"completion_blocked": False}})
+    # A managed task that isn't completion-blocked walks like any other.
+    assert n.is_walkable({"id": "t", "managed_by": {"integration": "other"}})
+
+
+def test_is_walkable_ignores_a_non_mapping_managed_by():
+    # Hand-written YAML/service payloads reach the store as anything at all.
+    assert n.is_walkable({"id": "t", "managed_by": "completion_blocked"})
+    assert n.is_walkable({"id": "t", "managed_by": ["completion_blocked"]})
+
+
+def test_walk_queue_drops_only_the_blocked_tasks_and_keeps_order():
+    queue = [
+        {"id": "a"},
+        {"id": "b", "managed_by": {"completion_blocked": True}},
+        {"id": "c"},
+    ]
+    assert [task["id"] for task in n.walk_queue(queue)] == ["a", "c"]
+    assert n.walk_queue([]) == []
+
+
 # ── payload building ────────────────────────────────────────────────────────
 
 

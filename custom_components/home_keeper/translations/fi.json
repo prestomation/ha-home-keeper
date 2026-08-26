@@ -25,6 +25,7 @@
           "shopping_list_entity": "Ostoslista"
         },
         "data_description": {
+          "sync_problem_sensors": "Synkronoitu tehtävä sulkeutuu vasta, kun lähdeintegraatio ratkaisee ongelman, ei Valmis-painikkeesta. Profiilit ja yhteenvetoilmoitukset listaavat sen. Yksi kerrallaan -ilmoitus jättää sen pois, koska mikään painike ei vie sitä eteenpäin.",
           "one_off_retention_days": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää valmiit kertaluonteiset tehtävät pysyvästi.",
           "shopping_list_entity": "Peilaa automaattiset ostomuistutukset tähän tehtävälistaan. Kun merkitset kohteen siellä tehdyksi, Home Keeperin muistutus kuittautuu ja varaosan varasto täydentyy. Jätä tyhjäksi ottaaksesi peilauksen pois käytöstä."
         }
