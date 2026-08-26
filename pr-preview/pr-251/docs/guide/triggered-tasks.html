@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Triggered tasks | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/docs/guide/triggered-tasks"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Triggered tasks | Home Keeper"><meta data-rh="true" name="description" content="Some upkeep isn&#x27;t periodic. It&#x27;s a reaction to a condition, like a battery dropping"><meta data-rh="true" property="og:description" content="Some upkeep isn&#x27;t periodic. It&#x27;s a reaction to a condition, like a battery dropping"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-251/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/docs/guide/triggered-tasks"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/docs/guide/triggered-tasks" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/docs/guide/triggered-tasks" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Triggered tasks","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/docs/guide/triggered-tasks"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-251/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-251/assets/js/runtime~main.78e1651a.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-251/assets/js/runtime~main.4254f420.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-251/assets/js/main.ce86ca18.js" defer="defer"></script>
 </head>
 <body>
@@ -66,10 +66,10 @@ tapping it pops up the reason (the detail page also explains how it clears). Eac
 task inherits the sensor&#x27;s <strong>device and area</strong>.</li>
 <li class=""><strong>Where it shows up:</strong> an armed synced task is ordinary overdue work, so it appears
 in the task list, on the card, under a
-<a class="" href="/ha-home-keeper/pr-preview/pr-251/docs/guide/profiles">Profile</a> and in a <strong>digest</strong>
-notification. The one place it stays out of is a <strong>one at a time</strong> notification: that
-style only advances when a button changes the task&#x27;s schedule, which is exactly what
-a synced task refuses.</li>
+<a class="" href="/ha-home-keeper/pr-preview/pr-251/docs/guide/profiles">Profile</a> and in notifications. A
+reminder for one offers <strong>Snooze</strong> in place of <em>Mark done</em>. Deferring a reminder is
+honest about a problem you can&#x27;t fix this minute; marking it done would not be, and
+the task clears itself the moment the sensor reports OK.</li>
 <li class=""><strong>Scope it:</strong> syncing is <strong>off by default</strong>; once on, exclude specific <strong>entities,
 devices, areas, or labels</strong>, from the panel&#x27;s <strong>Settings</strong> tab (below) or the options
 flow. Excluding a device leaves out every problem sensor that belongs to it.</li>
