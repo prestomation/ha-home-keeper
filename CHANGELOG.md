@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.17.0b1]
+## [0.18.0b1]
 
 ### Added
 
@@ -14,6 +14,32 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   one or two date ranges per year (e.g. April-May and September-October for
   spring/fall lawn care). Outside the active windows the next due date moves to
   the nearest upcoming window start. (Fixes #242)
+
+## [0.17.0] - 2026-08-26
+
+### Added
+
+- **Tree view for the appliance list.** A View toggle on the Appliances tab
+  switches between the flat list and a tree that nests child devices under their
+  parents. (Fixes #215)
+
+### Fixed
+
+- **Home Keeper no longer throws you back to your dashboard.** Anything that reloaded
+  the integration took the sidebar panel down until setup finished, and Home Assistant
+  drops you out of a panel that vanishes under it. The panel now survives a reload.
+  (Fixes #247)
+- **"Detected blocking call" warnings from Home Keeper are gone.** The integration read
+  its backend string tables on Home Assistant's event loop the first time it needed a
+  translated message. Startup now reads them off the loop instead.
+
+## [0.17.0b1]
+
+### Added
+
+- **Tree view for the appliance list.** A View toggle on the Appliances tab
+  switches between the flat list and a tree that nests child devices under their
+  parents. (Fixes #215)
 
 ## [0.16.0] - 2026-08-25
 

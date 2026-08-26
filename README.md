@@ -826,6 +826,17 @@ appliance's history
 
 ![Delete confirmation dialog](docs/images/8b-panel-appliance-delete-confirm.png)
 
+### Tree view
+
+When appliances have parent/child relationships (a child is a **subdevice** of its
+parent), the Appliances tab can display them as a tree. A **View** toggle at the top
+of the list switches between a flat list and a tree view that nests children under
+their parents, indented with a left border. The Group-by control is hidden in tree
+mode (the hierarchy is the grouping) but its stored value is preserved for when you
+switch back to the flat list.
+
+![Tree view](docs/images/5c-panel-appliances-tree-view.png)
+
 ### Parts & wear items
 
 Each appliance has a structured **parts** list, name, part number, vendor, cost,

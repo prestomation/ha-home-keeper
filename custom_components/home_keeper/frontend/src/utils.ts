@@ -457,3 +457,61 @@ export function assetSummary(
   if (partCount) bits.push(tn('asset.parts', partCount));
   return bits.length ? bits.join(' · ') : t('asset.noDetails');
 }
+
+export interface AssetTreeEntry<T> {
+  item: T;
+  depth: number;
+}
+
+/**
+ * Flatten a list of assets into depth-first render order, respecting the
+ * parent_asset_id hierarchy. Assets whose parent is absent from the input
+ * are promoted to roots (handles cross-filter cases). Siblings at each
+ * level are sorted using the caller's comparator.
+ */
+export function buildAssetTree<
+  T extends { id: string; parent_asset_id?: string | null },
+>(assets: T[], compare: (a: T, b: T) => number): AssetTreeEntry<T>[] {
+  const ids = new Set(assets.map((a) => a.id));
+  const children = new Map<string, T[]>();
+  const roots: T[] = [];
+
+  for (const a of assets) {
+    const pid = a.parent_asset_id;
+    if (pid && ids.has(pid)) {
+      const arr = children.get(pid);
+      if (arr) arr.push(a);
+      else children.set(pid, [a]);
+    } else {
+      roots.push(a);
+    }
+  }
+
+  roots.sort(compare);
+  for (const arr of children.values()) arr.sort(compare);
+
+  const result: AssetTreeEntry<T>[] = [];
+  const visited = new Set<string>();
+
+  const walk = (nodes: T[], depth: number): void => {
+    for (const node of nodes) {
+      if (visited.has(node.id)) continue;
+      visited.add(node.id);
+      result.push({ item: node, depth });
+      const kids = children.get(node.id);
+      if (kids) walk(kids, depth + 1);
+    }
+  };
+
+  walk(roots, 0);
+
+  // Assets trapped in a pure cycle (A→B→A) have no root — promote any
+  // un-visited ones so they still appear in the output.
+  if (visited.size < assets.length) {
+    const remaining = assets.filter((a) => !visited.has(a.id));
+    remaining.sort(compare);
+    walk(remaining, 0);
+  }
+
+  return result;
+}

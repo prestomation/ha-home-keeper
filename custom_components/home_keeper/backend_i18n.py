@@ -99,3 +99,32 @@ def resolve_string(lang: str, key: str, **params: Any) -> str:
         key, key
     )
     return _interpolate(template, params)
+
+
+def preload(lang: str) -> None:
+    """Read every string table for *lang* into cache. **Blocking** — call from an
+    executor, never from the event loop.
+
+    Each table above is read from disk exactly once per language and memoized, so
+    the cost is a one-off — but it lands on whichever caller happens to get there
+    first, and every one of those callers is on Home Assistant's event loop: the
+    problem-sensor reconcile during setup, a websocket error reply, an inventory
+    export. Home Assistant's blocking-call detector catches it and logs a
+    ``Detected blocking call to read_text ... inside the event loop`` warning
+    naming this file, which is what issue #247's reporter pasted. (``notifier.py``
+    had the same problem in #150 and solved it the other way — dispatching each
+    lookup through ``hass.async_add_executor_job`` — but that is not available
+    here, because the callers are the pure modules and this module has no Home
+    Assistant import to hand them one.)
+
+    So the loop-bound callers never do the reading: ``async_setup_entry`` runs this
+    once in the executor before anything can ask for a string, and every later
+    ``resolve_*`` is a cache hit. English is always included — it is the fallback
+    both resolvers reach for when a key is missing from the caller's language, so
+    warming only that language would leave the second read on the loop.
+
+    Idempotent: a second call (an entry reload, a second entry) hits the caches.
+    """
+    for wanted in dict.fromkeys((lang, _DEFAULT_LANG)):
+        _exceptions(wanted)
+        _backend_strings(wanted)

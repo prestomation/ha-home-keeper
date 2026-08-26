@@ -695,6 +695,16 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-name').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/5-panel-appliances-list.png`, fullPage: true });
 
+  // 5c. Tree view — toggle the View control from List to Tree so parent/child
+  // indentation is visible (the seeded data has asset_radio_shade → asset_shades).
+  await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="tree"]').click();
+  await expect(panel.locator('.hk-tree-child').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/5c-panel-appliances-tree-view.png`, fullPage: true });
+  // Switch back to flat so the rest of the capture script sees the default view.
+  await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="flat"]').click();
+  await expect(panel.locator('.hk-name').first()).toBeVisible();
+
   // 5b. Appliance detail page — its metadata, parts, related tasks and the
   // maintenance history (including the archived history of a task that was
   // deleted while still assigned to it).
