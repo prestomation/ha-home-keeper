@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for custom_components/home_keeper/backend_i18n.py: 56%</title>
+    <title>Coverage for custom_components/home_keeper/backend_i18n.py: 81%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>custom_components<span class="sep">/</span>home_keeper<span class="sep">/</span>backend_i18n.py</b>:
-            <span class="pc_cov">56%</span>
+            <span class="pc_cov">81%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,11 +55,11 @@
             </div>
         </aside>
         <h2>
-            <span class="text">42 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">26<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">16<span class="text"> missing</span></button>
+            <span class="text">46 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">39<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">7<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
-            <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">1<span class="text"> partial</span></button>
+            <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">3<span class="text"> partial</span></button>
         </h2>
         <p class="text">
             <a id="prevFileLink" class="nav" href="z_6b71c2d8cf329a53_assets_py.html">&#xab; prev</a> &nbsp; &nbsp;
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_binary_sensor_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.15.4">coverage.py v7.15.4</a>,
-            created at 2026-08-26 07:01 +0000
+            created at 2026-08-26 12:36 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -141,27 +141,27 @@
     <p class="run"><span class="n"><a id="t57" href="#t57">57</a></span><span class="t"><span class="op">@</span><span class="nam">functools</span><span class="op">.</span><span class="nam">cache</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t58" href="#t58">58</a></span><span class="t"><span class="key">def</span> <span class="nam">_exceptions</span><span class="op">(</span><span class="nam">lang</span><span class="op">:</span> <span class="nam">str</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">dict</span><span class="op">[</span><span class="nam">str</span><span class="op">,</span> <span class="nam">str</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t59" href="#t59">59</a></span><span class="t">    <span class="str">&quot;&quot;&quot;The ``exceptions.&lt;key&gt;.message`` templates for *lang*, flattened.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t60" href="#t60">60</a></span><span class="t">    <span class="nam">path</span> <span class="op">=</span> <span class="nam">_TRANSLATIONS_DIR</span> <span class="op">/</span> <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">lang</span><span class="op">}</span><span class="fst">.json</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t61" href="#t61">61</a></span><span class="t">    <span class="key">if</span> <span class="key">not</span> <span class="nam">path</span><span class="op">.</span><span class="nam">exists</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t60" href="#t60">60</a></span><span class="t">    <span class="nam">path</span> <span class="op">=</span> <span class="nam">_TRANSLATIONS_DIR</span> <span class="op">/</span> <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">lang</span><span class="op">}</span><span class="fst">.json</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="par run show_par"><span class="n"><a id="t61" href="#t61">61</a></span><span class="t">    <span class="key">if</span> <span class="key">not</span> <span class="nam">path</span><span class="op">.</span><span class="nam">exists</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">61&#x202F;&#x219B;&#x202F;62</span><span class="annotate long">line 61 didn't jump to line 62 because the condition on line 61 was never true</span></span></p>
     <p class="mis show_mis"><span class="n"><a id="t62" href="#t62">62</a></span><span class="t">        <span class="key">return</span> <span class="op">{</span><span class="op">}</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t63" href="#t63">63</a></span><span class="t">    <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t64" href="#t64">64</a></span><span class="t">        <span class="nam">data</span> <span class="op">=</span> <span class="nam">json</span><span class="op">.</span><span class="nam">loads</span><span class="op">(</span><span class="nam">path</span><span class="op">.</span><span class="nam">read_text</span><span class="op">(</span><span class="nam">encoding</span><span class="op">=</span><span class="str">&quot;utf-8&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t63" href="#t63">63</a></span><span class="t">    <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t64" href="#t64">64</a></span><span class="t">        <span class="nam">data</span> <span class="op">=</span> <span class="nam">json</span><span class="op">.</span><span class="nam">loads</span><span class="op">(</span><span class="nam">path</span><span class="op">.</span><span class="nam">read_text</span><span class="op">(</span><span class="nam">encoding</span><span class="op">=</span><span class="str">&quot;utf-8&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t65" href="#t65">65</a></span><span class="t">    <span class="key">except</span> <span class="op">(</span><span class="nam">OSError</span><span class="op">,</span> <span class="nam">ValueError</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t66" href="#t66">66</a></span><span class="t">        <span class="key">return</span> <span class="op">{</span><span class="op">}</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t67" href="#t67">67</a></span><span class="t">    <span class="nam">exceptions</span> <span class="op">=</span> <span class="nam">data</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;exceptions&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t68" href="#t68">68</a></span><span class="t">    <span class="key">if</span> <span class="key">not</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">exceptions</span><span class="op">,</span> <span class="nam">dict</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t67" href="#t67">67</a></span><span class="t">    <span class="nam">exceptions</span> <span class="op">=</span> <span class="nam">data</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;exceptions&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="par run show_par"><span class="n"><a id="t68" href="#t68">68</a></span><span class="t">    <span class="key">if</span> <span class="key">not</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">exceptions</span><span class="op">,</span> <span class="nam">dict</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">68&#x202F;&#x219B;&#x202F;69</span><span class="annotate long">line 68 didn't jump to line 69 because the condition on line 68 was never true</span></span></p>
     <p class="mis show_mis"><span class="n"><a id="t69" href="#t69">69</a></span><span class="t">        <span class="key">return</span> <span class="op">{</span><span class="op">}</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t70" href="#t70">70</a></span><span class="t">    <span class="key">return</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t71" href="#t71">71</a></span><span class="t">        <span class="nam">key</span><span class="op">:</span> <span class="nam">value</span><span class="op">[</span><span class="str">&quot;message&quot;</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t72" href="#t72">72</a></span><span class="t">        <span class="key">for</span> <span class="nam">key</span><span class="op">,</span> <span class="nam">value</span> <span class="key">in</span> <span class="nam">exceptions</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t73" href="#t73">73</a></span><span class="t">        <span class="key">if</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">value</span><span class="op">,</span> <span class="nam">dict</span><span class="op">)</span> <span class="key">and</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">value</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;message&quot;</span><span class="op">)</span><span class="op">,</span> <span class="nam">str</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t74" href="#t74">74</a></span><span class="t">    <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t70" href="#t70">70</a></span><span class="t">    <span class="key">return</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t71" href="#t71">71</a></span><span class="t">        <span class="nam">key</span><span class="op">:</span> <span class="nam">value</span><span class="op">[</span><span class="str">&quot;message&quot;</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t72" href="#t72">72</a></span><span class="t">        <span class="key">for</span> <span class="nam">key</span><span class="op">,</span> <span class="nam">value</span> <span class="key">in</span> <span class="nam">exceptions</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t73" href="#t73">73</a></span><span class="t">        <span class="key">if</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">value</span><span class="op">,</span> <span class="nam">dict</span><span class="op">)</span> <span class="key">and</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">value</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;message&quot;</span><span class="op">)</span><span class="op">,</span> <span class="nam">str</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t74" href="#t74">74</a></span><span class="t">    <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t75" href="#t75">75</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t77" href="#t77">77</a></span><span class="t"><span class="key">def</span> <span class="nam">resolve_exception</span><span class="op">(</span><span class="nam">lang</span><span class="op">:</span> <span class="nam">str</span><span class="op">,</span> <span class="nam">key</span><span class="op">:</span> <span class="nam">str</span><span class="op">,</span> <span class="op">**</span><span class="nam">params</span><span class="op">:</span> <span class="nam">Any</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">str</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Resolve ``exceptions.&lt;key&gt;.message`` for *lang*, English-then-key fallback.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">    <span class="nam">template</span> <span class="op">=</span> <span class="nam">_exceptions</span><span class="op">(</span><span class="nam">lang</span><span class="op">)</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">key</span><span class="op">)</span> <span class="key">or</span> <span class="nam">_exceptions</span><span class="op">(</span><span class="nam">_DEFAULT_LANG</span><span class="op">)</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">key</span><span class="op">,</span> <span class="nam">key</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">    <span class="key">return</span> <span class="nam">_interpolate</span><span class="op">(</span><span class="nam">template</span><span class="op">,</span> <span class="nam">params</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">    <span class="nam">template</span> <span class="op">=</span> <span class="nam">_exceptions</span><span class="op">(</span><span class="nam">lang</span><span class="op">)</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">key</span><span class="op">)</span> <span class="key">or</span> <span class="nam">_exceptions</span><span class="op">(</span><span class="nam">_DEFAULT_LANG</span><span class="op">)</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">key</span><span class="op">,</span> <span class="nam">key</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">    <span class="key">return</span> <span class="nam">_interpolate</span><span class="op">(</span><span class="nam">template</span><span class="op">,</span> <span class="nam">params</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t"><span class="op">@</span><span class="nam">functools</span><span class="op">.</span><span class="nam">cache</span>&nbsp;</span><span class="r"></span></p>
@@ -183,6 +183,35 @@
     <p class="run run2"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t">        <span class="nam">key</span><span class="op">,</span> <span class="nam">key</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t">    <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t101" href="#t101">101</a></span><span class="t">    <span class="key">return</span> <span class="nam">_interpolate</span><span class="op">(</span><span class="nam">template</span><span class="op">,</span> <span class="nam">params</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t102" href="#t102">102</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t103" href="#t103">103</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t104" href="#t104">104</a></span><span class="t"><span class="key">def</span> <span class="nam">preload</span><span class="op">(</span><span class="nam">lang</span><span class="op">:</span> <span class="nam">str</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t105" href="#t105">105</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Read every string table for *lang* into cache. **Blocking** &#8212; call from an</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t106" href="#t106">106</a></span><span class="t"><span class="str">    executor, never from the event loop.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t107" href="#t107">107</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t108" href="#t108">108</a></span><span class="t"><span class="str">    Each table above is read from disk exactly once per language and memoized, so</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t109" href="#t109">109</a></span><span class="t"><span class="str">    the cost is a one-off &#8212; but it lands on whichever caller happens to get there</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t110" href="#t110">110</a></span><span class="t"><span class="str">    first, and every one of those callers is on Home Assistant&#x27;s event loop: the</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t111" href="#t111">111</a></span><span class="t"><span class="str">    problem-sensor reconcile during setup, a websocket error reply, an inventory</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t112" href="#t112">112</a></span><span class="t"><span class="str">    export. Home Assistant&#x27;s blocking-call detector catches it and logs a</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t113" href="#t113">113</a></span><span class="t"><span class="str">    ``Detected blocking call to read_text ... inside the event loop`` warning</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t114" href="#t114">114</a></span><span class="t"><span class="str">    naming this file, which is what issue #247&#x27;s reporter pasted. (``notifier.py``</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t115" href="#t115">115</a></span><span class="t"><span class="str">    had the same problem in #150 and solved it the other way &#8212; dispatching each</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t116" href="#t116">116</a></span><span class="t"><span class="str">    lookup through ``hass.async_add_executor_job`` &#8212; but that is not available</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t117" href="#t117">117</a></span><span class="t"><span class="str">    here, because the callers are the pure modules and this module has no Home</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t118" href="#t118">118</a></span><span class="t"><span class="str">    Assistant import to hand them one.)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t119" href="#t119">119</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t120" href="#t120">120</a></span><span class="t"><span class="str">    So the loop-bound callers never do the reading: ``async_setup_entry`` runs this</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t121" href="#t121">121</a></span><span class="t"><span class="str">    once in the executor before anything can ask for a string, and every later</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t122" href="#t122">122</a></span><span class="t"><span class="str">    ``resolve_*`` is a cache hit. English is always included &#8212; it is the fallback</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t123" href="#t123">123</a></span><span class="t"><span class="str">    both resolvers reach for when a key is missing from the caller&#x27;s language, so</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t124" href="#t124">124</a></span><span class="t"><span class="str">    warming only that language would leave the second read on the loop.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t125" href="#t125">125</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t126" href="#t126">126</a></span><span class="t"><span class="str">    Idempotent: a second call (an entry reload, a second entry) hits the caches.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t127" href="#t127">127</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t128" href="#t128">128</a></span><span class="t">    <span class="key">for</span> <span class="nam">wanted</span> <span class="key">in</span> <span class="nam">dict</span><span class="op">.</span><span class="nam">fromkeys</span><span class="op">(</span><span class="op">(</span><span class="nam">lang</span><span class="op">,</span> <span class="nam">_DEFAULT_LANG</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t129" href="#t129">129</a></span><span class="t">        <span class="nam">_exceptions</span><span class="op">(</span><span class="nam">wanted</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t130" href="#t130">130</a></span><span class="t">        <span class="nam">_backend_strings</span><span class="op">(</span><span class="nam">wanted</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -192,7 +221,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_binary_sensor_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.15.4">coverage.py v7.15.4</a>,
-            created at 2026-08-26 07:01 +0000
+            created at 2026-08-26 12:36 +0000
         </p>
     </div>
 </footer>
