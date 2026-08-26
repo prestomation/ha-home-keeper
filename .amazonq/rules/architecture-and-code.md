@@ -455,6 +455,26 @@ variables (`var(--primary-color)`, `var(--divider-color)`) — see the upload pr
 bar (`.hk-upload`). HA has broken us this way before (issue #144, `ha-dialog`'s slot
 API).
 
+### Frontend registrations outlive the config entry — never tear one down on unload
+The sidebar panel and the card's Lovelace resource are registered against the *HA
+run*, not the entry: both name a static module URL that
+`async_register_static_paths` serves until restart, and setup re-registers each one
+identically. An ordinary unload is almost always the first half of a **reload**, and
+reloads are routine here — saving options, a synced problem sensor appearing, a
+purged one-off, a language change. Dropping the registration in
+`async_unload_entry` therefore deletes it for as long as setup takes, on a schedule
+the user never asked for.
+
+For the panel that is user-visible damage, not churn: HA's `partial-panel-resolver`
+answers `home-keeper` disappearing out of `hass.panels` by navigating to the default
+panel, so a reload throws anyone reading the panel back to their dashboard. It reads
+as random because it is a race with the frontend's `get_panels` refetch — a fast
+reload usually wins, a slow one never does (#247). Tear both down in
+`async_remove_entry` instead, plus the panel when `entry.disabled_by` is set (HA
+sets it *before* unloading, and a disabled entry is the one unload that isn't coming
+back). Services are different: re-registering them is invisible, so they still go on
+the last loaded entry's unload.
+
 ### A dashboard asset ships as a Lovelace resource, not just an extra module URL
 `frontend.add_extra_js_url` reaches the browser exactly one way: `IndexView` renders an
 inline `import("<url>")` per extra module into the app-shell HTML — a response with no
@@ -798,6 +818,20 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   `hass` itself — the HA-aware caller (`store.py`, `websocket_api.py`,
   `companions.py`) threads `hass.config.language` in, the same pattern
   `store.reconcile_part_tasks` already established for wear-part task names.
+- **Warm the tables in the executor before anything asks for a string.**
+  `backend_i18n` has no HA import by design, so it cannot dispatch its own reads the
+  way `notifier.py` does (#150) — and its `functools.cache` only helps *after* the
+  first read, which lands on whichever loop-bound caller gets there first (the
+  problem-sensor reconcile during setup, a websocket error reply, a CSV export). HA's
+  blocking-call detector logs every one of those as `Detected blocking call to
+  read_text ... inside the event loop` (#247). `async_setup_entry` runs
+  `backend_i18n.preload` through `hass.async_add_executor_job` before it touches the
+  store, so every later `resolve_*` is a cache hit; `preload` always warms English
+  alongside the requested language, because that is the fallback both resolvers
+  reach for. Add a table to this module and you add it to `preload` —
+  `tests/unit/test_backend_i18n_preload.py` checks *every* cached table, and
+  `tests/integration/test_event_loop_blocking.py` reads HA's own log back to catch
+  anything the unit lane can't see.
 
 ## Companion discovery (implemented)
 - Home Keeper surfaces integrations that work with it in the panel's **Settings →

@@ -32,6 +32,7 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
 from . import (
+    backend_i18n,
     card,
     companions,
     devices,
@@ -480,6 +481,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Home Keeper from a config entry."""
+    # Read the backend string tables in the executor, before anything on the loop can
+    # ask for a string and read them itself. Everything downstream — the coordinator's
+    # first refresh, the problem-sensor reconcile, every websocket error reply — then
+    # resolves out of a warm cache. See ``backend_i18n.preload`` (#247).
+    await hass.async_add_executor_job(backend_i18n.preload, hass.config.language)
+
     store = HomeKeeperStore(hass)
     await store.load()
 
@@ -1505,16 +1512,41 @@ _SERVICES = (
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    # Only tear down the panel/services when the last entry goes away. Gate on
-    # *loaded* entries, not ``async_entries``: HA removes the entry from the registry
-    # only *after* this unload returns (and a disabled entry stays registered), so
+    # Only tear down when the last entry goes away. Gate on *loaded* entries, not
+    # ``async_entries``: HA removes the entry from the registry only *after* this
+    # unload returns (and a disabled entry stays registered), so
     # ``async_entries(DOMAIN)`` is never empty here and the teardown was dead code —
-    # leaving the panel pointing at a dead backend and all services registered until
-    # restart. ``async_loaded_entries`` excludes the entry currently unloading.
+    # leaving all services registered until restart. ``async_loaded_entries``
+    # excludes the entry currently unloading.
     if unloaded and not hass.config_entries.async_loaded_entries(DOMAIN):
-        panel.async_unregister_panel(hass)
         for service in _SERVICES:
             hass.services.async_remove(DOMAIN, service)
+        # The sidebar panel is deliberately *not* dropped on an ordinary unload,
+        # because most unloads are the first half of a reload — and a reload is
+        # routine here (saving options, a synced problem sensor appearing, a purged
+        # one-off). Removing the panel deletes ``home-keeper`` from ``hass.panels``
+        # for as long as setup takes, and Home Assistant's ``partial-panel-resolver``
+        # answers a panel disappearing under an open page by navigating to the
+        # default one: #247's reporter was thrown back to their dashboard "every 10
+        # seconds or so". Nothing about the registration is entry-scoped — it names a
+        # static module URL served for the whole HA run and is re-registered
+        # identically — so leaving it up costs nothing. ``card.py`` takes the same
+        # stance, for the same reason.
+        #
+        # A *disabled* entry is the one unload that isn't coming back on its own, and
+        # HA sets ``disabled_by`` before unloading, so the sidebar entry still goes
+        # away when the user turns the integration off. Deleting it is handled in
+        # ``async_remove_entry``.
+        #
+        # The one case this trades away: when the *setup* half of a reload fails, the
+        # sidebar entry now stays up against an entry in ``SETUP_ERROR``/``SETUP_RETRY``
+        # instead of vanishing. That is the better half of the trade — every websocket
+        # command already answers ``integration_not_loaded`` when it finds no loaded
+        # coordinator (see ``websocket_api._not_loaded``), so the panel reports the
+        # real state, and HA is usually about to retry setup anyway. Dropping the
+        # sidebar entry instead would hide that Home Keeper is even installed.
+        if entry.disabled_by is not None:
+            panel.async_unregister_panel(hass)
     return unloaded
 
 
@@ -1526,9 +1558,11 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     our stored tasks/assets document and the uploaded-documents blob tree so no
     residue is left behind.
     """
-    # The card's Lovelace resource is not entry-scoped state, so HA won't reap it.
-    # Removal — not unload, which also runs on every reload — is the one point where
-    # dropping it is right; left behind it would point at a 404 forever.
+    # Neither the sidebar panel nor the card's Lovelace resource is entry-scoped
+    # state, so HA won't reap either. Removal — not unload, which also runs on every
+    # reload — is the one point where dropping them is right; left behind, both point
+    # at a backend that is never coming back.
+    panel.async_unregister_panel(hass)
     await card.async_unregister_card_resource(hass)
     discard_edge_state(hass, entry.entry_id)
     store = HomeKeeperStore(hass)
