@@ -531,6 +531,7 @@ const STYLES = `
   .hk-card-row .grow.clickable { cursor: pointer; }
   ha-card.hk-card.overdue { border-left: 3px solid var(--error-color); }
   ha-card.hk-card.hk-tree-child {
+    margin-left: calc(var(--hk-tree-depth, 0) * 32px);
     border-left: 3px solid color-mix(in srgb, var(--primary-color) calc(40% + var(--hk-tree-depth, 0) * 15%), transparent);
     background: color-mix(in srgb, var(--primary-color) calc(var(--hk-tree-depth, 0) * 4%), var(--card-background-color, #fff));
   }
