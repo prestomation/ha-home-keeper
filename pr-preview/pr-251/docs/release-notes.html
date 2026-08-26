@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-251/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-251/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-251/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-251/assets/js/runtime~main.4254f420.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-251/assets/js/runtime~main.ef322b91.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-251/assets/js/main.ce86ca18.js" defer="defer"></script>
 </head>
 <body>
@@ -17,22 +17,21 @@ versioning, with PEP 440 pre-release suffixes (<code>bN</code>/<code>aN</code>/<
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0180b1">[0.18.0b1]<a href="#0180b1" class="hash-link" aria-label="Direct link to [0.18.0b1]" title="Direct link to [0.18.0b1]" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed">Fixed<a href="#fixed" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
-<li class=""><strong>Synced problem sensors show up in Profiles again.</strong> Picking any Profile in the
-panel or on a card made every mirrored <code>problem</code> sensor vanish from the list, whatever
-status the Profile asked for. (Fixes #248)</li>
+<li class=""><strong>Synced problem sensors show up in Profiles again.</strong> Picking any Profile used to
+hide every mirrored <code>problem</code> sensor. (Fixes #248)</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added">Added<a href="#added" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
 <ul>
-<li class=""><strong>Snooze a problem you can&#x27;t fix right now.</strong> A task mirroring a <code>problem</code> binary
-sensor accepts Snooze, and its reminders offer that button in place of Mark done.
-Marking one done is still refused, because only the originating integration can
-decide the problem is dealt with.</li>
+<li class=""><strong>Snooze a problem you can&#x27;t fix right now.</strong> A task mirroring a <code>problem</code> sensor now
+accepts Snooze, and its reminders show that button instead of Mark done. Marking one
+done is still blocked since only the integration that owns the sensor can decide
+it&#x27;s fixed.</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="changed">Changed<a href="#changed" class="hash-link" aria-label="Direct link to Changed" title="Direct link to Changed" translate="no">​</a></h3>
 <ul>
-<li class=""><strong>The Profile status choices say what they cover.</strong> They were always cumulative, so
-the old <em>Due soon</em> already listed overdue tasks; they now read <em>Overdue only</em>,
-<em>Overdue and due soon</em> and <em>Every scheduled task</em>.</li>
+<li class=""><strong>Profile status labels now spell out what&#x27;s included.</strong> The choices were always
+cumulative, so the old <em>Due soon</em> already covered overdue tasks too. The new names
+are <em>Overdue only</em>, <em>Overdue and due soon</em> and <em>Every scheduled task</em>.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0170---2026-08-26">[0.17.0] - 2026-08-26<a href="#0170---2026-08-26" class="hash-link" aria-label="Direct link to [0.17.0] - 2026-08-26" title="Direct link to [0.17.0] - 2026-08-26" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-1">Added<a href="#added-1" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
