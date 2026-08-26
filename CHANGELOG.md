@@ -10,22 +10,21 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
-- **Synced problem sensors show up in Profiles again.** Picking any Profile in the
-  panel or on a card made every mirrored `problem` sensor vanish from the list, whatever
-  status the Profile asked for. (Fixes #248)
+- **Synced problem sensors show up in Profiles again.** Picking any Profile used to
+  hide every mirrored `problem` sensor. (Fixes #248)
 
 ### Added
 
-- **Snooze a problem you can't fix right now.** A task mirroring a `problem` binary
-  sensor accepts Snooze, and its reminders offer that button in place of Mark done.
-  Marking one done is still refused, because only the originating integration can
-  decide the problem is dealt with.
+- **Snooze a problem you can't fix right now.** A task mirroring a `problem` sensor now
+  accepts Snooze, and its reminders show that button instead of Mark done. Marking one
+  done is still blocked since only the integration that owns the sensor can decide
+  it's fixed.
 
 ### Changed
 
-- **The Profile status choices say what they cover.** They were always cumulative, so
-  the old *Due soon* already listed overdue tasks; they now read *Overdue only*,
-  *Overdue and due soon* and *Every scheduled task*.
+- **Profile status labels now spell out what's included.** The choices were always
+  cumulative, so the old *Due soon* already covered overdue tasks too. The new names
+  are *Overdue only*, *Overdue and due soon* and *Every scheduled task*.
 
 ## [0.17.0] - 2026-08-26
 
