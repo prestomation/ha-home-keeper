@@ -1537,6 +1537,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # HA sets ``disabled_by`` before unloading, so the sidebar entry still goes
         # away when the user turns the integration off. Deleting it is handled in
         # ``async_remove_entry``.
+        #
+        # The one case this trades away: when the *setup* half of a reload fails, the
+        # sidebar entry now stays up against an entry in ``SETUP_ERROR``/``SETUP_RETRY``
+        # instead of vanishing. That is the better half of the trade — every websocket
+        # command already answers ``integration_not_loaded`` when it finds no loaded
+        # coordinator (see ``websocket_api._not_loaded``), so the panel reports the
+        # real state, and HA is usually about to retry setup anyway. Dropping the
+        # sidebar entry instead would hide that Home Keeper is even installed.
         if entry.disabled_by is not None:
             panel.async_unregister_panel(hass)
     return unloaded
