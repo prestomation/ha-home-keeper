@@ -338,6 +338,20 @@ def test_build_notification_walk_actions_and_tag():
     # Every button carries the task's next_due, so a tap on any of them can be checked
     # for freshness — not just "Mark done".
     assert all(a["action"].endswith(f"::{n.due_token(t)}") for a in actions)
+    # The companion app stacks a channel's notifications by `group`, so the exact
+    # string is a payload contract, not decoration.
+    assert payload["data"]["group"] == "home_keeper"
+
+
+def test_build_notification_falls_back_to_the_product_name_for_a_nameless_task():
+    # A task can reach here with a blank name (a contributed task, a bad service
+    # call). The phone shows the title verbatim, so an empty one reads as a bug.
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "n1", "actions": ["open"]})
+    for name in (None, ""):
+        t = {"id": "t1", "name": name, "next_due": dt(2026, 6, 10).isoformat()}
+        payload = n.build_notification(t, notification=notif, now=now)
+        assert payload["title"] == "Home Keeper"
 
 
 def test_overdue_phrase_singular_and_due_now():
