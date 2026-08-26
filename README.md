@@ -336,6 +336,12 @@ problem becomes a visible, trackable to-do without writing an automation.
   problem has to be fixed for real), so the *Done* button is shown **disabled**, and
   tapping it pops up the reason (the detail page also explains how it clears). Each
   task inherits the sensor's **device and area**.
+- **Where it shows up:** an armed synced task is ordinary overdue work, so it appears
+  in the task list, on the card, under a
+  [Profile](#profiles-saved-filters-you-reuse-everywhere) and in notifications. A
+  reminder for one offers **Snooze** in place of *Mark done*. Deferring a reminder is
+  honest about a problem you can't fix this minute; marking it done would not be, and
+  the task clears itself the moment the sensor reports OK.
 - **Scope it:** syncing is **off by default**; once on, exclude specific **entities,
   devices, areas, or labels**, from the panel's **Settings** tab (below) or the options
   flow. Excluding a device leaves out every problem sensor that belongs to it.
@@ -610,9 +616,14 @@ so we can add it to the suggested-companions catalog.
 
 ## Profiles (saved filters you reuse everywhere)
 
-A **Profile** is a named, saved filter, a status (*overdue* / *due soon* / *all*) plus
-optional **label / area / device** filters, that you define once and reuse across Home
-Keeper. Create and manage them in **Settings → Profiles**.
+A **Profile** is a named, saved filter, a status plus optional **label / area /
+device** filters, that you define once and reuse across Home Keeper. Create and manage
+them in **Settings → Profiles**.
+
+**The status tiers nest.** **Include** offers *Overdue only*, *Overdue and due soon*
+and *Every scheduled task*, and each one covers the one before it. There is no need to
+pick two. *Overdue and due soon* already lists everything overdue, plus whatever falls
+due in the next three days.
 
 **Use cases.** *"'The dog', 'upstairs', 'my chores': define each chore-set once and
 point every list at it."* *"My partner and I each save a Profile filtered to our own
@@ -638,6 +649,12 @@ picker leaves everything in.
 Exclusions read labels and areas the same way the include pickers do, through whatever
 a task inherits. Excluding the `professional` label also leaves out a task that carries
 it only because its device or its area does.
+
+**Synced problem sensors count too.** A task mirroring a
+[`problem` binary sensor](#sync-problem-binary-sensors-as-tasks) is overdue work while
+its sensor reports a problem, so a Profile lists it like anything else. A notification
+for one offers **Snooze** in place of *Mark done*, since only the originating
+integration can decide the problem is dealt with.
 
 ![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
 

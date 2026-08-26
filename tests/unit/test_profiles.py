@@ -89,18 +89,35 @@ def test_matches_filter_defaults_to_overdue_without_a_status():
     assert not p.matches_filter(task("2", "B", dt(2026, 6, 20)), {}, now=now)
 
 
-def test_matches_filter_excludes_disabled_dormant_and_problem():
+def test_matches_filter_excludes_disabled_and_dormant():
     now = dt(2026, 6, 13, 12)
     f = {"status": "all"}
     assert not p.matches_filter(
         task("1", "A", dt(2026, 6, 10), enabled=False), f, now=now
     )
     assert not p.matches_filter(task("2", "B", None), f, now=now)
-    assert not p.matches_filter(
-        task("3", "C", dt(2026, 6, 10), source={"problem_sensor": {"entity_id": "x"}}),
-        f,
-        now=now,
+
+
+def test_matches_filter_includes_an_armed_problem_sensor_task():
+    # #248: these were dropped outright, under every status, so a synced problem never
+    # showed under any Profile. An armed one carries next_due = when the sensor went
+    # bad, so it belongs to every tier exactly like any other overdue task.
+    now = dt(2026, 6, 13, 12)
+    armed = task(
+        "1", "A", dt(2026, 6, 10), source={"problem_sensor": {"entity_id": "x"}}
     )
+    assert p.matches_filter(armed, {"status": "all"}, now=now)
+    assert p.matches_filter(armed, {"status": "overdue"}, now=now)
+    assert p.matches_filter(armed, {"status": "due_soon"}, now=now)
+    # The include/exclude lists still apply to it like any other task.
+    assert not p.matches_filter(armed, {"status": "all", "labels": ["mine"]}, now=now)
+
+
+def test_matches_filter_excludes_a_dormant_problem_sensor_task():
+    # Sensor back to OK -> the sync clears next_due, and an undated task is out.
+    now = dt(2026, 6, 13, 12)
+    dormant = task("1", "A", None, source={"problem_sensor": {"entity_id": "x"}})
+    assert not p.matches_filter(dormant, {"status": "all"}, now=now)
 
 
 def test_matches_filter_labels_areas_devices():

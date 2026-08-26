@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openPanel, trackPanelErrors } from './helpers';
+import { callService, openPanel, trackPanelErrors } from './helpers';
 
 test.describe('Home Keeper panel — synced problem task', () => {
   test('the Tasks-list Done is replaced by a caption and explains (not completes) on click', async ({
@@ -31,5 +31,43 @@ test.describe('Home Keeper panel — synced problem task', () => {
     await expect(card).toBeVisible();
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('a synced task still shows when the list is filtered by a Profile (#248)', async ({
+    page,
+  }) => {
+    // The profile matcher used to drop problem-sensor tasks outright, under every
+    // status — so picking any Profile made every synced problem vanish from the list.
+    // The plain (unfiltered) list never showed the bug, which is why it went unnoticed.
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: 'e2e_everything',
+          name: 'Everything',
+          filter: { status: 'all', labels: [], areas: [], devices: [] },
+        },
+      ],
+    });
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      const card = panel.locator('.hk-card', { hasText: 'Sump pump problem' });
+      await expect(card).toBeVisible();
+
+      const picker = panel.locator('select[data-profile-filter]');
+      await expect(picker).toBeVisible();
+      await picker.selectOption('e2e_everything');
+
+      // Still listed under the Profile, with its "Clears automatically" caption.
+      await expect(card).toBeVisible();
+      await expect(card.locator('.hk-auto-clear')).toBeVisible();
+
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      // The panel remembers the picked profile in localStorage; clearing the option
+      // makes the panel fall back to no filter, so the next spec starts clean.
+      await callService('home_keeper', 'set_options', { profiles: [] });
+    }
   });
 });

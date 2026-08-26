@@ -95,11 +95,6 @@ def resolve_profile(
 # ── filtering & queueing ────────────────────────────────────────────────────────
 
 
-def _is_problem_sensor(task: dict[str, Any]) -> bool:
-    source = task.get("source")
-    return isinstance(source, dict) and "problem_sensor" in source
-
-
 def matches_filter(
     task: dict[str, Any],
     filt: dict[str, Any],
@@ -109,11 +104,18 @@ def matches_filter(
 ) -> bool:
     """Whether *task* belongs to a profile's list under *filt* at *now*.
 
-    A task qualifies only if it is actionable now: enabled, scheduled (a non-``None``
-    ``next_due``), and not a synced ``problem`` sensor (those can't be completed from
-    Home Keeper). On top of that it must clear the label/area/device filters (each is
+    A task qualifies only if it is live now: enabled and scheduled (a non-``None``
+    ``next_due``). On top of that it must clear the label/area/device filters (each is
     an OR within the list, AND across the lists; an empty list means "any") and the
     ``status`` due-state.
+
+    A ``problem``-sensor-synced task is an ordinary member of that set. It is armed —
+    ``next_due`` set to the moment the sensor went bad, so it reads as overdue — while
+    the sensor reports a problem, and dormant (``next_due is None``, excluded by the
+    check above) once the sensor clears. Dropping the armed ones outright hid a whole
+    class of overdue work from every Profile, in the panel and on the card, under every
+    status (#248). They are still left out of *walk* notifications, but that belongs to
+    delivery rather than to the filter — see ``notifications.is_walkable``.
 
     The ``exclude_labels``/``exclude_areas``/``exclude_devices`` lists then subtract:
     any hit drops the task even when it satisfied every include list, so exclusions win.
@@ -131,8 +133,6 @@ def matches_filter(
     if not task.get("enabled", True):
         return False
     if task.get("next_due") is None:
-        return False
-    if _is_problem_sensor(task):
         return False
 
     status = filt.get("status", STATUS_OVERDUE)
