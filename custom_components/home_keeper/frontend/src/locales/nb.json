@@ -418,7 +418,7 @@
   "settings.shopping_help": "Legger hver automatiske kjøpspåminnelse på en eksisterende oppgaveliste, slik at den når taleassistenten og listen du allerede bruker. Krysser du av et element der, fullfører Home Keeper påminnelsen og fyller på reservedelen; en påminnelse som ender uten kjøp tar linjen sin med seg. Det som alt er krysset av, røres ikke. La feltet stå tomt for å slå av.",
   "settings.shopping_list_entity": "Speil påminnelser til denne listen",
   "settings.sync_problem_sensors": "Synkroniser problemsensorer som oppgaver",
-  "settings.sync_problem_sensors_help": "En synkronisert oppgave lukkes først når kildeintegrasjonen løser problemet, ikke når du trykker Ferdig. Profiler og oversiktsvarsler viser den. Et varsel med én om gangen utelater den, fordi ingen knapp kan flytte den videre.",
+  "settings.sync_problem_sensors_help": "En synkronisert oppgave lukkes først når kildeintegrasjonen løser problemet, ikke når du trykker Ferdig. Påminnelser for den tilbyr Utsett i stedet for Ferdig.",
   "tab.appliances": "Apparater",
   "tab.settings": "Innstillinger",
   "tab.tasks": "Oppgaver",

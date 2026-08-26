@@ -25,7 +25,7 @@
           "shopping_list_entity": "Lista de la compra"
         },
         "data_description": {
-          "sync_problem_sensors": "Una tarea sincronizada solo se cierra cuando la integración de origen resuelve el problema, no al pulsar Hecho. Los perfiles y las notificaciones de resumen la muestran. Una notificación de uno a uno la deja fuera, porque ningún botón puede hacerla avanzar.",
+          "sync_problem_sensors": "Una tarea sincronizada solo se cierra cuando la integración de origen resuelve el problema, no al pulsar Hecho. Sus recordatorios ofrecen Posponer en lugar de Hecho.",
           "one_off_retention_days": "Eliminar automáticamente una tarea única completada transcurridos estos días desde su finalización. El valor 0 conserva las tareas únicas completadas para siempre.",
           "shopping_list_entity": "Refleja los recordatorios de compra automática en esta lista de tareas. Al marcar un elemento allí se completa el recordatorio de Home Keeper y se repone el repuesto. Déjalo vacío para desactivarlo."
         }

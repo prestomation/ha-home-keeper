@@ -432,7 +432,7 @@
   "settings.shopping_help": "Coloca cada lembrete de compra automático em uma lista de tarefas existente, para que chegue ao seu assistente de voz e à lista que você já usa. Marcar um item ali conclui o lembrete e repõe o estoque da peça; um lembrete que termina sem compra leva sua linha junto. O que já está marcado não é tocado. Deixe vazio para desativar.",
   "settings.shopping_list_entity": "Espelhar lembretes nesta lista",
   "settings.sync_problem_sensors": "Sincronizar sensores de problema como tarefas",
-  "settings.sync_problem_sensors_help": "Uma tarefa sincronizada só se encerra quando a integração de origem resolve o problema, não ao tocar em Concluído. Os perfis e as notificações de resumo a listam. Uma notificação um de cada vez a deixa de fora, porque nenhum botão consegue avançá-la.",
+  "settings.sync_problem_sensors_help": "Uma tarefa sincronizada só se encerra quando a integração de origem resolve o problema, não ao tocar em Concluído. Os lembretes dela oferecem Adiar no lugar de Concluído.",
   "tab.appliances": "Eletrodomésticos",
   "tab.settings": "Configurações",
   "tab.tasks": "Tarefas",

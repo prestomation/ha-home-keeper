@@ -25,7 +25,7 @@
           "shopping_list_entity": "Nákupní seznam"
         },
         "data_description": {
-          "sync_problem_sensors": "Synchronizovaný úkol se uzavře, až když zdrojová integrace problém vyřeší, ne když klepnete na Hotovo. Profily a souhrnná oznámení jej zobrazují. Oznámení po jednom jej vynechá, protože jej žádné tlačítko neposune dál.",
+          "sync_problem_sensors": "Synchronizovaný úkol se uzavře, až když zdrojová integrace problém vyřeší, ne když klepnete na Hotovo. Připomenutí u něj nabízejí Odložit místo Hotovo.",
           "one_off_retention_days": "Automaticky smazat dokončený jednorázový úkol tolik dní po jeho dokončení. Hodnota 0 ponechá dokončené jednorázové úkoly navždy.",
           "shopping_list_entity": "Zrcadlí automatické nákupní připomínky do tohoto seznamu úkolů. Odškrtnutí položky tam dokončí připomínku v Home Keeperu a doplní zásobu dílu. Ponechte prázdné pro vypnutí."
         }

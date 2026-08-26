@@ -418,7 +418,7 @@
   "settings.shopping_help": "Vie jokaisen automaattisen ostomuistutuksen olemassa olevaan tehtävälistaan, jolloin se tavoittaa ääniavustajan ja sen listan, jota jo käytät. Kun merkitset kohteen siellä tehdyksi, Home Keeper kuittaa muistutuksen ja täydentää varaosan varaston; ilman ostoa päättynyt muistutus vie rivinsä mukanaan. Jo merkittyihin ei kosketa. Jätä tyhjäksi ottaaksesi pois käytöstä.",
   "settings.shopping_list_entity": "Peilaa muistutukset tähän listaan",
   "settings.sync_problem_sensors": "Synkronoi ongelma-anturit tehtäviksi",
-  "settings.sync_problem_sensors_help": "Synkronoitu tehtävä sulkeutuu vasta, kun lähdeintegraatio ratkaisee ongelman, ei Valmis-painikkeesta. Profiilit ja yhteenvetoilmoitukset listaavat sen. Yksi kerrallaan -ilmoitus jättää sen pois, koska mikään painike ei vie sitä eteenpäin.",
+  "settings.sync_problem_sensors_help": "Synkronoitu tehtävä sulkeutuu vasta, kun lähdeintegraatio ratkaisee ongelman, ei Valmis-painikkeesta. Sen muistutukset tarjoavat Torkun Valmis-painikkeen sijaan.",
   "tab.appliances": "Laitteet",
   "tab.settings": "Asetukset",
   "tab.tasks": "Tehtävät",

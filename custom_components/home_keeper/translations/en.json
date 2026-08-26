@@ -25,7 +25,7 @@
           "shopping_list_entity": "Shopping list"
         },
         "data_description": {
-          "sync_problem_sensors": "A synced task clears only when the source integration resolves the problem, not when you tap Done. Profiles and digest notifications list it. A one-at-a-time notification leaves it out, because no button can move it on.",
+          "sync_problem_sensors": "A synced task clears only when the source integration resolves the problem, not when you tap Done. Reminders for one offer Snooze in place of Mark done.",
           "one_off_retention_days": "Auto-delete a completed one-off task this many days after it is completed. 0 keeps completed one-offs forever.",
           "shopping_list_entity": "Mirror auto-buy reminders onto this to-do list. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the mirror off."
         }

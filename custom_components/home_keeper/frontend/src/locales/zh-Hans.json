@@ -418,7 +418,7 @@
   "settings.shopping_help": "将每条自动创建的购买提醒放到现有的待办清单上，让它出现在语音助手和你本来就在用的清单里。在该清单上勾选条目后，Home Keeper 会完成提醒并补充备件库存；未经购买就结束的提醒会把自己的条目一并带走。已勾选的条目不会被改动。留空即可关闭。",
   "settings.shopping_list_entity": "将购买提醒同步到此清单",
   "settings.sync_problem_sensors": "将问题传感器同步为任务",
-  "settings.sync_problem_sensors_help": "同步任务只有在来源集成解决问题后才会清除，点按“完成”不会清除它。配置文件和摘要通知会列出它。逐个通知会跳过它，因为没有按钮能让它继续。",
+  "settings.sync_problem_sensors_help": "同步任务只有在来源集成解决问题后才会清除，点按“完成”不会清除它。相关提醒会用“稍后提醒”代替“完成”。",
   "tab.appliances": "电器",
   "tab.settings": "设置",
   "tab.tasks": "任务",

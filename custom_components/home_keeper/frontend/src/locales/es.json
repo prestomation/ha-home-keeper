@@ -432,7 +432,7 @@
   "settings.shopping_help": "Pon cada recordatorio de compra automático en una lista de tareas existente, para que llegue a tu asistente de voz y a la lista que ya usas. Si marcas un elemento allí, Home Keeper completa el recordatorio y repone el repuesto; un recordatorio que termina sin compra se lleva su línea. Lo que ya esté marcado no se toca. Déjalo vacío para desactivarlo.",
   "settings.shopping_list_entity": "Reflejar los recordatorios en esta lista",
   "settings.sync_problem_sensors": "Sincronizar sensores de problema como tareas",
-  "settings.sync_problem_sensors_help": "Una tarea sincronizada solo se cierra cuando la integración de origen resuelve el problema, no al pulsar Hecho. Los perfiles y las notificaciones de resumen la muestran. Una notificación de uno a uno la deja fuera, porque ningún botón puede hacerla avanzar.",
+  "settings.sync_problem_sensors_help": "Una tarea sincronizada solo se cierra cuando la integración de origen resuelve el problema, no al pulsar Hecho. Sus recordatorios ofrecen Posponer en lugar de Hecho.",
   "tab.appliances": "Electrodomésticos",
   "tab.settings": "Ajustes",
   "tab.tasks": "Tareas",

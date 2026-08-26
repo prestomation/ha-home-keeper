@@ -446,7 +446,7 @@
   "settings.shopping_help": "Přidá každou automatickou nákupní připomínku do existujícího seznamu úkolů, aby se dostala do hlasového asistenta i do seznamu, který už používáte. Když tam položku odškrtnete, Home Keeper připomínku dokončí a doplní zásobu dílu; připomínka, která skončí bez nákupu, si svou položku odnese. Už odškrtnutých položek se to nedotkne. Ponechte prázdné pro vypnutí.",
   "settings.shopping_list_entity": "Zrcadlit připomínky do tohoto seznamu",
   "settings.sync_problem_sensors": "Synchronizovat senzory problémů jako úkoly",
-  "settings.sync_problem_sensors_help": "Synchronizovaný úkol se uzavře, až když zdrojová integrace problém vyřeší, ne když klepnete na Hotovo. Profily a souhrnná oznámení jej zobrazují. Oznámení po jednom jej vynechá, protože jej žádné tlačítko neposune dál.",
+  "settings.sync_problem_sensors_help": "Synchronizovaný úkol se uzavře, až když zdrojová integrace problém vyřeší, ne když klepnete na Hotovo. Připomenutí u něj nabízejí Odložit místo Hotovo.",
   "tab.appliances": "Spotřebiče",
   "tab.settings": "Nastavení",
   "tab.tasks": "Úkoly",

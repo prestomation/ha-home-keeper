@@ -432,7 +432,7 @@
   "settings.shopping_help": "Place chaque rappel d'achat automatique sur une liste de tâches existante, pour qu'il atteigne votre assistant vocal et la liste que vous utilisez déjà. Y cocher un élément termine le rappel et réapprovisionne la pièce ; un rappel qui se termine sans achat emporte sa ligne. Ce qui est déjà coché n'est jamais touché. Laissez vide pour désactiver.",
   "settings.shopping_list_entity": "Recopier les rappels sur cette liste",
   "settings.sync_problem_sensors": "Synchroniser les capteurs de problème en tâches",
-  "settings.sync_problem_sensors_help": "Une tâche synchronisée ne se referme que lorsque l'intégration d'origine résout le problème, pas en appuyant sur Terminé. Les profils et les notifications de résumé l'affichent. Une notification une par une l'écarte, car aucun bouton ne peut la faire avancer.",
+  "settings.sync_problem_sensors_help": "Une tâche synchronisée ne se referme que lorsque l'intégration d'origine résout le problème, pas en appuyant sur Terminé. Ses rappels proposent Reporter au lieu de Terminé.",
   "tab.appliances": "Appareils",
   "tab.settings": "Réglages",
   "tab.tasks": "Tâches",

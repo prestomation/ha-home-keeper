@@ -14,6 +14,13 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   panel or on a card made every mirrored `problem` sensor vanish from the list, whatever
   status the Profile asked for. (Fixes #248)
 
+### Added
+
+- **Snooze a problem you can't fix right now.** A task mirroring a `problem` binary
+  sensor accepts Snooze, and its reminders offer that button in place of Mark done.
+  Marking one done is still refused, because only the originating integration can
+  decide the problem is dealt with.
+
 ### Changed
 
 - **The Profile status choices say what they cover.** They were always cumulative, so

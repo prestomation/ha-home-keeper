@@ -432,7 +432,7 @@
   "settings.shopping_help": "Mette ogni promemoria di acquisto automatico su una lista attività esistente, così da raggiungere l'assistente vocale e la lista che già usi. Spuntare una voce lì completa il promemoria e ripristina la scorta del ricambio; un promemoria che finisce senza acquisto porta via la sua riga. Le voci già spuntate non vengono toccate. Lascia vuoto per disattivare.",
   "settings.shopping_list_entity": "Rispecchia i promemoria su questa lista",
   "settings.sync_problem_sensors": "Sincronizza i sensori di problema come attività",
-  "settings.sync_problem_sensors_help": "Un'attività sincronizzata si chiude solo quando l'integrazione di origine risolve il problema, non toccando Fatto. I profili e le notifiche di riepilogo la elencano. Una notifica uno alla volta la esclude, perché nessun pulsante può farla avanzare.",
+  "settings.sync_problem_sensors_help": "Un'attività sincronizzata si chiude solo quando l'integrazione di origine risolve il problema, non toccando Fatto. I suoi promemoria offrono Posticipa invece di Fatto.",
   "tab.appliances": "Elettrodomestici",
   "tab.settings": "Impostazioni",
   "tab.tasks": "Attività",

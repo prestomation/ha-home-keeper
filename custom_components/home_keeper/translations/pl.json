@@ -25,7 +25,7 @@
           "shopping_list_entity": "Lista zakupów"
         },
         "data_description": {
-          "sync_problem_sensors": "Zsynchronizowane zadanie zamyka się dopiero, gdy integracja źródłowa rozwiąże problem, a nie po naciśnięciu Gotowe. Profile i powiadomienia podsumowujące je pokazują. Powiadomienie pojedyncze je pomija, ponieważ żaden przycisk go nie przesunie.",
+          "sync_problem_sensors": "Zsynchronizowane zadanie zamyka się dopiero, gdy integracja źródłowa rozwiąże problem, a nie po naciśnięciu Gotowe. Przypomnienia o nim oferują Odłóż zamiast Gotowe.",
           "one_off_retention_days": "Automatycznie usuwaj ukończone zadanie jednorazowe po upływie tylu dni od jego ukończenia. Wartość 0 zachowuje ukończone zadania jednorazowe na zawsze.",
           "shopping_list_entity": "Kopiuje automatyczne przypomnienia o zakupie na tę listę zadań. Odhaczenie pozycji tam kończy przypomnienie w Home Keeper i uzupełnia zapas części. Pozostaw puste, aby wyłączyć kopiowanie."
         }

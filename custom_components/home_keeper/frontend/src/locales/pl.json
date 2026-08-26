@@ -446,7 +446,7 @@
   "settings.shopping_help": "Umieszcza każde automatyczne przypomnienie o zakupie na istniejącej liście zadań, żeby trafiło do asystenta głosowego i listy, z której już korzystasz. Odhaczenie pozycji tam kończy przypomnienie i uzupełnia zapas części; przypomnienie zakończone bez zakupu zabiera swoją pozycję ze sobą. Odhaczonych pozycji nic nie rusza. Pozostaw puste, aby wyłączyć.",
   "settings.shopping_list_entity": "Kopiuj przypomnienia na tę listę",
   "settings.sync_problem_sensors": "Synchronizuj czujniki problemów jako zadania",
-  "settings.sync_problem_sensors_help": "Zsynchronizowane zadanie zamyka się dopiero, gdy integracja źródłowa rozwiąże problem, a nie po naciśnięciu Gotowe. Profile i powiadomienia podsumowujące je pokazują. Powiadomienie pojedyncze je pomija, ponieważ żaden przycisk go nie przesunie.",
+  "settings.sync_problem_sensors_help": "Zsynchronizowane zadanie zamyka się dopiero, gdy integracja źródłowa rozwiąże problem, a nie po naciśnięciu Gotowe. Przypomnienia o nim oferują Odłóż zamiast Gotowe.",
   "tab.appliances": "Urządzenia",
   "tab.settings": "Ustawienia",
   "tab.tasks": "Zadania",

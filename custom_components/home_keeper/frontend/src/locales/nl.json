@@ -418,7 +418,7 @@
   "settings.shopping_help": "Zet elke automatische koopherinnering op een bestaande takenlijst, zodat die je spraakassistent en de lijst bereikt die je toch al gebruikt. Vink je daar een item af, dan voltooit Home Keeper de herinnering en vult de voorraad van het onderdeel aan; een herinnering die eindigt zonder aankoop neemt haar regel mee. Al afgevinkte items blijven ongemoeid. Laat leeg om dit uit te schakelen.",
   "settings.shopping_list_entity": "Herinneringen naar deze lijst spiegelen",
   "settings.sync_problem_sensors": "Probleemsensoren als taken synchroniseren",
-  "settings.sync_problem_sensors_help": "Een gesynchroniseerde taak sluit pas wanneer de bronintegratie het probleem oplost, niet wanneer je op Klaar tikt. Profielen en samenvattingsmeldingen tonen hem. Een melding een voor een laat hem weg, omdat geen enkele knop hem verder helpt.",
+  "settings.sync_problem_sensors_help": "Een gesynchroniseerde taak sluit pas wanneer de bronintegratie het probleem oplost, niet wanneer je op Klaar tikt. Herinneringen ervoor bieden Uitstellen in plaats van Klaar.",
   "tab.appliances": "Apparaten",
   "tab.settings": "Instellingen",
   "tab.tasks": "Taken",

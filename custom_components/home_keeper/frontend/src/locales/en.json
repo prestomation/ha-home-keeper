@@ -418,7 +418,7 @@
   "settings.shopping_help": "Put every auto-created buy reminder on an existing to-do list, so it reaches your voice assistant and whatever list you already use. Tick an item off there and Home Keeper completes the reminder and restocks the part. A reminder that ends without being bought takes its line with it, and anything already ticked off is left alone. Leave empty to turn this off.",
   "settings.shopping_list_entity": "Mirror buy reminders to this list",
   "settings.sync_problem_sensors": "Sync problem sensors as tasks",
-  "settings.sync_problem_sensors_help": "A synced task clears only when the source integration resolves the problem, not when you tap Done. Profiles and digest notifications list it. A one-at-a-time notification leaves it out, because no button can move it on.",
+  "settings.sync_problem_sensors_help": "A synced task clears only when the source integration resolves the problem, not when you tap Done. Reminders for one offer Snooze in place of Mark done.",
   "tab.appliances": "Appliances",
   "tab.settings": "Settings",
   "tab.tasks": "Tasks",

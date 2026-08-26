@@ -418,7 +418,7 @@
   "settings.shopping_help": "Lägger varje automatisk inköpspåminnelse på en befintlig uppgiftslista, så att den når röstassistenten och den lista du redan använder. Bockar du av en post där slutför Home Keeper påminnelsen och fyller på reservdelen; en påminnelse som tar slut utan köp tar sin rad med sig. Redan avbockade poster lämnas i fred. Lämna tomt för att stänga av.",
   "settings.shopping_list_entity": "Spegla påminnelser till den här listan",
   "settings.sync_problem_sensors": "Synkronisera problemsensorer som uppgifter",
-  "settings.sync_problem_sensors_help": "En synkroniserad uppgift avslutas först när källintegrationen löser problemet, inte när du trycker på Klar. Profiler och sammanfattande aviseringar visar den. En avisering med en i taget utelämnar den, eftersom ingen knapp kan föra den vidare.",
+  "settings.sync_problem_sensors_help": "En synkroniserad uppgift avslutas först när källintegrationen löser problemet, inte när du trycker på Klar. Påminnelser om den erbjuder Skjut upp i stället för Klar.",
   "tab.appliances": "Apparater",
   "tab.settings": "Inställningar",
   "tab.tasks": "Uppgifter",

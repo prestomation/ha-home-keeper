@@ -234,30 +234,41 @@ def resolve_notification(
     return None
 
 
-# ── delivery-style gating ───────────────────────────────────────────────────────
+# ── per-task button sets ────────────────────────────────────────────────────────
 
 
-def is_walkable(task: dict[str, Any]) -> bool:
-    """Whether a *walk*'s buttons can actually move *task* on.
+def is_completion_blocked(task: dict[str, Any]) -> bool:
+    """Whether nothing in Home Keeper can mark *task* done.
 
-    A walk shows one task and advances when the user taps Mark done, Snooze or Skip.
-    A ``completion_blocked`` task — today, a ``problem``-sensor-synced mirror — rejects
-    all three in the store, and ``notifier`` swallows the rejection, so one at the head
-    of the queue would re-send forever and the walk would never reach the tasks behind
-    it. ``notifier._send`` therefore drops these from a walk queue only; a digest just
-    lists names, so it carries them like any other due task.
-
-    This reads ``managed_by.completion_blocked`` rather than the ``problem_sensor``
-    source, matching what the panel and the card already use to hide *Done*, so a
-    future completion-blocked source is covered without another edit here.
+    Reads ``managed_by.completion_blocked`` rather than the ``problem_sensor`` source,
+    matching what the panel and the card already use to hide *Done*, so a future
+    completion-blocked source is covered without another edit here.
     """
     managed_by = task.get("managed_by")
-    return not (isinstance(managed_by, dict) and managed_by.get("completion_blocked"))
+    return isinstance(managed_by, dict) and bool(managed_by.get("completion_blocked"))
 
 
-def walk_queue(queue: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """*queue* less the tasks a walk's buttons can't move on."""
-    return [task for task in queue if is_walkable(task)]
+def actions_for(task: dict[str, Any], actions: list[str]) -> list[str]:
+    """The subset of *actions* that can actually act on *task*, in configured order.
+
+    A completion-blocked task (today, a ``problem``-sensor mirror) rejects *Mark done*
+    and *Skip* in the store: both assert the problem is dealt with, and only the
+    originating integration can decide that. Offering buttons the store will refuse
+    is worse than offering none — ``notifier`` swallows the rejection, so the tap
+    reads as a dead button.
+
+    *Snooze* is the one mutating verb that stays honest on such a task: it defers the
+    reminder and leaves the problem standing. So it is offered here **even when the
+    notification's own button set leaves it out** — a walk advances only on a
+    successful action, and without Snooze one of these at the head of the queue would
+    re-send forever and never reach the tasks behind it (#248).
+    """
+    if not is_completion_blocked(task):
+        return list(actions)
+    kept = [verb for verb in actions if verb in (ACTION_SNOOZE, ACTION_OPEN)]
+    if ACTION_SNOOZE not in kept:
+        kept.insert(0, ACTION_SNOOZE)
+    return kept
 
 
 # ── payload text translation ─────────────────────────────────────────────────────
@@ -392,7 +403,7 @@ def build_notification(
     """Build the ``notify`` service data for a single task in a *walk* notification."""
     actions = [
         _action_button(v, task, notification, lang=lang)
-        for v in notification["actions"]
+        for v in actions_for(task, notification["actions"])
     ]
     return {
         "title": str(task.get("name") or "Home Keeper"),

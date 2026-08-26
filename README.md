@@ -338,10 +338,10 @@ problem becomes a visible, trackable to-do without writing an automation.
   task inherits the sensor's **device and area**.
 - **Where it shows up:** an armed synced task is ordinary overdue work, so it appears
   in the task list, on the card, under a
-  [Profile](#profiles-saved-filters-you-reuse-everywhere) and in a **digest**
-  notification. The one place it stays out of is a **one at a time** notification: that
-  style only advances when a button changes the task's schedule, which is exactly what
-  a synced task refuses.
+  [Profile](#profiles-saved-filters-you-reuse-everywhere) and in notifications. A
+  reminder for one offers **Snooze** in place of *Mark done*. Deferring a reminder is
+  honest about a problem you can't fix this minute; marking it done would not be, and
+  the task clears itself the moment the sensor reports OK.
 - **Scope it:** syncing is **off by default**; once on, exclude specific **entities,
   devices, areas, or labels**, from the panel's **Settings** tab (below) or the options
   flow. Excluding a device leaves out every problem sensor that belongs to it.
@@ -652,9 +652,9 @@ it only because its device or its area does.
 
 **Synced problem sensors count too.** A task mirroring a
 [`problem` binary sensor](#sync-problem-binary-sensors-as-tasks) is overdue work while
-its sensor reports a problem, so a Profile lists it like anything else. A **one at a
-time** notification still leaves it out, because its buttons can't move on a task only
-the source integration can clear.
+its sensor reports a problem, so a Profile lists it like anything else. A notification
+for one offers **Snooze** in place of *Mark done*, since only the originating
+integration can decide the problem is dealt with.
 
 ![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
 

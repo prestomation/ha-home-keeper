@@ -432,7 +432,7 @@
   "settings.shopping_help": "Posa cada recordatori de compra automàtic en una llista de tasques existent, perquè arribi al teu assistent de veu i a la llista que ja fas servir. Si hi marques un element, Home Keeper completa el recordatori i reposa l'estoc de la peça; un recordatori que acaba sense comprar res s'endú la seva línia. El que ja estigui marcat no es toca. Deixa-ho buit per desactivar-ho.",
   "settings.shopping_list_entity": "Reflecteix els recordatoris en aquesta llista",
   "settings.sync_problem_sensors": "Sincronitza els sensors de problema com a tasques",
-  "settings.sync_problem_sensors_help": "Una tasca sincronitzada només es tanca quan la integració d'origen resol el problema, no quan toques Fet. Els perfils i les notificacions de resum la mostren. Una notificació d'un per un la deixa fora, perquè cap botó no la pot fer avançar.",
+  "settings.sync_problem_sensors_help": "Una tasca sincronitzada només es tanca quan la integració d'origen resol el problema, no quan toques Fet. Els recordatoris n'ofereixen Ajorna en lloc de Fet.",
   "tab.appliances": "Electrodomèstics",
   "tab.settings": "Configuració",
   "tab.tasks": "Tasques",
