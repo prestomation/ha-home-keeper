@@ -18,7 +18,7 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 - **Home Keeper no longer throws you back to your dashboard.** Anything that reloaded
   the integration took the sidebar panel down until setup finished, and Home Assistant
-  navigates away from a panel that vanishes under it. The panel now survives a reload.
+  drops you out of a panel that vanishes under it. The panel now survives a reload.
   (Fixes #247)
 - **"Detected blocking call" warnings from Home Keeper are gone.** The integration read
   its backend string tables on Home Assistant's event loop the first time it needed a
