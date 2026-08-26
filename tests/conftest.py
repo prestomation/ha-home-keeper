@@ -35,6 +35,7 @@ _COMPONENT_DIR = _CUSTOM_COMPONENTS_DIR / "home_keeper"
 _PKG = "custom_components.home_keeper"
 _PURE_MODULES = (
     "const",
+    "backend_i18n",
     "recurrence",
     "models",
     "assets",

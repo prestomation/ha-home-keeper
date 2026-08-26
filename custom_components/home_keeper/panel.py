@@ -96,6 +96,12 @@ async def async_register_panel(hass: HomeAssistant) -> None:
 
 
 def async_unregister_panel(hass: HomeAssistant) -> None:
-    """Remove the sidebar panel (static path persists for the HA lifetime)."""
+    """Remove the sidebar panel (static path persists for the HA lifetime).
+
+    Only for an unload the entry isn't coming back from — the integration removed,
+    or disabled. An ordinary unload is usually the first half of a reload, and
+    taking the panel down mid-reload navigates anyone viewing it to their default
+    dashboard (#247); see ``__init__.async_unload_entry``.
+    """
     if PANEL_URL_PATH in hass.data.get("frontend_panels", {}):
         frontend.async_remove_panel(hass, PANEL_URL_PATH)
