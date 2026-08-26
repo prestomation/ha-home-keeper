@@ -267,6 +267,11 @@ def actions_for(task: dict[str, Any], actions: list[str]) -> list[str]:
         return list(actions)
     kept = [verb for verb in actions if verb in (ACTION_SNOOZE, ACTION_OPEN)]
     if ACTION_SNOOZE not in kept:
+        # Deliberately overriding the user's button set, which is the one place this
+        # function adds rather than subtracts. `open` is a client-side URI that never
+        # calls back, so a set of only `open` (or an empty one) leaves a walk with
+        # nothing that advances it and it re-sends this task forever. One button the
+        # user did not ask for beats a notification that can never be got past.
         kept.insert(0, ACTION_SNOOZE)
     return kept
 
