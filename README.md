@@ -715,6 +715,10 @@ your Todoist API token. Every Todoist project then shows up as a `todo` entity. 
 a mirror at the project's entity and your chores follow you onto every device Todoist
 reaches.
 
+![The Settings → To-do list sync card with a configured mirror](docs/images/47-panel-settings-task-mirrors.png)
+
+![A mirrored task with its due date on a to-do list card](docs/images/48-todo-sync-mirrored-task.png)
+
 <!-- vale ai-tells.OverusedVocabulary = NO -->
 ## Notifications (actionable reminders on your phone)
 <!-- vale ai-tells.OverusedVocabulary = YES -->

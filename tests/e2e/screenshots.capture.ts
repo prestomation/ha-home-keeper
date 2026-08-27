@@ -1147,6 +1147,65 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
 
+  // 17c-pre. Point a task mirror at the household's own to-do list — "Family chores",
+  // the seeded local_todo list standing in for a Todoist project — on the "My chores"
+  // Profile seeded above. Both shots below need the feature actually running: an
+  // unconfigured Settings card is an empty-state alert, and an unmirrored list is a
+  // blank card.
+  await openPanel(page);
+  await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'set_options', {
+      task_mirrors: [
+        {
+          id: 'demo_family_chores',
+          entity_id: 'todo.family_chores',
+          profile_id: 'demo_me',
+          two_way: true,
+          vanish_as_completed: true,
+        },
+      ],
+    });
+  });
+
+  // 17c. Settings → To-do list sync — each row pairs a Profile (or the default
+  // "when due" filter) with an existing to-do list, and the two per-mirror switches
+  // cover the awkward providers. Rows collapse by default, so expand it: a
+  // collapsed row is just a header and says nothing about what a sync holds.
+  await openPanel(page);
+  await panel.locator('#tab-settings').click();
+  await expect(panel.locator('#hk-task-mirrors')).toBeVisible();
+  for (const h of await panel.locator('#hk-task-mirrors .hk-item-header').all()) await h.click();
+  await expect(panel.locator('#hk-task-mirrors .hk-item-body ha-form').first()).toBeVisible();
+  await panel.locator('#hk-task-mirrors').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(700);
+  await panel
+    .locator('#hk-task-mirrors')
+    .screenshot({ path: `${OUT}/47-panel-settings-task-mirrors.png` });
+
+  // 48. The payoff: the mirrored chores sitting on the family's own to-do list, each
+  // with the due date that makes it actionable on somebody's phone.
+  //
+  // Taller viewport for this one shot: the card runs past the 720px default, and an
+  // element screenshot of something that has to be scrolled to catches Home
+  // Assistant's *sticky* top bar across its head — which ate the card's own "Family
+  // chores" title, the one thing that says which list this is. Restored afterwards so
+  // the closing dashboard shot keeps its established framing.
+  await page.setViewportSize({ width: 1280, height: 1280 });
+  await openDashboard(page);
+  const familyCard = page
+    .locator('hui-todo-list-card, todo-list-card')
+    .filter({ hasText: 'Family chores' })
+    .first();
+  await expect(
+    familyCard.locator('ha-check-list-item, ha-md-list-item').first(),
+  ).toBeVisible({ timeout: 40_000 });
+  await page.waitForTimeout(600);
+  await familyCard.screenshot({ path: `${OUT}/48-todo-sync-mirrored-task.png` });
+  await page.setViewportSize({ width: 1280, height: 720 });
+
   // 46. The payoff: the buy reminder sitting on the household's own shopping list,
   // where a voice assistant or a phone widget will read it out.
   await openDashboard(page);

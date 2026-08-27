@@ -464,8 +464,61 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await page.mouse.move(0, 0);
     await page.waitForTimeout(BEAT * 2);
 
-    // 7. The usage surfaces — native to-do list + calendar on a dashboard.
+    // 6b. Settings → To-do list sync — the chores themselves, onto a list the
+    //     household already checks. Each row pairs a Profile (or the default "when
+    //     due" filter) with one existing to-do list.
+    //
+    //     The sync is seeded over the public service rather than added on camera:
+    //     saving options reloads the config entry, which unregisters and re-registers
+    //     the sidebar panel, and Home Assistant's frontend answers that by bouncing
+    //     to the default dashboard. (Not a mirror thing — adding a Profile does the
+    //     same.) Seeding first keeps the tour on the panel; the *scene* is the row
+    //     opening to show what a sync holds.
+    await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      if (!hass) return;
+      await hass.callService('home_keeper', 'set_options', {
+        task_mirrors: [
+          {
+            id: 'walkthrough_family_chores',
+            entity_id: 'todo.family_chores',
+            profile_id: null,
+            two_way: true,
+            vanish_as_completed: true,
+          },
+        ],
+      });
+    });
+    await openPanel(page);
+    await panel.locator('#tab-settings').click();
+    const mirrors = panel.locator('#hk-task-mirrors');
+    await expect(mirrors).toBeVisible();
+    await mirrors.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(BEAT * 2);
+    // Rows start collapsed, so opening one is the beat: the list it keeps in step,
+    // the Profile that chooses the chores, and the two per-mirror switches.
+    await mirrors.locator('.hk-item-header').first().click();
+    await expect(mirrors.locator('.hk-item-body ha-form').first()).toBeVisible();
+    await mirrors.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(BEAT * 3);
+
+    // 7. The usage surfaces — the native to-do list and calendar, and beside them the
+    //    family's own list, now carrying the mirrored chores with their due dates.
     await openDashboard(page);
+    await page.waitForTimeout(BEAT * 2);
+    const familyCard = page
+      .locator('hui-todo-list-card, todo-list-card')
+      .filter({ hasText: 'Family chores' })
+      .first();
+    // Deliberately *not* scrolled into view: the card runs past the viewport, so
+    // fitting it would push its own "Family chores" heading off the top — and the
+    // heading is what tells the viewer this is the household's list, not ours.
+    await expect(
+      familyCard.locator('ha-check-list-item, ha-md-list-item').first(),
+    ).toBeVisible({ timeout: 40_000 });
+    await expect(familyCard).toContainText('Family chores');
     await page.waitForTimeout(BEAT * 3);
   } finally {
     // Close the context to flush the recording, then save it to a stable filename.
