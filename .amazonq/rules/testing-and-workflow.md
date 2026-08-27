@@ -31,6 +31,14 @@
   commit under `docs/images/`, embed in the README with a relative `docs/images/…`
   path). A new headline feature isn't "done" until the README shows it. (The moving
   walkthrough is **not** committed to the README — it's the per-PR CI comment above.)
+- **Plans and PRs must list one-way doors.** A one-way door is a design choice
+  that is hard to reverse once users depend on it: the name, shape, or format of
+  a field in a service call, an event payload, storage, an entity attribute, or
+  any other external contract. Plans call them out before implementation; PR
+  bodies include a **One-way doors** section listing every committed surface —
+  field name, format, where it appears, and what users or automations will rely
+  on. Internal-only shapes (frontend form data, private helpers) are two-way
+  doors and don't need listing.
 - **User-facing prose is linted for AI-tell phrasing.** `lint.yml`'s `vale` job runs
   the [vale-ai-tells](https://github.com/tbhb/vale-ai-tells) style (pinned version in
   `.vale.ini`) over `README.md`, `CHANGELOG.md`, the canonical `docs/*.md` (excludes
