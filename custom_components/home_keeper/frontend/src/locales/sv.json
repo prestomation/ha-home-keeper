@@ -329,7 +329,7 @@
   "notify.profile": "Profil",
   "notify.profiles_empty": "Inga profiler än. Lägg till en för att filtrera uppgifter.",
   "notify.profiles_heading": "Profiler",
-  "notify.profiles_help": "Sparade uppgiftsfilter, återanvända av aviseringar, uppgiftslistan och instrumentpanelskortet.",
+  "notify.profiles_help": "Sparade uppgiftsfilter, återanvända av aviseringar, uppgiftslistan, instrumentpanelskortet och synkronisering med en att-göra-lista.",
   "notify.snooze_hours": "Skjut upp (timmar)",
   "notify.status": "Inkludera",
   "notify.status_help": "Varje val omfattar det ovanför. ”Förfallet och snart förfallet” visar även förfallna uppgifter.",

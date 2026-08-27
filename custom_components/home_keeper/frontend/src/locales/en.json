@@ -329,7 +329,7 @@
   "notify.profile": "Profile",
   "notify.profiles_empty": "No profiles yet. Add one to filter tasks.",
   "notify.profiles_heading": "Profiles",
-  "notify.profiles_help": "Saved task filters, reused by notifications, the task list, and the dashboard card.",
+  "notify.profiles_help": "Saved task filters, reused by notifications, the task list, the dashboard card, and to-do list sync.",
   "notify.snooze_hours": "Snooze (hours)",
   "notify.status": "Include",
   "notify.status_help": "Each choice includes the one above it. \"Overdue and due soon\" lists overdue tasks as well.",

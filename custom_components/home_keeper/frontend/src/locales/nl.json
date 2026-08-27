@@ -329,7 +329,7 @@
   "notify.profile": "Profiel",
   "notify.profiles_empty": "Nog geen profielen. Voeg er een toe om taken te filteren.",
   "notify.profiles_heading": "Profielen",
-  "notify.profiles_help": "Opgeslagen taakfilters, hergebruikt door meldingen, de takenlijst en de dashboardkaart.",
+  "notify.profiles_help": "Opgeslagen taakfilters, hergebruikt door meldingen, de takenlijst, de dashboardkaart en synchronisatie met een takenlijst.",
   "notify.snooze_hours": "Uitstellen (uren)",
   "notify.status": "Opnemen",
   "notify.status_help": "Elke keuze omvat de vorige. ‘Te laat en binnenkort’ toont ook taken die te laat zijn.",

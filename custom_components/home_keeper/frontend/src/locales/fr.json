@@ -338,7 +338,7 @@
   "notify.profile": "Profil",
   "notify.profiles_empty": "Aucun profil pour l'instant. Ajoutez-en un pour filtrer les tâches.",
   "notify.profiles_heading": "Profils",
-  "notify.profiles_help": "Filtres de tâches enregistrés, réutilisés par les notifications, la liste des tâches et la carte du tableau de bord.",
+  "notify.profiles_help": "Filtres de tâches enregistrés, réutilisés par les notifications, la liste des tâches, la carte du tableau de bord et la synchronisation avec une liste de tâches.",
   "notify.snooze_hours": "Reporter (heures)",
   "notify.status": "Inclure",
   "notify.status_help": "Chaque choix englobe le précédent. « En retard et bientôt dû » liste aussi les tâches en retard.",

@@ -6,9 +6,11 @@ contract no mock can see, so it needs asserting against a real HA: the unit tier
 prove ``options.merge_flow_input`` merges correctly, but only this tier proves the
 flow's return value is what lands on disk.
 
-The form renders seven of the eleven option keys. Before ``merge_flow_input``, pressing
-Submit deleted every saved profile, notification, to-do list sync and dismissed
-companion — and notifications then stopped firing, with nothing on screen to say why.
+The form renders seven of the ten option keys. Before ``merge_flow_input``, pressing
+Submit deleted every saved profile, notification and dismissed companion — and
+notifications then stopped firing, with nothing on screen to say why. A profile now
+carries the to-do list it syncs onto, so the same slip would take a household's
+configured sync with it.
 
 The flow is driven over HA's REST config API; options are read back over the
 ``home_keeper/get_options`` websocket command, since the REST config-entries listing
@@ -26,10 +28,21 @@ ENTRY_ID = "home_keeper_test_entry"
 # Seeded by this module rather than relied on from the fixture: test_notifications.py
 # deliberately clears profiles and notifications so later tests start clean, and it
 # sorts ahead of this file.
+# The profile carries a to-do list sync, which is where that setting lives now —
+# there is no separate mirror key for the form to forget. Pointed at a list that does
+# not exist on purpose: this test is about what a save keeps, and a live target would
+# have the mirror put the seeded tasks on a real to-do list and leave them there. An
+# unresolvable target logs once and mirrors nothing, which is exactly the inert seed
+# this case wants.
 PROFILE = {
     "id": "options_flow_profile",
     "name": "Options flow profile",
     "filter": {"status": "overdue", "labels": [], "areas": [], "devices": []},
+    "sync": {
+        "entity_id": "todo.options_flow_list",
+        "two_way": True,
+        "vanish_as_completed": False,
+    },
 }
 NOTIFICATION = {
     "id": "options_flow_notification",
@@ -38,17 +51,6 @@ NOTIFICATION = {
     "targets": [],
 }
 DISMISSED = ["options_flow_companion"]
-# Pointed at a list that does not exist on purpose: this test is about what a save
-# keeps, and a live target would have the mirror put the seeded tasks on a real
-# to-do list and leave them there. An unresolvable target logs once and mirrors
-# nothing, which is exactly the inert seed this case wants.
-MIRROR = {
-    "id": "options_flow_mirror",
-    "entity_id": "todo.options_flow_list",
-    "profile_id": PROFILE["id"],
-    "two_way": True,
-    "vanish_as_completed": False,
-}
 
 
 def _start_flow(ha) -> str:
@@ -97,14 +99,13 @@ def panel_options(ha):
         {
             "profiles": [PROFILE],
             "notifications": [NOTIFICATION],
-            "task_mirrors": [MIRROR],
             "dismissed_companions": DISMISSED,
         },
     )
     seeded = _options(ha)
     assert seeded["profiles"], "seeding failed; the assertions below would be vacuous"
     assert seeded["notifications"], "seeding failed"
-    assert seeded["task_mirrors"], "seeding failed"
+    assert seeded["profiles"][0]["sync"]["entity_id"], "seeding failed"
     yield seeded
     call_service(
         ha,
@@ -113,7 +114,6 @@ def panel_options(ha):
         {
             "profiles": [],
             "notifications": [],
-            "task_mirrors": [],
             "dismissed_companions": [],
             "one_off_retention_days": 0,
             "shopping_list_entity": "",
@@ -146,8 +146,11 @@ def test_options_flow_save_keeps_the_panel_only_options(ha, panel_options):
     after = _options(ha)
     assert after["profiles"] == before["profiles"]
     assert after["notifications"] == before["notifications"]
-    assert after["task_mirrors"] == before["task_mirrors"]
     assert after["dismissed_companions"] == DISMISSED
+    # Spelled out rather than left to the comparison above: the sync block sits one
+    # level *inside* a key the form doesn't render, so a merge that kept profiles but
+    # re-normalized them past their sync would still satisfy a shallower assertion.
+    assert after["profiles"][0]["sync"] == PROFILE["sync"]
     # ...and the fields the form does own took effect.
     assert after["one_off_retention_days"] == 7
     assert after["shopping_list_entity"] == ""

@@ -347,7 +347,7 @@
   "notify.profile": "Profil",
   "notify.profiles_empty": "Zatím žádné profily. Přidejte jeden pro filtrování úkolů.",
   "notify.profiles_heading": "Profily",
-  "notify.profiles_help": "Uložené filtry úkolů, používané oznámeními, seznamem úkolů a kartou na nástěnce.",
+  "notify.profiles_help": "Uložené filtry úkolů, používané oznámeními, seznamem úkolů, kartou na nástěnce a synchronizací se seznamem úkolů.",
   "notify.snooze_hours": "Odložit (hodiny)",
   "notify.status": "Zahrnout",
   "notify.status_help": "Každá volba zahrnuje tu předchozí. „Po termínu a blížící se termín“ vypíše i úkoly po termínu.",

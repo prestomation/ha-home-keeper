@@ -329,7 +329,7 @@
   "notify.profile": "配置文件",
   "notify.profiles_empty": "还没有配置文件。添加一个来过滤任务。",
   "notify.profiles_heading": "配置文件",
-  "notify.profiles_help": "已保存的任务过滤器，可供通知、任务列表和仪表板卡片重复使用。",
+  "notify.profiles_help": "已保存的任务过滤器，可供通知、任务列表、仪表板卡片和待办清单同步重复使用。",
   "notify.snooze_hours": "推迟（小时）",
   "notify.status": "包含",
   "notify.status_help": "每个选项都包含上一个。“逾期和即将到期”也会列出逾期任务。",

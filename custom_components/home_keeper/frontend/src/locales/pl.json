@@ -347,7 +347,7 @@
   "notify.profile": "Profil",
   "notify.profiles_empty": "Brak profili. Dodaj jeden, aby filtrować zadania.",
   "notify.profiles_heading": "Profile",
-  "notify.profiles_help": "Zapisane filtry zadań, używane przez powiadomienia, listę zadań i kartę pulpitu.",
+  "notify.profiles_help": "Zapisane filtry zadań, używane przez powiadomienia, listę zadań, kartę pulpitu i synchronizację z listą zadań.",
   "notify.snooze_hours": "Odłóż (godziny)",
   "notify.status": "Uwzględnij",
   "notify.status_help": "Każdy wybór obejmuje poprzedni. „Po terminie i wkrótce termin” pokazuje też zadania po terminie.",

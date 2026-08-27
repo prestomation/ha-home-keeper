@@ -338,7 +338,7 @@
   "notify.profile": "Perfil",
   "notify.profiles_empty": "Encara no hi ha perfils. Afegeix-ne un per filtrar tasques.",
   "notify.profiles_heading": "Perfils",
-  "notify.profiles_help": "Filtres de tasques desats, reutilitzats per les notificacions, la llista de tasques i la targeta del tauler.",
+  "notify.profiles_help": "Filtres de tasques desats, reutilitzats per les notificacions, la llista de tasques, la targeta del tauler i la sincronització amb una llista de tasques.",
   "notify.snooze_hours": "Posposa (hores)",
   "notify.status": "Inclou",
   "notify.status_help": "Cada opció inclou l'anterior. «Vençut i a punt de vèncer» també llista les tasques vençudes.",

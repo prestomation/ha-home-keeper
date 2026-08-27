@@ -329,7 +329,7 @@
   "notify.profile": "Profil",
   "notify.profiles_empty": "Noch keine Profile. Füge eines hinzu, um Aufgaben zu filtern.",
   "notify.profiles_heading": "Profile",
-  "notify.profiles_help": "Gespeicherte Aufgabenfilter, wiederverwendet von Benachrichtigungen, der Aufgabenliste und der Dashboard-Karte.",
+  "notify.profiles_help": "Gespeicherte Aufgabenfilter, wiederverwendet von Benachrichtigungen, der Aufgabenliste, der Dashboard-Karte und dem To-do-Listen-Abgleich.",
   "notify.snooze_hours": "Zurückstellen (Stunden)",
   "notify.status": "Einschließen",
   "notify.status_help": "Jede Auswahl schließt die darüber mit ein. „Überfällig und bald fällig“ listet auch überfällige Aufgaben auf.",

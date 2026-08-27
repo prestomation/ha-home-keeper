@@ -1062,6 +1062,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // area exclusion so the shot shows the exclude_* rows holding a real value, not three
   // empty pickers; "My chores" stays unfiltered because the Tasks-tab shot below
   // filters the admin list by it.
+  //
+  // "My chores" also carries the `sync` block that mirrors its tasks onto "Family
+  // chores" — the seeded local_todo list standing in for a Todoist project. That is
+  // where a to-do list sync lives now, so seeding it here is what gives the profile
+  // shots below (and the mirrored-list shot at 48) something real to show: an
+  // unconfigured Sync group is an empty picker, and an unmirrored list is a blank card.
   await page.evaluate(async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
@@ -1082,6 +1088,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
             exclude_labels: [],
             exclude_areas: [],
             exclude_devices: [],
+          },
+          sync: {
+            entity_id: 'todo.family_chores',
+            two_way: true,
+            vanish_as_completed: true,
           },
         },
         {
@@ -1115,9 +1126,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await openPanel(page);
   await panel.locator('#tab-settings').click();
   // Settings → Profiles — the standalone saved-filter editor. Rows collapse by
-  // default; expand each so its editor form shows in the shot.
+  // default; expand each so its editor form shows in the shot. Only the *row*
+  // headers are clicked: each row also holds a Sync group with a header of its own,
+  // which opens itself when the profile has a list configured, so clicking those
+  // would fold shut the one state worth showing.
   await expect(panel.locator('#hk-profiles')).toBeVisible();
-  for (const h of await panel.locator('#hk-profiles .hk-item-header').all()) await h.click();
+  for (const h of await panel.locator('#hk-profiles .hk-item-card > .hk-item-header').all()) {
+    await h.click();
+  }
   await expect(panel.locator('#hk-profiles .hk-item-body ha-form').first()).toBeVisible();
   await page.waitForTimeout(700);
   await panel.locator('#hk-profiles').screenshot({ path: `${OUT}/profiles-card.png` });
@@ -1147,43 +1163,38 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
 
-  // 17c-pre. Point a task mirror at the household's own to-do list — "Family chores",
-  // the seeded local_todo list standing in for a Todoist project — on the "My chores"
-  // Profile seeded above. Both shots below need the feature actually running: an
-  // unconfigured Settings card is an empty-state alert, and an unmirrored list is a
-  // blank card.
-  await openPanel(page);
-  await page.evaluate(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hass = (document.querySelector('home-assistant') as any)?.hass;
-    if (!hass) return;
-    await hass.callService('home_keeper', 'set_options', {
-      task_mirrors: [
-        {
-          id: 'demo_family_chores',
-          entity_id: 'todo.family_chores',
-          profile_id: 'demo_me',
-          two_way: true,
-          vanish_as_completed: true,
-        },
-      ],
-    });
-  });
-
-  // 17c. Settings → To-do list sync — each row pairs a Profile (or the default
-  // "when due" filter) with an existing to-do list, and the two per-mirror switches
-  // cover the awkward providers. Rows collapse by default, so expand it: a
-  // collapsed row is just a header and says nothing about what a sync holds.
+  // 17c. Settings → Profiles → "My chores" → its **Sync to a to-do list** group: the
+  // to-do list this profile's tasks are mirrored onto ("Family chores", the seeded
+  // local_todo list standing in for a Todoist project), plus what a change over there
+  // means here. The sync block was seeded onto the profile at 17a, so the picker is
+  // holding a real list rather than sitting empty.
+  //
+  // The profile row is shot on its own, not the whole card: the group is *inside* one
+  // profile, and that containment is the thing the shot has to show — there is no
+  // separate mirror record and no Delete button, because clearing the picker is both
+  // the off switch and the delete.
   await openPanel(page);
   await panel.locator('#tab-settings').click();
-  await expect(panel.locator('#hk-task-mirrors')).toBeVisible();
-  for (const h of await panel.locator('#hk-task-mirrors .hk-item-header').all()) await h.click();
-  await expect(panel.locator('#hk-task-mirrors .hk-item-body ha-form').first()).toBeVisible();
-  await panel.locator('#hk-task-mirrors').scrollIntoViewIfNeeded();
+  await expect(panel.locator('#hk-profiles')).toBeVisible();
+  const syncedProfile = panel
+    .locator('#hk-profiles .hk-item-card')
+    .filter({ hasText: 'My chores' })
+    .first();
+  // Rows collapse by default; the Sync group inside opens itself because a list is
+  // configured, so one click on the row header is the whole reveal. Home Assistant
+  // replaces the custom-panel element a few seconds after a page settles, though, and
+  // a fresh panel starts with every row folded — so the row is re-opened right before
+  // the shutter rather than once, or the shot catches a collapsed header.
+  const openSyncedProfile = async (): Promise<void> => {
+    const header = syncedProfile.locator('> .hk-item-header');
+    if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+    await expect(syncedProfile.locator('.hk-sync-group .hk-item-body ha-form')).toBeVisible();
+  };
+  await openSyncedProfile();
+  await syncedProfile.scrollIntoViewIfNeeded();
   await page.waitForTimeout(700);
-  await panel
-    .locator('#hk-task-mirrors')
-    .screenshot({ path: `${OUT}/47-panel-settings-task-mirrors.png` });
+  await openSyncedProfile();
+  await syncedProfile.screenshot({ path: `${OUT}/47-panel-profile-sync.png` });
 
   // 48. The payoff: the mirrored chores sitting on the family's own to-do list, each
   // with the due date that makes it actionable on somebody's phone.

@@ -338,7 +338,7 @@
   "notify.profile": "Perfil",
   "notify.profiles_empty": "Aún no hay perfiles. Añade uno para filtrar tareas.",
   "notify.profiles_heading": "Perfiles",
-  "notify.profiles_help": "Filtros de tareas guardados, reutilizados por las notificaciones, la lista de tareas y la tarjeta del panel.",
+  "notify.profiles_help": "Filtros de tareas guardados, reutilizados por las notificaciones, la lista de tareas, la tarjeta del panel y la sincronización con una lista de tareas.",
   "notify.snooze_hours": "Posponer (horas)",
   "notify.status": "Incluir",
   "notify.status_help": "Cada opción incluye la anterior. «Vencido y por vencer» también lista las tareas vencidas.",

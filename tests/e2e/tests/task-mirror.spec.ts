@@ -19,17 +19,23 @@ import {
  * surface with nothing asserting on it is how #221 hid in plain sight for months,
  * so this spec reads the card's *contents*, not its count.
  *
+ * A mirror is a **profile**: the sync lives in the profile's own `sync` block, so
+ * configuring one here means saving `profiles`, and the panel half of this spec
+ * checks the profile editor's **Sync to a to-do list** group rather than a card of
+ * its own.
+ *
  * `todo.family_chores` is a seeded `local_todo` list (see
  * `tests/integration/ha_config/.storage/core.config_entries`) standing in for the
  * Todoist project or kitchen-tablet list a real household already checks. It reports
- * its completed items rather than dropping them, so the mirror below runs with
+ * its completed items rather than dropping them, so the profile below syncs with
  * `vanish_as_completed` off — what the README tells a `local_todo` user to do, and
  * what keeps a swept line from reading as somebody ticking a chore off.
  */
 
 const FAMILY_LIST = 'todo.family_chores';
 const CHORE = 'E2E mirror chore';
-const MIRROR_ID = 'e2e_task_mirror';
+const PROFILE_ID = 'e2e_mirror_profile';
+const PROFILE_NAME = 'Household chores';
 
 /** The items on the household list, optionally filtered by status. */
 async function familyItems(status?: string[]): Promise<any[]> {
@@ -61,21 +67,25 @@ async function callWhenReady(service: string, data: Record<string, unknown>): Pr
 }
 
 /**
- * Point one mirror at the household list.
+ * Point one profile's sync at the household list — the save the panel's Settings tab
+ * makes when you pick a list in a profile's **Sync to a to-do list** group.
  *
- * No profile, so it gets the default filter: every enabled, scheduled task that is
- * due now. Passing `[]` turns it off again, which is what clears the lines it wrote.
+ * The filter is *overdue*, which is also the mirror's timing: a task goes on the list
+ * the moment it falls due. Saving `[]` drops the profile again, which is what clears
+ * the lines it wrote (the planner reads a tracked entry whose profile is gone exactly
+ * as it reads a cleared picker). Profiles are saved as a whole list and nothing else
+ * in this suite depends on the container's seeded ones, so replacing them is safe —
+ * `problem-sensor.spec.ts` does the same.
  */
-async function setMirror(on: boolean): Promise<void> {
+async function setSync(on: boolean): Promise<void> {
   await callWhenReady('set_options', {
-    task_mirrors: on
+    profiles: on
       ? [
           {
-            id: MIRROR_ID,
-            entity_id: FAMILY_LIST,
-            profile_id: null,
-            two_way: true,
-            vanish_as_completed: false,
+            id: PROFILE_ID,
+            name: PROFILE_NAME,
+            filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+            sync: { entity_id: FAMILY_LIST, two_way: true, vanish_as_completed: false },
           },
         ]
       : [],
@@ -86,19 +96,19 @@ test.describe('Home Keeper — tasks mirrored onto a household to-do list', () =
   let taskId: string | undefined;
 
   test.beforeEach(async () => {
-    await setMirror(true);
+    await setSync(true);
   });
 
   test.afterEach(async () => {
     // The container's store and the seeded list are shared state, so this spec has
-    // to leave nothing behind — mirror, task, and both the open and ticked-off
-    // lines. Switching the mirror off is what clears the open ones, so it goes
-    // first, and the sweep waits for that pass to land: removing a line the mirror
-    // still believes it owns is exactly the "the household deleted it" input it is
-    // built to react to. The sweep takes the whole list because a default-filter
-    // mirror puts every seeded overdue chore on it too, and nothing else here writes
-    // to that list.
-    await setMirror(false);
+    // to leave nothing behind — the profile, the task, and both the open and
+    // ticked-off lines. Dropping the profile is what clears the open ones, so it
+    // goes first, and the sweep waits for that pass to land: removing a line the
+    // mirror still believes it owns is exactly the "the household deleted it" input
+    // it is built to react to. The sweep takes the whole list because an overdue
+    // profile puts every seeded overdue chore on it too, and nothing else here
+    // writes to that list.
+    await setSync(false);
     await expect
       .poll(async () => (await familySummaries(['needs_action'])).length, { timeout: 30_000 })
       .toBe(0);
@@ -116,8 +126,8 @@ test.describe('Home Keeper — tasks mirrored onto a household to-do list', () =
     // Before: the family's list has no line for this chore.
     expect(await familySummaries()).not.toContain(CHORE);
 
-    // A floating task with no "last done" is due immediately, so the default
-    // filter wants it the moment it exists.
+    // A floating task with no "last done" is due immediately, so an overdue profile
+    // wants it the moment it exists.
     taskId = await createTask({
       name: CHORE,
       recurrence_type: 'floating',
@@ -146,22 +156,61 @@ test.describe('Home Keeper — tasks mirrored onto a household to-do list', () =
     expect(item.due).toBe(String(task!.next_due).slice(0, 10));
   });
 
-  test('Settings names the configured sync by the list it keeps in step', async ({ page }) => {
-    // The surface `docs/images/47-panel-settings-task-mirrors.png` documents. A
-    // capture is not coverage: without this, the card could render every row as
-    // "Not configured" and the only thing that would notice is a reader of the
-    // README.
+  test("the profile's Sync group names the list it keeps in step", async ({ page }) => {
+    // The surface `docs/images/47-panel-profile-sync.png` documents. A capture is not
+    // coverage: without this, the group could render with an empty picker and the
+    // only thing that would notice is a reader of the README.
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await panel.locator('#tab-settings').click();
-    const mirrors = panel.locator('#hk-task-mirrors');
-    await expect(mirrors).toBeVisible();
-    const row = mirrors.locator('.hk-item-header').first();
-    await expect(row.locator('.hk-item-name')).toHaveText('Family chores');
+    const profiles = panel.locator('#hk-profiles');
+    await expect(profiles).toBeVisible();
 
-    // Rows start collapsed; opening one reveals the sync's own form.
-    await row.click();
-    await expect(mirrors.locator('.hk-item-body ha-form').first()).toBeVisible();
+    const row = profiles.locator('.hk-item-card').filter({ hasText: PROFILE_NAME }).first();
+    const header = row.locator('> .hk-item-header');
+    await expect(header.locator('.hk-item-name')).toHaveText(PROFILE_NAME);
+    // The collapsed row already says where it syncs — that chip is the whole point of
+    // folding the sync into the profile instead of listing it somewhere else.
+    await expect(header.locator('.hk-sync-chip')).toHaveText('Family chores');
+
+    // Opening the row reveals the filter form and, below it, the collapsible Sync
+    // group. A configured list makes the group start open, so the list is one click
+    // from the Settings tab rather than two.
+    //
+    // Re-opened on every attempt rather than opened once: Home Assistant's frontend
+    // replaces the custom-panel element a few seconds after a page settles, and a
+    // fresh panel starts with every profile row folded again. Asserting against a
+    // single click is a race this spec would lose intermittently.
+    const group = row.locator('.hk-sync-group');
+    const openRow = async (): Promise<void> => {
+      if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+    };
+    const openThen = async (probe: () => Promise<boolean>): Promise<boolean> => {
+      try {
+        await openRow();
+        return await probe();
+      } catch {
+        return false; // the panel was swapped mid-check; the next poll re-resolves
+      }
+    };
+
+    await expect
+      .poll(() => openThen(() => group.locator('.hk-item-body ha-form').isVisible()), {
+        timeout: 30_000,
+      })
+      .toBe(true);
+    await expect(group.locator('.hk-item-name')).toHaveText('Sync to a to-do list');
+    await expect(group.locator('.hk-item-header')).toHaveAttribute('aria-expanded', 'true');
+
+    // …and the picker inside it is holding the list, not sitting empty. HA's
+    // `ha-entity-picker` renders the chosen list inside its own shadow root and keeps
+    // no <input> carrying the value, so the list's name is read through Playwright's
+    // shadow-piercing text engine rather than off a form field.
+    await expect
+      .poll(() => openThen(() => group.getByText('Family chores').isVisible()), {
+        timeout: 30_000,
+      })
+      .toBe(true);
   });
 
   test('ticking the line off on the card completes the task in Home Keeper', async ({

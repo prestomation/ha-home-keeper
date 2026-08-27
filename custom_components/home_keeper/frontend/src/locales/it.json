@@ -338,7 +338,7 @@
   "notify.profile": "Profilo",
   "notify.profiles_empty": "Ancora nessun profilo. Aggiungine uno per filtrare le attività.",
   "notify.profiles_heading": "Profili",
-  "notify.profiles_help": "Filtri attività salvati, riutilizzati dalle notifiche, dall'elenco attività e dalla scheda della dashboard.",
+  "notify.profiles_help": "Filtri attività salvati, riutilizzati dalle notifiche, dall'elenco attività, dalla scheda della dashboard e dalla sincronizzazione con una lista attività.",
   "notify.snooze_hours": "Posponi (ore)",
   "notify.status": "Includi",
   "notify.status_help": "Ogni scelta include quella sopra. «Scaduto e in scadenza» elenca anche le attività scadute.",

@@ -338,7 +338,7 @@
   "notify.profile": "Perfil",
   "notify.profiles_empty": "Ainda não há perfis. Adicione um para filtrar tarefas.",
   "notify.profiles_heading": "Perfis",
-  "notify.profiles_help": "Filtros de tarefas salvos, reutilizados pelas notificações, pela lista de tarefas e pelo cartão do painel.",
+  "notify.profiles_help": "Filtros de tarefas salvos, reutilizados pelas notificações, pela lista de tarefas, pelo cartão do painel e pela sincronização com uma lista de tarefas.",
   "notify.snooze_hours": "Adiar (horas)",
   "notify.status": "Incluir",
   "notify.status_help": "Cada opção inclui a anterior. «Atrasado e próximo do prazo» também lista as tarefas atrasadas.",

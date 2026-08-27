@@ -329,7 +329,7 @@
   "notify.profile": "Profil",
   "notify.profiles_empty": "Endnu ingen profiler. Tilføj en for at filtrere opgaver.",
   "notify.profiles_heading": "Profiler",
-  "notify.profiles_help": "Gemte opgavefiltre, genbrugt af notifikationer, opgavelisten og dashboard-kortet.",
+  "notify.profiles_help": "Gemte opgavefiltre, genbrugt af notifikationer, opgavelisten, dashboard-kortet og synkronisering med en opgaveliste.",
   "notify.snooze_hours": "Udsæt (timer)",
   "notify.status": "Inkludér",
   "notify.status_help": "Hvert valg omfatter det ovenfor. »Forfaldent og snart forfaldent« viser også forfaldne opgaver.",
