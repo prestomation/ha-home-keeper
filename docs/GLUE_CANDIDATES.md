@@ -9,7 +9,8 @@ re-run the method below before leaning on them.
 
 ## Method
 
-Two feeds from Home Assistant's opt-in analytics, snapshotted **2026-08-26**:
+Two feeds from Home Assistant's opt-in analytics, snapshotted **2026-08-26** (the
+`current.last_updated` stamp carried by `data.json` itself):
 
 - `https://analytics.home-assistant.io/custom_integrations.json` — custom/HACS
   integrations, keyed by domain, with a per-version breakdown. 4,225 entries.
@@ -26,8 +27,15 @@ Caveats worth keeping in mind:
   the usable signal.
 - **Popularity is not fit.** A large install base with no maintenance signal to read
   is worth less than a small one that exposes a life percentage and a reset button.
-- **Entity names are unverified.** The mappings below describe what each upstream is
-  understood to expose. Confirm the actual entities before committing to a mapping —
+- **A core count and a custom count mean different things.** A custom integration is
+  installed deliberately through HACS, so every count is a user who wanted it. A core
+  integration is frequently added by discovery — a printer found over zeroconf, a
+  vacuum picked up on the network — and its config entry says only that the device is
+  on the LAN, not that its owner cares about maintaining it. Read the core-heavy tiers
+  (printers, vacuums) as *reach*, and discount them against Battery Notes accordingly.
+- **Entity names are unverified.** Every claim below about what an upstream exposes is
+  drawn from that integration's own documentation, not from a device in hand or an
+  entity registry dump. Confirm the actual entities before committing to a mapping —
   several integrations publish a life percentage only on some models.
 
 **`battery_notes` sits at 14,437**, which makes it the yardstick: the existing glue's
@@ -59,9 +67,12 @@ still works; it just syncs one way.
 
 `ipp` 156,178\*, `brother` 46,350\*, `hpprinter` 1,654
 
-Brother is the standout target. It exposes *remaining life* for the drum, fuser, belt,
-laser and PF kit alongside four toner levels — five to nine consumables on a single
-device, which is the same multiplicity that makes Battery Notes worth automating. IPP
+Brother is the standout target. On its **laser** models it exposes *remaining life* for
+the drum, fuser, belt, laser and PF kit alongside four toner levels — up to nine
+consumables on a single device, which is the same multiplicity that makes Battery Notes
+worth automating. Inkjets carry ink levels and little else, so the multiplicity
+argument holds for part of that 46,350, not all of it; size the laser share before
+leaning on it. IPP
 carries marker levels across a much larger install base. Threshold tasks at a low-level
 crossing, and this is the strongest tie-in to `inventory` / `shopping` in the whole
 list: low toner is both a task and a reorder.
