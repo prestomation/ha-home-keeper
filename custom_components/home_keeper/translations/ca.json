@@ -25,6 +25,7 @@
           "shopping_list_entity": "Llista de la compra"
         },
         "data_description": {
+          "sync_problem_sensors": "Una tasca sincronitzada només es tanca quan la integració d'origen resol el problema, no quan toques Fet. Els recordatoris n'ofereixen Ajorna en lloc de Fet.",
           "one_off_retention_days": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 manté les tasques úniques completades per sempre.",
           "shopping_list_entity": "Reflecteix els recordatoris de compra automàtica en aquesta llista de tasques. Marcar-hi un element completa el recordatori de Home Keeper i reposa l'estoc de la peça. Deixa-ho buit per desactivar-ho."
         }

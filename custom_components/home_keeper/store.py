@@ -420,14 +420,23 @@ class HomeKeeperStore:
         ``next_due`` changes, the coordinator re-arms the edge-triggered
         overdue/due-soon events for the new date (a fresh reminder fires when the
         snooze lapses). *until* is a timezone-aware datetime (the caller computes it
-        from the requested duration). Rejects a synced problem-sensor task like every
-        other user mutation, and a **dormant** task (``next_due is None``) — there's no
-        due date to defer. Fires ``home_keeper_task_snoozed``.
+        from the requested duration). Rejects a **dormant** task
+        (``next_due is None``) — there's no due date to defer.
+        Fires ``home_keeper_task_snoozed``.
+
+        Unlike ``complete_task``/``skip_task`` this **accepts a synced problem-sensor
+        task**. Those reject the other two because both assert the problem is dealt
+        with, which only the originating integration can decide. Snooze asserts
+        nothing of the sort: it defers the reminder and leaves the problem standing.
+        It also survives the sync — ``problem_tasks.reconcile_problem_tasks`` reads
+        armed as ``next_due is not None``, so a snoozed mirror stays armed while its
+        sensor is bad and still auto-clears when the sensor returns to OK. Without it
+        a walk notification had no button that could move such a task on, so it was
+        left out of walks entirely (#248).
         """
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
-        _reject_synced_problem(existing, origin)
         if existing.get("next_due") is None:
             # A dormant task (a completed one-off, or a condition/sensor task not yet
             # armed) has no due date to defer; snoozing it would silently re-arm
@@ -1527,7 +1536,17 @@ class HomeKeeperStore:
         asset = self._assets.get(src["asset_id"])
         if not asset:
             return
-        when_date = when.date().isoformat() if hasattr(when, "date") else str(when)[:10]
+        # ``as_local`` first (#250): *when* carries the offset the caller supplied — UTC
+        # for a completion back-dated through the panel's date picker — and a bare
+        # ``.date()`` would take the calendar date in that offset. ``last_replaced`` is
+        # a date-only string that ``reconcile`` re-anchors the part's recurrence to, so
+        # a one-day shift here shifts the whole wear cycle. The ``hasattr`` guard keeps
+        # the true branch a datetime: a plain ``date`` has no ``.date()`` method.
+        when_date = (
+            dt_util.as_local(when).date().isoformat()
+            if hasattr(when, "date")
+            else str(when)[:10]
+        )
         for part in asset.get("parts", []):
             if part.get("id") == src.get("part_id"):
                 part["last_replaced"] = when_date

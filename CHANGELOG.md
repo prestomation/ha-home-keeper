@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.18.0b1]
+## [0.18.0b3]
 
 ### Added
 
@@ -14,6 +14,35 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   a date range each year. Outside the active window the next due date moves to
   the start of the next active period. The data model accepts a list of windows
   for service-API callers. (Fixes #242)
+
+## [0.18.0b2]
+
+### Fixed
+
+- **To-do items show the right due date outside UTC.** A task due at local midnight showed
+  the previous day on `todo.home_keeper_tasks` while the panel showed the correct one. A
+  wear part's last-replaced date shifted the same way when the replacement was back-dated.
+  (Fixes #250)
+
+## [0.18.0b1]
+
+### Fixed
+
+- **Synced problem sensors show up in Profiles again.** Picking any Profile used to
+  hide every mirrored `problem` sensor. (Fixes #248)
+
+### Added
+
+- **Snooze a problem you can't fix right now.** A task mirroring a `problem` sensor now
+  accepts Snooze, and its reminders show that button instead of Mark done. Marking one
+  done is still blocked since only the integration that owns the sensor can decide
+  it's fixed.
+
+### Changed
+
+- **Profile status labels now spell out what's included.** The choices were always
+  cumulative, so the old *Due soon* already covered overdue tasks too. The new names
+  are *Overdue only*, *Overdue and due soon* and *Every scheduled task*.
 
 ## [0.17.0] - 2026-08-26
 

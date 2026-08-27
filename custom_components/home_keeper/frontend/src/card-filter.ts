@@ -176,6 +176,13 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  * "everything except the jobs that need a tradesperson" is one profile rather than a
  * label on every task that isn't one. They read the same effective ids, so excluding a
  * label also drops a task that only inherits it from its device or area.
+ *
+ * A `problem`-sensor-synced task is an ordinary member of the set. It carries a
+ * `next_due` of the moment its sensor went bad while the problem stands, so it reads as
+ * overdue, and drops back to `next_due: null` (excluded below) once the sensor clears.
+ * Dropping the armed ones outright hid every synced problem from every Profile, under
+ * every status (#248). Walk notifications still leave them out, but that is a delivery
+ * rule in `notifications.is_walkable`, not part of the filter.
  */
 export function profileMatches(
   task: Task,
@@ -186,8 +193,6 @@ export function profileMatches(
 ): boolean {
   if (task.enabled === false) return false;
   if (!task.next_due) return false;
-  const src = task.source as Record<string, unknown> | null | undefined;
-  if (src && typeof src === 'object' && 'problem_sensor' in src) return false;
   // Status windows match the backend exactly: overdue = due at/before now; due_soon =
   // overdue or due within DUE_SOON_DAYS; all = any dated, enabled task.
   const due = new Date(task.next_due).getTime();

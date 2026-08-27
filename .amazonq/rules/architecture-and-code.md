@@ -669,6 +669,26 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   re-hydrates it onto a freshly built mirror (`notes_by_entity`), so a note outlives
   the task being deleted and recreated (sync toggled, sensor excluded) and reappears
   the next time the same problem fires.
+  - **A synced task is an ordinary member of a Profile, and Snooze is the one verb it
+    accepts.** `profiles.matches_filter` and its TS twin `card-filter.profileMatches`
+    used to drop these outright, so no Profile ever saw one — in the panel, on the card,
+    or in a notification (#248). An armed mirror is real overdue work and belongs in the
+    filter. Keep a rule like that **out of the filter**: the two matchers are pinned to
+    each other by `tests/fixtures/profile_filter_cases.json` and must keep selecting the
+    same tasks for the panel, the card and the server.
+  - **`snooze_task` is deliberately not gated by `_reject_synced_problem`; `complete_task`
+    and `skip_task` still are.** Splitting the guard that way is the point: complete and
+    skip both assert the problem is dealt with, which only the originating integration
+    can decide, while snooze defers the reminder and leaves the problem standing. It
+    also survives the sync — `reconcile_problem_tasks` reads armed as
+    `next_due is not None`, so a snoozed mirror stays armed while its sensor is bad and
+    still auto-clears when the sensor returns to OK. This is what lets these tasks ride
+    in a *walk* notification, which advances only on a successful action:
+    `notifications.actions_for` drops complete/skip for a `completion_blocked` task
+    (keyed on that marker, the same one every surface uses to hide *Done*, not on the
+    `problem_sensor` source) and offers Snooze **even when the notification's own button
+    set omits it**, so a walk can never park on one forever. Never offer a button the
+    store will refuse: `notifier` swallows the rejection, so it reads as a dead button.
 - **Options have three editing surfaces that share `options.py`.** Config-entry
   `options` are edited from the **options flow**, the **`home_keeper.set_options`
   service**, AND the panel's **Settings tab** (via `home_keeper/get_options` +

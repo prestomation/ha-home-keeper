@@ -234,6 +234,48 @@ def resolve_notification(
     return None
 
 
+# ── per-task button sets ────────────────────────────────────────────────────────
+
+
+def is_completion_blocked(task: dict[str, Any]) -> bool:
+    """Whether nothing in Home Keeper can mark *task* done.
+
+    Reads ``managed_by.completion_blocked`` rather than the ``problem_sensor`` source,
+    matching what the panel and the card already use to hide *Done*, so a future
+    completion-blocked source is covered without another edit here.
+    """
+    managed_by = task.get("managed_by")
+    return isinstance(managed_by, dict) and bool(managed_by.get("completion_blocked"))
+
+
+def actions_for(task: dict[str, Any], actions: list[str]) -> list[str]:
+    """The subset of *actions* that can actually act on *task*, in configured order.
+
+    A completion-blocked task (today, a ``problem``-sensor mirror) rejects *Mark done*
+    and *Skip* in the store: both assert the problem is dealt with, and only the
+    originating integration can decide that. Offering buttons the store will refuse
+    is worse than offering none — ``notifier`` swallows the rejection, so the tap
+    reads as a dead button.
+
+    *Snooze* is the one mutating verb that stays honest on such a task: it defers the
+    reminder and leaves the problem standing. So it is offered here **even when the
+    notification's own button set leaves it out** — a walk advances only on a
+    successful action, and without Snooze one of these at the head of the queue would
+    re-send forever and never reach the tasks behind it (#248).
+    """
+    if not is_completion_blocked(task):
+        return list(actions)
+    kept = [verb for verb in actions if verb in (ACTION_SNOOZE, ACTION_OPEN)]
+    if ACTION_SNOOZE not in kept:
+        # Deliberately overriding the user's button set, which is the one place this
+        # function adds rather than subtracts. `open` is a client-side URI that never
+        # calls back, so a set of only `open` (or an empty one) leaves a walk with
+        # nothing that advances it and it re-sends this task forever. One button the
+        # user did not ask for beats a notification that can never be got past.
+        kept.insert(0, ACTION_SNOOZE)
+    return kept
+
+
 # ── payload text translation ─────────────────────────────────────────────────────
 #
 # Notification payloads go straight to the mobile app, outside HA's own frontend
@@ -366,7 +408,7 @@ def build_notification(
     """Build the ``notify`` service data for a single task in a *walk* notification."""
     actions = [
         _action_button(v, task, notification, lang=lang)
-        for v in notification["actions"]
+        for v in actions_for(task, notification["actions"])
     ]
     return {
         "title": str(task.get("name") or "Home Keeper"),

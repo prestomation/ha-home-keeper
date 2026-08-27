@@ -25,6 +25,7 @@
           "shopping_list_entity": "Boodschappenlijst"
         },
         "data_description": {
+          "sync_problem_sensors": "Een gesynchroniseerde taak sluit pas wanneer de bronintegratie het probleem oplost, niet wanneer je op Klaar tikt. Herinneringen ervoor bieden Uitstellen in plaats van Klaar.",
           "one_off_retention_days": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden voltooide one-offs voor altijd bewaard.",
           "shopping_list_entity": "Spiegelt automatische koopherinneringen naar deze takenlijst. Een item daar afvinken voltooit de herinnering in Home Keeper en vult de voorraad van het onderdeel aan. Laat leeg om het spiegelen uit te schakelen."
         }

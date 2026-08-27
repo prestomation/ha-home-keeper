@@ -25,6 +25,7 @@
           "shopping_list_entity": "购物清单"
         },
         "data_description": {
+          "sync_problem_sensors": "同步任务只有在来源集成解决问题后才会清除，点按“完成”不会清除它。相关提醒会用“稍后提醒”代替“完成”。",
           "one_off_retention_days": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留已完成的一次性任务。",
           "shopping_list_entity": "将自动购买提醒同步到此待办清单。在该清单上勾选条目会完成 Home Keeper 的提醒并补充备件库存。留空即可关闭同步。"
         }

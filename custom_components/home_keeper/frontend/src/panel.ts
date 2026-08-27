@@ -3895,6 +3895,15 @@ export class HomeKeeperPanel extends HTMLElement {
     form.schema = schema;
     form.data = { ...opts };
     form.computeLabel = (s: { name: string }): string => (s.name ? t('settings.' + s.name) : '');
+    // Optional per-field note, for a setting whose consequences aren't obvious from its
+    // label (the problem-sensor toggle: what clears such a task, and where it shows up).
+    // `t()` echoes an unknown key back, which is how a field with no note renders none.
+    form.computeHelper = (s: { name: string }): string => {
+      if (!s.name) return '';
+      const key = `settings.${s.name}_help`;
+      const text = t(key);
+      return text === key ? '' : text;
+    };
     form.addEventListener('value-changed', (e: Event) => {
       const raw = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
       const value = coerce ? coerce(raw) : raw;
@@ -4024,6 +4033,11 @@ export class HomeKeeperPanel extends HTMLElement {
       if (s.name === 'labels') return t('field.labels');
       return t('notify.' + s.name);
     };
+    // The three status values are nested tiers, not independent buckets — "Overdue and
+    // due soon" already covers everything overdue. Nothing in a single-select says so,
+    // which read as a missing multi-select (#248), so the helper spells it out.
+    form.computeHelper = (s: { name: string }): string =>
+      s.name === 'status' ? t('notify.status_help') : '';
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
       if (typeof value.name === 'string') nameSpan.textContent = value.name;
