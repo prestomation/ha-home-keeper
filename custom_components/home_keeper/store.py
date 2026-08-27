@@ -1536,7 +1536,17 @@ class HomeKeeperStore:
         asset = self._assets.get(src["asset_id"])
         if not asset:
             return
-        when_date = when.date().isoformat() if hasattr(when, "date") else str(when)[:10]
+        # ``as_local`` first (#250): *when* carries the offset the caller supplied — UTC
+        # for a completion back-dated through the panel's date picker — and a bare
+        # ``.date()`` would take the calendar date in that offset. ``last_replaced`` is
+        # a date-only string that ``reconcile`` re-anchors the part's recurrence to, so
+        # a one-day shift here shifts the whole wear cycle. The ``hasattr`` guard keeps
+        # the true branch a datetime: a plain ``date`` has no ``.date()`` method.
+        when_date = (
+            dt_util.as_local(when).date().isoformat()
+            if hasattr(when, "date")
+            else str(when)[:10]
+        )
         for part in asset.get("parts", []):
             if part.get("id") == src.get("part_id"):
                 part["last_replaced"] = when_date

@@ -83,7 +83,14 @@ class HomeKeeperTodoListEntity(
                     uid=task["id"],
                     summary=task["name"],
                     status=TodoItemStatus.NEEDS_ACTION,
-                    due=due.date() if due else None,
+                    # ``as_local`` before ``date()``, never ``due.date()`` (#250). A
+                    # stored ``next_due`` carries whatever offset it was written with —
+                    # a completion made "now" gets the local one, one entered through
+                    # the panel's date picker gets UTC — and ``.date()`` takes the
+                    # calendar date *in that offset*. A task due at local midnight then
+                    # reads as the previous day here while the panel reads it right,
+                    # and everything downstream of the entity inherits the shift.
+                    due=dt_util.as_local(due).date() if due else None,
                     description=task.get("notes") or None,
                 )
             )

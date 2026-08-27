@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.18.0b2]
+
+### Fixed
+
+- **To-do items show the right due date outside UTC.** A task due at local midnight showed
+  the previous day on `todo.home_keeper_tasks` while the panel showed the correct one. A
+  wear part's last-replaced date shifted the same way when the replacement was back-dated.
+  (Fixes #250)
+
 ## [0.18.0b1]
 
 ### Fixed
