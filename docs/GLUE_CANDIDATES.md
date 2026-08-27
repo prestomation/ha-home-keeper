@@ -18,8 +18,9 @@ Two feeds from Home Assistant's opt-in analytics, snapshotted **2026-08-26** (th
   `current.integrations` map holds core integration counts.
 
 Both are drawn from the same 534,228 installations that report integration data (of
-673,279 active installations), so the two sets are directly comparable. Counts in
-this doc are marked `*` when they come from the core feed.
+673,279 active installations), so the two share a denominator and can be added up.
+What they *mean* differs, which the next section takes seriously. Counts in this doc
+are marked `*` when they come from the core feed.
 
 Caveats worth keeping in mind:
 
@@ -31,15 +32,42 @@ Caveats worth keeping in mind:
   installed deliberately through HACS, so every count is a user who wanted it. A core
   integration is frequently added by discovery — a printer found over zeroconf, a
   vacuum picked up on the network — and its config entry says only that the device is
-  on the LAN, not that its owner cares about maintaining it. Read the core-heavy tiers
-  (printers, vacuums) as *reach*, and discount them against Battery Notes accordingly.
+  on the LAN, not that its owner cares about maintaining it. Never compare a core count
+  to Battery Notes flat; the split table below gives each tier-1 category's two numbers
+  so the comparison can be made against the right one.
 - **Entity names are unverified.** Every claim below about what an upstream exposes is
   drawn from that integration's own documentation, not from a device in hand or an
   entity registry dump. Confirm the actual entities before committing to a mapping —
   several integrations publish a life percentage only on some models.
 
 **`battery_notes` sits at 14,437**, which makes it the yardstick: the existing glue's
-upstream. Anything above that line has more reach than the one already shipped.
+upstream, and 14,437 people who went and installed it on purpose.
+
+### Reach and intent are different numbers
+
+Splitting each tier-1 total by feed makes the point concrete, and it is sharp enough
+to change the ranking:
+
+| Category | Total | Core (reach) | Custom (deliberate) |
+|---|---:|---:|---:|
+| Printers | 204,182 | 202,528 (99%) | 1,654 (1%) |
+| Robot vacuums | 94,781 | 71,712 (76%) | 23,069 (24%) |
+| Appliance cycles | 86,539 | 62,209 (72%) | 24,330 (28%) |
+| HVAC / boiler | 80,849 | 52,617 (65%) | 28,232 (35%) |
+| Vehicle odometers | 43,212 | 9,263 (21%) | 33,949 (79%) |
+| Waste collection | 33,745 | 0 | 33,745 (100%) |
+
+The **core** column answers "how many installations would ever see the suggestion in
+Settings → Companions", because catalog detection fires on any config entry — including
+one zeroconf created without the owner thinking about it. The **custom** column answers
+"how many people cared enough about this device class to install something for it", which
+is the better predictor of who installs a glue once it exists.
+
+Printers win the first question by a mile and lose the second one outright. Waste
+collection and vehicles are the reverse: every one of their installs is deliberate, and
+both clear the Battery Notes line on that measure alone. Neither column is the right
+one on its own — reach decides how many people the suggestion reaches, intent decides
+how many act on it.
 
 ## What makes a good glue target
 
@@ -167,17 +195,32 @@ sensor and ships service-interval templates, and the whole 43k is addressable at
 
 ## Recommendation
 
-1. **Printers**, Brother specifically — the highest consumable multiplicity per device,
-   the largest reach, and the only category that exercises `inventory` / `shopping`
-   alongside tasks.
-2. **Robot vacuums** — the biggest category that also offers a genuine reset action, so
-   two-way sync is real rather than best-effort.
-3. **Waste collection** — one glue, ten upstreams, and a chore every household already
-   has whether or not it owns a gadget.
+Ranking on reach alone puts printers first. Ranking on deliberate installs puts them
+last. Taking both:
 
-The vehicle glue is the most elegant fit for sensor-driven tasks but pays out slowest,
-because its install base is split across 24 domains; it is worth building
-odometer-agnostic or not at all.
+1. **Waste collection** — 33,745 installs, every one of them deliberate, across ten
+   upstreams that publish the same next-collection-date sensor, so one glue serves all
+   of them. It is the only tier-1 category that beats Battery Notes on intent *and*
+   needs no hardware: the chore exists in every household. The signal is a date rather
+   than a level, which makes it the simplest of the six to build.
+2. **Robot vacuums** — 94,781 reach and 23,069 deliberate, so it is strong on both
+   measures, and it is the category with a genuine per-consumable reset action, which
+   is what makes two-way sync real rather than best-effort. Six consumables per robot.
+3. **Vehicle odometers** — 33,949 deliberate installs, the best conceptual fit for
+   `usage` + `also_every`, and the tier that most rewards being built once. Build it
+   **odometer-agnostic** — bind any distance sensor rather than shipping a glue per
+   marque — and the split across 24 domains stops being a problem and starts being the
+   reason the generic approach wins.
+
+**Printers are the interesting case, and the ranking above is a deliberate demotion.**
+204k reach is the largest number in this document and it is almost entirely `ipp` and
+`brother` config entries created by discovery; only 1,654 people installed a printer
+integration on purpose. The consumable story is still the richest here — up to nine
+tracked parts on a Brother laser, and the only category that exercises `inventory` /
+`shopping` alongside tasks — so it stays worth building. It is a bet on converting
+passive reach into active use, which is a different and less certain bet than the three
+above, and it should be made with that understood rather than on the strength of the
+headline number.
 
 Each of these also earns a `companions_catalog.py` entry once its glue exists, so an
 install of the upstream surfaces the suggestion in **Settings → Companions**.
