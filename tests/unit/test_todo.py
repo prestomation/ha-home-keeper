@@ -21,7 +21,7 @@ import importlib.util
 import sys
 import types
 import typing
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -165,6 +165,22 @@ def _install_ha_stubs() -> None:
                 return None
 
         dt_mod.parse_datetime = parse_datetime
+    # Guarded separately from ``parse_datetime``: ``test_calendar.py`` installs its own
+    # ``homeassistant.util.dt`` carrying only ``parse_datetime``/``now``, so folding
+    # these into that branch would make load order between the suites matter.
+    if not hasattr(dt_mod, "DEFAULT_TIME_ZONE"):
+        dt_mod.DEFAULT_TIME_ZONE = UTC
+    if not hasattr(dt_mod, "as_local"):
+
+        def as_local(value):
+            # Reads the module global at call time, like HA's own implementation.
+            # Nothing here patches it — a test that needs a different "local" swaps
+            # `todo.dt_util` wholesale via `_local_tz`, for the reason spelled out
+            # there — so this only ever resolves to UTC. It exists so the tests that
+            # don't care about the zone can still call `todo_items` under the stubs.
+            return value.astimezone(dt_mod.DEFAULT_TIME_ZONE)
+
+        dt_mod.as_local = as_local
     util.dt = dt_mod
 
 
@@ -291,6 +307,83 @@ def test_armed_one_off_is_listed_with_its_due_date() -> None:
     assert item.status is TodoItemStatus.NEEDS_ACTION
     assert item.due == date(2026, 7, 15)
     assert item.description == "bring photos"
+
+
+# --- todo_items: the due date is a *local* calendar date (#250) ---------------
+
+
+def _local_tz(monkeypatch, offset_hours: int) -> None:
+    """Pin the entity's idea of "local" to a fixed offset, for one test.
+
+    Swaps the ``dt_util`` reference on ``hk.todo`` rather than reaching into Home
+    Assistant's own ``dt_util.DEFAULT_TIME_ZONE``. That global is owned by the test
+    framework: ``pytest-homeassistant-custom-component``'s ``verify_cleanup`` fixture
+    asserts it is still UTC at teardown, and it tears down *before* monkeypatch undoes
+    a patch, so setting it errors every test that does — visible only in the CI lane
+    that installs real Home Assistant. Patching the module attribute keeps the whole
+    substitution inside ``todo.py``'s namespace, so this behaves the same either way.
+
+    What it pins is the unit-level contract: the entity must ask ``as_local`` for the
+    zone before taking a date. That the real ``as_local`` resolves HA's configured zone
+    is Home Assistant's business, asserted end-to-end by the integration suite.
+    """
+    zone = timezone(timedelta(hours=offset_hours))
+    real = todo.dt_util
+    monkeypatch.setattr(
+        todo,
+        "dt_util",
+        types.SimpleNamespace(
+            parse_datetime=real.parse_datetime,
+            as_local=lambda value: value.astimezone(zone),
+        ),
+    )
+
+
+def test_due_date_is_taken_in_home_assistants_timezone(monkeypatch) -> None:
+    """#250: a ``+00:00`` next_due at local midnight showed the previous day.
+
+    The reporter's own numbers, on Europe/London in BST. Their task's last completion
+    was entered through the panel's date picker, which sends local midnight expressed
+    in UTC, so ``next_due`` landed on ``+00:00``. Taking ``.date()`` in that offset
+    read the 26th while the panel and ``list_tasks`` both read the 27th.
+    """
+    _local_tz(monkeypatch, 1)
+    entity, _store, _calls = _entity(
+        _task("vacuum", "floating", next_due="2026-08-26T23:00:00+00:00")
+    )
+    (item,) = entity.todo_items
+    assert item.due == date(2026, 8, 27)
+
+
+def test_due_date_shifts_back_when_local_trails_the_stored_offset(monkeypatch) -> None:
+    """The opposite direction, so the conversion cannot pass by doing nothing.
+
+    ``2026-07-15T01:00:00+01:00`` is 2026-07-14 20:00 in a UTC-4 zone, so the local
+    date is the 14th even though the stored string opens with the 15th. A fix that
+    only ever moved dates forward, or that read the stored offset again, fails here.
+    """
+    _local_tz(monkeypatch, -4)
+    entity, _store, _calls = _entity(
+        _task("filter", "floating", next_due="2026-07-15T01:00:00+01:00")
+    )
+    (item,) = entity.todo_items
+    assert item.due == date(2026, 7, 14)
+
+
+def test_due_date_is_unchanged_when_the_offset_already_matches_local(
+    monkeypatch,
+) -> None:
+    """A next_due already written in the local offset keeps its date.
+
+    This is the majority case — a completion made "now" is stored with HA's own
+    offset — and it is why the bug hid for so long: those tasks were always right.
+    """
+    _local_tz(monkeypatch, 1)
+    entity, _store, _calls = _entity(
+        _task("live", "floating", next_due="2026-08-27T00:00:00+01:00")
+    )
+    (item,) = entity.todo_items
+    assert item.due == date(2026, 8, 27)
 
 
 def test_skipped_one_off_is_dropped() -> None:
