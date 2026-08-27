@@ -676,9 +676,10 @@ kitchen tablet.
 
 Each **mirror** pairs one list with one
 [Profile](#profiles-saved-filters-you-reuse-everywhere), and the Profile decides both
-*which* tasks appear and *when*. Its status is the timing. **Overdue** puts a task on
-the list the moment it falls due, **due soon** three days ahead, **all** as soon as it
-is scheduled. Leaving the Profile unset mirrors every task, when due.
+*which* tasks appear and *when*. Its **Include** tier is the timing. *Overdue only*
+puts a task on the list the moment it falls due, *Overdue and due soon* three days
+ahead, *Every scheduled task* as soon as it is scheduled. Leaving the Profile unset
+mirrors every task, when due.
 
 **Use cases.** *"House chores turn up in the same Todoist project as the rest of my
 life, and checking one off at work marks it done at home."* *"Each kid's chores go to
