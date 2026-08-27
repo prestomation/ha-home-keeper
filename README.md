@@ -41,10 +41,10 @@
 | custom\_components/home\_keeper/sensor\_watcher.py     |      132 |      132 |       54 |        0 |      0% |    20-321 |
 | custom\_components/home\_keeper/shopping.py            |      175 |        0 |       84 |        0 |    100% |           |
 | custom\_components/home\_keeper/shopping\_sync.py      |      167 |       26 |       58 |       10 |     80% |108, 118-121, 129, 136, 182-183, 194, 208, 217, 250-\>240, 292-\>299, 301-302, 322-323, 347-362, 403, 408 |
-| custom\_components/home\_keeper/store.py               |      671 |      671 |      310 |        0 |      0% |    9-1609 |
+| custom\_components/home\_keeper/store.py               |      671 |      671 |      310 |        0 |      0% |    9-1619 |
 | custom\_components/home\_keeper/tag\_listener.py       |       29 |       29 |        8 |        0 |      0% |     12-69 |
 | custom\_components/home\_keeper/tags.py                |       11 |        0 |        2 |        0 |    100% |           |
-| custom\_components/home\_keeper/todo.py                |       64 |        6 |       20 |        0 |     93% |41-42, 58-59, 139-140 |
+| custom\_components/home\_keeper/todo.py                |       64 |        6 |       20 |        0 |     93% |41-42, 58-59, 146-147 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py      |      471 |      471 |       96 |        0 |      0% |     8-956 |
 | **TOTAL**                                              | **5937** | **3198** | **2098** |   **81** | **47%** |           |
