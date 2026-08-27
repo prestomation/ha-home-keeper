@@ -682,8 +682,8 @@ picker switches the sync off again and takes the profile's own open items back o
 list, so there is nothing else to delete.
 
 There is no separate Settings section for this and no second record to keep in step
-with the Profile. The Profile *is* the sync. Its filters decide which tasks are sent,
-and its **Include** tier is the timing. *Overdue only* puts a task on the list the
+with the Profile. The Profile carries the sync itself. Its filters decide which tasks
+are sent, and its **Include** tier is the timing. *Overdue only* puts a task on the list the
 moment it falls due, *Overdue and due soon* three days ahead, *Every scheduled task*
 as soon as it is scheduled.
 
