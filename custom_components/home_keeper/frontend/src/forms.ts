@@ -409,7 +409,15 @@ export function taskSchema(
                   type: 'grid',
                   schema: [
                     { name: 'season_start_month', selector: selSelect(monthOptions()) },
+                    { name: 'season_start_day', selector: { number: { min: 1, max: 31, mode: 'box' } } },
+                  ] as FormField[],
+                } as FormField,
+                {
+                  name: '',
+                  type: 'grid',
+                  schema: [
                     { name: 'season_end_month', selector: selSelect(monthOptions()) },
+                    { name: 'season_end_day', selector: { number: { min: 1, max: 31, mode: 'box' } } },
                   ] as FormField[],
                 } as FormField,
               ]
@@ -527,8 +535,12 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     season_on: seasonEnabled(task),
     season_start_month: sd.season_start_month ??
       (seasonWindows(task)[0] ? String(parseInt(seasonWindows(task)[0].start, 10)) : '4'),
+    season_start_day: sd.season_start_day ??
+      (seasonWindows(task)[0] ? parseInt(seasonWindows(task)[0].start.split('-')[1], 10) : 1),
     season_end_month: sd.season_end_month ??
       (seasonWindows(task)[0] ? String(parseInt(seasonWindows(task)[0].end, 10)) : '9'),
+    season_end_day: sd.season_end_day ??
+      (seasonWindows(task)[0] ? parseInt(seasonWindows(task)[0].end.split('-')[1], 10) : 30),
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
     // task's current part source.
@@ -715,12 +727,14 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       const r = task as Record<string, unknown>;
       const sm = Number(r.season_start_month ?? 4);
       const em = Number(r.season_end_month ?? 9);
-      const lastDay1 = new Date(2000, em, 0).getDate();
+      const maxSd = new Date(2000, sm, 0).getDate();
+      const maxEd = new Date(2000, em, 0).getDate();
+      const sd = Math.min(Number(r.season_start_day ?? 1), maxSd);
+      const ed = Math.min(Number(r.season_end_day ?? maxEd), maxEd);
       const windows: Array<{ start: string; end: string }> = [
         {
-          start: `${String(sm).padStart(2, '0')}-01`,
-          // Stryker disable next-line StringLiteral: lastDay is always >= 28, so padStart is a no-op
-          end: `${String(em).padStart(2, '0')}-${String(lastDay1).padStart(2, '0')}`,
+          start: `${String(sm).padStart(2, '0')}-${String(sd).padStart(2, '0')}`,
+          end: `${String(em).padStart(2, '0')}-${String(ed).padStart(2, '0')}`,
         },
       ];
       payload.active_season = windows;

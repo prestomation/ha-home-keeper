@@ -195,8 +195,10 @@ export function recurrenceSummary(task: Task): string {
     const range = windows
       .map((w) => {
         const s = t(`opt.month.${parseInt(w.start, 10)}`);
+        const sDay = parseInt(w.start.split('-')[1], 10);
         const e = t(`opt.month.${parseInt(w.end, 10)}`);
-        return `${s}-${e}`;
+        const eDay = parseInt(w.end.split('-')[1], 10);
+        return `${s} ${sDay}–${e} ${eDay}`;
       })
       .join(' & ');
     summary = t('recurrence.season', { summary, range });

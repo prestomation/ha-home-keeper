@@ -170,7 +170,7 @@ describe('recurrenceSummary', () => {
         recurrence_type: 'floating', interval: 2, unit: 'months',
         active_season: { start: '04-01', end: '09-30' },
       }),
-    ).toBe('every 2 months after completion, April-September');
+    ).toBe('every 2 months after completion, April 1–September 30');
   });
   it('appends season range for fixed tasks with active_season', () => {
     expect(
@@ -178,7 +178,7 @@ describe('recurrenceSummary', () => {
         recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY',
         active_season: { start: '11-01', end: '03-31' },
       }),
-    ).toBe('every month, November-March');
+    ).toBe('every month, November 1–March 31');
   });
   it('omits season range when active_season is null', () => {
     expect(
@@ -197,7 +197,7 @@ describe('recurrenceSummary', () => {
           { start: '09-01', end: '10-31' },
         ],
       }),
-    ).toBe('every month after completion, April-May & September-October');
+    ).toBe('every month after completion, April 1–May 31 & September 1–October 31');
   });
   it('defaults to daily when freq is missing for a fixed task', () => {
     expect(
