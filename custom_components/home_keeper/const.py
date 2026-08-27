@@ -166,7 +166,11 @@ OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
 OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
 # Profiles: named, reusable task filters (status + label/area/device). Standalone and
 # notification-agnostic — consumed by notifications, the panel's admin list filter, and
-# the Lovelace card. A list of ``{id, name, filter}``. See profiles.py.
+# the Lovelace card. A list of ``{id, name, filter, sync}``, where ``sync`` pairs the
+# profile with one external ``todo.*`` list (``{entity_id, two_way,
+# vanish_as_completed}``; ``entity_id: ""`` is the off switch) so the tasks it selects
+# reach Todoist, Google Tasks or a local family list. See profiles.py, and
+# task_mirror.py / task_mirror_sync.py for what the sync block drives.
 OPTION_PROFILES = "profiles"
 # Notifications: delivery bindings that reference a profile by ``profile_id`` and add
 # how to deliver (targets, button set, snooze duration, style, automatic triggers).
@@ -180,13 +184,6 @@ OPTION_NOTIFICATIONS = "notifications"
 # mirror is two-way: ticking the item off there completes the Home Keeper
 # reminder, which restocks the part. See shopping.py / shopping_sync.py.
 OPTION_SHOPPING_LIST_ENTITY = "shopping_list_entity"
-# Task mirrors: profile-filtered tasks kept in step with existing Home Assistant
-# to-do lists (``todo.*`` entities), so chores reach Todoist, Google Tasks, or a
-# local family list. A list of ``{id, entity_id, profile_id, two_way,
-# vanish_as_completed}`` dicts, edited from the panel's Settings → "To-do list
-# sync" card and the ``set_options`` service; normalized by
-# ``task_mirror.normalize_task_mirrors``. See task_mirror.py / task_mirror_sync.py.
-OPTION_TASK_MIRRORS = "task_mirrors"
 
 # Opaque ``origin`` marker the shopping-list mirror passes to ``complete_task``
 # when a mirrored buy reminder is ticked off on the external list. Like

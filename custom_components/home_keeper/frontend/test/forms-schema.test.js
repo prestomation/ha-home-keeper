@@ -5,12 +5,11 @@ import {
   notifyFormData,
   notifyFormToNotification,
   notificationSchema,
+  profileSyncSchema,
   shoppingSchema,
   taskFormData,
-  taskMirrorFormData,
-  taskMirrorFormToMirror,
-  taskMirrorSchema,
   taskSchema,
+  toProfileSync,
 } from '../src/forms.ts';
 import { setLanguage } from '../src/i18n.ts';
 
@@ -463,29 +462,26 @@ describe('shoppingSchema', () => {
   });
 });
 
-// The Settings tab's To-do list sync card. A mirror is a standing instruction to
-// write Home Keeper's tasks onto somebody else's list and to accept completions
+// A profile's "Sync to a to-do list" group. Configuring it is a standing instruction
+// to write Home Keeper's tasks onto somebody else's list and to accept completions
 // back, so every part of its shape is load-bearing: the wrong domain offers lists
 // that can't hold tasks, a missing exclusion offers Home Keeper's own list (a loop),
 // and a boolean that defaults the wrong way silently changes what ticking an item
-// off does.
-describe('taskMirrorSchema', () => {
-  const profiles = [
-    { id: 'p1', name: 'Overdue' },
-    { id: 'p2', name: 'Weekend' },
-  ];
+// off does. There is no delete button in the group, so the picker's ability to go
+// back to empty is the only off switch there is.
+describe('profileSyncSchema', () => {
+  it('describes the list and the two switches, in that order', () => {
+    expect(names(profileSyncSchema())).toEqual(['entity_id', 'two_way', 'vanish_as_completed']);
+  });
 
-  it('describes the list, the profile and the two switches, in that order', () => {
-    expect(names(taskMirrorSchema(profiles))).toEqual([
-      'entity_id',
-      'profile_id',
-      'two_way',
-      'vanish_as_completed',
-    ]);
+  it('offers no profile picker — a profile syncs to at most one list', () => {
+    // The old standalone card paired a list with a profile; the group is *inside* a
+    // profile, so a second reference to one would be a way to contradict the parent.
+    expect(names(profileSyncSchema())).not.toContain('profile_id');
   });
 
   it('offers a single to-do entity picker', () => {
-    const field = taskMirrorSchema(profiles).find((f) => f.name === 'entity_id');
+    const field = profileSyncSchema().find((f) => f.name === 'entity_id');
     // A `multiple` picker would save an array the backend reads as unusable, and
     // any other domain offers entities that can't hold a to-do item at all.
     expect(field.selector).toEqual({ entity: { filter: { domain: 'todo' }, multiple: false } });
@@ -493,130 +489,83 @@ describe('taskMirrorSchema', () => {
 
   it("keeps Home Keeper's own to-do lists out of the picker", () => {
     // Mirroring our own list onto itself is a loop, and ours accepts no new items.
-    const field = taskMirrorSchema(profiles, ['todo.home_keeper_tasks']).find(
+    const field = profileSyncSchema(['todo.home_keeper_tasks']).find(
       (f) => f.name === 'entity_id',
     );
     expect(field.selector.entity.exclude_entities).toEqual(['todo.home_keeper_tasks']);
   });
 
   it('emits no exclusion key when there is nothing to exclude', () => {
-    const field = taskMirrorSchema(profiles).find((f) => f.name === 'entity_id');
+    const field = profileSyncSchema().find((f) => f.name === 'entity_id');
     expect('exclude_entities' in field.selector.entity).toBe(false);
   });
 
-  it('leads the profile dropdown with the default filter, then the saved profiles', () => {
-    const field = taskMirrorSchema(profiles).find((f) => f.name === 'profile_id');
-    const [first, ...rest] = field.selector.select.options;
-    // The blank value is what storage spells `null` — "every task that's due now".
-    expect(first.value).toBe('');
-    expect(first.label).toBe('All tasks (when due)');
-    expect(rest).toEqual([
-      { value: 'p1', label: 'Overdue' },
-      { value: 'p2', label: 'Weekend' },
-    ]);
-    // Single-select: a mirror pairs one list with one filter.
-    expect(field.selector.select.multiple).toBe(false);
-  });
-
-  it('still offers the default filter when no profiles are saved', () => {
-    const field = taskMirrorSchema([]).find((f) => f.name === 'profile_id');
-    expect(field.selector.select.options).toEqual([{ value: '', label: 'All tasks (when due)' }]);
-  });
-
   it('renders both sync switches as booleans', () => {
-    const fields = taskMirrorSchema(profiles);
+    const fields = profileSyncSchema();
     expect(fields.find((f) => f.name === 'two_way').selector).toEqual({ boolean: {} });
     expect(fields.find((f) => f.name === 'vanish_as_completed').selector).toEqual({ boolean: {} });
   });
 });
 
-describe('task mirror form round-trip', () => {
-  const mirror = {
-    id: 'm1',
-    entity_id: 'todo.shopping',
-    profile_id: 'p1',
-    two_way: false,
-    vanish_as_completed: false,
-  };
+describe('toProfileSync', () => {
+  const sync = { entity_id: 'todo.shopping', two_way: false, vanish_as_completed: false };
 
-  it('flattens a mirror for ha-form', () => {
-    expect(taskMirrorFormData(mirror)).toEqual({
-      entity_id: 'todo.shopping',
-      profile_id: 'p1',
-      two_way: false,
-      vanish_as_completed: false,
-    });
+  it('passes a fully configured sync through unchanged', () => {
+    expect(toProfileSync(sync)).toEqual(sync);
   });
 
-  it('renders the default filter as an empty string for the select', () => {
-    // ha-form's select has no concept of null; it would render "null" as a value.
-    expect(taskMirrorFormData({ ...mirror, profile_id: null }).profile_id).toBe('');
-  });
-
-  it('shows an unconfigured mirror as a blank picker, not undefined', () => {
-    expect(taskMirrorFormData({ id: 'm1' }).entity_id).toBe('');
-  });
-
-  it('defaults both switches to on when a stored mirror lacks them', () => {
+  it('reads a missing sync block as off, with both switches on', () => {
     // The backend normalizer fills both in as `True`; reading a missing key as
-    // `false` here would show two-way sync switched off on a mirror that has it on.
-    const data = taskMirrorFormData({ id: 'm1', entity_id: 'todo.x' });
-    expect(data.two_way).toBe(true);
-    expect(data.vanish_as_completed).toBe(true);
-  });
-
-  it('rebuilds the mirror, keeping the id', () => {
-    expect(taskMirrorFormToMirror('m1', taskMirrorFormData(mirror))).toEqual(mirror);
-  });
-
-  it('round-trips an all-on, default-filter mirror unchanged', () => {
-    const open = {
-      id: 'm2',
-      entity_id: 'todo.family',
-      profile_id: null,
-      two_way: true,
-      vanish_as_completed: true,
-    };
-    expect(taskMirrorFormToMirror('m2', taskMirrorFormData(open))).toEqual(open);
-  });
-
-  it('turns the blank profile selection back into null, not ""', () => {
-    expect(taskMirrorFormToMirror('m1', { entity_id: 'todo.x', profile_id: '' }).profile_id).toBe(
-      null,
-    );
-    expect(taskMirrorFormToMirror('m1', { entity_id: 'todo.x' }).profile_id).toBeNull();
-    expect(taskMirrorFormToMirror('m1', { profile_id: 'p9' }).profile_id).toBe('p9');
+    // `false` here would show two-way sync switched off on a profile that has it on.
+    for (const absent of [undefined, null, {}]) {
+      expect(toProfileSync(absent)).toEqual({
+        entity_id: '',
+        two_way: true,
+        vanish_as_completed: true,
+      });
+    }
   });
 
   it('turns a cleared entity picker into the empty string', () => {
-    // The picker emits `undefined` when cleared, and JSON drops an undefined on
-    // the way to the backend — so the key would never reach the partial-update
-    // merge and "unset the list" silently wouldn't stick.
-    expect(taskMirrorFormToMirror('m1', {}).entity_id).toBe('');
-    expect(taskMirrorFormToMirror('m1', { entity_id: undefined }).entity_id).toBe('');
-    expect(taskMirrorFormToMirror('m1', { entity_id: 'todo.x' }).entity_id).toBe('todo.x');
-  });
-
-  it('defaults both switches to on when the form omits them', () => {
-    const rebuilt = taskMirrorFormToMirror('m1', { entity_id: 'todo.x' });
-    expect(rebuilt.two_way).toBe(true);
-    expect(rebuilt.vanish_as_completed).toBe(true);
+    // The picker emits `undefined` when cleared, and JSON drops an undefined on the
+    // way to the backend — so the key would never reach the saved profile and
+    // "switch the sync off" silently wouldn't stick. Clearing it is the only off
+    // switch the group has, so this is the whole control.
+    expect(toProfileSync({ two_way: true }).entity_id).toBe('');
+    expect(toProfileSync({ entity_id: undefined }).entity_id).toBe('');
+    expect(toProfileSync({ entity_id: null }).entity_id).toBe('');
+    expect(toProfileSync({ entity_id: 'todo.x' }).entity_id).toBe('todo.x');
   });
 
   it('keeps a switch the user turned off, and coerces to a real boolean', () => {
-    const off = taskMirrorFormToMirror('m1', {
-      entity_id: 'todo.x',
-      two_way: false,
-      vanish_as_completed: false,
-    });
+    const off = toProfileSync({ entity_id: 'todo.x', two_way: false, vanish_as_completed: false });
     expect(off.two_way).toBe(false);
     expect(off.vanish_as_completed).toBe(false);
-    const coerced = taskMirrorFormToMirror('m1', {
+    const coerced = toProfileSync({
       entity_id: 'todo.x',
       two_way: 'yes',
       vanish_as_completed: 0,
     });
     expect(coerced.two_way).toBe(true);
     expect(coerced.vanish_as_completed).toBe(false);
+  });
+
+  it('defaults each switch independently of the other', () => {
+    // One switch present must not decide the other: a snapshot that predates only
+    // `vanish_as_completed` still has to come back with it on.
+    expect(toProfileSync({ entity_id: 'todo.x', two_way: false })).toEqual({
+      entity_id: 'todo.x',
+      two_way: false,
+      vanish_as_completed: true,
+    });
+    expect(toProfileSync({ entity_id: 'todo.x', vanish_as_completed: false })).toEqual({
+      entity_id: 'todo.x',
+      two_way: true,
+      vanish_as_completed: false,
+    });
+  });
+
+  it('stringifies an entity id that arrives as a non-string', () => {
+    expect(toProfileSync({ entity_id: 7 }).entity_id).toBe('7');
   });
 });

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from . import notifications, profiles, shopping, task_mirror
+from . import notifications, profiles, shopping
 from .const import (
     OPTION_DISMISSED_COMPANIONS,
     OPTION_NOTIFICATIONS,
@@ -38,7 +38,6 @@ from .const import (
     OPTION_PROFILES,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
-    OPTION_TASK_MIRRORS,
 )
 
 if TYPE_CHECKING:
@@ -71,7 +70,6 @@ def _empty_options() -> dict[str, Any]:
         OPTION_SHOPPING_LIST_ENTITY: "",
         OPTION_PROFILES: [],
         OPTION_NOTIFICATIONS: [],
-        OPTION_TASK_MIRRORS: [],
         **{key: [] for key in _LIST_OPTIONS},
     }
 
@@ -141,8 +139,8 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
     - **the sync toggle** — anything truthy becomes a real ``bool``
     - **retention days** — a ``NumberSelector`` sends a float, garbage becomes ``0``
     - **the shopping target** — anything unusable collapses to ``""``, the off switch
-    - **profiles / notifications / task mirrors** — their own normalizers fill in
-      per-item defaults
+    - **profiles / notifications** — their own normalizers fill in per-item defaults
+      (a profile's to-do-list sync block among them)
     - **id lists** — stringified, and empties dropped: no registry id is falsy, and
       without the filter a ``None`` in the list would be stored as ``"None"``
 
@@ -169,10 +167,6 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
     if OPTION_NOTIFICATIONS in updates:
         merged[OPTION_NOTIFICATIONS] = notifications.normalize_notifications(
             updates[OPTION_NOTIFICATIONS]
-        )
-    if OPTION_TASK_MIRRORS in updates:
-        merged[OPTION_TASK_MIRRORS] = task_mirror.normalize_task_mirrors(
-            updates[OPTION_TASK_MIRRORS]
         )
     for key in _LIST_OPTIONS:
         if key in updates:

@@ -5,7 +5,7 @@ Three surfaces write ``entry.options`` and they share one coercion table in
 tab) send a *partial* update, which is merged onto what is stored. The options flow
 can't: Home Assistant stores whatever an options flow returns from
 ``async_create_entry`` as ``entry.options`` **verbatim**, and its form renders only
-seven of the eleven keys. Returning the submission as-is deleted every saved profile,
+seven of the ten keys. Returning the submission as-is deleted every saved profile,
 notification and dismissed companion on each save — with nothing on screen to say so,
 because a missing key reads back as an empty list and notifications simply stopped
 arriving. ``merge_flow_input`` turns that submission back into a partial update.
@@ -49,13 +49,17 @@ _FULL: dict[str, Any] = {
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS: ["label-1"],
     const.OPTION_DISMISSED_COMPANIONS: ["acme_vacuum"],
     const.OPTION_PROFILES: [
-        {"id": "p1", "name": "My chores", "filter": {"status": "overdue"}}
+        {
+            "id": "p1",
+            "name": "My chores",
+            "filter": {"status": "overdue"},
+            # The to-do list this profile mirrors onto rides *inside* the profile,
+            # so the options flow has to preserve it along with everything else.
+            "sync": {"entity_id": "todo.family", "two_way": False},
+        }
     ],
     const.OPTION_NOTIFICATIONS: [
         {"id": "n1", "name": "Walk", "profile_id": "p1", "targets": []}
-    ],
-    const.OPTION_TASK_MIRRORS: [
-        {"id": "m1", "entity_id": "todo.family", "profile_id": "p1"}
     ],
 }
 
@@ -97,12 +101,17 @@ def test_merge_flow_input_preserves_the_keys_the_form_does_not_render() -> None:
     for key in (
         const.OPTION_PROFILES,
         const.OPTION_NOTIFICATIONS,
-        const.OPTION_TASK_MIRRORS,
         const.OPTION_DISMISSED_COMPANIONS,
     ):
         assert merged[key] == before[key], f"{key} was not preserved"
     assert merged[const.OPTION_PROFILES], "sanity: the fixture must seed profiles"
-    assert merged[const.OPTION_TASK_MIRRORS], "sanity: the fixture must seed a mirror"
+    # A profile's to-do list sync has no key of its own to be preserved by, so it
+    # is spelled out: the form deleting it would silently stop a mirrored list.
+    assert merged[const.OPTION_PROFILES][0]["sync"] == {
+        "entity_id": "todo.family",
+        "two_way": False,
+        "vanish_as_completed": True,
+    }
     # ...and the fields the form *does* own took their new values.
     for key, value in _SUBMISSION.items():
         assert merged[key] == value
@@ -202,7 +211,6 @@ _PROBES: dict[str, Any] = {
     const.OPTION_DISMISSED_COMPANIONS: ["some_domain"],
     const.OPTION_PROFILES: [{"id": "px", "name": "X", "filter": {"status": "all"}}],
     const.OPTION_NOTIFICATIONS: [{"id": "nx", "name": "X", "profile_id": "px"}],
-    const.OPTION_TASK_MIRRORS: [{"id": "mx", "entity_id": "todo.family"}],
 }
 
 
@@ -355,7 +363,6 @@ def test_the_defaults_are_all_off() -> None:
         "shopping_list_entity": "",
         "profiles": [],
         "notifications": [],
-        "task_mirrors": [],
         "problem_sensor_exclude_entities": [],
         "problem_sensor_exclude_devices": [],
         "problem_sensor_exclude_areas": [],

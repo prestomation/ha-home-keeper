@@ -47,7 +47,7 @@ from homeassistant.core import (
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
-from . import notifier, task_mirror
+from . import notifier, profiles, task_mirror
 from .const import (
     EVENT_TASK_COMPLETED,
     EVENT_TASK_CREATED,
@@ -58,7 +58,6 @@ from .const import (
     EVENT_TASK_UNCOMPLETED,
     EVENT_TASK_UPDATED,
     OPTION_PROFILES,
-    OPTION_TASK_MIRRORS,
     ORIGIN_TODO_MIRROR,
 )
 from .models import TaskValidationError
@@ -137,9 +136,8 @@ class TaskMirrorSync:
         self._entry.async_on_unload(self._async_stop)
         targets = sorted(
             {
-                str(mirror["entity_id"])
-                for mirror in self._configured_mirrors()
-                if str(mirror["entity_id"])
+                str(mirror["sync"]["entity_id"])
+                for mirror in profiles.synced_profiles(self._configured_mirrors())
             }
         )
         if targets:
@@ -186,9 +184,7 @@ class TaskMirrorSync:
         """
         if self._stopped:
             return
-        configured = any(
-            str(mirror["entity_id"]) for mirror in self._configured_mirrors()
-        )
+        configured = profiles.synced_profiles(self._configured_mirrors())
         if not configured and not self._coordinator.store.get_task_mirror_items():
             return
         self._hass.async_create_task(self.async_sync(force=True))
@@ -247,29 +243,16 @@ class TaskMirrorSync:
         enriched = notifier.effective_filter_tasks(
             self._hass, list(store.get_tasks().values())
         )
-        desired = task_mirror.desired_by_mirror(
-            mirrors, enriched, self._profiles(), now=dt_util.now()
-        )
-        for mirror in mirrors:
-            if str(mirror["entity_id"]) and str(mirror["id"]) not in desired:
-                # The planner leaves a mirror naming a deleted profile strictly
-                # alone rather than reading it as "clear this list", so nothing at
-                # all happens for it until someone fixes the configuration. That is
-                # worth saying out loud once.
-                self._warn_once(
-                    f"profile:{mirror['id']}",
-                    "Home Keeper's to-do list sync for %s names a profile that no "
-                    "longer exists, so it is mirroring nothing; pick a profile for "
-                    "it in Settings",
-                    mirror["entity_id"],
-                )
+        desired = task_mirror.desired_by_mirror(mirrors, enriched, now=dt_util.now())
         if not force and not task_mirror.needs_pass(
             tracked=tracked, desired=desired, mirrors=mirrors
         ):
             return False
 
-        targets = {str(mirror["entity_id"]) for mirror in mirrors}
-        targets.discard("")
+        targets = {
+            str(mirror["sync"]["entity_id"])
+            for mirror in profiles.synced_profiles(mirrors)
+        }
         items_by_entity = await self._read_lists(
             task_mirror.lists_to_read(tracked, mirrors), targets=targets
         )
@@ -339,29 +322,30 @@ class TaskMirrorSync:
 
     # ── reading ──────────────────────────────────────────────────────────────
     def _configured_mirrors(self) -> list[dict[str, Any]]:
-        """The stored mirrors, normalized. A ``""`` target is one switched off."""
-        return task_mirror.normalize_task_mirrors(
-            current_options(self._entry).get(OPTION_TASK_MIRRORS, [])
+        """The stored profiles, normalized — a mirror is a profile's ``sync`` block.
+
+        A profile whose ``sync.entity_id`` is ``""`` has its sync switched off, and
+        stays in the list: the planner has to see it to take back off whatever it
+        put on a list before.
+        """
+        return profiles.normalize_profiles(
+            current_options(self._entry).get(OPTION_PROFILES, [])
         )
 
-    def _profiles(self) -> list[dict[str, Any]]:
-        value = current_options(self._entry).get(OPTION_PROFILES, [])
-        return value if isinstance(value, list) else []
-
     def _resolve_mirrors(self) -> list[dict[str, Any]]:
-        """The configured mirrors, with any pointed at our own list switched off.
+        """The configured profiles, with any pointed at our own list switched off.
 
         Mirroring Home Keeper's tasks onto Home Keeper's own to-do list is a
         feedback loop, and that list declares only ``UPDATE_TODO_ITEM`` so it could
         not accept the items anyway. Blanking the target rather than dropping the
-        mirror keeps the planner's own rule intact: a mirror the user turned off
+        profile keeps the planner's own rule intact: a mirror the user turned off
         clears what it wrote, so anything already on that list still comes back off
         it.
         """
         ours = set(own_todo_entity_ids(self._hass))
         resolved: list[dict[str, Any]] = []
         for mirror in self._configured_mirrors():
-            entity_id = str(mirror["entity_id"])
+            entity_id = str(mirror["sync"]["entity_id"])
             if entity_id and entity_id in ours:
                 self._warn_once(
                     f"own:{entity_id}",
@@ -369,7 +353,7 @@ class TaskMirrorSync:
                     "(%s); pick a different list in Settings",
                     entity_id,
                 )
-                mirror = {**mirror, "entity_id": ""}
+                mirror = {**mirror, "sync": {**mirror["sync"], "entity_id": ""}}
             resolved.append(mirror)
         return resolved
 

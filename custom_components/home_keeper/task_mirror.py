@@ -4,8 +4,14 @@ A *task mirror* keeps an existing Home Assistant to-do list (a ``todo.*`` entity
 a Todoist project, Google Tasks, a local family list) in step with the Home Keeper
 tasks a profile selects, so chores show up where the household already looks. The
 mirror is two-way: completing the task in Home Keeper ticks the item off, and
-ticking the item off completes the task. Several mirrors can run at once, each
-pairing one profile (or the default filter) with one list.
+ticking the item off completes the task.
+
+**A mirror is a profile.** There is no separate mirror record: a profile carries a
+``sync`` block (``profiles.normalize_sync``) naming the one list it mirrors onto,
+and clearing that ``entity_id`` is both the off switch and the delete. One list per
+profile, at most — a household that wants two lists writes two profiles, which it
+needed anyway to say what goes on each. So every mirror has a real filter behind it
+and none can name a profile that is gone.
 
 Like ``shopping.py`` this module imports nothing from Home Assistant: it is a pure
 transformation over plain dicts, so every branch of the state machine is
@@ -38,12 +44,12 @@ The rules that shape a plan:
   its add ever landed, so it is re-added, never completed. With the toggle off (or
   two-way sync off) a vanished item is treated as deleted and recreated — the
   strict self-healing reading.
-* **Two-way is per mirror.** With ``two_way`` off the inbound direction is inert:
+* **Two-way is per profile.** With ``two_way`` off the inbound direction is inert:
   ticks and vanishes never complete tasks; a ticked item freezes its bookkeeping
   entry so the mirror does not argue with the user by re-adding the task.
 
 Bookkeeping (persisted by the store, silently) is a flat map
-``mirror_key(mirror_id, task_id) -> entry`` with entries shaped
+``mirror_key(profile_id, task_id) -> entry`` with entries shaped
 ``{"entity_id", "uid", "summary", "due", "last_completed"}``. ``last_completed``
 snapshots the task's own ``last_completed`` at bind time; a live value strictly
 newer means "completed inside Home Keeper since mirrored", while an undone
@@ -51,7 +57,7 @@ completion moves the value backwards and therefore reads as plain content drift.
 ``due`` snapshots the date we last wrote, so :func:`needs_pass` can spot a
 rescheduled task without reading a single list — the content *diff* still
 compares against the live item, because the list is what the household sees.
-Per-mirror keying lets two mirrors hold the same task on two lists.
+Per-profile keying lets two profiles hold the same task on two lists.
 
 Content is capability-gated *here*, not in the driver: the driver passes each
 entity's supported extras (:data:`CAP_DUE_DATE`, :data:`CAP_DESCRIPTION`), and the
@@ -61,7 +67,6 @@ without due dates would be told to update the same item forever.
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -69,7 +74,7 @@ from typing import Any
 from . import profiles
 from .notifications import is_completion_blocked
 from .reconcile import buy_source
-from .shopping import STATUS_COMPLETED, STATUS_NEEDS_ACTION, normalize_target
+from .shopping import STATUS_COMPLETED, STATUS_NEEDS_ACTION
 from .transitions import DUE_SOON_WINDOW
 
 __all__ = [
@@ -87,8 +92,6 @@ __all__ = [
     "lists_to_read",
     "mirror_key",
     "needs_pass",
-    "normalize_task_mirror",
-    "normalize_task_mirrors",
     "plan_sync",
 ]
 
@@ -99,43 +102,19 @@ __all__ = [
 CAP_DUE_DATE = "due"
 CAP_DESCRIPTION = "description"
 
-# Separator joining a mirror id to a task id in a bookkeeping key. Mirror ids are
+# Separator joining a profile id to a task id in a bookkeeping key. Profile ids are
 # uuid hex and task ids are opaque, so the first ``:`` is unambiguous.
 _KEY_SEP = ":"
 
 
-def mirror_key(mirror_id: str, task_id: str) -> str:
-    """The bookkeeping key for one task's item on one mirror."""
-    return f"{mirror_id}{_KEY_SEP}{task_id}"
+def mirror_key(profile_id: str, task_id: str) -> str:
+    """The bookkeeping key for one task's item on one profile's list."""
+    return f"{profile_id}{_KEY_SEP}{task_id}"
 
 
-def normalize_task_mirror(raw: Any) -> dict[str, Any]:
-    """Coerce one raw mirror config to its stored, fully-defaulted shape.
-
-    Generates a stable ``id`` when absent (bookkeeping keys reference it across
-    edits) and defaults every field, so forms and consumers never special-case a
-    missing key. ``entity_id`` goes through :func:`shopping.normalize_target` so
-    anything unusable collapses to ``""`` — the off switch — and a typo disables
-    the mirror rather than half-working. ``profile_id`` is ``None`` for "the
-    default filter" (every enabled, scheduled task that is due now); an empty
-    string — the panel form's "cleared" value — coerces to ``None`` too.
-    """
-    raw = raw if isinstance(raw, dict) else {}
-    profile_id = raw.get("profile_id")
-    return {
-        "id": str(raw.get("id") or uuid.uuid4().hex),
-        "entity_id": normalize_target(raw.get("entity_id")),
-        "profile_id": str(profile_id) if profile_id not in (None, "") else None,
-        "two_way": bool(raw.get("two_way", True)),
-        "vanish_as_completed": bool(raw.get("vanish_as_completed", True)),
-    }
-
-
-def normalize_task_mirrors(raw: Any) -> list[dict[str, Any]]:
-    """Coerce the stored mirror list, dropping non-dict entries."""
-    if not isinstance(raw, (list, tuple)):
-        return []
-    return [normalize_task_mirror(m) for m in raw if isinstance(m, dict)]
+def _target(mirror: dict[str, Any]) -> str:
+    """The list *mirror* writes to — ``""`` when its sync is switched off."""
+    return str(mirror["sync"]["entity_id"])
 
 
 @dataclass(frozen=True)
@@ -234,24 +213,20 @@ def completed_since(snapshot: str | None, last_completed: str | None) -> bool:
 def desired_by_mirror(
     mirrors: list[dict[str, Any]],
     tasks: list[dict[str, Any]],
-    profiles_list: list[dict[str, Any]],
     *,
     now: datetime,
     window: timedelta = DUE_SOON_WINDOW,
 ) -> dict[str, dict[str, dict[str, Any]]]:
-    """What every mirror wants on its list: ``mirror_id -> task_id -> want``.
+    """What every mirror wants on its list: ``profile_id -> task_id -> want``.
+
+    *mirrors* are the profiles themselves, each carrying the ``sync`` block that
+    says which list it mirrors onto; one with no list is switched off and is
+    skipped, so the result names exactly the profiles that are mirroring.
 
     *tasks* arrive **already enriched**: the driver resolves each task's
     effective labels, area and device (the ones it inherits from its device or
     area) before calling, so the profile matcher here selects exactly the tasks
     the panel and the card show for that same profile.
-
-    A mirror with no list configured is off, so it is skipped. A mirror naming a
-    profile that no longer exists is *misconfigured* rather than empty, and is
-    left out of the result entirely — an empty selection would read as "clear
-    this list", and deleting a profile must not wipe the list it was feeding.
-    Without a profile a mirror gets the default filter, which is every enabled,
-    scheduled task that is due now.
 
     Auto-buy reminders are skipped whatever a profile says: the shopping-list
     mirror owns those, and two mirrors fighting over one line helps nobody. A
@@ -261,16 +236,9 @@ def desired_by_mirror(
     """
     wanted: dict[str, dict[str, dict[str, Any]]] = {}
     for mirror in mirrors:
-        if not str(mirror["entity_id"]):
+        if not _target(mirror):
             continue
-        profile_id = mirror.get("profile_id")
-        if profile_id is None:
-            filt = profiles.normalize_filter({})
-        else:
-            profile = profiles.resolve_profile(profiles_list, str(profile_id))
-            if profile is None:
-                continue
-            filt = profiles.normalize_filter(profile.get("filter"))
+        filt = profiles.normalize_filter(mirror.get("filter"))
         wants: dict[str, dict[str, Any]] = {}
         for task in tasks:
             if not profiles.matches_filter(task, filt, now=now, window=window):
@@ -298,7 +266,7 @@ def desired_by_mirror(
 # The four resolution helpers below read like ``shopping.py``'s, and are kept
 # separate on purpose: the two planners ask a list different questions — the
 # shopping mirror holds one line per part and leaves a deleted one deleted, a
-# task mirror holds one per task *per mirror* and may read a vanished line as
+# task mirror holds one per task *per profile* and may read a vanished line as
 # done — so sharing them would tie one state machine to the other's.
 def _identity(item: dict[str, Any]) -> str:
     """How a to-do item is addressed in a service call.
@@ -388,9 +356,9 @@ def plan_sync(
 ) -> TaskMirrorPlan:
     """Decide what every mirror wants done this pass.
 
-    *tracked* is what we mirrored last time, *desired* is
-    :func:`desired_by_mirror` over the current tasks, *items_by_entity* holds the
-    live contents of every list we could read, and *capabilities* says which
+    *mirrors* are the profiles, *tracked* is what we mirrored last time, *desired*
+    is :func:`desired_by_mirror` over the current tasks, *items_by_entity* holds
+    the live contents of every list we could read, and *capabilities* says which
     optional fields each list can actually hold.
 
     A list absent from *items_by_entity* could not be read — it is unavailable,
@@ -399,12 +367,12 @@ def plan_sync(
     empty one, and that distinction is what stops a broken to-do integration from
     quietly deleting a mirror's memory of what it put there.
 
-    A mirror whose id is missing from *desired* is misconfigured (its profile was
-    deleted), and is treated the same way: bookkeeping forward, hands off. Only a
-    mirror the user actually turned off gets its items cleared.
+    A profile that was deleted, or whose list was cleared, does get its items
+    taken back off: with the mirror living inside the profile those are the same
+    gesture, and either way nothing would keep those lines in step again.
 
     The claim set and the settled set span the **whole** plan rather than one
-    mirror, because two mirrors can point at one list: without that, both would
+    profile, because two profiles can point at one list: without that, both would
     resolve to the same line and each would undo the other's work.
     """
     plan = TaskMirrorPlan()
@@ -419,14 +387,14 @@ def plan_sync(
 
     for key in sorted(tracked):
         entry = tracked[key]
-        mirror_id, _, task_id = key.partition(_KEY_SEP)
+        profile_id, _, task_id = key.partition(_KEY_SEP)
         entity_id = str(entry.get("entity_id") or "")
         summary = str(entry.get("summary") or "")
-        mirror = by_id.get(mirror_id)
+        mirror = by_id.get(profile_id)
         items = items_by_entity.get(entity_id)
 
-        if mirror is None or not str(mirror["entity_id"]):
-            # The mirror was deleted, or its list was cleared. Turning a mirror
+        if mirror is None or not _target(mirror):
+            # The profile was deleted, or its list was cleared. Turning a mirror
             # off clears what it wrote — leaving the chores behind would strand
             # them somewhere nothing updates them any more.
             if items is None:
@@ -445,15 +413,10 @@ def plan_sync(
                     plan.remove.append(RemoveOp(key, entity_id, _identity(item)))
             continue
 
-        wants = desired.get(mirror_id)
-        if wants is None:
-            # Misconfigured: the profile it names is gone. Hold everything until
-            # someone points it at a profile that exists.
-            plan.tracked[key] = dict(entry)
-            continue
-
-        target = str(mirror["entity_id"])
-        want = wants.get(task_id)
+        target = _target(mirror)
+        # A profile still mirroring is always in *desired* — it is its own filter,
+        # so there is nothing left for it to fail to resolve.
+        want = desired[profile_id].get(task_id)
         if items is None:
             plan.tracked[key] = dict(entry)
             continue
@@ -474,7 +437,8 @@ def plan_sync(
             # is the one mistake there is no undo for.
             if want is None:
                 continue
-            if entry.get("uid") and mirror["two_way"] and mirror["vanish_as_completed"]:
+            sync = mirror["sync"]
+            if entry.get("uid") and sync["two_way"] and sync["vanish_as_completed"]:
                 plan.complete.append(CompleteOp(key, task_id))
                 settled.add(key)
             continue
@@ -488,7 +452,7 @@ def plan_sync(
             if want is not None and not completed_since(
                 entry.get("last_completed"), want["last_completed"]
             ):
-                if mirror["two_way"]:
+                if mirror["sync"]["two_way"]:
                     plan.complete.append(CompleteOp(key, task_id))
                     settled.add(key)
                 else:
@@ -543,18 +507,18 @@ def plan_sync(
             )
         plan.tracked[key] = _entry(entity_id, item.get("uid") or entry.get("uid"), want)
 
-    for mirror_id in sorted(desired):
-        mirror = by_id.get(mirror_id)
+    for profile_id in sorted(desired):
+        mirror = by_id.get(profile_id)
         if mirror is None:
             continue
-        target = str(mirror["entity_id"])
+        target = _target(mirror)
         items = items_by_entity.get(target)
-        if not target or items is None:
+        if items is None:
             continue
         caps = capabilities.get(target, frozenset())
-        wants = desired[mirror_id]
+        wants = desired[profile_id]
         for task_id in sorted(wants):
-            key = mirror_key(mirror_id, task_id)
+            key = mirror_key(profile_id, task_id)
             if key in plan.tracked or key in settled:
                 continue
             want = wants[task_id]
@@ -591,11 +555,11 @@ def lists_to_read(
 ) -> list[str]:
     """Every to-do list a pass must snapshot: each mirror's, plus any we hold.
 
-    A tracked entry names the list its item is on, so switching a mirror's target
+    A tracked entry names the list its item is on, so switching a profile's target
     — even twice, even while Home Assistant was down — still leaves a trail back
     to whatever needs clearing.
     """
-    entities = {str(mirror["entity_id"]) for mirror in mirrors}
+    entities = {_target(mirror) for mirror in mirrors}
     entities |= {str(entry.get("entity_id") or "") for entry in tracked.values()}
     entities.discard("")
     return sorted(entities)
@@ -621,18 +585,14 @@ def needs_pass(
     """
     by_id = {str(mirror["id"]): mirror for mirror in mirrors}
     for key, entry in tracked.items():
-        mirror_id, _, task_id = key.partition(_KEY_SEP)
-        mirror = by_id.get(mirror_id)
-        if mirror is None or not str(mirror["entity_id"]):
+        profile_id, _, task_id = key.partition(_KEY_SEP)
+        mirror = by_id.get(profile_id)
+        if mirror is None or not _target(mirror):
             return True
-        wants = desired.get(mirror_id)
-        if wants is None:
-            # Misconfigured mirrors are held, not planned, so they never drift.
-            continue
-        want = wants.get(task_id)
+        want = desired[profile_id].get(task_id)
         if want is None:
             return True
-        if str(entry.get("entity_id") or "") != str(mirror["entity_id"]):
+        if str(entry.get("entity_id") or "") != _target(mirror):
             return True
         if str(want["name"]) != str(entry.get("summary") or ""):
             return True
@@ -640,8 +600,8 @@ def needs_pass(
             return True
         if completed_since(entry.get("last_completed"), want["last_completed"]):
             return True
-    for mirror_id, wants in desired.items():
+    for profile_id, wants in desired.items():
         for task_id in wants:
-            if mirror_key(mirror_id, task_id) not in tracked:
+            if mirror_key(profile_id, task_id) not in tracked:
                 return True
     return False

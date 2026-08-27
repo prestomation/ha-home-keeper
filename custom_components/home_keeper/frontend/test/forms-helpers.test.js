@@ -256,6 +256,7 @@ describe('profile form round-trip', () => {
   const profile = {
     id: 'p1',
     name: 'Overdue in the garage',
+    sync: { entity_id: 'todo.family', two_way: false, vanish_as_completed: true },
     filter: {
       status: 'overdue',
       labels: ['l1'],
@@ -280,8 +281,33 @@ describe('profile form round-trip', () => {
     });
   });
 
+  it('leaves the sync block out of the filter form', () => {
+    // The sync fields live in their own group, so the filter form must not carry
+    // them — an `entity_id` row here would be a second, competing picker.
+    const keys = Object.keys(profileFormData(profile));
+    expect(keys).not.toContain('sync');
+    expect(keys).not.toContain('entity_id');
+  });
+
   it('rebuilds the nested profile, keeping the id', () => {
-    expect(profileFormToProfile('p1', profileFormData(profile))).toEqual(profile);
+    expect(profileFormToProfile('p1', profileFormData(profile), profile.sync)).toEqual(profile);
+  });
+
+  it("carries the profile's sync block through a filter-only edit", () => {
+    // The filter form never renders the sync fields, so a rename that dropped them
+    // would silently switch a configured to-do list sync off.
+    const renamed = profileFormToProfile('p1', { name: 'Renamed' }, profile.sync);
+    expect(renamed.sync).toEqual(profile.sync);
+  });
+
+  it('treats a profile with no sync block as sync-off, both switches on', () => {
+    // A profile saved before the field existed: the backend normalizer fills these
+    // in as on, and reading them as off would flip two-way sync behind the user.
+    expect(profileFormToProfile('p1', { name: 'x' }).sync).toEqual({
+      entity_id: '',
+      two_way: true,
+      vanish_as_completed: true,
+    });
   });
 
   it('trims the name and falls back to a default when blank', () => {

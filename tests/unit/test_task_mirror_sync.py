@@ -333,14 +333,16 @@ def enricher():
 # ── fakes ─────────────────────────────────────────────────────────────────────
 
 
-def _mirror(mid=M1, entity_id=LIST, profile_id=None, **extra):
-    return tm.normalize_task_mirror(
-        {"id": mid, "entity_id": entity_id, "profile_id": profile_id, **extra}
+def _mirror(mid=M1, entity_id=LIST, filt=None, **sync):
+    """A profile mirroring onto *entity_id* — a mirror is a profile's sync block."""
+    return profiles.normalize_profile(
+        {
+            "id": mid,
+            "name": mid,
+            "filter": filt or {},
+            "sync": {"entity_id": entity_id, **sync},
+        }
     )
-
-
-def _profile(pid="p1", **filt):
-    return profiles.normalize_profile({"id": pid, "name": "Indoors", "filter": filt})
 
 
 def _task(tid=T1, name=NAME, due=OVERDUE_ISO, notes="", **extra):
@@ -492,28 +494,25 @@ class _FakeHass:
         coro.close()
 
 
-def _config_entry(mirrors=None, profiles_list=None):
+def _config_entry(mirrors=None):
     return types.SimpleNamespace(
-        options={
-            "task_mirrors": [_mirror()] if mirrors is None else mirrors,
-            "profiles": profiles_list or [],
-        },
+        options={"profiles": [_mirror()] if mirrors is None else mirrors},
         async_on_unload=lambda _cb: None,
     )
 
 
-def _build(hass, store, *, mirrors=None, profiles_list=None):
+def _build(hass, store, *, mirrors=None):
     """A driver over the fakes, plus the coordinator it will settle through."""
     coordinator = _FakeCoordinator(store)
-    entry = _config_entry(mirrors, profiles_list)
-    return task_mirror_sync.TaskMirrorSync(hass, entry, coordinator), coordinator
-
-
-def _sync(hass, store, *, mirrors=None, profiles_list=None, force=True):
-    """Build a driver and run one full ``async_sync``."""
-    sync, coordinator = _build(
-        hass, store, mirrors=mirrors, profiles_list=profiles_list
+    return (
+        task_mirror_sync.TaskMirrorSync(hass, _config_entry(mirrors), coordinator),
+        coordinator,
     )
+
+
+def _sync(hass, store, *, mirrors=None, force=True):
+    """Build a driver and run one full ``async_sync``."""
+    sync, coordinator = _build(hass, store, mirrors=mirrors)
     asyncio.run(sync.async_sync(force=force))
     return sync, coordinator
 
@@ -616,12 +615,7 @@ def test_a_profile_selects_the_tasks_it_would_select_in_a_notification(enricher)
     hass = _FakeHass({LIST: []})
     store = _FakeStore(tasks={T1: _task(device_id="dev1")})
     enricher.inherited[T1] = ["dog"]
-    _sync(
-        hass,
-        store,
-        mirrors=[_mirror(profile_id="p1")],
-        profiles_list=[_profile("p1", labels=["dog"])],
-    )
+    _sync(hass, store, mirrors=[_mirror(filt={"labels": ["dog"]})])
     assert enricher.calls == [[_task(device_id="dev1")]]  # handed the raw task…
     assert _services(hass, "add_item") == [
         {"entity_id": LIST, "item": NAME, "due_date": DUE}
@@ -819,22 +813,24 @@ def test_a_foreign_todo_list_is_not_mistaken_for_ours(registry):
     assert _services(hass, "add_item")
 
 
-def test_a_mirror_naming_a_deleted_profile_holds_everything_and_warns_once(caplog):
-    # An empty selection would read as "clear this list", so a mirror whose profile
-    # is gone plans nothing at all — and says why, once.
+def test_clearing_a_profiles_picker_takes_its_chores_back_off_the_list():
+    # Clearing the picker is the delete: with the mirror living inside the profile
+    # there is no separate record to remove, so the off switch has to tidy up.
     hass = _FakeHass({LIST: [_item()]})
-    before = _tracked()
-    store = _FakeStore(tasks={T1: _task()}, items=dict(before))
-    with caplog.at_level("WARNING"):
-        sync, _ = _sync(hass, store, mirrors=[_mirror(profile_id="deleted")])
-    assert hass.services.calls == []
-    assert store.get_task_mirror_items() == before
-    assert caplog.text.count("no longer exists") == 1
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    _sync(hass, store, mirrors=[_mirror(entity_id="")])
+    assert _services(hass, "remove_item") == [{"entity_id": LIST, "item": ["i1"]}]
+    assert store.get_task_mirror_items() == {}
 
-    caplog.clear()
-    with caplog.at_level("WARNING"):
-        asyncio.run(sync.async_sync(force=True))
-    assert "no longer exists" not in caplog.text
+
+def test_a_profile_that_is_not_mirroring_costs_no_reads():
+    # Most households have profiles for the panel and the card and sync none of
+    # them; those must not make a pass read a single list.
+    hass = _FakeHass({LIST: [_item()]})
+    store = _FakeStore(tasks={T1: _task()})
+    _sync(hass, store, mirrors=[_mirror(entity_id="")])
+    assert hass.services.reads == []
+    assert store.get_task_mirror_items() == {}
 
 
 def test_an_event_driven_pass_with_no_drift_reads_no_lists():

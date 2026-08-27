@@ -10,8 +10,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **Send tasks to your to-do lists.** *Settings → To-do list sync* mirrors the tasks a
-  profile selects onto any Home Assistant to-do list (such as a Todoist project), and
+- **Send tasks to your to-do lists.** A Profile in *Settings → Profiles* mirrors the
+  tasks it selects onto any Home Assistant to-do list (such as a Todoist project), and
   checking an item off there completes the task in Home Keeper. Recurring tasks add a
   fresh item each time they fall due, leaving the checked-off one as your record.
   (Fixes #239)

@@ -1,16 +1,19 @@
 """Unit tests for the pure task-mirror planner (``task_mirror.py``).
 
-A task mirror keeps an external to-do list in step with the Home Keeper tasks a
-profile surfaces. The planner decides, from four inputs — what each mirror
-mirrored last pass, which tasks its profile wants there now, what is actually on
-the lists, and which optional fields those lists can hold — what to add, update,
-remove, and which tasks the household has ticked off for us. Every branch is
-exercised here without a Home Assistant runtime; ``task_mirror_sync.py`` (the
-driver that reads the lists and applies the plan) has its own suite.
+A task mirror *is* a profile: the ``sync`` block on a profile names the external
+to-do list its tasks are kept in step with, and clearing that entity is the off
+switch. The planner decides, from four inputs — what each profile mirrored last
+pass, which tasks it wants there now, what is actually on the lists, and which
+optional fields those lists can hold — what to add, update, remove, and which
+tasks the household has ticked off for us. Every branch is exercised here without
+a Home Assistant runtime; ``task_mirror_sync.py`` (the driver that reads the lists
+and applies the plan) has its own suite. The ``sync`` block's own coercion rules
+live with the rest of the profile, in ``test_profiles.py``.
 """
 
 from datetime import datetime, timedelta, timezone
 
+import hk_profiles as profiles
 import hk_task_mirror as tm
 
 LIST = "todo.family"
@@ -40,9 +43,19 @@ CAPS = {LIST: BOTH, OTHER: BOTH, GHOST: BOTH}
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
 
-def _mirror(mid=M1, entity_id=LIST, profile_id=None, **extra):
-    return tm.normalize_task_mirror(
-        {"id": mid, "entity_id": entity_id, "profile_id": profile_id, **extra}
+def _mirror(mid=M1, entity_id=LIST, filt=None, **sync):
+    """A profile mirroring onto *entity_id* — the whole of what a mirror is now.
+
+    No *filt* means the profile's own default: every enabled, scheduled task that
+    is overdue.
+    """
+    return profiles.normalize_profile(
+        {
+            "id": mid,
+            "name": mid,
+            "filter": filt or {},
+            "sync": {"entity_id": entity_id, **sync},
+        }
     )
 
 
@@ -69,9 +82,9 @@ def _want(tid=T1, name=NAME, due=DUE, notes="", last_completed=None):
     }
 
 
-def _desired(wants, mirror_id=M1):
-    """``{mirror_id: {task_id: want}}`` for one mirror."""
-    return {mirror_id: {want["task_id"]: want for want in wants}}
+def _desired(wants, profile_id=M1):
+    """``{profile_id: {task_id: want}}`` for one mirror."""
+    return {profile_id: {want["task_id"]: want for want in wants}}
 
 
 def _item(summary=NAME, uid="i1", status=tm.STATUS_NEEDS_ACTION, **extra):
@@ -115,64 +128,10 @@ def _plan(
     )
 
 
-# ── normalize_task_mirror(s) ──────────────────────────────────────────────────
+# ── mirror_key ────────────────────────────────────────────────────────────────
 
 
-def test_normalize_task_mirror_defaults_every_field():
-    mirror = tm.normalize_task_mirror({})
-    assert mirror["entity_id"] == ""
-    assert mirror["profile_id"] is None
-    assert mirror["two_way"] is True
-    assert mirror["vanish_as_completed"] is True
-    assert mirror["id"]
-
-
-def test_normalize_task_mirror_keeps_an_id_and_mints_one_when_there_is_none():
-    # Bookkeeping keys reference the id, so an edit must not renumber the mirror.
-    assert tm.normalize_task_mirror({"id": "keep-me"})["id"] == "keep-me"
-    assert tm.normalize_task_mirror({})["id"] != tm.normalize_task_mirror({})["id"]
-
-
-def test_normalize_task_mirror_coerces_the_target_through_the_shared_rule():
-    assert tm.normalize_task_mirror({"entity_id": "  Todo.Family  "})["entity_id"] == (
-        LIST
-    )
-    # A typo disables the mirror rather than half-working.
-    assert tm.normalize_task_mirror({"entity_id": "sensor.family"})["entity_id"] == ""
-    assert tm.normalize_task_mirror({"entity_id": None})["entity_id"] == ""
-    assert tm.normalize_task_mirror({})["entity_id"] == ""
-
-
-def test_normalize_task_mirror_reads_no_profile_as_the_default_filter():
-    assert tm.normalize_task_mirror({"profile_id": ""})["profile_id"] is None
-    assert tm.normalize_task_mirror({"profile_id": None})["profile_id"] is None
-    assert tm.normalize_task_mirror({"profile_id": "p1"})["profile_id"] == "p1"
-
-
-def test_normalize_task_mirror_makes_the_two_toggles_booleans():
-    mirror = tm.normalize_task_mirror({"two_way": 0, "vanish_as_completed": "yes"})
-    assert mirror["two_way"] is False
-    assert mirror["vanish_as_completed"] is True
-
-
-def test_normalize_task_mirror_survives_something_that_is_not_a_mapping():
-    assert tm.normalize_task_mirror("nonsense")["entity_id"] == ""
-    assert tm.normalize_task_mirror(None)["two_way"] is True
-
-
-def test_normalize_task_mirrors_drops_anything_that_is_not_a_mirror():
-    mirrors = tm.normalize_task_mirrors([{"id": "a"}, "junk", None, 7, {"id": "b"}])
-    assert [m["id"] for m in mirrors] == ["a", "b"]
-    assert tm.normalize_task_mirrors(({"id": "a"},))[0]["id"] == "a"
-
-
-def test_normalize_task_mirrors_reads_anything_that_is_not_a_list_as_none_at_all():
-    assert tm.normalize_task_mirrors(None) == []
-    assert tm.normalize_task_mirrors("todo.family") == []
-    assert tm.normalize_task_mirrors({"id": "a"}) == []
-
-
-def test_mirror_key_names_one_task_on_one_mirror():
+def test_mirror_key_names_one_task_on_one_profiles_list():
     assert tm.mirror_key("m1", "t1") == "m1:t1"
     # The first colon splits it, so a task id may hold one of its own.
     assert tm.mirror_key("m1", "t:1").partition(":")[2] == "t:1"
@@ -219,7 +178,7 @@ def test_completed_since_refuses_to_guess_from_anything_unparsable():
 # ── desired_by_mirror ─────────────────────────────────────────────────────────
 
 
-def test_desired_by_mirror_selects_what_the_default_filter_surfaces():
+def test_desired_by_mirror_selects_what_its_profile_surfaces():
     # The skipped tasks come first on purpose: skipping one must not stop the
     # walk before it reaches the task that belongs on the list.
     tasks = [
@@ -246,7 +205,7 @@ def test_desired_by_mirror_selects_what_the_default_filter_surfaces():
         _task("later", name="Service the boiler", due=FAR_ISO),
         _task("due", notes="Under the sink"),
     ]
-    assert tm.desired_by_mirror([_mirror()], tasks, [], now=NOW) == {
+    assert tm.desired_by_mirror([_mirror()], tasks, now=NOW) == {
         M1: {
             "due": {
                 "task_id": "due",
@@ -260,95 +219,66 @@ def test_desired_by_mirror_selects_what_the_default_filter_surfaces():
 
 
 def test_desired_by_mirror_takes_its_timing_from_the_profiles_own_status():
-    profiles = [
-        {"id": "p-soon", "name": "Soon", "filter": {"status": "due_soon"}},
-        {"id": "p-all", "name": "Everything", "filter": {"status": "all"}},
-    ]
     tasks = [_task("due"), _task("soon", due=SOON_ISO), _task("later", due=FAR_ISO)]
-    soon = tm.desired_by_mirror(
-        [_mirror(profile_id="p-soon")], tasks, profiles, now=NOW
-    )
+    soon = tm.desired_by_mirror([_mirror(filt={"status": "due_soon"})], tasks, now=NOW)
     assert sorted(soon[M1]) == ["due", "soon"]
-    every = tm.desired_by_mirror(
-        [_mirror(profile_id="p-all")], tasks, profiles, now=NOW
-    )
+    every = tm.desired_by_mirror([_mirror(filt={"status": "all"})], tasks, now=NOW)
     assert sorted(every[M1]) == ["due", "later", "soon"]
 
 
 def test_desired_by_mirror_applies_a_profiles_other_filters_too():
-    profiles = [
-        {
-            "id": "p",
-            "name": "Kitchen",
-            "filter": {"status": "all", "areas": ["kitchen"]},
-        }
-    ]
+    mirrors = [_mirror(filt={"status": "all", "areas": ["kitchen"]})]
     tasks = [_task("in", area_id="kitchen"), _task("out", area_id="garage")]
-    wanted = tm.desired_by_mirror([_mirror(profile_id="p")], tasks, profiles, now=NOW)
-    assert sorted(wanted[M1]) == ["in"]
+    assert sorted(tm.desired_by_mirror(mirrors, tasks, now=NOW)[M1]) == ["in"]
 
 
 def test_desired_by_mirror_honours_a_widened_due_soon_window():
-    profiles = [{"id": "p", "name": "Soon", "filter": {"status": "due_soon"}}]
-    mirrors = [_mirror(profile_id="p")]
+    mirrors = [_mirror(filt={"status": "due_soon"})]
     tasks = [_task("later", due=FAR_ISO)]
-    assert tm.desired_by_mirror(mirrors, tasks, profiles, now=NOW) == {M1: {}}
-    wide = tm.desired_by_mirror(
-        mirrors, tasks, profiles, now=NOW, window=timedelta(days=120)
-    )
+    assert tm.desired_by_mirror(mirrors, tasks, now=NOW) == {M1: {}}
+    wide = tm.desired_by_mirror(mirrors, tasks, now=NOW, window=timedelta(days=120))
     assert sorted(wide[M1]) == ["later"]
 
 
 def test_desired_by_mirror_tidies_the_summary_it_will_put_on_the_list():
-    wanted = tm.desired_by_mirror([_mirror()], [_task(name=f"  {NAME}  ")], [], now=NOW)
+    wanted = tm.desired_by_mirror([_mirror()], [_task(name=f"  {NAME}  ")], now=NOW)
     assert wanted[M1][T1]["name"] == NAME
 
 
 def test_desired_by_mirror_reduces_a_due_instant_to_the_date_a_list_holds():
     task = _task(due="2026-06-14T23:30:00-04:00")
-    wanted = tm.desired_by_mirror([_mirror()], [task], [], now=NOW)
+    wanted = tm.desired_by_mirror([_mirror()], [task], now=NOW)
     assert wanted[M1][T1]["due"] == DUE
 
 
 def test_desired_by_mirror_carries_a_task_without_notes_as_an_empty_description():
     task = _task()
     del task["notes"]
-    wanted = tm.desired_by_mirror([_mirror()], [task], [], now=NOW)
+    wanted = tm.desired_by_mirror([_mirror()], [task], now=NOW)
     assert wanted[M1][T1]["notes"] == ""
 
 
 def test_desired_by_mirror_carries_the_completion_stamp_it_binds_against():
     task = _task(last_completed=DONE_ISO)
-    wanted = tm.desired_by_mirror([_mirror()], [task], [], now=NOW)
+    wanted = tm.desired_by_mirror([_mirror()], [task], now=NOW)
     assert wanted[M1][T1]["last_completed"] == DONE_ISO
 
 
-def test_desired_by_mirror_skips_a_mirror_with_no_list_of_its_own():
+def test_desired_by_mirror_skips_a_profile_whose_sync_is_switched_off():
+    # A cleared picker is the off switch, so the profile is left out of the wanted
+    # map altogether — which is also how the planner knows to tidy its list.
     mirrors = [_mirror(entity_id=""), _mirror(mid=M2)]
-    wanted = tm.desired_by_mirror(mirrors, [_task()], [], now=NOW)
+    wanted = tm.desired_by_mirror(mirrors, [_task()], now=NOW)
     assert sorted(wanted) == [M2]
 
 
-def test_desired_by_mirror_omits_a_mirror_whose_profile_has_been_deleted():
-    # Not "an empty selection": deleting a profile must not clear the list it
-    # was feeding, so the mirror is left out and the planner holds its entries.
-    mirrors = [_mirror(profile_id="ghost"), _mirror(mid=M2)]
-    wanted = tm.desired_by_mirror(mirrors, [_task()], [], now=NOW)
-    assert sorted(wanted) == [M2]
-
-
-def test_desired_by_mirror_resolves_a_profile_named_rather_than_referenced():
-    profiles = [{"id": "p", "name": "Everything", "filter": {"status": "all"}}]
-    mirrors = [_mirror(profile_id="Everything")]
-    wanted = tm.desired_by_mirror(mirrors, [_task(due=FAR_ISO)], profiles, now=NOW)
-    assert sorted(wanted[M1]) == [T1]
-
-
-def test_desired_by_mirror_gives_each_mirror_its_own_selection():
-    profiles = [{"id": "p-all", "name": "Everything", "filter": {"status": "all"}}]
-    mirrors = [_mirror(), _mirror(mid=M2, entity_id=OTHER, profile_id="p-all")]
+def test_desired_by_mirror_gives_each_profile_its_own_selection():
+    mirrors = [
+        _mirror(),
+        _mirror(mid=M2, entity_id=OTHER, filt={"status": "all"}),
+    ]
     tasks = [_task("due"), _task("later", due=FAR_ISO)]
-    wanted = tm.desired_by_mirror(mirrors, tasks, profiles, now=NOW)
+    wanted = tm.desired_by_mirror(mirrors, tasks, now=NOW)
     assert sorted(wanted[M1]) == ["due"]
     assert sorted(wanted[M2]) == ["due", "later"]
 
@@ -813,21 +743,17 @@ def test_an_entry_naming_a_list_nobody_read_is_carried_forward():
     assert plan.tracked[KEY] == tracked[KEY]
 
 
-def test_a_mirror_whose_profile_is_gone_holds_everything_it_has():
-    mirror = _mirror(profile_id="ghost")
-    wanted = tm.desired_by_mirror([mirror], [_task()], [], now=NOW)
-    assert wanted == {}
-    tracked = _tracked()
-    plan = tm.plan_sync(
-        mirrors=[mirror],
-        tracked=tracked,
-        desired=wanted,
-        items_by_entity={LIST: [_item()]},
-        capabilities=CAPS,
+def test_a_chore_moved_onto_a_list_nobody_could_read_still_leaves_the_old_one():
+    # Half a move: the old line comes off, and the new one waits for a pass that
+    # can actually see where it is going.
+    plan = _plan(
+        mirrors=[_mirror(entity_id=GHOST)],
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        lists={LIST: [_item()]},
     )
-    assert plan.add == [] and plan.remove == []
-    assert plan.update == [] and plan.complete == []
-    assert plan.tracked == tracked
+    assert plan.remove == [tm.RemoveOp(KEY, LIST, "i1")]
+    assert plan.add == [] and plan.tracked == {}
 
 
 def test_a_wanted_mirror_that_is_not_configured_at_all_is_skipped():
@@ -1052,7 +978,7 @@ def test_needs_pass_notices_a_completion_made_inside_home_keeper():
     assert _needs(tracked=_tracked(), desired=done) is True
 
 
-def test_needs_pass_notices_a_mirror_that_went_away_or_lost_its_list():
+def test_needs_pass_notices_a_profile_that_went_away_or_lost_its_list():
     desired = _desired([_want()])
     assert _needs(tracked=_tracked(), desired=desired, mirrors=[]) is True
     assert (
@@ -1061,30 +987,24 @@ def test_needs_pass_notices_a_mirror_that_went_away_or_lost_its_list():
     )
 
 
-def test_needs_pass_notices_a_mirror_pointed_at_another_list():
+def test_needs_pass_notices_a_profile_pointed_at_another_list():
     tracked = {KEY: _entry(entity_id=OTHER)}
     assert _needs(tracked=tracked, desired=_desired([_want()])) is True
 
 
-def test_needs_pass_says_nothing_about_a_misconfigured_mirror():
-    # Its bookkeeping is held rather than planned, so it can never drift.
-    assert _needs(tracked=_tracked(), desired={}) is False
-
-
-def test_needs_pass_keeps_looking_past_a_misconfigured_mirror():
+def test_needs_pass_keeps_looking_past_an_entry_that_is_in_step():
+    # One settled chore must not end the walk before the drifted one behind it.
     tracked = {
-        tm.mirror_key(M2, T1): _entry(),  # the profile this one names is gone
+        tm.mirror_key(M2, T1): _entry(),  # in step…
         KEY: _entry(summary="Stale name"),  # …and this one has drifted
     }
+    desired = {M1: {T1: _want()}, M2: {T1: _want()}}
     mirrors = [_mirror(), _mirror(mid=M2)]
-    assert (
-        tm.needs_pass(tracked=tracked, desired=_desired([_want()]), mirrors=mirrors)
-        is True
-    )
+    assert tm.needs_pass(tracked=tracked, desired=desired, mirrors=mirrors) is True
 
 
-def test_needs_pass_notices_a_mirror_switched_off_with_items_still_out_there():
-    # Clearing a mirror's list drops it out of the wanted map altogether, so its
+def test_needs_pass_notices_a_profile_switched_off_with_items_still_out_there():
+    # Clearing a profile's list drops it out of the wanted map altogether, so its
     # bookkeeping is the only thing left saying there is tidying up to do.
     assert _needs(tracked=_tracked(), desired={}, mirrors=[_mirror(entity_id="")]) is (
         True
@@ -1120,14 +1040,14 @@ def test_every_operation_names_the_task_it_belongs_to():
 
 
 def test_every_tracked_entry_is_planned_independently_in_one_pass():
-    """A household runs several mirrors, and they are never in step.
+    """A household runs several mirroring profiles, never in step with each other.
 
     Every branch of the walk ends by moving on to the next entry — one chore
     being handled must never stop the next from being looked at.
     """
     mirrors = [
         _mirror("m1", LIST),
-        _mirror("m3", LIST),  # configured, but its profile is gone
+        _mirror("m3", ""),  # a profile whose sync was switched off
         _mirror("m9", OTHER),
     ]
     desired = {
@@ -1170,9 +1090,9 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
         "m1:i": _entry(entity_id=GHOST, uid="ii", summary="Oil the hinges"),
         # Ticked off, and its task stopped matching: the line is the record.
         "m1:j": _entry(uid="ij", summary="Hoover the stairs"),
-        # Its mirror names a profile that no longer exists.
+        # Its profile is still there, with its list picker cleared.
         "m3:a": _entry(uid="i3", summary="Book the service"),
-        # Its mirror was deleted outright.
+        # Its profile was deleted outright.
         "m5:a": _entry(uid="i5a", summary="Change the batteries"),
         "m5:b": _entry(uid="i5b", summary="Flush the boiler"),
         "m5:c": _entry(uid="i5c", summary="Seal the deck"),
@@ -1191,6 +1111,7 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
                 _item("Clean the gutters", "ic", tm.STATUS_COMPLETED),
                 _item("Change the smoke alarm", "id"),
                 _item("Hoover the stairs", "ij", tm.STATUS_COMPLETED),
+                _item("Book the service", "i3"),
                 _item("Change the batteries", "i5a"),
                 _item("Flush the boiler", "i5b", tm.STATUS_COMPLETED),
                 _item("Test the RCD", "ik"),
@@ -1205,6 +1126,7 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
     assert plan.remove == [
         tm.RemoveOp("m1:b", LIST, "ib"),
         tm.RemoveOp("m1:h", OTHER, "ih"),
+        tm.RemoveOp("m3:a", LIST, "i3"),
         tm.RemoveOp("m5:a", LIST, "i5a"),
     ]
     assert plan.update == [
@@ -1235,7 +1157,6 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
         # Adopted: a line already reading the same is never duplicated.
         "m1:k": _entry(uid="ik", summary="Test the RCD"),
         "m1:z": _entry(uid=None, summary="Defrost the freezer"),
-        "m3:a": _entry(uid="i3", summary="Book the service"),
         "m5:d": _entry(entity_id=GHOST, uid="i5d", summary="Wax the car"),
         "m9:a": _entry(entity_id=OTHER, uid="i9", summary="Rake the leaves"),
     }
