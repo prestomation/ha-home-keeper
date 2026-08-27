@@ -447,9 +447,5 @@
   "tasks.intro.monitored": "<b>Overvåget</b> — udløst af en sensor eller tilstand og ryddet automatisk; nogle kan ikke markeres færdige manuelt.",
   "tasks.intro.recurring": "<b>Tilbagevendende</b> — gentages efter en plan eller hver gang du er færdig (filterskift, dyrlæge, batterier).",
   "tasks.intro.title": "Velkommen til Home Keeper",
-  "tasks.noMatch": "Ingen opgaver matcher dette filter.",
-  "field.season_2_on": "Andet vindue",
-  "field.season_2_start_month": "Startmåned",
-  "field.season_2_end_month": "Slutmåned",
-  "help.season_2_on": "Tilføj et andet aktivt vindue til opgaver, der kører i to separate dele af året — som plænepleje forår og efterår."
+  "tasks.noMatch": "Ingen opgaver matcher dette filter."
 }

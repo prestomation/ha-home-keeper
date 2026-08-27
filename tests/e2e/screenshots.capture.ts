@@ -469,17 +469,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/3b-panel-create-season.png`, fullPage: true });
 
-  // 3c. Second active-season window — tasks like lawn care run in spring and fall.
-  const secondWindowSwitch = panel.locator('#hk-task-form ha-selector-boolean ha-switch').nth(1);
-  if (!(await secondWindowSwitch.evaluate((el: HTMLInputElement) => el.checked))) {
-    await secondWindowSwitch.click();
-  }
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/3c-panel-create-season-two-windows.png`, fullPage: true });
-  // Turn both off for the next shot.
-  if (await secondWindowSwitch.evaluate((el: HTMLInputElement) => el.checked)) {
-    await secondWindowSwitch.click();
-  }
+  // Turn season off for the next shot.
   if (await seasonSwitch.evaluate((el: HTMLInputElement) => el.checked)) {
     await seasonSwitch.click();
   }

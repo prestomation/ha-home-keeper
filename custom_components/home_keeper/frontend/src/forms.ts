@@ -412,19 +412,6 @@ export function taskSchema(
                     { name: 'season_end_month', selector: selSelect(monthOptions()) },
                   ] as FormField[],
                 } as FormField,
-                { name: 'season_2_on', selector: selBool() } as FormField,
-                ...((task as Record<string, unknown>).season_2_on
-                  ? [
-                      {
-                        name: '',
-                        type: 'grid',
-                        schema: [
-                          { name: 'season_2_start_month', selector: selSelect(monthOptions()) },
-                          { name: 'season_2_end_month', selector: selSelect(monthOptions()) },
-                        ] as FormField[],
-                      } as FormField,
-                    ]
-                  : []),
               ]
             : []),
         ]
@@ -542,11 +529,6 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
       (seasonWindows(task)[0] ? String(parseInt(seasonWindows(task)[0].start, 10)) : '4'),
     season_end_month: sd.season_end_month ??
       (seasonWindows(task)[0] ? String(parseInt(seasonWindows(task)[0].end, 10)) : '9'),
-    season_2_on: sd.season_2_on ?? seasonWindows(task).length > 1,
-    season_2_start_month: sd.season_2_start_month ??
-      (seasonWindows(task)[1] ? String(parseInt(seasonWindows(task)[1].start, 10)) : '9'),
-    season_2_end_month: sd.season_2_end_month ??
-      (seasonWindows(task)[1] ? String(parseInt(seasonWindows(task)[1].end, 10)) : '10'),
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
     // task's current part source.
@@ -585,7 +567,6 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
     d.sensor_mode,
     d.sensor_backstop_on,
     d.season_on,
-    d.season_2_on,
     // State mode's value control follows the bound entity: an on/off picker for a
     // binary sensor, free text for anything else. This predicate reads the flat and the
     // nested binding itself, so it needs no normalizing pass of its own.
@@ -742,16 +723,6 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
           end: `${String(em).padStart(2, '0')}-${String(lastDay1).padStart(2, '0')}`,
         },
       ];
-      if (r.season_2_on) {
-        const sm2 = Number(r.season_2_start_month ?? 9);
-        const em2 = Number(r.season_2_end_month ?? 10);
-        const lastDay2 = new Date(2000, em2, 0).getDate();
-        windows.push({
-          start: `${String(sm2).padStart(2, '0')}-01`,
-          // Stryker disable next-line StringLiteral: lastDay is always >= 28, so padStart is a no-op
-          end: `${String(em2).padStart(2, '0')}-${String(lastDay2).padStart(2, '0')}`,
-        });
-      }
       payload.active_season = windows;
     } else {
       payload.active_season = null;

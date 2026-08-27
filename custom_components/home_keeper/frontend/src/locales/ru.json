@@ -475,9 +475,5 @@
   "recurrence.unit.month.few": "месяца",
   "recurrence.unit.month.many": "месяцев",
   "recurrence.unit.week.few": "недели",
-  "recurrence.unit.week.many": "недель",
-  "field.season_2_on": "Второе окно",
-  "field.season_2_start_month": "Начальный месяц",
-  "field.season_2_end_month": "Конечный месяц",
-  "help.season_2_on": "Добавьте второе активное окно для задач, выполняемых в два периода года — как уход за газоном весной и осенью."
+  "recurrence.unit.week.many": "недель"
 }

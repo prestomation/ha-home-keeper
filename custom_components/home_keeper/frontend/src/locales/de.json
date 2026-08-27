@@ -447,9 +447,5 @@
   "tasks.intro.monitored": "<b>Überwacht</b> – durch einen Sensor oder Zustand ausgelöst und automatisch gelöscht; manche lassen sich nicht von Hand abschließen.",
   "tasks.intro.recurring": "<b>Wiederkehrend</b> – wiederholt sich nach Zeitplan oder nach jedem Erledigen (Filterwechsel, Tierarzttermine, Batterien).",
   "tasks.intro.title": "Willkommen bei Home Keeper",
-  "tasks.noMatch": "Keine Aufgaben entsprechen diesem Filter.",
-  "field.season_2_on": "Zweites Fenster",
-  "field.season_2_start_month": "Startmonat",
-  "field.season_2_end_month": "Endmonat",
-  "help.season_2_on": "Fügen Sie ein zweites aktives Fenster hinzu, für Aufgaben in zwei getrennten Jahreszeiten — wie Rasenpflege im Frühling und Herbst."
+  "tasks.noMatch": "Keine Aufgaben entsprechen diesem Filter."
 }

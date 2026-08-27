@@ -461,9 +461,5 @@
   "recurrence.floating.many": "cada {n} {unit} tras la finalización",
   "recurrence.unit.day.many": "días",
   "recurrence.unit.month.many": "meses",
-  "recurrence.unit.week.many": "semanas",
-  "field.season_2_on": "Segunda ventana",
-  "field.season_2_start_month": "Mes de inicio",
-  "field.season_2_end_month": "Mes de fin",
-  "help.season_2_on": "Agregue una segunda ventana activa, para tareas que se realizan en dos partes del año — como el cuidado del césped en primavera y otoño."
+  "recurrence.unit.week.many": "semanas"
 }

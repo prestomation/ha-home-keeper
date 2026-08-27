@@ -567,43 +567,24 @@ describe('active season fields', () => {
     expect(payload.active_season).toBeNull();
   });
 
-  it('shows second window toggle when season is enabled', () => {
+  it('does not expose second-window controls (data model supports lists via service API)', () => {
     const fieldNames = names(taskSchema({
       recurrence_type: 'floating', season_on: true,
     }));
-    expect(fieldNames).toContain('season_2_on');
-  });
-
-  it('shows second window month pickers when season_2_on is true', () => {
-    const fieldNames = names(taskSchema({
-      recurrence_type: 'floating', season_on: true, season_2_on: true,
-    }));
-    expect(fieldNames).toContain('season_2_start_month');
-    expect(fieldNames).toContain('season_2_end_month');
-  });
-
-  it('hides second window month pickers when season_2_on is false', () => {
-    const fieldNames = names(taskSchema({
-      recurrence_type: 'floating', season_on: true, season_2_on: false,
-    }));
-    expect(fieldNames).toContain('season_2_on');
+    expect(fieldNames).not.toContain('season_2_on');
     expect(fieldNames).not.toContain('season_2_start_month');
     expect(fieldNames).not.toContain('season_2_end_month');
   });
 
-  it('buildTaskPayload assembles two-window active_season', () => {
+  it('buildTaskPayload sends a single-element list from the UI', () => {
     const payload = buildTaskPayload({
       name: 'Lawn', recurrence_type: 'floating', interval: 1, unit: 'months',
       season_on: true, season_start_month: '4', season_end_month: '5',
-      season_2_on: true, season_2_start_month: '9', season_2_end_month: '10',
     });
-    expect(payload.active_season).toEqual([
-      { start: '04-01', end: '05-31' },
-      { start: '09-01', end: '10-31' },
-    ]);
+    expect(payload.active_season).toEqual([{ start: '04-01', end: '05-31' }]);
   });
 
-  it('taskFormData reads multi-window active_season', () => {
+  it('taskFormData reads first window from a multi-window active_season', () => {
     const fd = taskFormData({
       recurrence_type: 'floating', interval: 1, unit: 'months',
       active_season: [
@@ -614,18 +595,5 @@ describe('active season fields', () => {
     expect(fd.season_on).toBe(true);
     expect(fd.season_start_month).toBe('4');
     expect(fd.season_end_month).toBe('5');
-    expect(fd.season_2_on).toBe(true);
-    expect(fd.season_2_start_month).toBe('9');
-    expect(fd.season_2_end_month).toBe('10');
-  });
-
-  it('taskFormData defaults second window to Sep/Oct when absent', () => {
-    const fd = taskFormData({
-      recurrence_type: 'floating', interval: 1, unit: 'months',
-      active_season: [{ start: '04-01', end: '05-31' }],
-    });
-    expect(fd.season_2_on).toBe(false);
-    expect(fd.season_2_start_month).toBe('9');
-    expect(fd.season_2_end_month).toBe('10');
   });
 });

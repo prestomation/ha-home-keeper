@@ -447,9 +447,5 @@
   "tasks.intro.monitored": "<b>Bewaakt</b> — geactiveerd door een sensor of voorwaarde en automatisch opgelost; sommige kun je niet handmatig afvinken.",
   "tasks.intro.recurring": "<b>Terugkerend</b> — herhaalt volgens schema of na elke keer dat je het afrondt (filters, dierenarts, batterijen).",
   "tasks.intro.title": "Welkom bij Home Keeper",
-  "tasks.noMatch": "Geen taken komen overeen met dit filter.",
-  "field.season_2_on": "Tweede venster",
-  "field.season_2_start_month": "Startmaand",
-  "field.season_2_end_month": "Eindmaand",
-  "help.season_2_on": "Voeg een tweede actief venster toe, voor taken die in twee perioden van het jaar worden uitgevoerd — zoals gazononderhoud in lente en herfst."
+  "tasks.noMatch": "Geen taken komen overeen met dit filter."
 }

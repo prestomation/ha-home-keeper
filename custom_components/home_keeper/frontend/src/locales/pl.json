@@ -475,9 +475,5 @@
   "recurrence.unit.month.few": "miesiące",
   "recurrence.unit.month.many": "miesięcy",
   "recurrence.unit.week.few": "tygodnie",
-  "recurrence.unit.week.many": "tygodni",
-  "field.season_2_on": "Drugie okno",
-  "field.season_2_start_month": "Miesiąc początkowy",
-  "field.season_2_end_month": "Miesiąc końcowy",
-  "help.season_2_on": "Dodaj drugie okno aktywności, dla zadań wykonywanych w dwóch częściach roku — jak pielęgnacja trawnika wiosną i jesienią."
+  "recurrence.unit.week.many": "tygodni"
 }

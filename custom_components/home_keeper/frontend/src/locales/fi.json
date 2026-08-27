@@ -447,9 +447,5 @@
   "tasks.intro.monitored": "<b>Valvottu</b> — anturin tai ehdon laukaisema ja poistuu automaattisesti; joitakin ei voi merkitä valmiiksi käsin.",
   "tasks.intro.recurring": "<b>Toistuva</b> — toistuu aikataulun mukaan tai aina kun suoritat sen (suodattimet, eläinlääkäri, paristot).",
   "tasks.intro.title": "Tervetuloa Home Keeperiin",
-  "tasks.noMatch": "Mikään tehtävä ei vastaa tätä suodatinta.",
-  "field.season_2_on": "Toinen ikkuna",
-  "field.season_2_start_month": "Alkukuukausi",
-  "field.season_2_end_month": "Loppukuukausi",
-  "help.season_2_on": "Lisää toinen aktiivinen ikkuna tehtäville, jotka suoritetaan kahdessa osassa vuotta — kuten nurmikon hoito keväällä ja syksyllä."
+  "tasks.noMatch": "Mikään tehtävä ei vastaa tätä suodatinta."
 }

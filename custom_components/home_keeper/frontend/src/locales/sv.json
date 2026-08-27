@@ -447,9 +447,5 @@
   "tasks.intro.monitored": "<b>Bevakad</b> — utlöst av en sensor eller ett villkor och löses automatiskt; vissa kan inte markeras klara för hand.",
   "tasks.intro.recurring": "<b>Återkommande</b> — upprepas enligt schema eller efter varje gång du slutfört den (filterbyten, veterinärbesök, batterier).",
   "tasks.intro.title": "Välkommen till Home Keeper",
-  "tasks.noMatch": "Inga uppgifter matchar detta filter.",
-  "field.season_2_on": "Andra fönstret",
-  "field.season_2_start_month": "Startmånad",
-  "field.season_2_end_month": "Slutmånad",
-  "help.season_2_on": "Lägg till ett andra aktivt fönster, för uppgifter som utförs under två delar av året — som gräsklippning vår och höst."
+  "tasks.noMatch": "Inga uppgifter matchar detta filter."
 }

@@ -447,9 +447,5 @@
   "tasks.intro.monitored": "<b>监测型</b>——由传感器或条件触发并自动清除；部分无法手动标记完成。",
   "tasks.intro.recurring": "<b>周期性</b>——按计划重复，或在每次完成后重复（更换滤芯、看兽医、电池）。",
   "tasks.intro.title": "欢迎使用 Home Keeper",
-  "tasks.noMatch": "没有任务符合此筛选条件。",
-  "field.season_2_on": "第二个窗口",
-  "field.season_2_start_month": "开始月份",
-  "field.season_2_end_month": "结束月份",
-  "help.season_2_on": "添加第二个活跃窗口，用于一年中分两个时期执行的任务——如春季和秋季的草坪护理。"
+  "tasks.noMatch": "没有任务符合此筛选条件。"
 }
