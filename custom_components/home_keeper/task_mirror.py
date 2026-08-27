@@ -19,8 +19,14 @@ The rules that shape a plan:
   is also the mirror's timing — ``overdue`` puts a task on the list when it falls
   due, ``due_soon`` three days ahead, ``all`` as soon as it is scheduled. A task
   that stops matching (completed, rescheduled, disabled, filtered out) has its
-  open item removed. Auto-buy reminders are skipped entirely: the shopping-list
-  mirror owns those, and two mirrors fighting over one line helps nobody.
+  open item removed. Two kinds are skipped whatever the profile says, because a
+  mirror is a *delivery* surface and decides for itself what belongs on a to-do
+  list (the split ``profiles.matches_filter`` documents): auto-buy reminders,
+  which the shopping-list mirror owns and would otherwise fight over one line,
+  and **completion-blocked** tasks — today a synced ``problem`` sensor, which
+  belongs in a Profile but not on a list, since only the integration that owns
+  the sensor can decide it is fixed. An item nobody can ever tick off is worse
+  than no item, the same call ``notifications.actions_for`` makes about buttons.
 * **A completed item is never touched.** Whoever ticked it off, the entry stays as
   their record. When the task recurs and falls due again, a *fresh* item is added
   alongside the old one — that is the history Todoist users expect.
@@ -61,6 +67,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from . import profiles
+from .notifications import is_completion_blocked
 from .reconcile import buy_source
 from .shopping import STATUS_COMPLETED, STATUS_NEEDS_ACTION, normalize_target
 from .transitions import DUE_SOON_WINDOW
@@ -269,6 +276,8 @@ def desired_by_mirror(
             if not profiles.matches_filter(task, filt, now=now, window=window):
                 continue
             if buy_source(task) is not None:
+                continue
+            if is_completion_blocked(task):
                 continue
             name = str(task.get("name") or "").strip()
             if not name:

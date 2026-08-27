@@ -225,10 +225,15 @@ def test_desired_by_mirror_selects_what_the_default_filter_surfaces():
     tasks = [
         _task("off", name="Disabled", enabled=False),
         _task("dormant", name="Dormant", due=None),
+        # A synced problem sensor belongs to the Profile (#248) but not on a to-do
+        # list: only the integration that owns the sensor can mark it done, so an
+        # item for it could never be ticked off. Keyed off the same
+        # ``managed_by.completion_blocked`` the panel and notification buttons read.
         _task(
             "sensor",
             name="Leak detected",
             source={"problem_sensor": {"entity_id": "binary_sensor.leak"}},
+            managed_by={"integration": "home_keeper", "completion_blocked": True},
         ),
         _task(
             "buy",
