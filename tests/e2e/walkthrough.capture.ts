@@ -487,23 +487,20 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await openDashboard(page);
     await page.waitForTimeout(BEAT * 3);
 
-    // 8. The same panel on a phone. Narrowing the viewport (the recording frame
-    //    stays 1280×800, so this reads as the layout reflowing) shows the tabs drop
-    //    to the bottom, the filters wrap instead of scrolling out of reach, and
-    //    Settings become an index that opens one section at a time.
-    await page.setViewportSize({ width: 390, height: 800 });
+    // 8. Settings sections are addresses now. Walking the rail moves the URL and
+    //    marks the section it lands on — the same route a phone opens as a page of
+    //    its own. (The phone layout itself is not recorded here: the frame is a
+    //    fixed 1280×800, so a 390px viewport would sit in a third of it beside a
+    //    grey void. It is documented by docs/images/50-* and 51-*, and asserted by
+    //    tests/e2e/tests/settings-mobile.spec.ts.)
     await openPanel(page);
-    await expect(panel.locator('#hk-list')).toBeVisible();
-    await page.waitForTimeout(BEAT * 2);
-    await panel.locator('#mtab-settings').click();
-    await expect(panel.locator('.hk-index-row').first()).toBeVisible();
-    await page.waitForTimeout(BEAT * 2);
-    await panel.locator('.hk-index-row[data-section="problem"]').click();
-    await expect(panel.locator('.hk-settings-backbar')).toBeVisible();
-    await page.waitForTimeout(BEAT * 2);
-    await panel.locator('#settings-back').click();
-    await expect(panel.locator('.hk-index-row').first()).toBeVisible();
-    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('#tab-settings').click();
+    await expect(panel.locator('.hk-settings-rail')).toBeVisible();
+    await page.waitForTimeout(BEAT);
+    for (const section of ['profiles', 'notifications', 'companions']) {
+      await panel.locator(`.hk-rail-link[data-section="${section}"]`).click();
+      await page.waitForTimeout(BEAT * 2);
+    }
   } finally {
     // Close the context to flush the recording, then save it to a stable filename.
     await context.close();
