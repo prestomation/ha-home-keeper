@@ -12,8 +12,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 - **The panel has a new look.** A task row carries its status in a coloured edge and
   a pill at the end of the line, and the filter row fits on one line with a count on
-  each scope. On a phone the tabs move to the bottom of the screen and Add task
-  becomes a floating button.
+  each scope. On a phone the tabs move to the bottom of the screen and the scope
+  pills wrap onto a second row rather than scrolling out of view.
 
 - **Editing opens in a drawer beside the list instead of a card above it.** The list
   keeps its place, the row you are editing stays lit, and Save sits in a header that
@@ -27,6 +27,11 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   marks which features are on and how many profiles, notifications and companions
   you have. The problem-sensor exclusions sit behind the switch that decides whether
   they apply.
+
+### Fixed
+
+- **The due date on a one-off task has a label again.** Creating a task that happens
+  just once showed a raw translation key above its date picker in every language.
 
 ## [0.18.0b2]
 

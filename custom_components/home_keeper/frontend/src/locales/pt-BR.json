@@ -148,6 +148,7 @@
   "field.device_id": "Anexar ao dispositivo",
   "field.doc_name": "Nome",
   "field.doc_url": "URL",
+  "field.due": "Vencimento",
   "field.freq": "Frequência",
   "field.icon": "Ícone",
   "field.install_date": "Data de instalação",

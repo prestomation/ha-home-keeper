@@ -148,6 +148,7 @@
   "field.device_id": "Rattacher à un appareil",
   "field.doc_name": "Nom",
   "field.doc_url": "URL",
+  "field.due": "Échéance",
   "field.freq": "Fréquence",
   "field.icon": "Icône",
   "field.install_date": "Date d'installation",

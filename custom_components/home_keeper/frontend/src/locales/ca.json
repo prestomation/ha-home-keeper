@@ -148,6 +148,7 @@
   "field.device_id": "Vincula a un dispositiu",
   "field.doc_name": "Nom",
   "field.doc_url": "URL",
+  "field.due": "Venciment",
   "field.freq": "Freqüència",
   "field.icon": "Icona",
   "field.install_date": "Data d'instal·lació",

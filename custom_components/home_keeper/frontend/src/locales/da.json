@@ -141,6 +141,7 @@
   "field.device_id": "Tilknyt til enhed",
   "field.doc_name": "Navn",
   "field.doc_url": "URL",
+  "field.due": "Forfalder",
   "field.freq": "Frekvens",
   "field.icon": "Ikon",
   "field.install_date": "Installationsdato",

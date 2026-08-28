@@ -141,6 +141,7 @@
   "field.device_id": "An Gerät anhängen",
   "field.doc_name": "Name",
   "field.doc_url": "URL",
+  "field.due": "Fällig",
   "field.freq": "Häufigkeit",
   "field.icon": "Symbol",
   "field.install_date": "Installationsdatum",

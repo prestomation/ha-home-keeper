@@ -1217,10 +1217,29 @@ const STYLES = `
     }
     /* Clear the bar, plus the floating Add button that sits above it. */
     .hk-wrap { padding: 12px 12px 132px; }
-    /* Scope pills scroll sideways rather than wrapping to three lines. */
-    .hk-controls { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-    .hk-controls::-webkit-scrollbar { display: none; }
-    .hk-control, .hk-seg { flex: none; }
+    /* The controls wrap onto as many rows as they need — nothing scrolls sideways,
+       because a control parked off the edge of a phone screen is a control nobody
+       finds. The joined segment can't wrap (it is one pill with hairlines between
+       the buttons), so at this width it comes apart into separate chips, which can.
+       That also survives a locale whose labels are half again as long as English. */
+    .hk-controls { gap: 10px 8px; }
+    /* A segment gets a row to itself and wraps within it; the dropdowns are narrow
+       enough to share the row under it. */
+    .hk-control:not(.hk-menu) { flex: 1 1 100%; min-width: 0; }
+    .hk-menu { flex: 0 1 auto; min-width: 0; }
+    .hk-seg {
+      flex-wrap: wrap; gap: 8px;
+      border: 0; border-radius: 0; background: transparent; overflow: visible;
+    }
+    .hk-seg-btn {
+      border: 1px solid var(--hk-line); border-radius: var(--hk-r-pill);
+      background: var(--hk-surface); padding: 9px 14px;
+    }
+    /* Restore only the width the joined-segment rule zeroes out. Matching that rule's
+       first-child specificity here would also tie with the .active rule and, as the
+       later rule, repaint the active chip's background white under white text. */
+    .hk-seg-btn:first-child { border-left-width: 1px; }
+    .hk-seg-btn.active { border-color: var(--hk-accent); }
     .hk-controls-spacer { display: none; }
     /* Add becomes a floating action button clear of the tab bar. */
     .hk-add-btn {
@@ -1231,12 +1250,14 @@ const STYLES = `
       box-shadow: var(--hk-shadow-float);
       border-radius: 14px;
     }
-    /* A phone row stacks: title, meta, then status and Done on one line. */
+    /* A phone row stacks: title, meta, the chips, then status and Done on one line.
+       The chips take a row of their own rather than sharing with the status pill, so
+       the pill and the button it argues for always end up side by side. */
     .hk-card-row { flex-wrap: wrap; row-gap: 10px; }
     .hk-card-row .grow { flex: 1 1 100%; }
-    .hk-status { order: 1; }
-    .hk-card-actions { order: 2; margin-inline-start: auto; }
-    .hk-chips.hk-chips-inline { flex-wrap: wrap; }
+    .hk-chips.hk-chips-inline { flex: 1 1 100%; flex-wrap: wrap; order: 1; }
+    .hk-status { order: 2; }
+    .hk-card-actions { order: 3; margin-inline-start: auto; }
   }
 
   /* ── Narrow: the drawer becomes a bottom sheet ─────────────────────────────

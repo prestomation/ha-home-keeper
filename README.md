@@ -257,7 +257,7 @@ then **Add task**.
 
 **Editing opens in a drawer beside the list.** The list keeps its place and the row
 you are editing stays lit while the rest of it recedes, so you can see what you are
-changing in context. **Save** sits in a header that does not scroll away; **Delete**
+changing in context. **Save** sits in a header that does not scroll away. **Delete**
 and **History** sit in a footer at the other end. The form is grouped into Basics,
 Schedule, Placement and Completion, and the fields a recurrence choice reveals are
 indented behind a rule so it is clear what they depend on.
@@ -273,9 +273,11 @@ any other page and you can link straight to one.
 
 ![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
 
-**On a phone** the tabs move to the bottom of the screen, **Add task** becomes a
-floating button, and the edit drawer becomes a full-height sheet. The appliance list
-steps aside while you are reading an appliance, and the back arrow returns to it.
+**On a phone** the tabs move to the bottom of the screen. **Add task** turns into a
+floating button. The edit drawer becomes a full-height sheet. The scope pills come
+apart into separate chips that wrap onto a second row, so no filter ends up off the
+edge of the screen. The appliance list steps aside while you read an appliance. The
+back arrow brings it back.
 <!-- vale ai-tells.ColonUsage = YES -->
 
 ## Complete tasks with NFC/RFID tags

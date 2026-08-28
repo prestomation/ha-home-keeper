@@ -141,6 +141,7 @@
   "field.device_id": "Knytt til enhet",
   "field.doc_name": "Navn",
   "field.doc_url": "URL",
+  "field.due": "Forfaller",
   "field.freq": "Frekvens",
   "field.icon": "Ikon",
   "field.install_date": "Installasjonsdato",

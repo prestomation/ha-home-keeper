@@ -155,6 +155,7 @@
   "field.device_id": "Przypisz do urządzenia",
   "field.doc_name": "Nazwa",
   "field.doc_url": "URL",
+  "field.due": "Termin",
   "field.freq": "Częstotliwość",
   "field.icon": "Ikona",
   "field.install_date": "Data instalacji",

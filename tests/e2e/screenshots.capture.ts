@@ -39,6 +39,39 @@ async function expandGroup(group: Locator): Promise<void> {
 }
 
 /**
+ * Click a row open, retrying until the panel has actually navigated.
+ *
+ * Same race as `expandGroup`: the panel rebuilds its whole shadow tree on any
+ * refresh, so a click can land on a row that is being replaced and go nowhere.
+ * Poll on the URL the click is supposed to produce, not on the click resolving.
+ *
+ * Takes the whole selector rather than the id, so the seeded id stays written out at
+ * the call site — `tests/unit/test_integration_fixture_clean.py` greps these harnesses
+ * for the detail-id attribute to prove every record a tour opens is still in the
+ * fixture, and an id assembled from a variable would slip past it.
+ */
+async function openRow(page: Page, panel: Locator, rowSelector: string): Promise<void> {
+  const before = page.url();
+  const row = panel.locator(rowSelector);
+  await expect
+    .poll(
+      async () => {
+        if (await row.isVisible().catch(() => false)) {
+          await row.click().catch(() => undefined);
+        }
+        return page.url() !== before;
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+}
+
+/** Scroll *el* to the middle of whatever scrolls it, rather than just barely into view. */
+async function centre(el: Locator): Promise<void> {
+  await el.evaluate((node: Element) => node.scrollIntoView({ block: 'center' }));
+}
+
+/**
  * Screenshot the part of *el* that is actually on screen.
  *
  * A plain element screenshot captures the element's whole box, and any of it clipped
@@ -298,7 +331,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/1c-panel-usage-countdown.png`, fullPage: true });
 
-  await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
+  await openRow(page, panel, '.detail-open[data-detail-id="task_nozzle_usage"]');
   await expect(panel.locator('.hk-meter').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/14b-panel-usage-progress.png`, fullPage: true });
@@ -551,9 +584,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // A threshold value so the live hint reads "becomes due when the sensor is ≥ 90 h".
   await fillNumber(panel.locator('#hk-task-form'), 0, '90');
   await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
+  // Photograph the viewport, not the page: the drawer is sticky and scrolls its own
+  // content, so once a field this far down is in view a full-page capture renders the
+  // drawer as a band at the page's scroll offset with blank paper above it. Centre the
+  // live hint so the fields it explains sit in the frame with it.
+  await centre(panel.locator('#hk-sensor-hint'));
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/31-panel-create-sensor-threshold.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/31-panel-create-sensor-threshold.png` });
 
   // 43. The same form in **state** mode — the binary-sensor case. A robot vacuum's
   // "water tank low" or a device's battery_almost_empty reports on/off and has no
@@ -617,12 +655,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-sensor-hint')).toContainText(
     'Counting from 700 h, so 80 h of 100 h is already used and the task becomes due at 800 h.',
   );
+  // Viewport, not full page, centred on the hint — same reason as shot 31.
+  await centre(panel.locator('#hk-sensor-hint'));
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
-  await page.screenshot({
-    path: `${OUT}/47-panel-sensor-starting-reading.png`,
-    fullPage: true,
-  });
+  await page.screenshot({ path: `${OUT}/47-panel-sensor-starting-reading.png` });
 
   // 33 + 34. Linked consumable (sensor-driven reorder). Attach a task to an appliance,
   // then its "Linked consumable" picker is scoped to that appliance's consumables;

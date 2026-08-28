@@ -155,6 +155,7 @@
   "field.device_id": "Připojit k zařízení",
   "field.doc_name": "Název",
   "field.doc_url": "URL",
+  "field.due": "Termín",
   "field.freq": "Frekvence",
   "field.icon": "Ikona",
   "field.install_date": "Datum instalace",

@@ -141,6 +141,7 @@
   "field.device_id": "Koppelen aan apparaat",
   "field.doc_name": "Naam",
   "field.doc_url": "URL",
+  "field.due": "Vervaldatum",
   "field.freq": "Frequentie",
   "field.icon": "Pictogram",
   "field.install_date": "Installatiedatum",

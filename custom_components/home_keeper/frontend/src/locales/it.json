@@ -148,6 +148,7 @@
   "field.device_id": "Collega al dispositivo",
   "field.doc_name": "Nome",
   "field.doc_url": "URL",
+  "field.due": "Scadenza",
   "field.freq": "Frequenza",
   "field.icon": "Icona",
   "field.install_date": "Data di installazione",

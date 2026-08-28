@@ -155,6 +155,7 @@
   "field.device_id": "Привязать к устройству",
   "field.doc_name": "Имя",
   "field.doc_url": "URL",
+  "field.due": "Срок",
   "field.freq": "Частота",
   "field.icon": "Значок",
   "field.install_date": "Дата установки",

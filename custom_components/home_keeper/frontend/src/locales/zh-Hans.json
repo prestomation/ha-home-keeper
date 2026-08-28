@@ -141,6 +141,7 @@
   "field.device_id": "关联到设备",
   "field.doc_name": "名称",
   "field.doc_url": "URL",
+  "field.due": "到期时间",
   "field.freq": "频率",
   "field.icon": "图标",
   "field.install_date": "安装日期",

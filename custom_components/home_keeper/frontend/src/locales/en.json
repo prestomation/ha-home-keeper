@@ -141,6 +141,7 @@
   "field.device_id": "Attach to device",
   "field.doc_name": "Name",
   "field.doc_url": "URL",
+  "field.due": "Due",
   "field.freq": "Frequency",
   "field.icon": "Icon",
   "field.install_date": "Install date",

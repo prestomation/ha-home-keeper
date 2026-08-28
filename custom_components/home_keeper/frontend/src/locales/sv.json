@@ -141,6 +141,7 @@
   "field.device_id": "Koppla till enhet",
   "field.doc_name": "Namn",
   "field.doc_url": "URL",
+  "field.due": "Förfaller",
   "field.freq": "Frekvens",
   "field.icon": "Ikon",
   "field.install_date": "Installationsdatum",

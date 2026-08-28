@@ -141,6 +141,7 @@
   "field.device_id": "Liitä laitteeseen",
   "field.doc_name": "Nimi",
   "field.doc_url": "URL",
+  "field.due": "Eräpäivä",
   "field.freq": "Tiheys",
   "field.icon": "Kuvake",
   "field.install_date": "Asennuspäivä",
