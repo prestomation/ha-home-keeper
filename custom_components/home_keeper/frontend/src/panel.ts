@@ -102,6 +102,7 @@ import {
   buildAssetTree,
   type AssetTreeEntry,
   type PanelLocation,
+  type PanelView,
 } from './utils';
 
 // mdi:devices — fallback icon when a device has no resolvable brand logo.
@@ -201,8 +202,78 @@ const MDI_CONSUMABLE =
 // has no exclusive minimum, so the floor is one step of the stored precision.
 const MIN_POSITIVE_QUANTITY = 0.001;
 
+/** How many descriptive chips a list row shows beside the task name before the rest
+ *  collapse into a "+n". Two keeps the title line readable at any width; the hidden
+ *  chips stay in the DOM (and on the task's detail page) rather than being dropped.
+ *  Declared above STYLES because the stylesheet interpolates it. */
+const TASK_CARD_INLINE_CHIPS = 2;
+
 const STYLES = `
-  :host { display: block; }
+  /* ── Design tokens ─────────────────────────────────────────────────────────
+     One vocabulary for every surface, so the panel reads as a single system
+     rather than a pile of independently-styled sections.
+
+     Every token resolves to a Home Assistant theme variable, or to a color-mix
+     off one. Nothing here is a literal colour: the design comp was drawn in HA's
+     default *light* palette, and hard-coding those hexes would break dark mode
+     and every custom theme. The soft/line variants exist because HA publishes a
+     semantic colour but no tint of it, and a 12%-over-surface mix reads the same
+     way in both themes (in dark, the surface it mixes into is dark, so the tint
+     darkens with it instead of glowing).
+
+     --hk-tap is the WCAG 2.5.5 minimum touch target, used by the controls that
+     shrink on desktop but must stay thumb-sized on a phone. */
+  :host {
+    --hk-accent: var(--primary-color);
+    --hk-accent-fg: var(--text-primary-color, #fff);
+    --hk-accent-soft: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color, #fff));
+    --hk-accent-line: color-mix(in srgb, var(--primary-color) 45%, transparent);
+    --hk-accent-ink: color-mix(in srgb, var(--primary-color) 78%, var(--primary-text-color));
+    --hk-danger: var(--error-color, #db4437);
+    --hk-danger-soft: color-mix(in srgb, var(--error-color, #db4437) 12%, var(--card-background-color, #fff));
+    --hk-danger-ink: color-mix(in srgb, var(--error-color, #db4437) 78%, var(--primary-text-color));
+    --hk-warn: var(--warning-color, #ffa600);
+    --hk-warn-soft: color-mix(in srgb, var(--warning-color, #ffa600) 14%, var(--card-background-color, #fff));
+    --hk-warn-ink: color-mix(in srgb, var(--warning-color, #ffa600) 72%, var(--primary-text-color));
+    --hk-ok: var(--success-color, #43a047);
+    --hk-ok-soft: color-mix(in srgb, var(--success-color, #43a047) 14%, var(--card-background-color, #fff));
+    --hk-surface: var(--card-background-color, #fff);
+    --hk-page: var(--secondary-background-color);
+    --hk-line: var(--divider-color);
+    --hk-line-soft: color-mix(in srgb, var(--divider-color) 55%, transparent);
+    --hk-ink: var(--primary-text-color);
+    --hk-ink-2: var(--secondary-text-color);
+    --hk-r-card: 12px;
+    --hk-r-row: 10px;
+    --hk-r-btn: 8px;
+    --hk-r-pill: 999px;
+    --hk-tap: 44px;
+    --hk-shadow-card: 0 1px 3px rgba(0,0,0,.08);
+    --hk-shadow-float: 0 4px 18px rgba(0,0,0,.16);
+    display: block;
+  }
+
+  /* An uppercase micro-label above a group of related controls. The comp uses
+     this on every board — form sections, list group headers, callout captions —
+     so it is one class rather than five near-identical rules. */
+  .hk-eyebrow {
+    font-size: 0.69rem; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--hk-ink-2);
+  }
+  .hk-eyebrow.accent { color: var(--hk-accent-ink); }
+
+  /* Fields that only exist because of a choice made above them, indented behind a
+     rule so the dependency is visible rather than implied by ordering. Used by the
+     task form's recurrence fields and by Settings -> problem-sensor exclusions. */
+  .hk-indent { display: flex; gap: 14px; }
+  .hk-indent::before {
+    content: ''; flex: none; width: 3px; border-radius: 2px;
+    background: var(--hk-accent-line);
+  }
+  .hk-indent-body { flex: 1; min-width: 0; }
+  .hk-indent-head { margin-bottom: 10px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .hk-indent-note { font-size: 0.78rem; color: var(--hk-ink-2); }
+
   .hk-toolbar {
     display: flex; align-items: center; gap: 12px; height: 56px;
     padding: 0 16px;
@@ -212,30 +283,40 @@ const STYLES = `
     box-shadow: var(--ha-card-box-shadow, 0 2px 2px rgba(0,0,0,.1));
   }
   .hk-toolbar-title { font-size: 1.25rem; font-weight: 400; flex: 1; }
-  .hk-wrap { padding: 16px; max-width: 920px; margin: 0 auto; }
+  /* Wider than the old 920px: the comp's desktop boards run a filter row, a list and
+     a 472px drawer side by side, which 920px cannot hold. The Settings column caps
+     itself lower (820px) because long prose is what it holds. */
+  .hk-wrap { padding: 16px; max-width: 1200px; margin: 0 auto; }
   ha-tab-group { margin-bottom: 16px; }
   .hk-actionbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
   ha-card.hk-card { margin-bottom: 12px; position: relative; }
   .hk-card-row {
-    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px; padding: 13px 16px;
   }
   .hk-card-row .grow { flex: 1; min-width: 0; }
   .hk-name {
     font-weight: 500; display: flex; align-items: center; gap: 8px;
     flex-wrap: wrap;
   }
-  .hk-meta { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
+  .hk-meta { color: var(--hk-ink-2); font-size: 0.85rem; margin-top: 2px; }
   .hk-card-actions { display: flex; align-items: center; gap: 4px; }
   /* A completion-blocked Done (e.g. a synced problem sensor): the inner ha-button is
      natively disabled (greyed), and the wrapping span stays clickable so a tap can
      explain why it can't be completed here. */
   .done-blocked-wrap { cursor: pointer; display: inline-flex; }
   .done-blocked-wrap ha-button { pointer-events: none; }
+  /* Soft-tinted rather than solid: an overdue row already carries a red rule down its
+     left edge, and a solid red block beside it read as an alarm on every line. The
+     dark-red-on-pale-red pairing keeps the contrast while letting the row's own
+     primary action stay the loudest thing in it. */
   ha-assist-chip.hk-overdue {
-    --ha-assist-chip-container-color: var(--error-color);
-    --md-assist-chip-label-text-color: var(--text-primary-color, #fff);
-    --ha-assist-chip-label-text-color: var(--text-primary-color, #fff);
+    --ha-assist-chip-container-color: var(--hk-danger-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-danger-soft);
+    --md-assist-chip-label-text-color: var(--hk-danger-ink);
+    --ha-assist-chip-label-text-color: var(--hk-danger-ink);
     --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
   }
   ha-assist-chip.hk-managed {
     --ha-assist-chip-container-color: var(--info-color, #039BE5);
@@ -280,6 +361,10 @@ const STYLES = `
     font-size: 0.85rem; font-style: italic; color: var(--secondary-text-color);
     cursor: help;
   }
+  /* The orphan banner's action is a long label in a narrow slot, which flex was
+     shrinking until "Remove orphaned tasks" wrapped onto three lines. The label
+     can't be shortened (it is translated in 17 locales), so stop the shrink. */
+  .hk-orphan-banner ha-button { min-width: max-content; flex: none; }
   /* First-run orientation banner above the task list (dismissible, persisted). */
   .hk-intro {
     border: 1px solid var(--divider-color);
@@ -529,7 +614,33 @@ const STYLES = `
   .hk-loading { display: flex; justify-content: center; padding: 48px 0; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
   .hk-card-row .grow.clickable { cursor: pointer; }
-  ha-card.hk-card.overdue { border-left: 3px solid var(--error-color); }
+  /* A list row is a flat bordered card, not a floating one — a page of shadows reads
+     as noise. Status lives in the left rule, so the radius opens on that edge. */
+  ha-card.hk-card {
+    --ha-card-box-shadow: none;
+    --ha-card-border-radius: var(--hk-r-row);
+    margin-bottom: 8px;
+  }
+  ha-card.hk-card.overdue {
+    border-left: 3px solid var(--hk-danger);
+    --ha-card-border-radius: 0 var(--hk-r-row) var(--hk-r-row) 0;
+  }
+  /* Name line: the title, then the chips that qualify it. */
+  .hk-name-text { min-width: 0; overflow-wrap: anywhere; }
+  .hk-chips.hk-chips-inline { margin-top: 0; gap: 6px; flex-wrap: nowrap; }
+  .hk-chips.hk-chips-inline ha-assist-chip { --ha-assist-chip-container-height: 26px; }
+  /* Everything past the second chip is folded behind the "+n" beside it. The chips
+     stay in the DOM: this is a density decision about one row, not a decision to
+     withhold what the task is tagged with — the detail page still lists them all. */
+  .hk-chips.hk-chips-inline > *:nth-child(n + ${TASK_CARD_INLINE_CHIPS + 1}) { display: none; }
+  .hk-chip-more {
+    flex: none; font-size: 0.78rem; font-weight: 500; color: var(--hk-ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  /* The due/overdue pill sits at the end of the row, next to the action it argues
+     for, rather than among the descriptive chips. */
+  .hk-status { flex: none; display: flex; align-items: center; }
+  .hk-status ha-assist-chip { --ha-assist-chip-container-height: 28px; }
   ha-card.hk-card.hk-tree-child {
     margin-left: calc(var(--hk-tree-depth, 0) * 32px);
     border-left: 3px solid color-mix(in srgb, var(--primary-color) calc(40% + var(--hk-tree-depth, 0) * 15%), transparent);
@@ -561,58 +672,101 @@ const STYLES = `
     transform: rotate(-90deg);
   }
 
-  /* Filter / group-by controls */
+  /* ── Filter / group-by controls ───────────────────────────────────────────
+     One row: the scope pills lead, refinements follow, and the single primary
+     action closes it. It wraps rather than scrolls when the viewport can't hold
+     it, so no control is ever unreachable. */
   .hk-controls {
-    display: flex; align-items: center; gap: 16px 24px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap;
     margin-bottom: 16px;
   }
+  .hk-controls-spacer { flex: 1 1 auto; min-width: 0; }
   .hk-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .hk-seg-label {
-    font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
+    font-size: 0.8rem; font-weight: 600; color: var(--hk-ink-2);
     text-transform: uppercase; letter-spacing: 0.04em;
   }
   .hk-seg {
-    display: inline-flex; border: 1px solid var(--divider-color);
-    border-radius: 999px; overflow: hidden; background: var(--card-background-color);
+    display: inline-flex; border: 1px solid var(--hk-line);
+    border-radius: var(--hk-r-pill); overflow: hidden; background: var(--hk-surface);
   }
   .hk-seg-btn {
     appearance: none; border: 0; background: transparent; cursor: pointer;
-    font: inherit; font-size: 0.85rem; padding: 6px 14px;
-    color: var(--primary-text-color); white-space: nowrap;
-    border-left: 1px solid var(--divider-color);
+    font: inherit; font-size: 0.85rem; padding: 7px 15px;
+    color: var(--hk-ink); white-space: nowrap;
+    border-left: 1px solid var(--hk-line);
+    display: inline-flex; align-items: center; gap: 7px;
   }
   .hk-seg-btn:first-child { border-left: 0; }
-  .hk-profile-select {
-    appearance: auto; font: inherit; font-size: 0.85rem; padding: 6px 10px;
-    border: 1px solid var(--divider-color); border-radius: 999px;
-    background: var(--card-background-color); color: var(--primary-text-color);
-    cursor: pointer; max-width: 240px;
+  /* The count reads as a companion figure, not part of the label: lighter, and
+     tinted to the button's own foreground so it stays legible when active. */
+  .hk-seg-count { font-size: 0.78rem; opacity: 0.72; font-variant-numeric: tabular-nums; }
+  /* Label + value + caret, sized like the pills beside it. A refinement with more
+     than a couple of options states its current value instead of showing them all. */
+  .hk-menu { gap: 0; border: 1px solid var(--hk-line); border-radius: var(--hk-r-btn);
+    background: var(--hk-surface); padding: 0 10px 0 12px; cursor: pointer; }
+  .hk-menu .hk-seg-label { font-size: 0.72rem; letter-spacing: 0.05em; flex: none; }
+  .hk-menu-select, .hk-profile-select {
+    appearance: none; font: inherit; font-size: 0.85rem; font-weight: 500;
+    padding: 8px 20px 8px 8px; border: 0; background: transparent;
+    color: var(--hk-ink); cursor: pointer; max-width: 200px;
+    text-overflow: ellipsis;
+    background-image: linear-gradient(45deg, transparent 50%, var(--hk-ink-2) 50%),
+                      linear-gradient(135deg, var(--hk-ink-2) 50%, transparent 50%);
+    background-position: right 8px top 55%, right 3px top 55%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
   }
-  .hk-seg-btn:hover { background: var(--secondary-background-color); }
+  .hk-menu-select:focus-visible, .hk-profile-select:focus-visible {
+    outline: 2px solid var(--hk-accent); outline-offset: 2px; border-radius: 4px;
+  }
+  .hk-seg-btn:hover { background: var(--hk-page); }
   .hk-seg-btn.active {
-    background: var(--primary-color);
-    color: var(--text-primary-color, #fff); font-weight: 500;
+    background: var(--hk-accent);
+    color: var(--hk-accent-fg); font-weight: 500;
   }
+  /* The one primary action per surface. */
+  .hk-add-btn { flex: none; }
 
-  /* Collapsible group sections */
+  /* ── Collapsible group sections ───────────────────────────────────────────
+     An eyebrow, its count, then a hairline that carries the eye to a chevron at
+     the far end — so a long list reads as sections rather than one run of rows. */
   details.hk-group { margin-bottom: 12px; }
   details.hk-group > summary {
     list-style: none; cursor: pointer; display: flex; align-items: center;
-    gap: 8px; padding: 6px 4px; user-select: none;
+    gap: 10px; padding: 8px 2px; user-select: none;
   }
   details.hk-group > summary::-webkit-details-marker { display: none; }
   details.hk-group > summary::before {
     content: ''; width: 0; height: 0; flex: none;
-    border-left: 5px solid var(--secondary-text-color);
+    border-left: 5px solid var(--hk-ink-2);
     border-top: 4px solid transparent; border-bottom: 4px solid transparent;
     transition: transform 0.15s ease; transform: rotate(0deg);
   }
   details.hk-group[open] > summary::before { transform: rotate(90deg); }
-  .hk-group-title { font-weight: 600; font-size: 0.95rem; }
+  .hk-group-title {
+    font-size: 0.69rem; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--hk-ink-2);
+  }
   .hk-group-count {
-    font-size: 0.8rem; color: var(--secondary-text-color);
-    background: var(--secondary-background-color);
-    border-radius: 999px; padding: 1px 8px;
+    font-size: 0.69rem; font-weight: 700; color: var(--hk-ink-2);
+    background: var(--hk-page);
+    border-radius: var(--hk-r-pill); padding: 2px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .hk-group-rule { flex: 1; height: 1px; background: var(--hk-line-soft); min-width: 12px; }
+  .hk-group-toggle {
+    flex: none; width: 0; height: 0;
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-top: 5px solid var(--hk-ink-2);
+    transition: transform 0.15s ease;
+  }
+  details.hk-group[open] > summary .hk-group-toggle { transform: rotate(180deg); }
+  /* Overdue is the section people are looking for, so its header carries the same
+     red as the rows beneath it. */
+  details.hk-group[data-bucket="overdue"] > summary .hk-group-title { color: var(--hk-danger); }
+  details.hk-group[data-bucket="overdue"] > summary .hk-group-count {
+    color: var(--hk-danger-ink); background: var(--hk-danger-soft);
   }
 
   /* Detail page */
@@ -761,6 +915,60 @@ const STYLES = `
   /* Completion-details dialog */
   .hk-completion-body { display: flex; flex-direction: column; gap: 12px; min-width: 320px; }
   .hk-completion-photo-label { font-weight: 500; font-size: 0.9rem; }
+
+  /* ── Phone-width tab bar ───────────────────────────────────────────────────
+     Hidden by default and swapped in for ha-tab-group below the phone breakpoint,
+     so exactly one navigation control exists at any width. */
+  .hk-bottombar { display: none; }
+  .hk-bottomtab {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    font: inherit; font-size: 0.72rem; color: var(--hk-ink-2);
+    flex: 1; padding: 8px 4px 0; min-height: var(--hk-tap);
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+  }
+  .hk-bottomtab.active { color: var(--hk-accent); font-weight: 500; }
+  .hk-bottomtab-mark {
+    width: 26px; height: 4px; border-radius: 2px; background: transparent;
+  }
+  .hk-bottomtab.active .hk-bottomtab-mark { background: var(--hk-accent); }
+
+  /* ── Responsive ────────────────────────────────────────────────────────────
+     Viewport media queries, not container queries: container-type would make
+     :host a containing block for fixed descendants, which is exactly what the
+     bottom bar and the drawer must not be anchored to. Home Assistant collapses
+     its own sidebar below ~870px, so the phone rules can run full-bleed. */
+  @media (max-width: 700px) {
+    ha-tab-group { display: none; }
+    .hk-bottombar {
+      display: flex;
+      position: fixed; inset-inline: 0; bottom: 0; z-index: 4;
+      background: var(--hk-surface);
+      border-top: 1px solid var(--hk-line);
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+    /* Clear the bar, plus the floating Add button that sits above it. */
+    .hk-wrap { padding: 12px 12px 132px; }
+    /* Scope pills scroll sideways rather than wrapping to three lines. */
+    .hk-controls { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .hk-controls::-webkit-scrollbar { display: none; }
+    .hk-control, .hk-seg { flex: none; }
+    .hk-controls-spacer { display: none; }
+    /* Add becomes a floating action button clear of the tab bar. */
+    .hk-add-btn {
+      position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom));
+      z-index: 5;
+      --mdc-theme-primary: var(--hk-accent);
+      --ha-button-border-radius: 14px;
+      box-shadow: var(--hk-shadow-float);
+      border-radius: 14px;
+    }
+    /* A phone row stacks: title, meta, then status and Done on one line. */
+    .hk-card-row { flex-wrap: wrap; row-gap: 10px; }
+    .hk-card-row .grow { flex: 1 1 100%; }
+    .hk-status { order: 1; }
+    .hk-card-actions { order: 2; margin-inline-start: auto; }
+    .hk-chips.hk-chips-inline { flex-wrap: wrap; }
+  }
 `;
 
 /** What the inline notes editor on a detail page is currently editing. */
@@ -2044,13 +2252,10 @@ export class HomeKeeperPanel extends HTMLElement {
     } else if (this._view === 'settings') {
       inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-profiles-host"></div><div id="hk-notifications-host"></div><div id="hk-companions-host"></div>`;
     } else {
-      const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
+      // Add / Export now live at the end of the controls row (one primary action per
+      // surface), so the old full-width action bar above the list is gone.
       inner = `
         ${this._tabs()}
-        <div class="hk-actionbar">
-          <ha-button raised id="add-btn">${escapeHTML(addLabel)}</ha-button>
-          ${onTasks ? '' : `<ha-button id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
-        </div>
         <div id="hk-form-host"></div>
         ${this._controls()}
         <div id="hk-list">${onTasks ? this._tasksList() : this._assetsList()}</div>`;
@@ -2066,6 +2271,7 @@ export class HomeKeeperPanel extends HTMLElement {
         ${inner}
         <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
       </div>
+      ${this._loaded ? this._bottomTabs() : ''}
       <div id="hk-dialog-host"></div>
     `;
     this._hydrate();
@@ -2080,6 +2286,29 @@ export class HomeKeeperPanel extends HTMLElement {
         <ha-tab-group-tab id="tab-appliances" panel="appliances" ${v === 'appliances' ? 'active' : ''}>${escapeHTML(t('tab.appliances'))}</ha-tab-group-tab>
         <ha-tab-group-tab id="tab-settings" panel="settings" ${v === 'settings' ? 'active' : ''}>${escapeHTML(t('tab.settings'))}</ha-tab-group-tab>
       </ha-tab-group>`;
+  }
+
+  /**
+   * The phone-width tab bar, pinned to the bottom of the viewport where a thumb can
+   * reach it. Rendered alongside `ha-tab-group` rather than replacing it: that
+   * component is Shoelace-based, so turning it into a bottom bar would mean styling
+   * a shadow root we don't own. Exactly one of the two is visible at any width (see
+   * the tab-bar rules in STYLES), and both drive the same `_switchView`.
+   *
+   * Its ids are `mtab-*`, not `tab-*`: two elements cannot share an id, and the
+   * desktop tabs' ids are what deep links and the test suite navigate by.
+   */
+  private _bottomTabs(): string {
+    const v = this._view;
+    const tab = (view: PanelView, id: string, label: string): string =>
+      `<button class="hk-bottomtab${v === view ? ' active' : ''}" id="${id}" data-view="${view}"
+         role="tab" aria-selected="${v === view}"><span class="hk-bottomtab-mark"></span>${escapeHTML(label)}</button>`;
+    return `
+      <nav class="hk-bottombar" role="tablist" aria-label="${escapeHTML(t('app.title'))}">
+        ${tab('tasks', 'mtab-tasks', t('tab.tasks'))}
+        ${tab('appliances', 'mtab-appliances', t('tab.appliances'))}
+        ${tab('settings', 'mtab-settings', t('tab.settings'))}
+      </nav>`;
   }
 
   // ── list controls (filter + group-by) ───────────────────────────────────────
@@ -2106,20 +2335,30 @@ export class HomeKeeperPanel extends HTMLElement {
           { value: 'area', label: t('group.area') },
           { value: 'none', label: t('group.none') },
         ];
-    const groupControl = `<div class="hk-control">
-            <span class="hk-seg-label">${escapeHTML(t('group.by'))}</span>
-            ${this._seg('group', this._effectiveGroup(), groupOpts)}
-          </div>`;
+    // Group-by is a refinement, not a primary filter, and it has five options — as a
+    // visible segment it dominated the row and pushed everything else onto a second
+    // line. A dropdown states the current grouping in the same width as its label,
+    // which is what lets the whole control row be one line.
+    const groupControl = this._menuControl(
+      'group',
+      t('group.by'),
+      this._effectiveGroup(),
+      groupOpts,
+    );
     // A saved Profile, when picked, drives the status/label/area/device filter, so
     // the inline all/overdue/soon segment is hidden while one is active.
     const profile = this._activeProfile();
+    // Counts ride the scope pills so "how much is overdue" is answered before anyone
+    // has to click. Only meaningful without a Profile, which is also the only time
+    // these pills are shown.
+    const counts = onTasks && !profile ? this._filterCounts() : null;
     const filterControl =
       onTasks && !profile
         ? `<div class="hk-control">${this._seg('filter', this._filter, [
-            { value: 'all', label: t('filter.all') },
-            { value: 'overdue', label: t('filter.overdue') },
-            { value: 'soon', label: t('filter.soon') },
-            { value: 'shopping', label: t('filter.shopping') },
+            { value: 'all', label: t('filter.all'), count: counts?.all },
+            { value: 'overdue', label: t('filter.overdue'), count: counts?.overdue },
+            { value: 'soon', label: t('filter.soon'), count: counts?.soon },
+            { value: 'shopping', label: t('filter.shopping'), count: counts?.shopping },
           ])}</div>`
         : '';
     const assetFilterControl =
@@ -2139,7 +2378,16 @@ export class HomeKeeperPanel extends HTMLElement {
             ])}
           </div>`
         : '';
-    return `<div class="hk-controls">${filterControl}${assetFilterControl}${viewControl}${this._profileControl()}${groupControl}</div>`;
+    // One row: scope pills lead, the refinements (Profile, Group by, appliance view)
+    // sit to the right behind a spacer, and the single primary action closes it. The
+    // comp's rule is one primary button per surface, so Add moves in here from the
+    // old full-width action bar above the list.
+    const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
+    const actions = `
+      <span class="hk-controls-spacer"></span>
+      ${onTasks ? '' : `<ha-button id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
+      <ha-button raised id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
+    return `<div class="hk-controls">${filterControl}${assetFilterControl}${viewControl}${this._profileControl()}${groupControl}${actions}</div>`;
   }
 
   /** The saved Profile currently selected for the list filter, or null. */
@@ -2163,21 +2411,52 @@ export class HomeKeeperPanel extends HTMLElement {
       ...profiles.map((p) => opt(p.id, p.name)),
     ].join('');
     return `
-      <div class="hk-control">
+      <label class="hk-control hk-menu">
         <span class="hk-seg-label">${escapeHTML(t('filter.profile'))}</span>
-        <select class="hk-profile-select" data-profile-filter>${options}</select>
-      </div>`;
+        <select class="hk-profile-select hk-menu-select" data-profile-filter>${options}</select>
+      </label>`;
   }
 
-  /** A pill-style segmented toggle; the active option carries the `active` class. */
-  private _seg(name: string, current: string, options: { value: string; label: string }[]): string {
-    const btns = options
+  /** A compact labelled dropdown, styled as the control row's "Label  Value ▾" button.
+   *  Shares the segmented controls' `data-seg` vocabulary so one handler in `_hydrate`
+   *  routes both shapes to the same setters. */
+  private _menuControl(
+    name: string,
+    labelText: string,
+    current: string,
+    options: { value: string; label: string }[],
+  ): string {
+    const opts = options
       .map(
         (o) =>
-          `<button class="hk-seg-btn${o.value === current ? ' active' : ''}" data-seg-val="${escapeHTML(
-            o.value,
-          )}">${escapeHTML(o.label)}</button>`,
+          `<option value="${escapeHTML(o.value)}"${o.value === current ? ' selected' : ''}>${escapeHTML(
+            o.label,
+          )}</option>`,
       )
+      .join('');
+    return `
+      <label class="hk-control hk-menu">
+        <span class="hk-seg-label">${escapeHTML(labelText)}</span>
+        <select class="hk-menu-select" data-seg-select="${escapeHTML(name)}">${opts}</select>
+      </label>`;
+  }
+
+  /** A pill-style segmented toggle; the active option carries the `active` class.
+   *  An option may carry a `count`, rendered as a trailing figure inside the button —
+   *  after the label, so a text-matched selector still finds the option by its name. */
+  private _seg(
+    name: string,
+    current: string,
+    options: { value: string; label: string; count?: number }[],
+  ): string {
+    const btns = options
+      .map((o) => {
+        const count =
+          o.count === undefined ? '' : `<span class="hk-seg-count">${escapeHTML(String(o.count))}</span>`;
+        return `<button class="hk-seg-btn${o.value === current ? ' active' : ''}" data-seg-val="${escapeHTML(
+          o.value,
+        )}">${escapeHTML(o.label)}${count}</button>`;
+      })
       .join('');
     return `<div class="hk-seg" data-seg="${escapeHTML(name)}">${btns}</div>`;
   }
@@ -2206,6 +2485,30 @@ export class HomeKeeperPanel extends HTMLElement {
     if (due <= now) return 'overdue';
     if (due - now <= SOON_DAYS * 86_400_000) return 'soon';
     return 'later';
+  }
+
+  /**
+   * Whether *task* belongs in the given scope-filter pill. Extracted from
+   * `_tasksList` so the pill's count and the list it filters to are computed by the
+   * same predicate — a count that disagreed with the list it promises would be worse
+   * than no count at all.
+   */
+  private _scopeMatches(task: Task, scope: TaskFilter, now = Date.now()): boolean {
+    if (scope === 'overdue') return isOverdue(task);
+    if (scope === 'soon') return this._statusBucket(task, now) === 'soon';
+    if (scope === 'shopping') return Boolean(task.source?.buy);
+    return true;
+  }
+
+  /** How many tasks each scope pill would show, for the counts rendered on them. */
+  private _filterCounts(now = Date.now()): Record<TaskFilter, number> {
+    const counts = { all: 0, overdue: 0, soon: 0, shopping: 0 };
+    for (const task of this._tasks) {
+      for (const scope of ['all', 'overdue', 'soon', 'shopping'] as TaskFilter[]) {
+        if (this._scopeMatches(task, scope, now)) counts[scope]++;
+      }
+    }
+    return counts;
   }
 
   /** A task's area: its own, else its attached device's. */
@@ -2325,11 +2628,18 @@ export class HomeKeeperPanel extends HTMLElement {
     return groups
       .map((g) => {
         const open = this._collapsed.has(g.key) ? '' : 'open';
+        // `data-bucket` lets the header take the section's status colour (Overdue reads
+        // red) without the label text having to carry that meaning on its own. The rule
+        // and the collapse caption are decorative: the whole summary is the hit target,
+        // so they are hidden from assistive tech rather than announced twice.
+        const bucket = g.key.startsWith('status:') ? g.key.slice('status:'.length) : '';
         return `
-        <details class="hk-group" data-group-key="${escapeHTML(g.key)}" ${open}>
+        <details class="hk-group" data-group-key="${escapeHTML(g.key)}" data-bucket="${escapeHTML(bucket)}" ${open}>
           <summary class="hk-group-head">
             <span class="hk-group-title">${escapeHTML(g.label)}</span>
             <span class="hk-group-count">${g.items.length}</span>
+            <span class="hk-group-rule" aria-hidden="true"></span>
+            <span class="hk-group-toggle" aria-hidden="true"></span>
           </summary>
           <div class="hk-group-body">${g.items.map(renderItem).join('')}</div>
         </details>`;
@@ -2374,11 +2684,9 @@ export class HomeKeeperPanel extends HTMLElement {
       tasks = tasks.filter((task) =>
         profileMatches(task, profile.filter, this._hass?.devices, this._hass?.areas, now),
       );
-    } else if (this._filter === 'overdue') tasks = tasks.filter((task) => isOverdue(task));
-    else if (this._filter === 'soon')
-      tasks = tasks.filter((task) => this._statusBucket(task, now) === 'soon');
-    else if (this._filter === 'shopping')
-      tasks = tasks.filter((task) => Boolean(task.source?.buy));
+    } else {
+      tasks = tasks.filter((task) => this._scopeMatches(task, this._filter, now));
+    }
     tasks.sort((a, b) => {
       const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
       const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
@@ -2489,13 +2797,9 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _taskCard(task: Task): string {
     const overdue = isOverdue(task);
-    const statusChip = overdue
-      ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-      : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
     const dev = task.device_id ? this._deviceChip(task.device_id) : '';
     const tagChip = this._tagChip(task);
     const managedChip = this._managedChip(task);
-    const taskChips = this._taskChipsHtml(task);
     // A completed one-off (do-once, now dormant) shows when it was done instead of a
     // due date.
     const completedOneOff =
@@ -2512,8 +2816,14 @@ export class HomeKeeperPanel extends HTMLElement {
     const overdueDays = task.next_due
       ? Math.floor((Date.now() - new Date(task.next_due).getTime()) / 86_400_000)
       : 0;
-    const overdueText =
-      overdue && overdueDays >= 1 ? ` · ${escapeHTML(tn('due.overdue_by', overdueDays))}` : '';
+    // How overdue it is now rides the right-hand status pill rather than the meta line,
+    // so urgency reads at the end of the row instead of buried mid-sentence. Under a
+    // full day it stays the bare "Overdue" — "1 day overdue" would overstate it.
+    const statusChip = overdue
+      ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(
+          overdueDays >= 1 ? tn('due.overdue_by', overdueDays) : t('chip.overdue'),
+        )}"></ha-assist-chip>`
+      : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
     const n = task.completions?.length ?? 0;
     // A dormant triggered task (monitored, not due) has nothing to mark done — its
     // owning integration arms it when the condition fires; hide the action. A
@@ -2530,16 +2840,30 @@ export class HomeKeeperPanel extends HTMLElement {
         ? this._blockedDoneInline(task)
         : scanRequired(task)
           ? this._blockedDone('', task)
-          : `<ha-button class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
+          : // Tonal, not solid: every row carries a Done, and a page of solid accent
+            // buttons leaves the surface with no single primary action. `appearance`
+            // is Home Assistant's own button vocabulary, so this follows the active
+            // theme rather than hard-coding a tint.
+            `<ha-button appearance="filled" class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
+    // Descriptive chips (device, tag, integration) belong beside the name — they say
+    // *what* this task is about, which is part of reading the title. Only the first two
+    // are shown, with a "+n" for the rest; every chip stays in the DOM and the overflow
+    // is hidden in CSS, so the row's contents remain inspectable and testable.
+    const inlineChips = [dev, tagChip, ...this._taskChipsList(task), managedChip].filter(Boolean);
+    const hiddenChips = Math.max(0, inlineChips.length - TASK_CARD_INLINE_CHIPS);
+    const more = hiddenChips ? `<span class="hk-chip-more">+${hiddenChips}</span>` : '';
     // The row opens the task's detail page; "Done" stays as a quick action.
     return `
       <ha-card class="hk-card${overdue ? ' overdue' : ''}" data-id="${escapeHTML(task.id)}">
         <div class="hk-card-row">
           <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
-            <div class="hk-name">${escapeHTML(task.name)}</div>
-            <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${overdueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
-            <div class="hk-chips">${statusChip}${dev}${tagChip}${taskChips}${managedChip}</div>
+            <div class="hk-name">
+              <span class="hk-name-text">${escapeHTML(task.name)}</span>
+              <span class="hk-chips hk-chips-inline">${inlineChips.join('')}</span>${more}
+            </div>
+            <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
           </div>
+          <div class="hk-status">${statusChip}</div>
           <div class="hk-card-actions">
             ${doneAction}
           </div>
@@ -3121,6 +3445,12 @@ export class HomeKeeperPanel extends HTMLElement {
   /** Renders integration-provided metadata chips (task_chips). Chips with a URL
    *  become native links; icon slot is populated when present. */
   private _taskChipsHtml(task: Task): string {
+    return this._taskChipsList(task).join('');
+  }
+
+  /** The integration-provided chips as individual elements. The list card counts them
+   *  to decide how many fit inline, which a pre-joined string can't answer. */
+  private _taskChipsList(task: Task): string[] {
     return (task.task_chips ?? [])
       .map(({ label, icon, url }) => {
         const iconSlot = icon
@@ -3130,8 +3460,7 @@ export class HomeKeeperPanel extends HTMLElement {
         return isHttpUrl(url)
           ? `<a class="hk-task-chip-link" href="${safeHref(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
           : chip;
-      })
-      .join('');
+      });
   }
 
   /**
@@ -3528,6 +3857,17 @@ export class HomeKeeperPanel extends HTMLElement {
       void this._refresh();
     });
 
+    // The phone-width tab bar is rendered on every route, detail pages included, so
+    // it is wired before the detail-page early return below.
+    root.querySelectorAll<HTMLElement>('.hk-bottomtab').forEach((b) =>
+      b.addEventListener('click', () => {
+        const view = b.dataset.view;
+        if (view === 'tasks' || view === 'appliances' || view === 'settings') {
+          this._switchView(view);
+        }
+      }),
+    );
+
     // Detail page: just the back button, the detail's own action buttons, and
     // any device chips / completion-delete buttons it renders.
     if (this._detail) {
@@ -3572,6 +3912,18 @@ export class HomeKeeperPanel extends HTMLElement {
         const seg = (b.closest('.hk-seg') as HTMLElement | null)?.dataset.seg;
         const val = b.dataset.segVal;
         if (!val) return;
+        if (seg === 'group') this._setGroupBy(val as GroupBy);
+        else if (seg === 'filter') this._setFilter(val as TaskFilter);
+        else if (seg === 'assetFilter') this._setAssetFilter(val as AssetFilter);
+        else if (seg === 'assetView') this._setAssetView(val as AssetView);
+      }),
+    );
+    // The dropdown-shaped controls (currently Group by) speak the same `data-seg`
+    // vocabulary as the pill segments, so both shapes route to the same setters.
+    root.querySelectorAll<HTMLSelectElement>('select[data-seg-select]').forEach((s) =>
+      s.addEventListener('change', () => {
+        const seg = s.dataset.segSelect;
+        const val = s.value;
         if (seg === 'group') this._setGroupBy(val as GroupBy);
         else if (seg === 'filter') this._setFilter(val as TaskFilter);
         else if (seg === 'assetFilter') this._setAssetFilter(val as AssetFilter);
@@ -3815,7 +4167,11 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _switchView(view: 'tasks' | 'appliances' | 'settings'): void {
-    if (this._view === view) return;
+    // Tapping the tab you are already on returns to its list when a detail page is
+    // open — the standard "tab bar pops to root" gesture, and the only way back out of
+    // a detail from the phone tab bar, whose Appliances tab is *already* the current
+    // view while an appliance detail is showing.
+    if (this._view === view && !this._detail) return;
     // Switching tabs is a lateral move, not a drill-in: replace so Back doesn't
     // retrace every tab toggle.
     this._navigate({ view, detail: null }, true);
