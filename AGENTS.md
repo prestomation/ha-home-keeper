@@ -64,7 +64,9 @@
   when the PR closes (see RELEASE.md → "Preview releases"). Bug-fix-only /
   developer-only PRs don't need it.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
-  - Pure-logic unit tests need only `pip install pytest`: `pytest tests/unit -v`.
+  - Pure-logic unit tests need only `pip install pytest PyYAML`: `pytest tests/unit -v`.
+    (`PyYAML` is for the API-surface gate below, which reads `services.yaml`; without
+    it those few tests skip and the rest still run.)
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
 - **Mutation testing gates every PR** at an 80% mutation score on the code the PR
   changed — see "Mutation testing" below. It is too slow for the
@@ -288,9 +290,20 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
 - **Fire a `home_keeper_<noun>_<verb>` event for every state change.** Built by a pure
   builder in `events.py`, fired at the `store.py` chokepoint (including the non-CRUD
   mutation paths), edge-triggered for transitions (`transitions.py` + the coordinator,
-  baselined silently on startup). A new event isn't done until it's in `docs/EVENTS.md`
-  and, if device-facing, in `device_trigger.py` with translation-parity labels. Events
-  need no new service. See `.amazonq/rules/architecture-and-code.md` and `docs/EVENTS.md`.
+  baselined silently on startup). A new event isn't done until it has an `EventSpec` in
+  `api_surface.py` and, if device-facing, a `device_trigger.py` trigger with
+  translation-parity labels. Events need no new service. See
+  `.amazonq/rules/architecture-and-code.md` and `docs/EVENTS.md`.
+- **Every integrator-facing surface is declared in `api_surface.py`.** Services, events
+  and payloads, device triggers, entity platforms and attributes, options, plus the
+  internal websocket commands and HTTP views. The runtime consumes it (the service
+  teardown iterates `SERVICE_NAMES`; `device_trigger.py` builds its maps from
+  `triggers_for()`), and `tests/unit/test_api_surface.py` parses the component's source
+  to fail on drift. The model holds names and structure only — every label and
+  description is resolved from `services.yaml`/`strings.json` at generation time, so the
+  Developer Guide's **API reference** and the Home Assistant UI read from one string.
+  `ci/generate_api_docs.py` renders that page into the gitignored `website/developer/`
+  on `npm run sync`; nothing is committed and nothing is hand-written.
 - **An options flow merges; it never replaces.** Home Assistant stores what an options
   flow returns from `async_create_entry` as the *entire* `entry.options`, and the
   Configure dialog renders only `options.FLOW_OPTIONS` — so return

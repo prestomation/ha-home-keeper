@@ -56,6 +56,9 @@ _PURE_MODULES = (
     # and normalization rules every write path shares are testable here. Keep it
     # after the siblings it does ``from . import`` (notifications/profiles/shopping).
     "options",
+    # ``api_surface`` is the index of every integrator-facing surface. Pure like the
+    # rest, and last because it does ``from . import options``.
+    "api_surface",
 )
 
 

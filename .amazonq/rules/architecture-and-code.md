@@ -364,12 +364,43 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   **once per crossing** (keyed on `next_due` / threshold), never every refresh, and
   **baseline silently on startup** (the coordinator gates firing until setup completes)
   so a restart never replays a transition storm.
-- **Keep the catalog in sync.** A new event is not done until it's in
-  [`docs/EVENTS.md`](../../docs/EVENTS.md) (the canonical catalog: when it fires,
-  payload, semantics) and, if device-facing, exposed as a `device_trigger.py` trigger
-  with `strings.json` `device_automation` labels at full translation parity. Events are
-  *observations* of changes that already flow through services/store methods, so they
-  need **no** new service.
+- **Keep the catalog in sync.** A new event is not done until it has an `EventSpec` in
+  `api_surface.py` (name, payload shape, per-event extras, and the one-line "fires
+  when" the reference renders) and, if device-facing, a `device_trigger.py` trigger
+  with `strings.json` `device_automation` labels at full translation parity.
+  [`docs/EVENTS.md`](../../docs/EVENTS.md) keeps only what a table can't say: when
+  each event fires in context, edge-triggering, what a restart replays, worked
+  automations. Events are *observations* of changes that already flow through
+  services/store methods, so they need **no** new service.
+
+## The integrator-facing surface is modelled, and the reference is generated
+- **`api_surface.py` is the single index of every surface an integrator can touch** —
+  services, events and their payloads, device triggers, entity platforms and
+  attributes, config-entry options, plus the internal websocket commands and HTTP
+  views. A new one is not done until it has a spec there;
+  `tests/unit/test_api_surface.py` parses the component's own source and fails
+  otherwise, and `tests/integration/test_api_surface.py` checks the running system.
+- **The runtime consumes the model.** `__init__.async_unload_entry` iterates
+  `SERVICE_NAMES`; `device_trigger.py` builds `TASK_TRIGGERS`/`ASSET_TRIGGERS` from
+  `triggers_for()`. Never restate a modelled list as a second literal beside it —
+  that is exactly how `set_task_meter` shipped registered on setup and missing from
+  the teardown tuple, still callable against an unloaded integration.
+- **The model declares names and structure only.** Every string Home Assistant already
+  localizes — service and field labels, trigger labels, entity names, option labels,
+  error messages — is resolved at generation time from `services.yaml` /
+  `strings.json`, so the reference and the Home Assistant UI cannot describe the same
+  action differently. Never put a user-facing sentence in `api_surface.py`. The one
+  exception is `EventSpec.summary`: a bus event has no Home Assistant string source.
+- **The reference is generated, never written.** `ci/generate_api_docs.py` renders
+  `website/developer/api.md` from the model plus those two files, and `npm run sync`
+  runs it after `sync-docs.mjs` (which clears that directory). The page is gitignored
+  with the rest of the generated tree, so it can't go stale in git — which also means
+  a canonical doc links to it by its published URL, not a relative path.
+  `sync-docs.mjs` pulls those URLs back to site-relative routes so a PR preview links
+  within itself.
+- **`SURFACE_KINDS` lists the surfaces we don't offer too**, each with a status and a
+  one-sentence reason. A list of what exists can't tell you what was forgotten. Adding
+  a new kind of surface means adding a row there first.
 
 ## Errors, validation & security
 - Service handlers raise `ServiceValidationError` for user-facing errors.

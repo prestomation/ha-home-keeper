@@ -5,6 +5,7 @@ import {
   pagesForChanges,
   renderComment,
 } from '../../website/scripts/changed-pages.mjs';
+import {DEV_DOCS, DOC_ROUTES} from '../../website/scripts/doc-map.mjs';
 
 const README = `# Home Keeper
 
@@ -91,6 +92,20 @@ describe('pagesForChanges', () => {
     ]);
   });
 
+  it('maps the API reference\u2019s generation sources to its route', () => {
+    // The page has no canonical Markdown file, so a PR that only adds a service
+    // or an event would otherwise show no changed doc page at all.
+    for (const source of [
+      'custom_components/home_keeper/api_surface.py',
+      'custom_components/home_keeper/services.yaml',
+      'custom_components/home_keeper/strings.json',
+    ]) {
+      expect(pagesForChanges({changedFiles: [source]})).toEqual([
+        {title: 'API reference', route: '/developer/api'},
+      ]);
+    }
+  });
+
   it('ignores files with no page mapping', () => {
     expect(
       pagesForChanges({changedFiles: ['custom_components/home_keeper/store.py']}),
@@ -133,5 +148,24 @@ describe('renderComment', () => {
     const body = renderComment([], base);
     expect(body).toContain(COMMENT_MARKER);
     expect(body).toContain('No documentation pages changed');
+  });
+});
+
+describe('DOC_ROUTES', () => {
+  it('has a route for every published Developer Guide doc', () => {
+    // A doc in DEV_DOCS is served on this site, so a relative link to it from
+    // another canonical doc should resolve here — not rewrite to a GitHub blob
+    // URL. GLUE_INTEGRATIONS.md was published for months without a route, and
+    // every link to it left the site.
+    const missing = DEV_DOCS.map((d) => d.file).filter((f) => !DOC_ROUTES[f]);
+    expect(missing).toEqual([]);
+  });
+
+  it('routes match the page each doc is generated into', () => {
+    for (const doc of DEV_DOCS) {
+      expect(DOC_ROUTES[doc.file]).toBe(
+        `/developer/${doc.out.replace(/\.md$/, '')}`,
+      );
+    }
   });
 });

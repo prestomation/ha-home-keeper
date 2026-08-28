@@ -31,38 +31,17 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.trigger import TriggerActionType, TriggerInfo
 from homeassistant.helpers.typing import ConfigType
 
-from .const import (
-    ASSET_IDENTIFIER_PREFIX,
-    DOMAIN,
-    EVENT_PART_LOW_STOCK,
-    EVENT_PART_OUT_OF_STOCK,
-    EVENT_PART_RESTOCKED,
-    EVENT_TASK_COMPLETED,
-    EVENT_TASK_CREATED,
-    EVENT_TASK_DUE_SOON,
-    EVENT_TASK_OVERDUE,
-    EVENT_TASK_SKIPPED,
-    EVENT_TASK_SNOOZED,
-    EVENT_TASK_UPDATED,
-)
+from .api_surface import triggers_for
+from .const import ASSET_IDENTIFIER_PREFIX, DOMAIN
 from .coordinator import HomeKeeperCoordinator
 
-# trigger_type -> bus event. Task triggers are offered for any device with Home Keeper
-# tasks; appliance (stock) triggers for any Home Keeper appliance device.
-TASK_TRIGGERS = {
-    "task_completed": EVENT_TASK_COMPLETED,
-    "task_overdue": EVENT_TASK_OVERDUE,
-    "task_due_soon": EVENT_TASK_DUE_SOON,
-    "task_created": EVENT_TASK_CREATED,
-    "task_updated": EVENT_TASK_UPDATED,
-    "task_snoozed": EVENT_TASK_SNOOZED,
-    "task_skipped": EVENT_TASK_SKIPPED,
-}
-ASSET_TRIGGERS = {
-    "part_low_stock": EVENT_PART_LOW_STOCK,
-    "part_out_of_stock": EVENT_PART_OUT_OF_STOCK,
-    "part_restocked": EVENT_PART_RESTOCKED,
-}
+# trigger_type -> bus event, taken from the API-surface model rather than repeated
+# here: the triggers this platform offers and the ones the Developer Guide documents
+# are then the same dict, and a new trigger can't reach one without the other. Task
+# triggers are offered for any device with Home Keeper tasks; appliance (stock)
+# triggers for any Home Keeper appliance device.
+TASK_TRIGGERS = triggers_for("task")
+ASSET_TRIGGERS = triggers_for("asset")
 _EVENT_BY_TYPE = {**TASK_TRIGGERS, **ASSET_TRIGGERS}
 
 # Sentinel filter that can never match a real event id — used when a device has lost

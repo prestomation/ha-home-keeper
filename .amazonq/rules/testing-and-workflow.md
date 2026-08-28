@@ -71,6 +71,13 @@
   (Playwright), `tests/upgrade` (two-phase HA version upgrade). Run e2e/integration
   with `bash ci/e2e-up.sh` / `ci/test-python-integration.sh`; stage the upgrade
   suite's fixtures with `bash ci/fetch-glues.sh` first.
+- **`tests/unit/test_api_surface.py` is the drift gate for the integrator-facing
+  surface.** It parses the component's source and compares it to `api_surface.py`, so
+  a service, event, websocket command, device trigger, entity platform or HTTP view
+  added in one place and forgotten in the others fails there rather than shipping.
+  Adding a surface means adding its spec. Its `services.yaml` check and the
+  generator's tests need `PyYAML`, so the bare-`pytest` loop is now
+  `pip install pytest PyYAML`; without it those few tests skip and the rest still run.
 - **A panel assertion is not coverage for a native entity.** The panel and the
   `todo`/`calendar` entities are separate projections of the same store, so the panel
   being right proves nothing about them. #221 shipped with a passing e2e test that

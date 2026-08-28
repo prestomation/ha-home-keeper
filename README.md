@@ -1035,7 +1035,9 @@ integrations HA won't let us reparent), which show up alongside the appliance.
 ## Services
 
 Every data action is a Home Assistant service, so it's usable from automations,
-scripts, and voice:
+scripts, and voice. The highlights are below. The
+[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#actions)
+lists all of them with their fields.
 
 - **Tasks**: `home_keeper.add_task`, `update_task`, `delete_task`, `complete_task`
   (with optional `completed_at` to back-date it, plus `note`/`cost`/`photo`/`who`),
@@ -1123,6 +1125,9 @@ section (Settings tab), where you can jump to each one's settings, and Home Keep
 > `home_keeper.register_companion` so you appear under **Companions**), and
 > [docs/GLUE_INTEGRATIONS.md](docs/GLUE_INTEGRATIONS.md) for the thin "glue" pattern that
 > bridges an existing integration (like Battery Notes) to Home Keeper.
+
+> The [API reference](https://prestomation.github.io/ha-home-keeper/developer/api)
+> is the generated, complete list of what you can call and subscribe to.
 
 ## Localization
 
