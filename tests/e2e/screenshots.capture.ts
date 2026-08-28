@@ -10,7 +10,14 @@
  */
 import { test, expect, Locator, Page } from '@playwright/test';
 import { openPanel, openDashboard } from './tests/helpers';
-import { centre, expandGroup, openRow, shotVisible, shotWithDrawer } from './shots';
+import {
+  centre,
+  expandGroup,
+  openRow,
+  settleToasts,
+  shotVisible,
+  shotWithDrawer,
+} from './shots';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
@@ -371,6 +378,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');
   await expandGroup(monitored);
   await expect(monitored.locator('.hk-card').first()).toBeVisible();
+  // The blocked-Done toast the step above raised outlives it and would sit across
+  // the section this shot is about — two of them stacked, since it was clicked twice.
+  await settleToasts(page);
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/15-panel-monitored-section.png`, fullPage: true });
 
@@ -380,6 +390,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   const completed = panel.locator('details.hk-group[data-group-key="status:completed"]');
   await expandGroup(completed);
   await expect(completed.locator('.hk-card').first()).toBeVisible();
+  await settleToasts(page);
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/19-panel-completed-section.png`, fullPage: true });
 

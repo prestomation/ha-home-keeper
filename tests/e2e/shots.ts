@@ -43,6 +43,39 @@ export async function shotWithDrawer(page: Page, path: string): Promise<void> {
 }
 
 /**
+ * Wait for Home Assistant's toasts to expire.
+ *
+ * A toast the capture deliberately provoked (the blocked-Done message) outlives the
+ * step that raised it and lands on the next few shots, over whatever they are meant
+ * to be documenting — two of them stacked, when the same action ran twice. HA removes
+ * the `ha-toast` element when it expires, so wait for it to be gone rather than
+ * guessing at a duration.
+ */
+export async function settleToasts(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const find = (root: ParentNode): Element | null => {
+            const hit = root.querySelector('ha-toast');
+            if (hit) return hit;
+            for (const el of root.querySelectorAll('*')) {
+              const sr = (el as HTMLElement).shadowRoot;
+              if (sr) {
+                const deep = find(sr);
+                if (deep) return deep;
+              }
+            }
+            return null;
+          };
+          return find(document) !== null;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(false);
+}
+
+/**
  * Screenshot the part of *el* that is actually on screen.
  *
  * A plain element screenshot captures the element's whole box, and any of it clipped
