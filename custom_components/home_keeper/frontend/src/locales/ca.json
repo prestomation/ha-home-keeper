@@ -423,6 +423,17 @@
   "sensor.usageProgress": "{consumed} de {target} usats ({entity})",
   "sensor.usageRemaining": "Falten {remaining}",
   "sensor.usageTarget": "Objectiu {target} ({entity})",
+  "settings.retention_forever": "Les tasques úniques completades es conserven per sempre",
+  "settings.shopping_off": "Els recordatoris de compra no es reflecteixen",
+  "settings.shopping_on": "Recordatoris de compra reflectits a {list}",
+  "settings.sync_off": "Els sensors de problema no es reflecteixen",
+  "settings.sync_on": "Sensors de problema reflectits com a tasques",
+  "settings.exclusions": "Exclusions",
+  "settings.exclusions_note": "només s’apliquen mentre la sincronització de dalt està activada",
+  "settings.retention_summary.one": "Les tasques úniques completades s’esborren després d’{n} dia",
+  "settings.retention_summary.other": "Les tasques úniques completades s’esborren després de {n} dies",
+  "settings.sync_on_excluding.one": "Sensors de problema reflectits, {n} exclusió",
+  "settings.sync_on_excluding.other": "Sensors de problema reflectits, {n} exclusions",
   "settings.general_heading": "General",
   "settings.general_help": "Configuració general de Home Keeper.",
   "settings.heading": "Sincronització de sensors de problema",
@@ -451,5 +462,7 @@
   "tasks.intro.monitored": "<b>Supervisat</b>: activat per un sensor o condició i resolt automàticament; algunes no es poden completar a mà.",
   "tasks.intro.recurring": "<b>Recurrent</b>: es repeteix segons un calendari o cada cop que la completes (canvis de filtre, visites al veterinari, piles).",
   "tasks.intro.title": "Us donem la benvinguda a Home Keeper",
-  "tasks.noMatch": "Cap tasca coincideix amb aquest filtre."
+  "tasks.noMatch": "Cap tasca coincideix amb aquest filtre.",
+  "settings.retention_summary.many": "Les tasques úniques completades s’esborren després de {n} dies",
+  "settings.sync_on_excluding.many": "Sensors de problema reflectits, {n} exclusions"
 }

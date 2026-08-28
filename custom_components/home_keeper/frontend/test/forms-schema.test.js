@@ -5,6 +5,9 @@ import {
   notifyFormData,
   notifyFormToNotification,
   notificationSchema,
+  problemSyncExclusionsSchema,
+  problemSyncSchema,
+  problemSyncToggleSchema,
   shoppingSchema,
   taskFormData,
   taskSchema,
@@ -518,6 +521,29 @@ describe('notificationSchema', () => {
 // control: the wrong domain offers lists Home Keeper can't write to, and a
 // missing exclusion offers Home Keeper's own list — which would be a list
 // mirrored onto itself.
+// The Settings card renders the switch and the exclusions as two forms so the
+// exclusions can be indented behind the condition that makes them matter. The
+// options endpoint merges partial updates, so each form saving only its own fields
+// is safe — but only while the two halves still add up to the whole schema.
+describe('problemSyncSchema is its two halves, in order', () => {
+  it('concatenates the toggle and the exclusions', () => {
+    expect(problemSyncSchema()).toEqual([
+      ...problemSyncToggleSchema(),
+      ...problemSyncExclusionsSchema(),
+    ]);
+  });
+
+  it('puts the switch on its own and every exclusion in the dependent half', () => {
+    expect(problemSyncToggleSchema().map((f) => f.name)).toEqual(['sync_problem_sensors']);
+    expect(problemSyncExclusionsSchema().map((f) => f.name)).toEqual([
+      'problem_sensor_exclude_entities',
+      'problem_sensor_exclude_devices',
+      'problem_sensor_exclude_areas',
+      'problem_sensor_exclude_labels',
+    ]);
+  });
+});
+
 describe('shoppingSchema', () => {
   it('offers a single to-do entity picker', () => {
     expect(shoppingSchema()).toEqual([

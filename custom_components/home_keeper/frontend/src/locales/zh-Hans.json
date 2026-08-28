@@ -409,6 +409,15 @@
   "sensor.usageProgress": "已用 {consumed} / {target}（{entity}）",
   "sensor.usageRemaining": "还剩 {remaining}",
   "sensor.usageTarget": "目标 {target}（{entity}）",
+  "settings.retention_forever": "已完成的一次性任务将永久保留",
+  "settings.shopping_off": "不会同步购买提醒",
+  "settings.shopping_on": "购买提醒已同步至 {list}",
+  "settings.sync_off": "不会同步问题传感器",
+  "settings.sync_on": "问题传感器已同步为任务",
+  "settings.exclusions": "排除项",
+  "settings.exclusions_note": "仅在上方同步开启时生效",
+  "settings.retention_summary.other": "已完成的一次性任务将在 {n} 天后删除",
+  "settings.sync_on_excluding.other": "问题传感器已同步，{n} 项排除",
   "settings.general_heading": "常规",
   "settings.general_help": "Home Keeper 常规设置。",
   "settings.heading": "问题传感器同步",
@@ -437,5 +446,7 @@
   "tasks.intro.monitored": "<b>监测型</b>——由传感器或条件触发并自动清除；部分无法手动标记完成。",
   "tasks.intro.recurring": "<b>周期性</b>——按计划重复，或在每次完成后重复（更换滤芯、看兽医、电池）。",
   "tasks.intro.title": "欢迎使用 Home Keeper",
-  "tasks.noMatch": "没有任务符合此筛选条件。"
+  "tasks.noMatch": "没有任务符合此筛选条件。",
+  "settings.retention_summary.one": "已完成的一次性任务将在 {n} 天后删除",
+  "settings.sync_on_excluding.one": "问题传感器已同步，{n} 项排除"
 }

@@ -8,8 +8,12 @@ test.describe('Home Keeper panel — Settings tab', () => {
     const panel = page.locator('home-keeper-panel').first();
 
     await panel.locator('#tab-settings').click();
-    // The ha-form mirror of the options flow is rendered.
-    await expect(panel.locator('#hk-settings ha-form')).toBeVisible();
+    // The ha-form mirror of the options flow is rendered. The problem-sensor card
+    // renders as two forms — the sync switch, then the exclusions indented behind
+    // it — so both halves have to be on screen for the card to be usable.
+    await expect(panel.locator('#hk-settings ha-form')).toHaveCount(2);
+    await expect(panel.locator('#hk-settings ha-form').first()).toBeVisible();
+    await expect(panel.locator('#hk-settings ha-form').last()).toBeVisible();
     // …and so is the Shopping list card, which is where the buy-reminder mirror
     // is turned on.
     await expect(panel.locator('#hk-settings-shopping ha-form')).toBeVisible();
@@ -22,7 +26,7 @@ test.describe('Home Keeper panel — Settings tab', () => {
   test('a settings detail URL deep-links straight to the Settings tab', async ({ page }) => {
     await page.goto('/home-keeper/settings');
     const panel = page.locator('home-keeper-panel').first();
-    await expect(panel.locator('#hk-settings ha-form')).toBeVisible();
+    await expect(panel.locator('#hk-settings ha-form').first()).toBeVisible();
   });
 
   test('the problem-sensor toggle explains what clears a synced task', async ({ page }) => {
@@ -32,7 +36,7 @@ test.describe('Home Keeper panel — Settings tab', () => {
     await page.goto('/home-keeper/settings');
     const panel = page.locator('home-keeper-panel').first();
     const card = panel.locator('#hk-settings');
-    await expect(card.locator('ha-form')).toBeVisible();
+    await expect(card.locator('ha-form').first()).toBeVisible();
     await expect(card).toContainText(/clears only when the source integration/i);
     await expect(card).toContainText(/offer Snooze in place of Mark done/i);
   });

@@ -953,8 +953,22 @@ export function sensorHintText(
  * sensors.
  */
 export function problemSyncSchema(): FormField[] {
+  return [...problemSyncToggleSchema(), ...problemSyncExclusionsSchema()];
+}
+
+/** The switch that decides whether problem sensors are mirrored at all. */
+export function problemSyncToggleSchema(): FormField[] {
+  return [{ name: 'sync_problem_sensors', selector: selBool() }];
+}
+
+/**
+ * The four exclusion pickers, which only mean anything while the sync above them is
+ * on. Split from the toggle so the panel can indent them behind a rule and caption
+ * them — `ha-form` has no slot between two of its own rows. `problemSyncSchema` is
+ * the concatenation of the two, and a test holds them to that.
+ */
+export function problemSyncExclusionsSchema(): FormField[] {
   return [
-    { name: 'sync_problem_sensors', selector: selBool() },
     {
       name: 'problem_sensor_exclude_entities',
       selector: selEntity({ domain: 'binary_sensor', device_class: 'problem' }, true),

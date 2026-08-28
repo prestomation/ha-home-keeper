@@ -27,7 +27,8 @@ import {
   notificationSchema,
   notifyFormData,
   notifyFormToNotification,
-  problemSyncSchema,
+  problemSyncExclusionsSchema,
+  problemSyncToggleSchema,
   profileFormData,
   profileFormToProfile,
   profileSchema,
@@ -124,6 +125,10 @@ const COMPANIONS_DOCS_URL =
 // task form's help affordances link here. Generated from README.md's
 // "Sensor-based tasks" section (slug `sensor-tasks`, see website/scripts/sync-docs.mjs).
 const SENSOR_DOCS_URL = 'https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks';
+
+// The User Guide itself — linked from the Settings rail's foot, next to the version,
+// so "where do I read about this?" is answered from the page that raises the question.
+const DOCS_URL = 'https://prestomation.github.io/ha-home-keeper/docs/guide/';
 
 /**
  * The Home Keeper panel is built entirely from Home Assistant's own web
@@ -487,9 +492,54 @@ const STYLES = `
   }
   .hk-form-help:hover { color: var(--primary-color); }
   .hk-settings-intro {
-    color: var(--secondary-text-color); font-size: 0.9rem;
+    color: var(--hk-ink-2); font-size: 0.9rem;
     margin-bottom: 16px; line-height: 1.4;
   }
+  /* What this section is currently set to, stated under its name so the page can be
+     read without opening anything. */
+  .hk-settings-value {
+    color: var(--hk-ink); font-size: 0.88rem; margin: 2px 0 8px;
+  }
+
+  /* ── Settings: anchor rail beside the sections ─────────────────────────────
+     Settings is a long page, and the questions people bring to it ("is the mirror
+     on? do I have notifications?") are answered by the rail rather than by
+     scrolling. It sticks; the column beside it scrolls with the page. */
+  .hk-settings-layout { display: flex; align-items: flex-start; gap: 28px; }
+  .hk-settings-rail {
+    flex: 0 0 228px; position: sticky; top: 8px;
+    display: flex; flex-direction: column; gap: 2px;
+    max-height: calc(100vh - 24px); overflow: auto;
+  }
+  /* Long prose reads badly at full width, so the sections cap out well short of the
+     shell — the rail takes the space that frees up. */
+  .hk-settings-col { flex: 1 1 auto; min-width: 0; max-width: 820px; }
+  .hk-rail-link {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    font: inherit; font-size: 0.85rem; color: var(--hk-ink);
+    text-align: start; padding: 10px 13px; border-radius: var(--hk-r-btn);
+    display: flex; align-items: center; gap: 8px; width: 100%;
+  }
+  .hk-rail-link:hover { background: var(--hk-page); }
+  .hk-rail-link[aria-current] {
+    background: var(--hk-accent-soft); color: var(--hk-accent-ink); font-weight: 500;
+  }
+  .hk-rail-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .hk-rail-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+  .hk-rail-dot.on { background: var(--hk-ok); }
+  .hk-rail-dot.warn { background: var(--hk-warn); }
+  .hk-rail-count {
+    flex: none; font-size: 0.75rem; color: var(--hk-ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .hk-rail-foot {
+    margin-top: 10px; padding: 10px 13px 2px; border-top: 1px solid var(--hk-line);
+    display: flex; flex-direction: column; gap: 4px;
+    font-size: 0.75rem; color: var(--hk-ink-2);
+  }
+  .hk-rail-foot a { color: var(--hk-accent); text-decoration: none; }
+  .hk-rail-foot a:hover { text-decoration: underline; }
+  .hk-settings-card .hk-indent { margin-top: 4px; }
   /* Live "reads N -> due at M" primer under the sensor task fields. */
   .hk-form-hint {
     color: var(--secondary-text-color); font-size: 0.85rem; line-height: 1.4;
@@ -1043,6 +1093,20 @@ const STYLES = `
      :host a containing block for fixed descendants, which is exactly what the
      bottom bar and the drawer must not be anchored to. Home Assistant collapses
      its own sidebar below ~870px, so the phone rules can run full-bleed. */
+  /* No room for a rail beside the sections — it becomes a scrolling strip above
+     them, which still answers "what is set to what" without opening anything. */
+  @media (max-width: 1000px) {
+    .hk-settings-layout { flex-direction: column; gap: 12px; }
+    .hk-settings-rail {
+      position: static; flex: none; width: 100%; max-height: none;
+      flex-direction: row; overflow-x: auto; scrollbar-width: none;
+    }
+    .hk-settings-rail::-webkit-scrollbar { display: none; }
+    .hk-rail-link { width: auto; white-space: nowrap; border: 1px solid var(--hk-line); }
+    .hk-rail-foot { display: none; }
+    .hk-settings-col { max-width: none; width: 100%; }
+  }
+
   @media (max-width: 700px) {
     ha-tab-group { display: none; }
     .hk-bottombar {
@@ -2399,7 +2463,20 @@ export class HomeKeeperPanel extends HTMLElement {
         </div>
         ${this._detailView()}`;
     } else if (this._view === 'settings') {
-      inner = `${this._tabs()}<div id="hk-settings-host"></div><div id="hk-profiles-host"></div><div id="hk-notifications-host"></div><div id="hk-companions-host"></div>`;
+      // Two columns: an anchor rail naming every section and what it is set to, and
+      // the sections themselves. The four host ids are unchanged — only where they sit
+      // on the page moved.
+      inner = `
+        ${this._tabs()}
+        <div class="hk-settings-layout">
+          ${this._settingsRail()}
+          <div class="hk-settings-col">
+            <div id="hk-settings-host"></div>
+            <div id="hk-profiles-host"></div>
+            <div id="hk-notifications-host"></div>
+            <div id="hk-companions-host"></div>
+          </div>
+        </div>`;
     } else {
       // Add / Export now live at the end of the controls row (one primary action per
       // surface), so the old full-width action bar above the list is gone.
@@ -4132,6 +4209,22 @@ export class HomeKeeperPanel extends HTMLElement {
     const companionsHost = root.getElementById('hk-companions-host');
     if (companionsHost) this._renderCompanions(companionsHost);
 
+    // Settings anchor rail: scroll the named card into view and mark it current.
+    // `scrollIntoView` is guarded because jsdom does not implement it.
+    root.querySelectorAll<HTMLElement>('.hk-rail-link').forEach((link) =>
+      link.addEventListener('click', () => {
+        const target = link.dataset.rail;
+        const card = target ? root.getElementById(target) : null;
+        if (card && typeof card.scrollIntoView === 'function') {
+          card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+        root
+          .querySelectorAll('.hk-rail-link')
+          .forEach((other) => other.removeAttribute('aria-current'));
+        link.setAttribute('aria-current', 'true');
+      }),
+    );
+
     // Card actions: the row opens the detail page; tasks keep a quick "Done".
     this._wireDetailOpeners(root);
     if (this._view === 'tasks') {
@@ -4335,6 +4428,58 @@ export class HomeKeeperPanel extends HTMLElement {
     this._navigate({ view, detail: null }, true);
   }
 
+  /**
+   * The Settings tab's anchor rail: every section, in order, with a dot or a count
+   * saying what state it is in.
+   *
+   * Settings is one long page of cards, and the thing people actually want from it is
+   * "is the mirror on, do I have notifications set up" — questions the rail answers
+   * without scrolling. Clicking an entry scrolls its card into view.
+   *
+   * Every label reuses the heading its section already carries, so the rail adds no
+   * new translated prose to keep in sync with the cards it points at.
+   */
+  private _settingsRail(): string {
+    const opts = this._options;
+    const dot = (state: 'on' | 'warn' | 'off'): string =>
+      state === 'off' ? '' : `<span class="hk-rail-dot ${state}"></span>`;
+    const count = (n: number): string =>
+      n ? `<span class="hk-rail-count">${escapeHTML(String(n))}</span>` : '';
+    const entry = (target: string, label: string, mark: string): string =>
+      `<button class="hk-rail-link" data-rail="${escapeHTML(target)}">
+         <span class="hk-rail-label">${escapeHTML(label)}</span>${mark}
+       </button>`;
+    const companionsOn = this._companions.filter((c) => c.status === 'connected').length;
+    return `
+      <nav class="hk-settings-rail" aria-label="${escapeHTML(t('tab.settings'))}">
+        ${entry('hk-settings-general', t('settings.general_heading'), '')}
+        ${entry(
+          'hk-settings-shopping',
+          t('settings.shopping_heading'),
+          dot(opts?.shopping_list_entity ? 'on' : 'off'),
+        )}
+        ${entry('hk-settings', t('settings.heading'), dot(opts?.sync_problem_sensors ? 'on' : 'off'))}
+        ${entry('hk-profiles', t('notify.profiles_heading'), count(opts?.profiles?.length ?? 0))}
+        ${entry(
+          'hk-notifications',
+          t('notify.heading'),
+          // Amber rather than green when notifications are configured but there is no
+          // mobile app to deliver them to — the one state that looks fine on the card
+          // and silently does nothing.
+          this._notifyTargets.length
+            ? count(opts?.notifications?.length ?? 0)
+            : dot('warn'),
+        )}
+        ${entry('hk-companions', t('companions.heading'), count(companionsOn))}
+        <div class="hk-rail-foot">
+          <span class="hk-rail-ver">v${escapeHTML(PANEL_VERSION)}</span>
+          <a href="${DOCS_URL}" target="_blank" rel="noopener noreferrer">${escapeHTML(
+            t('help.docsLink'),
+          )}</a>
+        </div>
+      </nav>`;
+  }
+
   /** Render the Settings tab — `ha-form` mirrors of the options flow that autosave
    *  each change (the backend reloads + re-runs the problem sync). Three cards: a
    *  **General** card for settings (like one-off retention) that aren't tied to any
@@ -4379,9 +4524,23 @@ export class HomeKeeperPanel extends HTMLElement {
         (value) => ({ ...value, shopping_list_entity: String(value.shopping_list_entity ?? '') }),
       ),
     );
-    // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor).
+    // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor). The
+    // exclusions are split out so they can be indented behind the switch that decides
+    // whether they apply at all.
     host.appendChild(
-      this._settingsCard('hk-settings', 'settings.heading', 'settings.help', problemSyncSchema(), opts),
+      this._settingsCard(
+        'hk-settings',
+        'settings.heading',
+        'settings.help',
+        problemSyncToggleSchema(),
+        opts,
+        undefined,
+        {
+          schema: problemSyncExclusionsSchema(),
+          labelKey: 'settings.exclusions',
+          noteKey: 'settings.exclusions_note',
+        },
+      ),
     );
   }
 
@@ -4395,38 +4554,98 @@ export class HomeKeeperPanel extends HTMLElement {
     schema: FormField[],
     opts: HomeKeeperOptions,
     coerce?: (value: Record<string, unknown>) => Record<string, unknown>,
+    dependent?: { schema: FormField[]; labelKey: string; noteKey: string },
   ): HTMLElement {
     const card = document.createElement('ha-card');
-    card.className = 'hk-form-card';
+    card.className = 'hk-form-card hk-settings-card';
     card.id = id;
     const inner = document.createElement('div');
     inner.className = 'hk-form-inner';
+    // The card states its current value under its name, so the Settings page can be
+    // read for what it is set to without opening anything.
+    const summary = this._settingsSummary(id, opts);
     inner.innerHTML = `
       <div class="hk-form-title">${escapeHTML(t(headingKey))}</div>
+      ${summary ? `<div class="hk-settings-value">${escapeHTML(summary)}</div>` : ''}
       <div class="hk-settings-intro">${escapeHTML(t(helpKey))}</div>`;
-    const form = document.createElement('ha-form') as HaFormElement;
-    form.hass = this._hass;
-    form.schema = schema;
-    form.data = { ...opts };
-    form.computeLabel = (s: { name: string }): string => (s.name ? t('settings.' + s.name) : '');
-    // Optional per-field note, for a setting whose consequences aren't obvious from its
-    // label (the problem-sensor toggle: what clears such a task, and where it shows up).
-    // `t()` echoes an unknown key back, which is how a field with no note renders none.
-    form.computeHelper = (s: { name: string }): string => {
-      if (!s.name) return '';
-      const key = `settings.${s.name}_help`;
-      const text = t(key);
-      return text === key ? '' : text;
+
+    const build = (fields: FormField[]): HaFormElement => {
+      const form = document.createElement('ha-form') as HaFormElement;
+      form.hass = this._hass;
+      form.schema = fields;
+      form.data = { ...opts };
+      form.computeLabel = (s: { name: string }): string => (s.name ? t('settings.' + s.name) : '');
+      // Optional per-field note, for a setting whose consequences aren't obvious from
+      // its label (the problem-sensor toggle: what clears such a task, and where it
+      // shows up). `t()` echoes an unknown key back, which is how a field with no note
+      // renders none.
+      form.computeHelper = (s: { name: string }): string => {
+        if (!s.name) return '';
+        const key = `settings.${s.name}_help`;
+        const text = t(key);
+        return text === key ? '' : text;
+      };
+      form.addEventListener('value-changed', (e: Event) => {
+        const raw = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+        const value = coerce ? coerce(raw) : raw;
+        // Each form carries only its own fields, which is exactly what the options
+        // endpoint wants: it merges partial updates, so a change to the toggle never
+        // has to restate the exclusions to leave them alone.
+        void this._saveOptions(value as Partial<HomeKeeperOptions>);
+      });
+      this._liveHassEls.push(form);
+      return form;
     };
-    form.addEventListener('value-changed', (e: Event) => {
-      const raw = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
-      const value = coerce ? coerce(raw) : raw;
-      void this._saveOptions(value as Partial<HomeKeeperOptions>);
-    });
-    this._liveHassEls.push(form);
-    inner.appendChild(form);
+
+    inner.appendChild(build(schema));
+    if (dependent) {
+      // Fields that only bite while the setting above them is on, indented behind a
+      // rule and captioned with that condition — the same treatment the task form
+      // gives the fields a recurrence choice reveals.
+      const indent = document.createElement('div');
+      indent.className = 'hk-indent';
+      const body = document.createElement('div');
+      body.className = 'hk-indent-body';
+      const head = document.createElement('div');
+      head.className = 'hk-indent-head';
+      head.innerHTML =
+        `<span class="hk-eyebrow accent">${escapeHTML(t(dependent.labelKey))}</span>` +
+        `<span class="hk-indent-note">${escapeHTML(t(dependent.noteKey))}</span>`;
+      body.append(head, build(dependent.schema));
+      indent.appendChild(body);
+      inner.appendChild(indent);
+    }
     card.appendChild(inner);
     return card;
+  }
+
+  /**
+   * One line stating what a Settings card is currently set to, shown under its name.
+   *
+   * Derived from the live options rather than stored, so it can never disagree with
+   * the controls below it. Returns '' where a card has nothing worth restating.
+   */
+  private _settingsSummary(id: string, opts: HomeKeeperOptions): string {
+    if (id === 'hk-settings-general') {
+      const days = Number(opts.one_off_retention_days) || 0;
+      return days > 0 ? tn('settings.retention_summary', days) : t('settings.retention_forever');
+    }
+    if (id === 'hk-settings-shopping') {
+      const entity = String(opts.shopping_list_entity ?? '');
+      if (!entity) return t('settings.shopping_off');
+      const name = this._hass?.states?.[entity]?.attributes?.friendly_name;
+      return t('settings.shopping_on', { list: String(name || entity) });
+    }
+    if (id === 'hk-settings') {
+      if (!opts.sync_problem_sensors) return t('settings.sync_off');
+      const excluded =
+        (opts.problem_sensor_exclude_entities?.length ?? 0) +
+        (opts.problem_sensor_exclude_devices?.length ?? 0) +
+        (opts.problem_sensor_exclude_areas?.length ?? 0) +
+        (opts.problem_sensor_exclude_labels?.length ?? 0);
+      return excluded ? tn('settings.sync_on_excluding', excluded) : t('settings.sync_on');
+    }
+    return '';
   }
 
   private async _saveOptions(value: Partial<HomeKeeperOptions>): Promise<void> {
