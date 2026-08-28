@@ -45,6 +45,7 @@ from . import (
     tag_listener,
     websocket_api,
 )
+from .api_surface import SERVICE_NAMES
 from .assets import AssetValidationError, card_projection
 from .const import (
     COMPLETION_ENTRY_FIELDS,
@@ -1472,43 +1473,6 @@ async def _delete_asset(
     await hass.config_entries.async_reload(coord.entry.entry_id)
 
 
-# Asset CRUD service names paired with the task services for teardown.
-_SERVICES = (
-    "add_task",
-    "update_task",
-    "delete_task",
-    "complete_task",
-    "update_completion",
-    "delete_completion",
-    "move_completion",
-    "delete_archived_completion",
-    "trigger_task",
-    "snooze_task",
-    "skip_task",
-    "set_task_consumable",
-    "notify",
-    "list_tasks",
-    "list_profiles",
-    "add_asset",
-    "update_asset",
-    "delete_asset",
-    "archive_asset",
-    "restore_asset",
-    "list_assets",
-    "adjust_part_stock",
-    "remove_part_file",
-    "add_asset_document",
-    "remove_asset_document",
-    "update_asset_document",
-    "sign_document_url",
-    "sign_part_file_url",
-    "export_inventory",
-    "set_options",
-    "register_companion",
-    "list_companions",
-)
-
-
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
@@ -1519,7 +1483,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # leaving all services registered until restart. ``async_loaded_entries``
     # excludes the entry currently unloading.
     if unloaded and not hass.config_entries.async_loaded_entries(DOMAIN):
-        for service in _SERVICES:
+        for service in SERVICE_NAMES:
             hass.services.async_remove(DOMAIN, service)
         # The sidebar panel is deliberately *not* dropped on an ordinary unload,
         # because most unloads are the first half of a reload — and a reload is

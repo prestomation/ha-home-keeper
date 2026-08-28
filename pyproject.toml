@@ -61,10 +61,13 @@ also_copy = ["ci", "CHANGELOG.md"]
 # The mutable surface: the pure core, which the fast `tests/unit` tier covers
 # directly. Everything else in the integration imports Home Assistant and is
 # only exercised by the Docker tiers — far too slow to run once per mutant, and
-# scoring it here would just report noise. Also excluded: const.py and
-# companions_catalog.py (data, not logic), backend_i18n.py (pure but with no
-# unit-test entry point) and testing.py (a helper for *other* integrations'
-# suites, already omitted from coverage).
+# scoring it here would just report noise. Also excluded: const.py,
+# companions_catalog.py and api_surface.py (data, not logic — api_surface is a
+# declarative index of the integration's surfaces, pinned by
+# tests/unit/test_api_surface.py against the real registrations rather than by
+# behavioural assertions), backend_i18n.py (pure but with no unit-test entry
+# point) and testing.py (a helper for *other* integrations' suites, already
+# omitted from coverage).
 only_mutate = [
     "custom_components/home_keeper/recurrence.py",
     "custom_components/home_keeper/models.py",
