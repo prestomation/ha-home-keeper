@@ -314,18 +314,28 @@ const STYLES = `
      rather than positioned from in here.
 
      An empty drawer takes no space at all, so a closed one cannot leave a gutter
-     down the side of the list. */
-  .hk-drawer {
-    flex: 0 0 auto; width: 0; overflow: hidden;
-    position: sticky; top: 0; max-height: 100vh;
-  }
+     down the side of the list.
+
+     The column and the sticky panel are two elements on purpose: the column
+     stretches to the shell's full height so it reads as a column all the way down a
+     long list, while the panel inside it is what sticks. Making the column itself
+     sticky would size it to the viewport, leaving a bare gap beside everything
+     below the fold. */
+  /* A closed drawer is removed from the layout outright rather than collapsed to
+     zero width: a zero-width box still carries a sticky, scrollable child, which is
+     enough to take part in sizing the page. */
+  .hk-drawer { display: none; }
   .hk-drawer[data-open] {
+    display: block; flex: 0 0 auto; align-self: stretch;
     width: clamp(340px, 40vw, 472px);
-    display: flex; flex-direction: column;
-    overflow-y: auto; overscroll-behavior: contain;
     border-left: 1px solid var(--hk-line);
     background: var(--hk-surface);
     box-shadow: -8px 0 24px color-mix(in srgb, var(--hk-ink) 12%, transparent);
+  }
+  .hk-drawer-sticky {
+    position: sticky; top: 0; max-height: 100vh;
+    display: flex; flex-direction: column;
+    overflow-y: auto; overscroll-behavior: contain;
   }
   .hk-drawer ha-card.hk-form-card {
     margin: 0; border: 0; border-radius: 0;
@@ -739,11 +749,16 @@ const STYLES = `
      was for — reading the same fact in the same place on every part. */
   .hk-part-cell { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
   .hk-part-cell:empty { display: none; }
-  /* How much of the reorder point is left. "1 of 2" is a number to work out; a
-     half-empty amber bar is a glance. */
-  .hk-part-meter { margin: 0; width: 72px; height: 5px; flex: none; }
-  .hk-part-meter > span { background: var(--hk-ok); }
-  .hk-part-meter.low > span { background: var(--hk-warn); }
+  /* How much of the reorder point is left. "1 of 2" is a number to work out, and a
+     half-empty amber bar is a glance.
+
+     Qualified with .hk-meter so these beat the generic meter rules further down the
+     sheet: on their own they tie on specificity and lose to whichever comes last,
+     which is how the spares bar was drawing in the accent colour instead of saying
+     anything about the stock level. */
+  .hk-meter.hk-part-meter { margin: 0; width: 72px; height: 5px; flex: none; }
+  .hk-meter.hk-part-meter > span { background: var(--hk-ok); }
+  .hk-meter.hk-part-meter.low > span { background: var(--hk-warn); }
   .hk-part-notes { color: var(--secondary-text-color); margin-top: 6px; }
   /* The rule the form currently describes, in one sentence, immediately above the
      submit button — the last thing read before committing. Louder than .hk-form-hint
@@ -1234,6 +1249,7 @@ const STYLES = `
     .hk-drawer[data-open] {
       position: fixed; inset-inline: 0; bottom: 0; top: auto; z-index: 6;
       width: auto; min-width: 0; max-height: 92dvh;
+      display: flex; flex-direction: column;
       border-left: 0; border-top: 1px solid var(--hk-line);
       border-radius: 22px 22px 0 0;
       box-shadow: 0 -8px 32px color-mix(in srgb, var(--hk-ink) 26%, transparent);
@@ -1242,10 +1258,14 @@ const STYLES = `
     /* The grab handle that says "this sheet moves". Decorative — the header's
        close button is the actual affordance. */
     .hk-drawer[data-open]::before {
-      content: ''; position: sticky; top: 0; z-index: 3;
-      align-self: center; flex: none;
+      content: ''; flex: none; align-self: center;
       width: 36px; height: 4px; border-radius: 2px; margin-bottom: 6px;
       background: var(--hk-line);
+    }
+    /* The sheet is already anchored to the viewport, so its inner panel scrolls
+       within it rather than sticking to anything. */
+    .hk-drawer[data-open] .hk-drawer-sticky {
+      position: static; max-height: none; flex: 1 1 auto; min-height: 0;
     }
     .hk-drawer ha-card.hk-form-card { min-height: 0; }
     /* The list behind a full-width sheet is covered, not consulted — so it keeps
@@ -2624,7 +2644,9 @@ export class HomeKeeperPanel extends HTMLElement {
           ${inner}
           <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
         </div>
-        <aside id="hk-form-host" class="hk-drawer"${drawerOpen ? ' data-open' : ''}></aside>
+        <aside class="hk-drawer"${drawerOpen ? ' data-open' : ''}>
+          <div id="hk-form-host" class="hk-drawer-sticky"></div>
+        </aside>
       </div>
       ${this._loaded ? this._bottomTabs() : ''}
       <div id="hk-dialog-host"></div>

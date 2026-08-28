@@ -8,7 +8,7 @@
  * text fields live inside `ha-selector-text` (fill the inner input) and dropdowns
  * are `ha-select` built on `ha-dropdown` (open, then click the role="menuitem").
  */
-import { test, expect, Locator } from '@playwright/test';
+import { test, expect, Locator, Page } from '@playwright/test';
 import { openPanel, openDashboard } from './tests/helpers';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
@@ -21,9 +21,43 @@ const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
  * earlier one opened, and the shot silently captures a collapsed group.
  */
 async function expandGroup(group: Locator): Promise<void> {
-  if (!(await group.evaluate((el: HTMLDetailsElement) => el.open))) {
-    await group.locator('summary').click();
-  }
+  // Read-then-click races a re-render: the panel rebuilds its whole shadow tree on
+  // any refresh, so a group read as closed can be re-rendered open before the click
+  // lands, and the click then closes it. The failure surfaces much later, as a row
+  // that is present but not visible. Poll until it is actually open instead.
+  await expect
+    .poll(
+      async () => {
+        if (!(await group.evaluate((el: HTMLDetailsElement) => el.open))) {
+          await group.locator('summary').click();
+        }
+        return group.evaluate((el: HTMLDetailsElement) => el.open);
+      },
+      { timeout: 10_000 },
+    )
+    .toBe(true);
+}
+
+/**
+ * Screenshot the part of *el* that is actually on screen.
+ *
+ * A plain element screenshot captures the element's whole box, and any of it clipped
+ * by a scrollable ancestor comes out blank. That is what the edit drawer is: it
+ * scrolls its own content, so a part card taller than the drawer photographed as a
+ * band of content between two empty margins. Clipping to the intersection of the
+ * element and the viewport captures what a person would actually see.
+ */
+async function shotVisible(page: Page, el: Locator, path: string): Promise<void> {
+  await el.scrollIntoViewIfNeeded();
+  const box = await el.boundingBox();
+  if (!box) throw new Error(`no bounding box for ${path}`);
+  const view = page.viewportSize();
+  if (!view) throw new Error('no viewport size');
+  const x = Math.max(0, box.x);
+  const y = Math.max(0, box.y);
+  const width = Math.min(box.x + box.width, view.width) - x;
+  const height = Math.min(box.y + box.height, view.height) - y;
+  await page.screenshot({ path, clip: { x, y, width, height } });
 }
 
 /** Fill the input of the nth ha-form text selector within a scope. */
@@ -254,8 +288,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 3 days" a time-based task shows, rather than a bare "Monitored" (#235). The group
   // still buckets it under Monitored; it's the card's own due chip that counts down.
   // Assert the chip as well as photographing it (capture != coverage, #221).
+  // The due/overdue chip sits at the end of the row now, next to the action it
+  // argues for, rather than among the chips that describe the task.
   const nozzleDueChip = panel
-    .locator('ha-card.hk-card[data-id="task_nozzle_usage"] .hk-chips ha-assist-chip')
+    .locator('ha-card.hk-card[data-id="task_nozzle_usage"] .hk-status ha-assist-chip')
     .first();
   await expect(nozzleDueChip).toHaveAttribute('label', 'in 180 h');
   await nozzleDueChip.scrollIntoViewIfNeeded();
@@ -682,13 +718,24 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // maintenance history (including the archived history of a task that was
   // deleted while still assigned to it).
   await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
-  await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
-  // Appliances carry notes of their own now (issue #163) — a Markdown card with the
-  // same inline editor as a task, plus per-part notes in the Parts section.
-  await expect(panel.locator('ha-markdown table').first()).toBeVisible({ timeout: 15_000 });
+  // The appliance opens on Parts, beside the list it came from, with itself marked
+  // in that list. Its per-part notes render as Markdown like any other note.
+  await expect(panel.locator('ha-card.hk-card.hk-selected')).toBeVisible();
   await expect(panel.locator('.hk-part-notes ha-markdown strong').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/8-panel-appliance-detail.png`, fullPage: true });
+
+  // 8a. The other sub-tabs. Each is a URL of its own, so these are pages, not
+  // panels — the appliance's own notes and identity live under Details, and the
+  // retained history of a task deleted while still assigned to it under History.
+  await panel.locator('.hk-subtab[data-tab="details"]').click();
+  await expect(panel.locator('ha-markdown table').first()).toBeVisible({ timeout: 15_000 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/8d-panel-appliance-details-tab.png`, fullPage: true });
+  await panel.locator('.hk-subtab[data-tab="history"]').click();
+  await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/8e-panel-appliance-history-tab.png`, fullPage: true });
 
   // 8b. Delete now asks for confirmation and is styled as a destructive action
   // (issue #173) — no more one-click loss of an appliance's documents/parts/history.
@@ -823,10 +870,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(docForm.locator('.hk-doc-card').first()).toBeVisible();
   await expect(docForm.getByText('Add a document')).toBeVisible();
   await expect(docForm.locator('ha-button', { hasText: 'Upload file' })).toBeVisible();
+  // The documents editor sits well down the drawer, which scrolls its own content —
+  // so bring it into view and photograph what is on screen rather than the whole
+  // page, which would show the top of the form instead of the section this documents.
+  await docForm.getByText('Manuals & documents').scrollIntoViewIfNeeded();
   await page.waitForTimeout(400);
   await page.screenshot({
     path: `${OUT}/32-panel-appliance-documents.png`,
-    fullPage: true,
+    fullPage: false,
   });
 
   // 32b. Upload rejected before it starts — picking a file over the 100 MB ceiling
@@ -947,7 +998,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await buyPart.locator('ha-selector-number').nth(buyNumbers - 1).locator('input').fill('4');
   await page.waitForTimeout(400);
   await buyPart.scrollIntoViewIfNeeded();
-  await buyPart.screenshot({ path: `${OUT}/39-panel-part-auto-buy.png` });
+  await shotVisible(page, buyPart, `${OUT}/39-panel-part-auto-buy.png`);
 
   // 47. Stock measured rather than counted (issue #220): the seeded "Descaling
   // solution" part (third, the only one with a unit) keeps its stock in millilitres
@@ -958,7 +1009,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(measuredPart.getByText('Stock unit', { exact: false })).toBeVisible();
   await expect(measuredPart.getByText('Used per completion', { exact: false })).toBeVisible();
   await page.waitForTimeout(400);
-  await measuredPart.screenshot({ path: `${OUT}/47-panel-part-measured-stock.png` });
+  await shotVisible(page, measuredPart, `${OUT}/47-panel-part-measured-stock.png`);
 
   // 47b. The same part in the appliance's read view: the unit rides with the amount
   // on both the on-hand chip and the per-completion chip.
@@ -1029,7 +1080,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await openPanel(page);
   await panel.locator('#tab-settings').click();
   await expect(panel.locator('#hk-settings')).toBeVisible();
-  await expect(panel.locator('#hk-settings ha-form')).toBeVisible();
+  await expect(panel.locator('#hk-settings ha-form').first()).toBeVisible();
   await expect(panel.locator('#hk-settings-shopping ha-form')).toBeVisible();
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/17-panel-settings.png`, fullPage: true });
