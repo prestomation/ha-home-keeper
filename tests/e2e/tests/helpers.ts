@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+import { Locator, Page, expect } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -232,4 +232,20 @@ export function trackPanelErrors(page: Page): string[] {
     }
   });
   return errors;
+}
+
+/**
+ * Open an appliance's detail page on a given sub-tab.
+ *
+ * The appliance detail is divided into sub-tabs (Parts, Tasks, Documents, Details,
+ * Related, History), each with a URL of its own and only the open one rendered — so
+ * a test has to say which section it is about. Passing through the list rather than
+ * deep-linking keeps the master pane's selection in the picture.
+ */
+export async function openAppliance(page: Page, assetId: string, tab?: string): Promise<Locator> {
+  const panel = page.locator('home-keeper-panel').first();
+  await panel.locator('#tab-appliances').click();
+  await panel.locator(`.detail-open[data-detail-id="${assetId}"]`).click();
+  if (tab) await panel.locator(`.hk-subtab[data-tab="${tab}"]`).click();
+  return panel;
 }

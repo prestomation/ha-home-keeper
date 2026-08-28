@@ -45,6 +45,7 @@ import {
   taskFormSchemaKey,
   taskSchema,
   taskSchemaSections,
+  pickFormData,
   type FormField,
   type HaFormElement,
 } from './forms';
@@ -380,7 +381,6 @@ const STYLES = `
   }
   .hk-shell-drawer #hk-list ha-card.hk-editing .hk-card-actions { display: none; }
   ha-tab-group { margin-bottom: 16px; }
-  .hk-actionbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
   ha-card.hk-card { margin-bottom: 12px; position: relative; }
   .hk-card-row {
     display: flex; align-items: center; gap: 14px; padding: 13px 16px;
@@ -768,7 +768,6 @@ const STYLES = `
     display: block; margin-top: 6px;
     color: var(--secondary-text-color); font-size: 0.85rem; line-height: 1.4;
   }
-  .hk-form-actions { display: flex; gap: 8px; margin-top: 20px; }
   .hk-loading { display: flex; justify-content: center; padding: 48px 0; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
   .hk-card-row .grow.clickable { cursor: pointer; }
@@ -4295,8 +4294,6 @@ export class HomeKeeperPanel extends HTMLElement {
     if (this._detail) {
       root.getElementById('back-btn')?.addEventListener('click', () => this._closeDetail());
       this._wireDetailActions(root);
-      this._wireDetailOpeners(root);
-      this._wireDeviceChips(root);
       this._wirePartIcons(root);
       this._wireHistoryDeletes(root);
       root.querySelectorAll<HTMLElement>('.hk-subtab').forEach((b) =>
@@ -4307,10 +4304,19 @@ export class HomeKeeperPanel extends HTMLElement {
           }
         }),
       );
-      // A task detail is a page of its own and stops here. An appliance detail is
-      // rendered beside the appliance list, so it keeps the top tabs, the list
-      // controls and the list rows — all wired below.
-      if (this._detail.kind !== 'asset') return;
+      // A task detail is a page of its own and stops here, so the wiring it shares
+      // with the list views happens now rather than below.
+      //
+      // An appliance detail keeps going: it is rendered beside the appliance list, so
+      // it needs the top tabs, the list controls and the list rows too. Crucially it
+      // must NOT wire the shared handlers twice — a second `.detail-open` listener
+      // pushed two history entries per click, so Back out of a task opened from an
+      // appliance landed back on the same task.
+      if (this._detail.kind !== 'asset') {
+        this._wireDetailOpeners(root);
+        this._wireDeviceChips(root);
+        return;
+      }
     }
 
     // Tab navigation. Listen on each tab (click) and on the group's shoelace
@@ -5724,11 +5730,32 @@ export class HomeKeeperPanel extends HTMLElement {
       this._documentOptions(task),
       this._tags,
     );
+    // The form seeds defaults the edit state does not carry — a fresh sensor task
+    // shows "on" as the state it waits for, without that ever having been typed.
+    // While the form was a single `ha-form` those seeds reached the edit state on the
+    // next change of any field, because the event carried the whole form. Now that
+    // each section emits only its own fields, a seed would arrive only if the user
+    // happened to touch the section holding it — so the rule summary described a
+    // sensor task "changing to " nothing, and a save would have written that.
+    // Adopting them here keeps the promise that what the form shows is what saving
+    // writes. Keys already in the edit state win, so a value cleared on purpose is
+    // not seeded back.
+    const offered = pickFormData(
+      formData,
+      sections.flatMap((s) => s.fields),
+    );
+    this._edit.task = { ...offered, ...(this._edit.task ?? {}) } as Partial<Task>;
+
     const formWrap = document.createElement('div');
     formWrap.id = 'hk-task-form';
     for (const section of sections) {
       if (!section.fields.length) continue;
-      const form = this._makeForm(section.fields, formData, onChange);
+      // Each section is seeded with *only* its own fields. `ha-form` emits its whole
+      // `data` object on every change, so seeding each section with the full form
+      // would have every section re-asserting a snapshot of the others taken when it
+      // was built — typing a name and then changing the recurrence would put the name
+      // back to what it was before the first keystroke.
+      const form = this._makeForm(section.fields, pickFormData(formData, section.fields), onChange);
       form.id = `hk-task-form-${section.key}`;
       // Muted per-field helper text under each field (keyed `help.<field>`); returns
       // '' where no string is authored, so helpers appear only where we wrote them.

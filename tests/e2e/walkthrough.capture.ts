@@ -182,9 +182,13 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);
 
-    // 3. Create a task — show the form and the recurrence picker switching modes.
+    // 3. Create a task — the drawer opens beside the list rather than over it, so
+    //    the list keeps its place while the form is filled in. Linger on that first,
+    //    then show the recurrence picker switching modes.
     await panel.locator('#add-btn').click();
     await expect(panel.locator('#hk-form')).toBeVisible();
+    await expect(panel.locator('.hk-shell-drawer')).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
     await panel
       .locator('#hk-task-form ha-selector-text')
       .first()
@@ -299,11 +303,26 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     const applianceRow = panel.locator('.detail-open[data-detail-id="asset_water_heater"]');
     await expect(applianceRow).toBeVisible();
     await applianceRow.click();
+    // The list it came from stays beside it, with this appliance marked in it.
+    await expect(panel.locator('ha-card.hk-card.hk-selected')).toBeVisible();
+    await expect(panel.locator('.hk-part-row').first()).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+
+    // 4-tabs. The appliance's sections are sub-tabs, each with a URL of its own, so
+    //         Back leaves a sub-tab and one can be linked to directly. Walk them.
+    for (const tab of ['tasks', 'documents', 'related'] as const) {
+      await panel.locator(`.hk-subtab[data-tab="${tab}"]`).click();
+      await expect(panel.locator(`.hk-subtab[data-tab="${tab}"].active`)).toBeVisible();
+      await page.waitForTimeout(BEAT);
+    }
+    await panel.locator('.hk-subtab[data-tab="history"]').click();
     await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
 
     // 4a. Appliances carry Markdown notes of their own — the shut-off location, a
-    //     spec table, the yearly drain — plus per-part notes down in Parts.
+    //     spec table, the yearly drain — plus per-part notes down in Parts. They
+    //     live under Details, with the identity fields.
+    await panel.locator('.hk-subtab[data-tab="details"]').click();
     await expect(panel.locator('ha-markdown table').first()).toBeVisible();
     await panel.locator('ha-markdown table').first().scrollIntoViewIfNeeded();
     await page.waitForTimeout(BEAT * 2);
@@ -349,6 +368,7 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     // 4a4. Stock that is measured, not counted — the descaling solution keeps its
     //      stock in millilitres and uses 250 of them per completion, so its chips
     //      read in real units instead of a bare count of somethings.
+    await panel.locator('.hk-subtab[data-tab="parts"]').click();
     const measuredRow = panel
       .locator('.hk-part-row')
       .filter({ hasText: 'Descaling solution' });

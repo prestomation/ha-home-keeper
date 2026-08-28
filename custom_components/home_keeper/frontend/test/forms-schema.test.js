@@ -12,6 +12,7 @@ import {
   taskFormData,
   taskSchema,
   taskSchemaSections,
+  pickFormData,
 } from '../src/forms.ts';
 import { setLanguage } from '../src/i18n.ts';
 
@@ -103,6 +104,43 @@ describe('taskSchemaSections is exactly taskSchema, grouped', () => {
     expect(sections.map((s) => s.key)).toEqual(['basics', 'placement']);
     // No schedule section at all: an integration owns when a triggered task is due.
     expect(sections.some((s) => s.key === 'cadence')).toBe(false);
+  });
+});
+
+describe('pickFormData', () => {
+  it('keeps only the keys the schema offers', () => {
+    const data = { name: 'x', notes: 'y', interval: 3, unit: 'months' };
+    expect(pickFormData(data, [{ name: 'name' }, { name: 'notes' }])).toEqual({
+      name: 'x',
+      notes: 'y',
+    });
+  });
+
+  it('reaches into a grid group, where the cadence fields live', () => {
+    const data = { interval: 3, unit: 'months', name: 'x' };
+    const schema = [{ name: '', type: 'grid', schema: [{ name: 'interval' }, { name: 'unit' }] }];
+    expect(pickFormData(data, schema)).toEqual({ interval: 3, unit: 'months' });
+  });
+
+  it('omits a key the data does not have rather than seeding it undefined', () => {
+    // A seeded `undefined` would read as "this field was cleared" when the form
+    // echoed it back, which is the difference between leaving a value alone and
+    // wiping it.
+    expect(pickFormData({ name: 'x' }, [{ name: 'name' }, { name: 'notes' }])).toEqual({
+      name: 'x',
+    });
+    expect('notes' in pickFormData({ name: 'x' }, [{ name: 'notes' }])).toBe(false);
+  });
+
+  it('splits the task form into sections that between them hold every value', () => {
+    const task = { recurrence_type: 'floating', name: 'Flush tank', interval: 3 };
+    const data = taskFormData(task);
+    const sections = taskSchemaSections(task);
+    const merged = Object.assign({}, ...sections.map((s) => pickFormData(data, s.fields)));
+    // Every field the form offers is seeded by exactly one section.
+    for (const name of names(taskSchema(task))) {
+      expect(merged[name], `${name} should be seeded by one of the sections`).toEqual(data[name]);
+    }
   });
 });
 

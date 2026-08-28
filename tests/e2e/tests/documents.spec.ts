@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openPanel, trackPanelErrors } from './helpers';
+import { openAppliance, openPanel, trackPanelErrors } from './helpers';
 
 /**
  * The appliance detail page's "Manuals & documents" section, and a part's attached
@@ -15,9 +15,7 @@ test.describe('Appliance documents open by a native tap (issue #164)', () => {
   test('every document and part file is an href-bearing anchor', async ({ page }) => {
     const errors = trackPanelErrors(page);
     await openPanel(page);
-    const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-appliances').click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    const panel = await openAppliance(page, 'asset_water_heater', 'documents');
 
     // The seeded water heater carries one of each: an external link document
     // ("Owner's manual") and an uploaded file document ("Installation guide (PDF)").
@@ -42,7 +40,9 @@ test.describe('Appliance documents open by a native tap (issue #164)', () => {
     // A link, not a button wearing a link's clothes.
     await expect(file).not.toHaveAttribute('role', 'button');
 
-    // The anode rod's attached receipt gets the same treatment.
+    // The anode rod's attached receipt gets the same treatment. It lives with the
+    // parts rather than the documents, so that is the sub-tab it is read from.
+    await panel.locator('.hk-subtab[data-tab="parts"]').click();
     const clip = panel.locator('a.hk-part-file[data-part="part_anode"]');
     await expect(clip).toHaveAttribute(
       'href',
@@ -71,9 +71,7 @@ test.describe('Appliance documents open by a native tap (issue #164)', () => {
 
   test('tapping an uploaded document actually opens it', async ({ page }) => {
     await openPanel(page);
-    const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-appliances').click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    const panel = await openAppliance(page, 'asset_water_heater', 'documents');
 
     const file = panel
       .locator('.hk-doc-row a.hk-doc-file')

@@ -140,6 +140,7 @@ test.describe('Home Keeper panel — smoke', () => {
     const panel = page.locator('home-keeper-panel').first();
     await panel.locator('#tab-appliances').click();
     await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await panel.locator('.hk-subtab[data-tab="history"]').click();
     // The water heater's history includes a task that was deleted while still
     // assigned to it — surfaced as an archived "removed task" group.
     await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
@@ -158,7 +159,7 @@ test.describe('Home Keeper panel — smoke', () => {
     await expect(panel.locator('ha-assist-chip.hk-overdue').first()).toBeVisible();
     // Switching group-by to "None" renders a flat list (no group sections).
     await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
-    await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'None' }).click();
+    await panel.locator('select[data-seg-select="group"]').selectOption('none');
     await expect(panel.locator('details.hk-group')).toHaveCount(0);
     await expect(panel.locator('ha-card.hk-card').first()).toBeVisible();
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
@@ -267,16 +268,21 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
     await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
     await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater$/);
 
-    // Open the first related task from inside the appliance detail.
+    // Open the first related task from inside the appliance detail. Its tasks are a
+    // sub-tab, and switching to one replaces rather than pushes — so the sub-tab is
+    // part of where you were, not a step Back has to retrace.
+    await panel.locator('.hk-subtab[data-tab="tasks"]').click();
+    await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater\/tasks$/);
     const relatedTask = panel.locator('.hk-rel.detail-open[data-detail-kind="task"]').first();
     await expect(relatedTask).toBeVisible();
     const relatedTaskId = await relatedTask.getAttribute('data-detail-id');
     await relatedTask.click();
     await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${relatedTaskId}$`));
 
-    // In-panel Back must return to the appliance detail, not the task list.
+    // In-panel Back must return to the appliance detail — and to the sub-tab it was
+    // showing, not the appliance's default one — rather than to the task list.
     await panel.locator('#back-btn').click();
-    await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater$/);
+    await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater\/tasks$/);
     // Back button is still visible because we're still inside a detail page.
     await expect(panel.locator('#back-btn')).toBeVisible();
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);

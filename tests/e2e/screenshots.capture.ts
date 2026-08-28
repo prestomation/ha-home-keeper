@@ -199,12 +199,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 1e. Tasks grouped by managing integration — managed tasks bucket under their
   // integration; everything else falls under "Your tasks".
-  await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'Integration' }).click();
+  await panel.locator('select[data-seg-select="group"]').selectOption('integration');
   await expect(panel.locator('details.hk-group').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/11-panel-grouped-by-integration.png`, fullPage: true });
   // Reset grouping so later list shots are unaffected.
-  await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'Status' }).click();
+  await panel.locator('select[data-seg-select="group"]').selectOption('status');
   await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 1f. Orphan cleanup — when a managing integration is uninstalled, its tasks are
@@ -437,14 +437,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 42c. Grouped by Area — what the picker buys you: the task now sorts into its room
   // instead of the "Unassigned" bucket it was stuck in.
-  await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'Area' }).click();
+  await panel.locator('select[data-seg-select="group"]').selectOption('area');
   await expect(panel.locator('details.hk-group[data-group-key^="area:"]').first()).toBeVisible({
     timeout: 10_000,
   });
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/42c-panel-tasks-grouped-by-area.png`, fullPage: true });
   // Reset grouping so later list shots are unaffected.
-  await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'Status' }).click();
+  await panel.locator('select[data-seg-select="group"]').selectOption('status');
 
   // 2. Create form — floating recurrence + device picker.
   await panel.locator('#add-btn').click();

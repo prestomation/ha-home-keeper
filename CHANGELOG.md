@@ -6,6 +6,28 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.18.0b3]
+
+### Changed
+
+- **The panel has a new look.** A task row carries its status in a coloured edge and
+  a pill at the end of the line, and the filter row fits on one line with a count on
+  each scope. On a phone the tabs move to the bottom of the screen and Add task
+  becomes a floating button.
+
+- **Editing opens in a drawer beside the list instead of a card above it.** The list
+  keeps its place, the row you are editing stays lit, and Save sits in a header that
+  does not scroll away. Delete and History join it in a footer.
+
+- **An appliance is read next to the list it came from.** Its sections are now
+  sub-tabs (Parts, Tasks, Documents, Details, Related, History), each with an address
+  of its own, so Back leaves a sub-tab and a sub-tab can be linked to.
+
+- **Settings names every section and what it is set to.** A rail beside the sections
+  marks which features are on and how many profiles, notifications and companions
+  you have. The problem-sensor exclusions sit behind the switch that decides whether
+  they apply.
+
 ## [0.18.0b2]
 
 ### Fixed

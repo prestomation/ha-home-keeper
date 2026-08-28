@@ -497,6 +497,35 @@ export function taskSchemaSections(
 }
 
 /**
+ * Every field name a schema offers, including those nested inside a `grid` group.
+ */
+export function schemaFieldNames(schema: FormField[]): string[] {
+  return schema.flatMap((f) =>
+    f.schema ? schemaFieldNames(f.schema) : f.name ? [f.name] : [],
+  );
+}
+
+/**
+ * The slice of *data* belonging to *schema* — the seed for one section's `ha-form`.
+ *
+ * `ha-form` emits its entire `data` object on every change, so a section seeded with
+ * the whole form would re-assert a stale snapshot of every other section each time
+ * it changed. Narrowing the seed makes each section's event carry only that
+ * section's fields, which is also what lets the panel's change handler tell "this
+ * field was set to nothing" apart from "this field is not in this section".
+ */
+export function pickFormData(
+  data: Record<string, unknown>,
+  schema: FormField[],
+): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const name of schemaFieldNames(schema)) {
+    if (name in data) picked[name] = data[name];
+  }
+  return picked;
+}
+
+/**
  * The task form's fields as one flat schema — the order the payload builder, the
  * saved task and the tests are all written against. Kept as the flattening of
  * {@link taskSchemaSections} so the two can never disagree.

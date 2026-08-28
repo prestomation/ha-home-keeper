@@ -142,6 +142,32 @@ describe('typing in the task form must not rebuild it (HA hotkeys eat the keystr
     expect(panel._edit.task.name).toBe('Change filters');
   });
 
+  // The bug this guards against: `ha-form` emits its whole `data` object on every
+  // change, so seeding every section with the whole form had each one re-asserting a
+  // snapshot of the others taken when it was built. Typing a name and then changing
+  // the recurrence put the name back to empty, and the save created nothing.
+  it('keeps what one section holds when another section changes', async () => {
+    const { panel, addBtn } = await mountPanel('/tasks', makeHass());
+    addBtn.click();
+
+    const basics = await waitForSection(panel, 'name');
+    // Each section is seeded with only its own fields, which is what makes an event
+    // from one of them say nothing about the others.
+    expect(Object.keys(basics.data).sort()).toEqual(['name', 'notes']);
+
+    emitChange(basics, { name: 'Renew passport' });
+    const kind = sectionWith(panel, 'recurrence_type');
+    emitChange(kind, { recurrence_type: 'one-off' });
+
+    expect(panel._edit.task.name, 'the typed name must survive the schema change').toBe(
+      'Renew passport',
+    );
+    expect(panel._edit.task.recurrence_type).toBe('one-off');
+    // …and the rebuilt form shows it, rather than an empty box over a set value.
+    const rebuilt = await waitForSection(panel, 'name');
+    expect(rebuilt.data.name).toBe('Renew passport');
+  });
+
   it('still rebuilds the form when the recurrence type changes the visible fields', async () => {
     const { panel, addBtn } = await mountPanel('/tasks', makeHass());
     addBtn.click();
