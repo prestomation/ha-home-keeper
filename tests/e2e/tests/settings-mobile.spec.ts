@@ -104,10 +104,11 @@ test.describe('Home Keeper panel — Settings on a phone', () => {
     await expect(panel.locator('#hk-settings-general')).toBeVisible();
     await expect(panel.locator('#hk-settings')).toBeVisible();
     await expect(panel.locator('.hk-index-row').first()).toBeHidden();
-    // The rail marks the section the URL names.
+    // The rail marks the section the URL names. `page` rather than `true` because
+    // these entries are real URLs, and it is what a screen reader renders usefully.
     await expect(panel.locator('.hk-rail-link[data-section="problem"]')).toHaveAttribute(
       'aria-current',
-      'true',
+      'page',
     );
   });
 });

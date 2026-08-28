@@ -547,6 +547,16 @@ describe('parseRoute', () => {
       detail: { kind: 'task', id: 'a/b' },
     });
   });
+  it('decodes a percent-encoded section or sub-tab before matching it', () => {
+    // The segment is decoded and *then* matched, so an encoder that escaped a letter
+    // still lands on the section it named rather than silently on the fallback.
+    expect(parseRoute('/settings/%70rofiles').section).toBe('profiles');
+    expect(parseRoute('/appliances/x/%68istory').detail).toEqual({
+      kind: 'asset',
+      id: 'x',
+      tab: 'history',
+    });
+  });
   it('trims whitespace around every segment', () => {
     // A hand-typed or copy-pasted URL can carry stray space around a segment, and a
     // segment that only looks like `settings` resolves to nothing at all.

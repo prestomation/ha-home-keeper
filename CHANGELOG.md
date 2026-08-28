@@ -25,13 +25,22 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 - **Settings names every section and what it is set to.** A rail beside the sections
   marks which features are on and how many profiles, notifications and companions
-  you have. The problem-sensor exclusions sit behind the switch that decides whether
-  they apply.
+  you have. On a phone it opens on an index of the six instead, and each section has
+  an address of its own.
+
+- **The panel is easier to use with a keyboard and a screen reader.** Focus stays on
+  the control you just used instead of jumping to the top of the page, the edit sheet
+  on a phone behaves as a dialog that Escape closes, and the filter chips, dropdowns
+  and Settings dots now say what they are rather than showing it in colour alone.
 
 ### Fixed
 
 - **The due date on a one-off task has a label again.** Creating a task that happens
   just once showed a raw translation key above its date picker in every language.
+
+- **Text on coloured chips and buttons is readable again.** The Done button, the
+  overdue pill, the "Integration offline" chip and the selected filter were all drawn
+  below the contrast a label needs, in one theme or the other.
 
 ## [0.18.0b2]
 

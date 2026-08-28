@@ -244,13 +244,13 @@ const STYLES = `
     --hk-accent-fg: var(--text-primary-color, #fff);
     --hk-accent-soft: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color, #fff));
     --hk-accent-line: color-mix(in srgb, var(--primary-color) 45%, transparent);
-    --hk-accent-ink: color-mix(in srgb, var(--primary-color) 78%, var(--primary-text-color));
+    --hk-accent-ink: color-mix(in srgb, var(--primary-color) 58%, var(--primary-text-color));
     --hk-danger: var(--error-color, #db4437);
     --hk-danger-soft: color-mix(in srgb, var(--error-color, #db4437) 12%, var(--card-background-color, #fff));
-    --hk-danger-ink: color-mix(in srgb, var(--error-color, #db4437) 78%, var(--primary-text-color));
+    --hk-danger-ink: color-mix(in srgb, var(--error-color, #db4437) 58%, var(--primary-text-color));
     --hk-warn: var(--warning-color, #ffa600);
     --hk-warn-soft: color-mix(in srgb, var(--warning-color, #ffa600) 14%, var(--card-background-color, #fff));
-    --hk-warn-ink: color-mix(in srgb, var(--warning-color, #ffa600) 72%, var(--primary-text-color));
+    --hk-warn-ink: color-mix(in srgb, var(--warning-color, #ffa600) 58%, var(--primary-text-color));
     --hk-ok: var(--success-color, #43a047);
     --hk-ok-soft: color-mix(in srgb, var(--success-color, #43a047) 14%, var(--card-background-color, #fff));
     --hk-surface: var(--card-background-color, #fff);
@@ -371,10 +371,11 @@ const STYLES = `
   /* With the drawer open the list recedes, except the row being edited — which is
      the point of editing beside the list rather than on top of it.
 
-     Only the list stops taking clicks: a tap on a dimmed row would navigate away and
-     silently discard the open form. The tabs and the filter row stay live, because
-     they were reachable with the old inline form too and taking that away would be a
-     regression dressed up as a redesign.
+     The recession is *only* visual. Everything stays clickable: with the old inline
+     form open the whole list was live, so disabling it here would take away marking
+     another task done, opening another row, and collapsing a group — a regression
+     dressed up as a redesign. Clicking away discards an open form, but it did that
+     before this change too, and quietly fixing it is not a restyle's job.
 
      The dimming is applied per element rather than to the whole column: opacity
      creates a stacking context, so a fully-opaque child of a faded parent is still
@@ -382,15 +383,12 @@ const STYLES = `
   .hk-shell-drawer .hk-wrap > *:not(#hk-list),
   .hk-shell-drawer #hk-list > ha-alert,
   .hk-shell-drawer #hk-list .hk-group-head,
-  .hk-shell-drawer #hk-list ha-card:not(.hk-editing) { opacity: 0.5; }
-  .hk-shell-drawer #hk-list { pointer-events: none; }
+  .hk-shell-drawer #hk-list ha-card:not(.hk-editing) { opacity: 0.72; }
   .hk-shell-drawer #hk-list ha-card.hk-editing {
-    pointer-events: auto;
     border: 2px solid var(--hk-accent);
     --ha-card-border-radius: var(--hk-r-row);
     box-shadow: 0 2px 12px color-mix(in srgb, var(--hk-accent) 28%, transparent);
   }
-  .hk-shell-drawer #hk-list ha-card.hk-editing .hk-card-actions { display: none; }
   ha-tab-group { margin-bottom: 16px; }
   ha-card.hk-card { margin-bottom: 12px; position: relative; }
   .hk-card-row {
@@ -427,16 +425,21 @@ const STYLES = `
     --ha-assist-chip-label-text-color: #fff;
     --md-assist-chip-outline-color: transparent;
   }
+  /* Soft container, ink label — the same pairing the overdue chip uses. White on
+     amber measured 1.96:1 and white on grey 1.88:1: not marginal, unreadable. */
   ha-assist-chip.hk-orphaned {
-    --ha-assist-chip-container-color: var(--warning-color, #FF9800);
-    --md-assist-chip-label-text-color: #fff;
-    --ha-assist-chip-label-text-color: #fff;
+    --ha-assist-chip-container-color: var(--hk-warn-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-warn-soft);
+    --md-assist-chip-label-text-color: var(--hk-warn-ink);
+    --ha-assist-chip-label-text-color: var(--hk-warn-ink);
     --md-assist-chip-outline-color: transparent;
+    font-weight: 500;
   }
   ha-assist-chip.hk-archived {
-    --ha-assist-chip-container-color: var(--disabled-color, #9E9E9E);
-    --md-assist-chip-label-text-color: #fff;
-    --ha-assist-chip-label-text-color: #fff;
+    --ha-assist-chip-container-color: var(--hk-page);
+    --ha-assist-chip-filled-container-color: var(--hk-page);
+    --md-assist-chip-label-text-color: var(--hk-ink-2);
+    --ha-assist-chip-label-text-color: var(--hk-ink-2);
     --md-assist-chip-outline-color: transparent;
   }
   .hk-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
@@ -850,20 +853,62 @@ const STYLES = `
   /* A chip is a qualifier, not the point of the row: when the column is too narrow to
      hold one honestly it steps aside rather than overlapping the status pill. Its
      content is never lost — the task's detail page lists every chip. */
-  .hk-shell-drawer .hk-chips.hk-chips-inline { display: none; }
+  /* Not hidden while the drawer is open: the drawer only exists above 1150px, where
+     the list still has the width to carry a chip, and hiding them changed the list
+     into a different list at the moment it was meant to hold still. */
   .hk-chips.hk-chips-inline ha-assist-chip { --ha-assist-chip-container-height: 26px; }
   /* Everything past the second chip is folded behind the "+n" beside it. The chips
      stay in the DOM: this is a density decision about one row, not a decision to
      withhold what the task is tagged with — the detail page still lists them all. */
-  .hk-chips.hk-chips-inline > *:nth-child(n + ${TASK_CARD_INLINE_CHIPS + 1}) { display: none; }
-  .hk-chip-more {
-    flex: none; font-size: 0.78rem; font-weight: 500; color: var(--hk-ink-2);
-    font-variant-numeric: tabular-nums;
+  /* The "+n" control is itself a child of this row, so it has to be exempted or the
+     rule folds away the very thing that unfolds it. */
+  .hk-chips.hk-chips-inline > *:nth-child(n + ${TASK_CARD_INLINE_CHIPS + 1}):not(.hk-chip-more) {
+    display: none;
   }
+  /* Unfolded: the row wraps to hold them all rather than pushing the status pill off.
+     The selector mirrors the hide rule above rather than being simpler than it — a
+     plain child selector loses the specificity tie and the chips stay folded. */
+  .hk-chips.hk-chips-inline.hk-chips-open { flex-wrap: wrap; }
+  .hk-chips.hk-chips-inline.hk-chips-open > *:nth-child(n + ${TASK_CARD_INLINE_CHIPS + 1}) {
+    display: inline-flex;
+  }
+  /* A control, not a caption — several of the chips it hides are clickable. */
+  .hk-chip-more {
+    flex: none; appearance: none; border: 1px solid var(--hk-line);
+    background: var(--hk-surface); cursor: pointer; font: inherit;
+    font-size: 0.78rem; font-weight: 500; color: var(--hk-ink-2);
+    font-variant-numeric: tabular-nums;
+    border-radius: var(--hk-r-pill); padding: 3px 9px; line-height: 1.4;
+  }
+  .hk-chip-more:hover { background: var(--hk-page); color: var(--hk-ink); }
+  .hk-chip-more:focus-visible { outline: 2px solid var(--hk-accent); outline-offset: 2px; }
   /* The due/overdue pill sits at the end of the row, next to the action it argues
      for, rather than among the descriptive chips. */
   .hk-status { flex: none; display: flex; align-items: center; }
+  /* No outline on a status pill. A tonal Done and an outlined "Monitored" sat side by
+     side at the same height and radius, and the one with the border was the one you
+     could not press — enclosure now means pressable, and status reads as text.
+     Scoped away from the chips that carry a colour of their own (overdue, warn), so
+     removing the outline does not also remove what the colour was saying. */
   .hk-status ha-assist-chip { --ha-assist-chip-container-height: 28px; }
+  .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-managed):not(.hk-warn) {
+    --ha-assist-chip-outline-width: 0px;
+    --md-assist-chip-outline-width: 0px;
+    --ha-assist-chip-outline-color: transparent;
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-container-color: var(--hk-page);
+    --ha-assist-chip-filled-container-color: var(--hk-page);
+  }
+  /* …and Done gets the ring, so the row's one control is drawn as one. HA's tonal
+     label sat at 2.85:1 on its own fill — under the 4.5:1 for text and even the 3:1
+     for a control — so the label is restated from our own accent ink. ha-button
+     exposes its inner button as part "base", which is the only lever that reaches the
+     label: every colour custom property it reads is a fill token. */
+  .done-btn { --ha-button-border-radius: var(--hk-r-pill); }
+  .done-btn::part(base) {
+    color: var(--hk-accent-ink);
+    box-shadow: inset 0 0 0 1px var(--hk-accent-line);
+  }
   ha-card.hk-card.hk-tree-child {
     margin-left: calc(var(--hk-tree-depth, 0) * 32px);
     border-left: 3px solid color-mix(in srgb, var(--primary-color) calc(40% + var(--hk-tree-depth, 0) * 15%), transparent);
@@ -944,9 +989,13 @@ const STYLES = `
     outline: 2px solid var(--hk-accent); outline-offset: 2px; border-radius: 4px;
   }
   .hk-seg-btn:hover { background: var(--hk-page); }
+  /* White on the accent measures 3.26:1 — under the 4.5:1 a 12px label needs. The
+     soft/ink pairing clears it, and the inset edge means selection is not carried by
+     hue alone for anyone who cannot separate the two fills. */
   .hk-seg-btn.active {
-    background: var(--hk-accent);
-    color: var(--hk-accent-fg); font-weight: 500;
+    background: var(--hk-accent-soft);
+    color: var(--hk-accent-ink); font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--hk-accent);
   }
   /* The one primary action per surface. */
   .hk-add-btn { flex: none; }
@@ -987,7 +1036,11 @@ const STYLES = `
   details.hk-group[open] > summary .hk-group-toggle { transform: rotate(180deg); }
   /* Overdue is the section people are looking for, so its header carries the same
      red as the rows beneath it. */
-  details.hk-group[data-bucket="overdue"] > summary .hk-group-title { color: var(--hk-danger); }
+  /* The ink, not the raw hue: at 9.7px/700 the hue itself measured 4.11:1, and the
+     count beside it already reads from the ink. */
+  details.hk-group[data-bucket="overdue"] > summary .hk-group-title {
+    color: var(--hk-danger-ink);
+  }
   details.hk-group[data-bucket="overdue"] > summary .hk-group-count {
     color: var(--hk-danger-ink); background: var(--hk-danger-soft);
   }
@@ -1214,6 +1267,17 @@ const STYLES = `
   }
   .hk-bottomtab.active .hk-bottomtab-mark { background: var(--hk-accent); }
 
+  /* Someone who has asked their system for less motion gets none of ours. The upload
+     sweep in particular is an unbounded animation that runs for the whole transfer. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   /* ── Responsive ────────────────────────────────────────────────────────────
      Viewport media queries, not container queries: container-type would make
      :host a containing block for fixed descendants, which is exactly what the
@@ -1241,14 +1305,30 @@ const STYLES = `
     .hk-settings-layout[data-section] .hk-settings-col ha-card:not(.hk-sec-current) {
       display: none;
     }
+    /* Both copies of the version live in the rail and the index, and with a section
+       open neither is on screen — so the page-wide one is the only one left. */
+    .hk-settings-layout[data-section] ~ .ver { display: block; }
   }
 
   /* No room for the list beside the appliance — the appliance takes the column and
      the back button in its bar is the way back to the list. */
-  @media (max-width: 900px) {
+  /* Same reasoning as the drawer below: the query measures the viewport, the panel
+     gets the viewport minus HA's sidebar. Under 1000px a 268px pane plus a detail is
+     two columns too many. The controls go with the pane they filter. */
+  @media (max-width: 1000px) {
     .hk-master-detail { display: block; }
     .hk-master { display: none; }
+    .hk-master-controls { display: none; }
     .hk-detail-pane { min-width: 0; }
+    /* The sub-tabs no longer have a 700px pane to sit in, so let them scroll rather
+       than clip Related and History off the edge with no cue that they exist. */
+    .hk-subtabs {
+      flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+    }
+    .hk-subtabs::-webkit-scrollbar { display: none; }
+    .hk-subtab { flex: none; }
   }
 
   @media (max-width: 700px) {
@@ -1279,7 +1359,13 @@ const STYLES = `
     .hk-seg-btn {
       border: 1px solid var(--hk-line); border-radius: var(--hk-r-pill);
       background: var(--hk-surface); padding: 9px 14px;
+      min-height: var(--hk-tap); box-sizing: border-box;
     }
+    /* The filter chips and the group-by dropdown are the two things a thumb reaches
+       for most on a phone list, and both sat under the tap target this file defines. */
+    .hk-menu { min-height: var(--hk-tap); }
+    .hk-menu-select, .hk-profile-select { min-height: calc(var(--hk-tap) - 2px); }
+    .hk-add-btn { --ha-button-height: var(--hk-tap); }
     /* Restore only the width the joined-segment rule zeroes out. Matching that rule's
        first-child specificity here would also tie with the .active rule and, as the
        later rule, repaint the active chip's background white under white text. */
@@ -1310,8 +1396,15 @@ const STYLES = `
      covers it instead. Fixed rather than sticky here because a sheet is anchored to
      the viewport, not to the document it is covering — and unlike the desktop
      drawer it is a full overlay, so a containing-block surprise would be obvious
-     rather than subtle. */
-  @media (max-width: 900px) {
+     rather than subtle.
+
+     The threshold is 1150px, not the 900px the other narrow rules use, because a
+     media query measures the *viewport* while the panel gets the viewport minus
+     Home Assistant's ~256px sidebar. At a 1000px window the shell is ~744px and a
+     clamp(340px, 40vw, 472px) drawer claims 400px of it — wider than the list left
+     beside it, which then breaks task names one character per line. Anything under
+     1150px has no room for two columns, whatever the viewport says. */
+  @media (max-width: 1150px) {
     .hk-drawer[data-open] {
       position: fixed; inset-inline: 0; bottom: 0; top: auto; z-index: 6;
       width: auto; min-width: 0; max-height: 92dvh;
@@ -1532,6 +1625,9 @@ export class HomeKeeperPanel extends HTMLElement {
   private _settingsSectionCollapsed = new Set<string>();
   // Individual profile/notification items the user has expanded (default: collapsed).
   private _itemExpanded = new Set<string>();
+  // Task rows whose chip overflow the user unfolded, so the chips past the second are
+  // reachable in the list rather than only on the detail page.
+  private _chipsExpanded = new Set<string>();
   // The object whose full detail page is open, or null for the list view.
   private _detail: PanelLocation['detail'] = null;
   // Which Settings section the URL names, or null for the section index. Both are
@@ -1670,6 +1766,10 @@ export class HomeKeeperPanel extends HTMLElement {
     // Tear down anything appended outside our shadow DOM so it can't leak on unmount:
     // the body-level confirm scrim and its document keydown listener (both live past
     // the element otherwise), plus any pending per-keystroke persist timers.
+    if (this._drawerOnKey) {
+      document.removeEventListener('keydown', this._drawerOnKey);
+      this._drawerOnKey = null;
+    }
     if (this._confirmOnKey) {
       document.removeEventListener('keydown', this._confirmOnKey);
       this._confirmOnKey = null;
@@ -1920,6 +2020,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
   // ── task form lifecycle ─────────────────────────────────────────────────────
   private _openCreate(): void {
+    this._drawerOpener = (this.shadowRoot?.activeElement as HTMLElement) ?? null;
     this._edit = {
       open: true,
       task: {
@@ -1932,6 +2033,7 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
   private _openEdit(task: Task): void {
+    this._drawerOpener = (this.shadowRoot?.activeElement as HTMLElement) ?? null;
     // Seed the flat consumable_link so the picker reflects the current link and a
     // plain save (no edit) round-trips it unchanged.
     const seeded = { ...task, consumable_link: consumableLinkToken(task) } as Partial<Task>;
@@ -2200,6 +2302,10 @@ export class HomeKeeperPanel extends HTMLElement {
   private _openConfirmDialog(label: string, onConfirm: () => void): void {
     // Drop any prior scrim (and its keydown listener) before opening a new one, so a
     // second open — or a stale scrim — can't orphan the earlier overlay + handler.
+    if (this._drawerOnKey) {
+      document.removeEventListener('keydown', this._drawerOnKey);
+      this._drawerOnKey = null;
+    }
     if (this._confirmOnKey) {
       document.removeEventListener('keydown', this._confirmOnKey);
       this._confirmOnKey = null;
@@ -2214,6 +2320,10 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _closeConfirmDialog(): void {
     this._confirmDelete = { open: false, label: '', onConfirm: null };
+    if (this._drawerOnKey) {
+      document.removeEventListener('keydown', this._drawerOnKey);
+      this._drawerOnKey = null;
+    }
     if (this._confirmOnKey) {
       document.removeEventListener('keydown', this._confirmOnKey);
       this._confirmOnKey = null;
@@ -2647,6 +2757,9 @@ export class HomeKeeperPanel extends HTMLElement {
   // ── rendering ───────────────────────────────────────────────────────────────
   private _render(): void {
     if (!this.shadowRoot) return;
+    // Whatever had focus is about to be destroyed; note it so `_restoreFocus` can put
+    // the keyboard back on the same control in the rebuilt tree.
+    const focused = this._focusKey();
     this._ensureMarkdown();
     this._liveHassEls = [];
     // Everything below is rebuilt from scratch, so every preview on screen is about to
@@ -2671,12 +2784,15 @@ export class HomeKeeperPanel extends HTMLElement {
       // breakpoint the pane steps aside and the back button carries the return trip.
       // Back lives above both columns, not inside the master pane: the pane is hidden
       // on a narrow screen, and that is exactly where Back is the only way out.
+      // The controls row filters the master pane, so it is marked as belonging to it:
+      // where the pane steps aside, a row of controls for a list nobody can see is
+      // just chrome in front of the appliance you asked for.
       inner = `
         ${this._tabs()}
         <div class="hk-detailbar">
           <ha-button id="back-btn" appearance="plain">‹ ${escapeHTML(t('btn.back'))}</ha-button>
         </div>
-        ${this._controls()}
+        <div class="hk-master-controls">${this._controls()}</div>
         <div class="hk-master-detail">
           <div class="hk-master">
             <div id="hk-list">${this._assetsList()}</div>
@@ -2738,7 +2854,11 @@ export class HomeKeeperPanel extends HTMLElement {
           ${inner}
           <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
         </div>
-        <aside class="hk-drawer"${drawerOpen ? ' data-open' : ''}>
+        <aside class="hk-drawer"${
+          drawerOpen
+            ? ` data-open role="dialog" aria-modal="true" tabindex="-1" aria-label="${escapeHTML(t('btn.edit'))}"`
+            : ''
+        }>
           <div id="hk-form-host" class="hk-drawer-sticky"></div>
         </aside>
       </div>
@@ -2746,6 +2866,118 @@ export class HomeKeeperPanel extends HTMLElement {
       <div id="hk-dialog-host"></div>
     `;
     this._hydrate();
+    this._restoreFocus(focused);
+    this._syncDrawerModality();
+  }
+
+  /**
+   * Identify the focused control well enough to find its replacement after a render.
+   *
+   * `_render()` replaces the whole shadow tree, so the element the user was on stops
+   * existing and focus falls to `<body>`. For a mouse that is invisible; for a keyboard
+   * it means every filter click, every sub-tab and every rail entry throws you back to
+   * the top of the document. These controls all already carry a stable data attribute,
+   * which is enough to find the same control in the new tree.
+   */
+  private _focusKey(): string | null {
+    const el = this.shadowRoot?.activeElement as HTMLElement | null;
+    if (!el) return null;
+    for (const attr of ['data-seg-val', 'data-seg-select', 'data-section', 'data-rail', 'data-tab']) {
+      const v = el.getAttribute(attr);
+      // Two segments can share a value ("active" appears in more than one), so the
+      // key carries the group as well as the option.
+      if (v !== null) {
+        const group = el.closest('[data-seg]')?.getAttribute('data-seg') ?? '';
+        return `[${attr}="${CSS.escape(v)}"]${group ? `:is([data-seg="${CSS.escape(group)}"] *)` : ''}`;
+      }
+    }
+    return el.id ? `#${CSS.escape(el.id)}` : null;
+  }
+
+  private _restoreFocus(key: string | null): void {
+    if (!key) return;
+    this._focus(this.shadowRoot?.querySelector<HTMLElement>(key) ?? null);
+  }
+
+  /**
+   * Focus an element without letting it take the render down with it.
+   *
+   * A Home Assistant custom element is focused through its own `focus()`, which
+   * dereferences its shadow root — and immediately after an `innerHTML` assignment
+   * that root may not exist yet, so it throws. Unguarded, that propagated out of
+   * `_render()` and every step after the focus call was skipped.
+   */
+  private _focus(el: HTMLElement | null): void {
+    if (!el || typeof el.focus !== 'function') return;
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      // The element is not ready to take focus; leaving it where it is beats
+      // aborting the render.
+    }
+  }
+
+  // The control that opened the drawer, so closing it can hand the keyboard back.
+  private _drawerOpener: HTMLElement | null = null;
+  // Escape closes the sheet; held at document level because the sheet is fixed and a
+  // keydown inside it would not otherwise reach us once focus is on a form field.
+  private _drawerOnKey: ((e: KeyboardEvent) => void) | null = null;
+  private _sheetQuery: MediaQueryList | null = null;
+
+  /**
+   * Keep the drawer's *modality* — not its layout — in step with what it currently is.
+   *
+   * Beside the list it is a panel: the list stays live in every modality, exactly as it
+   * was when the form rendered inline above it. Covering the list it is a sheet, and a
+   * sheet that leaves 30 tabbable controls underneath an opaque overlay is a trap: the
+   * keyboard walks a list nobody can see and Enter discards the open form.
+   *
+   * `inert` is an attribute, not a style, so this is the one place that reads the
+   * viewport — and it reads it for modality, not for layout. `_render()` stays
+   * viewport-agnostic; the media query below simply says which thing the drawer is.
+   */
+  private _syncDrawerModality(): void {
+    const root = this.shadowRoot;
+    if (!root) return;
+    const drawer = root.querySelector<HTMLElement>('.hk-drawer[data-open]');
+    const wrap = root.querySelector<HTMLElement>('.hk-wrap');
+    if (!this._sheetQuery && typeof window.matchMedia === 'function') {
+      this._sheetQuery = window.matchMedia('(max-width: 1150px)');
+      this._sheetQuery.addEventListener?.('change', () => this._syncDrawerModality());
+    }
+    const isSheet = !!this._sheetQuery?.matches;
+    if (wrap) {
+      if (drawer && isSheet) wrap.setAttribute('inert', '');
+      else wrap.removeAttribute('inert');
+    }
+    if (drawer) {
+      if (!this._drawerOnKey) {
+        this._drawerOnKey = (e: KeyboardEvent): void => {
+          if (e.key === 'Escape' && this.shadowRoot?.querySelector('.hk-drawer[data-open]')) {
+            e.stopPropagation();
+            this._closeForm();
+            this._closeAssetForm();
+          }
+        };
+        document.addEventListener('keydown', this._drawerOnKey);
+      }
+      // Land inside the drawer rather than leaving focus on a control the render just
+      // destroyed — but only on the way in, so a re-render mid-edit does not yank the
+      // caret out of the field being typed into.
+      if (!drawer.contains(root.activeElement)) {
+        // The dialog itself, not its first control: a Home Assistant custom element
+        // may not be upgraded yet (and its focus() throws when it is not), while
+        // focusing the container is what makes a screen reader read the dialog's
+        // label before its contents.
+        this._focus(drawer);
+      }
+    } else if (this._drawerOnKey) {
+      document.removeEventListener('keydown', this._drawerOnKey);
+      this._drawerOnKey = null;
+      const opener = this._drawerOpener;
+      this._drawerOpener = null;
+      if (opener?.isConnected) this._focus(opener);
+    }
   }
 
   /** The top tab bar (Tasks / Appliances / Settings), with the active tab marked. */
@@ -2773,9 +3005,9 @@ export class HomeKeeperPanel extends HTMLElement {
     const v = this._view;
     const tab = (view: PanelView, id: string, label: string): string =>
       `<button class="hk-bottomtab${v === view ? ' active' : ''}" id="${id}" data-view="${view}"
-         role="tab" aria-selected="${v === view}"><span class="hk-bottomtab-mark"></span>${escapeHTML(label)}</button>`;
+         ${v === view ? 'aria-current="page"' : ''}><span class="hk-bottomtab-mark"></span>${escapeHTML(label)}</button>`;
     return `
-      <nav class="hk-bottombar" role="tablist" aria-label="${escapeHTML(t('app.title'))}">
+      <nav class="hk-bottombar" aria-label="${escapeHTML(t('app.title'))}">
         ${tab('tasks', 'mtab-tasks', t('tab.tasks'))}
         ${tab('appliances', 'mtab-appliances', t('tab.appliances'))}
         ${tab('settings', 'mtab-settings', t('tab.settings'))}
@@ -2825,28 +3057,43 @@ export class HomeKeeperPanel extends HTMLElement {
     const counts = onTasks && !profile ? this._filterCounts() : null;
     const filterControl =
       onTasks && !profile
-        ? `<div class="hk-control">${this._seg('filter', this._filter, [
-            { value: 'all', label: t('filter.all'), count: counts?.all },
-            { value: 'overdue', label: t('filter.overdue'), count: counts?.overdue },
-            { value: 'soon', label: t('filter.soon'), count: counts?.soon },
-            { value: 'shopping', label: t('filter.shopping'), count: counts?.shopping },
-          ])}</div>`
+        ? `<div class="hk-control">${this._seg(
+            'filter',
+            this._filter,
+            [
+              { value: 'all', label: t('filter.all'), count: counts?.all },
+              { value: 'overdue', label: t('filter.overdue'), count: counts?.overdue },
+              { value: 'soon', label: t('filter.soon'), count: counts?.soon },
+              { value: 'shopping', label: t('filter.shopping'), count: counts?.shopping },
+            ],
+            t('group.by'),
+          )}</div>`
         : '';
     const assetFilterControl =
       this._view === 'appliances'
-        ? `<div class="hk-control">${this._seg('assetFilter', this._assetFilter, [
-            { value: 'active', label: t('filter.active') },
-            { value: 'archived', label: t('filter.archived') },
-          ])}</div>`
+        ? `<div class="hk-control">${this._seg(
+            'assetFilter',
+            this._assetFilter,
+            [
+              { value: 'active', label: t('filter.active') },
+              { value: 'archived', label: t('filter.archived') },
+            ],
+            t('tab.appliances'),
+          )}</div>`
         : '';
     const viewControl =
       this._view === 'appliances'
         ? `<div class="hk-control">
             <span class="hk-seg-label">${escapeHTML(t('view.label'))}</span>
-            ${this._seg('assetView', this._assetView, [
-              { value: 'flat', label: t('view.flat') },
-              { value: 'tree', label: t('view.tree') },
-            ])}
+            ${this._seg(
+              'assetView',
+              this._assetView,
+              [
+                { value: 'flat', label: t('view.flat') },
+                { value: 'tree', label: t('view.tree') },
+              ],
+              t('view.label'),
+            )}
           </div>`
         : '';
     // One row: scope pills lead, the refinements (Profile, Group by, appliance view)
@@ -2884,7 +3131,9 @@ export class HomeKeeperPanel extends HTMLElement {
     return `
       <label class="hk-control hk-menu">
         <span class="hk-seg-label">${escapeHTML(t('filter.profile'))}</span>
-        <select class="hk-profile-select hk-menu-select" data-profile-filter>${options}</select>
+        <select class="hk-profile-select hk-menu-select" aria-label="${escapeHTML(
+          t('filter.profile'),
+        )}" data-profile-filter>${options}</select>
       </label>`;
   }
 
@@ -2908,28 +3157,39 @@ export class HomeKeeperPanel extends HTMLElement {
     return `
       <label class="hk-control hk-menu">
         <span class="hk-seg-label">${escapeHTML(labelText)}</span>
-        <select class="hk-menu-select" data-seg-select="${escapeHTML(name)}">${opts}</select>
+        <select class="hk-menu-select" aria-label="${escapeHTML(
+          labelText,
+        )}" data-seg-select="${escapeHTML(name)}">${opts}</select>
       </label>`;
   }
 
   /** A pill-style segmented toggle; the active option carries the `active` class.
    *  An option may carry a `count`, rendered as a trailing figure inside the button —
-   *  after the label, so a text-matched selector still finds the option by its name. */
+   *  after the label, so a text-matched selector still finds the option by its name.
+   *
+   *  Each button states its own pressed-ness: which one is selected was otherwise
+   *  carried by fill and font weight alone, which is nothing to a screen reader and
+   *  nothing to someone who cannot separate the hues. */
   private _seg(
     name: string,
     current: string,
     options: { value: string; label: string; count?: number }[],
+    groupLabel?: string,
   ): string {
     const btns = options
       .map((o) => {
         const count =
           o.count === undefined ? '' : `<span class="hk-seg-count">${escapeHTML(String(o.count))}</span>`;
-        return `<button class="hk-seg-btn${o.value === current ? ' active' : ''}" data-seg-val="${escapeHTML(
+        return `<button class="hk-seg-btn${o.value === current ? ' active' : ''}" aria-pressed="${
+          o.value === current ? 'true' : 'false'
+        }" data-seg-val="${escapeHTML(
           o.value,
         )}">${escapeHTML(o.label)}${count}</button>`;
       })
       .join('');
-    return `<div class="hk-seg" data-seg="${escapeHTML(name)}">${btns}</div>`;
+    return `<div class="hk-seg" role="group" aria-label="${escapeHTML(
+      groupLabel || name,
+    )}" data-seg="${escapeHTML(name)}">${btns}</div>`;
   }
 
   // ── list bucketing ──────────────────────────────────────────────────────────
@@ -3320,9 +3580,19 @@ export class HomeKeeperPanel extends HTMLElement {
     // *what* this task is about, which is part of reading the title. Only the first two
     // are shown, with a "+n" for the rest; every chip stays in the DOM and the overflow
     // is hidden in CSS, so the row's contents remain inspectable and testable.
+    //
+    // "+n" is a button, not a caption. Most of these chips do something when clicked —
+    // a device chip opens the device page, an integration-supplied chip opens its URL —
+    // so folding them behind a caption would put an action one navigation away that
+    // used to be one click. It unfolds the row in place instead.
     const inlineChips = [dev, tagChip, ...this._taskChipsList(task), managedChip].filter(Boolean);
     const hiddenChips = Math.max(0, inlineChips.length - TASK_CARD_INLINE_CHIPS);
-    const more = hiddenChips ? `<span class="hk-chip-more">+${hiddenChips}</span>` : '';
+    const chipsOpen = !!task.id && this._chipsExpanded.has(task.id);
+    const more = hiddenChips
+      ? `<button class="hk-chip-more" data-chips-more="${escapeHTML(task.id)}" aria-expanded="${
+          chipsOpen ? 'true' : 'false'
+        }" title="${escapeHTML(t('chip.showAll'))}">${chipsOpen ? '−' : `+${hiddenChips}`}</button>`
+      : '';
     // While the drawer is editing this task, the row stays lit and undimmed so the
     // thing being edited is visible next to the form editing it.
     const editing = this._edit.open && !!task.id && this._edit.task?.id === task.id;
@@ -3334,7 +3604,7 @@ export class HomeKeeperPanel extends HTMLElement {
             <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
             <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
           </div>
-          <div class="hk-chips hk-chips-inline">${inlineChips.join('')}${more}</div>
+          <div class="hk-chips hk-chips-inline${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
           <span class="hk-row-spacer"></span>
           <div class="hk-status">${statusChip}</div>
           <div class="hk-card-actions">
@@ -3725,7 +3995,7 @@ export class HomeKeeperPanel extends HTMLElement {
           <ha-button destructive class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>
         </div>
       </div>
-      <div class="hk-subtabs" role="tablist">${this._assetSubtabs(asset, tab)}</div>
+      <nav class="hk-subtabs" aria-label="${escapeHTML(asset.name)}">${this._assetSubtabs(asset, tab)}</nav>
       </ha-card>
       <div class="hk-subtab-body">${body}</div>`;
   }
@@ -3756,7 +4026,7 @@ export class HomeKeeperPanel extends HTMLElement {
       const n = counts[tab];
       const count = n ? `<span class="hk-subtab-count">${escapeHTML(String(n))}</span>` : '';
       return `<button class="hk-subtab${tab === current ? ' active' : ''}" data-tab="${tab}"
-        role="tab" aria-selected="${tab === current}">${escapeHTML(labels[tab])}${count}</button>`;
+        ${tab === current ? 'aria-current="page"' : ''}>${escapeHTML(labels[tab])}${count}</button>`;
     }).join('');
   }
 
@@ -4519,6 +4789,14 @@ export class HomeKeeperPanel extends HTMLElement {
     if (host) {
       if (this._view === 'tasks' && this._edit.open) this._renderTaskForm(host);
       else if (this._view === 'appliances' && this._assetEdit.open) this._renderAssetForm(host);
+      // Bring the row being edited on screen. Editing beside the list rather than on
+      // top of it only buys anything if the row is visible — open the twentieth task
+      // and the highlighted row is below the fold, which is a modal with a hole in it.
+      // Guarded because jsdom does not implement scrollIntoView.
+      const edited = root.querySelector<HTMLElement>('ha-card.hk-editing');
+      if (edited && typeof edited.scrollIntoView === 'function') {
+        edited.scrollIntoView({ block: 'center' });
+      }
     }
     const settingsHost = root.getElementById('hk-settings-host');
     if (settingsHost) this._renderSettingsForm(settingsHost);
@@ -4591,6 +4869,24 @@ export class HomeKeeperPanel extends HTMLElement {
       b.addEventListener('click', () => {
         const task = this._tasks.find((x) => x.id === b.dataset.id);
         if (task) this._notifyBlocked(task);
+      }),
+    );
+    // "+n" unfolds a row's hidden chips in place. Toggling a class on the row rather
+    // than re-rendering keeps the list's scroll position and every other row's state.
+    root.querySelectorAll<HTMLElement>('.hk-chip-more').forEach((btn) =>
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.chipsMore;
+        if (!id) return;
+        const chips = btn.closest('.hk-chips-inline');
+        const open = !this._chipsExpanded.has(id);
+        if (open) this._chipsExpanded.add(id);
+        else this._chipsExpanded.delete(id);
+        chips?.classList.toggle('hk-chips-open', open);
+        btn.setAttribute('aria-expanded', String(open));
+        btn.textContent = open
+          ? '−'
+          : `+${Math.max(0, (chips?.children.length ?? 1) - 1 - TASK_CARD_INLINE_CHIPS)}`;
       }),
     );
     this._wireDeviceChips(root);
@@ -4785,8 +5081,17 @@ export class HomeKeeperPanel extends HTMLElement {
     summary: string;
   }[] {
     const opts = this._options;
+    // The dot was the rail's only indicator and it said everything in hue: green for
+    // on, amber for "configured but with nothing to deliver to". A screen reader got
+    // an empty span, and so did anyone who cannot separate the two colours.
     const dot = (state: 'on' | 'warn' | 'off'): string =>
-      state === 'off' ? '' : `<span class="hk-rail-dot ${state}"></span>`;
+      state === 'off'
+        ? ''
+        : `<span class="hk-rail-dot ${state}" role="img" aria-label="${escapeHTML(
+            t(state === 'warn' ? 'settings.state_warn' : 'settings.state_on'),
+          )}" title="${escapeHTML(
+            t(state === 'warn' ? 'settings.state_warn' : 'settings.state_on'),
+          )}"></span>`;
     const count = (n: number): string =>
       n ? `<span class="hk-rail-count">${escapeHTML(String(n))}</span>` : '';
     const companionsOn = this._companions.filter((c) => c.status === 'connected').length;
@@ -4821,10 +5126,25 @@ export class HomeKeeperPanel extends HTMLElement {
       },
       { key: 'companions', card: 'hk-companions', label: t('companions.heading'), mark: count(companionsOn) },
     ];
-    // The three feature sections restate their current value in a line; the other
-    // three are a count, which their mark already carries.
+    // Every section says what it holds, not just how much. A bare "2" beside Profiles
+    // is not enough to decide whether to open it, and those three sections are exactly
+    // the ones whose state is least guessable from the heading. Naming what is inside
+    // costs no new translated prose — the names are the user's own.
     const forSummary = (opts ?? {}) as HomeKeeperOptions;
-    return sections.map((s) => ({ ...s, summary: this._settingsSummary(s.card, forSummary) }));
+    const names = (list: { name?: string }[] | undefined): string =>
+      (list ?? [])
+        .map((x) => x.name)
+        .filter((n): n is string => !!n)
+        .join(', ');
+    const listed: Partial<Record<SettingsSection, string>> = {
+      profiles: names(opts?.profiles),
+      notifications: names(opts?.notifications),
+      companions: names(this._companions.filter((c) => c.status === 'connected')),
+    };
+    return sections.map((s) => ({
+      ...s,
+      summary: listed[s.key] || this._settingsSummary(s.card, forSummary),
+    }));
   }
 
   /**
@@ -4840,7 +5160,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const entry = (s: { key: SettingsSection; card: string; label: string; mark: string }): string =>
       `<button class="hk-rail-link" data-rail="${escapeHTML(s.card)}" data-section="${escapeHTML(
         s.key,
-      )}"${s.key === this._settingsSection ? ' aria-current="true"' : ''}>
+      )}"${s.key === this._settingsSection ? ' aria-current="page"' : ''}>
          <span class="hk-rail-label">${escapeHTML(s.label)}</span>${s.mark}
        </button>`;
     return `
@@ -5802,6 +6122,7 @@ export class HomeKeeperPanel extends HTMLElement {
     head.className = 'hk-drawer-head';
     const close = document.createElement('ha-icon-button');
     close.className = 'hk-drawer-close';
+    close.id = 'hk-drawer-close';
     close.setAttribute('label', t('btn.close'));
     close.addEventListener('click', onCancel);
     this._setIcon(close, MDI_CLOSE);

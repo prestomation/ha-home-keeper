@@ -426,10 +426,14 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
   if (parts[1]) {
     const kind = view === 'appliances' ? 'asset' : 'task';
     if (kind === 'asset') {
-      const raw = parts[2] ? decodeURIComponent(parts[2]) : '';
-      const tab = (ASSET_TABS as readonly string[]).includes(raw)
-        ? (raw as AssetTab)
-        : DEFAULT_ASSET_TAB;
+      // Short-circuit rather than defaulting to '', for the same reason the settings
+      // branch does: an empty-string default is indistinguishable from any other
+      // non-tab string, so it only adds a mutant no test could ever kill.
+      const raw = parts[2] && decodeURIComponent(parts[2]);
+      const tab =
+        raw && (ASSET_TABS as readonly string[]).includes(raw)
+          ? (raw as AssetTab)
+          : DEFAULT_ASSET_TAB;
       return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
     }
     return { view, detail: { kind, id: decodeURIComponent(parts[1]) } };

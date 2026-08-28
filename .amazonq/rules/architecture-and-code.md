@@ -493,6 +493,52 @@ client check is a fast path, never the enforcement.
 - **Never dim a container to recede it if a child must stay bright.** `opacity`
   creates a stacking context, so an opaque child of a faded parent is still faded.
   Fade the elements individually (see the drawer's treatment of the edited row).
+- **A media query measures the viewport; the panel gets the viewport minus Home
+  Assistant's ~256px sidebar.** Any breakpoint about *our* available width has to be
+  ~250px larger than the width being reasoned about. The drawer and the appliance
+  master pane both shipped with a 900px threshold that let a 400px drawer sit beside
+  a 320px list at a 1000px window, breaking task names one character per line; they
+  are 1150px and 1000px for this reason.
+- **Recede is not disable.** Dimming the list behind the drawer is presentation;
+  `pointer-events: none` on it takes away marking another task done, which the inline
+  form it replaced never did. Where the drawer genuinely covers the list (the phone
+  sheet) the content gets `inert` instead — which removes it from the tab order too,
+  something `pointer-events` never did.
+
+### Contrast and affordance are measured, not eyeballed
+- **Colour pairs are checked against rendered pixels, in both themes.** Sample the
+  computed colours through the shadow root and compute the ratio; the light and dark
+  failures are rarely the same ones. `--hk-accent-fg` on `--hk-accent` is 3.26:1 —
+  Home Assistant's own filled-button pairing, and not good enough for a 12px label,
+  so selected states use the soft/ink pair plus an edge.
+- **The `*-ink` tokens mix ~58% hue into `--primary-text-color`, not 78%.** At 78%
+  the mix barely moves off the hue in light mode, and stays red-on-red in dark. When
+  adding a semantic colour, pair a `*-soft` container with a `*-ink` label — never a
+  literal `#fff` over a mid-tone fill (that pairing measured 1.88–1.96:1).
+- **Enclosure means pressable.** A bordered status pill beside a borderless tonal
+  button reads as the pill being the control. Status chips carry no outline; the
+  row's action carries the ring.
+- **Reach into a Home Assistant component through its `part`, not its colour custom
+  properties.** `ha-button` reads only fill tokens, so the label colour is only
+  reachable as `.done-btn::part(base)`.
+
+### Accessibility contracts the panel has to keep
+- **`_render()` destroys the focused element, so `_render()` restores focus.**
+  Every control carries a stable `data-*` attribute; `_focusKey()` records one before
+  the rebuild and `_restoreFocus()` finds its replacement after. Without it every
+  activation drops a keyboard user at the top of the document.
+- **Focus a Home Assistant element through `_focus()`, never `el.focus()` directly.**
+  Its `focus()` dereferences a shadow root that may not exist yet immediately after an
+  `innerHTML` assignment, and the throw propagates out of `_render()` and skips
+  everything after it.
+- **State conveyed by colour needs a text equivalent.** The rail's dots carry
+  `role="img"` plus a label; the selected filter chip carries `aria-pressed`.
+- **Don't declare a widget role you have not implemented.** The appliance sub-tabs
+  and the phone tab bar are navigation between URLs, so they are buttons with
+  `aria-current="page"` — a `role="tab"` with no tabpanel, roving tabindex or arrow
+  keys is worse than no role at all.
+- `tests/e2e/tests/a11y.spec.ts` pins all of the above. The rest of the suite runs at
+  desktop width with a mouse and noticed none of it.
 
 ### One `ha-form` per section — and seed each with only its own fields
 - `ha-form` renders its own rows and exposes no slot between them, so **a heading
