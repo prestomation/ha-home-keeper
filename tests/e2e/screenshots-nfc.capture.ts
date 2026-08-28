@@ -15,6 +15,7 @@
  */
 import { test, expect } from '@playwright/test';
 import { openPanel } from './tests/helpers';
+import { centre, shotWithDrawer } from './shots';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
@@ -70,8 +71,14 @@ test('capture NFC tag picker + chips', async ({ page }) => {
   await expect(panel.locator('#hk-task-form ha-selector-select').first()).toBeVisible({
     timeout: 10_000,
   });
+  // Editing happens in a drawer that scrolls its own content, and the tag picker sits
+  // below its fold — bring it into frame, then let the helper decide between a
+  // full-page and a viewport capture. Centre the require-scan toggle rather than the
+  // picker itself: the two belong together in this shot, and the toggle is the lower
+  // of the pair, so centring it keeps both on screen.
+  await centre(panel.locator('#hk-task-form ha-selector-boolean').first());
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/44-panel-task-tag-form.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/44-panel-task-tag-form.png`);
   await panel.locator('#f-cancel').click();
   await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
 

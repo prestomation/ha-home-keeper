@@ -10,88 +10,14 @@
  */
 import { test, expect, Locator, Page } from '@playwright/test';
 import { openPanel, openDashboard } from './tests/helpers';
+import { centre, expandGroup, openRow, shotVisible, shotWithDrawer } from './shots';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
-/**
- * Expand a collapsed `<details>` group, leaving an already-open one alone.
- *
- * Toggling a `<details>` is not idempotent, and several steps below reach into the
- * same Monitored group: a blind `summary.click()` in a later step closes what an
- * earlier one opened, and the shot silently captures a collapsed group.
- */
-async function expandGroup(group: Locator): Promise<void> {
-  // Read-then-click races a re-render: the panel rebuilds its whole shadow tree on
-  // any refresh, so a group read as closed can be re-rendered open before the click
-  // lands, and the click then closes it. The failure surfaces much later, as a row
-  // that is present but not visible. Poll until it is actually open instead.
-  await expect
-    .poll(
-      async () => {
-        if (!(await group.evaluate((el: HTMLDetailsElement) => el.open))) {
-          await group.locator('summary').click();
-        }
-        return group.evaluate((el: HTMLDetailsElement) => el.open);
-      },
-      { timeout: 10_000 },
-    )
-    .toBe(true);
-}
 
-/**
- * Click a row open, retrying until the panel has actually navigated.
- *
- * Same race as `expandGroup`: the panel rebuilds its whole shadow tree on any
- * refresh, so a click can land on a row that is being replaced and go nowhere.
- * Poll on the URL the click is supposed to produce, not on the click resolving.
- *
- * Takes the whole selector rather than the id, so the seeded id stays written out at
- * the call site — `tests/unit/test_integration_fixture_clean.py` greps these harnesses
- * for the detail-id attribute to prove every record a tour opens is still in the
- * fixture, and an id assembled from a variable would slip past it.
- */
-async function openRow(page: Page, panel: Locator, rowSelector: string): Promise<void> {
-  const before = page.url();
-  const row = panel.locator(rowSelector);
-  await expect
-    .poll(
-      async () => {
-        if (await row.isVisible().catch(() => false)) {
-          await row.click().catch(() => undefined);
-        }
-        return page.url() !== before;
-      },
-      { timeout: 15_000 },
-    )
-    .toBe(true);
-}
 
-/** Scroll *el* to the middle of whatever scrolls it, rather than just barely into view. */
-async function centre(el: Locator): Promise<void> {
-  await el.evaluate((node: Element) => node.scrollIntoView({ block: 'center' }));
-}
 
-/**
- * Screenshot the part of *el* that is actually on screen.
- *
- * A plain element screenshot captures the element's whole box, and any of it clipped
- * by a scrollable ancestor comes out blank. That is what the edit drawer is: it
- * scrolls its own content, so a part card taller than the drawer photographed as a
- * band of content between two empty margins. Clipping to the intersection of the
- * element and the viewport captures what a person would actually see.
- */
-async function shotVisible(page: Page, el: Locator, path: string): Promise<void> {
-  await el.scrollIntoViewIfNeeded();
-  const box = await el.boundingBox();
-  if (!box) throw new Error(`no bounding box for ${path}`);
-  const view = page.viewportSize();
-  if (!view) throw new Error('no viewport size');
-  const x = Math.max(0, box.x);
-  const y = Math.max(0, box.y);
-  const width = Math.min(box.x + box.width, view.width) - x;
-  const height = Math.min(box.y + box.height, view.height) - y;
-  await page.screenshot({ path, clip: { x, y, width, height } });
-}
+
 
 /** Fill the input of the nth ha-form text selector within a scope. */
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
@@ -257,7 +183,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('.d-edit').click();
   await expect(panel.locator('#hk-task-form')).toBeVisible();
   await page.waitForTimeout(300);
-  await page.screenshot({ path: `${OUT}/10-panel-managed-edit-locked.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/10-panel-managed-edit-locked.png`);
   // Opening the edit form from a detail page already navigates to the list with the
   // form floating on top (see _openEdit's "leave any open detail page"), so Cancel
   // lands directly on the list — there's no detail page's #back-btn to click here.
@@ -497,8 +423,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('.d-edit').click();
   await expect(panel.locator('#hk-task-form')).toBeVisible();
   await expect(panel.locator('#hk-task-form ha-selector-area')).toBeVisible({ timeout: 10_000 });
+  // The drawer scrolls its own content and the Area picker is well down the form, so
+  // bring it into frame — `toBeVisible` only means it is in the DOM and painted.
+  await centre(panel.locator('#hk-task-form ha-selector-area'));
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/42b-panel-task-area-form.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/42b-panel-task-area-form.png`);
   // The task form is an inline card, not an `ha-dialog` — Escape leaves it open and
   // it would then sit on top of the grouped-list shot below. Close it properly.
   await panel.locator('#f-cancel').click();
@@ -519,18 +448,18 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#add-btn').click();
   await expect(panel.locator('#hk-form')).toBeVisible();
   await fillText(panel.locator('#hk-task-form'), 0, 'Replace dishwasher filter');
-  await page.screenshot({ path: `${OUT}/2-panel-create-floating.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/2-panel-create-floating.png`);
 
   // 3. Create form switched to a fixed (anchored) schedule.
   await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /fixed schedule/i);
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
-  await page.screenshot({ path: `${OUT}/3-panel-create-fixed.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/3-panel-create-fixed.png`);
 
   // 20. Create form switched to a one-off (do-once) task — no cadence, just a single
   // Due date picker. Completing it later sends it to the Completed section.
   await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Just once/);
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
-  await page.screenshot({ path: `${OUT}/20-panel-create-one-off.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/20-panel-create-one-off.png`);
 
   // 30. Create form switched to a sensor-based task (usage / meter) — an entity
   // picker, a mode toggle, and a target replace the clock cadence. Home Keeper arms
@@ -552,7 +481,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/30-panel-create-sensor-task.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/30-panel-create-sensor-task.png`);
 
 
   // 30b. The same usage form with a **time backstop** — "every 100 h, or every 6
@@ -570,9 +499,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-form-summary-value')).toHaveText(
     'Every 100 of use, or every 6 months',
   );
+  // Viewport, not full page — same reason as shot 31. Centre the backstop interval,
+  // the third and last number field, so the switch that reveals it and the fields it
+  // brings with it are all in frame. (The summary strip this rule adds up to sits at
+  // the far end of a long form; the assertion above is what guards its wording.)
+  await centre(panel.locator('#hk-task-form ha-selector-number').nth(2));
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/30b-panel-sensor-backstop.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/30b-panel-sensor-backstop.png` });
   // Put it back to a pure meter so the threshold shot below starts from a clean form.
   await setBackstop(panel, false);
 
@@ -621,7 +555,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   );
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/43-panel-create-sensor-state.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/43-panel-create-sensor-state.png`);
 
   // 47. A usage form with a **starting reading** (#235). Anchoring at "now" starts a
   // task for an already-serviced machine a whole interval late, so this field says
@@ -713,12 +647,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('.d-edit').click();
   await expect(panel.locator('#hk-task-form')).toBeVisible();
   await expect(panel.locator('#hk-task-form').getByText('Linked consumable')).toBeVisible();
+  // The picker is well down a long form and the drawer scrolls its own content, so
+  // bring it into frame — `toBeVisible` only means it is in the DOM and painted.
+  await centre(panel.locator('#hk-task-form').getByText('Linked consumable'));
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
-  await page.screenshot({
-    path: `${OUT}/34-panel-create-linked-consumable.png`,
-    fullPage: true,
-  });
+  await shotWithDrawer(page, `${OUT}/34-panel-create-linked-consumable.png`);
 
   // 36. The same edit form also offers "Links to show on card" — a multi-select of
   // the attached appliance's document/metadata links. The seeded task pins two, which
@@ -726,13 +660,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(
     panel.locator('#hk-task-form').getByText('Links to show on card'),
   ).toBeVisible();
-  await panel.locator('#hk-task-form').getByText('Links to show on card').scrollIntoViewIfNeeded();
+  await centre(panel.locator('#hk-task-form').getByText('Links to show on card'));
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
-  await page.screenshot({
-    path: `${OUT}/36-panel-task-card-links.png`,
-    fullPage: true,
-  });
+  await shotWithDrawer(page, `${OUT}/36-panel-task-card-links.png`);
   await panel.locator('#f-cancel').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
@@ -866,7 +797,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // The metadata seeds and the documents "add a document" area both use .hk-meta-seeds;
   // assert on the metadata one specifically (it carries the seed buttons we just used).
   await expect(assetForm.locator('.hk-meta-seeds').first()).toBeVisible();
-  await page.screenshot({ path: `${OUT}/6-panel-appliance-create.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/6-panel-appliance-create.png`);
 
   // 6b. Appliance create form — existing device. Previously this only offered a
   // device picker; it now gets the same manufacturer/model/serial/icon fields a
@@ -889,7 +820,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // Manufacturer is the first field after name in the identity schema — confirms the
   // prefill actually landed before the shot is taken.
   await expect(existingForm.locator('ha-selector-text').nth(1).locator('input')).toHaveValue('Lutron');
-  await page.screenshot({ path: `${OUT}/6b-panel-appliance-create-existing.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/6b-panel-appliance-create-existing.png`);
 
   // 21. Appliance documents (offline manuals) — editing a saved appliance shows the
   // "Manuals & documents" editor: each existing document is a card (name + details)
@@ -1018,8 +949,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // input, not rendered text, so we select by position — same as the delete-icon
   // click above — rather than by name text.)
   await expect(partsDetails.locator('.hk-part').first().locator('.hk-doc-card')).toBeVisible();
+  await centre(partsDetails.locator('.hk-part').first().locator('.hk-doc-card'));
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/38-panel-part-file.png`, fullPage: true });
+  await shotWithDrawer(page, `${OUT}/38-panel-part-file.png`);
 
   // 39. Auto-create buy task: a stock-tracked part with a reorder threshold can opt
   // into an auto-created "Buy {part}" reminder when it runs low. Enabling the toggle
