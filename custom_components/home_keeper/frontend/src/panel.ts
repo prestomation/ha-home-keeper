@@ -43,6 +43,7 @@ import {
   taskFormData,
   taskFormSchemaKey,
   taskSchema,
+  taskSchemaSections,
   type FormField,
   type HaFormElement,
 } from './forms';
@@ -160,6 +161,11 @@ const REQUIRED_COMPONENTS = [
 // mdi:delete — remove a single completion entry from the history dialog.
 const MDI_DELETE =
   'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z';
+
+// mdi:close — dismiss the edit drawer without saving.
+const MDI_CLOSE =
+  'M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,' +
+  '13.41L17.59,19L19,17.59L13.41,12L19,6.41Z';
 
 // mdi:pencil — edit a single completion's metadata from the history list.
 const MDI_EDIT =
@@ -283,10 +289,88 @@ const STYLES = `
     box-shadow: var(--ha-card-box-shadow, 0 2px 2px rgba(0,0,0,.1));
   }
   .hk-toolbar-title { font-size: 1.25rem; font-weight: 400; flex: 1; }
-  /* Wider than the old 920px: the comp's desktop boards run a filter row, a list and
-     a 472px drawer side by side, which 920px cannot hold. The Settings column caps
-     itself lower (820px) because long prose is what it holds. */
-  .hk-wrap { padding: 16px; max-width: 1200px; margin: 0 auto; }
+  /* The shell is the page's max-width container so the drawer can be a flex sibling
+     of the content column rather than an overlay on top of it.
+
+     Wider than the old 920px: a filter row, a list and a 472px drawer side by side
+     do not fit in 920. The Settings column caps itself lower (820px) because long
+     prose is what it holds. */
+  .hk-shell { display: flex; align-items: flex-start; max-width: 1200px; margin: 0 auto; }
+  .hk-wrap { padding: 16px; flex: 1 1 auto; min-width: 0; }
+
+  /* ── Edit drawer ───────────────────────────────────────────────────────────
+     Sticky, not fixed: sticky is positioned by its own scroll container, so it
+     survives whatever transformed or contained ancestor Home Assistant wraps a
+     custom panel in — the same reason the confirm scrim is appended to the body
+     rather than positioned from in here.
+
+     An empty drawer takes no space at all, so a closed one cannot leave a gutter
+     down the side of the list. */
+  .hk-drawer {
+    flex: 0 0 auto; width: 0; overflow: hidden;
+    position: sticky; top: 0; max-height: 100vh;
+  }
+  .hk-drawer[data-open] {
+    width: clamp(340px, 40vw, 472px);
+    display: flex; flex-direction: column;
+    overflow-y: auto; overscroll-behavior: contain;
+    border-left: 1px solid var(--hk-line);
+    background: var(--hk-surface);
+    box-shadow: -8px 0 24px color-mix(in srgb, var(--hk-ink) 12%, transparent);
+  }
+  .hk-drawer ha-card.hk-form-card {
+    margin: 0; border: 0; border-radius: 0;
+    --ha-card-box-shadow: none; --ha-card-border-width: 0;
+    display: flex; flex-direction: column; min-height: 100%;
+  }
+  /* The drawer's own header stays put while the form scrolls under it, so Save is
+     always one tap away however long the form is. */
+  .hk-drawer-head {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid var(--hk-line);
+    background: var(--hk-surface);
+  }
+  .hk-drawer-close { flex: none; --mdc-icon-button-size: 40px; color: var(--hk-ink-2); }
+  .hk-drawer-titles { flex: 1; min-width: 0; }
+  .hk-drawer-title {
+    font-size: 1rem; font-weight: 500; display: flex; align-items: center; gap: 6px;
+  }
+  .hk-drawer-sub {
+    font-size: 0.78rem; color: var(--hk-ink-2); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .hk-drawer-head ha-button { flex: none; }
+  /* Destructive and navigational actions, as far from Save as the drawer allows. */
+  .hk-drawer-foot {
+    margin-top: auto; display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-top: 1px solid var(--hk-line);
+    position: sticky; bottom: 0; z-index: 2; background: var(--hk-surface);
+  }
+  .hk-drawer-foot-spacer { flex: 1; }
+  /* With the drawer open the list recedes, except the row being edited — which is
+     the point of editing beside the list rather than on top of it.
+
+     Only the list stops taking clicks: a tap on a dimmed row would navigate away and
+     silently discard the open form. The tabs and the filter row stay live, because
+     they were reachable with the old inline form too and taking that away would be a
+     regression dressed up as a redesign.
+
+     The dimming is applied per element rather than to the whole column: opacity
+     creates a stacking context, so a fully-opaque child of a faded parent is still
+     faded — the edited row could never have been exempted that way. */
+  .hk-shell-drawer .hk-wrap > *:not(#hk-list),
+  .hk-shell-drawer #hk-list > ha-alert,
+  .hk-shell-drawer #hk-list .hk-group-head,
+  .hk-shell-drawer #hk-list ha-card:not(.hk-editing) { opacity: 0.5; }
+  .hk-shell-drawer #hk-list { pointer-events: none; }
+  .hk-shell-drawer #hk-list ha-card.hk-editing {
+    pointer-events: auto;
+    border: 2px solid var(--hk-accent);
+    --ha-card-border-radius: var(--hk-r-row);
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--hk-accent) 28%, transparent);
+  }
+  .hk-shell-drawer #hk-list ha-card.hk-editing .hk-card-actions { display: none; }
   ha-tab-group { margin-bottom: 16px; }
   .hk-actionbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
   ha-card.hk-card { margin-bottom: 12px; position: relative; }
@@ -387,6 +471,12 @@ const STYLES = `
   details.hk-collapsible[open] > summary .hk-section-chevron { transform: rotate(180deg); }
   .hk-form-card { margin-bottom: 16px; }
   .hk-form-inner { padding: 16px; }
+  /* A heading between two runs of fields. ha-form renders its own rows and has no
+     slot between them, so each section is its own form and these sit in the gaps. */
+  .hk-form-section { margin: 20px 0 6px; }
+  .hk-form-section:first-child { margin-top: 4px; }
+  #hk-task-form .hk-indent { margin: 8px 0 4px; }
+  #hk-task-form ha-form { display: block; }
   .hk-form-title {
     font-size: 1.1rem; font-weight: 500; margin-bottom: 8px;
     display: flex; align-items: center; gap: 6px;
@@ -625,9 +715,25 @@ const STYLES = `
     border-left: 3px solid var(--hk-danger);
     --ha-card-border-radius: 0 var(--hk-r-row) var(--hk-r-row) 0;
   }
-  /* Name line: the title, then the chips that qualify it. */
+  /* A task row reads left to right: what it is, what qualifies it, how late it is,
+     what to do about it.
+
+     The chips sit beside the title but *outside* the row's clickable text block, not
+     inside it. Nesting them in the opener put an interactive chip under the middle of
+     a link that spans the row, so where a click landed depended on how long the task
+     name happened to be. Keeping them a separate column means the text block is only
+     ever the text, and a device chip is only ever the chip. */
+  .hk-card-row.hk-row-task > .grow { flex: 0 1 auto; }
+  .hk-row-spacer { flex: 1 1 auto; min-width: 8px; }
   .hk-name-text { min-width: 0; overflow-wrap: anywhere; }
-  .hk-chips.hk-chips-inline { margin-top: 0; gap: 6px; flex-wrap: nowrap; }
+  .hk-chips.hk-chips-inline {
+    margin-top: 0; gap: 6px; flex-wrap: nowrap; flex: 0 1 auto;
+    align-items: center; min-width: 0; overflow: hidden;
+  }
+  /* A chip is a qualifier, not the point of the row: when the column is too narrow to
+     hold one honestly it steps aside rather than overlapping the status pill. Its
+     content is never lost — the task's detail page lists every chip. */
+  .hk-shell-drawer .hk-chips.hk-chips-inline { display: none; }
   .hk-chips.hk-chips-inline ha-assist-chip { --ha-assist-chip-container-height: 26px; }
   /* Everything past the second chip is folded behind the "+n" beside it. The chips
      stay in the DOM: this is a density decision about one row, not a decision to
@@ -968,6 +1074,38 @@ const STYLES = `
     .hk-status { order: 1; }
     .hk-card-actions { order: 2; margin-inline-start: auto; }
     .hk-chips.hk-chips-inline { flex-wrap: wrap; }
+  }
+
+  /* ── Narrow: the drawer becomes a bottom sheet ─────────────────────────────
+     Below this width there is no room for a column beside the list, so the drawer
+     covers it instead. Fixed rather than sticky here because a sheet is anchored to
+     the viewport, not to the document it is covering — and unlike the desktop
+     drawer it is a full overlay, so a containing-block surprise would be obvious
+     rather than subtle. */
+  @media (max-width: 900px) {
+    .hk-drawer[data-open] {
+      position: fixed; inset-inline: 0; bottom: 0; top: auto; z-index: 6;
+      width: auto; min-width: 0; max-height: 92dvh;
+      border-left: 0; border-top: 1px solid var(--hk-line);
+      border-radius: 22px 22px 0 0;
+      box-shadow: 0 -8px 32px color-mix(in srgb, var(--hk-ink) 26%, transparent);
+      padding-top: 10px;
+    }
+    /* The grab handle that says "this sheet moves". Decorative — the header's
+       close button is the actual affordance. */
+    .hk-drawer[data-open]::before {
+      content: ''; position: sticky; top: 0; z-index: 3;
+      align-self: center; flex: none;
+      width: 36px; height: 4px; border-radius: 2px; margin-bottom: 6px;
+      background: var(--hk-line);
+    }
+    .hk-drawer ha-card.hk-form-card { min-height: 0; }
+    /* The list behind a full-width sheet is covered, not consulted — so it keeps
+       its normal contrast rather than being dimmed under an opaque surface. */
+    .hk-shell-drawer .hk-wrap > *:not(#hk-list),
+    .hk-shell-drawer #hk-list > ha-alert,
+    .hk-shell-drawer #hk-list .hk-group-head,
+    .hk-shell-drawer #hk-list ha-card:not(.hk-editing) { opacity: 1; }
   }
 `;
 
@@ -2222,6 +2360,17 @@ export class HomeKeeperPanel extends HTMLElement {
     );
   }
 
+  /** Whether the side drawer holds a form right now. Narrower than `_editingOpen`:
+   *  the note editor and the completion dialogs are their own surfaces, and neither
+   *  belongs in — or should dim the list behind — the drawer. Mirrors the condition
+   *  `_hydrate` uses to decide which form to mount into the drawer host. */
+  private _drawerOpen(): boolean {
+    return (
+      (this._view === 'tasks' && this._edit.open) ||
+      (this._view === 'appliances' && this._assetEdit.open)
+    );
+  }
+
   // ── rendering ───────────────────────────────────────────────────────────────
   private _render(): void {
     if (!this.shadowRoot) return;
@@ -2256,20 +2405,27 @@ export class HomeKeeperPanel extends HTMLElement {
       // surface), so the old full-width action bar above the list is gone.
       inner = `
         ${this._tabs()}
-        <div id="hk-form-host"></div>
         ${this._controls()}
         <div id="hk-list">${onTasks ? this._tasksList() : this._assetsList()}</div>`;
     }
 
+    // Editing happens in a side drawer beside the list rather than in a card above
+    // it: the list keeps its place, and the row being edited stays on screen. The
+    // drawer is a sibling of the content column, so it is laid out by the shell's
+    // flex row instead of overlaying the page.
+    const drawerOpen = this._drawerOpen();
     this.shadowRoot.innerHTML = `
       <style>${STYLES}</style>
       <div class="hk-toolbar">
         <span id="menu-host"></span>
         <div class="hk-toolbar-title">${escapeHTML(t('app.title'))}</div>
       </div>
-      <div class="hk-wrap">
-        ${inner}
-        <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
+      <div class="hk-shell${drawerOpen ? ' hk-shell-drawer' : ''}">
+        <div class="hk-wrap">
+          ${inner}
+          <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
+        </div>
+        <aside id="hk-form-host" class="hk-drawer"${drawerOpen ? ' data-open' : ''}></aside>
       </div>
       ${this._loaded ? this._bottomTabs() : ''}
       <div id="hk-dialog-host"></div>
@@ -2852,17 +3008,19 @@ export class HomeKeeperPanel extends HTMLElement {
     const inlineChips = [dev, tagChip, ...this._taskChipsList(task), managedChip].filter(Boolean);
     const hiddenChips = Math.max(0, inlineChips.length - TASK_CARD_INLINE_CHIPS);
     const more = hiddenChips ? `<span class="hk-chip-more">+${hiddenChips}</span>` : '';
+    // While the drawer is editing this task, the row stays lit and undimmed so the
+    // thing being edited is visible next to the form editing it.
+    const editing = this._edit.open && !!task.id && this._edit.task?.id === task.id;
     // The row opens the task's detail page; "Done" stays as a quick action.
     return `
-      <ha-card class="hk-card${overdue ? ' overdue' : ''}" data-id="${escapeHTML(task.id)}">
-        <div class="hk-card-row">
+      <ha-card class="hk-card${overdue ? ' overdue' : ''}${editing ? ' hk-editing' : ''}" data-id="${escapeHTML(task.id)}">
+        <div class="hk-card-row hk-row-task">
           <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
-            <div class="hk-name">
-              <span class="hk-name-text">${escapeHTML(task.name)}</span>
-              <span class="hk-chips hk-chips-inline">${inlineChips.join('')}</span>${more}
-            </div>
+            <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
             <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
           </div>
+          <div class="hk-chips hk-chips-inline">${inlineChips.join('')}${more}</div>
+          <span class="hk-row-spacer"></span>
           <div class="hk-status">${statusChip}</div>
           <div class="hk-card-actions">
             ${doneAction}
@@ -4977,20 +5135,74 @@ export class HomeKeeperPanel extends HTMLElement {
     (root as HTMLElement).style.display = ruleText || detailText ? '' : 'none';
   }
 
+  /**
+   * The drawer's fixed top bar: close, the form's title and what it is editing, then
+   * Cancel and the primary commit. Both forms use it, so Save sits in the same place
+   * whichever one is open, and neither has to scroll to reach it.
+   *
+   * The commit and dismiss buttons keep the ids they have always carried
+   * (`f-save`/`f-cancel` for a task, `a-save`/`a-cancel` for an appliance) — they
+   * moved from the bottom of the form to the top of the drawer, but they are the
+   * same controls.
+   */
+  private _drawerHead(
+    title: string,
+    subtitle: string,
+    saveLabel: string,
+    onSave: () => void,
+    onCancel: () => void,
+    ids: { save: string; cancel: string },
+    helpUrl?: string,
+  ): HTMLElement {
+    const head = document.createElement('div');
+    head.className = 'hk-drawer-head';
+    const close = document.createElement('ha-icon-button');
+    close.className = 'hk-drawer-close';
+    close.setAttribute('label', t('btn.close'));
+    close.addEventListener('click', onCancel);
+    this._setIcon(close, MDI_CLOSE);
+    const titles = document.createElement('div');
+    titles.className = 'hk-drawer-titles';
+    const help = helpUrl
+      ? `<a class="hk-form-help" href="${helpUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(
+          t('help.docsLink'),
+        )}" aria-label="${escapeHTML(t('help.docsLink'))}"><ha-icon icon="mdi:help-circle-outline"></ha-icon></a>`
+      : '';
+    titles.innerHTML =
+      `<div class="hk-drawer-title">${escapeHTML(title)}${help}</div>` +
+      (subtitle ? `<div class="hk-drawer-sub">${escapeHTML(subtitle)}</div>` : '');
+    const cancel = document.createElement('ha-button');
+    cancel.id = ids.cancel;
+    cancel.setAttribute('appearance', 'plain');
+    cancel.textContent = t('btn.cancel');
+    cancel.addEventListener('click', onCancel);
+    const save = document.createElement('ha-button');
+    save.setAttribute('raised', '');
+    save.id = ids.save;
+    save.textContent = saveLabel;
+    save.addEventListener('click', onSave);
+    head.append(close, titles, cancel, save);
+    return head;
+  }
+
   private _renderTaskForm(host: HTMLElement): void {
     const task = this._edit.task || {};
     const card = document.createElement('ha-card');
     card.className = 'hk-form-card';
     card.id = 'hk-form';
+    card.appendChild(
+      this._drawerHead(
+        task.id ? t('form.task.edit') : t('form.task.new'),
+        String(task.name ?? ''),
+        task.id ? t('btn.save') : t('btn.create'),
+        () => void this._submitForm(),
+        () => this._closeForm(),
+        { save: 'f-save', cancel: 'f-cancel' },
+        SENSOR_DOCS_URL,
+      ),
+    );
     const inner = document.createElement('div');
     inner.className = 'hk-form-inner';
-    // Title carries a help affordance: a "?" icon linking to the User Guide so the
-    // recurrence kinds (esp. sensor-based) are one tap from an explanation.
-    inner.innerHTML = `<div class="hk-form-title"><span>${escapeHTML(
-      task.id ? t('form.task.edit') : t('form.task.new'),
-    )}</span><a class="hk-form-help" href="${SENSOR_DOCS_URL}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(
-      t('help.docsLink'),
-    )}" aria-label="${escapeHTML(t('help.docsLink'))}"><ha-icon icon="mdi:help-circle-outline"></ha-icon></a></div>`;
 
     // Sensor-based tasks have no clock cadence — a short primer (with a docs link)
     // explains the baseline/reset model the fields below can't convey on their own.
@@ -5001,30 +5213,33 @@ export class HomeKeeperPanel extends HTMLElement {
       inner.appendChild(intro);
     }
 
-    const form = this._makeForm(
-      taskSchema(task, this._consumableOptions(task), this._documentOptions(task), this._tags),
-      taskFormData(task),
-      (value) => {
+    const onChange = (value: Record<string, unknown>): void => {
         // Which fields the form shows, before this edit — normalized through
         // `taskFormData` so a default the form seeded can't read as a change (see
         // `taskFormSchemaKey`). Anything else, a typed character included, leaves it
         // untouched and must never reach `_render()`.
         const prevSchemaKey = taskFormSchemaKey(this._edit.task ?? {});
         const prevDevice = this._edit.task?.device_id ?? '';
+        // The form is rendered as one `ha-form` per section, so an event carries only
+        // the section that changed. Every rule below therefore has to ask whether the
+        // field it cares about is even in this snapshot: an unconditional read would
+        // see `undefined` for a field in another section and "correct" it. Typing in
+        // the name box would have reset the cadence interval to 1 that way.
+        const has = (key: string): boolean => key in value;
         this._edit.task = {
           ...this._edit.task,
           ...value,
-          interval: Number(value.interval) || 1,
+          ...(has('interval') ? { interval: Number(value.interval) || 1 } : {}),
         } as Partial<Task>;
         this._edit.error = undefined;
         // Refresh the notes preview in place — a re-render here would drop focus from
         // the textarea mid-word.
-        this._taskNotePreview?.update(String(value.notes ?? ''));
+        if (has('notes')) this._taskNotePreview?.update(String(value.notes ?? ''));
         // Changing the attached device re-scopes the consumable picker; drop a link
         // that no longer belongs to the newly-attached appliance. Both sides are
         // normalized to '' so a cleared picker (null vs. undefined vs. absent) doesn't
         // look like a change on an unrelated edit.
-        if ((value.device_id ?? '') !== prevDevice) {
+        if (has('device_id') && (value.device_id ?? '') !== prevDevice) {
           const opts = this._consumableOptions(this._edit.task);
           const cur = (this._edit.task as Record<string, unknown>).consumable_link;
           if (cur && !opts.some((o) => o.value === cur)) {
@@ -5041,6 +5256,7 @@ export class HomeKeeperPanel extends HTMLElement {
         // "300" reads as "300 h" without anyone typing it. Only when still blank —
         // a label the user (or a managing integration) chose is never overwritten.
         if (
+          has('sensor_unit') &&
           this._edit.task?.recurrence_type === 'sensor' &&
           !String(value.sensor_unit ?? '').trim()
         ) {
@@ -5053,6 +5269,7 @@ export class HomeKeeperPanel extends HTMLElement {
         // working default, so the three fields it reveals describe a real rule
         // immediately instead of sitting at "every 0" and being silently dropped.
         if (
+          has('sensor_backstop_on') &&
           Boolean(value.sensor_backstop_on) &&
           !(Number((this._edit.task as Record<string, unknown>).sensor_also_every) > 0)
         ) {
@@ -5076,17 +5293,54 @@ export class HomeKeeperPanel extends HTMLElement {
           // button has to track an interval or a unit change too.
           this._updateFormHints();
         }
-      },
-    );
-    form.id = 'hk-task-form';
-    // Muted per-field helper text under each field (keyed `help.<field>`); returns
-    // '' where no string is authored, so helpers appear only where we wrote them.
-    form.computeHelper = (s: { name: string }): string => {
-      if (!s.name) return '';
-      const h = t('help.' + s.name);
-      return h === 'help.' + s.name ? '' : h;
     };
-    inner.appendChild(form);
+
+    // One `ha-form` per section, under its own heading. `ha-form` renders its rows
+    // into its own shadow root and offers no slot between them, so a heading between
+    // two fields is only reachable by splitting the schema — which is why
+    // `taskSchemaSections` exists. `hk-task-form` stays on a wrapper around them all,
+    // so every `#hk-task-form <selector>` that looked inside the form still resolves.
+    const formData = taskFormData(task);
+    const sections = taskSchemaSections(
+      task,
+      this._consumableOptions(task),
+      this._documentOptions(task),
+      this._tags,
+    );
+    const formWrap = document.createElement('div');
+    formWrap.id = 'hk-task-form';
+    for (const section of sections) {
+      if (!section.fields.length) continue;
+      const form = this._makeForm(section.fields, formData, onChange);
+      form.id = `hk-task-form-${section.key}`;
+      // Muted per-field helper text under each field (keyed `help.<field>`); returns
+      // '' where no string is authored, so helpers appear only where we wrote them.
+      form.computeHelper = (s: { name: string }): string => {
+        if (!s.name) return '';
+        const h = t('help.' + s.name);
+        return h === 'help.' + s.name ? '' : h;
+      };
+      if (section.dependent) {
+        // A run that only exists because of the answer above it, indented behind a
+        // rule and captioned with what revealed it.
+        const indent = document.createElement('div');
+        indent.className = 'hk-indent';
+        const body = document.createElement('div');
+        body.className = 'hk-indent-body';
+        const head = document.createElement('div');
+        head.className = 'hk-eyebrow accent hk-indent-head';
+        head.textContent = t('form.section.dependent');
+        body.append(head, form);
+        indent.appendChild(body);
+        formWrap.appendChild(indent);
+      } else {
+        const heading = document.createElement('div');
+        heading.className = 'hk-eyebrow hk-form-section';
+        heading.textContent = t(`form.section.${section.key}`);
+        formWrap.append(heading, form);
+      }
+    }
+    inner.appendChild(formWrap);
 
     // Live Markdown preview of the notes field. It sits after the whole form rather
     // than directly under the field: the task schema is one `ha-form` (name, notes,
@@ -5117,21 +5371,42 @@ export class HomeKeeperPanel extends HTMLElement {
       inner.appendChild(err);
     }
 
-    const actions = document.createElement('div');
-    actions.className = 'hk-form-actions';
-    const save = document.createElement('ha-button');
-    save.setAttribute('raised', '');
-    save.id = 'f-save';
-    save.textContent = task.id ? t('btn.save') : t('btn.create');
-    save.addEventListener('click', () => void this._submitForm());
-    const cancel = document.createElement('ha-button');
-    cancel.id = 'f-cancel';
-    cancel.textContent = t('btn.cancel');
-    cancel.addEventListener('click', () => this._closeForm());
-    actions.append(save, cancel);
-    inner.appendChild(actions);
-
     card.appendChild(inner);
+
+    // The destructive and the "go somewhere else" actions live in a footer bar,
+    // deliberately far from Save at the other end of the drawer. Both existed
+    // already — Delete on the task's detail page, History as that page itself —
+    // and are surfaced here so an edit session does not have to be abandoned to
+    // reach them. Only for a saved task: neither means anything for a draft.
+    if (task.id) {
+      const foot = document.createElement('div');
+      foot.className = 'hk-drawer-foot';
+      const del = document.createElement('ha-button');
+      del.className = 'hk-drawer-delete';
+      del.setAttribute('appearance', 'plain');
+      // `variant` is Home Assistant's own semantic colour vocabulary for buttons —
+      // it resolves to the theme's error colour rather than a hard-coded red.
+      del.setAttribute('variant', 'danger');
+      del.textContent = t('btn.delete');
+      del.addEventListener('click', () =>
+        this._openConfirmDialog(t('confirm.deleteTask', { name: String(task.name ?? '') }), () => {
+          this._closeForm();
+          void this._delete(task as Task);
+        }),
+      );
+      const spacer = document.createElement('span');
+      spacer.className = 'hk-drawer-foot-spacer';
+      const history = document.createElement('ha-button');
+      history.className = 'hk-drawer-history';
+      history.setAttribute('appearance', 'plain');
+      history.textContent = t('btn.history');
+      history.addEventListener('click', () => {
+        this._closeForm();
+        this._openDetail('task', String(task.id));
+      });
+      foot.append(del, spacer, history);
+      card.appendChild(foot);
+    }
     host.appendChild(card);
   }
 
@@ -5351,11 +5626,20 @@ export class HomeKeeperPanel extends HTMLElement {
     const card = document.createElement('ha-card');
     card.className = 'hk-form-card';
     card.id = 'hk-asset-form';
+    const head = this._drawerHead(
+      editing ? t('form.appliance.edit') : t('form.appliance.new'),
+      String(x.name ?? ''),
+      editing ? t('btn.save') : t('btn.create'),
+      () => void this._submitAssetForm(),
+      () => this._closeAssetForm(),
+      { save: 'a-save', cancel: 'a-cancel' },
+    );
+    // Saving mid-upload would PUT the client draft over the asset the upload response
+    // is about to rewrite, losing the new document.
+    if (this._assetEdit.upload) head.querySelector('#a-save')?.setAttribute('disabled', '');
+    card.appendChild(head);
     const inner = document.createElement('div');
     inner.className = 'hk-form-inner';
-    inner.innerHTML = `<div class="hk-form-title">${escapeHTML(
-      editing ? t('form.appliance.edit') : t('form.appliance.new'),
-    )}</div>`;
 
     const mergeAsset = (value: Record<string, unknown>): void => {
       this._assetEdit.asset = { ...this._assetEdit.asset, ...value } as Partial<Asset>;
@@ -5437,23 +5721,6 @@ export class HomeKeeperPanel extends HTMLElement {
     if (this._assetEdit.error) {
       inner.appendChild(this._errorAlert(this._assetEdit.error, this._assetEdit.errorLink));
     }
-
-    const actions = document.createElement('div');
-    actions.className = 'hk-form-actions';
-    const save = document.createElement('ha-button');
-    save.setAttribute('raised', '');
-    save.id = 'a-save';
-    save.textContent = editing ? t('btn.save') : t('btn.create');
-    // Saving mid-upload would PUT the client draft over the asset the upload response
-    // is about to rewrite, losing the new document.
-    if (this._assetEdit.upload) save.setAttribute('disabled', '');
-    save.addEventListener('click', () => void this._submitAssetForm());
-    const cancel = document.createElement('ha-button');
-    cancel.id = 'a-cancel';
-    cancel.textContent = t('btn.cancel');
-    cancel.addEventListener('click', () => this._closeAssetForm());
-    actions.append(save, cancel);
-    inner.appendChild(actions);
 
     card.appendChild(inner);
     host.appendChild(card);
