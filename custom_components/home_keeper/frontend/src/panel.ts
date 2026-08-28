@@ -109,6 +109,7 @@ import {
   type AssetTab,
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
+  type SettingsSection,
 } from './utils';
 
 // mdi:devices — fallback icon when a device has no resolvable brand logo.
@@ -553,6 +554,40 @@ const STYLES = `
   .hk-rail-foot a { color: var(--hk-accent); text-decoration: none; }
   .hk-rail-foot a:hover { text-decoration: underline; }
   .hk-settings-card .hk-indent { margin-top: 4px; }
+
+  /* ── Settings: the phone's section index ───────────────────────────────────
+     A screen with no room for the rail beside six expanded sections has no room
+     for the six sections either, so it gets the list first and opens one at a
+     time. Both are always in the DOM; the media queries far below decide which
+     one is showing, so nothing in the panel's JS has to know the viewport. */
+  .hk-settings-index { display: none; flex-direction: column; width: 100%; }
+  /* The rail and the index both close with the version, so the page-wide one below
+     them would say it twice on the Settings tab. */
+  .hk-wrap[data-view="settings"] > .ver { display: none; }
+  .hk-index-card { overflow: hidden; }
+  .hk-index-row {
+    appearance: none; border: 0; border-bottom: 1px solid var(--hk-line-soft);
+    background: transparent; cursor: pointer; font: inherit; color: var(--hk-ink);
+    text-align: start; width: 100%; padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px; min-height: var(--hk-tap);
+  }
+  .hk-index-row:last-child { border-bottom: 0; }
+  .hk-index-row:hover { background: var(--hk-accent-soft); }
+  .hk-index-text { flex: 1 1 auto; min-width: 0; }
+  .hk-index-name { display: block; font-size: 0.95rem; font-weight: 500; }
+  .hk-index-sum { display: block; font-size: 0.8rem; color: var(--hk-ink-2); }
+  /* A triangle rather than a glyph, matching the tree chevron the panel already
+     draws, so the row needs no icon font and no new asset. */
+  .hk-index-chev {
+    flex: none; width: 0; height: 0;
+    border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+    border-left: 5px solid var(--hk-ink-2);
+  }
+  /* The header over one open section: the way back, and which one this is. */
+  .hk-settings-backbar {
+    display: none; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .hk-settings-backtitle { font-size: 1.05rem; font-weight: 500; }
   /* Live "reads N -> due at M" primer under the sensor task fields. */
   .hk-form-hint {
     color: var(--secondary-text-color); font-size: 0.85rem; line-height: 1.4;
@@ -1184,18 +1219,28 @@ const STYLES = `
      :host a containing block for fixed descendants, which is exactly what the
      bottom bar and the drawer must not be anchored to. Home Assistant collapses
      its own sidebar below ~870px, so the phone rules can run full-bleed. */
-  /* No room for a rail beside the sections — it becomes a scrolling strip above
-     them, which still answers "what is set to what" without opening anything. */
+  /* No room for a rail beside the sections, and none for six expanded sections
+     either. So Settings becomes two screens: an index of the six, and one section
+     at a time with a back arrow — the same master/detail move an appliance makes,
+     and deep-linked the same way.
+
+     All three parts are in the DOM at every width; only these rules decide which
+     shows. The layout carries a data-section attribute when the URL names one, and
+     the card it names carries .hk-sec-current, so this is decidable in CSS without
+     any JS reading the viewport. */
   @media (max-width: 1000px) {
-    .hk-settings-layout { flex-direction: column; gap: 12px; }
-    .hk-settings-rail {
-      position: static; flex: none; width: 100%; max-height: none;
-      flex-direction: row; overflow-x: auto; scrollbar-width: none;
-    }
-    .hk-settings-rail::-webkit-scrollbar { display: none; }
-    .hk-rail-link { width: auto; white-space: nowrap; border: 1px solid var(--hk-line); }
-    .hk-rail-foot { display: none; }
+    .hk-settings-layout { flex-direction: column; align-items: stretch; gap: 12px; }
+    .hk-settings-rail { display: none; }
+    .hk-settings-index { display: flex; }
     .hk-settings-col { max-width: none; width: 100%; }
+    /* The index is the screen while no section is open. */
+    .hk-settings-layout:not([data-section]) .hk-settings-col { display: none; }
+    /* One section is the screen while one is. */
+    .hk-settings-layout[data-section] .hk-settings-index { display: none; }
+    .hk-settings-layout[data-section] .hk-settings-backbar { display: flex; }
+    .hk-settings-layout[data-section] .hk-settings-col ha-card:not(.hk-sec-current) {
+      display: none;
+    }
   }
 
   /* No room for the list beside the appliance — the appliance takes the column and
@@ -1489,6 +1534,10 @@ export class HomeKeeperPanel extends HTMLElement {
   private _itemExpanded = new Set<string>();
   // The object whose full detail page is open, or null for the list view.
   private _detail: PanelLocation['detail'] = null;
+  // Which Settings section the URL names, or null for the section index. Both are
+  // rendered at every width and CSS decides which one shows: a desktop has room for
+  // all six sections beside the rail, a phone shows the index or one section.
+  private _settingsSection: SettingsSection | null = null;
   // Short-lived signed URLs for the uploaded files on screen, minted ahead of the click
   // so every file is opened by a native anchor tap rather than a JS `window.open` the
   // iOS app's WKWebView would swallow (issue #164). Filled by `_signFiles`.
@@ -1560,14 +1609,17 @@ export class HomeKeeperPanel extends HTMLElement {
 
   /** Adopt a parsed location into view/detail state, rendering only on change. */
   private _applyLocation(loc: PanelLocation): void {
+    const section = loc.section ?? null;
     const changed =
       loc.view !== this._view ||
       loc.detail?.kind !== this._detail?.kind ||
       loc.detail?.id !== this._detail?.id ||
-      loc.detail?.tab !== this._detail?.tab;
+      loc.detail?.tab !== this._detail?.tab ||
+      section !== this._settingsSection;
     if (!changed) return;
     this._view = loc.view;
     this._detail = loc.detail;
+    this._settingsSection = section;
     // Leaving a list/detail closes any open form (forms are ephemeral overlays)...
     this._edit = { open: false, task: null };
     this._assetEdit = { open: false, asset: null };
@@ -1754,6 +1806,18 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!detail || detail.kind !== 'asset' || this._assetTab() === tab) return;
     this._navigate({ view: 'appliances', detail: { ...detail, tab } }, true);
   }
+  /**
+   * Leave an open Settings section for the section index — the phone's back arrow.
+   *
+   * Same two cases as `_closeDetail`: pop the pushed index entry when there is one,
+   * and otherwise (a deep link straight to `/settings/notifications`) navigate to the
+   * index outright, since there is nothing behind us to pop.
+   */
+  private _closeSettingsSection(): void {
+    if (this._hasHistory) history.back();
+    else this._navigate({ view: 'settings', detail: null }, true);
+  }
+
   private _closeDetail(): void {
     if (this._hasHistory) {
       // A pushState has occurred in this session: history.back() correctly pops
@@ -2626,14 +2690,23 @@ export class HomeKeeperPanel extends HTMLElement {
         </div>
         ${this._detailView()}`;
     } else if (this._view === 'settings') {
-      // Two columns: an anchor rail naming every section and what it is set to, and
-      // the sections themselves. The four host ids are unchanged — only where they sit
-      // on the page moved.
+      // Three things, all rendered at every width, with CSS choosing between them: an
+      // anchor rail naming every section and what it is set to, a section index for a
+      // screen with no room for the rail, and the sections themselves. Which section
+      // the URL names is on the layout as `data-section`, so the phone rules can show
+      // the index or one section without any JS knowing the viewport size. The four
+      // host ids are unchanged — only where they sit on the page moved.
       inner = `
         ${this._tabs()}
-        <div class="hk-settings-layout">
+        <div class="hk-settings-layout"${
+          this._settingsSection
+            ? ` data-section="${escapeHTML(this._settingsSection)}"`
+            : ''
+        }>
           ${this._settingsRail()}
+          ${this._settingsIndex()}
           <div class="hk-settings-col">
+            ${this._settingsBackbar()}
             <div id="hk-settings-host"></div>
             <div id="hk-profiles-host"></div>
             <div id="hk-notifications-host"></div>
@@ -2661,7 +2734,7 @@ export class HomeKeeperPanel extends HTMLElement {
         <div class="hk-toolbar-title">${escapeHTML(t('app.title'))}</div>
       </div>
       <div class="hk-shell${drawerOpen ? ' hk-shell-drawer' : ''}">
-        <div class="hk-wrap">
+        <div class="hk-wrap" data-view="${escapeHTML(this._view)}">
           ${inner}
           <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
         </div>
@@ -4456,21 +4529,40 @@ export class HomeKeeperPanel extends HTMLElement {
     const companionsHost = root.getElementById('hk-companions-host');
     if (companionsHost) this._renderCompanions(companionsHost);
 
-    // Settings anchor rail: scroll the named card into view and mark it current.
-    // `scrollIntoView` is guarded because jsdom does not implement it.
+    // Mark the card the URL names, so the phone rules can show that one and hide its
+    // five siblings without CSS having to compare two attribute values. This is a
+    // fact about the route, not about the viewport, so it is set at every width.
+    if (this._view === 'settings') {
+      const current = this._settingsSectionList().find((s) => s.key === this._settingsSection);
+      root.querySelectorAll('.hk-settings-col ha-card').forEach((card) => {
+        card.classList.toggle('hk-sec-current', !!current && card.id === current.card);
+      });
+    }
+
+    // Both ways into a section navigate, so the URL always says which one is open.
+    // The rail is a lateral move along one page, so it replaces; an index row is a
+    // drill-in from a list, so it pushes and Back returns to the list. On a wide
+    // screen the whole page is showing, so a rail click also scrolls its card into
+    // view — guarded because jsdom does not implement `scrollIntoView`.
     root.querySelectorAll<HTMLElement>('.hk-rail-link').forEach((link) =>
       link.addEventListener('click', () => {
-        const target = link.dataset.rail;
-        const card = target ? root.getElementById(target) : null;
+        const section = link.dataset.section as SettingsSection | undefined;
+        if (section) this._navigate({ view: 'settings', detail: null, section }, true);
+        const card = link.dataset.rail ? root.getElementById(link.dataset.rail) : null;
         if (card && typeof card.scrollIntoView === 'function') {
           card.scrollIntoView({ block: 'start', behavior: 'smooth' });
         }
-        root
-          .querySelectorAll('.hk-rail-link')
-          .forEach((other) => other.removeAttribute('aria-current'));
-        link.setAttribute('aria-current', 'true');
       }),
     );
+    root.querySelectorAll<HTMLElement>('.hk-index-row').forEach((row) =>
+      row.addEventListener('click', () => {
+        const section = row.dataset.section as SettingsSection | undefined;
+        if (section) this._navigate({ view: 'settings', detail: null, section });
+      }),
+    );
+    root
+      .getElementById('settings-back')
+      ?.addEventListener('click', () => this._closeSettingsSection());
 
     // Card actions: the row opens the detail page; tasks keep a quick "Done".
     this._wireDetailOpeners(root);
@@ -4668,11 +4760,71 @@ export class HomeKeeperPanel extends HTMLElement {
     // Tapping the tab you are already on returns to its list when a detail page is
     // open — the standard "tab bar pops to root" gesture, and the only way back out of
     // a detail from the phone tab bar, whose Appliances tab is *already* the current
-    // view while an appliance detail is showing.
-    if (this._view === view && !this._detail) return;
+    // view while an appliance detail is showing. An open Settings section is the same
+    // gesture: the tab pops back to the section index.
+    if (this._view === view && !this._detail && !this._settingsSection) return;
     // Switching tabs is a lateral move, not a drill-in: replace so Back doesn't
     // retrace every tab toggle.
     this._navigate({ view, detail: null }, true);
+  }
+
+  /**
+   * Every Settings section in display order, with the heading, the mark saying what
+   * state it is in, and the line saying what it is set to.
+   *
+   * The anchor rail and the phone index are two renderings of this one list, so they
+   * cannot come to disagree about what exists or what it says. Every label reuses the
+   * heading its section already carries, so neither surface adds translated prose to
+   * keep in sync with the cards it points at.
+   */
+  private _settingsSectionList(): {
+    key: SettingsSection;
+    card: string;
+    label: string;
+    mark: string;
+    summary: string;
+  }[] {
+    const opts = this._options;
+    const dot = (state: 'on' | 'warn' | 'off'): string =>
+      state === 'off' ? '' : `<span class="hk-rail-dot ${state}"></span>`;
+    const count = (n: number): string =>
+      n ? `<span class="hk-rail-count">${escapeHTML(String(n))}</span>` : '';
+    const companionsOn = this._companions.filter((c) => c.status === 'connected').length;
+    const sections: { key: SettingsSection; card: string; label: string; mark: string }[] = [
+      { key: 'general', card: 'hk-settings-general', label: t('settings.general_heading'), mark: '' },
+      {
+        key: 'shopping',
+        card: 'hk-settings-shopping',
+        label: t('settings.shopping_heading'),
+        mark: dot(opts?.shopping_list_entity ? 'on' : 'off'),
+      },
+      {
+        key: 'problem',
+        card: 'hk-settings',
+        label: t('settings.heading'),
+        mark: dot(opts?.sync_problem_sensors ? 'on' : 'off'),
+      },
+      {
+        key: 'profiles',
+        card: 'hk-profiles',
+        label: t('notify.profiles_heading'),
+        mark: count(opts?.profiles?.length ?? 0),
+      },
+      {
+        key: 'notifications',
+        card: 'hk-notifications',
+        label: t('notify.heading'),
+        // Amber rather than green when notifications are configured but there is no
+        // mobile app to deliver them to — the one state that looks fine on the card
+        // and silently does nothing.
+        mark: this._notifyTargets.length ? count(opts?.notifications?.length ?? 0) : dot('warn'),
+      },
+      { key: 'companions', card: 'hk-companions', label: t('companions.heading'), mark: count(companionsOn) },
+    ];
+    // The three feature sections restate their current value in a line; the other
+    // three are a count, which their mark already carries.
+    const forSummary = (opts ?? {}) as HomeKeeperOptions;
+    return sections.map((s) => ({ ...s, summary: this._settingsSummary(s.card, forSummary) }));
   }
 
   /**
@@ -4681,50 +4833,76 @@ export class HomeKeeperPanel extends HTMLElement {
    *
    * Settings is one long page of cards, and the thing people actually want from it is
    * "is the mirror on, do I have notifications set up" — questions the rail answers
-   * without scrolling. Clicking an entry scrolls its card into view.
-   *
-   * Every label reuses the heading its section already carries, so the rail adds no
-   * new translated prose to keep in sync with the cards it points at.
+   * without scrolling. Clicking an entry opens that section's URL, which on a wide
+   * screen scrolls its card into view.
    */
   private _settingsRail(): string {
-    const opts = this._options;
-    const dot = (state: 'on' | 'warn' | 'off'): string =>
-      state === 'off' ? '' : `<span class="hk-rail-dot ${state}"></span>`;
-    const count = (n: number): string =>
-      n ? `<span class="hk-rail-count">${escapeHTML(String(n))}</span>` : '';
-    const entry = (target: string, label: string, mark: string): string =>
-      `<button class="hk-rail-link" data-rail="${escapeHTML(target)}">
-         <span class="hk-rail-label">${escapeHTML(label)}</span>${mark}
+    const entry = (s: { key: SettingsSection; card: string; label: string; mark: string }): string =>
+      `<button class="hk-rail-link" data-rail="${escapeHTML(s.card)}" data-section="${escapeHTML(
+        s.key,
+      )}"${s.key === this._settingsSection ? ' aria-current="true"' : ''}>
+         <span class="hk-rail-label">${escapeHTML(s.label)}</span>${s.mark}
        </button>`;
-    const companionsOn = this._companions.filter((c) => c.status === 'connected').length;
     return `
       <nav class="hk-settings-rail" aria-label="${escapeHTML(t('tab.settings'))}">
-        ${entry('hk-settings-general', t('settings.general_heading'), '')}
-        ${entry(
-          'hk-settings-shopping',
-          t('settings.shopping_heading'),
-          dot(opts?.shopping_list_entity ? 'on' : 'off'),
-        )}
-        ${entry('hk-settings', t('settings.heading'), dot(opts?.sync_problem_sensors ? 'on' : 'off'))}
-        ${entry('hk-profiles', t('notify.profiles_heading'), count(opts?.profiles?.length ?? 0))}
-        ${entry(
-          'hk-notifications',
-          t('notify.heading'),
-          // Amber rather than green when notifications are configured but there is no
-          // mobile app to deliver them to — the one state that looks fine on the card
-          // and silently does nothing.
-          this._notifyTargets.length
-            ? count(opts?.notifications?.length ?? 0)
-            : dot('warn'),
-        )}
-        ${entry('hk-companions', t('companions.heading'), count(companionsOn))}
-        <div class="hk-rail-foot">
-          <span class="hk-rail-ver">v${escapeHTML(PANEL_VERSION)}</span>
-          <a href="${DOCS_URL}" target="_blank" rel="noopener noreferrer">${escapeHTML(
-            t('help.docsLink'),
-          )}</a>
-        </div>
+        ${this._settingsSectionList().map(entry).join('')}
+        ${this._settingsFoot()}
       </nav>`;
+  }
+
+  /** The version and documentation link that close the Settings tab, on whichever of
+   *  the rail or the phone index is the one showing. */
+  private _settingsFoot(): string {
+    return `
+      <div class="hk-rail-foot">
+        <span class="hk-rail-ver">v${escapeHTML(PANEL_VERSION)}</span>
+        <a href="${DOCS_URL}" target="_blank" rel="noopener noreferrer">${escapeHTML(
+          t('help.docsLink'),
+        )}</a>
+      </div>`;
+  }
+
+  /**
+   * The Settings tab's section index — the phone's way in.
+   *
+   * A phone has no room for a rail beside six expanded sections, and no room for the
+   * six sections either. So it gets the list first: every section as a row naming it,
+   * what it is set to, and its mark, opening that section's own URL. It is rendered
+   * at every width and hidden by CSS on a wide screen, so nothing here has to know
+   * how big the viewport is.
+   */
+  private _settingsIndex(): string {
+    const row = (s: {
+      key: SettingsSection;
+      label: string;
+      mark: string;
+      summary: string;
+    }): string => `
+      <button class="hk-index-row" data-section="${escapeHTML(s.key)}">
+        <span class="hk-index-text">
+          <span class="hk-index-name">${escapeHTML(s.label)}</span>
+          ${s.summary ? `<span class="hk-index-sum">${escapeHTML(s.summary)}</span>` : ''}
+        </span>
+        ${s.mark}
+        <span class="hk-index-chev" aria-hidden="true"></span>
+      </button>`;
+    return `
+      <div class="hk-settings-index">
+        <ha-card class="hk-index-card">${this._settingsSectionList().map(row).join('')}</ha-card>
+        ${this._settingsFoot()}
+      </div>`;
+  }
+
+  /** The phone's header for one open Settings section: the way back to the index, and
+   *  the section's own name. Hidden by CSS where the whole page fits. */
+  private _settingsBackbar(): string {
+    const current = this._settingsSectionList().find((s) => s.key === this._settingsSection);
+    if (!current) return '';
+    return `
+      <div class="hk-settings-backbar">
+        <ha-button id="settings-back">‹ ${escapeHTML(t('btn.back'))}</ha-button>
+        <span class="hk-settings-backtitle">${escapeHTML(current.label)}</span>
+      </div>`;
   }
 
   /** Render the Settings tab — `ha-form` mirrors of the options flow that autosave

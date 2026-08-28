@@ -486,6 +486,24 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     // 7. The usage surfaces — native to-do list + calendar on a dashboard.
     await openDashboard(page);
     await page.waitForTimeout(BEAT * 3);
+
+    // 8. The same panel on a phone. Narrowing the viewport (the recording frame
+    //    stays 1280×800, so this reads as the layout reflowing) shows the tabs drop
+    //    to the bottom, the filters wrap instead of scrolling out of reach, and
+    //    Settings become an index that opens one section at a time.
+    await page.setViewportSize({ width: 390, height: 800 });
+    await openPanel(page);
+    await expect(panel.locator('#hk-list')).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('#mtab-settings').click();
+    await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('.hk-index-row[data-section="problem"]').click();
+    await expect(panel.locator('.hk-settings-backbar')).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('#settings-back').click();
+    await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
   } finally {
     // Close the context to flush the recording, then save it to a stable filename.
     await context.close();

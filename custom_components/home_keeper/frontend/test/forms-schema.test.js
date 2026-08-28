@@ -13,6 +13,7 @@ import {
   taskSchema,
   taskSchemaSections,
   pickFormData,
+  schemaFieldNames,
 } from '../src/forms.ts';
 import { setLanguage } from '../src/i18n.ts';
 
@@ -120,6 +121,16 @@ describe('pickFormData', () => {
     const data = { interval: 3, unit: 'months', name: 'x' };
     const schema = [{ name: '', type: 'grid', schema: [{ name: 'interval' }, { name: 'unit' }] }];
     expect(pickFormData(data, schema)).toEqual({ interval: 3, unit: 'months' });
+  });
+
+  it('contributes nothing for an entry that is neither named nor a group', () => {
+    // A grid container carries no name of its own, and neither does anything else a
+    // schema might grow. Such an entry has to drop out rather than seed a key.
+    expect(schemaFieldNames([{ name: 'a' }, { type: 'constant' }, { name: 'b' }])).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(pickFormData({ a: 1, b: 2 }, [{ type: 'constant' }, { name: 'a' }])).toEqual({ a: 1 });
   });
 
   it('omits a key the data does not have rather than seeding it undefined', () => {
@@ -361,6 +372,47 @@ describe('taskSchema respects locked fields', () => {
       }),
     );
     expect(got).toEqual(['device_id', 'area_id', 'tag_id', 'require_tag_scan', 'labels']);
+  });
+
+  it('honours a lock on every field a triggered task offers', () => {
+    // A triggered task takes its own branch of the builder, so each key it can hide
+    // has to be exercised there — locking `name` proves nothing about `device_id`.
+    for (const field of ['name', 'notes', 'device_id', 'area_id', 'tag_id', 'labels']) {
+      const got = names(
+        taskSchema({
+          recurrence_type: 'triggered',
+          managed_by: { integration: 'x', locked_fields: [field] },
+        }),
+      );
+      expect(got).not.toContain(field);
+      // Locking one field hides one field.
+      expect(got).toHaveLength(names(taskSchema({ recurrence_type: 'triggered' })).length - 1);
+    }
+  });
+
+  it('never emits an entry that is neither a named field nor a group', () => {
+    // `names()` drops falsy entries so a `grid` container does not read as a field,
+    // which means a schema that grew a *nameless* entry would slip past every
+    // assertion written in terms of names. Assert the shape itself.
+    const lockSets = [
+      [],
+      ['name'],
+      ['notes'],
+      ['device_id'],
+      ['area_id'],
+      ['labels'],
+      ['name', 'notes', 'device_id', 'area_id', 'labels'],
+    ];
+    for (const kind of ['floating', 'fixed', 'one-off', 'sensor', 'triggered']) {
+      for (const locked_fields of lockSets) {
+        const schema = taskSchema(
+          { recurrence_type: kind, managed_by: { integration: 'x', locked_fields } },
+          [],
+          [{ value: 'a1:e1', label: 'Manual' }],
+        );
+        for (const field of schema) expect(field.name || field.schema).toBeTruthy();
+      }
+    }
   });
 });
 

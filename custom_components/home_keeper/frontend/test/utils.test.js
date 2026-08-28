@@ -28,6 +28,7 @@ import {
   buildAssetTree,
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
+  SETTINGS_SECTIONS,
 } from '../src/utils.ts';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -546,6 +547,44 @@ describe('parseRoute', () => {
       detail: { kind: 'task', id: 'a/b' },
     });
   });
+  it('trims whitespace around every segment', () => {
+    // A hand-typed or copy-pasted URL can carry stray space around a segment, and a
+    // segment that only looks like `settings` resolves to nothing at all.
+    expect(parseRoute(' /settings / problem ')).toEqual({
+      view: 'settings',
+      detail: null,
+      section: 'problem',
+    });
+    expect(parseRoute('/ appliances / xyz / history ').detail).toEqual({
+      kind: 'asset',
+      id: 'xyz',
+      tab: 'history',
+    });
+  });
+  it('parses each settings section from the second segment', () => {
+    for (const section of SETTINGS_SECTIONS) {
+      expect(parseRoute(`/settings/${section}`)).toEqual({
+        view: 'settings',
+        detail: null,
+        section,
+      });
+    }
+  });
+  it('reads a bare /settings as the section index, with no section', () => {
+    // Unlike an appliance sub-tab there is no default: the index is a destination in
+    // its own right, so no section is a state rather than a gap to fill in.
+    expect(parseRoute('/settings')).toEqual({ view: 'settings', detail: null });
+  });
+  it('falls back to the section index for an unknown section', () => {
+    for (const bogus of ['nope', 'General', 'profiles2', 'tasks']) {
+      expect(parseRoute(`/settings/${bogus}`)).toEqual({ view: 'settings', detail: null });
+    }
+  });
+  it('never gives settings a detail page', () => {
+    // Settings has sections, not records; a deeper path is still just a section.
+    expect(parseRoute('/settings/profiles/abc').detail).toBeNull();
+    expect(parseRoute('/settings/profiles/abc').section).toBe('profiles');
+  });
 });
 
 describe('buildPath', () => {
@@ -576,11 +615,18 @@ describe('buildPath', () => {
       buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'a/b', tab: 'history' } }),
     ).toBe('/appliances/a%2Fb/history');
   });
+  it('names a settings section in the path, and the index when there is none', () => {
+    expect(buildPath({ view: 'settings', detail: null })).toBe('/settings');
+    for (const section of SETTINGS_SECTIONS) {
+      expect(buildPath({ view: 'settings', detail: null, section })).toBe(`/settings/${section}`);
+    }
+  });
   it('round-trips with parseRoute', () => {
     const locs = [
       { view: 'tasks', detail: null },
       { view: 'appliances', detail: null },
       { view: 'settings', detail: null },
+      ...SETTINGS_SECTIONS.map((section) => ({ view: 'settings', detail: null, section })),
       { view: 'tasks', detail: { kind: 'task', id: 'task-1' } },
       // An appliance always resolves with a sub-tab, so that is the shape a
       // round-trip has to come back as.

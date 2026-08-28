@@ -1236,4 +1236,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await openDashboard(page);
   await page.waitForTimeout(1500); // let cards settle
   await page.screenshot({ path: `${OUT}/4-usage-todo-and-calendar.png`, fullPage: true });
+
+  // 50 + 51. Settings at phone width. A screen with no room for a rail beside six
+  // expanded sections has no room for the six sections either, so it opens on an
+  // index and drills into one at a time. Asserted properly in
+  // tests/settings-mobile.spec.ts — these two only photograph it.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openPanel(page);
+  await panel.locator('#mtab-settings').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/50-panel-mobile-settings-index.png` });
+
+  await panel.locator('.hk-index-row[data-section="problem"]').click();
+  await expect(panel.locator('#hk-settings')).toBeVisible();
+  await expect(panel.locator('.hk-settings-backbar')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/51-panel-mobile-settings-section.png` });
 });

@@ -57,9 +57,17 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
 - The panel's navigation state is **high-fidelity deep-linked**: every navigable
   destination maps to a URL under the panel prefix (`/home-keeper`). Current
   scheme: `/tasks` (default), `/appliances`, `/tasks/<id>`, `/appliances/<id>`
-  (asset detail lives under the `appliances` segment), and `/appliances/<id>/<tab>`
-  for an appliance's sub-tabs (`ASSET_TABS` in `utils.ts`). Forms are ephemeral
-  overlays and are intentionally **not** deep-linked.
+  (asset detail lives under the `appliances` segment), `/appliances/<id>/<tab>`
+  for an appliance's sub-tabs (`ASSET_TABS` in `utils.ts`), and
+  `/settings/<section>` for a Settings section (`SETTINGS_SECTIONS`). Forms are
+  ephemeral overlays and are intentionally **not** deep-linked.
+- **A route may render differently at different widths, but only CSS may decide
+  which.** `/settings/<section>` is one section beside a rail on a desktop and a
+  section on its own with a back arrow on a phone. The panel renders all of it —
+  rail, section index, and every section — puts the named section on the layout as
+  `data-section` and marks its card `.hk-sec-current`, and the media query picks.
+  Nothing in `_render()` or `_hydrate()` reads the viewport, so the rule below
+  about viewport-agnostic rendering still holds.
 - **A new URL segment must keep the old URLs working.** The sub-tab segment is
   optional and an unrecognised value falls back to the default tab, because
   `/appliances/<id>` is already written into every registered appliance device's

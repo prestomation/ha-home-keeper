@@ -628,6 +628,18 @@ read without opening anything.
 
 ![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
 
+**On a phone, Settings opens on an index of its sections.** There is no room for a
+rail beside six expanded sections, so each one becomes a row naming it, what it is set
+to and its dot or count. Tapping a row opens that section by itself, with a back arrow
+to the index. Each section has an address of its own
+(`/home-keeper/settings/notifications`), so browser Back leaves a section the way it
+leaves any other page, and a section can be linked to.
+
+<p>
+  <img src="docs/images/50-panel-mobile-settings-index.png" alt="The Settings section index at phone width" width="300">
+  <img src="docs/images/51-panel-mobile-settings-section.png" alt="One Settings section open on a phone, with a back arrow" width="300">
+</p>
+
 ### Companions
 
 A **companion** is any integration that works with Home Keeper, a pet-care tracker that

@@ -356,16 +356,36 @@ export type AssetTab = (typeof ASSET_TABS)[number];
 export const DEFAULT_ASSET_TAB: AssetTab = 'parts';
 
 /**
+ * The Settings tab's sections, in the order they are shown. Each is a URL of its own
+ * so a phone, which has no room for six sections at once, can show an index and open
+ * one section at a time with Back working normally.
+ *
+ * Unlike an appliance sub-tab there is no default: `/settings` with no section is the
+ * index itself, which is a real destination rather than a redirect.
+ */
+export const SETTINGS_SECTIONS = [
+  'general',
+  'shopping',
+  'problem',
+  'profiles',
+  'notifications',
+  'companions',
+] as const;
+export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+
+/**
  * A fully-resolved panel location: which tab is shown and, optionally, the
  * detail page open on top of it. This is the panel's entire navigation state —
  * it round-trips losslessly with the URL via {@link parseRoute} / {@link buildPath}
  * so the URL can be the single source of truth (high-fidelity deep linking).
  *
- * An appliance detail also carries which of its sub-tabs is open.
+ * An appliance detail also carries which of its sub-tabs is open, and the Settings
+ * tab carries which of its sections is open (none meaning the section index).
  */
 export interface PanelLocation {
   view: PanelView;
   detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab } | null;
+  section?: SettingsSection;
 }
 
 /**
@@ -378,16 +398,32 @@ export interface PanelLocation {
  * unrecognised one falls back to the default rather than 404-ing, and a bare
  * `/appliances/<id>` — every link minted before sub-tabs existed, including the
  * `configuration_url` on already-registered devices — keeps resolving.
+ *
+ * Under `settings` the second segment names a section (`/settings/notifications`).
+ * An unrecognised one falls back to the section index, not to a default section: a
+ * bare `/settings` is the index, and a typo should land there rather than somewhere
+ * arbitrary.
  */
 export function parseRoute(path: string | undefined | null): PanelLocation {
+  // Stryker disable next-line StringLiteral: equivalent — a null path with any other
+  // slash-free default parses to the same location, so no test can tell them apart.
   const parts = String(path ?? '')
     .split('/')
     .map((p) => p.trim())
     .filter(Boolean);
   const view: PanelView =
     parts[0] === 'appliances' ? 'appliances' : parts[0] === 'settings' ? 'settings' : 'tasks';
-  // Only the tasks/appliances lists drill into a detail page; settings has none.
-  if (parts[1] && view !== 'settings') {
+  if (view === 'settings') {
+    // Short-circuit rather than falling back to '': an empty-string default is
+    // indistinguishable from any other non-section string here, so it would only
+    // add a mutant no test could ever kill.
+    const raw = parts[1] && decodeURIComponent(parts[1]);
+    return raw && (SETTINGS_SECTIONS as readonly string[]).includes(raw)
+      ? { view, detail: null, section: raw as SettingsSection }
+      : { view, detail: null };
+  }
+  // Only the tasks/appliances lists drill into a detail page.
+  if (parts[1]) {
     const kind = view === 'appliances' ? 'asset' : 'task';
     if (kind === 'asset') {
       const raw = parts[2] ? decodeURIComponent(parts[2]) : '';
@@ -410,8 +446,13 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
  * The default sub-tab is left off the URL: `/appliances/<id>` and
  * `/appliances/<id>/parts` are the same page, and the shorter one is what a link
  * to an appliance should look like.
+ *
+ * A Settings section appends itself the same way, and no section means the index.
  */
 export function buildPath(loc: PanelLocation): string {
+  if (loc.view === 'settings') {
+    return loc.section ? `/settings/${loc.section}` : '/settings';
+  }
   if (!loc.detail) return `/${loc.view}`;
   const base = `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
   const tab = loc.detail.tab;
