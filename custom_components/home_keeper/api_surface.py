@@ -22,15 +22,17 @@ read from one source and cannot say different things. Never restate that prose
 here. The one exception is :attr:`EventSpec.summary`: a bus event has no Home
 Assistant string source, so its one-line "fires when" lives in this table.
 
-Pure — imports nothing from Home Assistant, so ``tests/conftest.py`` loads it
-alongside the rest of the pure core.
+Pure, and deliberately *light*: it imports nothing from Home Assistant and
+nothing from the integration beyond ``const``, so ``tests/conftest.py`` can load
+it alongside the rest of the pure core and ``ci/generate_api_docs.py`` can import
+it on a docs runner that has none of the integration's dependencies installed.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import const, options
+from . import const
 
 # ── Descriptors ──────────────────────────────────────────────────────────────
 #
@@ -647,11 +649,26 @@ HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
 
 # ── Config entry options ─────────────────────────────────────────────────────
 #
-# Derived, not restated: ``options._empty_options()`` stays the one definition of
-# which keys exist, and ``options.FLOW_OPTIONS`` of which the form renders.
+# ``options._empty_options()`` stays the one definition of which keys exist, and
+# ``options.FLOW_OPTIONS`` of which the form renders; these are pinned to both by
+# ``test_options_match_the_options_module``. They are restated rather than derived
+# on purpose: importing ``options`` for two tuples of strings would pull in the
+# whole normalization chain (``notifications`` → Babel), and this module has to
+# stay importable by tooling — ``ci/generate_api_docs.py`` on a docs runner — that
+# has none of the integration's dependencies installed. See
+# ``test_api_surface_imports_stay_light``.
 
-OPTIONS: tuple[OptionSpec, ...] = tuple(
-    OptionSpec(key, key in options.FLOW_OPTIONS) for key in options.ALL_OPTIONS
+OPTIONS: tuple[OptionSpec, ...] = (
+    OptionSpec(const.OPTION_SYNC_PROBLEM_SENSORS, in_flow=True),
+    OptionSpec(const.OPTION_ONE_OFF_RETENTION_DAYS, in_flow=True),
+    OptionSpec(const.OPTION_SHOPPING_LIST_ENTITY, in_flow=True),
+    OptionSpec(const.OPTION_PROFILES, in_flow=False),
+    OptionSpec(const.OPTION_NOTIFICATIONS, in_flow=False),
+    OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, in_flow=True),
+    OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES, in_flow=True),
+    OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS, in_flow=True),
+    OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS, in_flow=True),
+    OptionSpec(const.OPTION_DISMISSED_COMPANIONS, in_flow=False),
 )
 
 

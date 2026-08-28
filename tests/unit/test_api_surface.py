@@ -12,6 +12,17 @@ is brittle when it has to *infer*; here it only reads string literals out of a
 handful of registration calls, and every one of them is a literal today. The half
 static can't reach — that the running system really registers and really tears down
 what the model says — is covered by ``tests/integration/test_api_surface.py``.
+
+**Where these checks can be fooled.** They read literals, so they see what the
+source says and not what it computes. A service registered with a name built at
+runtime rather than written out, a websocket command whose decorator ``type`` is
+not a string constant, or an ``HomeAssistantView`` whose ``url`` is not the
+``PREFIX + "/…"`` shape ``_view_classes`` expects would each pass unnoticed.
+``test_admin_only_services_verify_admin`` matches the text of the call, so a
+``_verify_admin`` behind a condition that never runs still reads as gated. Every
+one of those is a departure from how the component is written today, which is why
+literal-reading is enough; if you introduce one, the runtime test is the backstop
+and this file needs widening rather than trusting.
 """
 
 from __future__ import annotations
@@ -242,6 +253,30 @@ def test_service_strings_match_model() -> None:
     }
 
 
+def test_service_fields_match_between_yaml_and_strings() -> None:
+    """Each service describes the same field set in both files.
+
+    Only the service *names* were pinned to the model; the fields under them were
+    left to hassfest. They matter here too: the reference takes a field's
+    structure (required, selector) from ``services.yaml`` and its label and
+    description from ``strings.json``, so a field present in one and missing from
+    the other renders half-blank.
+    """
+    yaml = pytest.importorskip("yaml", reason="PyYAML parses services.yaml")
+    described = yaml.safe_load((_COMPONENT / "services.yaml").read_text("utf-8"))
+    localized = _STRINGS["services"]
+    mismatched = {}
+    for name in api_surface.SERVICE_NAMES:
+        in_yaml = set((described.get(name) or {}).get("fields") or {})
+        in_strings = set((localized.get(name) or {}).get("fields") or {})
+        if in_yaml != in_strings:
+            mismatched[name] = {
+                "only_in_services_yaml": sorted(in_yaml - in_strings),
+                "only_in_strings_json": sorted(in_strings - in_yaml),
+            }
+    assert not mismatched, {"service_field_mismatch": mismatched}
+
+
 # ── Events ───────────────────────────────────────────────────────────────────
 
 
@@ -299,6 +334,56 @@ def test_event_directions_and_payloads_are_known() -> None:
     assert not bad, {"unknown_direction_or_payload": bad}
 
 
+# Every field the builders read, carrying a value. Deliberately wider than the
+# spines so an unmodelled key that only appears "when set" has something to appear
+# from.
+_FULL_TASK: dict[str, Any] = {
+    "id": "task-1",
+    "name": "Replace filter",
+    "device_id": "dev-1",
+    "area_id": "area-1",
+    "recurrence_type": "floating",
+    "interval": 3,
+    "unit": "months",
+    "next_due": "2026-09-01T00:00:00+00:00",
+    "last_completed": "2026-06-01T00:00:00+00:00",
+    "enabled": True,
+    "labels": ["label-1"],
+    "source": {"demo": {"thing": 1}},
+    "managed_by": {"integration": "demo"},
+    "task_chips": [{"label": "chip"}],
+    "tag_id": "tag-1",
+    "completions": [{"ts": "2026-06-01T00:00:00+00:00", "note": "n"}],
+    "sensor": {"entity_id": "sensor.demo", "mode": "usage"},
+}
+_FULL_ASSET: dict[str, Any] = {
+    "id": "asset-1",
+    "name": "Furnace",
+    "device_id": "dev-2",
+    "model": "X",
+    "serial_number": "SN",
+    "archived_at": "2026-07-01T00:00:00+00:00",
+}
+_FULL_PART: dict[str, Any] = {
+    "id": "part-1",
+    "name": "Filter",
+    "part_number": "PN-1",
+    "vendor": "Acme",
+    "stock": 2.5,
+    "reorder_at": 1,
+    "stock_unit": "ml",
+    "restock_quantity": 4,
+}
+_FULL_COMPANION: dict[str, Any] = {
+    "domain": "demo",
+    "name": "Demo",
+    "status": "connected",
+    "config_entry_id": "entry-1",
+    "upstream_domain": "upstream",
+    "docs_url": "https://example.com",
+}
+
+
 def test_payload_spines_match_the_event_builders() -> None:
     """Each modelled spine is exactly what ``events.py`` builds, in order.
 
@@ -306,23 +391,29 @@ def test_payload_spines_match_the_event_builders() -> None:
     shipping code rather than describing it: a field added to a payload and not
     documented fails here, and so does one documented but never sent.
     """
-    built = {
-        "task": events.task_event_data({}),
-        "asset": events.asset_event_data({}),
-        "stock": events.stock_event_data({}, {}),
-        "companion": events.companion_event_data({}),
+    # Probe twice: empty inputs, and inputs with every field populated. A builder
+    # that adds a key only when some field carries a value would look complete
+    # against empty dicts alone.
+    probes = {
+        "task": (events.task_event_data, ({},), (_FULL_TASK,)),
+        "asset": (events.asset_event_data, ({},), (_FULL_ASSET,)),
+        "stock": (events.stock_event_data, ({}, {}), (_FULL_ASSET, _FULL_PART)),
+        "companion": (events.companion_event_data, ({},), (_FULL_COMPANION,)),
     }
-    for shape, payload in built.items():
-        modelled = tuple(f.name for f in api_surface.PAYLOAD_SPINES[shape])
-        assert modelled == tuple(payload), {
-            "payload": shape,
-            "built_by_events_py": list(payload),
-            "modelled": list(modelled),
-            "fix": _FIX,
-        }
-    assert set(built) == set(api_surface.PAYLOAD_SPINES), (
+    assert set(probes) == set(api_surface.PAYLOAD_SPINES), (
         "a spine is modelled with no builder behind it"
     )
+    for shape, (builder, empty, full) in probes.items():
+        modelled = tuple(f.name for f in api_surface.PAYLOAD_SPINES[shape])
+        for label, args in (("empty", empty), ("populated", full)):
+            payload = builder(*args)
+            assert modelled == tuple(payload), {
+                "payload": shape,
+                "inputs": label,
+                "built_by_events_py": list(payload),
+                "modelled": list(modelled),
+                "fix": _FIX,
+            }
 
 
 def _extras(spec_name: str) -> set[str]:
@@ -422,13 +513,47 @@ def test_entity_platforms_match_const_and_strings() -> None:
 # ── Config entry options ─────────────────────────────────────────────────────
 
 
-def test_options_are_derived_from_the_options_module() -> None:
-    """``OPTIONS`` mirrors ``options.py``, which stays the one definition."""
+def test_options_match_the_options_module() -> None:
+    """``OPTIONS`` names exactly the keys ``options.py`` defines, flagged correctly.
+
+    ``options._empty_options()`` stays the one definition of which keys exist and
+    ``FLOW_OPTIONS`` of which the form renders; this pins the model's copy to both.
+    The copy is deliberate — see the note beside ``OPTIONS``.
+    """
     import hk_options as options
 
-    assert tuple(spec.key for spec in api_surface.OPTIONS) == options.ALL_OPTIONS
+    assert {spec.key for spec in api_surface.OPTIONS} == set(options.ALL_OPTIONS)
+    keys = [spec.key for spec in api_surface.OPTIONS]
+    assert len(keys) == len(set(keys)), "an option is modelled twice"
     in_flow = {spec.key for spec in api_surface.OPTIONS if spec.in_flow}
     assert in_flow == set(options.FLOW_OPTIONS)
+
+
+def test_api_surface_imports_stay_light() -> None:
+    """The model imports nothing but ``const``.
+
+    ``ci/generate_api_docs.py`` executes this module on a docs runner that installs
+    no integration dependencies, so a heavier import breaks the site build rather
+    than anything here. It did once: importing ``options`` for two tuples of
+    strings reached ``notifications`` and then Babel.
+    """
+    tree = ast.parse((_COMPONENT / "api_surface.py").read_text(encoding="utf-8"))
+    siblings = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.level == 1
+        for alias in node.names
+    }
+    assert siblings == {"const"}, {
+        "unexpected_sibling_imports": sorted(siblings - {"const"}),
+        "why": "keep api_surface importable without the integration's dependencies",
+    }
+    third_party = {
+        node.names[0].name.split(".")[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+    }
+    assert not third_party, {"unexpected_top_level_imports": sorted(third_party)}
 
 
 def test_flow_options_are_rendered_by_the_options_form() -> None:

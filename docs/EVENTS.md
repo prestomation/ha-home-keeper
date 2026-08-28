@@ -25,8 +25,9 @@ You can react to these events two ways:
 
 Which events exist, what each one's payload holds, and which are offered as device
 triggers are all generated from the integration itself and listed in the
-[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#events). This document is the other half: when each event fires,
-what it means, and what a restart does to it.
+[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#events).
+This document is the other half: what each event means in context, and what a
+restart does to it.
 
 > Integrators pushing tasks into Home Keeper should also read
 > [INTEGRATING.md](INTEGRATING.md).
@@ -35,8 +36,9 @@ what it means, and what a restart does to it.
 
 All event names follow `home_keeper_<noun>_<verb>`. Task events share a common
 **spine**. Stock events share one shape and asset events share another. The
-[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#events) lists every event with its payload; this section covers
-the behaviour those tables can't express.
+[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#events)
+lists every event with its payload. This section covers the behaviour a table
+can't express.
 
 ### Task lifecycle
 
@@ -112,9 +114,9 @@ transitions observed while Home Assistant is running fire. (The per-task overdue
 
 ### Stock transitions (edge-triggered)
 
-Spare stock crossing to **≤ `reorder_at`** fires `home_keeper_part_low_stock`,
-reaching **0** fires `home_keeper_part_out_of_stock`, and recovering back above the
-threshold fires `home_keeper_part_restocked`.
+Spare stock crossing to **≤ `reorder_at`** fires `home_keeper_part_low_stock`.
+Reaching **0** fires `home_keeper_part_out_of_stock` instead. Recovering back above
+the threshold fires `home_keeper_part_restocked`.
 
 Edge-triggered the same way: one event per crossing, never on every step while already
 low. A part must track **both** `stock` and `reorder_at` to fire anything. A single

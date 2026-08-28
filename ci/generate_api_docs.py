@@ -92,19 +92,11 @@ def load_surface(component: Path = COMPONENT) -> ModuleType:
             stub.__path__ = [str(path)]  # type: ignore[attr-defined]
             sys.modules[name] = stub
 
-    # In dependency order: api_surface does ``from . import const, options``, and
-    # options in turn imports these pure siblings.
-    for name in (
-        "const",
-        "backend_i18n",
-        "models",
-        "recurrence",
-        "notifications",
-        "profiles",
-        "shopping",
-        "options",
-        "api_surface",
-    ):
+    # ``api_surface`` imports only ``const``, which imports nothing — that is what
+    # lets this run on a docs runner with none of the integration's dependencies
+    # installed. ``test_api_surface_imports_stay_light`` keeps it that way, so this
+    # list cannot silently fall behind.
+    for name in ("const", "api_surface"):
         if f"{pkg}.{name}" in sys.modules:
             continue
         spec = importlib.util.spec_from_file_location(
