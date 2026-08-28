@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "Appareil",
+  "appliance.tabEmpty": "Rien ici pour l’instant.",
   "appliances.archivedEmpty": "Aucun appareil archivé.",
   "appliances.empty": "Aucun appareil pour l'instant. Ajoutez-en un pour créer une page d'appareil que vos tâches (et batteries) peuvent partager — réfrigérateur, chaudière, chauffe-eau…",
   "appliances.noMatch": "Aucun appareil ne correspond à ce filtre.",
@@ -451,6 +452,9 @@
   "settings.shopping_list_entity": "Recopier les rappels sur cette liste",
   "settings.sync_problem_sensors": "Synchroniser les capteurs de problème en tâches",
   "settings.sync_problem_sensors_help": "Une tâche synchronisée ne se referme que lorsque l'intégration d'origine résout le problème, pas en appuyant sur Terminé. Ses rappels proposent Reporter au lieu de Terminé.",
+  "tab.documents": "Documents",
+  "tab.parts": "Pièces",
+  "tab.related": "Associés",
   "tab.appliances": "Appareils",
   "tab.settings": "Réglages",
   "tab.tasks": "Tâches",

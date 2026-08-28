@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "Urządzenie",
+  "appliance.tabEmpty": "Jeszcze nic tu nie ma.",
   "appliances.archivedEmpty": "Brak zarchiwizowanych urządzeń.",
   "appliances.empty": "Brak urządzeń. Dodaj jedno, aby utworzyć stronę urządzenia, którą mogą współdzielić Twoje zadania (i baterie) — lodówka, piec, podgrzewacz wody…",
   "appliances.noMatch": "Żadne urządzenie nie pasuje do tego filtra.",
@@ -467,6 +468,9 @@
   "settings.shopping_list_entity": "Kopiuj przypomnienia na tę listę",
   "settings.sync_problem_sensors": "Synchronizuj czujniki problemów jako zadania",
   "settings.sync_problem_sensors_help": "Zsynchronizowane zadanie zamyka się dopiero, gdy integracja źródłowa rozwiąże problem, a nie po naciśnięciu Gotowe. Przypomnienia o nim oferują Odłóż zamiast Gotowe.",
+  "tab.documents": "Dokumenty",
+  "tab.parts": "Części",
+  "tab.related": "Powiązane",
   "tab.appliances": "Urządzenia",
   "tab.settings": "Ustawienia",
   "tab.tasks": "Zadania",

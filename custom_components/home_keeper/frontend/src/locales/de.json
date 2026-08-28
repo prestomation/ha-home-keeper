@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "Gerät",
+  "appliance.tabEmpty": "Hier ist noch nichts.",
   "appliances.archivedEmpty": "Keine archivierten Geräte.",
   "appliances.empty": "Noch keine Geräte. Füge eines hinzu, um eine Geräteseite zu erstellen, die deine Aufgaben (und Batterien) teilen können – Kühlschrank, Heizung, Warmwasserbereiter…",
   "appliances.noMatch": "Keine Geräte entsprechen diesem Filter.",
@@ -435,6 +436,9 @@
   "settings.shopping_list_entity": "Erinnerungen auf diese Liste spiegeln",
   "settings.sync_problem_sensors": "Problemsensoren als Aufgaben synchronisieren",
   "settings.sync_problem_sensors_help": "Eine synchronisierte Aufgabe wird erst geschlossen, wenn die Quellintegration das Problem behebt, nicht beim Tippen auf Erledigt. Erinnerungen dazu bieten Später statt Erledigt.",
+  "tab.documents": "Dokumente",
+  "tab.parts": "Teile",
+  "tab.related": "Verwandt",
   "tab.appliances": "Geräte",
   "tab.settings": "Einstellungen",
   "tab.tasks": "Aufgaben",

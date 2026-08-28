@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "Eletrodoméstico",
+  "appliance.tabEmpty": "Ainda não há nada aqui.",
   "appliances.archivedEmpty": "Nenhum eletrodoméstico arquivado.",
   "appliances.empty": "Nenhum eletrodoméstico ainda. Adicione um para criar uma página de dispositivo que suas tarefas (e baterias) podem compartilhar — geladeira, ar-condicionado, aquecedor de água…",
   "appliances.noMatch": "Nenhum eletrodoméstico corresponde a este filtro.",
@@ -451,6 +452,9 @@
   "settings.shopping_list_entity": "Espelhar lembretes nesta lista",
   "settings.sync_problem_sensors": "Sincronizar sensores de problema como tarefas",
   "settings.sync_problem_sensors_help": "Uma tarefa sincronizada só se encerra quando a integração de origem resolve o problema, não ao tocar em Concluído. Os lembretes dela oferecem Adiar no lugar de Concluído.",
+  "tab.documents": "Documentos",
+  "tab.parts": "Peças",
+  "tab.related": "Relacionados",
   "tab.appliances": "Eletrodomésticos",
   "tab.settings": "Configurações",
   "tab.tasks": "Tarefas",

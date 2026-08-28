@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "电器",
+  "appliance.tabEmpty": "这里还没有内容。",
   "appliances.archivedEmpty": "没有已归档的电器。",
   "appliances.empty": "还没有电器。添加一个以创建设备页面，供你的任务（和电池）共享 — 冰箱、锅炉、热水器……",
   "appliances.noMatch": "没有电器符合此筛选条件。",
@@ -433,6 +434,9 @@
   "settings.shopping_list_entity": "将购买提醒同步到此清单",
   "settings.sync_problem_sensors": "将问题传感器同步为任务",
   "settings.sync_problem_sensors_help": "同步任务只有在来源集成解决问题后才会清除，点按“完成”不会清除它。相关提醒会用“稍后提醒”代替“完成”。",
+  "tab.documents": "文档",
+  "tab.parts": "部件",
+  "tab.related": "关联",
   "tab.appliances": "电器",
   "tab.settings": "设置",
   "tab.tasks": "任务",

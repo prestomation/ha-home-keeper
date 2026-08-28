@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "Electrodomèstic",
+  "appliance.tabEmpty": "Encara no hi ha res aquí.",
   "appliances.archivedEmpty": "No hi ha electrodomèstics arxivats.",
   "appliances.empty": "Encara no hi ha electrodomèstics. Afegeix-ne un per crear una pàgina de dispositiu que les teves tasques (i bateries) puguin compartir — nevera, caldera, escalfador d'aigua…",
   "appliances.noMatch": "Cap electrodomèstic coincideix amb aquest filtre.",
@@ -449,6 +450,9 @@
   "settings.shopping_list_entity": "Reflecteix els recordatoris en aquesta llista",
   "settings.sync_problem_sensors": "Sincronitza els sensors de problema com a tasques",
   "settings.sync_problem_sensors_help": "Una tasca sincronitzada només es tanca quan la integració d'origen resol el problema, no quan toques Fet. Els recordatoris n'ofereixen Ajorna en lloc de Fet.",
+  "tab.documents": "Documents",
+  "tab.parts": "Peces",
+  "tab.related": "Relacionats",
   "tab.appliances": "Electrodomèstics",
   "tab.settings": "Configuració",
   "tab.tasks": "Tasques",

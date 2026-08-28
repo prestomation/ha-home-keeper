@@ -426,7 +426,8 @@ describe('Notes render as Markdown (issue #163)', () => {
   it('gives an appliance its own Notes card, saved via update_asset', async () => {
     const asset = { id: 'a1', kind: 'virtual', name: 'Fridge', notes: 'Filter is *behind* the kick plate' };
     const { hass, calls } = makeHassWith({ assets: [asset] });
-    const panel = await mountPanel(hass, '/appliances/a1');
+    // An appliance's notes live under its Details sub-tab, which is a URL of its own.
+    const panel = await mountPanel(hass, '/appliances/a1/details');
 
     const md = await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
     expect(md, 'the appliance detail should render its notes').toBeTruthy();
@@ -709,14 +710,17 @@ function makeDocHass(overrides = {}) {
   return { hass, calls, signed };
 }
 
-// Open the appliance detail page and wait for its documents card to render.
-async function openApplianceDetail(hass) {
+// Open one of the appliance detail's sub-tabs and wait for its contents to render.
+// Each sub-tab is its own URL, and only the open one renders — so a test has to say
+// which section it is about.
+async function openApplianceDetail(hass, tab = 'documents') {
   const panel = document.createElement('home-keeper-panel');
-  panel.route = { prefix: '/home-keeper', path: '/appliances/a1' };
+  panel.route = { prefix: '/home-keeper', path: `/appliances/a1/${tab}` };
   document.body.appendChild(panel);
   panel.hass = hass;
-  const link = await waitFor(() => panel.shadowRoot?.querySelector('a.hk-doc-file'));
-  expect(link, 'the documents section should render').toBeTruthy();
+  const selector = tab === 'parts' ? '.hk-part-row' : 'a.hk-doc-file';
+  const link = await waitFor(() => panel.shadowRoot?.querySelector(selector));
+  expect(link, `the ${tab} section should render`).toBeTruthy();
   return panel;
 }
 
@@ -750,7 +754,8 @@ describe('Appliance detail — file links are real, pre-signed anchors (issue #1
 
   it("gives a part's attached file a pre-signed href too", async () => {
     const { hass, signed } = makeDocHass();
-    const panel = await openApplianceDetail(hass);
+    // A part's paperclip lives with the parts, not with the documents.
+    const panel = await openApplianceDetail(hass, 'parts');
     const clip = await waitFor(() => {
       const el = panel.shadowRoot?.querySelector('a.hk-part-file[data-part="p1"]');
       return el?.getAttribute('href') ? el : null;

@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "Laite",
+  "appliance.tabEmpty": "Täällä ei ole vielä mitään.",
   "appliances.archivedEmpty": "Ei arkistoituja laitteita.",
   "appliances.empty": "Ei vielä laitteita. Lisää laite luodaksesi laitesivun, jota tehtäväsi (ja paristot) voivat jakaa — jääkaappi, lämmityskattila, vedenlämmitin…",
   "appliances.noMatch": "Mikään laite ei vastaa tätä suodatinta.",
@@ -435,6 +436,9 @@
   "settings.shopping_list_entity": "Peilaa muistutukset tähän listaan",
   "settings.sync_problem_sensors": "Synkronoi ongelma-anturit tehtäviksi",
   "settings.sync_problem_sensors_help": "Synkronoitu tehtävä sulkeutuu vasta, kun lähdeintegraatio ratkaisee ongelman, ei Valmis-painikkeesta. Sen muistutukset tarjoavat Torkun Valmis-painikkeen sijaan.",
+  "tab.documents": "Asiakirjat",
+  "tab.parts": "Osat",
+  "tab.related": "Liittyvät",
   "tab.appliances": "Laitteet",
   "tab.settings": "Asetukset",
   "tab.tasks": "Tehtävät",

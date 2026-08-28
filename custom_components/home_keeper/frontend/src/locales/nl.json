@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "Apparaat",
+  "appliance.tabEmpty": "Hier staat nog niets.",
   "appliances.archivedEmpty": "Geen gearchiveerde apparaten.",
   "appliances.empty": "Nog geen apparaten. Voeg er een toe om een apparaatpagina te maken die je taken (en batterijen) kunnen delen — koelkast, cv-ketel, boiler…",
   "appliances.noMatch": "Geen apparaten komen overeen met dit filter.",
@@ -435,6 +436,9 @@
   "settings.shopping_list_entity": "Herinneringen naar deze lijst spiegelen",
   "settings.sync_problem_sensors": "Probleemsensoren als taken synchroniseren",
   "settings.sync_problem_sensors_help": "Een gesynchroniseerde taak sluit pas wanneer de bronintegratie het probleem oplost, niet wanneer je op Klaar tikt. Herinneringen ervoor bieden Uitstellen in plaats van Klaar.",
+  "tab.documents": "Documenten",
+  "tab.parts": "Onderdelen",
+  "tab.related": "Gerelateerd",
   "tab.appliances": "Apparaten",
   "tab.settings": "Instellingen",
   "tab.tasks": "Taken",

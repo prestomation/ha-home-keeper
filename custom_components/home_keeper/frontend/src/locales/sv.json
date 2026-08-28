@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "Apparat",
+  "appliance.tabEmpty": "Inget här ännu.",
   "appliances.archivedEmpty": "Inga arkiverade apparater.",
   "appliances.empty": "Inga apparater ännu. Lägg till en för att skapa en enhetssida som dina uppgifter (och batterier) kan dela — kylskåp, panna, varmvattenberedare…",
   "appliances.noMatch": "Inga apparater matchar detta filter.",
@@ -435,6 +436,9 @@
   "settings.shopping_list_entity": "Spegla påminnelser till den här listan",
   "settings.sync_problem_sensors": "Synkronisera problemsensorer som uppgifter",
   "settings.sync_problem_sensors_help": "En synkroniserad uppgift avslutas först när källintegrationen löser problemet, inte när du trycker på Klar. Påminnelser om den erbjuder Skjut upp i stället för Klar.",
+  "tab.documents": "Dokument",
+  "tab.parts": "Delar",
+  "tab.related": "Relaterade",
   "tab.appliances": "Apparater",
   "tab.settings": "Inställningar",
   "tab.tasks": "Uppgifter",

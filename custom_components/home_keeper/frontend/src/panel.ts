@@ -105,6 +105,9 @@ import {
   type AssetTreeEntry,
   type PanelLocation,
   type PanelView,
+  type AssetTab,
+  ASSET_TABS,
+  DEFAULT_ASSET_TAB,
 } from './utils';
 
 // mdi:devices — fallback icon when a device has no resolvable brand logo.
@@ -726,6 +729,21 @@ const STYLES = `
   }
   .hk-part-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
   .hk-part-chips ha-assist-chip { --ha-assist-chip-container-height: 28px; }
+  /* Each part answers the same three questions — how often, when last, how many
+     spares — so each gets its own cell and they always appear in that order. The
+     comp draws this as a five-column table; in the real panel the appliance list
+     sits beside the detail, leaving roughly 700px of pane, which is not enough for
+     five columns without wrapping "Every 12 months" onto two lines. (Nor would a
+     per-row grid line up: each row is its own grid container, so content-sized
+     columns are sized per row.) Fixed order in a wrapping row keeps what the table
+     was for — reading the same fact in the same place on every part. */
+  .hk-part-cell { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
+  .hk-part-cell:empty { display: none; }
+  /* How much of the reorder point is left. "1 of 2" is a number to work out; a
+     half-empty amber bar is a glance. */
+  .hk-part-meter { margin: 0; width: 72px; height: 5px; flex: none; }
+  .hk-part-meter > span { background: var(--hk-ok); }
+  .hk-part-meter.low > span { background: var(--hk-warn); }
   .hk-part-notes { color: var(--secondary-text-color); margin-top: 6px; }
   /* The rule the form currently describes, in one sentence, immediately above the
      submit button — the last thing read before committing. Louder than .hk-form-hint
@@ -925,6 +943,65 @@ const STYLES = `
     color: var(--hk-danger-ink); background: var(--hk-danger-soft);
   }
 
+  /* ── Appliances: the list stays beside the appliance ───────────────────────
+     An appliance is almost always read in comparison with its siblings ("which
+     one had the overdue part?"), so drilling in keeps the list rather than
+     replacing it. The pane scrolls independently of the detail beside it. */
+  .hk-master-detail { display: flex; align-items: flex-start; gap: 20px; }
+  .hk-master {
+    flex: 0 0 268px; position: sticky; top: 8px;
+    max-height: calc(100vh - 24px); overflow: auto; overscroll-behavior: contain;
+  }
+  .hk-detail-pane { flex: 1 1 auto; min-width: 0; }
+  /* In the pane the rows are a picker, not the page: tighter, and the selected one
+     is marked the way the drawer marks the row it is editing. */
+  .hk-master ha-card.hk-card { margin-bottom: 6px; }
+  .hk-master .hk-card-row { padding: 10px 12px; gap: 8px; }
+  .hk-master ha-card.hk-card.hk-selected {
+    border-left: 3px solid var(--hk-accent);
+    background: var(--hk-accent-soft);
+    --ha-card-border-radius: 0 var(--hk-r-row) var(--hk-r-row) 0;
+  }
+
+  /* ── Appliance sub-tabs ────────────────────────────────────────────────────
+     Seven stacked sections became a page you scrolled; as tabs, each is one click
+     and one URL. The strip scrolls sideways rather than wrapping, so the tab you
+     want is never on a second line. */
+  .hk-subtabs {
+    display: flex; gap: 2px; padding: 0 8px;
+    border-top: 1px solid var(--hk-line);
+    background: var(--hk-page);
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .hk-subtabs::-webkit-scrollbar { display: none; }
+  .hk-subtab {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    font: inherit; font-size: 0.85rem; color: var(--hk-ink-2);
+    padding: 12px 14px 10px; white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .hk-subtab:hover { color: var(--hk-ink); }
+  .hk-subtab.active {
+    color: var(--hk-accent-ink); font-weight: 500;
+    border-bottom-color: var(--hk-accent);
+  }
+  .hk-subtab-count {
+    font-size: 0.7rem; font-weight: 700; border-radius: var(--hk-r-pill);
+    padding: 1px 7px; background: var(--hk-page);
+    background: color-mix(in srgb, var(--hk-ink) 8%, transparent);
+    font-variant-numeric: tabular-nums;
+  }
+  .hk-subtab.active .hk-subtab-count {
+    background: color-mix(in srgb, var(--hk-accent) 22%, transparent);
+  }
+  /* The header card owns the tab strip, so it loses its bottom padding to it. */
+  ha-card.hk-asset-head { margin-bottom: 12px; }
+  ha-card.hk-asset-head .hk-subtabs { margin-top: 4px; }
+  /* The first section inside a tab body already sits under the strip, so it does
+     not need the leading margin a stacked section carried. */
+  .hk-subtab-body > .hk-section:first-child { margin-top: 0; }
+
   /* Detail page */
   .hk-detailbar { display: flex; align-items: center; margin-bottom: 12px; }
   .hk-detail-card { margin-bottom: 12px; }
@@ -1105,6 +1182,14 @@ const STYLES = `
     .hk-rail-link { width: auto; white-space: nowrap; border: 1px solid var(--hk-line); }
     .hk-rail-foot { display: none; }
     .hk-settings-col { max-width: none; width: 100%; }
+  }
+
+  /* No room for the list beside the appliance — the appliance takes the column and
+     the back button in its bar is the way back to the list. */
+  @media (max-width: 900px) {
+    .hk-master-detail { display: block; }
+    .hk-master { display: none; }
+    .hk-detail-pane { min-width: 0; }
   }
 
   @media (max-width: 700px) {
@@ -1363,7 +1448,7 @@ export class HomeKeeperPanel extends HTMLElement {
   // Individual profile/notification items the user has expanded (default: collapsed).
   private _itemExpanded = new Set<string>();
   // The object whose full detail page is open, or null for the list view.
-  private _detail: { kind: 'task' | 'asset'; id: string } | null = null;
+  private _detail: PanelLocation['detail'] = null;
   // Short-lived signed URLs for the uploaded files on screen, minted ahead of the click
   // so every file is opened by a native anchor tap rather than a JS `window.open` the
   // iOS app's WKWebView would swallow (issue #164). Filled by `_signFiles`.
@@ -1438,7 +1523,8 @@ export class HomeKeeperPanel extends HTMLElement {
     const changed =
       loc.view !== this._view ||
       loc.detail?.kind !== this._detail?.kind ||
-      loc.detail?.id !== this._detail?.id;
+      loc.detail?.id !== this._detail?.id ||
+      loc.detail?.tab !== this._detail?.tab;
     if (!changed) return;
     this._view = loc.view;
     this._detail = loc.detail;
@@ -1606,8 +1692,27 @@ export class HomeKeeperPanel extends HTMLElement {
 
   // ── detail page lifecycle ───────────────────────────────────────────────────
   private _openDetail(kind: 'task' | 'asset', id: string): void {
-    // Drilling in is a Back-able step: push.
-    this._navigate({ view: kind === 'asset' ? 'appliances' : 'tasks', detail: { kind, id } });
+    // Drilling in is a Back-able step: push. An appliance opens on its default
+    // sub-tab; `buildPath` leaves that one out of the URL.
+    const detail =
+      kind === 'asset' ? { kind, id, tab: DEFAULT_ASSET_TAB } : { kind, id };
+    this._navigate({ view: kind === 'asset' ? 'appliances' : 'tasks', detail });
+  }
+
+  /** Which sub-tab the open appliance detail is showing. */
+  private _assetTab(): AssetTab {
+    return this._detail?.tab ?? DEFAULT_ASSET_TAB;
+  }
+
+  /**
+   * Switch the open appliance's sub-tab. A lateral move within one appliance, so it
+   * *replaces* rather than pushes: Back should leave the appliance, not retrace every
+   * tab you looked at on the way through it — the same rule the top-level tabs follow.
+   */
+  private _setAssetTab(tab: AssetTab): void {
+    const detail = this._detail;
+    if (!detail || detail.kind !== 'asset' || this._assetTab() === tab) return;
+    this._navigate({ view: 'appliances', detail: { ...detail, tab } }, true);
   }
   private _closeDetail(): void {
     if (this._hasHistory) {
@@ -2456,6 +2561,24 @@ export class HomeKeeperPanel extends HTMLElement {
       )}</ha-button></div>`;
     } else if (!this._loaded) {
       inner = `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
+    } else if (this._detail?.kind === 'asset') {
+      // An appliance is read next to the list it came from: the master pane stays,
+      // the detail fills the rest, and the top tabs stay reachable. Below the
+      // breakpoint the pane steps aside and the back button carries the return trip.
+      // Back lives above both columns, not inside the master pane: the pane is hidden
+      // on a narrow screen, and that is exactly where Back is the only way out.
+      inner = `
+        ${this._tabs()}
+        <div class="hk-detailbar">
+          <ha-button id="back-btn" appearance="plain">‹ ${escapeHTML(t('btn.back'))}</ha-button>
+        </div>
+        ${this._controls()}
+        <div class="hk-master-detail">
+          <div class="hk-master">
+            <div id="hk-list">${this._assetsList()}</div>
+          </div>
+          <div class="hk-detail-pane">${this._detailView()}</div>
+        </div>`;
     } else if (this._detail) {
       inner = `
         <div class="hk-detailbar">
@@ -2618,7 +2741,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
     const actions = `
       <span class="hk-controls-spacer"></span>
-      ${onTasks ? '' : `<ha-button id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
+      ${onTasks ? '' : `<ha-button appearance="filled" id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
       <ha-button raised id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
     return `<div class="hk-controls">${filterControl}${assetFilterControl}${viewControl}${this._profileControl()}${groupControl}${actions}</div>`;
   }
@@ -3138,8 +3261,12 @@ export class HomeKeeperPanel extends HTMLElement {
     const chevron = toggleId
       ? `<span class="hk-chevron" data-tree-toggle="${escapeHTML(toggleId)}"></span>`
       : '';
+    // In the master pane the list doubles as a picker, so the appliance on screen
+    // beside it is marked.
+    const selected =
+      this._detail?.kind === 'asset' && this._detail.id === x.id ? ' hk-selected' : '';
     return `
-      <ha-card class="hk-card${depthClass}" data-id="${escapeHTML(x.id)}"${depthStyle}>
+      <ha-card class="hk-card${depthClass}${selected}" data-id="${escapeHTML(x.id)}"${depthStyle}>
         ${chevron}
         <div class="hk-card-row">
           <div class="grow clickable detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(x.id)}" role="button" tabindex="0">
@@ -3454,8 +3581,26 @@ export class HomeKeeperPanel extends HTMLElement {
           t('detail.archivedOn', { date: new Date(asset.archived_at as string).toLocaleDateString() }),
         )}</div>`
       : '';
+    // Seven stacked sections made an appliance a page you scrolled rather than read,
+    // and the section you wanted was rarely the first one. They become sub-tabs, each
+    // a URL of its own so Back leaves a sub-tab like any other destination. The
+    // section builders are unchanged — only one of them renders at a time.
+    const bodies: Record<AssetTab, string> = {
+      parts: this._partsSection(asset),
+      tasks: this._relatedTasksSection(asset),
+      documents: this._documentsSection(asset),
+      details: `${detailsCard}${this._assetNotesSection(asset)}`,
+      related: this._subdevicesSection(asset),
+      history: this._historySection('asset', asset.id),
+    };
+    const tab = this._assetTab();
+    // An empty section still gets its tab: a tab that came and went with its contents
+    // would move every other tab under the cursor as an appliance gains a document.
+    const body =
+      bodies[tab] ||
+      `<ha-alert alert-type="info">${escapeHTML(t('appliance.tabEmpty'))}</ha-alert>`;
     return `
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">
+      <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(title)}</div>
         <div class="hk-chips">${kindChip}${parentChip}</div>
         ${archivedNote}
@@ -3464,14 +3609,40 @@ export class HomeKeeperPanel extends HTMLElement {
           ${archiveOrRestoreBtn}
           <ha-button destructive class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>
         </div>
-      </div></ha-card>
-      ${detailsCard}
-      ${this._assetNotesSection(asset)}
-      ${this._documentsSection(asset)}
-      ${this._partsSection(asset)}
-      ${this._relatedTasksSection(asset)}
-      ${this._subdevicesSection(asset)}
-      ${this._historySection('asset', asset.id)}`;
+      </div>
+      <div class="hk-subtabs" role="tablist">${this._assetSubtabs(asset, tab)}</div>
+      </ha-card>
+      <div class="hk-subtab-body">${body}</div>`;
+  }
+
+  /** The appliance detail's sub-tab strip, each tab carrying how much it holds. */
+  private _assetSubtabs(asset: Asset, current: AssetTab): string {
+    const counts: Record<AssetTab, number | null> = {
+      parts: asset.parts?.length ?? 0,
+      tasks: tasksForAsset(asset, this._tasks).length,
+      documents: asset.documents?.length ?? 0,
+      details: null,
+      related: this._assets.filter((a) => a.parent_asset_id === asset.id).length +
+        (asset.related_device_ids?.length ?? 0),
+      history: this._completionGroupsFor('asset', asset.id).length,
+    };
+    // Short labels: six tabs and their counts have to fit a strip that is already
+    // sharing the row with the appliance list. The sections themselves keep their
+    // fuller headings ("Parts & wear items"), which is where the room for them is.
+    const labels: Record<AssetTab, string> = {
+      parts: t('tab.parts'),
+      tasks: t('tab.tasks'),
+      documents: t('tab.documents'),
+      details: t('detail.about'),
+      related: t('tab.related'),
+      history: t('btn.history'),
+    };
+    return ASSET_TABS.map((tab) => {
+      const n = counts[tab];
+      const count = n ? `<span class="hk-subtab-count">${escapeHTML(String(n))}</span>` : '';
+      return `<button class="hk-subtab${tab === current ? ' active' : ''}" data-tab="${tab}"
+        role="tab" aria-selected="${tab === current}">${escapeHTML(labels[tab])}${count}</button>`;
+    }).join('');
   }
 
   /** The appliance's documents (manuals/warranties/receipts). Both kinds render as a
@@ -3531,45 +3702,61 @@ export class HomeKeeperPanel extends HTMLElement {
         const subLine = sub.length
           ? `<div class="hk-part-sub">${escapeHTML(sub.join(' · '))}</div>`
           : '';
-        // Chips: the actionable status (cadence, last replaced, stock on hand).
-        const chips: string[] = [];
-        if (isWear && p.replace_interval && p.replace_unit) {
-          chips.push(
-            chip(
-              t('part.every', {
-                n: p.replace_interval,
-                unit: t(`opt.unit.${p.replace_unit}`),
-              }),
-            ),
-          );
-        }
-        if (isWear) {
-          chips.push(
-            chip(
+        // The status a part is read for — how often it is replaced, when it last was,
+        // and how many spares are left — is the same three questions for every part,
+        // so each gets a fixed cell. On a wide screen the cells line up into columns
+        // and the list becomes a table that can be scanned down; narrow, they fall
+        // back to the wrapped chip row they have always been. A part that can't answer
+        // one of the three still emits its cell, or the columns would not align.
+        const cadence =
+          isWear && p.replace_interval && p.replace_unit
+            ? chip(
+                t('part.every', {
+                  n: p.replace_interval,
+                  unit: t(`opt.unit.${p.replace_unit}`),
+                }),
+              )
+            : '';
+        const replaced = isWear
+          ? chip(
               p.last_replaced
                 ? t('part.replacedOn', { date: p.last_replaced })
                 : t('part.neverReplaced'),
-            ),
-          );
-        }
+            )
+          : '';
         const low = p.stock != null && p.reorder_at != null && p.stock <= p.reorder_at;
+        let spares = '';
         if (p.stock != null) {
           // "In stock: 250 ml" — the unit rides with the number wherever stock is
           // shown, so a measured part never reads as a bare count of somethings.
           const onHand = formatQuantity(p.stock, p.stock_unit);
-          chips.push(
-            low
-              ? chip(t('part.lowStock', { n: onHand }), 'hk-overdue')
-              : chip(t('part.inStock', { n: onHand })),
-          );
+          spares = low
+            ? chip(t('part.lowStock', { n: onHand }), 'hk-overdue')
+            : chip(t('part.inStock', { n: onHand }));
+          // What one completion takes off, when it isn't the plain single spare.
+          if (p.consume_quantity != null) {
+            spares += chip(t('part.perUse', { n: formatQuantity(p.consume_quantity, p.stock_unit) }));
+          }
+          // A bar for how much of the reorder point is left: "1 of 2" is a number to
+          // work out, a half-empty amber bar is a glance. Only where a reorder point
+          // says what "enough" means.
+          if (p.reorder_at != null && p.reorder_at > 0) {
+            const pct = Math.max(0, Math.min(100, (p.stock / (p.reorder_at * 2)) * 100));
+            spares +=
+              `<div class="hk-meter hk-part-meter${low ? ' low' : ''}" role="progressbar"` +
+              ` aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"` +
+              ` aria-label="${escapeHTML(t('part.inStock', { n: formatQuantity(p.stock, p.stock_unit) }))}">` +
+              `<span style="width:${pct.toFixed(1)}%"></span></div>`;
+          }
         }
-        // What one completion takes off, when it isn't the plain single spare.
-        if (p.stock != null && p.consume_quantity != null) {
-          chips.push(
-            chip(t('part.perUse', { n: formatQuantity(p.consume_quantity, p.stock_unit) })),
-          );
-        }
-        const chipRow = chips.length ? `<div class="hk-part-chips">${chips.join('')}</div>` : '';
+        const chipRow =
+          cadence || replaced || spares
+            ? `<div class="hk-part-chips">
+                 <div class="hk-part-cell hk-part-cadence">${cadence}</div>
+                 <div class="hk-part-cell hk-part-replaced">${replaced}</div>
+                 <div class="hk-part-cell hk-part-spares">${spares}</div>
+               </div>`
+            : '';
         const badge = `<span class="hk-part-badge">${escapeHTML(t(`opt.part.${p.type}`))}</span>`;
         const name = p.url
           ? `<a href="${safeHref(p.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(p.name)}</a>`
@@ -4103,8 +4290,8 @@ export class HomeKeeperPanel extends HTMLElement {
       }),
     );
 
-    // Detail page: just the back button, the detail's own action buttons, and
-    // any device chips / completion-delete buttons it renders.
+    // A detail page's own controls: back, its action buttons, device chips and
+    // completion-delete buttons.
     if (this._detail) {
       root.getElementById('back-btn')?.addEventListener('click', () => this._closeDetail());
       this._wireDetailActions(root);
@@ -4112,7 +4299,18 @@ export class HomeKeeperPanel extends HTMLElement {
       this._wireDeviceChips(root);
       this._wirePartIcons(root);
       this._wireHistoryDeletes(root);
-      return;
+      root.querySelectorAll<HTMLElement>('.hk-subtab').forEach((b) =>
+        b.addEventListener('click', () => {
+          const tab = b.dataset.tab;
+          if (tab && (ASSET_TABS as readonly string[]).includes(tab)) {
+            this._setAssetTab(tab as AssetTab);
+          }
+        }),
+      );
+      // A task detail is a page of its own and stops here. An appliance detail is
+      // rendered beside the appliance list, so it keeps the top tabs, the list
+      // controls and the list rows — all wired below.
+      if (this._detail.kind !== 'asset') return;
     }
 
     // Tab navigation. Listen on each tab (click) and on the group's shoelace

@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "Apparat",
+  "appliance.tabEmpty": "Der er ikke noget her endnu.",
   "appliances.archivedEmpty": "Ingen arkiverede apparater.",
   "appliances.empty": "Ingen apparater endnu. Tilføj et for at oprette en enhedsside, som dine opgaver (og batterier) kan dele — køleskab, fyr, vandvarmer…",
   "appliances.noMatch": "Ingen apparater matcher dette filter.",
@@ -435,6 +436,9 @@
   "settings.shopping_list_entity": "Spejl påmindelser til denne liste",
   "settings.sync_problem_sensors": "Synkronisér problemsensorer som opgaver",
   "settings.sync_problem_sensors_help": "En synkroniseret opgave lukkes først, når kildeintegrationen løser problemet, ikke når du trykker Færdig. Påmindelser for den tilbyder Udsæt i stedet for Færdig.",
+  "tab.documents": "Dokumenter",
+  "tab.parts": "Dele",
+  "tab.related": "Relaterede",
   "tab.appliances": "Apparater",
   "tab.settings": "Indstillinger",
   "tab.tasks": "Opgaver",

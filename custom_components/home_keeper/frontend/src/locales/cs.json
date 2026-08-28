@@ -1,6 +1,7 @@
 {
   "app.title": "Home Keeper",
   "appliance.fallbackName": "Spotřebič",
+  "appliance.tabEmpty": "Zatím tu nic není.",
   "appliances.archivedEmpty": "Žádné archivované spotřebiče.",
   "appliances.empty": "Zatím žádné spotřebiče. Přidejte jeden a vytvořte stránku zařízení, kterou mohou sdílet vaše úkoly (a baterie) — lednice, kotel, ohřívač vody…",
   "appliances.noMatch": "Žádný spotřebič neodpovídá tomuto filtru.",
@@ -467,6 +468,9 @@
   "settings.shopping_list_entity": "Zrcadlit připomínky do tohoto seznamu",
   "settings.sync_problem_sensors": "Synchronizovat senzory problémů jako úkoly",
   "settings.sync_problem_sensors_help": "Synchronizovaný úkol se uzavře, až když zdrojová integrace problém vyřeší, ne když klepnete na Hotovo. Připomenutí u něj nabízejí Odložit místo Hotovo.",
+  "tab.documents": "Dokumenty",
+  "tab.parts": "Díly",
+  "tab.related": "Související",
   "tab.appliances": "Spotřebiče",
   "tab.settings": "Nastavení",
   "tab.tasks": "Úkoly",

@@ -339,14 +339,33 @@ export function scanRequired(task: Partial<Task>): boolean {
 export type PanelView = 'tasks' | 'appliances' | 'settings';
 
 /**
+ * The sub-tabs an appliance's detail page is divided into. Each is a URL of its own,
+ * so Back leaves a sub-tab the same way it leaves any other destination.
+ *
+ * `parts` is the default: it is the reason most appliances exist in Home Keeper.
+ */
+export const ASSET_TABS = [
+  'parts',
+  'tasks',
+  'documents',
+  'details',
+  'related',
+  'history',
+] as const;
+export type AssetTab = (typeof ASSET_TABS)[number];
+export const DEFAULT_ASSET_TAB: AssetTab = 'parts';
+
+/**
  * A fully-resolved panel location: which tab is shown and, optionally, the
  * detail page open on top of it. This is the panel's entire navigation state —
  * it round-trips losslessly with the URL via {@link parseRoute} / {@link buildPath}
  * so the URL can be the single source of truth (high-fidelity deep linking).
+ *
+ * An appliance detail also carries which of its sub-tabs is open.
  */
 export interface PanelLocation {
   view: PanelView;
-  detail: { kind: 'task' | 'asset'; id: string } | null;
+  detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab } | null;
 }
 
 /**
@@ -354,6 +373,11 @@ export interface PanelLocation {
  * hands the panel) into a {@link PanelLocation}. Unknown/empty paths fall back to
  * the tasks list. The asset detail lives under the `appliances` segment but keeps
  * the internal `asset` kind.
+ *
+ * A third segment names an appliance sub-tab (`/appliances/<id>/documents`). An
+ * unrecognised one falls back to the default rather than 404-ing, and a bare
+ * `/appliances/<id>` — every link minted before sub-tabs existed, including the
+ * `configuration_url` on already-registered devices — keeps resolving.
  */
 export function parseRoute(path: string | undefined | null): PanelLocation {
   const parts = String(path ?? '')
@@ -365,6 +389,13 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
   // Only the tasks/appliances lists drill into a detail page; settings has none.
   if (parts[1] && view !== 'settings') {
     const kind = view === 'appliances' ? 'asset' : 'task';
+    if (kind === 'asset') {
+      const raw = parts[2] ? decodeURIComponent(parts[2]) : '';
+      const tab = (ASSET_TABS as readonly string[]).includes(raw)
+        ? (raw as AssetTab)
+        : DEFAULT_ASSET_TAB;
+      return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
+    }
     return { view, detail: { kind, id: decodeURIComponent(parts[1]) } };
   }
   return { view, detail: null };
@@ -374,11 +405,17 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
  * Build the route path (under the panel prefix) for a {@link PanelLocation} —
  * the inverse of {@link parseRoute}. The detail page's URL segment derives from
  * the view, so a task detail is `/tasks/<id>` and an asset detail is
- * `/appliances/<id>`.
+ * `/appliances/<id>`, plus its sub-tab where one is open.
+ *
+ * The default sub-tab is left off the URL: `/appliances/<id>` and
+ * `/appliances/<id>/parts` are the same page, and the shorter one is what a link
+ * to an appliance should look like.
  */
 export function buildPath(loc: PanelLocation): string {
-  if (loc.detail) return `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
-  return `/${loc.view}`;
+  if (!loc.detail) return `/${loc.view}`;
+  const base = `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
+  const tab = loc.detail.tab;
+  return tab && tab !== DEFAULT_ASSET_TAB ? `${base}/${tab}` : base;
 }
 
 // ── completion history ───────────────────────────────────────────────────────
