@@ -632,8 +632,8 @@ read without opening anything.
 rail beside six expanded sections, so each one becomes a row naming it, what it is set
 to and its dot or count. Tapping a row opens that section by itself, with a back arrow
 to the index. Each section has an address of its own
-(`/home-keeper/settings/notifications`), so browser Back leaves a section the way it
-leaves any other page, and a section can be linked to.
+(`/home-keeper/settings/notifications`). Browser Back leaves a section the way it
+leaves any other page. A link can point straight at one.
 
 <p>
   <img src="docs/images/50-panel-mobile-settings-index.png" alt="The Settings section index at phone width" width="300">
