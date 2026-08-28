@@ -836,14 +836,6 @@ def events_by_payload(payload: str) -> tuple[EventSpec, ...]:
     )
 
 
-def service(name: str) -> ServiceSpec:
-    """Return the spec for *name*, raising ``KeyError`` when it isn't modelled."""
-    for spec in SERVICES:
-        if spec.name == name:
-            return spec
-    raise KeyError(name)
-
-
 __all__ = [
     "DEVICE_TRIGGERS",
     "ENTITY_PLATFORMS",
@@ -866,6 +858,5 @@ __all__ = [
     "SurfaceKind",
     "WebsocketSpec",
     "events_by_payload",
-    "service",
     "triggers_for",
 ]
