@@ -849,9 +849,9 @@ sends what each phone understands.
 
 On **Android** the channel is a real notification channel, created the first time a
 reminder uses the name. It then appears under **Settings → Notifications → Home
-Assistant** on the phone itself, where you give it a sound or let it override Do Not
-Disturb. That per-channel switch is what lets *Medication* ring through a silent
-evening while *Batteries* makes no sound at all.
+Assistant** on the phone itself, where its sound and its Do Not Disturb exception
+become yours to set. That per-channel switch is what lets *Medication* ring through a
+silent evening while *Batteries* makes no sound at all.
 
 On **iPhone** there are no channels. Home Keeper sends the same name as a thread so
 those reminders group together, and maps the urgency onto the interruption level iOS
@@ -878,14 +878,15 @@ exactly as they did before.
 
 ### Automations that carry the rest
 
-Home Keeper sends a reminder once and stops. Repeating a reminder, or holding one back
-until you are home, belongs in a Home Assistant automation rather than a Home Keeper
-setting. That keeps the timing yours to change, and `home_keeper.notify` does nothing
-at all when nothing matches, so a schedule that fires all day costs you nothing on the
-days you are caught up.
+Home Keeper sends a reminder once and stops. Repeating a reminder belongs in a Home
+Assistant automation rather than a Home Keeper setting. So does holding one back until
+somebody gets home. That keeps the timing yours to change without waiting on a release.
 
-Build these in **Settings → Automations & scenes** if you would rather not write YAML.
-The trigger and the condition are the two rows that matter, and the action is one line.
+`home_keeper.notify` sends nothing when nothing matches. A schedule that fires all day
+costs nothing on the days the list is already clear.
+
+Build these in **Settings → Automations & scenes** rather than writing YAML by hand.
+The trigger and the condition are the two rows that matter. The action is one line.
 
 **Nag me until it's done.** A reminder cleared by accident comes back every two hours
 between breakfast and bedtime. This is the answer to "re-send it until I deal with it".
