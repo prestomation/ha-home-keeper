@@ -1430,6 +1430,11 @@ const STYLES = `
     .hk-chips.hk-chips-inline { flex: 1 1 100%; flex-wrap: wrap; order: 1; }
     .hk-status { order: 2; }
     .hk-card-actions { order: 3; margin-inline-start: auto; }
+    /* The spacer pushes Done to the right end of a *single-line* row. Once the row
+       wraps, the actions' margin-inline-start: auto does that job instead — and the
+       spacer, left at order 0 while .grow beside it is flex: 1 1 100%, cannot share
+       a line with anything and takes a whole empty one of its own. */
+    .hk-row-spacer { display: none; }
   }
 
   /* ── Narrow: the drawer becomes a bottom sheet ─────────────────────────────

@@ -42,6 +42,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   overdue pill, the "Integration offline" chip and the selected filter were all drawn
   below the contrast a label needs, in one theme or the other.
 
+- **A task row on a phone no longer carries an empty line.** The spacer that pushes
+  Done to the end of a single-line row stayed in a wrapped one, where it took a whole
+  line to itself and left a visible gap under the task name.
+
 ## [0.18.0] - 2026-08-29
 
 ### Added
