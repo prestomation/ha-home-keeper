@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Core concepts | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-246/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-246/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-246/docs/guide/concepts"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Core concepts | Home Keeper"><meta data-rh="true" name="description" content="A task has a name, notes, an optional device it&#x27;s attached to, and a recurrence:"><meta data-rh="true" property="og:description" content="A task has a name, notes, an optional device it&#x27;s attached to, and a recurrence:"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-246/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-246/docs/guide/concepts"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-246/docs/guide/concepts" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-246/docs/guide/concepts" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Concepts","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-246/docs/guide/concepts"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-246/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-246/assets/js/runtime~main.544a3742.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-246/assets/js/runtime~main.848c9ba7.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-246/assets/js/main.5ff43b4d.js" defer="defer"></script>
 </head>
 <body>
@@ -38,10 +38,11 @@ dashboard card, so they can see what&#x27;s due and mark it done. Full details, 
 what appliance data a non-admin can read, are in
 <a class="" href="/ha-home-keeper/pr-preview/pr-246/developer/security">the security model</a>.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="active-season">Active season<a href="#active-season" class="hash-link" aria-label="Direct link to Active season" title="Direct link to Active season" translate="no">​</a></h3>
-<p>Floating and fixed tasks take an optional <strong>active season</strong>: the part of the year the
-task belongs in. Outside it, the next due date moves forward to the start of the next
-window. <em>&quot;Fertilize the yard every 2 months, April 1 through September 30&quot;</em> completed
-on September 15 falls due on April 1 of the following year rather than November 15.</p>
+<p>Floating and fixed tasks take an optional <strong>active season</strong>. That is the part of the
+year the task belongs in. Outside it the next due date moves forward to the start of
+the next window. Take <em>&quot;fertilize the yard every 2 months, April 1 through
+September 30&quot;</em>. A completion on September 15 makes the task due on April 1 of the
+following year instead of November 15.</p>
 <p>Turn <strong>Active season</strong> on in the task form and pick the start and end dates.
 <strong>Add another season</strong> puts a second window on the task, so spring and fall can share
 one. A window that wraps the new year (November through March) works the same way.
