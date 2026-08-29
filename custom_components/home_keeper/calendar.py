@@ -100,6 +100,12 @@ class HomeKeeperCalendarEntity(
                 after=now - EVENT_DURATION,
             )
             if season:
+                # Walk the grid forward to the first occurrence inside the season.
+                # A grid that can never land in one (every 12 months from January,
+                # with a March season) exhausts the bound and leaves the task off
+                # the calendar rather than inventing an out-of-season date for it —
+                # it is still in the panel and on the to-do list, which is where an
+                # impossible pairing gets noticed and corrected.
                 for _ in range(recurrence.MAX_EXPAND_ITERATIONS):
                     if recurrence.in_season(occ, season):
                         break

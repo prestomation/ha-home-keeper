@@ -295,3 +295,82 @@ def test_collect_events_normal_window_returns_each_occurrence_once():
         _dt(2026, 6, 16, 9),
         _dt(2026, 6, 17, 9),
     ]
+
+
+# --- (c) active season: the calendar shows only in-season occurrences --------
+
+
+def test_event_skips_ahead_to_the_first_in_season_occurrence(monkeypatch):
+    """A daily task in December, restricted to a single day in April."""
+    anchor = _dt(2026, 6, 1, 9)
+    now = _dt(2026, 12, 15, 8)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+
+    task = _fixed_task(anchor, active_season=[{"start": "04-10", "end": "04-10"}])
+    event = _entity({"t_fixed": task}).event
+
+    assert event is not None
+    assert event.start == _dt(2027, 4, 10, 9)
+
+
+def test_event_is_none_when_the_grid_never_lands_in_the_season(monkeypatch):
+    """A grid that cannot intersect its season leaves the task off the calendar.
+
+    Every 12 months from a January anchor, in a March-only season: the grid only
+    ever lands in January, so the search exhausts its iteration bound. Nothing is
+    shown rather than a date outside the season being invented — the task is still
+    in the panel and on the to-do list, which is where it is acted on.
+    """
+    anchor = _dt(2026, 1, 15, 9)
+    now = _dt(2026, 6, 15, 8)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+
+    task = _fixed_task(
+        anchor,
+        freq="MONTHLY",
+        interval=12,
+        active_season=[{"start": "03-01", "end": "03-31"}],
+    )
+
+    assert _entity({"t_fixed": task}).event is None
+
+
+def test_collect_events_drops_occurrences_outside_every_season_window():
+    """Two windows, and a stretch of the year covered by neither."""
+    anchor = _dt(2026, 1, 1, 9)  # daily at 09:00
+    task = _fixed_task(
+        anchor,
+        active_season=[
+            {"start": "04-01", "end": "04-03"},
+            {"start": "04-06", "end": "04-07"},
+        ],
+    )
+    entity = _entity({"t_fixed": task})
+
+    starts = [e.start for e in entity._collect_events(_dt(2026, 4, 1), _dt(2026, 4, 9))]
+
+    assert starts == [
+        _dt(2026, 4, 1, 9),
+        _dt(2026, 4, 2, 9),
+        _dt(2026, 4, 3, 9),
+        _dt(2026, 4, 6, 9),
+        _dt(2026, 4, 7, 9),
+    ]
+
+
+def test_collect_events_keeps_a_wrapping_season_across_the_new_year():
+    """November through March includes both sides of the year boundary."""
+    anchor = _dt(2026, 1, 1, 9)
+    task = _fixed_task(anchor, active_season=[{"start": "11-01", "end": "03-31"}])
+    entity = _entity({"t_fixed": task})
+
+    starts = [
+        e.start for e in entity._collect_events(_dt(2026, 12, 30), _dt(2027, 1, 3))
+    ]
+
+    assert starts == [
+        _dt(2026, 12, 30, 9),
+        _dt(2026, 12, 31, 9),
+        _dt(2027, 1, 1, 9),
+        _dt(2027, 1, 2, 9),
+    ]
