@@ -259,15 +259,15 @@ pills carrying a count each, then the saved **Profile** and **Group by** pickers
 then **Add task**.
 
 **Editing opens in a drawer beside what you were reading.** Press **Edit** on a task
-or an appliance and the form opens as a column next to that page, which stays readable
-while you change the values it shows. Adding from a list opens the same drawer beside
-the list, with the row you are working on lit while the rest recedes. **Save** sits in
-a header that does not scroll away and **Delete** in a footer at the other end. The
-form is grouped into Basics, Schedule, Placement and Completion, and the fields a
-recurrence choice reveals are indented behind a rule so it is clear what they depend
-on.
+or an appliance and the form opens as a column next to that page. The page stays
+readable while its values are being changed. Adding from a list opens the same drawer
+beside the list with the row being edited lit and the rest of the list receding.
+**Save** sits in a header that does not scroll away and **Delete** in a footer at the
+other end. The form is grouped into Basics, Schedule, Placement and Completion. Fields
+that a recurrence choice reveals are indented behind a rule so it is clear what they
+depend on.
 
-![Editing a task beside its own page: the form in a drawer on the right, the task's schedule, notes and completion history still readable on the left](docs/images/54-panel-task-detail-edit.png)
+![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
 
 ![Adding a task in the drawer, with the row being edited marked in the list behind it](docs/images/2-panel-create-floating.png)
 
@@ -281,7 +281,7 @@ Editing an appliance opens beside it too, and the list pane steps aside to make 
 
 ![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
 
-![Editing an appliance beside its own page: the form on the right, the appliance's parts still on screen, the appliance list stepped aside](docs/images/55-panel-appliance-detail-edit.png)
+![An appliance's page with its edit form open beside it, the appliance list stepped aside to make room](docs/images/55-panel-appliance-detail-edit.png)
 
 **On a phone** the tabs move to the bottom of the screen. **Add task** turns into a
 floating button. The edit drawer becomes a full-height sheet. The scope pills come
