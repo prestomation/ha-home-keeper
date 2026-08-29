@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.18.0b3]
+
+### Added
+
+- **Services take a task's name, not just its id.** Every `task_id`, `asset_id`,
+  `part_id` and `document_id` field now accepts the name you gave the thing, and the
+  panel prints the id with a copy button for when two share one. Home Keeper reports an
+  ambiguous name instead of guessing which you meant.
+
 ## [0.18.0b2]
 
 ### Fixed

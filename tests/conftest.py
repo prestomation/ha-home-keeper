@@ -52,6 +52,7 @@ _PURE_MODULES = (
     "notifications",
     "tags",
     "card_resource",
+    "resolve",
     # ``options`` imports Home Assistant only under ``TYPE_CHECKING``, so the merge
     # and normalization rules every write path shares are testable here. Keep it
     # after the siblings it does ``from . import`` (notifications/profiles/shopping).

@@ -77,6 +77,42 @@ export function randomId(): string {
     .join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
 }
 
+/**
+ * Put *value* on the clipboard, resolving to whether it actually landed.
+ *
+ * `navigator.clipboard` is a **secure-context** API — the same trap as
+ * `crypto.randomUUID` above. Over a plain-HTTP LAN address, which is how plenty of
+ * people reach Home Assistant, it is simply absent, so the copy button beside an id
+ * would do nothing at all. Fall back to an off-screen textarea and the legacy
+ * `execCommand`, and report `false` when neither path works so the caller can say so
+ * rather than claiming a copy that never happened.
+ */
+export async function copyText(value: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // Denied, or the document is not focused. The textarea path still works.
+  }
+  const area = document.createElement('textarea');
+  area.value = value;
+  // Off-screen rather than `display:none`: a hidden element cannot be selected.
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.top = '-9999px';
+  document.body.appendChild(area);
+  try {
+    area.select();
+    return document.execCommand('copy');
+  } catch {
+    return false;
+  } finally {
+    area.remove();
+  }
+}
+
 /** True when a triggered task is currently armed (due-now) vs dormant. */
 export function isArmedTriggered(task: Task): boolean {
   return task.recurrence_type === 'triggered' && !!task.next_due;

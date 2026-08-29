@@ -71,6 +71,14 @@ from .coordinator import (
 )
 from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
+from .resolve import (
+    AmbiguousName,
+    NotFound,
+    resolve_asset_id,
+    resolve_document_id,
+    resolve_part_id,
+    resolve_task_id,
+)
 from .sensor_watcher import SensorTaskWatcher, read_sensor_value
 from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
@@ -675,6 +683,52 @@ def _register_services(hass: HomeAssistant) -> None:
             translation_domain=DOMAIN, translation_key="integration_not_loaded"
         )
 
+    def _ref(kind: str, resolver: Any, container: Any, key: str) -> str:
+        """Turn an id-or-name service field into an id.
+
+        Every ``*_id`` field accepts the object's name as well as its id, because
+        the ids are uuid4s a person has no way to know — the same bargain HA core
+        strikes with ``todo.update_item``'s "Item name or UID".
+
+        A name that matches nothing is handed **back unchanged** so the caller's
+        existing not-found path raises its own message quoting what the user
+        actually typed. Only ambiguity is raised here: it has no existing path, and
+        picking one of two identically named tasks for ``delete_task`` is the one
+        outcome worse than an error.
+        """
+        try:
+            return resolver(container, key)
+        except AmbiguousName as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key=f"{kind}_ambiguous",
+                translation_placeholders={"name": key, "ids": ", ".join(err.ids)},
+            ) from None
+        except NotFound:
+            return key
+
+    def _task_ref(coord: HomeKeeperCoordinator, key: str) -> str:
+        return _ref("task", resolve_task_id, coord.store.get_tasks(), key)
+
+    def _asset_ref(coord: HomeKeeperCoordinator, key: str) -> str:
+        return _ref("asset", resolve_asset_id, coord.store.get_assets(), key)
+
+    def _part_ref(coord: HomeKeeperCoordinator, asset_id: str, key: str) -> str:
+        """Resolve a part within *asset_id*, which must already be resolved."""
+        asset = coord.store.get_assets().get(asset_id)
+        return _ref("part", resolve_part_id, asset, key)
+
+    def _document_ref(coord: HomeKeeperCoordinator, asset_id: str, key: str) -> str:
+        """Resolve a document within *asset_id*, which must already be resolved."""
+        asset = coord.store.get_assets().get(asset_id)
+        return _ref("document", resolve_document_id, asset, key)
+
+    def _with_parent_ref(coord: HomeKeeperCoordinator, data: dict) -> dict:
+        """Resolve a ``parent_asset_id`` given as an appliance name, in place."""
+        if parent := data.get("parent_asset_id"):
+            data["parent_asset_id"] = _asset_ref(coord, parent)
+        return data
+
     async def _caller_is_admin(call: ServiceCall) -> bool:
         """Whether *call* may see/do administrative things.
 
@@ -736,7 +790,7 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         _check_area(call.data)
         data = dict(call.data)
-        task_id = data.pop("task_id")
+        task_id = _task_ref(coord, data.pop("task_id"))
         existing = coord.store.get_task(task_id)
         before = entity_set_key(existing)
         try:
@@ -762,11 +816,10 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_delete_task(call: ServiceCall) -> None:
         coord = _coordinator()
-        existing = coord.store.get_task(call.data["task_id"])
+        task_id = _task_ref(coord, call.data["task_id"])
+        existing = coord.store.get_task(task_id)
         try:
-            await coord.store.delete_task(
-                call.data["task_id"], force=call.data.get("force", False)
-            )
+            await coord.store.delete_task(task_id, force=call.data.get("force", False))
         except TaskValidationError as err:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
@@ -785,9 +838,10 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_complete_task(call: ServiceCall) -> None:
         coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
         try:
             await coord.store.complete_task(
-                call.data["task_id"],
+                task_id,
                 call.data.get("completed_at"),
                 origin=call.data.get("origin"),
                 metadata=_completion_metadata(call.data),
@@ -796,7 +850,7 @@ def _register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="task_not_found",
-                translation_placeholders={"task_id": call.data["task_id"]},
+                translation_placeholders={"task_id": task_id},
             ) from None
         except TaskValidationError as err:
             raise ServiceValidationError(
@@ -810,9 +864,10 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_update_completion(call: ServiceCall) -> None:
         coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
         try:
             await coord.store.update_completion(
-                call.data["task_id"],
+                task_id,
                 call.data["ts"],
                 _completion_metadata(call.data),
             )
@@ -820,7 +875,7 @@ def _register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="task_not_found",
-                translation_placeholders={"task_id": call.data["task_id"]},
+                translation_placeholders={"task_id": task_id},
             ) from None
         except TaskValidationError as err:
             raise ServiceValidationError(
@@ -832,9 +887,10 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_delete_completion(call: ServiceCall) -> None:
         coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
         try:
             await coord.store.delete_completion(
-                call.data["task_id"],
+                task_id,
                 call.data["ts"],
                 origin=call.data.get("origin"),
             )
@@ -842,7 +898,7 @@ def _register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="task_not_found",
-                translation_placeholders={"task_id": call.data["task_id"]},
+                translation_placeholders={"task_id": task_id},
             ) from None
         except TaskValidationError as err:
             raise ServiceValidationError(
@@ -854,9 +910,10 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_move_completion(call: ServiceCall) -> None:
         coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
         try:
             await coord.store.move_completion(
-                call.data["task_id"],
+                task_id,
                 call.data["old_ts"],
                 call.data["new_completed_at"].isoformat(),
             )
@@ -864,7 +921,7 @@ def _register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="task_not_found",
-                translation_placeholders={"task_id": call.data["task_id"]},
+                translation_placeholders={"task_id": task_id},
             ) from None
         except TaskValidationError as err:
             raise ServiceValidationError(
@@ -876,27 +933,30 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_delete_archived_completion(call: ServiceCall) -> None:
         coord = _coordinator()
+        asset_id = _asset_ref(coord, call.data["asset_id"])
+        task_id = _task_ref(coord, call.data["task_id"])
         try:
             await coord.store.delete_archived_completion(
-                call.data["asset_id"], call.data["task_id"], call.data["ts"]
+                asset_id, task_id, call.data["ts"]
             )
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="asset_not_found",
-                translation_placeholders={"asset_id": call.data["asset_id"]},
+                translation_placeholders={"asset_id": asset_id},
             ) from None
         await coord.async_request_refresh()
 
     async def handle_trigger_task(call: ServiceCall) -> None:
         coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
         try:
-            await coord.store.trigger_task(call.data["task_id"])
+            await coord.store.trigger_task(task_id)
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="task_not_found",
-                translation_placeholders={"task_id": call.data["task_id"]},
+                translation_placeholders={"task_id": task_id},
             ) from None
         except TaskValidationError as err:
             raise ServiceValidationError(
@@ -910,12 +970,13 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_set_task_meter(call: ServiceCall) -> None:
         coord = _coordinator()
-        task = coord.store.get_tasks().get(call.data["task_id"])
+        task_id = _task_ref(coord, call.data["task_id"])
+        task = coord.store.get_tasks().get(task_id)
         if task is None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="task_not_found",
-                translation_placeholders={"task_id": call.data["task_id"]},
+                translation_placeholders={"task_id": task_id},
             )
         cfg = sensor_tasks.sensor_config(task)
         if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
@@ -940,24 +1001,29 @@ def _register_services(hass: HomeAssistant) -> None:
                         )
                     },
                 )
-        await coord.store.set_sensor_baseline(
-            call.data["task_id"], float(baseline), silent=False
-        )
+        await coord.store.set_sensor_baseline(task_id, float(baseline), silent=False)
         await coord.async_request_refresh()
 
     async def handle_set_task_consumable(call: ServiceCall) -> None:
         coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        asset_key = call.data.get("asset_id") or None
+        asset_id = _asset_ref(coord, asset_key) if asset_key else None
+        part_key = call.data.get("part_id") or None
+        part_id = (
+            _part_ref(coord, asset_id, part_key) if part_key and asset_id else part_key
+        )
         try:
             await coord.store.set_task_consumable(
-                call.data["task_id"],
-                call.data.get("asset_id") or None,
-                call.data.get("part_id") or None,
+                task_id,
+                asset_id,
+                part_id,
             )
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="task_not_found",
-                translation_placeholders={"task_id": call.data["task_id"]},
+                translation_placeholders={"task_id": task_id},
             ) from None
         except TaskValidationError as err:
             raise ServiceValidationError(
@@ -971,16 +1037,17 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_snooze_task(call: ServiceCall) -> None:
         coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
         until = dt_util.now() + timedelta(hours=call.data["hours"])
         try:
             await coord.store.snooze_task(
-                call.data["task_id"], until, origin=call.data.get("origin")
+                task_id, until, origin=call.data.get("origin")
             )
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="task_not_found",
-                translation_placeholders={"task_id": call.data["task_id"]},
+                translation_placeholders={"task_id": task_id},
             ) from None
         except TaskValidationError as err:
             raise ServiceValidationError(
@@ -994,15 +1061,14 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_skip_task(call: ServiceCall) -> None:
         coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
         try:
-            await coord.store.skip_task(
-                call.data["task_id"], origin=call.data.get("origin")
-            )
+            await coord.store.skip_task(task_id, origin=call.data.get("origin"))
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="task_not_found",
-                translation_placeholders={"task_id": call.data["task_id"]},
+                translation_placeholders={"task_id": task_id},
             ) from None
         except TaskValidationError as err:
             raise ServiceValidationError(
@@ -1038,7 +1104,7 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         _check_area(call.data)
         try:
-            await coord.store.add_asset(dict(call.data))
+            await coord.store.add_asset(_with_parent_ref(coord, dict(call.data)))
         except AssetValidationError as err:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
@@ -1052,7 +1118,8 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         _check_area(call.data)
         data = dict(call.data)
-        asset_id = data.pop("asset_id")
+        asset_id = _asset_ref(coord, data.pop("asset_id"))
+        _with_parent_ref(coord, data)
         try:
             await coord.store.update_asset(asset_id, data)
         except KeyError:
@@ -1072,12 +1139,13 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_delete_asset(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
-        await _delete_asset(hass, coord, call.data["asset_id"])
+        asset_id = _asset_ref(coord, call.data["asset_id"])
+        await _delete_asset(hass, coord, asset_id)
 
     async def handle_archive_asset(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
-        asset_id = call.data["asset_id"]
+        asset_id = _asset_ref(coord, call.data["asset_id"])
         asset = await coord.store.archive_asset(asset_id)
         if asset is None:
             raise ServiceValidationError(
@@ -1089,7 +1157,7 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_restore_asset(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
-        asset_id = call.data["asset_id"]
+        asset_id = _asset_ref(coord, call.data["asset_id"])
         asset = await coord.store.restore_asset(asset_id)
         if asset is None:
             raise ServiceValidationError(
@@ -1113,17 +1181,17 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_adjust_part_stock(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
+        asset_id = _asset_ref(coord, call.data["asset_id"])
+        part_id = _part_ref(coord, asset_id, call.data["part_id"])
         try:
-            await coord.store.adjust_part_stock(
-                call.data["asset_id"], call.data["part_id"], call.data["delta"]
-            )
+            await coord.store.adjust_part_stock(asset_id, part_id, call.data["delta"])
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="unknown_part",
                 translation_placeholders={
-                    "asset_id": call.data["asset_id"],
-                    "part_id": call.data["part_id"],
+                    "asset_id": asset_id,
+                    "part_id": part_id,
                 },
             ) from None
         # A crossing may create/remove an auto-buy task; settle it (reload if a buy
@@ -1133,23 +1201,24 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_remove_part_file(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
+        asset_id = _asset_ref(coord, call.data["asset_id"])
+        part_id = _part_ref(coord, asset_id, call.data["part_id"])
         try:
-            await coord.store.remove_part_file(
-                call.data["asset_id"], call.data["part_id"]
-            )
+            await coord.store.remove_part_file(asset_id, part_id)
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="unknown_part",
                 translation_placeholders={
-                    "asset_id": call.data["asset_id"],
-                    "part_id": call.data["part_id"],
+                    "asset_id": asset_id,
+                    "part_id": part_id,
                 },
             ) from None
 
     async def handle_add_asset_document(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
+        asset_id = _asset_ref(coord, call.data["asset_id"])
         document = dict(call.data["document"])
         # Files are uploaded through the HTTP view; the service only adds links.
         if document.get("kind", "link") != "link":
@@ -1163,12 +1232,12 @@ def _register_services(hass: HomeAssistant) -> None:
             )
         document["kind"] = "link"
         try:
-            await coord.store.add_asset_document(call.data["asset_id"], document)
+            await coord.store.add_asset_document(asset_id, document)
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="asset_not_found",
-                translation_placeholders={"asset_id": call.data["asset_id"]},
+                translation_placeholders={"asset_id": asset_id},
             ) from None
         except AssetValidationError as err:
             raise ServiceValidationError(
@@ -1182,31 +1251,33 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_remove_asset_document(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
+        asset_id = _asset_ref(coord, call.data["asset_id"])
+        document_id = _document_ref(coord, asset_id, call.data["document_id"])
         try:
-            await coord.store.remove_asset_document(
-                call.data["asset_id"], call.data["document_id"]
-            )
+            await coord.store.remove_asset_document(asset_id, document_id)
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="asset_not_found",
-                translation_placeholders={"asset_id": call.data["asset_id"]},
+                translation_placeholders={"asset_id": asset_id},
             ) from None
 
     async def handle_update_asset_document(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
+        asset_id = _asset_ref(coord, call.data["asset_id"])
+        document_id = _document_ref(coord, asset_id, call.data["document_id"])
         try:
             await coord.store.update_asset_document(
-                call.data["asset_id"],
-                call.data["document_id"],
+                asset_id,
+                document_id,
                 dict(call.data["changes"]),
             )
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="asset_not_found",
-                translation_placeholders={"asset_id": call.data["asset_id"]},
+                translation_placeholders={"asset_id": asset_id},
             ) from None
         except AssetValidationError as err:
             raise ServiceValidationError(
@@ -1224,17 +1295,20 @@ def _register_services(hass: HomeAssistant) -> None:
         any caller with no interactive browser session) to download a manual or
         receipt rather than only list that it exists.
         """
+        coord = _coordinator()
+        asset_id = _asset_ref(coord, call.data["asset_id"])
+        document_id = _document_ref(coord, asset_id, call.data["document_id"])
         signed = await manuals.async_sign_document_url(
             hass,
-            call.data["asset_id"],
-            call.data["document_id"],
+            asset_id,
+            document_id,
             ttl=manuals.SERVICE_DOCUMENT_URL_TTL,
         )
         if signed is None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="unknown_document",
-                translation_placeholders={"document_id": call.data["document_id"]},
+                translation_placeholders={"document_id": document_id},
             )
         return {
             "url": f"{_instance_base_url(hass)}{signed}",
@@ -1247,10 +1321,13 @@ def _register_services(hass: HomeAssistant) -> None:
         See ``handle_sign_document_url``: same rationale, for a part's single file
         slot instead of an asset document.
         """
+        coord = _coordinator()
+        asset_id = _asset_ref(coord, call.data["asset_id"])
+        part_id = _part_ref(coord, asset_id, call.data["part_id"])
         signed = await manuals.async_sign_part_file_url(
             hass,
-            call.data["asset_id"],
-            call.data["part_id"],
+            asset_id,
+            part_id,
             ttl=manuals.SERVICE_DOCUMENT_URL_TTL,
         )
         if signed is None:

@@ -124,8 +124,8 @@
       "description": "Felder einer bestehenden Aufgabe aktualisieren.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der zu aktualisierenden Aufgabe."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der zu aktualisierenden Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "name": {
           "name": "Name",
@@ -210,8 +210,8 @@
       "description": "Eine Aufgabe löschen.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der zu löschenden Aufgabe."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der zu löschenden Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "force": {
           "name": "Erzwingen",
@@ -224,8 +224,8 @@
       "description": "Eine Aufgabe als abgeschlossen markieren und ihre Wiederholung weiterschalten.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der abzuschließenden Aufgabe."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der abzuschließenden Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "completed_at": {
           "name": "Abgeschlossen am",
@@ -262,8 +262,8 @@
       "description": "Ändert die Metadaten (Notiz, Kosten, Foto, Wer) einer bereits erfassten Erledigung, die anhand ihres Zeitstempels bestimmt wird. Ändert weder den Zeitplan noch das Fälligkeitsdatum.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der Aufgabe, deren Erledigung du bearbeitest."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe, deren Erledigung du bearbeitest. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "ts": {
           "name": "Erledigungszeitstempel",
@@ -296,8 +296,8 @@
       "description": "Eine bedingungsgesteuerte (ausgelöste) Aufgabe scharf schalten, sodass sie als jetzt fällig erscheint — das benutzerseitige Gegenstück zu „Aufgabe abschließen“ (das sie wieder in den Ruhezustand versetzt). Idempotent; nur für ausgelöste Aufgaben gültig.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         }
       }
     },
@@ -306,8 +306,8 @@
       "description": "Setzt den Ausgangswert einer verbrauchsbasierten Aufgabe (Zähler) neu, ohne eine Erledigung zu erfassen. Nützlich, wenn die Arbeit schon vor der Überwachung durch Home Keeper erledigt wurde oder der verknüpfte Zähler ausgetauscht bzw. auf null gesetzt wurde. Ohne Ausgangswert wird der aktuelle Messwert des Sensors verwendet. Nur für Sensoraufgaben im Verbrauchsmodus gültig.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der verbrauchsbasierten Sensoraufgabe, die neu verankert werden soll."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der verbrauchsbasierten Sensoraufgabe, die neu verankert werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "baseline": {
           "name": "Ausgangswert",
@@ -320,8 +320,8 @@
       "description": "Das Fälligkeitsdatum einer Aufgabe verschieben, ohne einen Abschluss zu erfassen oder die Wiederholung vorzurücken.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der zurückzustellenden Aufgabe."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der zurückzustellenden Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "hours": {
           "name": "Stunden",
@@ -338,8 +338,8 @@
       "description": "Eine Aufgabe zum nächsten Termin vorrücken, ohne einen Abschluss zu erfassen.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der zu überspringenden Aufgabe."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der zu überspringenden Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "origin": {
           "name": "Ursprung",
@@ -352,16 +352,16 @@
       "description": "Verknüpft eine Aufgabe mit einem Verbrauchsmaterial/Teil eines Geräts, sodass beim Abschließen ein Ersatzteil aus dem Bestand verbraucht wird und beim Nachbestellschwellenwert ein Ereignis bei niedrigem Bestand ausgelöst wird. Lasse asset_id und part_id weg, um die Verknüpfung zu entfernen.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "asset_id": {
-          "name": "Objekt-ID",
-          "description": "Die ID des Geräts, zu dem das Teil gehört."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "part_id": {
-          "name": "Teile-ID",
-          "description": "Die ID des Teils, dessen Bestand angepasst werden soll."
+          "name": "Teilename oder -ID",
+          "description": "Die ID des Teils, dessen Bestand angepasst werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         }
       }
     },
@@ -445,7 +445,7 @@
         },
         "parent_asset_id": {
           "name": "Übergeordnetes Gerät",
-          "description": "Dies zu einem Teilgerät eines anderen Geräts machen."
+          "description": "Dies zu einem Teilgerät eines anderen Geräts machen. Gib den Namen oder die ID an."
         },
         "related_device_ids": {
           "name": "Verknüpfte Geräte",
@@ -462,8 +462,8 @@
       "description": "Felder eines bestehenden Geräts/Assets aktualisieren.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "Die ID des zu aktualisierenden Assets."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des zu aktualisierenden Assets. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "name": {
           "name": "Name",
@@ -511,7 +511,7 @@
         },
         "parent_asset_id": {
           "name": "Übergeordnetes Gerät",
-          "description": "Dies zu einem Teilgerät eines anderen Geräts machen."
+          "description": "Dies zu einem Teilgerät eines anderen Geräts machen. Gib den Namen oder die ID an."
         },
         "related_device_ids": {
           "name": "Verknüpfte Geräte",
@@ -528,8 +528,8 @@
       "description": "Ein Gerät/Asset löschen. Sein virtuelles Gerät (falls vorhanden) wird entfernt und daran angehängte Aufgaben werden eigenständig.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "Die ID des zu löschenden Assets."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des zu löschenden Assets. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         }
       }
     },
@@ -538,8 +538,8 @@
       "description": "Ein Gerät/Asset aus der Standardansicht ausblenden, ohne seine Daten zu löschen. Sein Gerät, seine Entitäten und daran angehängte Aufgaben bleiben unangetastet; restore_asset macht dies rückgängig.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "Die ID des zu archivierenden Assets."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des zu archivierenden Assets. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         }
       }
     },
@@ -548,8 +548,8 @@
       "description": "Macht archive_asset rückgängig und bringt ein archiviertes Gerät zurück in die Standardansicht.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "Die ID des wiederherzustellenden Assets."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des wiederherzustellenden Assets. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         }
       }
     },
@@ -562,12 +562,12 @@
       "description": "Den vorhandenen Ersatzteilbestand um eine vorzeichenbehaftete Differenz ändern (bei null begrenzt); Dezimalwerte sind erlaubt. Wenn eine Verringerung die Nachbestellschwelle erreicht oder unterschreitet, wird ein Ereignis für niedrigen Bestand ausgelöst.",
       "fields": {
         "asset_id": {
-          "name": "Objekt-ID",
-          "description": "Die ID des Geräts, zu dem das Teil gehört."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "part_id": {
-          "name": "Teile-ID",
-          "description": "Die ID des Teils, dessen Bestand angepasst werden soll."
+          "name": "Teilename oder -ID",
+          "description": "Die ID des Teils, dessen Bestand angepasst werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "delta": {
           "name": "Differenz",
@@ -617,12 +617,12 @@
       "description": "Entfernt die angehängte Datei eines Teils (Beleg/Datenblatt/Foto) und löscht die gespeicherte Kopie von der Festplatte. Eine Datei über das Panel hochladen/ersetzen; dieser Dienst übernimmt nur das Entfernen.",
       "fields": {
         "asset_id": {
-          "name": "Objekt-ID",
-          "description": "Die ID des Geräts, zu dem das Teil gehört."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "part_id": {
-          "name": "Teile-ID",
-          "description": "Die ID des Teils, dessen Datei entfernt werden soll."
+          "name": "Teilename oder -ID",
+          "description": "Die ID des Teils, dessen Datei entfernt werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         }
       }
     },
@@ -631,8 +631,8 @@
       "description": "Hängt ein Link-Dokument (Handbuch/Garantie/Beleg) an ein Gerät an. Dateien lädst du im Panel hoch; dieser Dienst verarbeitet nur Links.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "Die ID des Geräts, an das das Dokument angehängt wird."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des Geräts, an das das Dokument angehängt wird. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "document": {
           "name": "Dokument",
@@ -645,12 +645,12 @@
       "description": "Entfernt ein Dokument von einem Gerät. Bei einer hochgeladenen Datei wird die gespeicherte Kopie ebenfalls von der Festplatte gelöscht.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "Die ID des Geräts, zu dem das Dokument gehört."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des Geräts, zu dem das Dokument gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "document_id": {
-          "name": "Dokument-ID",
-          "description": "Die ID des zu entfernenden Dokuments."
+          "name": "Dokumentname oder -ID",
+          "description": "Die ID des zu entfernenden Dokuments. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         }
       }
     },
@@ -659,12 +659,12 @@
       "description": "Bearbeitet ein vorhandenes Dokument eines Geräts – benennt es um oder ändert (bei Link-Dokumenten) dessen URL. Hochgeladene Dateien können nur umbenannt werden.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "Die ID des Geräts, zu dem das Dokument gehört."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des Geräts, zu dem das Dokument gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "document_id": {
-          "name": "Dokument-ID",
-          "description": "Die ID des zu bearbeitenden Dokuments."
+          "name": "Dokumentname oder -ID",
+          "description": "Die ID des zu bearbeitenden Dokuments. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "changes": {
           "name": "Änderungen",
@@ -677,8 +677,8 @@
       "description": "Versieht eine bereits erfasste Erledigung mit einem neuen Zeitstempel (rückwirkend datieren oder korrigieren), identifiziert anhand ihres aktuellen Zeitstempels. Im Gegensatz zu Erledigung aktualisieren ändert dies Datum/Uhrzeit der Erledigung und leitet das Datum der letzten Erledigung sowie das nächste Fälligkeitsdatum der Aufgabe aus dem Ergebnis neu ab.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der Aufgabe, deren Erledigung du verschiebst."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe, deren Erledigung du verschiebst. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "old_ts": {
           "name": "Aktueller Erledigungszeitstempel",
@@ -695,8 +695,8 @@
       "description": "Entfernt eine Erledigung aus dem Verlauf einer Aufgabe (macht ein versehentliches „Erledigt“ rückgängig), angegeben über ihren Zeitstempel.",
       "fields": {
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der Aufgabe, deren Erledigung du entfernst."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe, deren Erledigung du entfernst. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "ts": {
           "name": "Erledigungs-Zeitstempel",
@@ -713,12 +713,12 @@
       "description": "Entfernt eine Erledigung aus dem archivierten Verlauf eines Geräts, angegeben über die ursprüngliche Aufgaben-ID und den Zeitstempel.",
       "fields": {
         "asset_id": {
-          "name": "Geräte-ID",
-          "description": "Die ID des Geräts, dessen archivierten Verlauf du bearbeitest."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des Geräts, dessen archivierten Verlauf du bearbeitest. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "task_id": {
-          "name": "Aufgaben-ID",
-          "description": "Die ID der ursprünglichen Aufgabe, zu der die archivierte Erledigung gehört."
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der ursprünglichen Aufgabe, zu der die archivierte Erledigung gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "ts": {
           "name": "Erledigungs-Zeitstempel",
@@ -769,12 +769,12 @@
       "description": "Erstellt eine kurzlebige URL (kein Auth-Header nötig), über die ein externer Aufrufer die Bytes des Dokuments abrufen kann, z. B. ein per MCP verbundener Agent.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "Die ID des Geräts, zu dem das Dokument gehört."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des Geräts, zu dem das Dokument gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "document_id": {
-          "name": "Dokument-ID",
-          "description": "Die ID des Dokuments, für das eine URL signiert werden soll."
+          "name": "Dokumentname oder -ID",
+          "description": "Die ID des Dokuments, für das eine URL signiert werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         }
       }
     },
@@ -783,12 +783,12 @@
       "description": "Erstellt eine kurzlebige URL (kein Auth-Header nötig), über die ein externer Aufrufer die Bytes der angehängten Datei eines Teils abrufen kann, z. B. ein per MCP verbundener Agent.",
       "fields": {
         "asset_id": {
-          "name": "Objekt-ID",
-          "description": "Die ID des Geräts, zu dem das Teil gehört."
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         },
         "part_id": {
-          "name": "Teile-ID",
-          "description": "Die ID des Teils, dessen angehängte Datei signiert werden soll."
+          "name": "Teilename oder -ID",
+          "description": "Die ID des Teils, dessen angehängte Datei signiert werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
         }
       }
     }
@@ -833,71 +833,83 @@
     }
   },
   "exceptions": {
-    "unknown_area": {
-      "message": "Unknown area: {area_id}"
-    },
-    "invalid_task": {
-      "message": "{error}"
-    },
-    "task_not_found": {
-      "message": "Task not found: {task_id}"
-    },
-    "invalid_asset": {
-      "message": "{error}"
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
     },
     "asset_not_found": {
       "message": "Asset not found: {asset_id}"
     },
-    "unknown_part": {
-      "message": "Unknown appliance or part: {asset_id} / {part_id}"
-    },
     "complete_failed": {
       "message": "{error}"
     },
-    "notify_profile_not_found": {
-      "message": "Kein Benachrichtigungsprofil mit dem Namen {profile}."
-    },
-    "notify_notification_not_found": {
-      "message": "Keine Benachrichtigung mit dem Namen {notification}."
-    },
-    "notify_no_targets": {
-      "message": "Diese Benachrichtigung hat kein Ziel zum Senden – füge unter Einstellungen → Benachrichtigungen ein „Senden an“-Gerät hinzu oder übergib beim Aufruf target:."
-    },
-    "notify_invalid_target": {
-      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
-    },
-    "upload_requires_user": {
-      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
-    },
-    "integration_not_loaded": {
-      "message": "Home Keeper ist derzeit nicht geladen. Bitte versuche es gleich noch einmal."
-    },
-    "invalid_completed_at": {
-      "message": "Ungültiger completed_at-Zeitstempel."
-    },
-    "link_documents_only": {
-      "message": "Hier können nur Link-Dokumente hinzugefügt werden."
-    },
-    "unknown_document": {
-      "message": "Unbekanntes Dokument: {document_id}"
-    },
-    "unknown_part_file": {
-      "message": "Unbekanntes Teil oder keine angehängte Datei."
-    },
-    "no_instance_url": {
-      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
-    },
-    "file_too_large": {
-      "message": "Datei überschreitet das Limit von {mb} MB."
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
     },
     "expected_multipart_upload": {
       "message": "Es wurde ein Multipart-Upload erwartet."
     },
+    "failed_to_store_file": {
+      "message": "Datei konnte nicht gespeichert werden."
+    },
+    "file_too_large": {
+      "message": "Datei überschreitet das Limit von {mb} MB."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper ist derzeit nicht geladen. Bitte versuche es gleich noch einmal."
+    },
+    "invalid_asset": {
+      "message": "{error}"
+    },
+    "invalid_completed_at": {
+      "message": "Ungültiger completed_at-Zeitstempel."
+    },
+    "invalid_task": {
+      "message": "{error}"
+    },
+    "link_documents_only": {
+      "message": "Hier können nur Link-Dokumente hinzugefügt werden."
+    },
     "no_file_in_upload": {
       "message": "Kein Dateiteil im Upload."
     },
-    "failed_to_store_file": {
-      "message": "Datei konnte nicht gespeichert werden."
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
+    },
+    "notify_invalid_target": {
+      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
+    },
+    "notify_no_targets": {
+      "message": "Diese Benachrichtigung hat kein Ziel zum Senden – füge unter Einstellungen → Benachrichtigungen ein „Senden an“-Gerät hinzu oder übergib beim Aufruf target:."
+    },
+    "notify_notification_not_found": {
+      "message": "Keine Benachrichtigung mit dem Namen {notification}."
+    },
+    "notify_profile_not_found": {
+      "message": "Kein Benachrichtigungsprofil mit dem Namen {profile}."
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "task_not_found": {
+      "message": "Task not found: {task_id}"
+    },
+    "unknown_area": {
+      "message": "Unknown area: {area_id}"
+    },
+    "unknown_document": {
+      "message": "Unbekanntes Dokument: {document_id}"
+    },
+    "unknown_part": {
+      "message": "Unknown appliance or part: {asset_id} / {part_id}"
+    },
+    "unknown_part_file": {
+      "message": "Unbekanntes Teil oder keine angehängte Datei."
+    },
+    "upload_requires_user": {
+      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
     }
   }
 }
