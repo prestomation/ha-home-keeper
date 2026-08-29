@@ -23,7 +23,11 @@ async function readPart(): Promise<Record<string, any>> {
   return asset.parts.find((p: any) => p.id === PART.descaler);
 }
 
-test.describe('a part measured in units, not whole spares', { tag: '@responsive' }, () => {
+// Tagged per test rather than on the describe: only the two that take a `page`
+// have anything a viewport can change. The other two read the service and entity
+// APIs, where a second and third width would repeat identical work — and one of
+// them waits on a coordinator refresh to do it.
+test.describe('a part measured in units, not whole spares', () => {
   test.afterEach(async () => {
     // The e2e container's store is the committed seed fixture, so put the stock
     // back however the test left it.
@@ -38,7 +42,9 @@ test.describe('a part measured in units, not whole spares', { tag: '@responsive'
     }
   });
 
-  test('shows its unit on the appliance page, on both amounts', async ({ page }) => {
+  test('shows its unit on the appliance page, on both amounts', { tag: '@responsive' }, async ({
+    page,
+  }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await gotoTab(panel, 'appliances');
@@ -51,7 +57,9 @@ test.describe('a part measured in units, not whole spares', { tag: '@responsive'
     await expect(row.getByText('Uses 250 ml per completion')).toBeVisible();
   });
 
-  test('offers the unit and per-completion fields in its editor', async ({ page }) => {
+  test('offers the unit and per-completion fields in its editor', { tag: '@responsive' }, async ({
+    page,
+  }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await gotoTab(panel, 'appliances');
