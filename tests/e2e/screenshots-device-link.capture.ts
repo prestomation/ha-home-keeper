@@ -12,6 +12,7 @@
  */
 import { test, expect, Locator } from '@playwright/test';
 import { openPanel } from './tests/helpers';
+import { ASSET, TASK } from './fixture-ids';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
@@ -37,7 +38,7 @@ test('capture + verify panel→device links', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/device-link-appliance-list.png`, fullPage: true });
 
   // 2. Appliance detail header — same clickable chip next to the title.
-  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
   await expect(panel.locator('.hk-detail-title')).toBeVisible();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/device-link-appliance-detail.png`, fullPage: true });
@@ -51,10 +52,10 @@ test('capture + verify panel→device links', async ({ page }) => {
   await openPanel(page);
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(500);
-  // task_anode is a wear-part task whose device_id is reconciled to the live water
-  // heater device (unlike the demo task_water_filter, which pins a stale seed id).
+  // The anode wear-part task's device_id is reconciled to the live water heater
+  // device, unlike the demo water-filter task, which pins a stale seed id.
   const taskChip = panel
-    .locator('.hk-card[data-id="task_anode"] .hk-device-chip')
+    .locator(`.hk-card[data-id="${TASK.anode}"] .hk-device-chip`)
     .first();
   await taskChip.scrollIntoViewIfNeeded();
   await expectChipOpensDevicePage(page, taskChip);

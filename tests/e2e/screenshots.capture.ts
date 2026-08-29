@@ -10,6 +10,7 @@
  */
 import { test, expect, Locator } from '@playwright/test';
 import { openPanel, openDashboard } from './tests/helpers';
+import { ASSET, PART, TASK } from './fixture-ids';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
@@ -115,7 +116,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 1a2. Completion-details dialog — a task whose capture mode is "optional" or
   // "required" opens this dialog on Done so you can record a note, cost, who and a
   // photo. The seeded "Replace fridge filter" task is set to optional capture.
-  await panel.locator('.done-btn[data-id="task_fridge_filter"]').click();
+  await panel.locator(`.done-btn[data-id="${TASK.fridgeFilter}"]`).click();
   // ha-dialog portals its surface, so wait on an inner field rather than the host.
   const noteField = panel
     .locator('ha-dialog[open] ha-selector-text textarea, ha-dialog[open] ha-selector-text input')
@@ -132,7 +133,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 1b. Task detail page — click a task to see its full schedule, notes and the
   // completion history of every time it was done (now annotated with the per-
   // completion note and cost recorded at Done time).
-  await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
   await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
   // The note is Markdown (issue #163). Assert it actually rendered — `ha-markdown`
   // is one of HA's lazily-loaded elements, so a regression here silently degrades to
@@ -179,7 +180,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 1c. Managed-task detail page — a task owned by another integration
   // (Pawsistant). Shows the "Managed by Pawsistant" chip, the completion prompt,
   // and deletion guidance in place of a Delete button.
-  await panel.locator('.detail-open[data-detail-id="task_buddy_medicine"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${TASK.buddyMedicine}"]`).click();
   await expect(panel.locator('ha-assist-chip.hk-managed').first()).toBeVisible();
   await expect(panel.locator('.hk-managed-prompt')).toBeVisible();
   await page.waitForTimeout(400);
@@ -217,7 +218,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 1g. Orphaned task detail — the Delete button returns (protection lifts) with an
   // explanation that the owning integration is gone.
-  await panel.locator('.detail-open[data-detail-id="task_rex_vet"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${TASK.rexVet}"]`).click();
   await expect(panel.locator('ha-assist-chip.hk-orphaned').first()).toBeVisible();
   await expect(panel.locator('.d-del')).toBeVisible();
   await page.waitForTimeout(300);
@@ -229,7 +230,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // low) reads as due-now with the "Managed by Battery Notes" chip and shows the
   // full replacement cadence — every time the battery was changed. The battery-type
   // chip (e.g. "2× AAA") is shown alongside the managed chip.
-  await panel.locator('.detail-open[data-detail-id="task_door_battery"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${TASK.doorBattery}"]`).click();
   await expect(panel.locator('ha-assist-chip.hk-managed').first()).toBeVisible();
   await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
   await page.waitForTimeout(400);
@@ -255,14 +256,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // still buckets it under Monitored; it's the card's own due chip that counts down.
   // Assert the chip as well as photographing it (capture != coverage, #221).
   const nozzleDueChip = panel
-    .locator('ha-card.hk-card[data-id="task_nozzle_usage"] .hk-chips ha-assist-chip')
+    .locator(`ha-card.hk-card[data-id="${TASK.nozzleUsage}"] .hk-chips ha-assist-chip`)
     .first();
   await expect(nozzleDueChip).toHaveAttribute('label', 'in 180 h');
   await nozzleDueChip.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/1c-panel-usage-countdown.png`, fullPage: true });
 
-  await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${TASK.nozzleUsage}"]`).click();
   await expect(panel.locator('.hk-meter').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/14b-panel-usage-progress.png`, fullPage: true });
@@ -309,13 +310,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 37. Battery type chip on the task list — the active battery task shows its
   // "2× AAA" chip (set by the Battery Notes glue as task_chips) right in the card row.
-  const batteryCard = panel.locator('.hk-card[data-id="task_door_battery"]');
+  const batteryCard = panel.locator(`.hk-card[data-id="${TASK.doorBattery}"]`);
   await expect(batteryCard).toBeVisible();
   await page.waitForTimeout(300);
   await batteryCard.screenshot({ path: `${OUT}/37-panel-battery-chip-row.png` });
 
   // 37b. Battery task detail with chip visible in header chips row.
-  await panel.locator('.detail-open[data-detail-id="task_door_battery"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${TASK.doorBattery}"]`).click();
   await expect(panel.locator('ha-assist-chip.hk-managed').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/37b-panel-battery-chip-detail.png`, fullPage: true });
@@ -394,7 +395,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // from the UI. Seed an area, assign it to a *device-less* task (the case that had
   // no path at all), and capture both halves: the picker in the form, and the area
   // named on the detail page.
-  await page.evaluate(async () => {
+  await page.evaluate(async (IDS) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
     if (!hass) return;
@@ -407,16 +408,16 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
       areas[0] ??
       (await hass.callWS({ type: 'config/area_registry/create', name: 'Living Room' }));
     await hass.callService('home_keeper', 'update_task', {
-      task_id: 'task_medicine',
+      task_id: IDS.TASK.medicine,
       area_id: area.area_id,
     });
-  });
+  }, { TASK });
   await openPanel(page);
   await expect(panel.locator('.hk-name').first()).toBeVisible();
 
   // The detail page names the task's area beside its status chip, so the save is
   // visible without changing the grouping.
-  await panel.locator('.detail-open[data-detail-id="task_medicine"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${TASK.medicine}"]`).click();
   await expect(panel.locator('.hk-chips ha-assist-chip[label="Living Room"]')).toBeVisible({
     timeout: 10_000,
   });
@@ -593,7 +594,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // completing the task draws down a spare and fires a low-stock event for a reorder.
   await openPanel(page);
   await expect(panel.locator('#add-btn')).toBeVisible();
-  await page.evaluate(async () => {
+  await page.evaluate(async (IDS) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
     if (!hass) return;
@@ -604,28 +605,28 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     // By id, not by type: the water heater also carries a consumable measured in
     // millilitres, and this shot is about the plain whole-spares case.
-    const part = (wh.parts || []).find((p: any) => p.id === 'part_sediment_filter');
+    const part = (wh.parts || []).find((p: any) => p.id === IDS.PART.sedimentFilter);
     // Attach the demo task to the appliance (so the picker scopes to it), then link it
     // to that appliance's spare.
     // The update_task *service* takes flat fields (task_id + device_id), unlike the
     // websocket's {task_id, updates}. Attaching a device reloads the entry, so settle
     // it before linking.
     await hass.callService('home_keeper', 'update_task', {
-      task_id: 'task_water_filter',
+      task_id: IDS.TASK.waterFilter,
       device_id: wh.device_id,
     });
     await new Promise((r) => setTimeout(r, 1500));
     await hass.callService('home_keeper', 'set_task_consumable', {
-      task_id: 'task_water_filter',
+      task_id: IDS.TASK.waterFilter,
       asset_id: wh.id,
       part_id: part.id,
     });
-  });
+  }, { TASK, PART });
   // Reload so the panel re-reads the now-attached, linked task.
   await openPanel(page);
   await expect(panel.locator('#add-btn')).toBeVisible();
   // 33. The task detail shows the linked consumable and its current stock.
-  await panel.locator('.detail-open[data-detail-id="task_water_filter"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${TASK.waterFilter}"]`).click();
   await expect(
     panel.locator('.hk-detail-row', { hasText: 'Sediment pre-filter' }),
   ).toBeVisible();
@@ -669,7 +670,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/5-panel-appliances-list.png`, fullPage: true });
 
   // 5c. Tree view — toggle the View control from List to Tree so parent/child
-  // indentation is visible (the seeded data has asset_radio_shade → asset_shades).
+  // indentation is visible (the seed nests the radio shade under the shades).
   await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="tree"]').click();
   await expect(panel.locator('.hk-tree-child').first()).toBeVisible();
   await page.waitForTimeout(400);
@@ -681,7 +682,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 5b. Appliance detail page — its metadata, parts, related tasks and the
   // maintenance history (including the archived history of a task that was
   // deleted while still assigned to it).
-  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
   await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
   // Appliances carry notes of their own now (issue #163) — a Markdown card with the
   // same inline editor as a task, plus per-part notes in the Parts section.
@@ -814,7 +815,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // and upload-file controls for attaching another link or a local PDF/image.
   await openPanel(page);
   await panel.locator('#tab-appliances').click();
-  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
   await expect(panel.locator('.d-edit')).toBeVisible();
   await panel.locator('.d-edit').click();
   const docForm = panel.locator('#hk-asset-form');
@@ -897,7 +898,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // show the dialog.
   await openPanel(page);
   await panel.locator('#tab-appliances').click();
-  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
   await expect(panel.locator('.d-edit')).toBeVisible();
   await panel.locator('.d-edit').click();
   const partEditForm = panel.locator('#hk-asset-form');
@@ -964,7 +965,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // on both the on-hand chip and the per-completion chip.
   await openPanel(page);
   await panel.locator('#tab-appliances').click();
-  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
   const measuredRow = panel.locator('.hk-part-row').filter({ hasText: 'Descaling solution' });
   await measuredRow.scrollIntoViewIfNeeded();
   await expect(measuredRow.getByText('In stock: 750 ml')).toBeVisible();
@@ -976,7 +977,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // the Settings shots below show the picker holding a real list and the dashboard
   // shot at the end shows the "Buy …" line the shopper actually gets.
   await openPanel(page);
-  await page.evaluate(async () => {
+  await page.evaluate(async (IDS) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
     if (!hass) return;
@@ -986,7 +987,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { assets } = await hass.callWS({ type: 'home_keeper/get_assets' });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const heater = assets.find((a: any) => a.id === 'asset_water_heater');
+    const heater = assets.find((a: any) => a.id === IDS.ASSET.waterHeater);
     // A part's attached file is upload-only, so the service schema rejects any
     // payload carrying file_* — echo back only the fields it accepts.
     const WRITABLE = [
@@ -1013,14 +1014,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
       parts: heater.parts.map((p: Record<string, unknown>) => {
         const out: Record<string, unknown> = {};
         for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
-        if (p.id === 'part_anode') {
+        if (p.id === IDS.PART.anode) {
           out.create_buy_task = true;
           out.restock_quantity = 4;
         }
         return out;
       }),
     });
-  });
+  }, { ASSET, PART });
 
   // 17. The Settings tab — friendly forms mirroring the options flow: a General
   // card (one-off retention), a Shopping list card (where auto-buy reminders are

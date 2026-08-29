@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { openPanel } from './helpers';
+import { ASSET } from '../fixture-ids';
 
 /**
  * Uploads in the appliance editor (issue #159).
@@ -15,7 +16,7 @@ async function openApplianceEditor(page) {
   await openPanel(page);
   const panel = page.locator('home-keeper-panel').first();
   await panel.locator('#tab-appliances').click();
-  await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
   await expect(panel.locator('.d-edit')).toBeVisible();
   await panel.locator('.d-edit').click();
   await expect(panel.locator('#hk-asset-form')).toBeVisible();

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openPanel, trackPanelErrors } from './helpers';
+import { ASSET, TASK } from '../fixture-ids';
 
 /**
  * The id row is what makes the service layer reachable by hand: every
@@ -12,15 +13,15 @@ test.describe('Home Keeper panel — object ids are visible and copyable', () =>
     const errors = trackPanelErrors(page);
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
 
     const row = panel.locator('.hk-id-row');
     await expect(row).toHaveCount(1);
     // The id shown must be the one the services actually take.
-    await expect(row.locator('code')).toHaveText('task_fridge_filter');
+    await expect(row.locator('code')).toHaveText(TASK.fridgeFilter);
     await expect(row.locator('ha-icon-button.hk-copy')).toHaveAttribute(
       'data-copy',
-      'task_fridge_filter',
+      TASK.fridgeFilter,
     );
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
@@ -29,12 +30,12 @@ test.describe('Home Keeper panel — object ids are visible and copyable', () =>
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await panel.locator('#tab-appliances').click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
 
     // The appliance's own id, on the About card. Anchored, because the part and
     // document ids on this page are all prefixed with it.
     await expect(
-      panel.locator('code').filter({ hasText: /^asset_water_heater$/ }),
+      panel.locator('code').filter({ hasText: new RegExp(`^${ASSET.waterHeater}$`) }),
     ).toBeVisible();
     // `adjust_part_stock` needs the part id as well as the appliance id, so the
     // part rows carry theirs too — that pairing is the whole point.
@@ -52,11 +53,11 @@ test.describe('Home Keeper panel — object ids are visible and copyable', () =>
     await context.grantPermissions(['clipboard-write', 'clipboard-read']);
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     await panel.locator('.hk-id-row ha-icon-button.hk-copy').click();
 
     await expect
       .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-      .toBe('task_fridge_filter');
+      .toBe(TASK.fridgeFilter);
   });
 });

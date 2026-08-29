@@ -1,5 +1,6 @@
 import { test, expect, Locator } from '@playwright/test';
 import { calendarCard, openPanel, openDashboard, openTodoCard, trackPanelErrors } from './helpers';
+import { ASSET, TASK } from '../fixture-ids';
 
 /**
  * Pick an option from an HA `ha-select` dropdown by visible label. HA's current
@@ -122,7 +123,7 @@ test.describe('Home Keeper panel — smoke', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     // Clicking a task's row opens its detail page, which shows the history inline.
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     const rows = panel.locator('.hk-hist-list li');
     await expect(rows.first()).toBeVisible();
     const before = await rows.count();
@@ -139,7 +140,7 @@ test.describe('Home Keeper panel — smoke', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await panel.locator('#tab-appliances').click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
     // The water heater's history includes a task that was deleted while still
     // assigned to it — surfaced as an archived "removed task" group.
     await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
@@ -170,14 +171,14 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
   test('opening a detail page reflects in the URL', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     await expect(panel.locator('#back-btn')).toBeVisible();
-    await expect(page).toHaveURL(/\/home-keeper\/tasks\/task_fridge_filter$/);
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.fridgeFilter}$`));
   });
 
   test('a task detail URL deep-links straight to the detail page', async ({ page }) => {
     const errors = trackPanelErrors(page);
-    await page.goto('/home-keeper/tasks/task_fridge_filter', { waitUntil: 'domcontentloaded' });
+    await page.goto(`/home-keeper/tasks/${TASK.fridgeFilter}`, { waitUntil: 'domcontentloaded' });
     const panel = page.locator('home-keeper-panel').first();
     await panel.waitFor({ state: 'attached', timeout: 45_000 });
     // Lands on the detail page (Back button present), not the list.
@@ -196,7 +197,7 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
   test('browser Back returns to the list, not out of the panel', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     await expect(panel.locator('#back-btn')).toBeVisible();
     // The browser Back button steps back to the list inside the panel.
     await page.goBack();
@@ -208,7 +209,7 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
   test('the in-panel Back button returns to the list', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     await panel.locator('#back-btn').click();
     await expect(panel.locator('#tab-tasks')).toBeVisible();
     await expect(panel.locator('#back-btn')).toHaveCount(0);
@@ -223,9 +224,9 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
 
     // Navigate to the Appliances tab and open the water heater detail.
     await panel.locator('#tab-appliances').click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
     await expect(panel.locator('#back-btn')).toBeVisible();
-    await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater$/);
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}$`));
 
     // In-panel Back must return to the appliances list, not leave the panel.
     await panel.locator('#back-btn').click();
@@ -239,7 +240,7 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
     page,
   }) => {
     const errors = trackPanelErrors(page);
-    await page.goto('/home-keeper/appliances/asset_water_heater', {
+    await page.goto(`/home-keeper/appliances/${ASSET.waterHeater}`, {
       waitUntil: 'domcontentloaded',
     });
     const panel = page.locator('home-keeper-panel').first();
@@ -264,8 +265,8 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
 
     // Navigate to the Appliances tab and open the water heater (has active related tasks).
     await panel.locator('#tab-appliances').click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
-    await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater$/);
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}$`));
 
     // Open the first related task from inside the appliance detail.
     const relatedTask = panel.locator('.hk-rel.detail-open[data-detail-kind="task"]').first();
@@ -276,7 +277,7 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
 
     // In-panel Back must return to the appliance detail, not the task list.
     await panel.locator('#back-btn').click();
-    await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater$/);
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}$`));
     // Back button is still visible because we're still inside a detail page.
     await expect(panel.locator('#back-btn')).toBeVisible();
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
