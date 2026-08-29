@@ -833,83 +833,83 @@
     }
   },
   "exceptions": {
-    "asset_ambiguous": {
-      "message": "Several appliances are named {name}. Use an id instead: {ids}"
-    },
-    "asset_not_found": {
-      "message": "Asset not found: {asset_id}"
-    },
-    "complete_failed": {
-      "message": "{error}"
-    },
-    "document_ambiguous": {
-      "message": "Several documents are named {name}. Use an id instead: {ids}"
-    },
-    "expected_multipart_upload": {
-      "message": "S'esperava una pujada multipart."
-    },
-    "failed_to_store_file": {
-      "message": "No s'ha pogut desar el fitxer."
-    },
-    "file_too_large": {
-      "message": "El fitxer supera el límit de {mb} MB."
-    },
-    "integration_not_loaded": {
-      "message": "Home Keeper no està carregat en aquest moment. Torneu-ho a provar d'aquí a un moment."
-    },
-    "invalid_asset": {
-      "message": "{error}"
-    },
-    "invalid_completed_at": {
-      "message": "Marca de temps completed_at no vàlida."
+    "unknown_area": {
+      "message": "Unknown area: {area_id}"
     },
     "invalid_task": {
       "message": "{error}"
     },
-    "link_documents_only": {
-      "message": "Aquí només es poden afegir documents d'enllaç."
+    "task_not_found": {
+      "message": "Task not found: {task_id}"
     },
-    "no_file_in_upload": {
-      "message": "No hi ha cap fitxer a la pujada."
+    "invalid_asset": {
+      "message": "{error}"
     },
-    "no_instance_url": {
-      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
+    "asset_not_found": {
+      "message": "Asset not found: {asset_id}"
     },
-    "notify_invalid_target": {
-      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
+    "unknown_part": {
+      "message": "Unknown appliance or part: {asset_id} / {part_id}"
     },
-    "notify_no_targets": {
-      "message": "Aquesta notificació no té cap destinatari: afegeix un dispositiu «Envia a» a Configuració → Notificacions, o passa target: en cridar-la."
+    "complete_failed": {
+      "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "No hi ha cap perfil de notificació amb el nom {profile}."
     },
     "notify_notification_not_found": {
       "message": "No hi ha cap notificació amb el nom {notification}."
     },
-    "notify_profile_not_found": {
-      "message": "No hi ha cap perfil de notificació amb el nom {profile}."
+    "notify_no_targets": {
+      "message": "Aquesta notificació no té cap destinatari: afegeix un dispositiu «Envia a» a Configuració → Notificacions, o passa target: en cridar-la."
+    },
+    "notify_invalid_target": {
+      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
+    },
+    "upload_requires_user": {
+      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper no està carregat en aquest moment. Torneu-ho a provar d'aquí a un moment."
+    },
+    "invalid_completed_at": {
+      "message": "Marca de temps completed_at no vàlida."
+    },
+    "link_documents_only": {
+      "message": "Aquí només es poden afegir documents d'enllaç."
+    },
+    "unknown_document": {
+      "message": "Document desconegut: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Peça desconeguda o sense fitxer adjunt."
+    },
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
+    },
+    "file_too_large": {
+      "message": "El fitxer supera el límit de {mb} MB."
+    },
+    "expected_multipart_upload": {
+      "message": "S'esperava una pujada multipart."
+    },
+    "no_file_in_upload": {
+      "message": "No hi ha cap fitxer a la pujada."
+    },
+    "failed_to_store_file": {
+      "message": "No s'ha pogut desar el fitxer."
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
     },
     "part_ambiguous": {
       "message": "Several parts are named {name}. Use an id instead: {ids}"
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
-    },
-    "task_not_found": {
-      "message": "Task not found: {task_id}"
-    },
-    "unknown_area": {
-      "message": "Unknown area: {area_id}"
-    },
-    "unknown_document": {
-      "message": "Document desconegut: {document_id}"
-    },
-    "unknown_part": {
-      "message": "Unknown appliance or part: {asset_id} / {part_id}"
-    },
-    "unknown_part_file": {
-      "message": "Peça desconeguda o sense fitxer adjunt."
-    },
-    "upload_requires_user": {
-      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
     }
   }
 }

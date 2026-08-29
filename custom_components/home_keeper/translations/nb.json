@@ -833,83 +833,83 @@
     }
   },
   "exceptions": {
-    "asset_ambiguous": {
-      "message": "Several appliances are named {name}. Use an id instead: {ids}"
-    },
-    "asset_not_found": {
-      "message": "Asset not found: {asset_id}"
-    },
-    "complete_failed": {
-      "message": "{error}"
-    },
-    "document_ambiguous": {
-      "message": "Several documents are named {name}. Use an id instead: {ids}"
-    },
-    "expected_multipart_upload": {
-      "message": "Forventet en multipart-opplasting."
-    },
-    "failed_to_store_file": {
-      "message": "Kunne ikke lagre filen."
-    },
-    "file_too_large": {
-      "message": "Filen overskrider grensen på {mb} MB."
-    },
-    "integration_not_loaded": {
-      "message": "Home Keeper er ikke lastet inn akkurat nå. Prøv igjen om et øyeblikk."
-    },
-    "invalid_asset": {
-      "message": "{error}"
-    },
-    "invalid_completed_at": {
-      "message": "Ugyldig completed_at-tidsstempel."
+    "unknown_area": {
+      "message": "Unknown area: {area_id}"
     },
     "invalid_task": {
       "message": "{error}"
     },
-    "link_documents_only": {
-      "message": "Bare lenkedokumenter kan legges til her."
+    "task_not_found": {
+      "message": "Task not found: {task_id}"
     },
-    "no_file_in_upload": {
-      "message": "Ingen fil i opplastingen."
+    "invalid_asset": {
+      "message": "{error}"
     },
-    "no_instance_url": {
-      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
+    "asset_not_found": {
+      "message": "Asset not found: {asset_id}"
     },
-    "notify_invalid_target": {
-      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
+    "unknown_part": {
+      "message": "Unknown appliance or part: {asset_id} / {part_id}"
     },
-    "notify_no_targets": {
-      "message": "Dette varselet har ingen mottaker – legg til en «Send til»-enhet under Innstillinger → Varsler, eller angi target: i kallet."
+    "complete_failed": {
+      "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Ingen varslingsprofil med navnet {profile}."
     },
     "notify_notification_not_found": {
       "message": "Ingen varsel med navnet {notification}."
     },
-    "notify_profile_not_found": {
-      "message": "Ingen varslingsprofil med navnet {profile}."
+    "notify_no_targets": {
+      "message": "Dette varselet har ingen mottaker – legg til en «Send til»-enhet under Innstillinger → Varsler, eller angi target: i kallet."
+    },
+    "notify_invalid_target": {
+      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
+    },
+    "upload_requires_user": {
+      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper er ikke lastet inn akkurat nå. Prøv igjen om et øyeblikk."
+    },
+    "invalid_completed_at": {
+      "message": "Ugyldig completed_at-tidsstempel."
+    },
+    "link_documents_only": {
+      "message": "Bare lenkedokumenter kan legges til her."
+    },
+    "unknown_document": {
+      "message": "Ukjent dokument: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Ukjent reservedel eller ingen vedlagt fil."
+    },
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
+    },
+    "file_too_large": {
+      "message": "Filen overskrider grensen på {mb} MB."
+    },
+    "expected_multipart_upload": {
+      "message": "Forventet en multipart-opplasting."
+    },
+    "no_file_in_upload": {
+      "message": "Ingen fil i opplastingen."
+    },
+    "failed_to_store_file": {
+      "message": "Kunne ikke lagre filen."
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
     },
     "part_ambiguous": {
       "message": "Several parts are named {name}. Use an id instead: {ids}"
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
-    },
-    "task_not_found": {
-      "message": "Task not found: {task_id}"
-    },
-    "unknown_area": {
-      "message": "Unknown area: {area_id}"
-    },
-    "unknown_document": {
-      "message": "Ukjent dokument: {document_id}"
-    },
-    "unknown_part": {
-      "message": "Unknown appliance or part: {asset_id} / {part_id}"
-    },
-    "unknown_part_file": {
-      "message": "Ukjent reservedel eller ingen vedlagt fil."
-    },
-    "upload_requires_user": {
-      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
     }
   }
 }

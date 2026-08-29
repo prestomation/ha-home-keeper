@@ -833,83 +833,83 @@
     }
   },
   "exceptions": {
-    "asset_ambiguous": {
-      "message": "Several appliances are named {name}. Use an id instead: {ids}"
-    },
-    "asset_not_found": {
-      "message": "Asset not found: {asset_id}"
-    },
-    "complete_failed": {
-      "message": "{error}"
-    },
-    "document_ambiguous": {
-      "message": "Several documents are named {name}. Use an id instead: {ids}"
-    },
-    "expected_multipart_upload": {
-      "message": "Očekávalo se vícedílné nahrání (multipart)."
-    },
-    "failed_to_store_file": {
-      "message": "Soubor se nepodařilo uložit."
-    },
-    "file_too_large": {
-      "message": "Soubor přesahuje limit {mb} MB."
-    },
-    "integration_not_loaded": {
-      "message": "Home Keeper právě není načten. Zkuste to prosím za chvíli znovu."
-    },
-    "invalid_asset": {
-      "message": "{error}"
-    },
-    "invalid_completed_at": {
-      "message": "Neplatné časové razítko completed_at."
+    "unknown_area": {
+      "message": "Unknown area: {area_id}"
     },
     "invalid_task": {
       "message": "{error}"
     },
-    "link_documents_only": {
-      "message": "Zde lze přidat pouze dokumenty typu odkaz."
+    "task_not_found": {
+      "message": "Task not found: {task_id}"
     },
-    "no_file_in_upload": {
-      "message": "V nahrávání chybí soubor."
+    "invalid_asset": {
+      "message": "{error}"
     },
-    "no_instance_url": {
-      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
+    "asset_not_found": {
+      "message": "Asset not found: {asset_id}"
     },
-    "notify_invalid_target": {
-      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
+    "unknown_part": {
+      "message": "Unknown appliance or part: {asset_id} / {part_id}"
     },
-    "notify_no_targets": {
-      "message": "Toto oznámení nemá žádný cíl pro odeslání – přidejte zařízení „Odeslat na“ v Nastavení → Oznámení nebo při volání předejte target:."
+    "complete_failed": {
+      "message": "{error}"
+    },
+    "notify_profile_not_found": {
+      "message": "Žádný profil oznámení s názvem {profile}."
     },
     "notify_notification_not_found": {
       "message": "Žádné oznámení s názvem {notification}."
     },
-    "notify_profile_not_found": {
-      "message": "Žádný profil oznámení s názvem {profile}."
+    "notify_no_targets": {
+      "message": "Toto oznámení nemá žádný cíl pro odeslání – přidejte zařízení „Odeslat na“ v Nastavení → Oznámení nebo při volání předejte target:."
+    },
+    "notify_invalid_target": {
+      "message": "Notify target(s) {target} are not supported. Home Keeper sends actionable notifications through the companion app, so each target must be a {prefix}* notify service (or {persistent})."
+    },
+    "upload_requires_user": {
+      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
+    },
+    "integration_not_loaded": {
+      "message": "Home Keeper právě není načten. Zkuste to prosím za chvíli znovu."
+    },
+    "invalid_completed_at": {
+      "message": "Neplatné časové razítko completed_at."
+    },
+    "link_documents_only": {
+      "message": "Zde lze přidat pouze dokumenty typu odkaz."
+    },
+    "unknown_document": {
+      "message": "Neznámý dokument: {document_id}"
+    },
+    "unknown_part_file": {
+      "message": "Neznámý díl nebo bez přiloženého souboru."
+    },
+    "no_instance_url": {
+      "message": "Could not determine a URL for this Home Assistant instance to build a signed document/part-file URL. Configure an internal or external URL under Settings > System > Network."
+    },
+    "file_too_large": {
+      "message": "Soubor přesahuje limit {mb} MB."
+    },
+    "expected_multipart_upload": {
+      "message": "Očekávalo se vícedílné nahrání (multipart)."
+    },
+    "no_file_in_upload": {
+      "message": "V nahrávání chybí soubor."
+    },
+    "failed_to_store_file": {
+      "message": "Soubor se nepodařilo uložit."
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
     },
     "part_ambiguous": {
       "message": "Several parts are named {name}. Use an id instead: {ids}"
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
-    },
-    "task_not_found": {
-      "message": "Task not found: {task_id}"
-    },
-    "unknown_area": {
-      "message": "Unknown area: {area_id}"
-    },
-    "unknown_document": {
-      "message": "Neznámý dokument: {document_id}"
-    },
-    "unknown_part": {
-      "message": "Unknown appliance or part: {asset_id} / {part_id}"
-    },
-    "unknown_part_file": {
-      "message": "Neznámý díl nebo bez přiloženého souboru."
-    },
-    "upload_requires_user": {
-      "message": "Uploads must come from a signed-in user. This request was authenticated by a shared link, which can only read files."
     }
   }
 }
