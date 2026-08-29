@@ -253,6 +253,12 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     .first();
   await seasonSwitch.click();
   await expect(panel.locator('#hk-task-form-season-1')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  // The windows open below the fold of a drawer that scrolls its own content, so
+  // follow them down — the reveal is the point of this beat.
+  await panel
+    .locator('#hk-task-form-cadence')
+    .evaluate((node: Element) => node.closest('.hk-drawer-sticky')?.scrollBy({ top: 320 }));
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('#hk-season-add').click();
   await expect(panel.locator('#hk-task-form-season-2')).toBeVisible();

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createTask, deleteTask, listTasks, openPanel, trackPanelErrors } from './helpers';
+import { createTask, deleteTask, listTasks, trackPanelErrors } from './helpers';
 
 /**
  * Active-season windows in a real browser.
@@ -90,7 +90,10 @@ test.describe('Home Keeper panel — active season', () => {
     expect((await listTasks()).find((t) => t.id === taskId)?.active_season).toHaveLength(2);
 
     // Remove the *first* window: the survivor shifts up rather than the last one
-    // being dropped, so what is saved is what the form was showing.
+    // being dropped, so what is saved is what the form was showing. Saving closes the
+    // drawer onto the list, so come back through the task's own address.
+    await page.goto(`/home-keeper/tasks/${taskId}`, { waitUntil: 'domcontentloaded' });
+    await expect(panel.locator('.d-edit')).toBeVisible();
     await panel.locator('.d-edit').click();
     await expect(panel.locator('#hk-task-form-season-2')).toBeVisible();
     await panel.locator('#hk-season-remove-1').click();
