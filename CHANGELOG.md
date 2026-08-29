@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0b3]
+
+### Fixed
+
+- **Picking a Settings section no longer jumps to the top of the page first.** The rail
+  now moves its mark on the page already drawn, so the scroll to that section starts
+  from where you were reading.
+
 ## [0.19.0b2]
 
 ### Changed

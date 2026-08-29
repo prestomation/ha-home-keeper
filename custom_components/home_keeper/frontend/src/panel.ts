@@ -1759,9 +1759,23 @@ export class HomeKeeperPanel extends HTMLElement {
       loc.detail?.tab !== this._detail?.tab ||
       section !== this._settingsSection;
     if (!changed) return;
+    // A move between Settings sections is a lateral step along one page: which section
+    // is marked changes, what is on the page does not. Decided before the state below
+    // is adopted, because it is a statement about the move, not about where it lands.
+    const sectionOnly =
+      loc.view === 'settings' &&
+      this._view === 'settings' &&
+      !loc.detail &&
+      !this._detail &&
+      !this._edit.open &&
+      !this._assetEdit.open &&
+      !this._noteEdit &&
+      !this._pendingEdit &&
+      !this._pendingAssetEdit;
     this._view = loc.view;
     this._detail = loc.detail;
     this._settingsSection = section;
+    if (sectionOnly && this._patchSettingsSection()) return;
     // Leaving a list/detail closes any open form (forms are ephemeral overlays)...
     this._edit = { open: false, task: null };
     this._assetEdit = { open: false, asset: null };
@@ -1777,6 +1791,62 @@ export class HomeKeeperPanel extends HTMLElement {
       this._pendingAssetEdit = null;
     }
     this._render();
+  }
+
+  /**
+   * Move the open Settings page to another section without rebuilding it.
+   *
+   * A section change touches four things: the rail entry that is current, the card the
+   * URL names (`.hk-sec-current`), the layout's `data-section` (all the narrow rules
+   * key off it), and the narrow back bar. A full render for that is the difference
+   * between a smooth scroll and a jump to the top of the page: `_render` replaces the
+   * whole shadow tree — including the card the scroll was aimed at — and every
+   * `ha-form` in the replacement renders after the swap, so the scroll runs against a
+   * page whose height is still settling and can be clamped to the top on the way.
+   * Patching leaves the page standing, so the card being scrolled to is the one that
+   * was already there and the scroll starts from where the reader was.
+   *
+   * Returns false when there is no rendered Settings page to patch — first paint, or a
+   * deep link straight into a section — leaving the caller to render normally.
+   */
+  private _patchSettingsSection(): boolean {
+    const root = this.shadowRoot;
+    const layout = root?.querySelector<HTMLElement>('.hk-settings-layout');
+    const col = root?.querySelector<HTMLElement>('.hk-settings-col');
+    if (!root || !layout || !col) return false;
+    const section = this._settingsSection;
+    if (section) layout.dataset.section = section;
+    else delete layout.dataset.section;
+    const current = this._settingsSectionList().find((s) => s.key === section);
+    root.querySelectorAll<HTMLElement>('.hk-rail-link').forEach((link) => {
+      if (section && link.dataset.section === section) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+    root.querySelectorAll('.hk-settings-col ha-card').forEach((card) => {
+      card.classList.toggle('hk-sec-current', !!current && card.id === current.card);
+    });
+    // The back bar belongs to the section that is open, so it is rebuilt rather than
+    // retitled — and rewired, since the button it carries is a new element.
+    col.querySelector('.hk-settings-backbar')?.remove();
+    if (current) {
+      col.insertAdjacentHTML('afterbegin', this._settingsBackbar());
+      root
+        .getElementById('settings-back')
+        ?.addEventListener('click', () => this._closeSettingsSection());
+    }
+    return true;
+  }
+
+  /**
+   * How a scroll this panel starts itself should move: smoothly, unless the reader has
+   * asked their system for less motion.
+   *
+   * The stylesheet's reduced-motion block cannot speak for these: a `behavior` passed
+   * to `scrollIntoView` overrides the CSS `scroll-behavior` it sets, so the choice has
+   * to be made here too.
+   */
+  private _scrollBehavior(): ScrollBehavior {
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
   }
 
   /**
@@ -4910,7 +4980,7 @@ export class HomeKeeperPanel extends HTMLElement {
         if (section) this._navigate({ view: 'settings', detail: null, section }, true);
         const card = link.dataset.rail ? root.getElementById(link.dataset.rail) : null;
         if (card && typeof card.scrollIntoView === 'function') {
-          card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          card.scrollIntoView({ block: 'start', behavior: this._scrollBehavior() });
         }
       }),
     );
@@ -4918,6 +4988,13 @@ export class HomeKeeperPanel extends HTMLElement {
       row.addEventListener('click', () => {
         const section = row.dataset.section as SettingsSection | undefined;
         if (section) this._navigate({ view: 'settings', detail: null, section });
+        // A drill-in opens a screen, so it opens at the top of one. Worth saying out
+        // loud now that the page is patched rather than rebuilt: nothing else moves
+        // the scroll, so an index read halfway down would open a section halfway down.
+        const top = root.querySelector<HTMLElement>('.hk-toolbar');
+        if (top && typeof top.scrollIntoView === 'function') {
+          top.scrollIntoView({ block: 'start' });
+        }
       }),
     );
     root
