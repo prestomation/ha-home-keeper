@@ -1508,6 +1508,22 @@ class TestNormalizeActiveSeason:
         with pytest.raises(m.TaskValidationError, match="requires start and end"):
             m.normalize_active_season({"end": "09-30"})
 
+    def test_rejects_a_window_that_is_not_an_object(self):
+        # A list of strings is the shape a hand-written automation reaches for
+        # first; it has to be named as the problem rather than raising a TypeError
+        # somewhere further in.
+        with pytest.raises(
+            m.TaskValidationError, match=r"active_season\[0\] must be an object"
+        ):
+            m.normalize_active_season(["04-01"])
+
+    def test_rejects_a_date_that_is_not_mm_dd(self):
+        # A month name, a bare month, and a string of separators: none of them parse
+        # into a month and a day, and each has to say so about the field it is on.
+        for value in ("April", "4", "--"):
+            with pytest.raises(m.TaskValidationError, match="end must be MM-DD"):
+                m.normalize_active_season({"start": "04-01", "end": value})
+
     def test_rejects_invalid_month(self):
         with pytest.raises(m.TaskValidationError, match="month must be 1-12"):
             m.normalize_active_season({"start": "13-01", "end": "09-30"})
