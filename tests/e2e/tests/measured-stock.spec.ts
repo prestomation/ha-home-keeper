@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { callService, listStates, openPanel } from './helpers';
+import { ASSET, PART } from '../fixture-ids';
 
 /**
  * Stock measured rather than counted (issue #220), from the household's side.
@@ -13,15 +14,13 @@ import { callService, listStates, openPanel } from './helpers';
  * asserting on it is how #221 hid in plain sight for months.
  */
 
-const ASSET = 'asset_water_heater';
-const PART = 'part_descaler';
 const SEEDED_STOCK = 750;
 
 /** The seeded measured part, read back over the public service API. */
 async function readPart(): Promise<Record<string, any>> {
   const { assets } = await callService('home_keeper', 'list_assets', {}, true);
-  const asset = assets.find((a: any) => a.id === ASSET);
-  return asset.parts.find((p: any) => p.id === PART);
+  const asset = assets.find((a: any) => a.id === ASSET.waterHeater);
+  return asset.parts.find((p: any) => p.id === PART.descaler);
 }
 
 test.describe('a part measured in units, not whole spares', () => {
@@ -32,8 +31,8 @@ test.describe('a part measured in units, not whole spares', () => {
     const drift = SEEDED_STOCK - Number(part.stock);
     if (drift) {
       await callService('home_keeper', 'adjust_part_stock', {
-        asset_id: ASSET,
-        part_id: PART,
+        asset_id: ASSET.waterHeater,
+        part_id: PART.descaler,
         delta: drift,
       });
     }
@@ -43,7 +42,7 @@ test.describe('a part measured in units, not whole spares', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await panel.locator('#tab-appliances').click();
-    await panel.locator(`.detail-open[data-detail-id="${ASSET}"]`).click();
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
 
     const row = panel.locator('.hk-part-row').filter({ hasText: 'Descaling solution' });
     await expect(row).toBeVisible();
@@ -56,7 +55,7 @@ test.describe('a part measured in units, not whole spares', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await panel.locator('#tab-appliances').click();
-    await panel.locator(`.detail-open[data-detail-id="${ASSET}"]`).click();
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
     await panel.locator('.d-edit').click();
 
     const form = panel.locator('#hk-asset-form');
@@ -75,8 +74,8 @@ test.describe('a part measured in units, not whole spares', () => {
 
   test('a fractional adjustment survives the round trip', async () => {
     await callService('home_keeper', 'adjust_part_stock', {
-      asset_id: ASSET,
-      part_id: PART,
+      asset_id: ASSET.waterHeater,
+      part_id: PART.descaler,
       delta: -0.5,
     });
     // Truncating to an int here is the bug this guards: 749.5, not 749 or 750.

@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { openPanel, trackPanelErrors } from './helpers';
+import { TASK } from '../fixture-ids';
 
 /**
  * E2E coverage for condition-driven (triggered) tasks — the model behind the
  * Battery Notes glue. The seed data has one *active* battery task
- * (`task_door_battery`, due-now) and two *dormant* ones (`task_smoke_battery`,
- * `task_thermostat_battery`, monitored/not-due), all managed by "Battery Notes".
+ * (`${TASK.doorBattery}`, due-now) and two *dormant* ones (`${TASK.smokeBattery}`,
+ * `${TASK.thermostatBattery}`, monitored/not-due), all managed by "Battery Notes".
  */
 test.describe('Home Keeper panel — triggered / battery tasks', () => {
   test('an active battery task shows overdue + Managed by Battery Notes', async ({ page }) => {
@@ -50,7 +51,7 @@ test.describe('Home Keeper panel — triggered / battery tasks', () => {
     const errors = trackPanelErrors(page);
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('.detail-open[data-detail-id="task_door_battery"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.doorBattery}"]`).click();
     await expect(panel.locator('#back-btn')).toBeVisible();
     // Schedule row reads "Monitored", not a recurrence rule.
     await expect(panel).toContainText('Monitored');
@@ -67,7 +68,7 @@ test.describe('Home Keeper panel — triggered / battery tasks', () => {
   test('a dormant battery task detail offers no Done action', async ({ page }) => {
     // The dormant task lives in the collapsed Monitored section, so deep-link
     // straight to its detail page rather than clicking a hidden row.
-    await page.goto('/home-keeper/tasks/task_smoke_battery', { waitUntil: 'domcontentloaded' });
+    await page.goto(`/home-keeper/tasks/${TASK.smokeBattery}`, { waitUntil: 'domcontentloaded' });
     const panel = page.locator('home-keeper-panel').first();
     await panel.waitFor({ state: 'attached', timeout: 45_000 });
     await expect(panel.locator('#back-btn')).toBeVisible();

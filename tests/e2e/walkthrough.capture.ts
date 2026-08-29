@@ -20,6 +20,7 @@
 import { test, expect } from '@playwright/test';
 import { resolve } from 'path';
 import { openPanel, openDashboard } from './tests/helpers';
+import { ASSET, TASK } from './fixture-ids';
 
 const OUT = process.env.VIDEO_DIR || '/tmp/home-keeper-video';
 const STATE_PATH = resolve(__dirname, '.auth/state.json');
@@ -64,7 +65,7 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     // 2. Open a task's detail page — full schedule, notes, completion history, and
     //    (since this task is linked to a part with a product URL) a clickable
     //    "Consumable link" row that jumps straight to buying the replacement.
-    const taskRow = panel.locator('.detail-open[data-detail-id="task_water_filter"]');
+    const taskRow = panel.locator(`.detail-open[data-detail-id="${TASK.waterFilter}"]`);
     await expect(taskRow).toBeVisible();
     await taskRow.click();
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
@@ -134,7 +135,7 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     // 2c. NFC/RFID tags. Bind a tag to the fridge-filter task (quick-log) and
     //     scan-lock the furnace filter, show the chips and the blocked Done with its
     //     explanatory toast, then unbind both so the seeded data is untouched.
-    await page.evaluate(async () => {
+    await page.evaluate(async (IDS) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const hass = (document.querySelector('home-assistant') as any)?.hass;
       if (!hass) return;
@@ -144,40 +145,40 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
         await hass.callWS({ type: 'tag/create', tag_id: 'fridge-filter-tag', name: 'Fridge filter' });
       }
       await hass.callService('home_keeper', 'update_task', {
-        task_id: 'task_fridge_filter',
+        task_id: IDS.TASK.fridgeFilter,
         tag_id: 'fridge-filter-tag',
       });
       await hass.callService('home_keeper', 'update_task', {
-        task_id: 'task_furnace_filter',
+        task_id: IDS.TASK.furnaceFilter,
         tag_id: 'fridge-filter-tag',
         require_tag_scan: true,
       });
-    });
+    }, { TASK });
     await page.goto('/home-keeper', { waitUntil: 'domcontentloaded' });
     await expect(panel.locator('#add-btn')).toBeVisible();
-    const nfcChip = panel.locator('.hk-card[data-id="task_fridge_filter"] .hk-tag');
+    const nfcChip = panel.locator(`.hk-card[data-id="${TASK.fridgeFilter}"] .hk-tag`);
     await expect(nfcChip).toBeVisible({ timeout: 10_000 });
     await nfcChip.scrollIntoViewIfNeeded();
     await page.waitForTimeout(BEAT * 2);
     // Tap the scan-locked task's greyed Done — the toast explains a scan is needed.
-    const lockedDone = panel.locator('.hk-card[data-id="task_furnace_filter"] .done-blocked-wrap');
+    const lockedDone = panel.locator(`.hk-card[data-id="${TASK.furnaceFilter}"] .done-blocked-wrap`);
     await expect(lockedDone).toBeVisible();
     await lockedDone.click();
     await page.waitForTimeout(BEAT * 3); // linger so the toast reads on video
-    await page.evaluate(async () => {
+    await page.evaluate(async (IDS) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const hass = (document.querySelector('home-assistant') as any)?.hass;
       if (!hass) return;
       await hass.callService('home_keeper', 'update_task', {
-        task_id: 'task_furnace_filter',
+        task_id: IDS.TASK.furnaceFilter,
         tag_id: null,
         require_tag_scan: false,
       });
       await hass.callService('home_keeper', 'update_task', {
-        task_id: 'task_fridge_filter',
+        task_id: IDS.TASK.fridgeFilter,
         tag_id: null,
       });
-    });
+    }, { TASK });
     await page.goto('/home-keeper', { waitUntil: 'domcontentloaded' });
     await expect(panel.locator('#add-btn')).toBeVisible();
     await page.waitForTimeout(BEAT);
@@ -274,7 +275,7 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
       await monitoredGroup.locator('summary').click();
       await page.waitForTimeout(BEAT);
     }
-    await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.nozzleUsage}"]`).click();
     await expect(panel.locator('.hk-meter').first()).toBeVisible();
     await page.waitForTimeout(BEAT * 3);
     await panel.locator('#back-btn').click();
@@ -296,7 +297,7 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await expect(panel.locator('.hk-name').first()).toBeVisible();
     await page.waitForTimeout(BEAT);
 
-    const applianceRow = panel.locator('.detail-open[data-detail-id="asset_water_heater"]');
+    const applianceRow = panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`);
     await expect(applianceRow).toBeVisible();
     await applianceRow.click();
     await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
@@ -331,7 +332,7 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
       .click();
     await expect(panel.locator('ha-assist-chip.hk-archived').first()).toBeVisible();
     await page.waitForTimeout(BEAT * 2);
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
     await expect(panel.locator('.d-restore')).toBeVisible();
     await page.waitForTimeout(BEAT);
     // Restore it so the rest of the tour finds it back on the active list.
@@ -342,7 +343,7 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await panel
       .locator('.hk-seg[data-seg="assetFilter"] button', { hasText: 'Active' })
       .click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
     await expect(panel.locator('.d-archive')).toBeVisible();
     await page.waitForTimeout(BEAT);
 

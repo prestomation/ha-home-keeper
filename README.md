@@ -1060,6 +1060,36 @@ lists all of them with their fields.
   here, files upload from the panel), `list_assets`, and `export_inventory` (the last two
   return a response).
 
+### Name a task, don't hunt for its ID
+
+Every `task_id`, `asset_id`, `part_id` and `document_id` field takes the object's
+**name** as readily as its id, so an automation can say what it means:
+
+```yaml
+action: home_keeper.complete_task
+data:
+  task_id: Replace furnace filter
+```
+
+The id is still the exact form, and it now has somewhere to come from. The panel
+shows it at the foot of every task and appliance page, and beside each part and
+document, with a button that copies it. Reach for the id when two things share a
+name. Home Keeper refuses an ambiguous name rather than guessing, and the error
+lists the ids it could have meant.
+
+There is also a route that needs neither. Checking a task off the
+`todo.home_keeper_tasks` list completes it, and `todo.update_item` addresses that
+list by item name:
+
+```yaml
+action: todo.update_item
+target:
+  entity_id: todo.home_keeper_tasks
+data:
+  item: Replace furnace filter
+  status: completed
+```
+
 ## Events & automations
 
 Home Keeper fires a Home Assistant **bus event** for every state change so you can

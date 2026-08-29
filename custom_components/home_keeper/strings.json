@@ -124,8 +124,8 @@
       "description": "Update fields of an existing task.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the task to update."
+          "name": "Task name or ID",
+          "description": "The id of the task to update. Its name works too. The panel shows the id."
         },
         "name": {
           "name": "Name",
@@ -210,8 +210,8 @@
       "description": "Delete a task.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the task to delete."
+          "name": "Task name or ID",
+          "description": "The id of the task to delete. Its name works too. The panel shows the id."
         },
         "force": {
           "name": "Force",
@@ -224,8 +224,8 @@
       "description": "Mark a task complete and advance its recurrence.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the task to complete."
+          "name": "Task name or ID",
+          "description": "The id of the task to complete. Its name works too. The panel shows the id."
         },
         "completed_at": {
           "name": "Completed at",
@@ -262,8 +262,8 @@
       "description": "Amend the metadata (note, cost, photo, who) of an already-recorded completion, identified by its timestamp. Does not change the schedule or due date.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the task whose completion you are editing."
+          "name": "Task name or ID",
+          "description": "The id of the task whose completion you are editing. Its name works too. The panel shows the id."
         },
         "ts": {
           "name": "Completion timestamp",
@@ -296,8 +296,8 @@
       "description": "Arm a condition-driven (triggered) task so it reads as due now. This is the owner-facing counterpart to Complete task (which clears it back to dormant). Idempotent. Only valid for triggered tasks.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the triggered task to arm."
+          "name": "Task name or ID",
+          "description": "The id of the triggered task to arm. Its name works too. The panel shows the id."
         }
       }
     },
@@ -306,8 +306,8 @@
       "description": "Re-anchor a usage (meter) sensor task's baseline without recording a completion. Use it when the work was done before Home Keeper was watching, or when the bound meter itself was replaced or zeroed. Omit baseline to anchor to the sensor's current reading. Only valid for a sensor task in usage mode.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the usage sensor task to re-anchor."
+          "name": "Task name or ID",
+          "description": "The id of the usage sensor task to re-anchor. Its name works too. The panel shows the id."
         },
         "baseline": {
           "name": "Baseline",
@@ -320,8 +320,8 @@
       "description": "Defer a task's due date without recording a completion or advancing its recurrence.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the task to snooze."
+          "name": "Task name or ID",
+          "description": "The id of the task to snooze. Its name works too. The panel shows the id."
         },
         "hours": {
           "name": "Hours",
@@ -338,8 +338,8 @@
       "description": "Advance a task to its next occurrence without recording a completion.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the task to skip."
+          "name": "Task name or ID",
+          "description": "The id of the task to skip. Its name works too. The panel shows the id."
         },
         "origin": {
           "name": "Origin",
@@ -352,16 +352,16 @@
       "description": "Link a task to an appliance consumable/part so completing it consumes one spare from the part's stock and fires a low-stock event at the reorder threshold. Omit asset_id and part_id to clear the link.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the task to link (or unlink)."
+          "name": "Task name or ID",
+          "description": "The id of the task to link (or unlink). Its name works too. The panel shows the id."
         },
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the consumable belongs to. Omit to unlink."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance the consumable belongs to. Omit to unlink. Its name works too. The panel shows the id."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the consumable/part to link. Omit to unlink."
+          "name": "Part name or ID",
+          "description": "The id of the consumable/part to link. Omit to unlink. Its name works too. The panel shows the id."
         }
       }
     },
@@ -449,7 +449,7 @@
         },
         "parent_asset_id": {
           "name": "Parent appliance",
-          "description": "Make this a subdevice of another appliance."
+          "description": "Make this a subdevice of another appliance. Give its name or its id."
         },
         "related_device_ids": {
           "name": "Related devices",
@@ -462,8 +462,8 @@
       "description": "Update fields of an existing appliance/asset.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the asset to update."
+          "name": "Appliance name or ID",
+          "description": "The id of the asset to update. Its name works too. The panel shows the id."
         },
         "name": {
           "name": "Name",
@@ -515,7 +515,7 @@
         },
         "parent_asset_id": {
           "name": "Parent appliance",
-          "description": "Make this a subdevice of another appliance."
+          "description": "Make this a subdevice of another appliance. Give its name or its id."
         },
         "related_device_ids": {
           "name": "Related devices",
@@ -528,8 +528,8 @@
       "description": "Delete an appliance/asset. Its virtual device (if any) is removed and tasks attached to it become standalone.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the asset to delete."
+          "name": "Appliance name or ID",
+          "description": "The id of the asset to delete. Its name works too. The panel shows the id."
         }
       }
     },
@@ -538,8 +538,8 @@
       "description": "Hide an appliance/asset from the default view without deleting its data. Its device, entities, and attached tasks are left untouched. restore_asset undoes it.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the asset to archive."
+          "name": "Appliance name or ID",
+          "description": "The id of the asset to archive. Its name works too. The panel shows the id."
         }
       }
     },
@@ -548,8 +548,8 @@
       "description": "Undo archive_asset, returning an archived appliance to the default view.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the asset to restore."
+          "name": "Appliance name or ID",
+          "description": "The id of the asset to restore. Its name works too. The panel shows the id."
         }
       }
     },
@@ -562,12 +562,12 @@
       "description": "Change a part's on-hand spare quantity by a signed delta (clamped at zero). Decimals are allowed. When a decrease reaches or crosses the reorder threshold, a low-stock event fires.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance the part belongs to. Its name works too. The panel shows the id."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose stock to adjust."
+          "name": "Part name or ID",
+          "description": "The id of the part whose stock to adjust. Its name works too. The panel shows the id."
         },
         "delta": {
           "name": "Delta",
@@ -580,12 +580,12 @@
       "description": "Detach a part's attached file (receipt/spec sheet/photo), deleting its on-disk blob. Upload/replace a file from the panel. This service handles removal only.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance the part belongs to. Its name works too. The panel shows the id."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose file to remove."
+          "name": "Part name or ID",
+          "description": "The id of the part whose file to remove. Its name works too. The panel shows the id."
         }
       }
     },
@@ -594,8 +594,8 @@
       "description": "Attach a link document (manual/warranty/receipt) to an appliance. Upload files from the panel. This service handles links only.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance to attach the document to."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance to attach the document to. Its name works too. The panel shows the id."
         },
         "document": {
           "name": "Document",
@@ -608,12 +608,12 @@
       "description": "Detach a document from an appliance. An uploaded file's stored copy is deleted from disk too.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the document belongs to."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance the document belongs to. Its name works too. The panel shows the id."
         },
         "document_id": {
-          "name": "Document ID",
-          "description": "The id of the document to remove."
+          "name": "Document name or ID",
+          "description": "The id of the document to remove. Its name works too. The panel shows the id."
         }
       }
     },
@@ -622,12 +622,12 @@
       "description": "Edit an existing document on an appliance: rename it, or (for link documents) change its URL. Uploaded file documents can only be renamed.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the document belongs to."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance the document belongs to. Its name works too. The panel shows the id."
         },
         "document_id": {
-          "name": "Document ID",
-          "description": "The id of the document to edit."
+          "name": "Document name or ID",
+          "description": "The id of the document to edit. Its name works too. The panel shows the id."
         },
         "changes": {
           "name": "Changes",
@@ -640,12 +640,12 @@
       "description": "Mint a short-lived URL (no auth header needed) an external caller can fetch the file document's bytes from, e.g. an MCP-connected agent.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the document belongs to."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance the document belongs to. Its name works too. The panel shows the id."
         },
         "document_id": {
-          "name": "Document ID",
-          "description": "The id of the document to sign a URL for."
+          "name": "Document name or ID",
+          "description": "The id of the document to sign a URL for. Its name works too. The panel shows the id."
         }
       }
     },
@@ -654,12 +654,12 @@
       "description": "Mint a short-lived URL (no auth header needed) an external caller can fetch a part's attached file bytes from, e.g. an MCP-connected agent.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance the part belongs to. Its name works too. The panel shows the id."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose attached file to sign a URL for."
+          "name": "Part name or ID",
+          "description": "The id of the part whose attached file to sign a URL for. Its name works too. The panel shows the id."
         }
       }
     },
@@ -705,8 +705,8 @@
       "description": "Re-timestamp an already-recorded completion (back-date or correct it), identified by its current timestamp. Unlike Update completion, this changes the completion's date/time and re-derives the task's last-completed and next-due dates from the result.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the task whose completion you are moving."
+          "name": "Task name or ID",
+          "description": "The id of the task whose completion you are moving. Its name works too. The panel shows the id."
         },
         "old_ts": {
           "name": "Current completion timestamp",
@@ -723,8 +723,8 @@
       "description": "Remove one completion from a task's history (undo an accidental “done”), identified by its timestamp.",
       "fields": {
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the task whose completion you are removing."
+          "name": "Task name or ID",
+          "description": "The id of the task whose completion you are removing. Its name works too. The panel shows the id."
         },
         "ts": {
           "name": "Completion timestamp",
@@ -741,12 +741,12 @@
       "description": "Remove one completion from an appliance's archived task history, identified by the originating task id and completion timestamp.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance whose archived history you are editing."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance whose archived history you are editing. Its name works too. The panel shows the id."
         },
         "task_id": {
-          "name": "Task ID",
-          "description": "The id of the original task the archived completion belongs to."
+          "name": "Task name or ID",
+          "description": "The id of the original task the archived completion belongs to. Its name works too. The panel shows the id."
         },
         "ts": {
           "name": "Completion timestamp",
@@ -898,6 +898,18 @@
     },
     "failed_to_store_file": {
       "message": "Failed to store the file."
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

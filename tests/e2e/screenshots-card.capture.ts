@@ -1,5 +1,6 @@
 import { test, expect, Locator, Page } from '@playwright/test';
 import { openCardDashboard } from './tests/helpers';
+import { TASK } from './fixture-ids';
 
 /**
  * One-off capture of the Home Keeper dashboard card for the README / PR. Run via:
@@ -38,7 +39,7 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   // its real (runtime-provisioned) appliance device so the row's device chip resolves
   // to "Garage water heater" rather than a raw id — and its pinned links still resolve
   // (they reference the appliance by id, independent of the device).
-  await page.evaluate(async () => {
+  await page.evaluate(async (IDS) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
     if (!hass) return;
@@ -48,11 +49,11 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
     const wh = assets.find((a: any) => a.name === 'Garage water heater');
     if (wh?.device_id) {
       await hass.callService('home_keeper', 'update_task', {
-        task_id: 'task_water_filter',
+        task_id: IDS.TASK.waterFilter,
         device_id: wh.device_id,
       });
     }
-  });
+  }, { TASK });
   await page.waitForTimeout(1500); // attaching a device reloads the entry; let it settle
   await expect(card.locator('a.hk-link-chip').first()).toBeVisible();
   await page.waitForTimeout(500); // let layout / chips settle

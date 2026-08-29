@@ -426,9 +426,9 @@ def test_subdevice_has_warranty_independent_and_parent_seeded(ha):
     # devices; list_assets reflects the parent link.
     resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
     assets = resp.get("service_response", resp)["assets"]
-    radio = next(a for a in assets if a["id"] == "asset_radio_shade")
-    shades = next(a for a in assets if a["id"] == "asset_shades")
-    assert radio["parent_asset_id"] == "asset_shades"
+    radio = next(a for a in assets if a["name"] == "Radio shade controller")
+    shades = next(a for a in assets if a["name"] == "Living room shades")
+    assert radio["parent_asset_id"] == shades["id"]
     assert radio["device_id"] and shades["device_id"]
 
 
@@ -445,7 +445,7 @@ def test_related_device_can_be_attached(ha):
     assets = resp.get("service_response", resp)["assets"]
     piano = next(a for a in assets if a["name"] == "Living room piano")
     # Relate it to the seeded water heater's (virtual) device as a foreign device.
-    wh = next(a for a in assets if a["id"] == "asset_water_heater")
+    wh = next(a for a in assets if a["name"] == "Garage water heater")
     call_service(
         ha,
         "home_keeper",

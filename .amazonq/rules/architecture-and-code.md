@@ -279,6 +279,27 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   translations-parity test enforces this; hassfest requires the `services.yaml` ↔
   `strings.json` pairing). The websocket command, if any, is added alongside and
   delegates to the same `HomeKeeperStore` method — never a divergent code path.
+- **Every `*_id` service field accepts a name as well as an id, id first.** The ids are
+  `uuid4`s (`models.build_task`, `assets.build_asset`) that appear in no UI a person
+  reads, so an id-only field makes the whole service surface unusable by hand. This
+  follows Home Assistant core: `todo.update_item`'s single `item` field is labelled
+  "Item name or UID" and resolved by `_find_by_uid_or_summary`. Keep it **one field**
+  — never a `task_name` sibling beside `task_id` — and never rename the existing key,
+  which integrators and published automations already pass.
+  `resolve.py` holds the resolution (pure, HA-free, on the mutmut allowlist): exact id,
+  then exact name, then a trimmed/case-folded name, with parts and documents scoped to
+  their already-resolved asset. `__init__.py`'s `_task_ref`/`_asset_ref`/`_part_ref`/
+  `_document_ref` wrap it for the handlers.
+  **Ambiguity raises; it does not guess.** This is the one deliberate departure from
+  core, which takes the first name match: Home Keeper's names are not unique by design
+  (`docs/INTEGRATING.md` tells contributors to expect collisions) and the services
+  reached this way include `delete_task` and `delete_asset`. A name matching several
+  objects raises `<kind>_ambiguous` naming every candidate id. A name matching *nothing*
+  is passed through untouched so the handler's existing not-found error quotes what the
+  user actually typed.
+  The panel shows each object's id with a copy button (`panel.ts` `_idRow`), which is
+  what makes the id form reachable when a name is ambiguous. Websocket commands stay
+  id-only: the panel holds full objects and never types a name.
 - Read-only/report actions use `SupportsResponse.ONLY`; data mutations reload the
   entry or refresh the coordinator exactly as the equivalent CRUD service does.
 - **Uploaded document blobs are the one non-service mutation surface.** Asset documents

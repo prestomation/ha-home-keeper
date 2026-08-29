@@ -8,6 +8,7 @@ import {
   todoSummaries,
   trackPanelErrors,
 } from './helpers';
+import { TASK } from '../fixture-ids';
 
 /** Fill the input of the nth ha-form text selector within a scope. */
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
@@ -16,8 +17,8 @@ async function fillText(scope: Locator, nth: number, value: string): Promise<voi
 
 /**
  * E2E coverage for one-off (do-once) tasks. The seed data has one *upcoming*
- * one-off (`task_passport`, a future due date) and one *completed* one-off
- * (`task_car_registration`, already done -> dormant, in the Completed section).
+ * one-off (`${TASK.passport}`, a future due date) and one *completed* one-off
+ * (`${TASK.carRegistration}`, already done -> dormant, in the Completed section).
  *
  * Completing a one-off is a *disappearance*: it goes dormant and has to leave the
  * to-do list, the calendar and the panel's active list at once. This file asserts

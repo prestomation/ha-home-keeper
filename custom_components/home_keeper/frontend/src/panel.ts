@@ -83,6 +83,7 @@ import {
   deviceDomain,
   deviceName,
   dueLabel,
+  copyText,
   escapeHTML,
   formatQuantity,
   isHttpUrl,
@@ -648,6 +649,27 @@ const STYLES = `
   /* Anything linked from a detail row must *look* clickable — an anchor whose href is
      filled in asynchronously (a signed file URL) gets no default affordance, which is
      what made document links read as dead text (issue #164). */
+  /* An id is a uuid: monospace so it can be read and checked character by character,
+     and allowed to wrap rather than widen the card on a phone. */
+  .hk-id-row .v { display: flex; align-items: center; gap: 4px; }
+  .hk-id-row code {
+    font-family: var(--code-font-family, monospace); font-size: 0.8rem;
+    color: var(--secondary-text-color); overflow-wrap: anywhere;
+  }
+  .hk-id-row ha-icon-button {
+    --mdc-icon-button-size: 32px; --mdc-icon-size: 18px;
+    color: var(--secondary-text-color); flex: 0 0 auto;
+  }
+  /* The compact form, for the part and document rows. */
+  .hk-id-inline { display: flex; align-items: center; gap: 2px; margin-top: 2px; }
+  .hk-id-inline code {
+    font-family: var(--code-font-family, monospace); font-size: 0.72rem;
+    color: var(--secondary-text-color); opacity: 0.85; overflow-wrap: anywhere;
+  }
+  .hk-id-inline ha-icon-button {
+    --mdc-icon-button-size: 24px; --mdc-icon-size: 14px;
+    color: var(--secondary-text-color); flex: 0 0 auto;
+  }
   .hk-detail-row .v a { color: var(--primary-color); cursor: pointer; }
   .hk-detail-row .v a:hover { text-decoration: underline; }
   /* Documents (manuals/warranties/receipts) sit in their own card, one row each. Both
@@ -2643,6 +2665,34 @@ export class HomeKeeperPanel extends HTMLElement {
     }</span></div>`;
   }
 
+  /**
+   * A detail row carrying an object's id, with a button that copies it.
+   *
+   * Every `home_keeper.*` service identifies its target by this id, and until now it
+   * appeared nowhere in the UI — so anyone automating against the services had to dig
+   * a uuid out of a `list_tasks` response first. The services take the object's *name*
+   * too, which covers most cases; the id is what settles the rest, where two things
+   * share a name and only the id says which one you mean.
+   */
+  private _idRow(id: string | null | undefined, compact = false): string {
+    if (!id) return '';
+    const copy = `<ha-icon-button class="hk-copy" data-copy="${escapeHTML(
+      id,
+    )}" label="${escapeHTML(t('btn.copyId'))}" title="${escapeHTML(
+      t('btn.copyId'),
+    )}"><ha-icon icon="mdi:content-copy"></ha-icon></ha-icon-button>`;
+    // Parts and documents are already dense rows, and an id is a footnote on them:
+    // the compact form drops the label and the divider and tucks the id under the
+    // name, so the list keeps its shape. A task or appliance page has a details card
+    // with room for a labelled row like any other field.
+    if (compact) {
+      return `<div class="hk-id-inline"><code>${escapeHTML(id)}</code>${copy}</div>`;
+    }
+    return `<div class="hk-detail-row hk-id-row"><span class="k">${escapeHTML(
+      t('detail.id'),
+    )}</span><span class="v"><code>${escapeHTML(id)}</code>${copy}</span></div>`;
+  }
+
   /** A human-readable line for a sensor task's binding, with live progress when the
    *  bound entity's current value is known: usage shows "consumed / target (entity)";
    *  threshold shows "entity: current (cmp value)"; state shows "entity: current
@@ -2839,6 +2889,7 @@ export class HomeKeeperPanel extends HTMLElement {
         ${task.recurrence_type === 'sensor' ? this._sensorProgressBar(task) : ''}
         ${this._row(t('detail.nextDue'), due)}
         ${this._row(t('field.consumable_link'), this._consumableLinkLabel(task), true)}
+        ${this._idRow(task.id)}
       </div></ha-card>
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>
@@ -2881,6 +2932,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._row(t('field.area_id'), areaName(this._hass?.areas, asset.area_id)),
       this._row(t('field.cost'), cost),
       meta,
+      this._idRow(asset.id),
     ].join('');
     const detailsCard = details
       ? `<div class="hk-section">${escapeHTML(t('detail.about'))}</div>
@@ -2949,7 +3001,10 @@ export class HomeKeeperPanel extends HTMLElement {
             : name;
         }
         return `<div class="hk-detail-row hk-doc-row"><span class="k"><ha-icon
-          icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}</span></div>`;
+          icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}${this._idRow(
+            d.id,
+            true,
+          )}</span></div>`;
       })
       .join('');
     return `<div class="hk-section">${escapeHTML(t('section.documents'))}</div>
@@ -3044,6 +3099,7 @@ export class HomeKeeperPanel extends HTMLElement {
               ${subLine}
               ${chipRow}
               ${partNotes}
+              ${this._idRow(p.id, true)}
             </div>
           </div>`;
       })
@@ -3537,6 +3593,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._wireDeviceChips(root);
       this._wirePartIcons(root);
       this._wireHistoryDeletes(root);
+      this._wireCopyButtons(root);
       return;
     }
 
@@ -3652,6 +3709,23 @@ export class HomeKeeperPanel extends HTMLElement {
       }),
     );
     this._wireDeviceChips(root);
+  }
+
+  /** Wire every id row's copy button. One pass covers the task and appliance
+   *  pages plus the part and document rows, which all render the same row. */
+  private _wireCopyButtons(root: ShadowRoot): void {
+    root.querySelectorAll<HTMLElement>('.hk-copy[data-copy]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const id = el.dataset.copy;
+        if (!id) return;
+        // Report what actually happened: over plain HTTP the clipboard API is absent
+        // and the fallback can still fail, and claiming a copy that never landed
+        // leaves the user pasting whatever was there before.
+        void copyText(id).then((ok) => {
+          this._toast(ok ? t('toast.idCopied') : t('toast.copyFailed'));
+        });
+      });
+    });
   }
 
   /** Wire every `.detail-open` row to open its object's detail page. */

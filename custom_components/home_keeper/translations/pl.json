@@ -124,8 +124,8 @@
       "description": "Zaktualizuj pola istniejącego zadania.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator zadania do zaktualizowania."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania do zaktualizowania. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "name": {
           "name": "Nazwa",
@@ -210,8 +210,8 @@
       "description": "Usuń zadanie.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator zadania do usunięcia."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania do usunięcia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "force": {
           "name": "Wymuś",
@@ -224,8 +224,8 @@
       "description": "Oznacz zadanie jako ukończone i przejdź do jego kolejnego powtórzenia.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator zadania do ukończenia."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania do ukończenia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "completed_at": {
           "name": "Ukończono o",
@@ -262,8 +262,8 @@
       "description": "Zmienia metadane (notatkę, koszt, zdjęcie, kto) już zapisanego ukończenia, identyfikowanego po znaczniku czasu. Nie zmienia harmonogramu ani terminu.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator zadania, którego ukończenie edytujesz."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania, którego ukończenie edytujesz. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "ts": {
           "name": "Znacznik czasu ukończenia",
@@ -296,8 +296,8 @@
       "description": "Uzbrój zadanie sterowane warunkiem (wyzwalane), aby było widoczne jako wymagane teraz — odpowiednik dla użytkownika polecenia Ukończ zadanie (które przywraca je do stanu uśpienia). Idempotentne; ważne tylko dla zadań wyzwalanych.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator wyzwalanego zadania do uzbrojenia."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator wyzwalanego zadania do uzbrojenia. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -306,8 +306,8 @@
       "description": "Ponownie zakotwicza wartość początkową zadania z czujnikiem zużycia (licznikiem) bez zapisywania wykonania. Przydatne, gdy pracę wykonano, zanim Home Keeper zaczął ją śledzić, albo gdy powiązany licznik wymieniono lub wyzerowano. Pominięcie wartości początkowej zakotwicza ją na bieżącym odczycie czujnika. Działa wyłącznie dla zadania z czujnikiem w trybie zużycia.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator zadania z czujnikiem zużycia do ponownego zakotwiczenia."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania z czujnikiem zużycia do ponownego zakotwiczenia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "baseline": {
           "name": "Wartość początkowa",
@@ -320,8 +320,8 @@
       "description": "Odrocz termin zadania bez zapisywania ukończenia ani przesuwania jego powtarzania.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator zadania do odłożenia."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania do odłożenia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "hours": {
           "name": "Godziny",
@@ -338,8 +338,8 @@
       "description": "Przesuń zadanie do następnego wystąpienia bez zapisywania ukończenia.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator zadania do pominięcia."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania do pominięcia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "origin": {
           "name": "Inicjator",
@@ -352,16 +352,16 @@
       "description": "Wiąże zadanie z materiałem eksploatacyjnym/częścią urządzenia, tak aby jego ukończenie zużywało jedną zapasową sztukę ze stanu i wyzwalało zdarzenie niskiego stanu przy progu ponownego zamówienia. Pomiń asset_id i part_id, aby usunąć powiązanie.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator wyzwalanego zadania do uzbrojenia."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator wyzwalanego zadania do uzbrojenia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy część."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "part_id": {
-          "name": "Identyfikator części",
-          "description": "Identyfikator części, której zapas ma zostać dostosowany."
+          "name": "Nazwa lub identyfikator części",
+          "description": "Identyfikator części, której zapas ma zostać dostosowany. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -445,7 +445,7 @@
         },
         "parent_asset_id": {
           "name": "Urządzenie nadrzędne",
-          "description": "Uczyń to podurządzeniem innego urządzenia."
+          "description": "Uczyń to podurządzeniem innego urządzenia. Podaj jej nazwę lub identyfikator."
         },
         "related_device_ids": {
           "name": "Powiązane urządzenia",
@@ -462,8 +462,8 @@
       "description": "Zaktualizuj pola istniejącego urządzenia/zasobu.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator zasobu do zaktualizowania."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator zasobu do zaktualizowania. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "name": {
           "name": "Nazwa",
@@ -511,7 +511,7 @@
         },
         "parent_asset_id": {
           "name": "Urządzenie nadrzędne",
-          "description": "Uczyń to podurządzeniem innego urządzenia."
+          "description": "Uczyń to podurządzeniem innego urządzenia. Podaj jej nazwę lub identyfikator."
         },
         "related_device_ids": {
           "name": "Powiązane urządzenia",
@@ -528,8 +528,8 @@
       "description": "Usuń urządzenie/zasób. Jego urządzenie wirtualne (jeśli istnieje) zostaje usunięte, a przypisane do niego zadania stają się samodzielne.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator zasobu do usunięcia."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator zasobu do usunięcia. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -538,8 +538,8 @@
       "description": "Ukryj urządzenie/zasób z domyślnego widoku bez usuwania jego danych. Jego urządzenie, encje i przypisane zadania pozostają nietknięte; restore_asset to cofa.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator zasobu do zarchiwizowania."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator zasobu do zarchiwizowania. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -548,8 +548,8 @@
       "description": "Cofa archive_asset, przywracając zarchiwizowane urządzenie do domyślnego widoku.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator zasobu do przywrócenia."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator zasobu do przywrócenia. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -562,12 +562,12 @@
       "description": "Zmienia ilość dostępnych części zapasowych o wartość ze znakiem (ograniczoną do zera); dozwolone są wartości dziesiętne. Gdy zmniejszenie osiągnie lub przekroczy próg ponownego zamówienia, wyzwalane jest zdarzenie niskiego stanu zapasów.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy część."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "part_id": {
-          "name": "Identyfikator części",
-          "description": "Identyfikator części, której zapas ma zostać dostosowany."
+          "name": "Nazwa lub identyfikator części",
+          "description": "Identyfikator części, której zapas ma zostać dostosowany. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "delta": {
           "name": "Delta",
@@ -617,12 +617,12 @@
       "description": "Odłącza załączony plik części (paragon/karta katalogowa/zdjęcie), usuwając zapisaną kopię z dysku. Prześlij/zamień plik z poziomu panelu; ta usługa obsługuje tylko usuwanie.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy część."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "part_id": {
-          "name": "Identyfikator części",
-          "description": "Identyfikator części, której plik ma zostać usunięty."
+          "name": "Nazwa lub identyfikator części",
+          "description": "Identyfikator części, której plik ma zostać usunięty. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -631,8 +631,8 @@
       "description": "Dołącza dokument typu link (instrukcja/gwarancja/paragon) do urządzenia. Pliki prześlij z panelu; ta usługa obsługuje tylko linki.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego dołączyć dokument."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego dołączyć dokument. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "document": {
           "name": "Dokument",
@@ -645,12 +645,12 @@
       "description": "Odłącza dokument od urządzenia. W przypadku przesłanego pliku zapisana kopia jest również usuwana z dysku.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy dokument."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy dokument. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "document_id": {
-          "name": "Identyfikator dokumentu",
-          "description": "Identyfikator dokumentu do usunięcia."
+          "name": "Nazwa lub identyfikator dokumentu",
+          "description": "Identyfikator dokumentu do usunięcia. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -659,12 +659,12 @@
       "description": "Edytuje istniejący dokument urządzenia – zmienia jego nazwę lub (w przypadku dokumentów z odnośnikiem) zmienia jego URL. Przesłanym plikom można tylko zmienić nazwę.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy dokument."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy dokument. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "document_id": {
-          "name": "Identyfikator dokumentu",
-          "description": "Identyfikator dokumentu do edycji."
+          "name": "Nazwa lub identyfikator dokumentu",
+          "description": "Identyfikator dokumentu do edycji. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "changes": {
           "name": "Zmiany",
@@ -677,8 +677,8 @@
       "description": "Nadaje już zapisanemu ukończeniu nowy znacznik czasu (cofa jego datę lub go koryguje), identyfikowane po bieżącym znaczniku czasu. W przeciwieństwie do Aktualizuj ukończenie, zmienia to datę/godzinę ukończenia i ponownie oblicza daty ostatniego ukończenia i najbliższego terminu zadania na podstawie wyniku.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator zadania, którego ukończenie przenosisz."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania, którego ukończenie przenosisz. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "old_ts": {
           "name": "Bieżący znacznik czasu ukończenia",
@@ -695,8 +695,8 @@
       "description": "Usuwa jedno wykonanie z historii zadania (cofa przypadkowe „gotowe”), określone jego znacznikiem czasu.",
       "fields": {
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator zadania, którego wykonanie usuwasz."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania, którego wykonanie usuwasz. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "ts": {
           "name": "Znacznik czasu wykonania",
@@ -713,12 +713,12 @@
       "description": "Usuwa jedno wykonanie z zarchiwizowanej historii urządzenia, określone identyfikatorem pierwotnego zadania i znacznikiem czasu.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator urządzenia",
-          "description": "Identyfikator urządzenia, którego zarchiwizowaną historię edytujesz."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator urządzenia, którego zarchiwizowaną historię edytujesz. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "task_id": {
-          "name": "Identyfikator zadania",
-          "description": "Identyfikator pierwotnego zadania, do którego należy zarchiwizowane wykonanie."
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator pierwotnego zadania, do którego należy zarchiwizowane wykonanie. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "ts": {
           "name": "Znacznik czasu wykonania",
@@ -769,12 +769,12 @@
       "description": "Generuje krótkotrwały URL (bez potrzeby nagłówka uwierzytelniania), z którego zewnętrzny wywołujący może pobrać bajty dokumentu, np. agent połączony przez MCP.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy dokument."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy dokument. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "document_id": {
-          "name": "Identyfikator dokumentu",
-          "description": "Identyfikator dokumentu, dla którego ma zostać podpisany URL."
+          "name": "Nazwa lub identyfikator dokumentu",
+          "description": "Identyfikator dokumentu, dla którego ma zostać podpisany URL. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -783,12 +783,12 @@
       "description": "Generuje krótkotrwały URL (bez potrzeby nagłówka uwierzytelniania), z którego zewnętrzny wywołujący może pobrać bajty załączonego pliku części, np. agent połączony przez MCP.",
       "fields": {
         "asset_id": {
-          "name": "Identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy część."
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "part_id": {
-          "name": "Identyfikator części",
-          "description": "Identyfikator części, dla której załączonego pliku ma zostać podpisany URL."
+          "name": "Nazwa lub identyfikator części",
+          "description": "Identyfikator części, dla której załączonego pliku ma zostać podpisany URL. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     }
@@ -898,6 +898,18 @@
     },
     "failed_to_store_file": {
       "message": "Nie udało się zapisać pliku."
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

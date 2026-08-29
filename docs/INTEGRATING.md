@@ -126,6 +126,13 @@ task_id = next(
 > Embed a unique id of your own (e.g. a `schedule_id` you generate) inside `source` so
 > the match stays unambiguous even if the user creates tasks with matching names.
 
+Every `task_id` / `asset_id` / `part_id` / `document_id` service field also accepts the
+object's **name**. That is what makes the services usable in hand-written YAML. Don't
+build an integration on it. A name is user-editable and not unique, so a rename or a
+collision breaks you silently. Capture the id instead, or match on your own `source`
+namespace. A name that several objects share is rejected rather than guessed, so at
+least the failure is loud.
+
 ## 3. Reacting to a completion
 
 Home Keeper fires `home_keeper_task_completed` on **every** completion, whatever the
