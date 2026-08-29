@@ -98,10 +98,11 @@ what appliance data a non-admin can read, are in
 
 ### Active season
 
-Floating and fixed tasks take an optional **active season**: the part of the year the
-task belongs in. Outside it, the next due date moves forward to the start of the next
-window. *"Fertilize the yard every 2 months, April 1 through September 30"* completed
-on September 15 falls due on April 1 of the following year rather than November 15.
+Floating and fixed tasks take an optional **active season**. That is the part of the
+year the task belongs in. Outside it the next due date moves forward to the start of
+the next window. Take *"fertilize the yard every 2 months, April 1 through
+September 30"*. A completion on September 15 makes the task due on April 1 of the
+following year instead of November 15.
 
 Turn **Active season** on in the task form and pick the start and end dates.
 **Add another season** puts a second window on the task, so spring and fall can share
