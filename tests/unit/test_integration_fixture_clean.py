@@ -55,6 +55,7 @@ def _fixture_id_constants() -> dict[str, str]:
         for name, value in CONST_ENTRY.findall(body)
     }
 
+
 #: Names the integration and e2e suites create as they run. None should ever be
 #: committed. ``e2e`` is deliberately broad: the browser specs had no teardown at
 #: all until they grew one, and eight of their leftovers reached git precisely
@@ -108,10 +109,10 @@ def test_seeded_fixture_has_no_archived_assets() -> None:
 def test_every_id_the_capture_harnesses_click_is_seeded() -> None:
     """Nothing the screenshot/walkthrough tours open may go missing from the seed.
 
-    The tours navigate by stable seeded id (``data-detail-id="${TASK.nozzleUsage}"``), so
-    dropping one from the fixture breaks the capture — and because the walkthrough is a
-    *soft* gate, that surfaces only as a "capture failed" PR comment while every check
-    stays green. Restoring the fixture by hand did exactly that once.
+    The tours navigate by a stable seeded id (``data-detail-id="${TASK.nozzleUsage}"``),
+    so dropping one from the fixture breaks the capture — and because the walkthrough
+    is a *soft* gate, that surfaces only as a "capture failed" PR comment while every
+    check stays green. Restoring the fixture by hand did exactly that once.
     """
     payload = json.loads(FIXTURE.read_text())
     seeded = {
