@@ -4,11 +4,17 @@ Home Assistant 2026.9 reshaped two parts of ``homeassistant.helpers.device_regis
 that Home Keeper leans on:
 
 * **Child devices.** A device can now be registered as a *child* of another, and a
-  child is its own class (``ChildDeviceEntry``) rather than a ``DeviceEntry`` — it
-  carries only the attributes both kinds share, so no ``connections``, no
-  ``manufacturer``, no ``model``. ``DeviceRegistry.async_get`` answers with either
-  kind, and ``Entity.device_entry`` accepts either, so a child device is a perfectly
-  good thing to attach a task or an appliance to and Home Keeper keeps taking one.
+  child is its own class (``ChildDeviceEntry``) rather than a ``DeviceEntry``. Both
+  derive from ``BaseDeviceEntry``, so a child still carries ``id``, ``identifiers``,
+  ``name``, ``name_by_user``, ``area_id``, ``labels``, ``config_entry_id`` and
+  ``disabled_by`` — every attribute Home Keeper reads off a device except one. What a
+  child drops is the hardware description: ``connections``, ``manufacturer``,
+  ``model``, ``model_id``, ``hw_version``, ``sw_version``, ``serial_number``,
+  ``entry_type``, ``configuration_url`` and ``via_device_id``, which are the names
+  ``ChildDeviceEntry.__getattr__`` answers through a deprecation shim until 2027.9
+  removes it. ``DeviceRegistry.async_get`` answers with either kind, and
+  ``Entity.device_entry`` accepts either, so a child device is a perfectly good thing
+  to attach a task or an appliance to and Home Keeper keeps taking one.
 * **``DeviceRegistry.devices``.** It used to be a mapping keyed by device id and is now
   a collection of entries, so iterating the old one yields ids and the new one yields
   entries. ``.values()`` — the one spelling that answers on both today — is deprecated

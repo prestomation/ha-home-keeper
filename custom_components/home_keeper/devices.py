@@ -30,6 +30,10 @@ from .const import (
     DOMAIN,
     PANEL_URL_PATH,
 )
+
+# Every device-registry *read* goes through device_compat, never straight at the
+# registry: Home Assistant 2026.9 changed both what ``async_get`` can answer with and
+# what iterating ``registry.devices`` yields. Read that module before adding one here.
 from .device_compat import all_devices, device_connections, resolve_device
 from .store import HomeKeeperStore
 
