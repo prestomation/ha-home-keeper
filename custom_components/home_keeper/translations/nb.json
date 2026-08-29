@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til oppgaven som skal oppdateres. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til oppgaven som skal oppdateres. Navnet fungerer også. Panelet viser id-en."
         },
         "name": {
           "name": "Navn",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til oppgaven som skal slettes. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til oppgaven som skal slettes. Navnet fungerer også. Panelet viser id-en."
         },
         "force": {
           "name": "Tving",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til oppgaven som skal fullføres. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til oppgaven som skal fullføres. Navnet fungerer også. Panelet viser id-en."
         },
         "completed_at": {
           "name": "Fullført",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til oppgaven du redigerer fullføringen for. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til oppgaven du redigerer fullføringen for. Navnet fungerer også. Panelet viser id-en."
         },
         "ts": {
           "name": "Tidsstempel for fullføring",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til den utløste oppgaven som skal aktiveres. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til den utløste oppgaven som skal aktiveres. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til den bruksbaserte sensoroppgaven som skal forankres på nytt. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til den bruksbaserte sensoroppgaven som skal forankres på nytt. Navnet fungerer også. Panelet viser id-en."
         },
         "baseline": {
           "name": "Utgangsverdi",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til oppgaven som skal utsettes. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til oppgaven som skal utsettes. Navnet fungerer også. Panelet viser id-en."
         },
         "hours": {
           "name": "Timer",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til oppgaven som skal hoppes over. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til oppgaven som skal hoppes over. Navnet fungerer også. Panelet viser id-en."
         },
         "origin": {
           "name": "Opprinnelse",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til den utløste oppgaven som skal aktiveres. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til den utløste oppgaven som skal aktiveres. Navnet fungerer også. Panelet viser id-en."
         },
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "part_id": {
           "name": "Reservedelsnavn eller -ID",
-          "description": "ID-en til reservedelen hvis lager skal justeres. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til reservedelen hvis lager skal justeres. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "ID-en til eiendelen som skal oppdateres. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til eiendelen som skal oppdateres. Navnet fungerer også. Panelet viser id-en."
         },
         "name": {
           "name": "Navn",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "ID-en til eiendelen som skal slettes. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til eiendelen som skal slettes. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "ID-en til eiendelen som skal arkiveres. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til eiendelen som skal arkiveres. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "ID-en til eiendelen som skal gjenopprettes. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til eiendelen som skal gjenopprettes. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "part_id": {
           "name": "Reservedelsnavn eller -ID",
-          "description": "ID-en til reservedelen hvis lager skal justeres. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til reservedelen hvis lager skal justeres. Navnet fungerer også. Panelet viser id-en."
         },
         "delta": {
           "name": "Differanse",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "part_id": {
           "name": "Reservedelsnavn eller -ID",
-          "description": "ID-en til reservedelen hvis fil skal fjernes. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til reservedelen hvis fil skal fjernes. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "Id-en til apparatet dokumentet skal festes til. Navnet fungerer også; panelet viser id-en."
+          "description": "Id-en til apparatet dokumentet skal festes til. Navnet fungerer også. Panelet viser id-en."
         },
         "document": {
           "name": "Dokument",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "Id-en til apparatet dokumentet tilhører. Navnet fungerer også; panelet viser id-en."
+          "description": "Id-en til apparatet dokumentet tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "document_id": {
           "name": "Dokumentnavn eller -ID",
-          "description": "Id-en til dokumentet som skal fjernes. Navnet fungerer også; panelet viser id-en."
+          "description": "Id-en til dokumentet som skal fjernes. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "Id-en til apparatet dokumentet tilhører. Navnet fungerer også; panelet viser id-en."
+          "description": "Id-en til apparatet dokumentet tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "document_id": {
           "name": "Dokumentnavn eller -ID",
-          "description": "Id-en til dokumentet som skal redigeres. Navnet fungerer også; panelet viser id-en."
+          "description": "Id-en til dokumentet som skal redigeres. Navnet fungerer også. Panelet viser id-en."
         },
         "changes": {
           "name": "Endringer",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til oppgaven du flytter fullføringen for. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til oppgaven du flytter fullføringen for. Navnet fungerer også. Panelet viser id-en."
         },
         "old_ts": {
           "name": "Gjeldende tidsstempel for fullføring",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til oppgaven du fjerner fullføringen fra. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til oppgaven du fjerner fullføringen fra. Navnet fungerer også. Panelet viser id-en."
         },
         "ts": {
           "name": "Fullføringstidsstempel",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "ID-en til apparatet du redigerer den arkiverte historikken for. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til apparatet du redigerer den arkiverte historikken for. Navnet fungerer også. Panelet viser id-en."
         },
         "task_id": {
           "name": "Oppgavenavn eller -ID",
-          "description": "ID-en til den opprinnelige oppgaven som den arkiverte fullføringen tilhører. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til den opprinnelige oppgaven som den arkiverte fullføringen tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "ts": {
           "name": "Fullføringstidsstempel",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "Id-en til apparatet dokumentet tilhører. Navnet fungerer også; panelet viser id-en."
+          "description": "Id-en til apparatet dokumentet tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "document_id": {
           "name": "Dokumentnavn eller -ID",
-          "description": "ID-en til dokumentet det skal signeres en URL for. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til dokumentet det skal signeres en URL for. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Eiendelsnavn eller -ID",
-          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "part_id": {
           "name": "Reservedelsnavn eller -ID",
-          "description": "ID-en til reservedelen hvis vedlagte fil det skal signeres en URL for. Navnet fungerer også; panelet viser id-en."
+          "description": "ID-en til reservedelen hvis vedlagte fil det skal signeres en URL for. Navnet fungerer også. Panelet viser id-en."
         }
       }
     }

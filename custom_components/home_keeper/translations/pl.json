@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator zadania do zaktualizowania. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zadania do zaktualizowania. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "name": {
           "name": "Nazwa",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator zadania do usunięcia. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zadania do usunięcia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "force": {
           "name": "Wymuś",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator zadania do ukończenia. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zadania do ukończenia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "completed_at": {
           "name": "Ukończono o",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator zadania, którego ukończenie edytujesz. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zadania, którego ukończenie edytujesz. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "ts": {
           "name": "Znacznik czasu ukończenia",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator wyzwalanego zadania do uzbrojenia. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator wyzwalanego zadania do uzbrojenia. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator zadania z czujnikiem zużycia do ponownego zakotwiczenia. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zadania z czujnikiem zużycia do ponownego zakotwiczenia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "baseline": {
           "name": "Wartość początkowa",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator zadania do odłożenia. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zadania do odłożenia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "hours": {
           "name": "Godziny",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator zadania do pominięcia. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zadania do pominięcia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "origin": {
           "name": "Inicjator",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator wyzwalanego zadania do uzbrojenia. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator wyzwalanego zadania do uzbrojenia. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "part_id": {
           "name": "Nazwa lub identyfikator części",
-          "description": "Identyfikator części, której zapas ma zostać dostosowany. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator części, której zapas ma zostać dostosowany. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator zasobu do zaktualizowania. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zasobu do zaktualizowania. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "name": {
           "name": "Nazwa",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator zasobu do usunięcia. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zasobu do usunięcia. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator zasobu do zarchiwizowania. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zasobu do zarchiwizowania. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator zasobu do przywrócenia. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zasobu do przywrócenia. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "part_id": {
           "name": "Nazwa lub identyfikator części",
-          "description": "Identyfikator części, której zapas ma zostać dostosowany. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator części, której zapas ma zostać dostosowany. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "delta": {
           "name": "Delta",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "part_id": {
           "name": "Nazwa lub identyfikator części",
-          "description": "Identyfikator części, której plik ma zostać usunięty. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator części, której plik ma zostać usunięty. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego dołączyć dokument. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator urządzenia, do którego dołączyć dokument. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "document": {
           "name": "Dokument",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy dokument. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator urządzenia, do którego należy dokument. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "document_id": {
           "name": "Nazwa lub identyfikator dokumentu",
-          "description": "Identyfikator dokumentu do usunięcia. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator dokumentu do usunięcia. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy dokument. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator urządzenia, do którego należy dokument. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "document_id": {
           "name": "Nazwa lub identyfikator dokumentu",
-          "description": "Identyfikator dokumentu do edycji. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator dokumentu do edycji. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "changes": {
           "name": "Zmiany",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator zadania, którego ukończenie przenosisz. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zadania, którego ukończenie przenosisz. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "old_ts": {
           "name": "Bieżący znacznik czasu ukończenia",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator zadania, którego wykonanie usuwasz. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator zadania, którego wykonanie usuwasz. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "ts": {
           "name": "Znacznik czasu wykonania",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator urządzenia, którego zarchiwizowaną historię edytujesz. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator urządzenia, którego zarchiwizowaną historię edytujesz. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
-          "description": "Identyfikator pierwotnego zadania, do którego należy zarchiwizowane wykonanie. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator pierwotnego zadania, do którego należy zarchiwizowane wykonanie. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "ts": {
           "name": "Znacznik czasu wykonania",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy dokument. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator urządzenia, do którego należy dokument. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "document_id": {
           "name": "Nazwa lub identyfikator dokumentu",
-          "description": "Identyfikator dokumentu, dla którego ma zostać podpisany URL. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator dokumentu, dla którego ma zostać podpisany URL. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
-          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator urządzenia, do którego należy część. Nazwa również działa. Panel pokazuje identyfikator."
         },
         "part_id": {
           "name": "Nazwa lub identyfikator części",
-          "description": "Identyfikator części, dla której załączonego pliku ma zostać podpisany URL. Nazwa również działa; panel pokazuje identyfikator."
+          "description": "Identyfikator części, dla której załączonego pliku ma zostać podpisany URL. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
     }

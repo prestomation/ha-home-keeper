@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Päivitettävän tehtävän tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Päivitettävän tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "name": {
           "name": "Nimi",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Poistettavan tehtävän tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Poistettavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "force": {
           "name": "Pakota",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Valmistuvan tehtävän tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Valmistuvan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "completed_at": {
           "name": "Valmistumisaika",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Sen tehtävän tunnus, jonka suoritusta muokkaat. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen tehtävän tunnus, jonka suoritusta muokkaat. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "ts": {
           "name": "Suorituksen aikaleima",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Viritettävän laukaistavan tehtävän tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Viritettävän laukaistavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Uudelleen ankkuroitavan käyttöanturitehtävän tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Uudelleen ankkuroitavan käyttöanturitehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "baseline": {
           "name": "Lähtöarvo",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Lykättävän tehtävän tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Lykättävän tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "hours": {
           "name": "Tunnit",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Ohitettavan tehtävän tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Ohitettavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "origin": {
           "name": "Alkuperä",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Viritettävän laukaistavan tehtävän tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Viritettävän laukaistavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "part_id": {
           "name": "Varaosan nimi tai tunnus",
-          "description": "Sen varaosan tunnus, jonka varastoa säädetään. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen varaosan tunnus, jonka varastoa säädetään. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Päivitettävän kohteen tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Päivitettävän kohteen tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "name": {
           "name": "Nimi",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Poistettavan kohteen tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Poistettavan kohteen tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Arkistoitavan kohteen tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Arkistoitavan kohteen tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Palautettavan kohteen tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Palautettavan kohteen tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "part_id": {
           "name": "Varaosan nimi tai tunnus",
-          "description": "Sen varaosan tunnus, jonka varastoa säädetään. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen varaosan tunnus, jonka varastoa säädetään. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "delta": {
           "name": "Erotus",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "part_id": {
           "name": "Varaosan nimi tai tunnus",
-          "description": "Sen varaosan tunnus, jonka tiedosto poistetaan. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen varaosan tunnus, jonka tiedosto poistetaan. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Sen laitteen tunnus, johon asiakirja liitetään. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen laitteen tunnus, johon asiakirja liitetään. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "document": {
           "name": "Asiakirja",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Sen laitteen tunnus, johon asiakirja kuuluu. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen laitteen tunnus, johon asiakirja kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "document_id": {
           "name": "Asiakirjan nimi tai tunnus",
-          "description": "Poistettavan asiakirjan tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Poistettavan asiakirjan tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Sen laitteen tunnus, johon asiakirja kuuluu. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen laitteen tunnus, johon asiakirja kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "document_id": {
           "name": "Asiakirjan nimi tai tunnus",
-          "description": "Muokattavan asiakirjan tunnus. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Muokattavan asiakirjan tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "changes": {
           "name": "Muutokset",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Sen tehtävän tunnus, jonka suoritusta siirrät. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen tehtävän tunnus, jonka suoritusta siirrät. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "old_ts": {
           "name": "Nykyinen suorituksen aikaleima",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Sen tehtävän tunnus, jonka suorituksen poistat. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen tehtävän tunnus, jonka suorituksen poistat. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "ts": {
           "name": "Suorituksen aikaleima",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Sen laitteen tunnus, jonka arkistoitua historiaa muokkaat. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen laitteen tunnus, jonka arkistoitua historiaa muokkaat. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
-          "description": "Alkuperäisen tehtävän tunnus, johon arkistoitu suoritus kuuluu. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Alkuperäisen tehtävän tunnus, johon arkistoitu suoritus kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "ts": {
           "name": "Suorituksen aikaleima",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Sen laitteen tunnus, johon asiakirja kuuluu. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen laitteen tunnus, johon asiakirja kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "document_id": {
           "name": "Asiakirjan nimi tai tunnus",
-          "description": "Sen asiakirjan tunnus, jolle URL allekirjoitetaan. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen asiakirjan tunnus, jolle URL allekirjoitetaan. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
-          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "part_id": {
           "name": "Varaosan nimi tai tunnus",
-          "description": "Sen varaosan tunnus, jonka liitetylle tiedostolle URL allekirjoitetaan. Myös sen nimi käy; paneeli näyttää tunnuksen."
+          "description": "Sen varaosan tunnus, jonka liitetylle tiedostolle URL allekirjoitetaan. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     }

@@ -1071,10 +1071,10 @@ data:
   task_id: Replace furnace filter
 ```
 
-The id is still the exact form, and it now has somewhere to come from: the panel
-prints it at the foot of every task and appliance page, and beside each part and
+The id is still the exact form, and it now has somewhere to come from. The panel
+shows it at the foot of every task and appliance page, and beside each part and
 document, with a button that copies it. Reach for the id when two things share a
-name — Home Keeper refuses an ambiguous name rather than guessing, and the error
+name. Home Keeper refuses an ambiguous name rather than guessing, and the error
 lists the ids it could have meant.
 
 There is also a route that needs neither. Checking a task off the

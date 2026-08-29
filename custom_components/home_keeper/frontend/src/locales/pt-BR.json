@@ -438,7 +438,7 @@
   "tab.appliances": "Eletrodomésticos",
   "tab.settings": "Configurações",
   "tab.tasks": "Tarefas",
-  "toast.copyFailed": "Não foi possível copiar: selecione o ID e copie manualmente",
+  "toast.copyFailed": "Não foi possível copiar. Selecione o ID e copie manualmente.",
   "toast.idCopied": "ID copiado",
   "view.flat": "Lista",
   "view.label": "Exibição",

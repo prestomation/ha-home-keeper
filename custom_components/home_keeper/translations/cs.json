@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID úkolu, který se má aktualizovat. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID úkolu, který se má aktualizovat. Funguje i jeho název. Panel zobrazuje id."
         },
         "name": {
           "name": "Název",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID úkolu, který se má smazat. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID úkolu, který se má smazat. Funguje i jeho název. Panel zobrazuje id."
         },
         "force": {
           "name": "Vynutit",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID úkolu, který se má dokončit. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID úkolu, který se má dokončit. Funguje i jeho název. Panel zobrazuje id."
         },
         "completed_at": {
           "name": "Dokončeno v",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID úkolu, jehož dokončení upravujete. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID úkolu, jehož dokončení upravujete. Funguje i jeho název. Panel zobrazuje id."
         },
         "ts": {
           "name": "Časové razítko dokončení",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID spouštěného úkolu, který se má aktivovat. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID spouštěného úkolu, který se má aktivovat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID úkolu se snímačem spotřeby, který se má znovu ukotvit. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID úkolu se snímačem spotřeby, který se má znovu ukotvit. Funguje i jeho název. Panel zobrazuje id."
         },
         "baseline": {
           "name": "Výchozí hodnota",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID úkolu, který se má odložit. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID úkolu, který se má odložit. Funguje i jeho název. Panel zobrazuje id."
         },
         "hours": {
           "name": "Hodiny",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID úkolu, který se má přeskočit. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID úkolu, který se má přeskočit. Funguje i jeho název. Panel zobrazuje id."
         },
         "origin": {
           "name": "Původ",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID spouštěného úkolu, který se má aktivovat. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID spouštěného úkolu, který se má aktivovat. Funguje i jeho název. Panel zobrazuje id."
         },
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název; panel zobrazuje id."
+          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "part_id": {
           "name": "Název nebo ID dílu",
-          "description": "Id dílu, jehož zásobu chcete upravit. Funguje i jeho název; panel zobrazuje id."
+          "description": "Id dílu, jehož zásobu chcete upravit. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "ID majetku, který se má aktualizovat. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID majetku, který se má aktualizovat. Funguje i jeho název. Panel zobrazuje id."
         },
         "name": {
           "name": "Název",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "ID majetku, který se má smazat. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID majetku, který se má smazat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "ID majetku, který se má archivovat. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID majetku, který se má archivovat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "ID majetku, který se má obnovit. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID majetku, který se má obnovit. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název; panel zobrazuje id."
+          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "part_id": {
           "name": "Název nebo ID dílu",
-          "description": "Id dílu, jehož zásobu chcete upravit. Funguje i jeho název; panel zobrazuje id."
+          "description": "Id dílu, jehož zásobu chcete upravit. Funguje i jeho název. Panel zobrazuje id."
         },
         "delta": {
           "name": "Delta",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název; panel zobrazuje id."
+          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "part_id": {
           "name": "Název nebo ID dílu",
-          "description": "Id dílu, jehož soubor chcete odebrat. Funguje i jeho název; panel zobrazuje id."
+          "description": "Id dílu, jehož soubor chcete odebrat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "ID spotřebiče, ke kterému se dokument připojí. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID spotřebiče, ke kterému se dokument připojí. Funguje i jeho název. Panel zobrazuje id."
         },
         "document": {
           "name": "Dokument",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "ID spotřebiče, ke kterému dokument patří. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID spotřebiče, ke kterému dokument patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "document_id": {
           "name": "Název nebo ID dokumentu",
-          "description": "ID dokumentu k odebrání. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID dokumentu k odebrání. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "ID spotřebiče, ke kterému dokument patří. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID spotřebiče, ke kterému dokument patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "document_id": {
           "name": "Název nebo ID dokumentu",
-          "description": "ID dokumentu k úpravě. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID dokumentu k úpravě. Funguje i jeho název. Panel zobrazuje id."
         },
         "changes": {
           "name": "Změny",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID úkolu, jehož dokončení přesouváte. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID úkolu, jehož dokončení přesouváte. Funguje i jeho název. Panel zobrazuje id."
         },
         "old_ts": {
           "name": "Aktuální časové razítko dokončení",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID úkolu, jehož dokončení odebíráte. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID úkolu, jehož dokončení odebíráte. Funguje i jeho název. Panel zobrazuje id."
         },
         "ts": {
           "name": "Časové razítko dokončení",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "ID spotřebiče, jehož archivovanou historii upravujete. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID spotřebiče, jehož archivovanou historii upravujete. Funguje i jeho název. Panel zobrazuje id."
         },
         "task_id": {
           "name": "Název nebo ID úkolu",
-          "description": "ID původního úkolu, k němuž archivované dokončení patří. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID původního úkolu, k němuž archivované dokončení patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "ts": {
           "name": "Časové razítko dokončení",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "ID spotřebiče, ke kterému dokument patří. Funguje i jeho název; panel zobrazuje id."
+          "description": "ID spotřebiče, ke kterému dokument patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "document_id": {
           "name": "Název nebo ID dokumentu",
-          "description": "Id dokumentu, pro který se má podepsat URL. Funguje i jeho název; panel zobrazuje id."
+          "description": "Id dokumentu, pro který se má podepsat URL. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Název nebo ID majetku",
-          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název; panel zobrazuje id."
+          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "part_id": {
           "name": "Název nebo ID dílu",
-          "description": "Id dílu, jehož přiložený soubor se má podepsat. Funguje i jeho název; panel zobrazuje id."
+          "description": "Id dílu, jehož přiložený soubor se má podepsat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     }

@@ -452,7 +452,7 @@
   "tab.appliances": "Spotřebiče",
   "tab.settings": "Nastavení",
   "tab.tasks": "Úkoly",
-  "toast.copyFailed": "Kopírování selhalo – označte ID a zkopírujte je ručně",
+  "toast.copyFailed": "Kopírování selhalo. Označte ID a zkopírujte je ručně.",
   "toast.idCopied": "ID zkopírováno",
   "view.flat": "Seznam",
   "view.label": "Zobrazení",

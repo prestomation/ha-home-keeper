@@ -452,7 +452,7 @@
   "tab.appliances": "Устройства",
   "tab.settings": "Настройки",
   "tab.tasks": "Задачи",
-  "toast.copyFailed": "Не удалось скопировать — выделите ID и скопируйте вручную",
+  "toast.copyFailed": "Не удалось скопировать. Выделите ID и скопируйте вручную.",
   "toast.idCopied": "ID скопирован",
   "view.flat": "Список",
   "view.label": "Вид",

@@ -89,12 +89,12 @@ export function randomId(): string {
  */
 export async function copyText(value: string): Promise<boolean> {
   try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return true;
-    }
+    // No `?.` guard: a missing `navigator.clipboard` throws here and lands in the
+    // same catch as a denied write, and one mechanism is better than two.
+    await navigator.clipboard.writeText(value);
+    return true;
   } catch {
-    // Denied, or the document is not focused. The textarea path still works.
+    // Absent (the plain-HTTP case), denied, or the document is not focused.
   }
   const area = document.createElement('textarea');
   area.value = value;

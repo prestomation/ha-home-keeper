@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'id de la tâche à mettre à jour. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de la tâche à mettre à jour. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "name": {
           "name": "Nom",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'id de la tâche à supprimer. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de la tâche à supprimer. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "force": {
           "name": "Forcer",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'id de la tâche à terminer. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de la tâche à terminer. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "completed_at": {
           "name": "Terminée le",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'id de la tâche dont vous modifiez l'achèvement. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de la tâche dont vous modifiez l'achèvement. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "ts": {
           "name": "Horodatage de l'achèvement",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'id de la tâche déclenchée à armer. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de la tâche déclenchée à armer. Son nom fonctionne aussi. Le panneau affiche l'id."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'id de la tâche de capteur d'usage à réancrer. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de la tâche de capteur d'usage à réancrer. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "baseline": {
           "name": "Valeur de départ",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'identifiant de la tâche à reporter. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant de la tâche à reporter. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "hours": {
           "name": "Heures",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'identifiant de la tâche à ignorer. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant de la tâche à ignorer. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "origin": {
           "name": "Origine",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'id de la tâche déclenchée à armer. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de la tâche déclenchée à armer. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'identifiant de l'appareil auquel la pièce appartient. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant de l'appareil auquel la pièce appartient. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "part_id": {
           "name": "Nom ou ID de la pièce",
-          "description": "L'identifiant de la pièce dont le stock doit être ajusté. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant de la pièce dont le stock doit être ajusté. Son nom fonctionne aussi. Le panneau affiche l'id."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'id de l'actif à mettre à jour. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de l'actif à mettre à jour. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "name": {
           "name": "Nom",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'id de l'actif à supprimer. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de l'actif à supprimer. Son nom fonctionne aussi. Le panneau affiche l'id."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'id de l'actif à archiver. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de l'actif à archiver. Son nom fonctionne aussi. Le panneau affiche l'id."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'id de l'actif à restaurer. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de l'actif à restaurer. Son nom fonctionne aussi. Le panneau affiche l'id."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'identifiant de l'appareil auquel la pièce appartient. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant de l'appareil auquel la pièce appartient. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "part_id": {
           "name": "Nom ou ID de la pièce",
-          "description": "L'identifiant de la pièce dont le stock doit être ajusté. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant de la pièce dont le stock doit être ajusté. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "delta": {
           "name": "Écart",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'identifiant de l'appareil auquel la pièce appartient. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant de l'appareil auquel la pièce appartient. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "part_id": {
           "name": "Nom ou ID de la pièce",
-          "description": "L'identifiant de la pièce dont le fichier doit être supprimé. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant de la pièce dont le fichier doit être supprimé. Son nom fonctionne aussi. Le panneau affiche l'id."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'id de l'appareil auquel joindre le document. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de l'appareil auquel joindre le document. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "document": {
           "name": "Document",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'id de l'appareil auquel appartient le document. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de l'appareil auquel appartient le document. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "document_id": {
           "name": "Nom ou ID du document",
-          "description": "L'id du document à supprimer. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id du document à supprimer. Son nom fonctionne aussi. Le panneau affiche l'id."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'id de l'appareil auquel appartient le document. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de l'appareil auquel appartient le document. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "document_id": {
           "name": "Nom ou ID du document",
-          "description": "L'id du document à modifier. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id du document à modifier. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "changes": {
           "name": "Modifications",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'id de la tâche dont vous déplacez l'achèvement. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de la tâche dont vous déplacez l'achèvement. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "old_ts": {
           "name": "Horodatage actuel de l'achèvement",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'id de la tâche dont vous supprimez la réalisation. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de la tâche dont vous supprimez la réalisation. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "ts": {
           "name": "Horodatage de réalisation",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'id de l'appareil dont vous modifiez l'historique archivé. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de l'appareil dont vous modifiez l'historique archivé. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "task_id": {
           "name": "Nom ou ID de la tâche",
-          "description": "L'id de la tâche d'origine à laquelle appartient la réalisation archivée. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de la tâche d'origine à laquelle appartient la réalisation archivée. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "ts": {
           "name": "Horodatage de réalisation",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'id de l'appareil auquel appartient le document. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'id de l'appareil auquel appartient le document. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "document_id": {
           "name": "Nom ou ID du document",
-          "description": "L'identifiant du document pour lequel signer une URL. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant du document pour lequel signer une URL. Son nom fonctionne aussi. Le panneau affiche l'id."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom ou ID de l'actif",
-          "description": "L'identifiant de l'appareil auquel la pièce appartient. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant de l'appareil auquel la pièce appartient. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "part_id": {
           "name": "Nom ou ID de la pièce",
-          "description": "L'identifiant de la pièce dont le fichier joint doit être signé. Son nom fonctionne aussi ; le panneau affiche l'id."
+          "description": "L'identifiant de la pièce dont le fichier joint doit être signé. Son nom fonctionne aussi. Le panneau affiche l'id."
         }
       }
     }

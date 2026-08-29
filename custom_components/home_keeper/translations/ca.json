@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca a actualitzar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca a actualitzar. El seu nom també funciona. El tauler mostra l'id."
         },
         "name": {
           "name": "Nom",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca a eliminar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca a eliminar. El seu nom també funciona. El tauler mostra l'id."
         },
         "force": {
           "name": "Força",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca a completar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca a completar. El seu nom també funciona. El tauler mostra l'id."
         },
         "completed_at": {
           "name": "Completada el",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca de la qual edites la realització. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca de la qual edites la realització. El seu nom també funciona. El tauler mostra l'id."
         },
         "ts": {
           "name": "Marca de temps de la realització",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca activada a armar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca activada a armar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca de sensor d'ús que s'ha de tornar a ancorar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca de sensor d'ús que s'ha de tornar a ancorar. El seu nom també funciona. El tauler mostra l'id."
         },
         "baseline": {
           "name": "Línia base",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca a posposar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca a posposar. El seu nom també funciona. El tauler mostra l'id."
         },
         "hours": {
           "name": "Hores",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca a ometre. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca a ometre. El seu nom també funciona. El tauler mostra l'id."
         },
         "origin": {
           "name": "Origen",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca activada a armar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca activada a armar. El seu nom també funciona. El tauler mostra l'id."
         },
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona. El tauler mostra l'id."
         },
         "part_id": {
           "name": "Nom o ID de la peça",
-          "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'actiu a actualitzar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'actiu a actualitzar. El seu nom també funciona. El tauler mostra l'id."
         },
         "name": {
           "name": "Nom",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'actiu a eliminar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'actiu a eliminar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'actiu a arxivar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'actiu a arxivar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'actiu a restaurar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'actiu a restaurar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona. El tauler mostra l'id."
         },
         "part_id": {
           "name": "Nom o ID de la peça",
-          "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc. El seu nom també funciona. El tauler mostra l'id."
         },
         "delta": {
           "name": "Delta",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona. El tauler mostra l'id."
         },
         "part_id": {
           "name": "Nom o ID de la peça",
-          "description": "L'id de la peça el fitxer de la qual s'ha d'eliminar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la peça el fitxer de la qual s'ha d'eliminar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual adjuntar el document. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'electrodomèstic al qual adjuntar el document. El seu nom també funciona. El tauler mostra l'id."
         },
         "document": {
           "name": "Document",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany el document. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'electrodomèstic al qual pertany el document. El seu nom també funciona. El tauler mostra l'id."
         },
         "document_id": {
           "name": "Nom o ID del document",
-          "description": "L'id del document a eliminar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id del document a eliminar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany el document. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'electrodomèstic al qual pertany el document. El seu nom també funciona. El tauler mostra l'id."
         },
         "document_id": {
           "name": "Nom o ID del document",
-          "description": "L'id del document a editar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id del document a editar. El seu nom també funciona. El tauler mostra l'id."
         },
         "changes": {
           "name": "Canvis",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca la realització de la qual estàs movent. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca la realització de la qual estàs movent. El seu nom també funciona. El tauler mostra l'id."
         },
         "old_ts": {
           "name": "Marca de temps de realització actual",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca de la qual elimineu la realització. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca de la qual elimineu la realització. El seu nom també funciona. El tauler mostra l'id."
         },
         "ts": {
           "name": "Marca de temps de la realització",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'electrodomèstic de què editeu l'historial arxivat. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'electrodomèstic de què editeu l'historial arxivat. El seu nom també funciona. El tauler mostra l'id."
         },
         "task_id": {
           "name": "Nom o ID de tasca",
-          "description": "L'id de la tasca original a la qual pertany la realització arxivada. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la tasca original a la qual pertany la realització arxivada. El seu nom també funciona. El tauler mostra l'id."
         },
         "ts": {
           "name": "Marca de temps de la realització",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany el document. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'electrodomèstic al qual pertany el document. El seu nom també funciona. El tauler mostra l'id."
         },
         "document_id": {
           "name": "Nom o ID del document",
-          "description": "L'id del document per al qual signar un URL. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id del document per al qual signar un URL. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Nom o ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona. El tauler mostra l'id."
         },
         "part_id": {
           "name": "Nom o ID de la peça",
-          "description": "L'id de la peça el fitxer adjunt de la qual s'ha de signar. El seu nom també funciona; el tauler mostra l'id."
+          "description": "L'id de la peça el fitxer adjunt de la qual s'ha de signar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     }

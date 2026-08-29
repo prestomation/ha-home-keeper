@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID:t för uppgiften som ska uppdateras. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för uppgiften som ska uppdateras. Namnet fungerar också. Panelen visar id:t."
         },
         "name": {
           "name": "Namn",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID:t för uppgiften som ska tas bort. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för uppgiften som ska tas bort. Namnet fungerar också. Panelen visar id:t."
         },
         "force": {
           "name": "Tvinga",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID:t för uppgiften som ska slutföras. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för uppgiften som ska slutföras. Namnet fungerar också. Panelen visar id:t."
         },
         "completed_at": {
           "name": "Slutförd",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID:t för uppgiften vars slutförande du redigerar. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för uppgiften vars slutförande du redigerar. Namnet fungerar också. Panelen visar id:t."
         },
         "ts": {
           "name": "Tidsstämpel för slutförande",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID:t för den utlösta uppgiften som ska aktiveras. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för den utlösta uppgiften som ska aktiveras. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID:t för den förbrukningssensoruppgift som ska förankras på nytt. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för den förbrukningssensoruppgift som ska förankras på nytt. Namnet fungerar också. Panelen visar id:t."
         },
         "baseline": {
           "name": "Utgångsvärde",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID för uppgiften som ska skjutas upp. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för uppgiften som ska skjutas upp. Namnet fungerar också. Panelen visar id:t."
         },
         "hours": {
           "name": "Timmar",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID för uppgiften som ska hoppas över. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för uppgiften som ska hoppas över. Namnet fungerar också. Panelen visar id:t."
         },
         "origin": {
           "name": "Ursprung",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID:t för den utlösta uppgiften som ska aktiveras. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för den utlösta uppgiften som ska aktiveras. Namnet fungerar också. Panelen visar id:t."
         },
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "ID för den apparat som delen tillhör. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för den apparat som delen tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "part_id": {
           "name": "Delnamn eller -ID",
-          "description": "ID för den del vars lager ska justeras. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för den del vars lager ska justeras. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "ID:t för tillgången som ska uppdateras. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för tillgången som ska uppdateras. Namnet fungerar också. Panelen visar id:t."
         },
         "name": {
           "name": "Namn",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "ID:t för tillgången som ska tas bort. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för tillgången som ska tas bort. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "ID:t för tillgången som ska arkiveras. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för tillgången som ska arkiveras. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "ID:t för tillgången som ska återställas. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för tillgången som ska återställas. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "ID för den apparat som delen tillhör. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för den apparat som delen tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "part_id": {
           "name": "Delnamn eller -ID",
-          "description": "ID för den del vars lager ska justeras. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för den del vars lager ska justeras. Namnet fungerar också. Panelen visar id:t."
         },
         "delta": {
           "name": "Differens",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "ID för den apparat som delen tillhör. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för den apparat som delen tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "part_id": {
           "name": "Delnamn eller -ID",
-          "description": "ID för den del vars fil ska tas bort. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för den del vars fil ska tas bort. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "Id för apparaten som dokumentet ska bifogas till. Namnet fungerar också; panelen visar id:t."
+          "description": "Id för apparaten som dokumentet ska bifogas till. Namnet fungerar också. Panelen visar id:t."
         },
         "document": {
           "name": "Dokument",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "Id för apparaten som dokumentet tillhör. Namnet fungerar också; panelen visar id:t."
+          "description": "Id för apparaten som dokumentet tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "document_id": {
           "name": "Dokumentnamn eller -ID",
-          "description": "Id för dokumentet som ska tas bort. Namnet fungerar också; panelen visar id:t."
+          "description": "Id för dokumentet som ska tas bort. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "Id för apparaten som dokumentet tillhör. Namnet fungerar också; panelen visar id:t."
+          "description": "Id för apparaten som dokumentet tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "document_id": {
           "name": "Dokumentnamn eller -ID",
-          "description": "Id för dokumentet som ska redigeras. Namnet fungerar också; panelen visar id:t."
+          "description": "Id för dokumentet som ska redigeras. Namnet fungerar också. Panelen visar id:t."
         },
         "changes": {
           "name": "Ändringar",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID:t för uppgiften vars slutförande du flyttar. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för uppgiften vars slutförande du flyttar. Namnet fungerar också. Panelen visar id:t."
         },
         "old_ts": {
           "name": "Nuvarande tidsstämpel för slutförande",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID:t för uppgiften vars slutförande du tar bort. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för uppgiften vars slutförande du tar bort. Namnet fungerar också. Panelen visar id:t."
         },
         "ts": {
           "name": "Tidsstämpel för slutförande",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "ID:t för apparaten vars arkiverade historik du redigerar. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för apparaten vars arkiverade historik du redigerar. Namnet fungerar också. Panelen visar id:t."
         },
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
-          "description": "ID:t för den ursprungliga uppgiften som det arkiverade slutförandet tillhör. Namnet fungerar också; panelen visar id:t."
+          "description": "ID:t för den ursprungliga uppgiften som det arkiverade slutförandet tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "ts": {
           "name": "Tidsstämpel för slutförande",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "Id för apparaten som dokumentet tillhör. Namnet fungerar också; panelen visar id:t."
+          "description": "Id för apparaten som dokumentet tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "document_id": {
           "name": "Dokumentnamn eller -ID",
-          "description": "ID för dokumentet som en URL ska signeras för. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för dokumentet som en URL ska signeras för. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
-          "description": "ID för den apparat som delen tillhör. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för den apparat som delen tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "part_id": {
           "name": "Delnamn eller -ID",
-          "description": "ID för delen vars bifogade fil ska signeras. Namnet fungerar också; panelen visar id:t."
+          "description": "ID för delen vars bifogade fil ska signeras. Namnet fungerar också. Panelen visar id:t."
         }
       }
     }

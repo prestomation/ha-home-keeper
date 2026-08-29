@@ -424,7 +424,7 @@
   "tab.appliances": "Appliances",
   "tab.settings": "Settings",
   "tab.tasks": "Tasks",
-  "toast.copyFailed": "Could not copy — select the ID and copy it by hand",
+  "toast.copyFailed": "Could not copy. Select the ID and copy it by hand.",
   "toast.idCopied": "ID copied",
   "view.flat": "List",
   "view.label": "View",

@@ -424,7 +424,7 @@
   "tab.appliances": "Apparaten",
   "tab.settings": "Instellingen",
   "tab.tasks": "Taken",
-  "toast.copyFailed": "Kopiëren mislukt – selecteer het id en kopieer het handmatig",
+  "toast.copyFailed": "Kopiëren mislukt. Selecteer het id en kopieer het handmatig.",
   "toast.idCopied": "ID gekopieerd",
   "view.flat": "Lijst",
   "view.label": "Weergave",

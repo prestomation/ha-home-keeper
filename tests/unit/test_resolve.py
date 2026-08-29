@@ -100,6 +100,13 @@ def test_not_found_and_ambiguous_are_both_resolve_errors():
     assert issubclass(r.AmbiguousName, r.ResolveError)
 
 
+def test_the_error_text_names_what_could_not_be_resolved():
+    """A traceback has to say which reference failed, not just that one did."""
+    with pytest.raises(r.NotFound) as err:
+        r.resolve_task_id({}, "Wash the dog")
+    assert "Wash the dog" in str(err.value)
+
+
 # ── assets ──────────────────────────────────────────────────────────────────────
 
 

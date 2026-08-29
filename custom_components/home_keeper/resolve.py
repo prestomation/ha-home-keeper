@@ -49,7 +49,11 @@ class AmbiguousName(ResolveError):
 
 def _norm(value: Any) -> str:
     """Fold a name for the last-chance match: trimmed and case-insensitive."""
-    return value.strip().casefold() if isinstance(value, str) else ""
+    if not isinstance(value, str):
+        # Equivalent under mutation: this pass only ever compares the result against
+        # an already-casefolded key, which no sentinel string could match either.
+        return ""  # pragma: no mutate
+    return value.strip().casefold()
 
 
 def _by_name(candidates: Sequence[tuple[str, Any]], key: str, field: str) -> str | None:
@@ -74,9 +78,9 @@ def _by_name(candidates: Sequence[tuple[str, Any]], key: str, field: str) -> str
                 else (_norm(obj.get(field)) == wanted)
             )
         ]
-        if len(hits) == 1:
-            return hits[0]
-        if len(hits) > 1:
+        if hits:
+            if len(hits) == 1:
+                return hits[0]
             raise AmbiguousName(key, hits)
     return None
 

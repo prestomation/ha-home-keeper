@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der zu aktualisierenden Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der zu aktualisierenden Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "name": {
           "name": "Name",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der zu löschenden Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der zu löschenden Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "force": {
           "name": "Erzwingen",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der abzuschließenden Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der abzuschließenden Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "completed_at": {
           "name": "Abgeschlossen am",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der Aufgabe, deren Erledigung du bearbeitest. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der Aufgabe, deren Erledigung du bearbeitest. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "ts": {
           "name": "Erledigungszeitstempel",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der verbrauchsbasierten Sensoraufgabe, die neu verankert werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der verbrauchsbasierten Sensoraufgabe, die neu verankert werden soll. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "baseline": {
           "name": "Ausgangswert",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der zurückzustellenden Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der zurückzustellenden Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "hours": {
           "name": "Stunden",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der zu überspringenden Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der zu überspringenden Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "origin": {
           "name": "Ursprung",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "part_id": {
           "name": "Teilename oder -ID",
-          "description": "Die ID des Teils, dessen Bestand angepasst werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Teils, dessen Bestand angepasst werden soll. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des zu aktualisierenden Assets. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des zu aktualisierenden Assets. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "name": {
           "name": "Name",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des zu löschenden Assets. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des zu löschenden Assets. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des zu archivierenden Assets. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des zu archivierenden Assets. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des wiederherzustellenden Assets. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des wiederherzustellenden Assets. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "part_id": {
           "name": "Teilename oder -ID",
-          "description": "Die ID des Teils, dessen Bestand angepasst werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Teils, dessen Bestand angepasst werden soll. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "delta": {
           "name": "Differenz",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "part_id": {
           "name": "Teilename oder -ID",
-          "description": "Die ID des Teils, dessen Datei entfernt werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Teils, dessen Datei entfernt werden soll. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des Geräts, an das das Dokument angehängt wird. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Geräts, an das das Dokument angehängt wird. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "document": {
           "name": "Dokument",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des Geräts, zu dem das Dokument gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Geräts, zu dem das Dokument gehört. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "document_id": {
           "name": "Dokumentname oder -ID",
-          "description": "Die ID des zu entfernenden Dokuments. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des zu entfernenden Dokuments. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des Geräts, zu dem das Dokument gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Geräts, zu dem das Dokument gehört. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "document_id": {
           "name": "Dokumentname oder -ID",
-          "description": "Die ID des zu bearbeitenden Dokuments. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des zu bearbeitenden Dokuments. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "changes": {
           "name": "Änderungen",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der Aufgabe, deren Erledigung du verschiebst. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der Aufgabe, deren Erledigung du verschiebst. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "old_ts": {
           "name": "Aktueller Erledigungszeitstempel",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der Aufgabe, deren Erledigung du entfernst. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der Aufgabe, deren Erledigung du entfernst. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "ts": {
           "name": "Erledigungs-Zeitstempel",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des Geräts, dessen archivierten Verlauf du bearbeitest. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Geräts, dessen archivierten Verlauf du bearbeitest. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "task_id": {
           "name": "Aufgabenname oder -ID",
-          "description": "Die ID der ursprünglichen Aufgabe, zu der die archivierte Erledigung gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID der ursprünglichen Aufgabe, zu der die archivierte Erledigung gehört. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "ts": {
           "name": "Erledigungs-Zeitstempel",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des Geräts, zu dem das Dokument gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Geräts, zu dem das Dokument gehört. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "document_id": {
           "name": "Dokumentname oder -ID",
-          "description": "Die ID des Dokuments, für das eine URL signiert werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Dokuments, für das eine URL signiert werden soll. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Asset-Name oder -ID",
-          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "part_id": {
           "name": "Teilename oder -ID",
-          "description": "Die ID des Teils, dessen angehängte Datei signiert werden soll. Der Name funktioniert ebenfalls; das Panel zeigt die ID."
+          "description": "Die ID des Teils, dessen angehängte Datei signiert werden soll. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         }
       }
     }

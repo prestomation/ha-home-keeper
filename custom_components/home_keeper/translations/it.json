@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività da aggiornare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività da aggiornare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "name": {
           "name": "Nome",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività da eliminare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività da eliminare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "force": {
           "name": "Forza",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività da completare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività da completare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "completed_at": {
           "name": "Completata il",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività di cui stai modificando il completamento. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività di cui stai modificando il completamento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "ts": {
           "name": "Marca temporale del completamento",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività attivata da armare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività attivata da armare. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività con sensore di utilizzo da riancorare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività con sensore di utilizzo da riancorare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "baseline": {
           "name": "Valore di partenza",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività da posporre. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività da posporre. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "hours": {
           "name": "Ore",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività da saltare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività da saltare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "origin": {
           "name": "Origine",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività attivata da armare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività attivata da armare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "part_id": {
           "name": "Nome o ID ricambio",
-          "description": "L'id del ricambio di cui regolare le scorte. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id del ricambio di cui regolare le scorte. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'asset da aggiornare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'asset da aggiornare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "name": {
           "name": "Nome",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'asset da eliminare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'asset da eliminare. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'asset da archiviare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'asset da archiviare. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'asset da ripristinare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'asset da ripristinare. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "part_id": {
           "name": "Nome o ID ricambio",
-          "description": "L'id del ricambio di cui regolare le scorte. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id del ricambio di cui regolare le scorte. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "delta": {
           "name": "Delta",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "part_id": {
           "name": "Nome o ID ricambio",
-          "description": "L'id del ricambio di cui rimuovere il file. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id del ricambio di cui rimuovere il file. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'elettrodomestico a cui allegare il documento. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'elettrodomestico a cui allegare il documento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "document": {
           "name": "Documento",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il documento. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'elettrodomestico a cui appartiene il documento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "document_id": {
           "name": "Nome o ID documento",
-          "description": "L'id del documento da rimuovere. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id del documento da rimuovere. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il documento. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'elettrodomestico a cui appartiene il documento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "document_id": {
           "name": "Nome o ID documento",
-          "description": "L'id del documento da modificare. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id del documento da modificare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "changes": {
           "name": "Modifiche",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività di cui stai spostando il completamento. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività di cui stai spostando il completamento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "old_ts": {
           "name": "Marca temporale attuale del completamento",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività di cui rimuovi il completamento. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività di cui rimuovi il completamento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "ts": {
           "name": "Timestamp completamento",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'elettrodomestico di cui modifichi la cronologia archiviata. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'elettrodomestico di cui modifichi la cronologia archiviata. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "task_id": {
           "name": "Nome o ID attività",
-          "description": "L'id dell'attività originale a cui appartiene il completamento archiviato. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'attività originale a cui appartiene il completamento archiviato. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "ts": {
           "name": "Timestamp completamento",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il documento. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'elettrodomestico a cui appartiene il documento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "document_id": {
           "name": "Nome o ID documento",
-          "description": "L'id del documento per cui firmare un URL. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id del documento per cui firmare un URL. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome o ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "part_id": {
           "name": "Nome o ID ricambio",
-          "description": "L'id del ricambio il cui file allegato va firmato. Funziona anche il suo nome; il pannello mostra l'id."
+          "description": "L'id del ricambio il cui file allegato va firmato. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     }

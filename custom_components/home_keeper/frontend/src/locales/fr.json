@@ -438,7 +438,7 @@
   "tab.appliances": "Appareils",
   "tab.settings": "Réglages",
   "tab.tasks": "Tâches",
-  "toast.copyFailed": "Copie impossible : sélectionnez l'ID et copiez-le à la main",
+  "toast.copyFailed": "Copie impossible. Sélectionnez l'ID et copiez-le à la main.",
   "toast.idCopied": "ID copié",
   "view.flat": "Liste",
   "view.label": "Vue",

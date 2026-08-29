@@ -452,7 +452,7 @@
   "tab.appliances": "Urządzenia",
   "tab.settings": "Ustawienia",
   "tab.tasks": "Zadania",
-  "toast.copyFailed": "Nie udało się skopiować – zaznacz identyfikator i skopiuj go ręcznie",
+  "toast.copyFailed": "Nie udało się skopiować. Zaznacz identyfikator i skopiuj go ręcznie.",
   "toast.idCopied": "Skopiowano identyfikator",
   "view.flat": "Lista",
   "view.label": "Widok",

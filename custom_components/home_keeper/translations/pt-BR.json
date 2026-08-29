@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa a atualizar. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa a atualizar. O nome também funciona. O painel mostra o id."
         },
         "name": {
           "name": "Nome",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa a excluir. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa a excluir. O nome também funciona. O painel mostra o id."
         },
         "force": {
           "name": "Forçar",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa a concluir. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa a concluir. O nome também funciona. O painel mostra o id."
         },
         "completed_at": {
           "name": "Concluída em",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa cuja conclusão você está editando. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa cuja conclusão você está editando. O nome também funciona. O painel mostra o id."
         },
         "ts": {
           "name": "Carimbo de data/hora da conclusão",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa acionada a armar. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa acionada a armar. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa de sensor de uso a ser reancorada. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa de sensor de uso a ser reancorada. O nome também funciona. O painel mostra o id."
         },
         "baseline": {
           "name": "Valor inicial",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa a adiar. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa a adiar. O nome também funciona. O painel mostra o id."
         },
         "hours": {
           "name": "Horas",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa a pular. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa a pular. O nome também funciona. O painel mostra o id."
         },
         "origin": {
           "name": "Origem",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa acionada a armar. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa acionada a armar. O nome também funciona. O painel mostra o id."
         },
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona; o painel mostra o id."
+          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona. O painel mostra o id."
         },
         "part_id": {
           "name": "Nome ou ID da peça",
-          "description": "O id da peça cujo estoque deve ser ajustado. O nome também funciona; o painel mostra o id."
+          "description": "O id da peça cujo estoque deve ser ajustado. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do ativo a atualizar. O nome também funciona; o painel mostra o id."
+          "description": "O id do ativo a atualizar. O nome também funciona. O painel mostra o id."
         },
         "name": {
           "name": "Nome",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do ativo a excluir. O nome também funciona; o painel mostra o id."
+          "description": "O id do ativo a excluir. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do ativo a arquivar. O nome também funciona; o painel mostra o id."
+          "description": "O id do ativo a arquivar. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do ativo a restaurar. O nome também funciona; o painel mostra o id."
+          "description": "O id do ativo a restaurar. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona; o painel mostra o id."
+          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona. O painel mostra o id."
         },
         "part_id": {
           "name": "Nome ou ID da peça",
-          "description": "O id da peça cujo estoque deve ser ajustado. O nome também funciona; o painel mostra o id."
+          "description": "O id da peça cujo estoque deve ser ajustado. O nome também funciona. O painel mostra o id."
         },
         "delta": {
           "name": "Delta",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona; o painel mostra o id."
+          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona. O painel mostra o id."
         },
         "part_id": {
           "name": "Nome ou ID da peça",
-          "description": "O id da peça cujo arquivo deve ser removido. O nome também funciona; o painel mostra o id."
+          "description": "O id da peça cujo arquivo deve ser removido. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do eletrodoméstico ao qual anexar o documento. O nome também funciona; o painel mostra o id."
+          "description": "O id do eletrodoméstico ao qual anexar o documento. O nome também funciona. O painel mostra o id."
         },
         "document": {
           "name": "Documento",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do eletrodoméstico ao qual o documento pertence. O nome também funciona; o painel mostra o id."
+          "description": "O id do eletrodoméstico ao qual o documento pertence. O nome também funciona. O painel mostra o id."
         },
         "document_id": {
           "name": "Nome ou ID do documento",
-          "description": "O id do documento a remover. O nome também funciona; o painel mostra o id."
+          "description": "O id do documento a remover. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do eletrodoméstico ao qual o documento pertence. O nome também funciona; o painel mostra o id."
+          "description": "O id do eletrodoméstico ao qual o documento pertence. O nome também funciona. O painel mostra o id."
         },
         "document_id": {
           "name": "Nome ou ID do documento",
-          "description": "O id do documento a editar. O nome também funciona; o painel mostra o id."
+          "description": "O id do documento a editar. O nome também funciona. O painel mostra o id."
         },
         "changes": {
           "name": "Alterações",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa cuja conclusão você está movendo. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa cuja conclusão você está movendo. O nome também funciona. O painel mostra o id."
         },
         "old_ts": {
           "name": "Carimbo de data/hora atual da conclusão",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa cuja conclusão você está removendo. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa cuja conclusão você está removendo. O nome também funciona. O painel mostra o id."
         },
         "ts": {
           "name": "Carimbo de data/hora da conclusão",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do eletrodoméstico cujo histórico arquivado você está editando. O nome também funciona; o painel mostra o id."
+          "description": "O id do eletrodoméstico cujo histórico arquivado você está editando. O nome também funciona. O painel mostra o id."
         },
         "task_id": {
           "name": "Nome ou ID da tarefa",
-          "description": "O id da tarefa original à qual a conclusão arquivada pertence. O nome também funciona; o painel mostra o id."
+          "description": "O id da tarefa original à qual a conclusão arquivada pertence. O nome também funciona. O painel mostra o id."
         },
         "ts": {
           "name": "Carimbo de data/hora da conclusão",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do eletrodoméstico ao qual o documento pertence. O nome também funciona; o painel mostra o id."
+          "description": "O id do eletrodoméstico ao qual o documento pertence. O nome também funciona. O painel mostra o id."
         },
         "document_id": {
           "name": "Nome ou ID do documento",
-          "description": "O id do documento para o qual assinar uma URL. O nome também funciona; o painel mostra o id."
+          "description": "O id do documento para o qual assinar uma URL. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Nome ou ID do ativo",
-          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona; o painel mostra o id."
+          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona. O painel mostra o id."
         },
         "part_id": {
           "name": "Nome ou ID da peça",
-          "description": "O id da peça cujo arquivo anexado deve ser assinado. O nome também funciona; o painel mostra o id."
+          "description": "O id da peça cujo arquivo anexado deve ser assinado. O nome também funciona. O painel mostra o id."
         }
       }
     }

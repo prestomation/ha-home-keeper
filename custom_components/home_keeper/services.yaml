@@ -207,7 +207,7 @@ update_task:
   fields:
     task_id:
       name: Task name or ID
-      description: The id of the task to update. Its name works too; the panel shows the id.
+      description: The id of the task to update. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -457,7 +457,7 @@ update_completion:
   fields:
     task_id:
       name: Task name or ID
-      description: The id of the task whose completion you are editing. Its name works too; the panel shows the id.
+      description: The id of the task whose completion you are editing. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -512,7 +512,7 @@ move_completion:
   fields:
     task_id:
       name: Task name or ID
-      description: The id of the task whose completion you are moving. Its name works too; the panel shows the id.
+      description: The id of the task whose completion you are moving. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -538,7 +538,7 @@ delete_completion:
   fields:
     task_id:
       name: Task name or ID
-      description: The id of the task whose completion you are removing. Its name works too; the panel shows the id.
+      description: The id of the task whose completion you are removing. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -566,13 +566,13 @@ delete_archived_completion:
   fields:
     asset_id:
       name: Appliance name or ID
-      description: The id of the appliance whose archived history you are editing. Its name works too; the panel shows the id.
+      description: The id of the appliance whose archived history you are editing. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     task_id:
       name: Task name or ID
-      description: The id of the original task the archived completion belongs to. Its name works too; the panel shows the id.
+      description: The id of the original task the archived completion belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -593,7 +593,7 @@ trigger_task:
   fields:
     task_id:
       name: Task name or ID
-      description: The id of the triggered task to arm. Its name works too; the panel shows the id.
+      description: The id of the triggered task to arm. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -608,7 +608,7 @@ set_task_meter:
   fields:
     task_id:
       name: Task name or ID
-      description: The id of the usage sensor task to re-anchor. Its name works too; the panel shows the id.
+      description: The id of the usage sensor task to re-anchor. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -632,7 +632,7 @@ snooze_task:
   fields:
     task_id:
       name: Task name or ID
-      description: The id of the task to snooze. Its name works too; the panel shows the id.
+      description: The id of the task to snooze. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -664,7 +664,7 @@ skip_task:
   fields:
     task_id:
       name: Task name or ID
-      description: The id of the task to skip. Its name works too; the panel shows the id.
+      description: The id of the task to skip. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -689,18 +689,18 @@ set_task_consumable:
   fields:
     task_id:
       name: Task name or ID
-      description: The id of the task to link (or unlink). Its name works too; the panel shows the id.
+      description: The id of the task to link (or unlink). Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     asset_id:
       name: Appliance name or ID
-      description: The id of the appliance the consumable belongs to. Omit to unlink. Its name works too; the panel shows the id.
+      description: The id of the appliance the consumable belongs to. Omit to unlink. Its name works too. The panel shows the id.
       selector:
         text:
     part_id:
       name: Part name or ID
-      description: The id of the consumable/part to link. Omit to unlink. Its name works too; the panel shows the id.
+      description: The id of the consumable/part to link. Omit to unlink. Its name works too. The panel shows the id.
       selector:
         text:
 
@@ -857,7 +857,7 @@ update_asset:
   fields:
     asset_id:
       name: Appliance name or ID
-      description: The id of the asset to update. Its name works too; the panel shows the id.
+      description: The id of the asset to update. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -982,13 +982,13 @@ adjust_part_stock:
   fields:
     asset_id:
       name: Appliance name or ID
-      description: The id of the appliance the part belongs to. Its name works too; the panel shows the id.
+      description: The id of the appliance the part belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     part_id:
       name: Part name or ID
-      description: The id of the part whose stock to adjust. Its name works too; the panel shows the id.
+      description: The id of the part whose stock to adjust. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1013,13 +1013,13 @@ remove_part_file:
   fields:
     asset_id:
       name: Appliance name or ID
-      description: The id of the appliance the part belongs to. Its name works too; the panel shows the id.
+      description: The id of the appliance the part belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     part_id:
       name: Part name or ID
-      description: The id of the part whose file to remove. Its name works too; the panel shows the id.
+      description: The id of the part whose file to remove. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1032,7 +1032,7 @@ add_asset_document:
   fields:
     asset_id:
       name: Appliance name or ID
-      description: The id of the appliance to attach the document to. Its name works too; the panel shows the id.
+      description: The id of the appliance to attach the document to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1053,13 +1053,13 @@ remove_asset_document:
   fields:
     asset_id:
       name: Appliance name or ID
-      description: The id of the appliance the document belongs to. Its name works too; the panel shows the id.
+      description: The id of the appliance the document belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     document_id:
       name: Document name or ID
-      description: The id of the document to remove. Its name works too; the panel shows the id.
+      description: The id of the document to remove. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1072,13 +1072,13 @@ update_asset_document:
   fields:
     asset_id:
       name: Appliance name or ID
-      description: The id of the appliance the document belongs to. Its name works too; the panel shows the id.
+      description: The id of the appliance the document belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     document_id:
       name: Document name or ID
-      description: The id of the document to edit. Its name works too; the panel shows the id.
+      description: The id of the document to edit. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1100,13 +1100,13 @@ sign_document_url:
   fields:
     asset_id:
       name: Appliance name or ID
-      description: The id of the appliance the document belongs to. Its name works too; the panel shows the id.
+      description: The id of the appliance the document belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     document_id:
       name: Document name or ID
-      description: The id of the document to sign a URL for. Its name works too; the panel shows the id.
+      description: The id of the document to sign a URL for. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1119,13 +1119,13 @@ sign_part_file_url:
   fields:
     asset_id:
       name: Appliance name or ID
-      description: The id of the appliance the part belongs to. Its name works too; the panel shows the id.
+      description: The id of the appliance the part belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     part_id:
       name: Part name or ID
-      description: The id of the part whose attached file to sign a URL for. Its name works too; the panel shows the id.
+      description: The id of the part whose attached file to sign a URL for. Its name works too. The panel shows the id.
       required: true
       selector:
         text:

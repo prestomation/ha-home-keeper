@@ -79,6 +79,21 @@ describe('copyText', () => {
     expect(seen).toBe('  spaces and \n newlines  ');
   });
 
+  it('keeps the fallback textarea off-screen and uneditable', async () => {
+    // It is appended to the live document, so a visible one would flash on screen
+    // and, without `readonly`, take a caret on a phone.
+    clipboard(undefined);
+    let area;
+    document.execCommand = vi.fn(() => {
+      area = document.querySelector('textarea');
+      return true;
+    });
+    await copyText('a1b2');
+    expect(area.getAttribute('readonly')).toBe('');
+    expect(area.style.position).toBe('fixed');
+    expect(parseInt(area.style.top, 10)).toBeLessThan(-1000);
+  });
+
   it('leaves no textarea behind, on success or on failure', async () => {
     clipboard(undefined);
     document.execCommand = vi.fn(() => true);

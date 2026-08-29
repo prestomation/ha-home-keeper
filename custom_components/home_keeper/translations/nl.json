@@ -125,7 +125,7 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "De id van de bij te werken taak. De naam werkt ook; het paneel toont het id."
+          "description": "De id van de bij te werken taak. De naam werkt ook. Het paneel toont het id."
         },
         "name": {
           "name": "Naam",
@@ -211,7 +211,7 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "De id van de te verwijderen taak. De naam werkt ook; het paneel toont het id."
+          "description": "De id van de te verwijderen taak. De naam werkt ook. Het paneel toont het id."
         },
         "force": {
           "name": "Forceren",
@@ -225,7 +225,7 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "De id van de te voltooien taak. De naam werkt ook; het paneel toont het id."
+          "description": "De id van de te voltooien taak. De naam werkt ook. Het paneel toont het id."
         },
         "completed_at": {
           "name": "Voltooid op",
@@ -263,7 +263,7 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "De id van de taak waarvan je de voltooiing bewerkt. De naam werkt ook; het paneel toont het id."
+          "description": "De id van de taak waarvan je de voltooiing bewerkt. De naam werkt ook. Het paneel toont het id."
         },
         "ts": {
           "name": "Tijdstempel van voltooiing",
@@ -297,7 +297,7 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "De id van de te activeren geactiveerde taak. De naam werkt ook; het paneel toont het id."
+          "description": "De id van de te activeren geactiveerde taak. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -307,7 +307,7 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "De id van de verbruikssensortaak die opnieuw verankerd moet worden. De naam werkt ook; het paneel toont het id."
+          "description": "De id van de verbruikssensortaak die opnieuw verankerd moet worden. De naam werkt ook. Het paneel toont het id."
         },
         "baseline": {
           "name": "Startwaarde",
@@ -321,7 +321,7 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "Het id van de uit te stellen taak. De naam werkt ook; het paneel toont het id."
+          "description": "Het id van de uit te stellen taak. De naam werkt ook. Het paneel toont het id."
         },
         "hours": {
           "name": "Uren",
@@ -339,7 +339,7 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "Het id van de over te slaan taak. De naam werkt ook; het paneel toont het id."
+          "description": "Het id van de over te slaan taak. De naam werkt ook. Het paneel toont het id."
         },
         "origin": {
           "name": "Oorsprong",
@@ -353,15 +353,15 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "De id van de te activeren geactiveerde taak. De naam werkt ook; het paneel toont het id."
+          "description": "De id van de te activeren geactiveerde taak. De naam werkt ook. Het paneel toont het id."
         },
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook. Het paneel toont het id."
         },
         "part_id": {
           "name": "Onderdeelnaam of -ID",
-          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -463,7 +463,7 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het bij te werken asset. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het bij te werken asset. De naam werkt ook. Het paneel toont het id."
         },
         "name": {
           "name": "Naam",
@@ -529,7 +529,7 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het te verwijderen asset. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het te verwijderen asset. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -539,7 +539,7 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het te archiveren asset. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het te archiveren asset. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -549,7 +549,7 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het te herstellen asset. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het te herstellen asset. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -563,11 +563,11 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook. Het paneel toont het id."
         },
         "part_id": {
           "name": "Onderdeelnaam of -ID",
-          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast. De naam werkt ook. Het paneel toont het id."
         },
         "delta": {
           "name": "Verschil",
@@ -618,11 +618,11 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook. Het paneel toont het id."
         },
         "part_id": {
           "name": "Onderdeelnaam of -ID",
-          "description": "De id van het onderdeel waarvan het bestand moet worden verwijderd. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het onderdeel waarvan het bestand moet worden verwijderd. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -632,7 +632,7 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het apparaat waaraan het document wordt gekoppeld. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het apparaat waaraan het document wordt gekoppeld. De naam werkt ook. Het paneel toont het id."
         },
         "document": {
           "name": "Document",
@@ -646,11 +646,11 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het apparaat waartoe het document behoort. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het apparaat waartoe het document behoort. De naam werkt ook. Het paneel toont het id."
         },
         "document_id": {
           "name": "Documentnaam of -ID",
-          "description": "De id van het te verwijderen document. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het te verwijderen document. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -660,11 +660,11 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het apparaat waartoe het document behoort. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het apparaat waartoe het document behoort. De naam werkt ook. Het paneel toont het id."
         },
         "document_id": {
           "name": "Documentnaam of -ID",
-          "description": "De id van het te bewerken document. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het te bewerken document. De naam werkt ook. Het paneel toont het id."
         },
         "changes": {
           "name": "Wijzigingen",
@@ -678,7 +678,7 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "De id van de taak waarvan je de voltooiing verplaatst. De naam werkt ook; het paneel toont het id."
+          "description": "De id van de taak waarvan je de voltooiing verplaatst. De naam werkt ook. Het paneel toont het id."
         },
         "old_ts": {
           "name": "Huidig tijdstempel van voltooiing",
@@ -696,7 +696,7 @@
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "De id van de taak waarvan je de voltooiing verwijdert. De naam werkt ook; het paneel toont het id."
+          "description": "De id van de taak waarvan je de voltooiing verwijdert. De naam werkt ook. Het paneel toont het id."
         },
         "ts": {
           "name": "Voltooiingstijdstempel",
@@ -714,11 +714,11 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het apparaat waarvan je de gearchiveerde geschiedenis bewerkt. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het apparaat waarvan je de gearchiveerde geschiedenis bewerkt. De naam werkt ook. Het paneel toont het id."
         },
         "task_id": {
           "name": "Taaknaam of -ID",
-          "description": "De id van de oorspronkelijke taak waartoe de gearchiveerde voltooiing behoort. De naam werkt ook; het paneel toont het id."
+          "description": "De id van de oorspronkelijke taak waartoe de gearchiveerde voltooiing behoort. De naam werkt ook. Het paneel toont het id."
         },
         "ts": {
           "name": "Voltooiingstijdstempel",
@@ -770,11 +770,11 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het apparaat waartoe het document behoort. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het apparaat waartoe het document behoort. De naam werkt ook. Het paneel toont het id."
         },
         "document_id": {
           "name": "Documentnaam of -ID",
-          "description": "De id van het document waarvoor een URL moet worden ondertekend. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het document waarvoor een URL moet worden ondertekend. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -784,11 +784,11 @@
       "fields": {
         "asset_id": {
           "name": "Assetnaam of -ID",
-          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook. Het paneel toont het id."
         },
         "part_id": {
           "name": "Onderdeelnaam of -ID",
-          "description": "De id van het onderdeel waarvan het bijgevoegde bestand moet worden ondertekend. De naam werkt ook; het paneel toont het id."
+          "description": "De id van het onderdeel waarvan het bijgevoegde bestand moet worden ondertekend. De naam werkt ook. Het paneel toont het id."
         }
       }
     }
