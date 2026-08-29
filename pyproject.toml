@@ -95,6 +95,10 @@ only_mutate = [
     # Imports Home Assistant only under ``TYPE_CHECKING``, so the fast unit tier runs
     # it directly (tests/unit/test_options.py) — see "Pure, HA-free core".
     "custom_components/home_keeper/options.py",
+    # Also TYPE_CHECKING-only, and driven by tests/unit/test_device_compat.py: the two
+    # device-registry shapes it reconciles are only distinguishable by behaviour, so a
+    # mutant that iterates the wrong one has to be caught by an assertion.
+    "custom_components/home_keeper/device_compat.py",
 ]
 pytest_add_cli_args_test_selection = ["tests/unit"]
 

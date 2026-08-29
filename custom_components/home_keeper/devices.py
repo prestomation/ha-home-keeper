@@ -30,6 +30,7 @@ from .const import (
     DOMAIN,
     PANEL_URL_PATH,
 )
+from .device_compat import all_devices, device_connections, resolve_device
 from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -307,7 +308,7 @@ async def async_heal_split_device_ids(
     # which live devices came from the same original, or the two copies look unrelated:
     # they point at different halves of the same split.
     canonical: dict[str, str] = {}
-    for device in registry.devices.values():
+    for device in all_devices(registry):
         # Explicit loop rather than a comprehension: composite_device_id is
         # `str | None`, and a truthiness guard inside a comprehension doesn't narrow
         # the value expression for the type checker.
@@ -481,7 +482,7 @@ def _reconcile_existing(registry: dr.DeviceRegistry, asset: dict[str, Any]) -> b
     Returns ``True`` if the asset dict was mutated (so the caller persists it).
     """
     device_id = asset.get("device_id")
-    device = registry.async_get(device_id) if device_id else None
+    device = resolve_device(registry, device_id)
     changed = False
     if device is None:
         # The referenced device may have been recreated under a new id by its
@@ -500,7 +501,7 @@ def _reconcile_existing(registry: dr.DeviceRegistry, asset: dict[str, Any]) -> b
     # Refresh the reconciliation snapshot from the live device (only marking the
     # asset dirty when it actually changed, to avoid needless writes).
     identifiers = [list(i) for i in device.identifiers]
-    connections = [list(c) for c in device.connections]
+    connections = [list(c) for c in device_connections(device)]
     if asset.get("identifiers") != identifiers:
         asset["identifiers"] = identifiers
         changed = True
