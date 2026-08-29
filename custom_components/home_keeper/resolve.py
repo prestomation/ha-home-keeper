@@ -47,13 +47,20 @@ class AmbiguousName(ResolveError):
         self.ids = sorted(ids)
 
 
-def _norm(value: Any) -> str:
+def _norm(value: str) -> str:
     """Fold a name for the last-chance match: trimmed and case-insensitive."""
-    if not isinstance(value, str):
-        # Equivalent under mutation: this pass only ever compares the result against
-        # an already-casefolded key, which no sentinel string could match either.
-        return ""  # pragma: no mutate
     return value.strip().casefold()
+
+
+def _folds_to(value: Any, wanted: str) -> bool:
+    """Whether a stored name folds to *wanted*, tolerating bad stored data.
+
+    The type check lives here rather than inside :func:`_norm` returning a
+    sentinel for a non-string. A sentinel is only unmatchable while every *key*
+    is a string too, and one non-string key would make it match every object
+    whose name is also non-string — a trap not worth leaving for the next caller.
+    """
+    return isinstance(value, str) and _norm(value) == wanted
 
 
 def _by_name(candidates: Sequence[tuple[str, Any]], key: str, field: str) -> str | None:
@@ -65,9 +72,9 @@ def _by_name(candidates: Sequence[tuple[str, Any]], key: str, field: str) -> str
     tasks named "Filter" and "filter" are told apart by the exact pass and only
     collide if the caller types neither exactly.
     """
-    wanted = _norm(key)
-    if not wanted:
+    if not isinstance(key, str) or not key.strip():
         return None
+    wanted = _norm(key)
     for match_exact in (True, False):
         hits = [
             obj_id
@@ -75,7 +82,7 @@ def _by_name(candidates: Sequence[tuple[str, Any]], key: str, field: str) -> str
             if (
                 (obj.get(field) == key)
                 if match_exact
-                else (_norm(obj.get(field)) == wanted)
+                else _folds_to(obj.get(field), wanted)
             )
         ]
         if hits:

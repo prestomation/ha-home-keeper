@@ -197,6 +197,18 @@ def test_an_asset_that_is_not_a_mapping_yields_no_entries():
         r.resolve_part_id(None, "Filter")
 
 
+@pytest.mark.parametrize("key", [None, 42, object()])
+def test_a_non_string_reference_matches_nothing(key):
+    """Not just bad input: a non-string key must not collide with a non-string name.
+
+    Folding both sides through one function that returns a fixed value for
+    anything non-string would make exactly that pair match.
+    """
+    store = {"a1": {"id": "a1", "name": None}, "b2": {"id": "b2", "name": "Real"}}
+    with pytest.raises(r.NotFound):
+        r.resolve_task_id(store, key)
+
+
 def test_a_non_string_name_never_matches():
     """Bad stored data must not blow up the case-folded pass."""
     store = {"a1": {"id": "a1", "name": None}, "b2": {"id": "b2", "name": "Real"}}
