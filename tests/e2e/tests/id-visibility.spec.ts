@@ -34,17 +34,17 @@ test.describe('Home Keeper panel — object ids are visible and copyable', () =>
     // The appliance's own id, on the About card. Anchored, because the part and
     // document ids on this page are all prefixed with it.
     await expect(
-      panel.locator('.hk-id-row code').filter({ hasText: /^asset_water_heater$/ }),
+      panel.locator('code').filter({ hasText: /^asset_water_heater$/ }),
     ).toBeVisible();
     // `adjust_part_stock` needs the part id as well as the appliance id, so the
     // part rows carry theirs too — that pairing is the whole point.
-    const partIds = panel.locator('.hk-part-row .hk-id-row');
+    const partIds = panel.locator('.hk-part-row .hk-id-inline');
     expect(await partIds.count()).toBeGreaterThan(0);
     for (const text of await partIds.locator('code').allTextContents()) {
       expect(text.trim()).not.toBe('');
     }
     // Documents likewise — `remove_asset_document` and friends take both ids.
-    await expect(panel.locator('.hk-doc-row + .hk-id-row code').first()).toBeVisible();
+    await expect(panel.locator('.hk-doc-row .hk-id-inline code').first()).toBeVisible();
   });
 
   test('the copy button puts the id on the clipboard', async ({ page, context }) => {

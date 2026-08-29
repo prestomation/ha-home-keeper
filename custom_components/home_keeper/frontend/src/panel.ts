@@ -660,6 +660,16 @@ const STYLES = `
     --mdc-icon-button-size: 32px; --mdc-icon-size: 18px;
     color: var(--secondary-text-color); flex: 0 0 auto;
   }
+  /* The compact form, for the part and document rows. */
+  .hk-id-inline { display: flex; align-items: center; gap: 2px; margin-top: 2px; }
+  .hk-id-inline code {
+    font-family: var(--code-font-family, monospace); font-size: 0.72rem;
+    color: var(--secondary-text-color); opacity: 0.85; overflow-wrap: anywhere;
+  }
+  .hk-id-inline ha-icon-button {
+    --mdc-icon-button-size: 24px; --mdc-icon-size: 14px;
+    color: var(--secondary-text-color); flex: 0 0 auto;
+  }
   .hk-detail-row .v a { color: var(--primary-color); cursor: pointer; }
   .hk-detail-row .v a:hover { text-decoration: underline; }
   /* Documents (manuals/warranties/receipts) sit in their own card, one row each. Both
@@ -2664,13 +2674,20 @@ export class HomeKeeperPanel extends HTMLElement {
    * too, which covers most cases; the id is what settles the rest, where two things
    * share a name and only the id says which one you mean.
    */
-  private _idRow(id: string | null | undefined): string {
+  private _idRow(id: string | null | undefined, compact = false): string {
     if (!id) return '';
     const copy = `<ha-icon-button class="hk-copy" data-copy="${escapeHTML(
       id,
     )}" label="${escapeHTML(t('btn.copyId'))}" title="${escapeHTML(
       t('btn.copyId'),
     )}"><ha-icon icon="mdi:content-copy"></ha-icon></ha-icon-button>`;
+    // Parts and documents are already dense rows, and an id is a footnote on them:
+    // the compact form drops the label and the divider and tucks the id under the
+    // name, so the list keeps its shape. A task or appliance page has a details card
+    // with room for a labelled row like any other field.
+    if (compact) {
+      return `<div class="hk-id-inline"><code>${escapeHTML(id)}</code>${copy}</div>`;
+    }
     return `<div class="hk-detail-row hk-id-row"><span class="k">${escapeHTML(
       t('detail.id'),
     )}</span><span class="v"><code>${escapeHTML(id)}</code>${copy}</span></div>`;
@@ -2984,8 +3001,10 @@ export class HomeKeeperPanel extends HTMLElement {
             : name;
         }
         return `<div class="hk-detail-row hk-doc-row"><span class="k"><ha-icon
-          icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}</span></div>
-          ${this._idRow(d.id)}`;
+          icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}${this._idRow(
+            d.id,
+            true,
+          )}</span></div>`;
       })
       .join('');
     return `<div class="hk-section">${escapeHTML(t('section.documents'))}</div>
@@ -3080,7 +3099,7 @@ export class HomeKeeperPanel extends HTMLElement {
               ${subLine}
               ${chipRow}
               ${partNotes}
-              ${this._idRow(p.id)}
+              ${this._idRow(p.id, true)}
             </div>
           </div>`;
       })
