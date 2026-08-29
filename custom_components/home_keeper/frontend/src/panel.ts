@@ -5957,6 +5957,15 @@ export class HomeKeeperPanel extends HTMLElement {
       if (s.name === 'profile_id') return t('notify.profile');
       return t('notify.' + s.name);
     };
+    // Both of these do something the field name cannot say. A channel is Android's
+    // word and means nothing on an iPhone, and its sound and Do Not Disturb settings
+    // belong to the phone once the channel exists — so raising the urgency later will
+    // not move a channel already created. Critical needs a permission on iOS.
+    form.computeHelper = (s: { name: string }): string => {
+      if (s.name === 'channel') return t('notify.channel_help');
+      if (s.name === 'urgency') return t('notify.urgency_help');
+      return '';
+    };
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
       if (typeof value.name === 'string') nameSpan.textContent = value.name;
@@ -6005,6 +6014,8 @@ export class HomeKeeperPanel extends HTMLElement {
       actions: ['complete', 'snooze', 'open'],
       snooze_hours: 24,
       style: 'walk',
+      channel: '',
+      urgency: 'normal',
       auto: { overdue: false, due_soon: false },
     };
     return this._persistNotifications([...(this._options?.notifications ?? []), blank], true, true);

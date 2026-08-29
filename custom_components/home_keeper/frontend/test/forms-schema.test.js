@@ -496,6 +496,8 @@ describe('notification form round-trip', () => {
     targets: ['mobile_app_phone'],
     actions: ['complete', 'snooze'],
     style: 'walk',
+    channel: 'Chores',
+    urgency: 'high',
     snooze_hours: 12,
     auto: { overdue: true, due_soon: false },
   };
@@ -507,6 +509,8 @@ describe('notification form round-trip', () => {
       targets: ['mobile_app_phone'],
       actions: ['complete', 'snooze'],
       style: 'walk',
+      channel: 'Chores',
+      urgency: 'high',
       snooze_hours: 12,
       auto_overdue: true,
       auto_due_soon: false,
@@ -562,6 +566,28 @@ describe('notification form round-trip', () => {
     expect(rebuilt.targets).toEqual([]);
     expect(rebuilt.actions).toEqual(['1']);
   });
+
+  it('leaves a new notification on no channel at normal urgency', () => {
+    // The pair of defaults that make an unconfigured notification send the payload it
+    // sent before these fields existed. A blank channel must be '' and not undefined:
+    // the backend echoes what it stores, and `undefined` drops out of the saved JSON.
+    const rebuilt = notifyFormToNotification('n1', { name: 'x' });
+    expect(rebuilt.channel).toBe('');
+    expect(rebuilt.urgency).toBe('normal');
+  });
+
+  it('trims the channel name', () => {
+    // Android creates one channel per distinct string, so "Meds " and "Meds" would
+    // otherwise become two channels the user has to configure separately.
+    expect(notifyFormToNotification('n1', { name: 'x', channel: '  Meds  ' }).channel).toBe('Meds');
+    expect(notifyFormToNotification('n1', { name: 'x', channel: null }).channel).toBe('');
+  });
+
+  it('keeps every urgency the ladder offers', () => {
+    for (const urgency of ['quiet', 'normal', 'high', 'critical']) {
+      expect(notifyFormToNotification('n1', { name: 'x', urgency }).urgency).toBe(urgency);
+    }
+  });
 });
 
 describe('notificationSchema', () => {
@@ -574,6 +600,8 @@ describe('notificationSchema', () => {
       'targets',
       'actions',
       'style',
+      'channel',
+      'urgency',
       'snooze_hours',
       'auto_overdue',
       'auto_due_soon',
@@ -606,6 +634,28 @@ describe('notificationSchema', () => {
   it('keeps snooze hours at a minimum of one', () => {
     const field = notificationSchema([], []).find((f) => f.name === 'snooze_hours');
     expect(field.selector.number.min).toBe(1);
+  });
+
+  it('offers the urgency ladder quietest first, single-select', () => {
+    // The order is the whole point: a shuffled list reads as unrelated choices rather
+    // than a ladder, and a multi-select would let someone pick two at once.
+    const field = notificationSchema([], []).find((f) => f.name === 'urgency');
+    expect(field.selector.select.options).toEqual([
+      { value: 'quiet', label: 'Quiet' },
+      { value: 'normal', label: 'Normal' },
+      { value: 'high', label: 'High' },
+      { value: 'critical', label: 'Critical' },
+    ]);
+    expect(field.selector.select.multiple).toBe(false);
+    expect(field.selector.select.sort).toBe(false);
+  });
+
+  it('takes any channel name as free text', () => {
+    // Android creates a channel on first use, so the names worth offering are the
+    // ones the household invents. A dropdown would have nothing to list.
+    const field = notificationSchema([], []).find((f) => f.name === 'channel');
+    expect(field.selector).toEqual({ text: {} });
+    expect(field.required).toBeUndefined();
   });
 });
 

@@ -360,6 +360,10 @@ export interface PanelInfo {
 export type NotifyStatus = 'all' | 'overdue' | 'due_soon';
 export type NotifyAction = 'complete' | 'snooze' | 'skip' | 'open';
 export type NotifyStyle = 'walk' | 'digest';
+/** How loudly a notification lands. Platform-neutral on purpose: the backend
+ *  (`notifications.payload_data`) expands it into Android's channel `importance` and
+ *  iOS's `push.interruption-level`, so the panel never asks which phone you carry. */
+export type NotifyUrgency = 'quiet' | 'normal' | 'high' | 'critical';
 
 /** Which tasks a profile surfaces (a saved filter). */
 export interface NotifyFilter {
@@ -406,6 +410,10 @@ export interface Notification {
   actions: NotifyAction[];
   snooze_hours: number;
   style: NotifyStyle;
+  /** The Android notification channel to deliver on (and the iOS thread to group
+   *  under). Empty means the companion app's own General channel. */
+  channel: string;
+  urgency: NotifyUrgency;
   auto: { overdue: boolean; due_soon: boolean };
 }
 

@@ -1049,6 +1049,29 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   a deliberate exception to "ship none" — getting Polish/Russian/Czech plural
   categories right by hand is exactly the kind of thing not worth re-deriving.
 
+## Notification delivery settings are platform-neutral (notifications.py)
+- **A delivery field is stored once, in Home Keeper's own vocabulary, and expanded into
+  every platform's payload keys at build time.** The panel never exposes a raw Android
+  or iOS key, because the household that configures it owns one kind of phone and
+  should not have to learn the other's model. A notification stores `channel` (a plain
+  name) and `urgency` (`quiet`/`normal`/`high`/`critical`); `notifications.payload_data`
+  is the single place that turns those into Android's `channel`/`importance`/`ttl`/
+  `priority` and iOS's `push.thread-id`/`push.interruption-level`/`push.sound`. Both
+  key sets go on every payload — each app ignores the one it does not know — so there
+  is no per-target branching anywhere in `notifier.py`.
+- **The default must be indistinguishable from not having the feature.** `normal` is
+  deliberately absent from both mapping tables, so a notification nobody has configured
+  sends byte-for-byte what it sent before the fields existed. `test_payload_data_
+  unconfigured_is_what_it_always_was` pins that; keep any new delivery field to the
+  same rule rather than emitting a "default" value nobody asked for.
+- **Every payload builder goes through `payload_data`.** `build_notification`,
+  `build_digest` and `build_all_clear` share one `data` block. A builder that assembles
+  its own would silently drop whichever field was added last.
+- Android hands a channel to the *user* once it exists: its importance, sound and Do
+  Not Disturb override become phone settings, and later payloads cannot change them.
+  That is a property of the platform, not a bug to work around — surface it in the
+  field's helper text and in the README instead of trying to force a channel update.
+
 ## Eagerly-resolved backend text (backend_i18n.py, backend_strings/)
 - `translation_key` (above) is **lazy** — the frontend resolves it to text only when
   it renders an error, in the viewer's own language. Two surfaces need the *final

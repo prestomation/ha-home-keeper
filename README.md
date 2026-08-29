@@ -821,6 +821,8 @@ notification is a delivery config with:
   duration.
 - **Style**: a **walk** (sends the first due task, then the next each time you action
   one) or a single **digest** summary.
+- **Notification channel** and **Urgency**: how loudly it lands, and which of the
+  phone's own notification settings it answers to. Described below.
 - **Auto-send**: fire automatically when a matching task becomes overdue / due-soon.
 
 The action buttons and notification text (overdue/due-soon phrasing, the digest
@@ -837,7 +839,118 @@ button taps and the standalone
 (`home_keeper_task_completed` / `_snoozed` / `_skipped`) carrying
 `origin: home_keeper_notification_action`, so other automations can react.
 
-![The Settings → Notifications card with a "My chores" profile: targets, filter, buttons, style, snooze and auto-send toggles](docs/images/22-panel-notifications.png)
+![The Settings → Notifications card holding a walk that sends to a phone on the Chores channel at High urgency](docs/images/22-panel-notifications.png)
+
+### One channel per kind of reminder
+
+A medication reminder and *mow the lawn in 2 days* should not arrive the same way.
+Give a notification a **Notification channel** and an **Urgency**, and Home Keeper
+sends what each phone understands.
+
+On **Android** the channel is a real notification channel, created the first time a
+reminder uses the name. It then appears under **Settings → Notifications → Home
+Assistant** on the phone itself, where you give it a sound or let it override Do Not
+Disturb. That per-channel switch is what lets *Medication* ring through a silent
+evening while *Batteries* makes no sound at all.
+
+On **iPhone** there are no channels. Home Keeper sends the same name as a thread so
+those reminders group together, and maps the urgency onto the interruption level iOS
+uses in place of a channel.
+
+| Urgency  | Android           | iPhone         |
+| -------- | ----------------- | -------------- |
+| Quiet    | Low importance    | Passive        |
+| Normal   | The app's default | Active         |
+| High     | High importance   | Time-sensitive |
+| Critical | Max importance    | Critical alert |
+
+*High* and *Critical* also ask Android to deliver straight away instead of waiting for
+the next batch, which an idle phone would otherwise do.
+
+*Critical* carries a condition on each platform. On an iPhone it does nothing until
+you allow **Critical Alerts** for Home Assistant under **Settings → Notifications**.
+On Android a channel keeps the settings it was created with, so raising the urgency of
+a channel that already exists changes nothing on the phone. Give the channel a new
+name or change it in the phone's own settings.
+
+Leave the channel empty and reminders arrive on the companion app's General channel,
+exactly as they did before.
+
+### Automations that carry the rest
+
+Home Keeper sends a reminder once and stops. Repeating a reminder, or holding one back
+until you are home, belongs in a Home Assistant automation rather than a Home Keeper
+setting. That keeps the timing yours to change, and `home_keeper.notify` does nothing
+at all when nothing matches, so a schedule that fires all day costs you nothing on the
+days you are caught up.
+
+Build these in **Settings → Automations & scenes** if you would rather not write YAML.
+The trigger and the condition are the two rows that matter, and the action is one line.
+
+**Nag me until it's done.** A reminder cleared by accident comes back every two hours
+between breakfast and bedtime. This is the answer to "re-send it until I deal with it".
+
+```yaml
+automation:
+  - alias: "Home Keeper → chores every 2 hours"
+    trigger:
+      - platform: time_pattern
+        hours: "/2"
+    condition:
+      - condition: time
+        after: "08:00:00"
+        before: "21:00:00"
+    action:
+      - service: home_keeper.notify
+        data:
+          notification: Walk my chores
+```
+
+**Only while I'm home.** Nothing arrives at the office. This one looks every half hour
+and speaks up only when your person entity says you are in.
+
+```yaml
+automation:
+  - alias: "Home Keeper → chores while I'm home"
+    trigger:
+      - platform: time_pattern
+        minutes: "/30"
+    condition:
+      - condition: state
+        entity_id: person.sam
+        state: home
+      - condition: time
+        after: "17:00:00"
+        before: "21:00:00"
+    action:
+      - service: home_keeper.notify
+        data:
+          notification: Walk my chores
+```
+
+**Something that must not be missed.** A tighter window and a shorter gap, for a
+notification given its own channel at *Critical* urgency so it lands over Do Not
+Disturb until somebody taps **Mark done**.
+
+```yaml
+automation:
+  - alias: "Home Keeper → medication window"
+    trigger:
+      - platform: time_pattern
+        minutes: "/15"
+    condition:
+      - condition: time
+        after: "08:00:00"
+        before: "10:00:00"
+    action:
+      - service: home_keeper.notify
+        data:
+          notification: Medication
+```
+
+Each of these re-sends the same notification, so the phone replaces the old card
+rather than stacking a new one. Marking the task done ends the run, because the next
+firing finds nothing due.
 
 ## Dashboard task card
 

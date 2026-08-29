@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openPanel, openSettingsSection, trackPanelErrors } from './helpers';
+import { callService, openPanel, openSettingsSection, trackPanelErrors } from './helpers';
 
 test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () => {
   test('Settings tab renders the options form and deep-links', async ({ page }) => {
@@ -35,6 +35,69 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
+
+  test('a notification exposes its channel and urgency, and says what they do', async ({
+    page,
+  }) => {
+    // The Notifications card had no assertion of its own, only a screenshot — and a
+    // screenshot cannot tell a rendered control from a missing one. These two fields
+    // are also the ones whose *labels* carry the feature: "Notification channel" is
+    // Android's word and means nothing on an iPhone, so the helper text below each is
+    // the whole answer to "does this do anything on my phone?".
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: 'e2e_notify_profile',
+          name: 'Everything',
+          filter: { status: 'all', labels: [], areas: [], devices: [] },
+        },
+      ],
+      notifications: [
+        {
+          id: 'e2e_notify',
+          name: 'Medication',
+          profile_id: 'e2e_notify_profile',
+          targets: [],
+          actions: ['complete', 'snooze'],
+          style: 'walk',
+          snooze_hours: 24,
+          channel: 'Medication',
+          urgency: 'critical',
+          auto: { overdue: false, due_soon: false },
+        },
+      ],
+    });
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      await openSettingsSection(panel, 'notifications');
+      const card = panel.locator('#hk-notifications');
+      await expect(card).toBeVisible();
+      // Rows collapse by default; open the seeded one to reach its editor.
+      await card.locator('.hk-item-header').first().click();
+      const form = card.locator('.hk-item-body ha-form').first();
+      await expect(form).toBeVisible();
+
+      // Both controls are drawn, under the labels the locale file gives them.
+      await expect(form).toContainText('Notification channel');
+      await expect(form).toContainText('Urgency');
+      // …and each explains itself, including the two things a user cannot guess: that
+      // an iPhone has no channels, and that Critical needs a permission there.
+      await expect(form).toContainText(/iPhones have no channels/i);
+      await expect(form).toContainText(/Critical Alerts allowed for Home Assistant/i);
+      // The saved channel round-tripped into the field rather than rendering blank.
+      await expect
+        .poll(() =>
+          form.locator('input').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value)),
+        )
+        .toContain('Medication');
+
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
+    }
+  });
 
   test('the problem-sensor toggle explains what clears a synced task', async ({ page }) => {
     // The consequences of the toggle aren't guessable from its label: such a task
