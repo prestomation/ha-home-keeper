@@ -1021,6 +1021,19 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
         return out;
       }),
     });
+    // Enabling auto-buy on a part that is *already* at its reorder point creates the
+    // buy task but crosses no threshold, and the shopping-list mirror syncs on the
+    // crossing. Nudge the stock up and back so the crossing actually happens — the
+    // part ends on its seeded quantity either way. Without this the shot only worked
+    // when an earlier suite run had happened to move the stock first.
+    for (const delta of [1, -1]) {
+      await hass.callService('home_keeper', 'adjust_part_stock', {
+        asset_id: heater.id,
+        part_id: IDS.PART.anode,
+        delta,
+      });
+      await new Promise((r) => setTimeout(r, 1000));
+    }
   }, { ASSET, PART });
 
   // 17. The Settings tab — friendly forms mirroring the options flow: a General
