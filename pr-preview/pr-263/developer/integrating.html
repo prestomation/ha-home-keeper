@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Integrating with Home Keeper | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-263/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-263/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-263/developer/integrating"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Integrating with Home Keeper | Home Keeper"><meta data-rh="true" name="description" content="This guide is for authors of other Home Assistant integrations who want to push"><meta data-rh="true" property="og:description" content="This guide is for authors of other Home Assistant integrations who want to push"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-263/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-263/developer/integrating"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-263/developer/integrating" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-263/developer/integrating" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Integrating","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-263/developer/integrating"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-263/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-263/assets/js/runtime~main.4d01fa73.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-263/assets/js/runtime~main.76de01ee.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-263/assets/js/main.9eb9f860.js" defer="defer"></script>
 </head>
 <body>
@@ -95,11 +95,11 @@ integration and shows the same labels Home Assistant does.</p>
 the match stays unambiguous even if the user creates tasks with matching names.</p>
 </blockquote>
 <p>Every <code>task_id</code> / <code>asset_id</code> / <code>part_id</code> / <code>document_id</code> service field also accepts the
-object&#x27;s <strong>name</strong>, which is what makes the services usable in hand-written YAML. Don&#x27;t
-build an integration on it: a name is user-editable and not unique, so a rename or a
-collision breaks you silently. Capture the id, or match on your own <code>source</code> key as
-above. A name several objects share is rejected rather than guessed, so the failure is
-at least loud.</p>
+object&#x27;s <strong>name</strong>. That is what makes the services usable in hand-written YAML. Don&#x27;t
+build an integration on it. A name is user-editable and not unique, so a rename or a
+collision breaks you silently. Capture the id instead, or match on your own <code>source</code>
+namespace. A name that several objects share is rejected rather than guessed, so at
+least the failure is loud.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-reacting-to-a-completion">3. Reacting to a completion<a href="#3-reacting-to-a-completion" class="hash-link" aria-label="Direct link to 3. Reacting to a completion" title="Direct link to 3. Reacting to a completion" translate="no">​</a></h2>
 <p>Home Keeper fires <code>home_keeper_task_completed</code> on <strong>every</strong> completion, whatever the
 surface: the to-do list checkbox, the device mark-done button, or the <code>complete_task</code>
