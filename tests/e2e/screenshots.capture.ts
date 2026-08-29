@@ -1155,6 +1155,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           actions: ['complete', 'snooze', 'open'],
           snooze_hours: 24,
           style: 'walk',
+          // A channel and a raised urgency so the shot shows both controls holding a
+          // real value rather than an empty box beside the default choice.
+          channel: 'Chores',
+          urgency: 'high',
           auto: { overdue: true, due_soon: false },
         },
       ],
@@ -1175,11 +1179,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await panel.locator('#hk-profiles').screenshot({ path: `${OUT}/profiles-card.png` });
   // Settings → Notifications — delivery bindings that each reference a Profile.
+  // Scoped to the card rather than the page: Settings is long enough after the rail
+  // redesign that a full-page shot renders this editor's fields too small to read,
+  // and the card is what the README caption describes anyway.
   await expect(panel.locator('#hk-notifications')).toBeVisible();
   for (const h of await panel.locator('#hk-notifications .hk-item-header').all()) await h.click();
   await expect(panel.locator('#hk-notifications .hk-item-body ha-form').first()).toBeVisible();
   await page.waitForTimeout(300);
-  await page.screenshot({ path: `${OUT}/22-panel-notifications.png`, fullPage: true });
+  await panel.locator('#hk-notifications').screenshot({ path: `${OUT}/22-panel-notifications.png` });
 
   // 17a2. The Tasks tab Profile dropdown — pick a saved Profile to filter the admin list.
   await openPanel(page);

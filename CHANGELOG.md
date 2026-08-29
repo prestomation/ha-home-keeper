@@ -6,6 +6,20 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0b3]
+
+### Added
+
+- **Give a notification its own channel and urgency.** A reminder in *Settings →
+  Notifications* is delivered on a notification channel you name, at an urgency from
+  *Quiet* up to *Critical*. Medication rings through Do Not Disturb while battery
+  reminders make no sound, and an iPhone gets the matching interruption level.
+  (Fixes #255)
+
+- **The Notifications page shows three worked automations.** One re-sends a reminder
+  every couple of hours until the task is done. Another holds reminders back until you
+  are home.
+
 ## [0.19.0b2]
 
 ### Changed
