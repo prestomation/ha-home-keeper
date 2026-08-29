@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openPanel } from './helpers';
+import { gotoTab, openPanel } from './helpers';
 import { ASSET } from '../fixture-ids';
 
 /**
@@ -15,7 +15,7 @@ import { ASSET } from '../fixture-ids';
 async function openApplianceEditor(page) {
   await openPanel(page);
   const panel = page.locator('home-keeper-panel').first();
-  await panel.locator('#tab-appliances').click();
+  await gotoTab(panel, 'appliances');
   await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
   await expect(panel.locator('.d-edit')).toBeVisible();
   await panel.locator('.d-edit').click();

@@ -12,7 +12,10 @@ import { TASK } from '../fixture-ids';
  */
 const panelOf = (page: Page) => page.locator('home-keeper-panel').first();
 
-test.describe('Home Keeper panel — accessibility contracts', () => {
+test.describe(
+  'Home Keeper panel — accessibility contracts',
+  { tag: '@responsive' },
+  () => {
   test('the selected filter is stated, not just coloured', async ({ page }) => {
     await openPanel(page);
     const panel = panelOf(page);
@@ -49,6 +52,63 @@ test.describe('Home Keeper panel — accessibility contracts', () => {
     expect(still.val).toBe('overdue');
   });
 
+  test('the chip overflow is a control, so nothing clickable is unreachable', async ({ page }) => {
+    // Several of the chips it folds away do something when clicked — a device chip
+    // opens the device page — so a bare "+2" caption put an action behind a
+    // navigation that used to be one click.
+    //
+    // No seeded task carries three chips, so make one: the battery task already has a
+    // part chip and its integration's chip, and a tag is a third.
+    await callService('home_keeper', 'update_task', {
+      task_id: TASK.doorBattery,
+      tag_id: 'a11y-overflow-tag',
+    });
+    await openPanel(page);
+    const panel = panelOf(page);
+    // The panel is told about the change over its websocket subscription, so the row
+    // may still be the pre-tag one on first paint.
+    const more = panel.locator(`ha-card.hk-card[data-id="${TASK.doorBattery}"] .hk-chip-more`);
+    await expect(more).toBeVisible({ timeout: 20_000 });
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    const row = panel.locator(`ha-card.hk-card[data-id="${TASK.doorBattery}"]`);
+    const hiddenBefore = await row.locator('.hk-chips-inline > *:nth-child(3)').isVisible();
+    expect(hiddenBefore).toBe(false);
+    await more.click();
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+    await expect(row.locator('.hk-chips-inline > *:nth-child(3)')).toBeVisible();
+
+    await callService('home_keeper', 'update_task', {
+      task_id: TASK.doorBattery,
+      tag_id: '',
+    });
+  });
+
+  test('the appliance sub-tabs are navigation, not a broken tab widget', async ({ page }) => {
+    // They declared role="tab" and then implemented none of the contract: no
+    // tabpanel, no roving tabindex, no arrow keys. Plain links are the honest shape.
+    await page.goto('/home-keeper/appliances');
+    const panel = panelOf(page);
+    await panel.locator('.hk-card[data-id]').first().click();
+    await expect(panel.locator('.hk-subtab').first()).toBeVisible();
+    // (HA's own ha-tab-group owns the three top-level tabs and uses role="tab"
+    // legitimately — this is about the sub-tabs and the phone bar we added.)
+    expect(await panel.locator('.hk-subtab[role="tab"]').count()).toBe(0);
+    expect(await panel.locator('.hk-subtabs[role="tablist"]').count()).toBe(0);
+    expect(await panel.locator('.hk-bottombar[role="tablist"]').count()).toBe(0);
+    await expect(panel.locator('.hk-subtab.active')).toHaveAttribute('aria-current', 'page');
+  });
+  },
+);
+
+/**
+ * The drawer's two personalities, and the seam between them.
+ *
+ * These resize the page themselves rather than running under a viewport project,
+ * because that is the assertion: `_syncDrawerModality()` reads `matchMedia` — the
+ * one place in the panel that reads the viewport at all — and a project with a fixed
+ * width can never exercise it. The 1400px case is also wider than any project.
+ */
+test.describe('Home Keeper panel — the drawer across the sheet threshold', () => {
   test('the phone sheet is a modal dialog, and the list under it is inert', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openPanel(page);
@@ -105,49 +165,4 @@ test.describe('Home Keeper panel — accessibility contracts', () => {
     ).toBe(true);
   });
 
-  test('the chip overflow is a control, so nothing clickable is unreachable', async ({ page }) => {
-    // Several of the chips it folds away do something when clicked — a device chip
-    // opens the device page — so a bare "+2" caption put an action behind a
-    // navigation that used to be one click.
-    //
-    // No seeded task carries three chips, so make one: the battery task already has a
-    // part chip and its integration's chip, and a tag is a third.
-    await callService('home_keeper', 'update_task', {
-      task_id: TASK.doorBattery,
-      tag_id: 'a11y-overflow-tag',
-    });
-    await openPanel(page);
-    const panel = panelOf(page);
-    // The panel is told about the change over its websocket subscription, so the row
-    // may still be the pre-tag one on first paint.
-    const more = panel.locator(`ha-card.hk-card[data-id="${TASK.doorBattery}"] .hk-chip-more`);
-    await expect(more).toBeVisible({ timeout: 20_000 });
-    await expect(more).toHaveAttribute('aria-expanded', 'false');
-    const row = panel.locator(`ha-card.hk-card[data-id="${TASK.doorBattery}"]`);
-    const hiddenBefore = await row.locator('.hk-chips-inline > *:nth-child(3)').isVisible();
-    expect(hiddenBefore).toBe(false);
-    await more.click();
-    await expect(more).toHaveAttribute('aria-expanded', 'true');
-    await expect(row.locator('.hk-chips-inline > *:nth-child(3)')).toBeVisible();
-
-    await callService('home_keeper', 'update_task', {
-      task_id: TASK.doorBattery,
-      tag_id: '',
-    });
-  });
-
-  test('the appliance sub-tabs are navigation, not a broken tab widget', async ({ page }) => {
-    // They declared role="tab" and then implemented none of the contract: no
-    // tabpanel, no roving tabindex, no arrow keys. Plain links are the honest shape.
-    await page.goto('/home-keeper/appliances');
-    const panel = panelOf(page);
-    await panel.locator('.hk-card[data-id]').first().click();
-    await expect(panel.locator('.hk-subtab').first()).toBeVisible();
-    // (HA's own ha-tab-group owns the three top-level tabs and uses role="tab"
-    // legitimately — this is about the sub-tabs and the phone bar we added.)
-    expect(await panel.locator('.hk-subtab[role="tab"]').count()).toBe(0);
-    expect(await panel.locator('.hk-subtabs[role="tablist"]').count()).toBe(0);
-    expect(await panel.locator('.hk-bottombar[role="tablist"]').count()).toBe(0);
-    await expect(panel.locator('.hk-subtab.active')).toHaveAttribute('aria-current', 'page');
-  });
 });

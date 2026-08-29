@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { callService, openPanel, trackPanelErrors } from './helpers';
 
-test.describe('Home Keeper panel — synced problem task', () => {
+test.describe('Home Keeper panel — synced problem task', { tag: '@responsive' }, () => {
   test('the Tasks-list Done is replaced by a caption and explains (not completes) on click', async ({
     page,
   }) => {

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAppliance, openPanel, trackPanelErrors } from './helpers';
+import { gotoTab, openAppliance, openPanel, trackPanelErrors } from './helpers';
 import { ASSET, DOC, PART } from '../fixture-ids';
 
 /**
@@ -12,7 +12,7 @@ import { ASSET, DOC, PART } from '../fixture-ids';
  * assertions are the regression guard — if a file link ever loses its href, it's broken
  * on mobile again.
  */
-test.describe('Appliance documents open by a native tap (issue #164)', () => {
+test.describe('Appliance documents open by a native tap (issue #164)', { tag: '@responsive' }, () => {
   test('every document and part file is an href-bearing anchor', async ({ page }) => {
     const errors = trackPanelErrors(page);
     await openPanel(page);
@@ -57,7 +57,7 @@ test.describe('Appliance documents open by a native tap (issue #164)', () => {
   test("the edit form's Open action is a native link too", async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-appliances').click();
+    await gotoTab(panel, 'appliances');
     await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
     await panel.locator('.d-edit').click();
 

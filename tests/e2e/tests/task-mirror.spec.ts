@@ -4,6 +4,7 @@ import {
   createTask,
   deleteTask,
   familyChoresCard,
+  gotoTab,
   listTasks,
   openDashboard,
   openPanel,
@@ -162,7 +163,7 @@ test.describe('Home Keeper — tasks mirrored onto a household to-do list', () =
     // only thing that would notice is a reader of the README.
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-settings').click();
+    await gotoTab(panel, 'settings');
     const profiles = panel.locator('#hk-profiles');
     await expect(profiles).toBeVisible();
 

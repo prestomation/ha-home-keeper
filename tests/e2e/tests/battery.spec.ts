@@ -8,7 +8,7 @@ import { TASK } from '../fixture-ids';
  * (`${TASK.doorBattery}`, due-now) and two *dormant* ones (`${TASK.smokeBattery}`,
  * `${TASK.thermostatBattery}`, monitored/not-due), all managed by "Battery Notes".
  */
-test.describe('Home Keeper panel — triggered / battery tasks', () => {
+test.describe('Home Keeper panel — triggered / battery tasks', { tag: '@responsive' }, () => {
   test('an active battery task shows overdue + Managed by Battery Notes', async ({ page }) => {
     const errors = trackPanelErrors(page);
     await openPanel(page);

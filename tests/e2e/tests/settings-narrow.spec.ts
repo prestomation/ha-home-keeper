@@ -1,31 +1,34 @@
 import { test, expect, Page } from '@playwright/test';
-import { openPanel, trackPanelErrors } from './helpers';
+import { gotoTab, openPanel, openPanelAt, trackPanelErrors } from './helpers';
+import { DESKTOP, PHONE } from '../viewports';
 
 /**
- * Settings at phone width is a section index that opens one section at a time — a
+ * Settings on a narrow screen is a section index that opens one section at a time — a
  * screen with no room for a rail beside six expanded sections has no room for the six
  * sections either.
  *
  * The split is entirely CSS: all three parts (rail, index, sections) are rendered at
  * every width, the layout carries which section the URL names, and the media query
- * picks. That is what these tests are really guarding — the rest of the suite runs at
- * desktop width and would never notice the phone rules regressing.
+ * picks. That is what these tests are really guarding — the desktop leg would never
+ * notice the narrow rules regressing.
+ *
+ * The rail goes at 1000px but the bottom tab bar only arrives at 700px, so between
+ * them Settings is an index reached from the *top* tabs. Going through `gotoTab`
+ * rather than `#mtab-settings` is what lets the tablet project run these too.
  */
-const PHONE = { width: 390, height: 844 };
 
-/** Open the panel with a phone-sized viewport, on the Settings tab. */
-async function openSettingsOnPhone(page: Page) {
-  await page.setViewportSize(PHONE);
+/** Open the panel on the Settings tab, at whatever width the project set. */
+async function openSettings(page: Page) {
   await openPanel(page);
   const panel = page.locator('home-keeper-panel').first();
-  await panel.locator('#mtab-settings').click();
+  await gotoTab(panel, 'settings');
   return panel;
 }
 
-test.describe('Home Keeper panel — Settings on a phone', () => {
+test.describe('Home Keeper panel — Settings on a narrow screen', { tag: '@narrow' }, () => {
   test('opens on an index naming every section and what it is set to', async ({ page }) => {
     const errors = trackPanelErrors(page);
-    const panel = await openSettingsOnPhone(page);
+    const panel = await openSettings(page);
 
     // Six rows, one per section, and the rail they replace is not on screen.
     const rows = panel.locator('.hk-index-row');
@@ -47,7 +50,7 @@ test.describe('Home Keeper panel — Settings on a phone', () => {
   });
 
   test('a row opens that section alone, and Back returns to the index', async ({ page }) => {
-    const panel = await openSettingsOnPhone(page);
+    const panel = await openSettings(page);
     await panel.locator('.hk-index-row[data-section="problem"]').click();
 
     // The section is a URL of its own, so it can be linked to and Back leaves it.
@@ -72,7 +75,6 @@ test.describe('Home Keeper panel — Settings on a phone', () => {
   });
 
   test('a section URL deep-links straight to that section', async ({ page }) => {
-    await page.setViewportSize(PHONE);
     await page.goto('/home-keeper/settings/notifications');
     const panel = page.locator('home-keeper-panel').first();
     await expect(panel.locator('#hk-notifications')).toBeVisible();
@@ -85,12 +87,22 @@ test.describe('Home Keeper panel — Settings on a phone', () => {
   });
 
   test('an unknown section falls back to the index rather than a blank page', async ({ page }) => {
-    await page.setViewportSize(PHONE);
     await page.goto('/home-keeper/settings/nonsense');
     const panel = page.locator('home-keeper-panel').first();
     await expect(panel.locator('.hk-index-row')).toHaveCount(6);
   });
 
+});
+
+/**
+ * The same URL, read at two widths in one page.
+ *
+ * Untagged, so it runs once rather than in every viewport project: the assertion is
+ * the *transition*, which a fixed project viewport cannot express. This is the test
+ * that actually pins "responsiveness stays in CSS" — the panel is never reloaded, so
+ * nothing but the media query can be doing the work.
+ */
+test.describe('Home Keeper panel — Settings across a resize', () => {
   test('the same URL on a wide screen is the whole page, with the rail', async ({ page }) => {
     // The split is CSS, so widening the window is the whole of the desktop story: the
     // rail comes back, every section shows, and the index goes away.
@@ -99,7 +111,7 @@ test.describe('Home Keeper panel — Settings on a phone', () => {
     const panel = page.locator('home-keeper-panel').first();
     await expect(panel.locator('#hk-settings-general')).toBeHidden();
 
-    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.setViewportSize(DESKTOP);
     await expect(panel.locator('.hk-settings-rail')).toBeVisible();
     await expect(panel.locator('#hk-settings-general')).toBeVisible();
     await expect(panel.locator('#hk-settings')).toBeVisible();

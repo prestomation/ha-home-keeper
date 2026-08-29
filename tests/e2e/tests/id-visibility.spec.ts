@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openPanel, trackPanelErrors } from './helpers';
+import { openAppliance, openPanel, trackPanelErrors } from './helpers';
 import { ASSET, TASK } from '../fixture-ids';
 
 /**
@@ -8,7 +8,7 @@ import { ASSET, TASK } from '../fixture-ids';
  * appeared in no UI a person reads. A screenshot proves it rendered once; these
  * assert it stays rendered, on every surface a service takes an id for.
  */
-test.describe('Home Keeper panel — object ids are visible and copyable', () => {
+test.describe('Home Keeper panel — object ids are visible and copyable', { tag: '@responsive' }, () => {
   test('a task detail page shows its id with a copy button', async ({ page }) => {
     const errors = trackPanelErrors(page);
     await openPanel(page);
@@ -28,23 +28,28 @@ test.describe('Home Keeper panel — object ids are visible and copyable', () =>
 
   test('an appliance page shows its own id and one per part and document', async ({ page }) => {
     await openPanel(page);
-    const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-appliances').click();
-    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+    // An appliance's sections are sub-tabs now, and only the open one renders, so
+    // each id has to be read from the section that carries it rather than from one
+    // long page.
+    const panel = await openAppliance(page, ASSET.waterHeater, 'details');
 
     // The appliance's own id, on the About card. Anchored, because the part and
     // document ids on this page are all prefixed with it.
     await expect(
       panel.locator('code').filter({ hasText: new RegExp(`^${ASSET.waterHeater}$`) }),
     ).toBeVisible();
+
     // `adjust_part_stock` needs the part id as well as the appliance id, so the
     // part rows carry theirs too — that pairing is the whole point.
+    await panel.locator('.hk-subtab[data-tab="parts"]').click();
     const partIds = panel.locator('.hk-part-row .hk-id-inline');
-    expect(await partIds.count()).toBeGreaterThan(0);
+    await expect(partIds.first()).toBeVisible();
     for (const text of await partIds.locator('code').allTextContents()) {
       expect(text.trim()).not.toBe('');
     }
+
     // Documents likewise — `remove_asset_document` and friends take both ids.
+    await panel.locator('.hk-subtab[data-tab="documents"]').click();
     await expect(panel.locator('.hk-doc-row .hk-id-inline code').first()).toBeVisible();
   });
 

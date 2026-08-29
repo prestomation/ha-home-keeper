@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { openPanel, trackPanelErrors } from './helpers';
 import { TASK } from '../fixture-ids';
 
-test.describe('Home Keeper panel — completion dialog', () => {
+test.describe('Home Keeper panel — completion dialog', { tag: '@responsive' }, () => {
   test('the completion-details dialog renders its action buttons and can be submitted', async ({
     page,
   }) => {
