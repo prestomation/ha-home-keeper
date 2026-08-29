@@ -19,6 +19,7 @@ import {
   shotWithDrawer,
 } from './shots';
 import { ASSET, PART, TASK } from './fixture-ids';
+import { DESKTOP, PHONE } from './viewports';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
@@ -97,6 +98,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   const panel = page.locator('home-keeper-panel').first();
   await expect(panel.locator('.hk-name').first()).toBeVisible();
   await page.waitForTimeout(1200); // let the HA sidebar/layout settle (avoid ghosting)
+  // Home Assistant raises a "Home Assistant has started!" toast on a cold boot, and
+  // the capture always runs against a freshly-started container — so it lands across
+  // the bottom of whichever early shots the run happens to reach first. It was over
+  // the task detail's history when this was found.
+  await settleToasts(page);
 
   // 0. First-run orientation banner — shown above the list until dismissed. Capture
   // it, then dismiss so the remaining task-list shots keep their established framing.
@@ -1235,7 +1241,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // Assistant's *sticky* top bar across its head — which ate the card's own "Family
   // chores" title, the one thing that says which list this is. Restored afterwards so
   // the closing dashboard shot keeps its established framing.
-  await page.setViewportSize({ width: 1280, height: 1280 });
+  await page.setViewportSize({ width: DESKTOP.width, height: 1280 });
   await openDashboard(page);
   const familyCard = page
     .locator('hui-todo-list-card, todo-list-card')
@@ -1246,7 +1252,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   ).toBeVisible({ timeout: 40_000 });
   await page.waitForTimeout(600);
   await familyCard.screenshot({ path: `${OUT}/48-todo-sync-mirrored-task.png` });
-  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.setViewportSize(DESKTOP);
 
   // 46. The payoff: the buy reminder sitting on the household's own shopping list,
   // where a voice assistant or a phone widget will read it out.
@@ -1264,12 +1270,30 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(1500); // let cards settle
   await page.screenshot({ path: `${OUT}/4-usage-todo-and-calendar.png`, fullPage: true });
 
-  // 50 + 51. Settings at phone width. A screen with no room for a rail beside six
-  // expanded sections has no room for the six sections either, so it opens on an
-  // index and drills into one at a time. Asserted properly in
-  // tests/settings-mobile.spec.ts — these two only photograph it.
-  await page.setViewportSize({ width: 390, height: 844 });
+  // 50-53. The phone layout, which is different enough from the desktop one that the
+  // shots above document none of it: the tabs are along the bottom, Add floats, and
+  // Settings opens on an index rather than six expanded sections. Asserted in
+  // tests/responsive-layout.spec.ts and tests/settings-narrow.spec.ts — these only
+  // photograph it. Last in the file because it changes the viewport; restored below
+  // so a shot appended after this one does not silently inherit a phone width.
+  await page.setViewportSize(PHONE);
+
   await openPanel(page);
+  // Shot 23 left a Profile selected, and a filtered list hides the scope pills —
+  // which are the single most phone-specific thing on this screen, since they are
+  // what comes apart into wrapping chips below 700px. Clear it first.
+  await panel.locator('select[data-profile-filter]').selectOption('');
+  await expect(panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn').first()).toBeVisible();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+  await expect(panel.locator('.hk-bottombar')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
+
+  await panel.locator('#mtab-appliances').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/53-panel-mobile-appliances.png` });
+
   await panel.locator('#mtab-settings').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await page.waitForTimeout(600);
@@ -1280,4 +1304,6 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-settings-backbar')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/51-panel-mobile-settings-section.png` });
+
+  await page.setViewportSize(DESKTOP);
 });

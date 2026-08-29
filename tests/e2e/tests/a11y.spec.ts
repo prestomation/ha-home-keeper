@@ -1,6 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { callService, openPanel } from './helpers';
 import { TASK } from '../fixture-ids';
+import { PHONE, WIDE } from '../viewports';
 
 /**
  * The accessibility contracts an audit found broken, pinned so they stay fixed.
@@ -110,7 +111,7 @@ test.describe(
  */
 test.describe('Home Keeper panel — the drawer across the sheet threshold', () => {
   test('the phone sheet is a modal dialog, and the list under it is inert', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize(PHONE);
     await openPanel(page);
     const panel = panelOf(page);
     await panel.locator('#add-btn').click();
@@ -147,7 +148,7 @@ test.describe('Home Keeper panel — the drawer across the sheet threshold', () 
     // The counterpart to the test above: at a width where the drawer sits *next to*
     // the list rather than over it, disabling the list would take away marking
     // another task done — which the inline form it replaced never did.
-    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.setViewportSize(WIDE);
     await openPanel(page);
     const panel = panelOf(page);
     await panel.locator('#add-btn').click();
