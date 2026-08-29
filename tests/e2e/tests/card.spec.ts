@@ -1,5 +1,6 @@
 import { test, expect, Locator } from '@playwright/test';
 import { deleteTask, listTasks, openCardDashboard, trackPanelErrors } from './helpers';
+import { ASSET, DOC, TASK } from '../fixture-ids';
 
 /** Fill the nth `ha-selector-text` inside a scope (the card's inline form). */
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
@@ -45,7 +46,7 @@ test.describe('Home Keeper card — dashboard', () => {
     await expect(
       card.locator('.hk-row', { hasText: 'Replace battery: Hallway smoke alarm' }),
     ).toHaveCount(1);
-    await expect(card.locator('.hk-done[data-id="task_smoke_battery"]')).toHaveCount(0);
+    await expect(card.locator(`.hk-done[data-id="${TASK.smokeBattery}"]`)).toHaveCount(0);
   });
 
   test('the grouped card buckets tasks into collapsible status sections', async ({ page }) => {
@@ -83,7 +84,7 @@ test.describe('Home Keeper card — dashboard', () => {
     // external link ("Owner's manual"), a metadata link ("Reorder filter"), and an
     // uploaded file ("Installation guide (PDF)") — plus its linked part's own product
     // page ("Sediment pre-filter"), since the task is a manual consumable link to
-    // asset_water_heater's part_sediment_filter, which has a `url`.
+    // the water heater's sediment-filter part, which has a `url`.
     const row = card.locator('.hk-row', { hasText: 'Replace water filter' });
     await expect(row).toHaveCount(1, { timeout: 30_000 });
     // Every document link — external link, metadata link, uploaded file, and part
@@ -111,7 +112,7 @@ test.describe('Home Keeper card — dashboard', () => {
     // The uploaded file resolves to a pre-signed document URL (relative, token-signed).
     await expect(chipLink('Installation guide (PDF)')).toHaveAttribute(
       'href',
-      /\/api\/home_keeper\/document\/asset_water_heater\/asset_water_heater_doc_manual_pdf\?authSig=/,
+      new RegExp(`/api/home_keeper/document/${ASSET.waterHeater}/${DOC.manualPdf}\\?authSig=`),
     );
     // The linked part's product-page URL surfaces as its own chip.
     await expect(chipLink('Sediment pre-filter')).toHaveAttribute(

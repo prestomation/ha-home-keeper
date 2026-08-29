@@ -1,13 +1,22 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  MAX_SEASON_WINDOWS,
   buildTaskPayload,
   formRecurrenceSummary,
   notifyFormData,
   notifyFormToNotification,
   notificationSchema,
+  pickFormData,
+  problemSyncExclusionsSchema,
+  problemSyncSchema,
+  problemSyncToggleSchema,
+  profileSyncSchema,
+  schemaFieldNames,
   shoppingSchema,
   taskFormData,
   taskSchema,
+  taskSchemaSections,
+  toProfileSync,
 } from '../src/forms.ts';
 import { setLanguage } from '../src/i18n.ts';
 
@@ -23,6 +32,153 @@ beforeEach(() => setLanguage('en'));
 // flat `map(f => f.name)` misses exactly the fields these tests care about.
 const names = (fields) =>
   fields.flatMap((f) => (f.schema ? names(f.schema) : [f.name])).filter(Boolean);
+
+// The drawer renders one `ha-form` per section so it can put a heading between two
+// fields, but the payload builder, the saved task and every test below are written
+// against the flat schema. These two views of the same form must never drift: a
+// field that exists in one and not the other is either a control the user cannot
+// reach or a value that never gets saved.
+describe('taskSchemaSections is exactly taskSchema, grouped', () => {
+  const cases = [
+    ['floating', { recurrence_type: 'floating' }],
+    ['fixed', { recurrence_type: 'fixed' }],
+    ['one-off', { recurrence_type: 'one-off' }],
+    ['triggered', { recurrence_type: 'triggered' }],
+    ['sensor / usage', { recurrence_type: 'sensor', sensor_mode: 'usage' }],
+    ['sensor / usage with a backstop', {
+      recurrence_type: 'sensor',
+      sensor_mode: 'usage',
+      sensor_backstop_on: true,
+    }],
+    ['sensor / threshold', { recurrence_type: 'sensor', sensor_mode: 'threshold' }],
+    ['sensor / state', { recurrence_type: 'sensor', sensor_mode: 'state' }],
+    ['a saved task (no last_completed seed)', { id: 't1', recurrence_type: 'floating' }],
+    ['floating with one season window', {
+      recurrence_type: 'floating',
+      active_season: [{ start: '04-01', end: '09-30' }],
+    }],
+    ['fixed with three season windows', {
+      recurrence_type: 'fixed',
+      active_season: [
+        { start: '03-01', end: '05-31' },
+        { start: '09-01', end: '10-31' },
+        { start: '12-01', end: '12-24' },
+      ],
+    }],
+    ['season switched off on a task that has windows', {
+      recurrence_type: 'floating',
+      season_on: false,
+      active_season: [{ start: '04-01', end: '09-30' }],
+    }],
+    ['a managed task with locked fields', {
+      recurrence_type: 'floating',
+      managed_by: { domain: 'x', locked_fields: ['name', 'interval', 'device_id'] },
+    }],
+  ];
+  const consumables = [{ value: 'a:p', label: 'Anode rod' }];
+  const links = [{ value: 'doc:1', label: 'Manual' }];
+  const tags = [{ value: 'tag_1', label: 'Kitchen sticker' }];
+
+  for (const [label, task] of cases) {
+    it(`flattens to the same fields, in the same order — ${label}`, () => {
+      const sections = taskSchemaSections(task, consumables, links, tags);
+      const flattened = sections.flatMap((s) => s.fields);
+      expect(flattened).toEqual(taskSchema(task, consumables, links, tags));
+      // Nothing is silently dropped on the way into a section.
+      expect(names(flattened)).toEqual(names(taskSchema(task, consumables, links, tags)));
+    });
+  }
+
+  it('puts the recurrence choice above the fields it reveals, and marks them dependent', () => {
+    const sections = taskSchemaSections({ recurrence_type: 'floating' });
+    const schedule = sections.findIndex((s) => s.key === 'schedule');
+    const cadence = sections.findIndex((s) => s.key === 'cadence');
+    expect(schedule).toBeGreaterThanOrEqual(0);
+    expect(cadence).toBeGreaterThan(schedule);
+    expect(names(sections[schedule].fields)).toEqual(['recurrence_type']);
+    expect(names(sections[cadence].fields)).toEqual([
+      'interval',
+      'unit',
+      'season_on',
+      'last_completed',
+    ]);
+    expect(sections[cadence].dependent).toBe(true);
+    // Only the revealed run is dependent — the rest stand on their own.
+    expect(sections.filter((s) => s.dependent).map((s) => s.key)).toEqual(['cadence']);
+  });
+
+  it('groups the descriptive fields apart from the placement ones', () => {
+    const byKey = Object.fromEntries(
+      taskSchemaSections({ recurrence_type: 'floating' }, [], [], tags).map((s) => [
+        s.key,
+        names(s.fields),
+      ]),
+    );
+    expect(byKey.basics).toEqual(['name', 'notes']);
+    expect(byKey.placement).toEqual([
+      'device_id',
+      'area_id',
+      'tag_id',
+      'require_tag_scan',
+      'labels',
+    ]);
+    expect(byKey.completion).toEqual(['completion_detail']);
+  });
+
+  it('keeps a triggered task to the two sections it can actually edit', () => {
+    const sections = taskSchemaSections({ recurrence_type: 'triggered' });
+    expect(sections.map((s) => s.key)).toEqual(['basics', 'placement']);
+    // No schedule section at all: an integration owns when a triggered task is due.
+    expect(sections.some((s) => s.key === 'cadence')).toBe(false);
+  });
+});
+
+describe('pickFormData', () => {
+  it('keeps only the keys the schema offers', () => {
+    const data = { name: 'x', notes: 'y', interval: 3, unit: 'months' };
+    expect(pickFormData(data, [{ name: 'name' }, { name: 'notes' }])).toEqual({
+      name: 'x',
+      notes: 'y',
+    });
+  });
+
+  it('reaches into a grid group, where the cadence fields live', () => {
+    const data = { interval: 3, unit: 'months', name: 'x' };
+    const schema = [{ name: '', type: 'grid', schema: [{ name: 'interval' }, { name: 'unit' }] }];
+    expect(pickFormData(data, schema)).toEqual({ interval: 3, unit: 'months' });
+  });
+
+  it('contributes nothing for an entry that is neither named nor a group', () => {
+    // A grid container carries no name of its own, and neither does anything else a
+    // schema might grow. Such an entry has to drop out rather than seed a key.
+    expect(schemaFieldNames([{ name: 'a' }, { type: 'constant' }, { name: 'b' }])).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(pickFormData({ a: 1, b: 2 }, [{ type: 'constant' }, { name: 'a' }])).toEqual({ a: 1 });
+  });
+
+  it('omits a key the data does not have rather than seeding it undefined', () => {
+    // A seeded `undefined` would read as "this field was cleared" when the form
+    // echoed it back, which is the difference between leaving a value alone and
+    // wiping it.
+    expect(pickFormData({ name: 'x' }, [{ name: 'name' }, { name: 'notes' }])).toEqual({
+      name: 'x',
+    });
+    expect('notes' in pickFormData({ name: 'x' }, [{ name: 'notes' }])).toBe(false);
+  });
+
+  it('splits the task form into sections that between them hold every value', () => {
+    const task = { recurrence_type: 'floating', name: 'Flush tank', interval: 3 };
+    const data = taskFormData(task);
+    const sections = taskSchemaSections(task);
+    const merged = Object.assign({}, ...sections.map((s) => pickFormData(data, s.fields)));
+    // Every field the form offers is seeded by exactly one section.
+    for (const name of names(taskSchema(task))) {
+      expect(merged[name], `${name} should be seeded by one of the sections`).toEqual(data[name]);
+    }
+  });
+});
 
 describe('taskSchema by recurrence type', () => {
   it('offers "every N units" for a floating task', () => {
@@ -244,6 +400,47 @@ describe('taskSchema respects locked fields', () => {
     );
     expect(got).toEqual(['device_id', 'area_id', 'tag_id', 'require_tag_scan', 'labels']);
   });
+
+  it('honours a lock on every field a triggered task offers', () => {
+    // A triggered task takes its own branch of the builder, so each key it can hide
+    // has to be exercised there — locking `name` proves nothing about `device_id`.
+    for (const field of ['name', 'notes', 'device_id', 'area_id', 'tag_id', 'labels']) {
+      const got = names(
+        taskSchema({
+          recurrence_type: 'triggered',
+          managed_by: { integration: 'x', locked_fields: [field] },
+        }),
+      );
+      expect(got).not.toContain(field);
+      // Locking one field hides one field.
+      expect(got).toHaveLength(names(taskSchema({ recurrence_type: 'triggered' })).length - 1);
+    }
+  });
+
+  it('never emits an entry that is neither a named field nor a group', () => {
+    // `names()` drops falsy entries so a `grid` container does not read as a field,
+    // which means a schema that grew a *nameless* entry would slip past every
+    // assertion written in terms of names. Assert the shape itself.
+    const lockSets = [
+      [],
+      ['name'],
+      ['notes'],
+      ['device_id'],
+      ['area_id'],
+      ['labels'],
+      ['name', 'notes', 'device_id', 'area_id', 'labels'],
+    ];
+    for (const kind of ['floating', 'fixed', 'one-off', 'sensor', 'triggered']) {
+      for (const locked_fields of lockSets) {
+        const schema = taskSchema(
+          { recurrence_type: kind, managed_by: { integration: 'x', locked_fields } },
+          [],
+          [{ value: 'a1:e1', label: 'Manual' }],
+        );
+        for (const field of schema) expect(field.name || field.schema).toBeTruthy();
+      }
+    }
+  });
 });
 
 describe('taskSchema card links', () => {
@@ -441,6 +638,29 @@ describe('notificationSchema', () => {
 // control: the wrong domain offers lists Home Keeper can't write to, and a
 // missing exclusion offers Home Keeper's own list — which would be a list
 // mirrored onto itself.
+// The Settings card renders the switch and the exclusions as two forms so the
+// exclusions can be indented behind the condition that makes them matter. The
+// options endpoint merges partial updates, so each form saving only its own fields
+// is safe — but only while the two halves still add up to the whole schema.
+describe('problemSyncSchema is its two halves, in order', () => {
+  it('concatenates the toggle and the exclusions', () => {
+    expect(problemSyncSchema()).toEqual([
+      ...problemSyncToggleSchema(),
+      ...problemSyncExclusionsSchema(),
+    ]);
+  });
+
+  it('puts the switch on its own and every exclusion in the dependent half', () => {
+    expect(problemSyncToggleSchema().map((f) => f.name)).toEqual(['sync_problem_sensors']);
+    expect(problemSyncExclusionsSchema().map((f) => f.name)).toEqual([
+      'problem_sensor_exclude_entities',
+      'problem_sensor_exclude_devices',
+      'problem_sensor_exclude_areas',
+      'problem_sensor_exclude_labels',
+    ]);
+  });
+});
+
 describe('shoppingSchema', () => {
   it('offers a single to-do entity picker', () => {
     expect(shoppingSchema()).toEqual([
@@ -462,172 +682,316 @@ describe('shoppingSchema', () => {
   });
 });
 
-describe('active season fields', () => {
-  it('shows season toggle for floating tasks', () => {
-    const fieldNames = names(taskSchema({ recurrence_type: 'floating' }));
-    expect(fieldNames).toContain('season_on');
+// A profile's "Sync to a to-do list" group. Configuring it is a standing instruction
+// to write Home Keeper's tasks onto somebody else's list and to accept completions
+// back, so every part of its shape is load-bearing: the wrong domain offers lists
+// that can't hold tasks, a missing exclusion offers Home Keeper's own list (a loop),
+// and a boolean that defaults the wrong way silently changes what ticking an item
+// off does. There is no delete button in the group, so the picker's ability to go
+// back to empty is the only off switch there is.
+describe('profileSyncSchema', () => {
+  it('describes the list and the two switches, in that order', () => {
+    expect(names(profileSyncSchema())).toEqual(['entity_id', 'two_way', 'vanish_as_completed']);
   });
 
-  it('shows season toggle for fixed tasks', () => {
-    const fieldNames = names(taskSchema({ recurrence_type: 'fixed' }));
-    expect(fieldNames).toContain('season_on');
+  it('offers no profile picker — a profile syncs to at most one list', () => {
+    // The old standalone card paired a list with a profile; the group is *inside* a
+    // profile, so a second reference to one would be a way to contradict the parent.
+    expect(names(profileSyncSchema())).not.toContain('profile_id');
   });
 
-  it('hides season toggle for one-off tasks', () => {
-    const fieldNames = names(taskSchema({ recurrence_type: 'one-off' }));
-    expect(fieldNames).not.toContain('season_on');
+  it('offers a single to-do entity picker', () => {
+    const field = profileSyncSchema().find((f) => f.name === 'entity_id');
+    // A `multiple` picker would save an array the backend reads as unusable, and
+    // any other domain offers entities that can't hold a to-do item at all.
+    expect(field.selector).toEqual({ entity: { filter: { domain: 'todo' }, multiple: false } });
   });
 
-  it('hides season toggle for sensor tasks', () => {
-    const fieldNames = names(taskSchema({ recurrence_type: 'sensor' }));
-    expect(fieldNames).not.toContain('season_on');
+  it("keeps Home Keeper's own to-do lists out of the picker", () => {
+    // Mirroring our own list onto itself is a loop, and ours accepts no new items.
+    const field = profileSyncSchema(['todo.home_keeper_tasks']).find(
+      (f) => f.name === 'entity_id',
+    );
+    expect(field.selector.entity.exclude_entities).toEqual(['todo.home_keeper_tasks']);
   });
 
-  it('taskFormData defaults season to April 1 / September 30', () => {
-    const fd = taskFormData({ recurrence_type: 'floating', interval: 1, unit: 'months' });
-    expect(fd.season_on).toBe(false);
-    expect(fd.season_start_month).toBe('4');
-    expect(fd.season_start_day).toBe(1);
-    expect(fd.season_end_month).toBe('9');
-    expect(fd.season_end_day).toBe(30);
+  it('emits no exclusion key when there is nothing to exclude', () => {
+    const field = profileSyncSchema().find((f) => f.name === 'entity_id');
+    expect('exclude_entities' in field.selector.entity).toBe(false);
   });
 
-  it('taskFormData reads existing active_season including days', () => {
-    const fd = taskFormData({
-      recurrence_type: 'floating', interval: 1, unit: 'months',
-      active_season: { start: '11-15', end: '03-20' },
+  it('renders both sync switches as booleans', () => {
+    const fields = profileSyncSchema();
+    expect(fields.find((f) => f.name === 'two_way').selector).toEqual({ boolean: {} });
+    expect(fields.find((f) => f.name === 'vanish_as_completed').selector).toEqual({ boolean: {} });
+  });
+});
+
+describe('toProfileSync', () => {
+  const sync = { entity_id: 'todo.shopping', two_way: false, vanish_as_completed: false };
+
+  it('passes a fully configured sync through unchanged', () => {
+    expect(toProfileSync(sync)).toEqual(sync);
+  });
+
+  it('reads a missing sync block as off, with both switches on', () => {
+    // The backend normalizer fills both in as `True`; reading a missing key as
+    // `false` here would show two-way sync switched off on a profile that has it on.
+    for (const absent of [undefined, null, {}]) {
+      expect(toProfileSync(absent)).toEqual({
+        entity_id: '',
+        two_way: true,
+        vanish_as_completed: true,
+      });
+    }
+  });
+
+  it('turns a cleared entity picker into the empty string', () => {
+    // The picker emits `undefined` when cleared, and JSON drops an undefined on the
+    // way to the backend — so the key would never reach the saved profile and
+    // "switch the sync off" silently wouldn't stick. Clearing it is the only off
+    // switch the group has, so this is the whole control.
+    expect(toProfileSync({ two_way: true }).entity_id).toBe('');
+    expect(toProfileSync({ entity_id: undefined }).entity_id).toBe('');
+    expect(toProfileSync({ entity_id: null }).entity_id).toBe('');
+    expect(toProfileSync({ entity_id: 'todo.x' }).entity_id).toBe('todo.x');
+  });
+
+  it('keeps a switch the user turned off, and coerces to a real boolean', () => {
+    const off = toProfileSync({ entity_id: 'todo.x', two_way: false, vanish_as_completed: false });
+    expect(off.two_way).toBe(false);
+    expect(off.vanish_as_completed).toBe(false);
+    const coerced = toProfileSync({
+      entity_id: 'todo.x',
+      two_way: 'yes',
+      vanish_as_completed: 0,
     });
-    expect(fd.season_on).toBe(true);
-    expect(fd.season_start_month).toBe('11');
-    expect(fd.season_start_day).toBe(15);
-    expect(fd.season_end_month).toBe('3');
-    expect(fd.season_end_day).toBe(20);
+    expect(coerced.two_way).toBe(true);
+    expect(coerced.vanish_as_completed).toBe(false);
   });
 
-  it('buildTaskPayload assembles active_season with default days', () => {
-    const payload = buildTaskPayload({
-      name: 'Mow', recurrence_type: 'floating', interval: 2, unit: 'months',
-      season_on: true, season_start_month: '4', season_end_month: '9',
+  it('defaults each switch independently of the other', () => {
+    // One switch present must not decide the other: a snapshot that predates only
+    // `vanish_as_completed` still has to come back with it on.
+    expect(toProfileSync({ entity_id: 'todo.x', two_way: false })).toEqual({
+      entity_id: 'todo.x',
+      two_way: false,
+      vanish_as_completed: true,
     });
-    expect(payload.active_season).toEqual([{ start: '04-01', end: '09-30' }]);
+    expect(toProfileSync({ entity_id: 'todo.x', vanish_as_completed: false })).toEqual({
+      entity_id: 'todo.x',
+      two_way: true,
+      vanish_as_completed: false,
+    });
   });
 
-  it('buildTaskPayload uses custom day values', () => {
+  it('stringifies an entity id that arrives as a non-string', () => {
+    expect(toProfileSync({ entity_id: 7 }).entity_id).toBe('7');
+  });
+});
+
+// An active season restricts a repeating task to part of the year. The panel edits
+// the windows as a list — add one, remove one — so what these tests guard is the
+// round trip: what the form shows for a stored task, and what saving it writes back.
+// Issue #242's reporter hit exactly the failure of that round trip: a second window
+// that came back switched on with no pickers under it, and a save that dropped it.
+describe('active season', () => {
+  const floating = { recurrence_type: 'floating', interval: 2, unit: 'months' };
+  const windowNames = (i) => [
+    `season_${i}_start_month`,
+    `season_${i}_start_day`,
+    `season_${i}_end_month`,
+    `season_${i}_end_day`,
+  ];
+  const sectionsOf = (task) => taskSchemaSections(task);
+  const seasonSections = (task) => sectionsOf(task).filter((s) => s.key.startsWith('season-'));
+
+  it('offers the season switch to the two kinds that compute a date from a calendar', () => {
+    expect(names(taskSchema({ recurrence_type: 'floating' }))).toContain('season_on');
+    expect(names(taskSchema({ recurrence_type: 'fixed' }))).toContain('season_on');
+    for (const kind of ['one-off', 'sensor', 'triggered']) {
+      expect(names(taskSchema({ recurrence_type: kind }))).not.toContain('season_on');
+    }
+  });
+
+  it('withholds the season switch from a task whose managing integration locks it', () => {
+    const managed = {
+      recurrence_type: 'floating',
+      managed_by: { domain: 'x', locked_fields: ['active_season'] },
+      active_season: [{ start: '04-01', end: '09-30' }],
+    };
+    expect(names(taskSchema(managed))).not.toContain('season_on');
+    expect(seasonSections(managed)).toEqual([]);
+  });
+
+  it('shows no window until the season is switched on', () => {
+    expect(seasonSections(floating)).toEqual([]);
+    expect(seasonSections({ ...floating, season_on: false })).toEqual([]);
+  });
+
+  it('gives every stored window a section of its own, with the same fields', () => {
+    const task = {
+      ...floating,
+      active_season: [
+        { start: '03-01', end: '05-31' },
+        { start: '09-01', end: '10-31' },
+        { start: '12-01', end: '12-24' },
+      ],
+    };
+    const sections = seasonSections(task);
+    expect(sections.map((s) => s.key)).toEqual(['season-1', 'season-2', 'season-3']);
+    sections.forEach((section, i) => expect(names(section.fields)).toEqual(windowNames(i + 1)));
+  });
+
+  it('reads a window switched on with no stored season as April through September', () => {
+    const data = taskFormData({ ...floating, season_on: true });
+    expect(data.season_count).toBe(1);
+    expect(data.season_1_start_month).toBe('4');
+    expect(data.season_1_start_day).toBe(1);
+    expect(data.season_1_end_month).toBe('9');
+    expect(data.season_1_end_day).toBe(30);
+  });
+
+  it('reads every stored window into the form, days included', () => {
+    const data = taskFormData({
+      ...floating,
+      active_season: [
+        { start: '11-15', end: '03-20' },
+        { start: '06-02', end: '06-28' },
+      ],
+    });
+    expect(data.season_on).toBe(true);
+    expect(data.season_count).toBe(2);
+    expect(data.season_1_start_month).toBe('11');
+    expect(data.season_1_start_day).toBe(15);
+    expect(data.season_1_end_month).toBe('3');
+    expect(data.season_1_end_day).toBe(20);
+    expect(data.season_2_start_month).toBe('6');
+    expect(data.season_2_start_day).toBe(2);
+    expect(data.season_2_end_month).toBe('6');
+    expect(data.season_2_end_day).toBe(28);
+  });
+
+  it('accepts the single-object shape a service call may still send', () => {
+    const data = taskFormData({ ...floating, active_season: { start: '04-01', end: '09-30' } });
+    expect(data.season_count).toBe(1);
+    expect(data.season_1_start_month).toBe('4');
+  });
+
+  it('round-trips three windows through the form without changing them', () => {
+    const active_season = [
+      { start: '03-01', end: '05-31' },
+      { start: '09-01', end: '10-31' },
+      { start: '12-01', end: '12-24' },
+    ];
+    const task = { ...floating, name: 'Fertilize', active_season };
+    const payload = buildTaskPayload({ ...task, ...taskFormData(task) });
+    expect(payload.active_season).toEqual(active_season);
+  });
+
+  it('saves every window the form is showing, not just the first', () => {
     const payload = buildTaskPayload({
-      name: 'Mow', recurrence_type: 'floating', interval: 2, unit: 'months',
+      ...floating,
+      name: 'Fertilize',
       season_on: true,
-      season_start_month: '4', season_start_day: 15,
-      season_end_month: '9', season_end_day: 15,
+      season_count: 2,
+      season_1_start_month: '4',
+      season_1_start_day: 1,
+      season_1_end_month: '5',
+      season_1_end_day: 31,
+      season_2_start_month: '9',
+      season_2_start_day: 1,
+      season_2_end_month: '10',
+      season_2_end_day: 31,
     });
-    expect(payload.active_season).toEqual([{ start: '04-15', end: '09-15' }]);
+    expect(payload.active_season).toEqual([
+      { start: '04-01', end: '05-31' },
+      { start: '09-01', end: '10-31' },
+    ]);
   });
 
-  it('buildTaskPayload clamps day to valid range for the month', () => {
+  it('drops a removed window: the live count wins over what is stored', () => {
+    // What the panel leaves behind after Remove on window 1 of 2 — the survivor
+    // shifted down into slot 1, the count down to one, the stored list untouched.
     const payload = buildTaskPayload({
-      name: 'T', recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY',
+      ...floating,
+      name: 'Fertilize',
+      active_season: [
+        { start: '04-01', end: '05-31' },
+        { start: '09-01', end: '10-31' },
+      ],
       season_on: true,
-      season_start_month: '2', season_start_day: 31,
-      season_end_month: '4', season_end_day: 31,
-      anchor: '2026-01-15T10:00:00',
+      season_count: 1,
+      season_1_start_month: '9',
+      season_1_start_day: 1,
+      season_1_end_month: '10',
+      season_1_end_day: 31,
     });
-    expect(payload.active_season).toEqual([{ start: '02-29', end: '04-30' }]);
+    expect(payload.active_season).toEqual([{ start: '09-01', end: '10-31' }]);
   });
 
-  it('buildTaskPayload sends null when season_on is false', () => {
+  it('clears the season when the switch is off, rather than leaving the stored one', () => {
     const payload = buildTaskPayload({
-      name: 'Mow', recurrence_type: 'floating', interval: 2, unit: 'months',
+      ...floating,
+      name: 'Fertilize',
+      active_season: [{ start: '04-01', end: '09-30' }],
       season_on: false,
     });
     expect(payload.active_season).toBeNull();
   });
 
-  it('buildTaskPayload defaults end day to last day of month', () => {
+  it('ignores a season on a one-off task, which has no recurring date to restrict', () => {
     const payload = buildTaskPayload({
-      name: 'T', recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY',
-      season_on: true, season_start_month: '1', season_end_month: '2',
-      anchor: '2026-01-15T10:00:00',
-    });
-    expect(payload.active_season).toEqual([{ start: '01-01', end: '02-29' }]);
-  });
-
-  it('round-trips a season through taskFormData and buildTaskPayload', () => {
-    const task = {
-      id: 't1', name: 'Fertilize', recurrence_type: 'floating',
-      interval: 2, unit: 'months',
-      active_season: { start: '04-01', end: '09-30' },
-    };
-    const fd = taskFormData(task);
-    const payload = buildTaskPayload({ ...task, ...fd });
-    expect(payload.active_season).toEqual([{ start: '04-01', end: '09-30' }]);
-  });
-
-  it('shows month and day pickers when active_season is set (no season_on flag)', () => {
-    const fields = taskSchema({
-      recurrence_type: 'floating', interval: 2, unit: 'months',
-      active_season: { start: '04-01', end: '09-30' },
-    });
-    const fieldNames = names(fields);
-    expect(fieldNames).toContain('season_start_month');
-    expect(fieldNames).toContain('season_start_day');
-    expect(fieldNames).toContain('season_end_month');
-    expect(fieldNames).toContain('season_end_day');
-    const grid = fields.find((f) => f.schema?.some((s) => s.name === 'season_start_month'));
-    const monthField = grid.schema.find((s) => s.name === 'season_start_month');
-    expect(monthField.selector.select.options).toHaveLength(12);
-    expect(monthField.selector.select.options[0]).toEqual({ value: '1', label: 'January' });
-    expect(monthField.selector.select.options[11]).toEqual({ value: '12', label: 'December' });
-    const dayField = grid.schema.find((s) => s.name === 'season_start_day');
-    expect(dayField.selector.number.min).toBe(1);
-    expect(dayField.selector.number.max).toBe(31);
-  });
-
-  it('hides month and day pickers when season_on is false for floating tasks', () => {
-    const fieldNames = names(taskSchema({ recurrence_type: 'floating', season_on: false }));
-    expect(fieldNames).toContain('season_on');
-    expect(fieldNames).not.toContain('season_start_month');
-    expect(fieldNames).not.toContain('season_start_day');
-    expect(fieldNames).not.toContain('season_end_month');
-    expect(fieldNames).not.toContain('season_end_day');
-  });
-
-  it('buildTaskPayload ignores season_on for one-off tasks', () => {
-    const payload = buildTaskPayload({
-      name: 'Paint', recurrence_type: 'one-off',
-      season_on: true, season_start_month: '4', season_end_month: '9',
+      name: 'Paint',
+      recurrence_type: 'one-off',
       due: '2026-06-15T10:00:00',
+      season_on: true,
+      season_count: 1,
+      season_1_start_month: '4',
+      season_1_end_month: '9',
     });
     expect(payload.active_season).toBeNull();
   });
 
-  it('does not expose second-window controls (data model supports lists via service API)', () => {
-    const fieldNames = names(taskSchema({
-      recurrence_type: 'floating', season_on: true,
-    }));
-    expect(fieldNames).not.toContain('season_2_on');
-    expect(fieldNames).not.toContain('season_2_start_month');
-    expect(fieldNames).not.toContain('season_2_end_month');
+  it('offers each day picker only the days its month has', () => {
+    const task = {
+      ...floating,
+      season_on: true,
+      season_1_start_month: '2',
+      season_1_end_month: '4',
+    };
+    const fields = seasonSections(task)[0].fields;
+    const dayField = (name) =>
+      fields.flatMap((f) => f.schema ?? [f]).find((f) => f.name === name);
+    expect(dayField('season_1_start_day').selector.number).toEqual({
+      min: 1,
+      max: 29,
+      mode: 'box',
+    });
+    expect(dayField('season_1_end_day').selector.number.max).toBe(30);
   });
 
-  it('buildTaskPayload sends a single-element list from the UI', () => {
+  it('clamps a day the month cannot have, so February never saves the 31st', () => {
     const payload = buildTaskPayload({
-      name: 'Lawn', recurrence_type: 'floating', interval: 1, unit: 'months',
-      season_on: true, season_start_month: '4', season_end_month: '5',
+      ...floating,
+      name: 'Fertilize',
+      season_on: true,
+      season_count: 1,
+      season_1_start_month: '2',
+      season_1_start_day: 31,
+      season_1_end_month: '4',
+      season_1_end_day: 31,
     });
-    expect(payload.active_season).toEqual([{ start: '04-01', end: '05-31' }]);
+    expect(payload.active_season).toEqual([{ start: '02-29', end: '04-30' }]);
   });
 
-  it('taskFormData reads first window from a multi-window active_season', () => {
-    const fd = taskFormData({
-      recurrence_type: 'floating', interval: 1, unit: 'months',
-      active_season: [
-        { start: '04-15', end: '05-20' },
-        { start: '09-01', end: '10-31' },
-      ],
-    });
-    expect(fd.season_on).toBe(true);
-    expect(fd.season_start_month).toBe('4');
-    expect(fd.season_start_day).toBe(15);
-    expect(fd.season_end_month).toBe('5');
-    expect(fd.season_end_day).toBe(20);
+  it('stops offering another window at the panel cap', () => {
+    const many = Array.from({ length: MAX_SEASON_WINDOWS + 2 }, () => ({
+      start: '04-01',
+      end: '09-30',
+    }));
+    expect(seasonSections({ ...floating, active_season: many })).toHaveLength(
+      MAX_SEASON_WINDOWS,
+    );
   });
 });

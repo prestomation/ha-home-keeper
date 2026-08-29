@@ -77,6 +77,42 @@ export function randomId(): string {
     .join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
 }
 
+/**
+ * Put *value* on the clipboard, resolving to whether it actually landed.
+ *
+ * `navigator.clipboard` is a **secure-context** API — the same trap as
+ * `crypto.randomUUID` above. Over a plain-HTTP LAN address, which is how plenty of
+ * people reach Home Assistant, it is simply absent, so the copy button beside an id
+ * would do nothing at all. Fall back to an off-screen textarea and the legacy
+ * `execCommand`, and report `false` when neither path works so the caller can say so
+ * rather than claiming a copy that never happened.
+ */
+export async function copyText(value: string): Promise<boolean> {
+  try {
+    // No `?.` guard: a missing `navigator.clipboard` throws here and lands in the
+    // same catch as a denied write, and one mechanism is better than two.
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    // Absent (the plain-HTTP case), denied, or the document is not focused.
+  }
+  const area = document.createElement('textarea');
+  area.value = value;
+  // Off-screen rather than `display:none`: a hidden element cannot be selected.
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.top = '-9999px';
+  document.body.appendChild(area);
+  try {
+    area.select();
+    return document.execCommand('copy');
+  } catch {
+    return false;
+  } finally {
+    area.remove();
+  }
+}
+
 /** True when a triggered task is currently armed (due-now) vs dormant. */
 export function isArmedTriggered(task: Task): boolean {
   return task.recurrence_type === 'triggered' && !!task.next_due;
@@ -357,14 +393,53 @@ export function scanRequired(task: Partial<Task>): boolean {
 export type PanelView = 'tasks' | 'appliances' | 'settings';
 
 /**
+ * The sub-tabs an appliance's detail page is divided into. Each is a URL of its own,
+ * so Back leaves a sub-tab the same way it leaves any other destination.
+ *
+ * `parts` is the default: it is the reason most appliances exist in Home Keeper.
+ */
+export const ASSET_TABS = [
+  'parts',
+  'tasks',
+  'documents',
+  'details',
+  'related',
+  'history',
+] as const;
+export type AssetTab = (typeof ASSET_TABS)[number];
+export const DEFAULT_ASSET_TAB: AssetTab = 'parts';
+
+/**
+ * The Settings tab's sections, in the order they are shown. Each is a URL of its own
+ * so a phone, which has no room for six sections at once, can show an index and open
+ * one section at a time with Back working normally.
+ *
+ * Unlike an appliance sub-tab there is no default: `/settings` with no section is the
+ * index itself, which is a real destination rather than a redirect.
+ */
+export const SETTINGS_SECTIONS = [
+  'general',
+  'shopping',
+  'problem',
+  'profiles',
+  'notifications',
+  'companions',
+] as const;
+export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+
+/**
  * A fully-resolved panel location: which tab is shown and, optionally, the
  * detail page open on top of it. This is the panel's entire navigation state —
  * it round-trips losslessly with the URL via {@link parseRoute} / {@link buildPath}
  * so the URL can be the single source of truth (high-fidelity deep linking).
+ *
+ * An appliance detail also carries which of its sub-tabs is open, and the Settings
+ * tab carries which of its sections is open (none meaning the section index).
  */
 export interface PanelLocation {
   view: PanelView;
-  detail: { kind: 'task' | 'asset'; id: string } | null;
+  detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab } | null;
+  section?: SettingsSection;
 }
 
 /**
@@ -372,17 +447,49 @@ export interface PanelLocation {
  * hands the panel) into a {@link PanelLocation}. Unknown/empty paths fall back to
  * the tasks list. The asset detail lives under the `appliances` segment but keeps
  * the internal `asset` kind.
+ *
+ * A third segment names an appliance sub-tab (`/appliances/<id>/documents`). An
+ * unrecognised one falls back to the default rather than 404-ing, and a bare
+ * `/appliances/<id>` — every link minted before sub-tabs existed, including the
+ * `configuration_url` on already-registered devices — keeps resolving.
+ *
+ * Under `settings` the second segment names a section (`/settings/notifications`).
+ * An unrecognised one falls back to the section index, not to a default section: a
+ * bare `/settings` is the index, and a typo should land there rather than somewhere
+ * arbitrary.
  */
 export function parseRoute(path: string | undefined | null): PanelLocation {
+  // Stryker disable next-line StringLiteral: equivalent — a null path with any other
+  // slash-free default parses to the same location, so no test can tell them apart.
   const parts = String(path ?? '')
     .split('/')
     .map((p) => p.trim())
     .filter(Boolean);
   const view: PanelView =
     parts[0] === 'appliances' ? 'appliances' : parts[0] === 'settings' ? 'settings' : 'tasks';
-  // Only the tasks/appliances lists drill into a detail page; settings has none.
-  if (parts[1] && view !== 'settings') {
+  if (view === 'settings') {
+    // Short-circuit rather than falling back to '': an empty-string default is
+    // indistinguishable from any other non-section string here, so it would only
+    // add a mutant no test could ever kill.
+    const raw = parts[1] && decodeURIComponent(parts[1]);
+    return raw && (SETTINGS_SECTIONS as readonly string[]).includes(raw)
+      ? { view, detail: null, section: raw as SettingsSection }
+      : { view, detail: null };
+  }
+  // Only the tasks/appliances lists drill into a detail page.
+  if (parts[1]) {
     const kind = view === 'appliances' ? 'asset' : 'task';
+    if (kind === 'asset') {
+      // Short-circuit rather than defaulting to '', for the same reason the settings
+      // branch does: an empty-string default is indistinguishable from any other
+      // non-tab string, so it only adds a mutant no test could ever kill.
+      const raw = parts[2] && decodeURIComponent(parts[2]);
+      const tab =
+        raw && (ASSET_TABS as readonly string[]).includes(raw)
+          ? (raw as AssetTab)
+          : DEFAULT_ASSET_TAB;
+      return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
+    }
     return { view, detail: { kind, id: decodeURIComponent(parts[1]) } };
   }
   return { view, detail: null };
@@ -392,11 +499,22 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
  * Build the route path (under the panel prefix) for a {@link PanelLocation} —
  * the inverse of {@link parseRoute}. The detail page's URL segment derives from
  * the view, so a task detail is `/tasks/<id>` and an asset detail is
- * `/appliances/<id>`.
+ * `/appliances/<id>`, plus its sub-tab where one is open.
+ *
+ * The default sub-tab is left off the URL: `/appliances/<id>` and
+ * `/appliances/<id>/parts` are the same page, and the shorter one is what a link
+ * to an appliance should look like.
+ *
+ * A Settings section appends itself the same way, and no section means the index.
  */
 export function buildPath(loc: PanelLocation): string {
-  if (loc.detail) return `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
-  return `/${loc.view}`;
+  if (loc.view === 'settings') {
+    return loc.section ? `/settings/${loc.section}` : '/settings';
+  }
+  if (!loc.detail) return `/${loc.view}`;
+  const base = `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
+  const tab = loc.detail.tab;
+  return tab && tab !== DEFAULT_ASSET_TAB ? `${base}/${tab}` : base;
 }
 
 // ── completion history ───────────────────────────────────────────────────────

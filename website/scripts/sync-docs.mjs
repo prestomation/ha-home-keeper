@@ -4,6 +4,7 @@
 //   README.md            -> website/docs/guide/*.md   (User Guide, split by ## section)
 //   CHANGELOG.md         -> website/docs/release-notes.md
 //   docs/INTEGRATING.md  -> website/developer/integrating.md
+//   docs/GLUE_INTEGRATIONS.md -> website/developer/glue-integrations.md
 //   docs/EVENTS.md       -> website/developer/events.md
 //   docs/DESIGN.md       -> website/developer/architecture.md
 //   docs/SECURITY.md     -> website/developer/security.md
@@ -11,11 +12,22 @@
 // The generated trees (website/docs/guide, website/developer) are gitignored; the
 // canonical files stay the single source of truth. Run via `npm run sync` (wired
 // into prestart/prebuild). Re-run whenever the source docs change.
+//
+// One Developer Guide page has no canonical source: `ci/generate_api_docs.py`
+// renders the API reference into website/developer/api.md from the integration
+// itself. `npm run sync` runs it after this script, because buildDeveloperGuide()
+// clears that directory first.
 import {readFile, writeFile, mkdir, rm} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {posix} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {ANCHOR_ROUTES, splitByH2, USER_SECTIONS, DEV_DOCS} from './doc-map.mjs';
+import {
+  ANCHOR_ROUTES,
+  DOC_ROUTES,
+  splitByH2,
+  USER_SECTIONS,
+  DEV_DOCS,
+} from './doc-map.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const website = resolve(here, '..');
@@ -26,13 +38,13 @@ const REPO_URL = 'https://github.com/prestomation/ha-home-keeper';
 // Link / image rewriting
 // ---------------------------------------------------------------------------
 
-// In-repo docs that have a home on this site.
-const DOC_ROUTES = {
-  'docs/INTEGRATING.md': '/developer/integrating',
-  'docs/EVENTS.md': '/developer/events',
-  'docs/DESIGN.md': '/developer/architecture',
-  'docs/SECURITY.md': '/developer/security',
-};
+// The API reference is generated straight into website/developer/ by
+// ci/generate_api_docs.py and has no file in the repo, so a canonical doc can't
+// link to it relatively — on GitHub that path would point at nothing. Those links
+// use the published URL, which reads correctly on GitHub; here they're pulled back
+// to a site-relative route so a PR preview links within itself rather than sending
+// the reader to production.
+const SITE_URL = 'https://prestomation.github.io/ha-home-keeper';
 
 // Rewrite every Markdown link/image target. `sourceDir` is the canonical file's
 // directory relative to the repo root, so relative links resolve correctly.
@@ -41,6 +53,12 @@ function rewriteLinks(md, sourceDir) {
     const hashIndex = url.indexOf('#');
     const path = hashIndex === -1 ? url : url.slice(0, hashIndex);
     const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
+
+    // A link to this site's own published URL becomes a site-relative route, so
+    // it follows the reader into a PR preview.
+    if (url.startsWith(SITE_URL)) {
+      return `](${url.slice(SITE_URL.length) || '/'})`;
+    }
 
     // Leave external and already-site-absolute links alone.
     if (/^(https?:|mailto:|\/img\/|\/docs\/|\/developer\/)/.test(url)) {

@@ -4,8 +4,8 @@
   "key": "home_keeper",
   "data": {
     "tasks": {
-      "task_fridge_filter": {
-        "id": "task_fridge_filter",
+      "72347867-23a3-47f8-84d5-917be61e8a6d": {
+        "id": "72347867-23a3-47f8-84d5-917be61e8a6d",
         "name": "Replace fridge filter",
         "notes": "Cartridge: **PureSource Ultra II** (`ULTRAWF`)\n\n1. Twist the old cartridge a quarter turn and pull it straight out\n2. Seat the new one and twist until it clicks\n3. Run ~2 gal through the dispenser to purge the air\n\n> Spare cartridges live in the garage cabinet.\n\n[Manual](https://www.frigidaire.com/)",
         "recurrence_type": "floating",
@@ -15,8 +15,8 @@
         "area_id": null,
         "enabled": true,
         "created": "2026-05-01T09:00:00-04:00",
-        "last_completed": "2026-06-01T09:00:00-04:00",
-        "next_due": "2026-07-01T09:00:00-04:00",
+        "last_completed": "2026-08-28T21:33:26.584760-04:00",
+        "next_due": "2026-09-28T21:33:26.584760-04:00",
         "completions": [
           {
             "ts": "2026-03-01T09:00:00-04:00"
@@ -34,6 +34,13 @@
             "ts": "2026-06-01T09:00:00-04:00",
             "note": "Switched to the 6-month cartridge",
             "cost": 42.5
+          },
+          {
+            "ts": "2026-08-28T20:36:21.325085-04:00"
+          },
+          {
+            "ts": "2026-08-28T21:33:26.584760-04:00",
+            "note": "E2E completion dialog regression check"
           }
         ],
         "labels": [
@@ -42,14 +49,14 @@
         "completion_detail": "optional",
         "completion_required_fields": []
       },
-      "task_anode": {
-        "id": "task_anode",
+      "25f086ad-91ce-4ca4-8f05-73b443565479": {
+        "id": "25f086ad-91ce-4ca4-8f05-73b443565479",
         "name": "Replace Anode rod (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "5ff1f1bb41a19a763aa4ab750cd37c97",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -68,15 +75,15 @@
         ],
         "source": {
           "part": {
-            "asset_id": "asset_water_heater",
-            "part_id": "part_anode"
+            "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
+            "part_id": "c91fd864-9e72-4645-9ab7-cdca418bb2bc"
           }
         },
         "completion_detail": "none",
         "completion_required_fields": []
       },
-      "task_medicine": {
-        "id": "task_medicine",
+      "96e74181-ebe2-4b4c-97d0-781fc952924f": {
+        "id": "96e74181-ebe2-4b4c-97d0-781fc952924f",
         "name": "Take medicine",
         "notes": "After breakfast",
         "recurrence_type": "fixed",
@@ -91,8 +98,8 @@
         "next_due": "2026-06-14T08:00:00-04:00",
         "completions": []
       },
-      "task_furnace_filter": {
-        "id": "task_furnace_filter",
+      "c564261f-48a3-4434-b9ad-7c42a4ccf57a": {
+        "id": "c564261f-48a3-4434-b9ad-7c42a4ccf57a",
         "name": "Replace furnace filter",
         "notes": "20x25x1 MERV 11",
         "recurrence_type": "floating",
@@ -102,19 +109,22 @@
         "area_id": null,
         "enabled": true,
         "created": "2026-04-01T10:00:00-04:00",
-        "last_completed": "2026-04-01T10:00:00-04:00",
-        "next_due": "2026-07-01T10:00:00-04:00",
+        "last_completed": "2026-08-28T20:36:48.522760-04:00",
+        "next_due": "2026-11-28T20:36:48.522760-05:00",
         "completions": [
           {
             "ts": "2026-04-01T10:00:00-04:00"
+          },
+          {
+            "ts": "2026-08-28T20:36:48.522760-04:00"
           }
         ],
         "labels": [
           "home"
         ]
       },
-      "task_water_filter": {
-        "id": "task_water_filter",
+      "acb13a18-979a-4812-8a00-2e4a426df8db": {
+        "id": "acb13a18-979a-4812-8a00-2e4a426df8db",
         "name": "Replace water filter",
         "notes": "Under-sink RO filter",
         "recurrence_type": "floating",
@@ -138,28 +148,28 @@
         "completion_required_fields": [],
         "source": {
           "part": {
-            "asset_id": "asset_water_heater",
-            "part_id": "part_sediment_filter",
+            "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
+            "part_id": "f8319a3a-c717-48c2-a53e-79a205fb4a48",
             "manual": true
           }
         },
         "card_links": [
           {
-            "asset_id": "asset_water_heater",
+            "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
             "entry_id": "d1d75bd3-9830-431d-a7b2-cf0ab97c1d3f"
           },
           {
-            "asset_id": "asset_water_heater",
-            "entry_id": "asset_water_heater_meta_reorder_link"
+            "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
+            "entry_id": "4f3ed25f-795d-42b3-865c-afaee7edcb98"
           },
           {
-            "asset_id": "asset_water_heater",
-            "entry_id": "asset_water_heater_doc_manual_pdf"
+            "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
+            "entry_id": "56656a41-c3a1-4db7-9adf-d1b0fb9e0c23"
           }
         ]
       },
-      "task_buddy_medicine": {
-        "id": "task_buddy_medicine",
+      "a5d646cc-ab00-471f-b945-73dda6080ddb": {
+        "id": "a5d646cc-ab00-471f-b945-73dda6080ddb",
         "name": "Buddy: Medicine",
         "notes": "",
         "recurrence_type": "floating",
@@ -202,8 +212,8 @@
           "dog"
         ]
       },
-      "task_rex_vet": {
-        "id": "task_rex_vet",
+      "8ad982ca-e5f9-4f53-bebd-93a05e078844": {
+        "id": "8ad982ca-e5f9-4f53-bebd-93a05e078844",
         "name": "Rex: Vet checkup",
         "notes": "",
         "recurrence_type": "floating",
@@ -243,8 +253,8 @@
           "dog"
         ]
       },
-      "task_door_battery": {
-        "id": "task_door_battery",
+      "21720ccd-21e3-4171-abc7-639ec6ee00f4": {
+        "id": "21720ccd-21e3-4171-abc7-639ec6ee00f4",
         "name": "Replace battery: Front door sensor",
         "notes": "2× AAA",
         "recurrence_type": "triggered",
@@ -284,10 +294,13 @@
             "label": "2× AAA",
             "icon": "mdi:battery"
           }
-        ]
+        ],
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "tag_id": null
       },
-      "task_smoke_battery": {
-        "id": "task_smoke_battery",
+      "b61a0b0e-6838-46a9-89d5-7090f8b4aa35": {
+        "id": "b61a0b0e-6838-46a9-89d5-7090f8b4aa35",
         "name": "Replace battery: Hallway smoke alarm",
         "notes": "1× 9V",
         "recurrence_type": "triggered",
@@ -326,8 +339,8 @@
           "config_entry_id": "home_keeper_test_entry"
         }
       },
-      "task_thermostat_battery": {
-        "id": "task_thermostat_battery",
+      "467606ef-4193-4541-bf6c-6509cfbf425e": {
+        "id": "467606ef-4193-4541-bf6c-6509cfbf425e",
         "name": "Replace battery: Thermostat",
         "notes": "2× AA",
         "recurrence_type": "triggered",
@@ -360,8 +373,8 @@
           "config_entry_id": "home_keeper_test_entry"
         }
       },
-      "task_passport": {
-        "id": "task_passport",
+      "e0eaf3f3-ab51-4a8e-a9c7-71d0c6001160": {
+        "id": "e0eaf3f3-ab51-4a8e-a9c7-71d0c6001160",
         "name": "Renew passport",
         "notes": "Expires before the spring trip — book the appointment",
         "recurrence_type": "one-off",
@@ -379,8 +392,8 @@
         "completion_detail": "none",
         "completion_required_fields": []
       },
-      "task_car_registration": {
-        "id": "task_car_registration",
+      "4fa204b6-ff6b-4bab-96c7-c8128b462c06": {
+        "id": "4fa204b6-ff6b-4bab-96c7-c8128b462c06",
         "name": "Renew car registration",
         "notes": "DMV renewal — done for this year",
         "recurrence_type": "one-off",
@@ -411,8 +424,8 @@
         "completions": [],
         "source": {
           "part": {
-            "asset_id": "asset_water_heater",
-            "part_id": "part_tp_valve"
+            "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
+            "part_id": "11a79824-31d5-4ccc-b5b9-12104ff7e327"
           }
         },
         "managed_by": null,
@@ -420,7 +433,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "5ff1f1bb41a19a763aa4ab750cd37c97",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -466,8 +479,8 @@
         "completion_required_fields": [],
         "next_due": "2026-07-30T10:15:17.888802-04:00"
       },
-      "task_nozzle_usage": {
-        "id": "task_nozzle_usage",
+      "14a593d8-07e3-4674-b589-1e27ff21a8ea": {
+        "id": "14a593d8-07e3-4674-b589-1e27ff21a8ea",
         "name": "Replace printer nozzle",
         "notes": "Every 300 print hours, or every 6 months — whichever comes first.",
         "recurrence_type": "sensor",
@@ -502,18 +515,42 @@
         "source": null,
         "managed_by": null,
         "task_chips": []
+      },
+      "10561eb5-1ab5-4151-aa8e-5f6269a0c28a": {
+        "id": "10561eb5-1ab5-4151-aa8e-5f6269a0c28a",
+        "created": "2026-08-28T20:36:48.461809-04:00",
+        "last_completed": null,
+        "completions": [],
+        "source": null,
+        "managed_by": null,
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "tag_id": null,
+        "require_tag_scan": false,
+        "name": "Replace furnace filter",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "interval": 3,
+        "unit": "months",
+        "next_due": "2026-08-28T20:36:48.461809-04:00"
       }
     },
     "assets": {
-      "asset_water_heater": {
-        "id": "asset_water_heater",
+      "e8d76383-4067-415c-975f-2ee73f475fa1": {
+        "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "5ff1f1bb41a19a763aa4ab750cd37c97",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "identifiers": [
           [
             "home_keeper",
-            "asset_asset_water_heater"
+            "asset_e8d76383-4067-415c-975f-2ee73f475fa1"
           ]
         ],
         "connections": [],
@@ -524,7 +561,7 @@
         "icon": "mdi:water-boiler",
         "parts": [
           {
-            "id": "part_anode",
+            "id": "c91fd864-9e72-4645-9ab7-cdca418bb2bc",
             "name": "Anode rod",
             "part_number": "AR-1",
             "type": "wear",
@@ -537,11 +574,11 @@
             "replace_interval": 12,
             "replace_unit": "months",
             "last_replaced": "2025-05-01",
-            "stock": 1,
+            "stock": 2,
             "reorder_at": 2
           },
           {
-            "id": "part_tp_valve",
+            "id": "11a79824-31d5-4ccc-b5b9-12104ff7e327",
             "name": "T&P relief valve",
             "part_number": "TP-150",
             "type": "wear",
@@ -555,7 +592,7 @@
             "reorder_at": null
           },
           {
-            "id": "part_descaler",
+            "id": "ae2b576d-67f4-4d4b-9aaf-d0bcebc5953b",
             "name": "Descaling solution",
             "part_number": "DS-1000",
             "type": "consumable",
@@ -572,7 +609,7 @@
             "consume_quantity": 250
           },
           {
-            "id": "part_sediment_filter",
+            "id": "f8319a3a-c717-48c2-a53e-79a205fb4a48",
             "name": "Sediment pre-filter",
             "part_number": "SF-20",
             "type": "consumable",
@@ -608,40 +645,40 @@
         ],
         "metadata": [
           {
-            "id": "asset_water_heater_meta_purchase_date",
+            "id": "8b2c3658-43b1-42ef-8811-7388b4616e83",
             "type": "date",
             "label": "Purchase date",
             "value": "2022-05-01",
             "track": true
           },
           {
-            "id": "asset_water_heater_meta_install_date",
+            "id": "a16368b4-3f2a-4b7c-8ee9-a4cb76a3dbaf",
             "type": "date",
             "label": "Install date",
             "value": "2022-05-10",
             "track": true
           },
           {
-            "id": "asset_water_heater_meta_warranty_expiry",
+            "id": "f0c3b2f4-8c31-4ed4-a3ea-64aaa201af89",
             "type": "date",
             "label": "Warranty expiry",
             "value": "2032-05-01",
             "track": true
           },
           {
-            "id": "asset_water_heater_meta_warranty_provider",
+            "id": "949d3288-cc61-4bb3-963a-8cf7ac5ffeef",
             "type": "text",
             "label": "Warranty provider",
             "value": "Rheem"
           },
           {
-            "id": "asset_water_heater_meta_vendor",
+            "id": "90eb41ad-9fa6-440d-92a7-2e8b215aa3c7",
             "type": "text",
             "label": "Vendor",
             "value": "Home Depot"
           },
           {
-            "id": "asset_water_heater_meta_notes",
+            "id": "7c4afbed-a448-4d7a-9a10-b0f940825161",
             "type": "text",
             "label": "Location",
             "value": "Garage corner, behind the shelving"
@@ -650,7 +687,7 @@
             "type": "link",
             "label": "Reorder filter",
             "value": "https://example.com/reorder-water-filter",
-            "id": "asset_water_heater_meta_reorder_link"
+            "id": "4f3ed25f-795d-42b3-865c-afaee7edcb98"
           }
         ],
         "documents": [
@@ -662,7 +699,7 @@
             "created": ""
           },
           {
-            "id": "asset_water_heater_doc_manual_pdf",
+            "id": "56656a41-c3a1-4db7-9adf-d1b0fb9e0c23",
             "kind": "file",
             "name": "Installation guide (PDF)",
             "created": "",
@@ -674,15 +711,15 @@
         "serial_number": "RH-2021-0099823",
         "notes": "Shut-off is the **red lever** on the cold inlet, above the tank.\n\n| Setting | Value |\n| --- | --- |\n| Thermostat | 120 °F |\n| Capacity | 50 gal |\n\nDrain the tank yearly — hose bib is at the *front left*."
       },
-      "asset_shades": {
-        "id": "asset_shades",
+      "1f938cf8-c2a3-4438-aab3-840d0d749725": {
+        "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "c3f907bcc81b6bb6a877dde270a8de74",
+        "device_id": "38fc8a6288ef61807789fd638f6aebb5",
         "identifiers": [
           [
             "home_keeper",
-            "asset_asset_shades"
+            "asset_1f938cf8-c2a3-4438-aab3-840d0d749725"
           ]
         ],
         "connections": [],
@@ -699,15 +736,15 @@
         "documents": [],
         "notes": ""
       },
-      "asset_radio_shade": {
-        "id": "asset_radio_shade",
+      "23e02da0-0411-4b16-9a63-10126f2ca7e6": {
+        "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "8b05d32c1cf00b88b9c1e8e037f87263",
+        "device_id": "1d7169cdea49653c7d15595155fcfcf7",
         "identifiers": [
           [
             "home_keeper",
-            "asset_asset_radio_shade"
+            "asset_23e02da0-0411-4b16-9a63-10126f2ca7e6"
           ]
         ],
         "connections": [],
@@ -717,7 +754,7 @@
         "cost": null,
         "icon": "",
         "parts": [],
-        "parent_asset_id": "asset_shades",
+        "parent_asset_id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "related_device_ids": [],
         "created": "2026-05-01T09:00:00-04:00",
         "metadata": [],
@@ -727,6 +764,8 @@
     },
     "problem_notes": {
       "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer."
-    }
+    },
+    "shopping_items": {},
+    "task_mirror_items": {}
   }
 }

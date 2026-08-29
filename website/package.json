@@ -4,7 +4,7 @@
   "private": true,
   "description": "Documentation site for the Home Keeper Home Assistant integration.",
   "scripts": {
-    "sync": "node scripts/sync-assets.mjs && node scripts/sync-docs.mjs",
+    "sync": "node scripts/sync-assets.mjs && node scripts/sync-docs.mjs && python3 ../ci/generate_api_docs.py",
     "prestart": "npm run sync",
     "prebuild": "npm run sync",
     "pretypecheck": "npm run sync",

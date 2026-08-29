@@ -6,14 +6,115 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0b3]
+
+### Added
+
+- **Give a task a season.** A task that repeats on a clock can be held to the part of
+  the year it belongs in, so fertilising every two months stops in October and comes
+  back in April rather than falling due in the snow. Add as many windows as the task
+  needs — spring and fall on the same task — from the task form or the
+  `home_keeper.add_task` action. (Fixes #242)
+
+## [0.19.0b2]
+
+### Changed
+
+- **The panel has a new look.** A task row carries its status in a coloured edge and
+  a pill at the end of the line, and the filter row fits on one line with a count on
+  each scope. On a phone the tabs move to the bottom of the screen and the scope
+  pills wrap onto a second row rather than scrolling out of view.
+
+- **Editing opens in a drawer beside the list instead of a card above it.** The list
+  keeps its place, the row you are editing stays lit, and Save sits in a header that
+  does not scroll away. Delete and History join it in a footer.
+
+- **An appliance is read next to the list it came from.** Its sections are now
+  sub-tabs (Parts, Tasks, Documents, Details, Related, History), each with an address
+  of its own, so Back leaves a sub-tab and a sub-tab can be linked to.
+
+- **Settings names every section and what it is set to.** A rail beside the sections
+  marks which features are on and how many profiles, notifications and companions
+  you have. On a phone it opens on an index of the six instead, and each section has
+  an address of its own.
+
+- **The panel is easier to use with a keyboard and a screen reader.** Focus stays on
+  the control you just used instead of jumping to the top of the page, the edit sheet
+  on a phone behaves as a dialog that Escape closes, and the filter chips, dropdowns
+  and Settings dots now say what they are rather than showing it in colour alone.
+
+### Fixed
+
+- **The due date on a one-off task has a label again.** Creating a task that happens
+  just once showed a raw translation key above its date picker in every language.
+
+- **Text on coloured chips and buttons is readable again.** The Done button, the
+  overdue pill, the "Integration offline" chip and the selected filter were all drawn
+  below the contrast a label needs, in one theme or the other.
+
+- **A task row on a phone no longer carries an empty line.** The spacer that pushes
+  Done to the end of a single-line row stayed in a wrapped one, where it took a whole
+  line to itself and left a visible gap under the task name.
+
+## [0.19.0b1]
+
+### Fixed
+
+- **Ready for Home Assistant 2026.9.** That release reshapes the device registry and
+  adds child devices, so Home Keeper reads both shapes and a task or appliance you
+  attached to a device still finds it after the upgrade. (Fixes #253)
+
+## [0.18.0] - 2026-08-29
+
+### Added
+
+- **Send tasks to your to-do lists.** A Profile in *Settings → Profiles* mirrors the
+  tasks it selects onto any Home Assistant to-do list (such as a Todoist project), and
+  checking an item off there completes the task in Home Keeper. Recurring tasks add a
+  fresh item each time they fall due, leaving the checked-off one as your record.
+  (Fixes #239)
+- **Services take a task's name, not just its id.** Every `task_id`, `asset_id`,
+  `part_id` and `document_id` field now accepts the name you gave the thing, and the
+  panel prints the id with a copy button for when two share one. Home Keeper reports an
+  ambiguous name instead of guessing which you meant.
+- **Snooze a problem you can't fix right now.** A task mirroring a `problem` sensor now
+  accepts Snooze, and its reminders show that button instead of Mark done. Marking one
+  done is still blocked since only the integration that owns the sensor can decide
+  it's fixed.
+
+### Changed
+
+- **Profile status labels now spell out what's included.** The choices were always
+  cumulative, so the old *Due soon* already covered overdue tasks too. The new names
+  are *Overdue only*, *Overdue and due soon* and *Every scheduled task*.
+
+### Fixed
+
+- **Synced problem sensors show up in Profiles again.** Picking any Profile used to
+  hide every mirrored `problem` sensor. (Fixes #248)
+- **To-do items show the right due date outside UTC.** A task due at local midnight showed
+  the previous day on `todo.home_keeper_tasks` while the panel showed the correct one. A
+  wear part's last-replaced date shifted the same way when the replacement was back-dated.
+  (Fixes #250)
+
+## [0.18.0b4]
+
+### Added
+
+- **Send tasks to your to-do lists.** A Profile in *Settings → Profiles* mirrors the
+  tasks it selects onto any Home Assistant to-do list (such as a Todoist project), and
+  checking an item off there completes the task in Home Keeper. Recurring tasks add a
+  fresh item each time they fall due, leaving the checked-off one as your record.
+  (Fixes #239)
+
 ## [0.18.0b3]
 
 ### Added
 
-- **Active season for floating and fixed tasks.** Restrict a recurring task to
-  a date range each year. Outside the active window the next due date moves to
-  the start of the next active period. The data model accepts a list of windows
-  for service-API callers. (Fixes #242)
+- **Services take a task's name, not just its id.** Every `task_id`, `asset_id`,
+  `part_id` and `document_id` field now accepts the name you gave the thing, and the
+  panel prints the id with a copy button for when two share one. Home Keeper reports an
+  ambiguous name instead of guessing which you meant.
 
 ## [0.18.0b2]
 

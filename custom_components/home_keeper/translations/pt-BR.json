@@ -128,8 +128,8 @@
       "description": "Atualizar campos de uma tarefa existente.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa a atualizar."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa a atualizar. O nome também funciona. O painel mostra o id."
         },
         "name": {
           "name": "Nome",
@@ -218,8 +218,8 @@
       "description": "Excluir uma tarefa.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa a excluir."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa a excluir. O nome também funciona. O painel mostra o id."
         },
         "force": {
           "name": "Forçar",
@@ -232,8 +232,8 @@
       "description": "Marcar uma tarefa como concluída e avançar sua recorrência.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa a concluir."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa a concluir. O nome também funciona. O painel mostra o id."
         },
         "completed_at": {
           "name": "Concluída em",
@@ -270,8 +270,8 @@
       "description": "Altera os metadados (nota, custo, foto, quem) de uma conclusão já registrada, identificada pelo seu carimbo de data/hora. Não altera a programação nem a data de vencimento.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa cuja conclusão você está editando."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa cuja conclusão você está editando. O nome também funciona. O painel mostra o id."
         },
         "ts": {
           "name": "Carimbo de data/hora da conclusão",
@@ -304,8 +304,8 @@
       "description": "Armar uma tarefa controlada por condição (acionada) para que apareça como vencida agora — a contraparte para o usuário de Concluir tarefa (que a retorna ao estado inativo). Idempotente; válido apenas para tarefas acionadas.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa acionada a armar."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa acionada a armar. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -314,8 +314,8 @@
       "description": "Reancora o valor inicial de uma tarefa de sensor de uso (medidor) sem registrar uma conclusão. Use quando o serviço foi feito antes de o Home Keeper acompanhar, ou quando o medidor vinculado foi trocado ou zerado. Se o valor inicial for omitido, a âncora usa a leitura atual do sensor. Válido apenas para tarefas de sensor no modo de uso.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa de sensor de uso a ser reancorada."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa de sensor de uso a ser reancorada. O nome também funciona. O painel mostra o id."
         },
         "baseline": {
           "name": "Valor inicial",
@@ -328,8 +328,8 @@
       "description": "Adiar a data de vencimento de uma tarefa sem registrar uma conclusão ou avançar sua recorrência.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa a adiar."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa a adiar. O nome também funciona. O painel mostra o id."
         },
         "hours": {
           "name": "Horas",
@@ -346,8 +346,8 @@
       "description": "Avançar uma tarefa para a próxima ocorrência sem registrar uma conclusão.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa a pular."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa a pular. O nome também funciona. O painel mostra o id."
         },
         "origin": {
           "name": "Origem",
@@ -360,16 +360,16 @@
       "description": "Vincula uma tarefa a um consumível/peça de um aparelho para que concluí-la consuma uma reserva do estoque e dispare um evento de estoque baixo no limite de reposição. Omita asset_id e part_id para remover o vínculo.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa acionada a armar."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa acionada a armar. O nome também funciona. O painel mostra o id."
         },
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do eletrodoméstico ao qual a peça pertence."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona. O painel mostra o id."
         },
         "part_id": {
-          "name": "ID da peça",
-          "description": "O id da peça cujo estoque deve ser ajustado."
+          "name": "Nome ou ID da peça",
+          "description": "O id da peça cujo estoque deve ser ajustado. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -453,7 +453,7 @@
         },
         "parent_asset_id": {
           "name": "Eletrodoméstico principal",
-          "description": "Tornar este um subdispositivo de outro eletrodoméstico."
+          "description": "Tornar este um subdispositivo de outro eletrodoméstico. Informe o nome ou o id."
         },
         "related_device_ids": {
           "name": "Dispositivos relacionados",
@@ -470,8 +470,8 @@
       "description": "Atualizar campos de um eletrodoméstico/ativo existente.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do ativo a atualizar."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do ativo a atualizar. O nome também funciona. O painel mostra o id."
         },
         "name": {
           "name": "Nome",
@@ -519,7 +519,7 @@
         },
         "parent_asset_id": {
           "name": "Eletrodoméstico principal",
-          "description": "Tornar este um subdispositivo de outro eletrodoméstico."
+          "description": "Tornar este um subdispositivo de outro eletrodoméstico. Informe o nome ou o id."
         },
         "related_device_ids": {
           "name": "Dispositivos relacionados",
@@ -536,8 +536,8 @@
       "description": "Excluir um eletrodoméstico/ativo. Seu dispositivo virtual (se houver) é removido e as tarefas anexadas a ele tornam-se independentes.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do ativo a excluir."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do ativo a excluir. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -546,8 +546,8 @@
       "description": "Ocultar um eletrodoméstico/ativo da visualização padrão sem excluir seus dados. Seu dispositivo, entidades e tarefas anexadas permanecem intactos; restore_asset desfaz isso.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do ativo a arquivar."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do ativo a arquivar. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -556,8 +556,8 @@
       "description": "Desfaz archive_asset, trazendo um eletrodoméstico arquivado de volta à visualização padrão.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do ativo a restaurar."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do ativo a restaurar. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -570,12 +570,12 @@
       "description": "Altera a quantidade de peças sobressalentes em estoque por um delta com sinal (limitado a zero); decimais são permitidos. Quando uma redução atinge ou ultrapassa o limite de reposição, é disparado um evento de estoque baixo.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do eletrodoméstico ao qual a peça pertence."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona. O painel mostra o id."
         },
         "part_id": {
-          "name": "ID da peça",
-          "description": "O id da peça cujo estoque deve ser ajustado."
+          "name": "Nome ou ID da peça",
+          "description": "O id da peça cujo estoque deve ser ajustado. O nome também funciona. O painel mostra o id."
         },
         "delta": {
           "name": "Delta",
@@ -625,12 +625,12 @@
       "description": "Desvincula o arquivo anexado de uma peça (recibo/ficha técnica/foto), excluindo sua cópia armazenada do disco. Envie ou substitua um arquivo pelo painel; este serviço trata apenas da remoção.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do eletrodoméstico ao qual a peça pertence."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona. O painel mostra o id."
         },
         "part_id": {
-          "name": "ID da peça",
-          "description": "O id da peça cujo arquivo deve ser removido."
+          "name": "Nome ou ID da peça",
+          "description": "O id da peça cujo arquivo deve ser removido. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -639,8 +639,8 @@
       "description": "Anexa um documento de link (manual/garantia/recibo) a um eletrodoméstico. Envie arquivos pelo painel; este serviço lida apenas com links.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do eletrodoméstico ao qual anexar o documento."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do eletrodoméstico ao qual anexar o documento. O nome também funciona. O painel mostra o id."
         },
         "document": {
           "name": "Documento",
@@ -653,12 +653,12 @@
       "description": "Desvincula um documento de um eletrodoméstico. Para um arquivo enviado, a cópia armazenada também é excluída do disco.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do eletrodoméstico ao qual o documento pertence."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do eletrodoméstico ao qual o documento pertence. O nome também funciona. O painel mostra o id."
         },
         "document_id": {
-          "name": "ID do documento",
-          "description": "O id do documento a remover."
+          "name": "Nome ou ID do documento",
+          "description": "O id do documento a remover. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -667,12 +667,12 @@
       "description": "Edita um documento existente de um eletrodoméstico: renomeie-o ou (para documentos de link) altere sua URL. Arquivos enviados só podem ser renomeados.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do eletrodoméstico ao qual o documento pertence."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do eletrodoméstico ao qual o documento pertence. O nome também funciona. O painel mostra o id."
         },
         "document_id": {
-          "name": "ID do documento",
-          "description": "O id do documento a editar."
+          "name": "Nome ou ID do documento",
+          "description": "O id do documento a editar. O nome também funciona. O painel mostra o id."
         },
         "changes": {
           "name": "Alterações",
@@ -685,8 +685,8 @@
       "description": "Atribui um novo carimbo de data/hora a uma conclusão já registrada (retroagi-la ou corrigi-la), identificada pelo seu carimbo de data/hora atual. Diferente de Atualizar conclusão, isso altera a data/hora da conclusão e recalcula as datas de última conclusão e próximo vencimento da tarefa a partir do resultado.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa cuja conclusão você está movendo."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa cuja conclusão você está movendo. O nome também funciona. O painel mostra o id."
         },
         "old_ts": {
           "name": "Carimbo de data/hora atual da conclusão",
@@ -703,8 +703,8 @@
       "description": "Remove uma conclusão do histórico de uma tarefa (desfazer um “concluído” acidental), identificada pelo seu carimbo de data/hora.",
       "fields": {
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa cuja conclusão você está removendo."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa cuja conclusão você está removendo. O nome também funciona. O painel mostra o id."
         },
         "ts": {
           "name": "Carimbo de data/hora da conclusão",
@@ -721,12 +721,12 @@
       "description": "Remove uma conclusão do histórico arquivado de um eletrodoméstico, identificada pelo id da tarefa original e o carimbo de data/hora.",
       "fields": {
         "asset_id": {
-          "name": "ID do eletrodoméstico",
-          "description": "O id do eletrodoméstico cujo histórico arquivado você está editando."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do eletrodoméstico cujo histórico arquivado você está editando. O nome também funciona. O painel mostra o id."
         },
         "task_id": {
-          "name": "ID da tarefa",
-          "description": "O id da tarefa original à qual a conclusão arquivada pertence."
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa original à qual a conclusão arquivada pertence. O nome também funciona. O painel mostra o id."
         },
         "ts": {
           "name": "Carimbo de data/hora da conclusão",
@@ -777,12 +777,12 @@
       "description": "Gera uma URL de curta duração (sem necessidade de cabeçalho de autenticação) da qual um chamador externo pode obter os bytes do documento, por exemplo, um agente conectado via MCP.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do eletrodoméstico ao qual o documento pertence."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do eletrodoméstico ao qual o documento pertence. O nome também funciona. O painel mostra o id."
         },
         "document_id": {
-          "name": "ID do documento",
-          "description": "O id do documento para o qual assinar uma URL."
+          "name": "Nome ou ID do documento",
+          "description": "O id do documento para o qual assinar uma URL. O nome também funciona. O painel mostra o id."
         }
       }
     },
@@ -791,12 +791,12 @@
       "description": "Gera uma URL de curta duração (sem necessidade de cabeçalho de autenticação) da qual um chamador externo pode obter os bytes do arquivo anexado de uma peça, por exemplo, um agente conectado via MCP.",
       "fields": {
         "asset_id": {
-          "name": "ID do ativo",
-          "description": "O id do eletrodoméstico ao qual a peça pertence."
+          "name": "Nome ou ID do ativo",
+          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona. O painel mostra o id."
         },
         "part_id": {
-          "name": "ID da peça",
-          "description": "O id da peça cujo arquivo anexado deve ser assinado."
+          "name": "Nome ou ID da peça",
+          "description": "O id da peça cujo arquivo anexado deve ser assinado. O nome também funciona. O painel mostra o id."
         }
       }
     }
@@ -906,6 +906,18 @@
     },
     "failed_to_store_file": {
       "message": "Não foi possível salvar o arquivo."
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

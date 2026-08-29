@@ -2,6 +2,7 @@ Babel
 pytest
 pytest-cov
 pytest-timeout
+PyYAML  # ci/generate_api_docs.py parses services.yaml
 requests
 websockets
 

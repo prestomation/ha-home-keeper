@@ -79,6 +79,13 @@
   (Playwright), `tests/upgrade` (two-phase HA version upgrade). Run e2e/integration
   with `bash ci/e2e-up.sh` / `ci/test-python-integration.sh`; stage the upgrade
   suite's fixtures with `bash ci/fetch-glues.sh` first.
+- **`tests/unit/test_api_surface.py` is the drift gate for the integrator-facing
+  surface.** It parses the component's source and compares it to `api_surface.py`, so
+  a service, event, websocket command, device trigger, entity platform or HTTP view
+  added in one place and forgotten in the others fails there rather than shipping.
+  Adding a surface means adding its spec. Its `services.yaml` check and the
+  generator's tests need `PyYAML`, so the bare-`pytest` loop is now
+  `pip install pytest PyYAML`; without it those few tests skip and the rest still run.
 - **A panel assertion is not coverage for a native entity.** The panel and the
   `todo`/`calendar` entities are separate projections of the same store, so the panel
   being right proves nothing about them. #221 shipped with a passing e2e test that
@@ -101,6 +108,19 @@
   them in `afterEach` (`createTask`/`deleteTask` in `helpers.ts`), and give fixtures
   **stable** names — a `Date.now()` suffix makes each leak look like a new record
   instead of the same spec failing to clean up, which is how eight of them reached git.
+- **Seeded fixture ids are real `uuid4`s, and specs reach them through
+  `tests/e2e/fixture-ids.ts`.** Readable ids (`task_fridge_filter`) were easier to
+  grep for, but they were a quarter the length of anything a real install holds —
+  `models.build_task` and `assets.build_asset` mint `str(uuid.uuid4())` and take no
+  caller-supplied id. That gap flattered every screenshot and every layout
+  assertion: the panel's id row wraps at a width no short fixture ever exercised.
+  Add a fixture ⇒ give it a uuid and a name in `fixture-ids.ts`; never paste a bare
+  uuid into a spec. The blobs under `ha_config/home_keeper/documents/` are named for
+  the asset and document ids, so renaming one means moving those too, and the
+  `.gitignore` allowlist that names that directory.
+  `tests/unit/test_integration_fixture_clean.py` resolves `${TASK.x}` references
+  through the module, so a mistyped constant fails there rather than in the soft
+  walkthrough gate.
 - **Anything that rests on an HA framework contract** — device registry, entity
   registry, device automation — **needs an integration-level assertion.** Unit tests
   mock the framework away and cannot see the contract change. #183 (devices split per
@@ -171,6 +191,67 @@
   saw.** The above took a CI round-trip per guess until the spec captured console errors and
   whether the bundle was requested at all; "the bundle was never requested" is the line that
   ended it. A bare `waitFor` timeout says only that something, somewhere, did not happen.
+
+### The e2e suite runs at three widths
+
+- **The panel's layout is responsive, so the suite has three Playwright projects** —
+  `desktop` (1280x720), `tablet` (820x1180) and `phone` (390x844) — sharing one set of
+  test bodies. `tests/e2e/viewports.ts` is the only place a width is written down.
+  Tablet is not decoration: at 820px the drawer is already a sheet and the master pane
+  has already stepped aside while the top tabs are still up, which is where the 1150 /
+  1000 / 700 thresholds have to agree with each other.
+- **A spec opts into the extra widths with a tag**, and every tag starts with `@`:
+  `@responsive` (all three), `@narrow` (phone + tablet), `@phone` / `@tablet` (one
+  band). Untagged is desktop-only, which is the default and covers the Lovelace specs —
+  a dashboard card learns nothing from a second viewport. The `@` is load-bearing:
+  Playwright matches `grep` against the project name as well as the tags, so a project
+  named `tablet` with a bare `/tablet/` would match every test in it.
+- **A test that crosses a breakpoint within one page stays untagged and resizes
+  itself.** A project viewport is fixed for the life of the test, so it cannot express
+  a transition — and `_syncDrawerModality()`'s `matchMedia` listener, the only viewport
+  read in the panel, is reachable no other way. The two mechanisms coexist on purpose;
+  neither replaces the other.
+- **Never let a spec name a tab bar directly.** Both bars are in the DOM at every width
+  (`#tab-*` and `#mtab-*` differ only because two elements cannot share an id) and CSS
+  picks. Go through `gotoTab()`, which clicks whichever is *visible* — that is how a
+  spec asks for "the tab bar" while keeping the invariant that nothing but CSS reads
+  the viewport. Use `expectTabActive()` for "we got back to the list": the phone bar is
+  visible on every view, so asserting its presence there is vacuous. Reach a Settings
+  section with `openSettingsSection()`, because a narrow screen renders an index and
+  opens one section at a time, so "every section is on screen" is a desktop-only claim.
+- **A viewport project must not use a device descriptor.** `devices['Pixel 5']` also
+  sets `isMobile`, `hasTouch` and a `deviceScaleFactor`, none of which
+  `page.setViewportSize()` changes — so the project-driven runs and the self-resizing
+  tests would disagree about what a phone is. Override the viewport only.
+- **A capture config must pin the desktop project.** Each `*.config.ts` spreads
+  `playwright.config.ts`, which now carries three projects, so an unpinned capture
+  would shoot every committed PNG three times over at three widths and keep whichever
+  finished last. `captureConfig()` in `tests/e2e/capture-config.ts` applies the pin;
+  use it rather than spreading the base config by hand. Check with
+  `npx playwright test --config=screenshots.config.ts --list` — it must list one
+  project.
+- **Measure layout by relationships, not coordinates.** `responsive-layout.spec.ts`
+  uses `getComputedStyle` for keywords (`position`, `flex-wrap`, `overflow-x`) and
+  bounding boxes for relations (A is above B; this box is inside that one). No absolute
+  coordinate and no exact size, so a spacing tweak does not turn the suite red. Assert
+  a list is non-empty before looping over it, or a renamed class makes the loop pass by
+  iterating nothing. Prove an anchored element is anchored by *scrolling and re-reading
+  its box*, not by reading `position: fixed` once — the static read still passes under
+  a `container-type` regression that turns every fixed descendant into a
+  page-positioned one.
+- **The screenshot capture mutates the seeded fixture, and only a local re-run
+  notices.** It dismisses the first-run banner into HA's per-user frontend store and
+  leaves uploaded documents behind; those runtime files are gitignored, so CI starts
+  clean every time and never sees it, while a second local run fails on the banner it
+  already dismissed. Reset with `git clean -fdX tests/integration/ha_config/` (plus
+  `git clean -fd` and `git checkout --`) before each capture, and check
+  `git status tests/integration/` afterwards.
+- **The walkthrough records one context per width.** `recordVideo.size` is fixed when a
+  context is created, so resizing mid-recording leaves the phone viewport in a corner
+  of a desktop-sized frame — which is why an earlier attempt concluded the phone layout
+  could not be recorded. The `TOURS` table in `walkthrough.capture.ts` gives each width
+  its own context, its own `test()` and its own output basename. A phone tour is
+  different *beats*, not the desktop script at 390px.
 
 ## Mutation testing (a PR gate)
 Coverage proves a line *ran*; mutation testing proves a test would have *failed*

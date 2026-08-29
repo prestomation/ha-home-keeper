@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openPanel } from './helpers';
+import { gotoTab, openPanel } from './helpers';
 
 /**
  * Typing in a Home Keeper form must reach the field, not Home Assistant.
@@ -15,7 +15,7 @@ import { openPanel } from './helpers';
  * handler; `frontend/test/form-focus.test.js` pins the re-render invariant underneath
  * it. Both matter: only the browser can prove HA didn't take the keystrokes.
  */
-test.describe('form typing vs. HA global keyboard shortcuts', () => {
+test.describe('form typing vs. HA global keyboard shortcuts', { tag: '@responsive' }, () => {
   test('a typed task name stays in the field (no quick bar, no Assist)', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
@@ -42,7 +42,7 @@ test.describe('form typing vs. HA global keyboard shortcuts', () => {
   test('a typed appliance name stays in the field', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-appliances').click();
+    await gotoTab(panel, 'appliances');
     await panel.locator('#add-btn').click();
 
     const form = panel.locator('#hk-asset-form');

@@ -128,8 +128,8 @@
       "description": "Werk velden van een bestaande taak bij.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "De id van de bij te werken taak."
+          "name": "Taaknaam of -ID",
+          "description": "De id van de bij te werken taak. De naam werkt ook. Het paneel toont het id."
         },
         "name": {
           "name": "Naam",
@@ -218,8 +218,8 @@
       "description": "Een taak verwijderen.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "De id van de te verwijderen taak."
+          "name": "Taaknaam of -ID",
+          "description": "De id van de te verwijderen taak. De naam werkt ook. Het paneel toont het id."
         },
         "force": {
           "name": "Forceren",
@@ -232,8 +232,8 @@
       "description": "Markeer een taak als voltooid en zet de herhaling vooruit.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "De id van de te voltooien taak."
+          "name": "Taaknaam of -ID",
+          "description": "De id van de te voltooien taak. De naam werkt ook. Het paneel toont het id."
         },
         "completed_at": {
           "name": "Voltooid op",
@@ -270,8 +270,8 @@
       "description": "Wijzigt de metadata (notitie, kosten, foto, wie) van een al vastgelegde voltooiing, geïdentificeerd door het tijdstempel. Verandert niet de planning of vervaldatum.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "De id van de taak waarvan je de voltooiing bewerkt."
+          "name": "Taaknaam of -ID",
+          "description": "De id van de taak waarvan je de voltooiing bewerkt. De naam werkt ook. Het paneel toont het id."
         },
         "ts": {
           "name": "Tijdstempel van voltooiing",
@@ -304,8 +304,8 @@
       "description": "Een voorwaardegestuurde (geactiveerde) taak scherpstellen zodat deze nu als vervallen wordt weergegeven — de gebruikersgerichte tegenhanger van Taak voltooien (die deze weer in rust zet). Idempotent; alleen geldig voor geactiveerde taken.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "De id van de te activeren geactiveerde taak."
+          "name": "Taaknaam of -ID",
+          "description": "De id van de te activeren geactiveerde taak. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -314,8 +314,8 @@
       "description": "Verankert de startwaarde van een verbruikstaak (meter) opnieuw zonder een voltooiing vast te leggen. Handig wanneer het werk al was gedaan voordat Home Keeper meekeek, of wanneer de gekoppelde meter is vervangen of op nul gezet. Zonder startwaarde wordt verankerd op de huidige meetwaarde van de sensor. Alleen geldig voor een sensortaak in verbruiksmodus.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "De id van de verbruikssensortaak die opnieuw verankerd moet worden."
+          "name": "Taaknaam of -ID",
+          "description": "De id van de verbruikssensortaak die opnieuw verankerd moet worden. De naam werkt ook. Het paneel toont het id."
         },
         "baseline": {
           "name": "Startwaarde",
@@ -328,8 +328,8 @@
       "description": "De vervaldatum van een taak uitstellen zonder een voltooiing vast te leggen of de herhaling te laten doorlopen.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "Het id van de uit te stellen taak."
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de uit te stellen taak. De naam werkt ook. Het paneel toont het id."
         },
         "hours": {
           "name": "Uren",
@@ -346,8 +346,8 @@
       "description": "Een taak naar de volgende keer laten doorgaan zonder een voltooiing vast te leggen.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "Het id van de over te slaan taak."
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de over te slaan taak. De naam werkt ook. Het paneel toont het id."
         },
         "origin": {
           "name": "Oorsprong",
@@ -360,16 +360,16 @@
       "description": "Koppelt een taak aan een verbruiksartikel/onderdeel van een apparaat, zodat het voltooien ervan één reserve uit de voorraad verbruikt en bij de besteldrempel een gebeurtenis voor lage voorraad activeert. Laat asset_id en part_id weg om de koppeling te wissen.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "De id van de te activeren geactiveerde taak."
+          "name": "Taaknaam of -ID",
+          "description": "De id van de te activeren geactiveerde taak. De naam werkt ook. Het paneel toont het id."
         },
         "asset_id": {
-          "name": "Object-ID",
-          "description": "De id van het apparaat waartoe het onderdeel behoort."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook. Het paneel toont het id."
         },
         "part_id": {
-          "name": "Onderdeel-ID",
-          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast."
+          "name": "Onderdeelnaam of -ID",
+          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -453,7 +453,7 @@
         },
         "parent_asset_id": {
           "name": "Bovenliggend apparaat",
-          "description": "Maak hiervan een subapparaat van een ander apparaat."
+          "description": "Maak hiervan een subapparaat van een ander apparaat. Geef de naam of het id op."
         },
         "related_device_ids": {
           "name": "Gerelateerde apparaten",
@@ -470,8 +470,8 @@
       "description": "Werk velden van een bestaand apparaat/asset bij.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "De id van het bij te werken asset."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het bij te werken asset. De naam werkt ook. Het paneel toont het id."
         },
         "name": {
           "name": "Naam",
@@ -519,7 +519,7 @@
         },
         "parent_asset_id": {
           "name": "Bovenliggend apparaat",
-          "description": "Maak hiervan een subapparaat van een ander apparaat."
+          "description": "Maak hiervan een subapparaat van een ander apparaat. Geef de naam of het id op."
         },
         "related_device_ids": {
           "name": "Gerelateerde apparaten",
@@ -536,8 +536,8 @@
       "description": "Een apparaat/asset verwijderen. Het virtuele apparaat (indien aanwezig) wordt verwijderd en taken die eraan gekoppeld zijn worden zelfstandig.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "De id van het te verwijderen asset."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het te verwijderen asset. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -546,8 +546,8 @@
       "description": "Verberg een apparaat/asset uit de standaardweergave zonder de gegevens te verwijderen. Het apparaat, de entiteiten en gekoppelde taken blijven ongewijzigd; restore_asset maakt dit ongedaan.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "De id van het te archiveren asset."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het te archiveren asset. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -556,8 +556,8 @@
       "description": "Maakt archive_asset ongedaan en brengt een gearchiveerd apparaat terug naar de standaardweergave.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "De id van het te herstellen asset."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het te herstellen asset. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -570,12 +570,12 @@
       "description": "Wijzig de beschikbare reservevoorraad van een onderdeel met een verschil met teken (begrensd op nul); decimalen zijn toegestaan. Wanneer een verlaging de besteldrempel bereikt of overschrijdt, wordt een gebeurtenis voor lage voorraad geactiveerd.",
       "fields": {
         "asset_id": {
-          "name": "Object-ID",
-          "description": "De id van het apparaat waartoe het onderdeel behoort."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook. Het paneel toont het id."
         },
         "part_id": {
-          "name": "Onderdeel-ID",
-          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast."
+          "name": "Onderdeelnaam of -ID",
+          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast. De naam werkt ook. Het paneel toont het id."
         },
         "delta": {
           "name": "Verschil",
@@ -625,12 +625,12 @@
       "description": "Koppelt het bijgevoegde bestand van een onderdeel los (bon/specificatieblad/foto) en verwijdert de opgeslagen kopie van de schijf. Upload/vervang een bestand vanuit het paneel; deze service verwerkt alleen verwijdering.",
       "fields": {
         "asset_id": {
-          "name": "Object-ID",
-          "description": "De id van het apparaat waartoe het onderdeel behoort."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook. Het paneel toont het id."
         },
         "part_id": {
-          "name": "Onderdeel-ID",
-          "description": "De id van het onderdeel waarvan het bestand moet worden verwijderd."
+          "name": "Onderdeelnaam of -ID",
+          "description": "De id van het onderdeel waarvan het bestand moet worden verwijderd. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -639,8 +639,8 @@
       "description": "Voegt een link-document (handleiding/garantie/bon) toe aan een apparaat. Upload bestanden vanuit het paneel; deze service verwerkt alleen links.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "De id van het apparaat waaraan het document wordt gekoppeld."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het apparaat waaraan het document wordt gekoppeld. De naam werkt ook. Het paneel toont het id."
         },
         "document": {
           "name": "Document",
@@ -653,12 +653,12 @@
       "description": "Koppelt een document los van een apparaat. Voor een geüpload bestand wordt de opgeslagen kopie ook van de schijf verwijderd.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "De id van het apparaat waartoe het document behoort."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het apparaat waartoe het document behoort. De naam werkt ook. Het paneel toont het id."
         },
         "document_id": {
-          "name": "Document-id",
-          "description": "De id van het te verwijderen document."
+          "name": "Documentnaam of -ID",
+          "description": "De id van het te verwijderen document. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -667,12 +667,12 @@
       "description": "Bewerk een bestaand document van een apparaat – hernoem het, of (voor linkdocumenten) wijzig de URL. Geüploade bestanden kunnen alleen worden hernoemd.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "De id van het apparaat waartoe het document behoort."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het apparaat waartoe het document behoort. De naam werkt ook. Het paneel toont het id."
         },
         "document_id": {
-          "name": "Document-id",
-          "description": "De id van het te bewerken document."
+          "name": "Documentnaam of -ID",
+          "description": "De id van het te bewerken document. De naam werkt ook. Het paneel toont het id."
         },
         "changes": {
           "name": "Wijzigingen",
@@ -685,8 +685,8 @@
       "description": "Geeft een al vastgelegde voltooiing een nieuw tijdstempel (dateer het terug of corrigeer het), geïdentificeerd door het huidige tijdstempel. In tegenstelling tot Voltooiing bijwerken verandert dit de datum/tijd van de voltooiing en berekent het de laatst-voltooid- en volgende-vervaldatum van de taak opnieuw op basis van het resultaat.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "De id van de taak waarvan je de voltooiing verplaatst."
+          "name": "Taaknaam of -ID",
+          "description": "De id van de taak waarvan je de voltooiing verplaatst. De naam werkt ook. Het paneel toont het id."
         },
         "old_ts": {
           "name": "Huidig tijdstempel van voltooiing",
@@ -703,8 +703,8 @@
       "description": "Verwijdert één voltooiing uit de geschiedenis van een taak (een per ongeluk “gedaan” ongedaan maken), aangeduid met de tijdstempel.",
       "fields": {
         "task_id": {
-          "name": "Taak-ID",
-          "description": "De id van de taak waarvan je de voltooiing verwijdert."
+          "name": "Taaknaam of -ID",
+          "description": "De id van de taak waarvan je de voltooiing verwijdert. De naam werkt ook. Het paneel toont het id."
         },
         "ts": {
           "name": "Voltooiingstijdstempel",
@@ -721,12 +721,12 @@
       "description": "Verwijdert één voltooiing uit de gearchiveerde geschiedenis van een apparaat, aangeduid met de id van de oorspronkelijke taak en de tijdstempel.",
       "fields": {
         "asset_id": {
-          "name": "Apparaat-ID",
-          "description": "De id van het apparaat waarvan je de gearchiveerde geschiedenis bewerkt."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het apparaat waarvan je de gearchiveerde geschiedenis bewerkt. De naam werkt ook. Het paneel toont het id."
         },
         "task_id": {
-          "name": "Taak-ID",
-          "description": "De id van de oorspronkelijke taak waartoe de gearchiveerde voltooiing behoort."
+          "name": "Taaknaam of -ID",
+          "description": "De id van de oorspronkelijke taak waartoe de gearchiveerde voltooiing behoort. De naam werkt ook. Het paneel toont het id."
         },
         "ts": {
           "name": "Voltooiingstijdstempel",
@@ -777,12 +777,12 @@
       "description": "Genereert een kortstondige URL (geen auth-header nodig) waarmee een externe aanroeper de bytes van het document kan ophalen, bijv. een via MCP verbonden agent.",
       "fields": {
         "asset_id": {
-          "name": "Asset-ID",
-          "description": "De id van het apparaat waartoe het document behoort."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het apparaat waartoe het document behoort. De naam werkt ook. Het paneel toont het id."
         },
         "document_id": {
-          "name": "Document-id",
-          "description": "De id van het document waarvoor een URL moet worden ondertekend."
+          "name": "Documentnaam of -ID",
+          "description": "De id van het document waarvoor een URL moet worden ondertekend. De naam werkt ook. Het paneel toont het id."
         }
       }
     },
@@ -791,12 +791,12 @@
       "description": "Genereert een kortstondige URL (geen auth-header nodig) waarmee een externe aanroeper de bytes van het bijgevoegde bestand van een onderdeel kan ophalen, bijv. een via MCP verbonden agent.",
       "fields": {
         "asset_id": {
-          "name": "Object-ID",
-          "description": "De id van het apparaat waartoe het onderdeel behoort."
+          "name": "Assetnaam of -ID",
+          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook. Het paneel toont het id."
         },
         "part_id": {
-          "name": "Onderdeel-ID",
-          "description": "De id van het onderdeel waarvan het bijgevoegde bestand moet worden ondertekend."
+          "name": "Onderdeelnaam of -ID",
+          "description": "De id van het onderdeel waarvan het bijgevoegde bestand moet worden ondertekend. De naam werkt ook. Het paneel toont het id."
         }
       }
     }
@@ -906,6 +906,18 @@
     },
     "failed_to_store_file": {
       "message": "Bestand kon niet worden opgeslagen."
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

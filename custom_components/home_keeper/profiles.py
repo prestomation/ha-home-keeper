@@ -1,10 +1,15 @@
 """Pure helpers for **profiles** — named, reusable task filters (no HA imports).
 
-A *profile* is a saved filter (``{id, name, filter}``) that answers "which tasks am I
-interested in" — a status (overdue / due-soon / all) plus optional label/area/device
-filters. It is deliberately **decoupled from notifications**: notifications
-(``notifications.py``) are one consumer that references a profile by id, but the same
-profile also drives the panel's admin list filter and the Lovelace card.
+A *profile* is a saved filter (``{id, name, filter, sync}``) that answers "which tasks
+am I interested in" — a status (overdue / due-soon / all) plus optional
+label/area/device filters. It is deliberately **decoupled from notifications**:
+notifications (``notifications.py``) are one consumer that references a profile by id,
+but the same profile also drives the panel's admin list filter and the Lovelace card.
+
+The ``sync`` block is a second consumer living *inside* the profile rather than beside
+it: it names one external ``todo.*`` list the profile's tasks are mirrored onto, so a
+household gets at most one list per profile and no second id to keep in step. Clearing
+``entity_id`` is the off switch — and the delete. ``task_mirror.py`` reads it.
 
 Everything here is HA-free so it's unit-testable in isolation (like ``recurrence.py``).
 The filter semantics are the single source of truth that the TS side (``card-filter``)
@@ -19,6 +24,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from . import recurrence
+from .shopping import normalize_target
 from .transitions import DUE_SOON_WINDOW
 
 # Filter status: which due-state a task must be in to belong to a profile's list.
@@ -55,18 +61,38 @@ def normalize_filter(raw: Any) -> dict[str, Any]:
     }
 
 
+def normalize_sync(raw: Any) -> dict[str, Any]:
+    """Coerce a profile's ``sync`` block — the to-do list it mirrors onto — to shape.
+
+    Rebuilt from a fixed key set like :func:`normalize_filter`, so a profile saved
+    before the block existed reads back as sync **off** and needs no migration.
+    ``entity_id`` goes through ``shopping.normalize_target``, the same coercion the
+    shopping mirror's target uses: anything unusable — a cleared picker, an entity
+    outside the ``todo`` domain, a typo — collapses to ``""``, which is both the off
+    switch and, since a mirror *is* its profile, the delete. Both toggles default on,
+    because a household that picks a list means the obvious thing by it.
+    """
+    raw = raw if isinstance(raw, dict) else {}
+    return {
+        "entity_id": normalize_target(raw.get("entity_id")),
+        "two_way": bool(raw.get("two_way", True)),
+        "vanish_as_completed": bool(raw.get("vanish_as_completed", True)),
+    }
+
+
 def normalize_profile(raw: Any) -> dict[str, Any]:
-    """Coerce one raw profile to the stored, fully-defaulted ``{id, name, filter}``.
+    """Coerce one raw profile to the stored ``{id, name, filter, sync}``.
 
     Generates a stable ``id`` when absent (so notifications/cards can reference it
-    across edits) and defaults every field so forms and consumers never special-case a
-    missing key.
+    across edits — and so the mirror's bookkeeping keys survive an edit) and defaults
+    every field so forms and consumers never special-case a missing key.
     """
     raw = raw if isinstance(raw, dict) else {}
     return {
         "id": str(raw.get("id") or uuid.uuid4().hex),
         "name": str(raw.get("name") or "Tasks"),
         "filter": normalize_filter(raw.get("filter")),
+        "sync": normalize_sync(raw.get("sync")),
     }
 
 
@@ -75,6 +101,16 @@ def normalize_profiles(raw: Any) -> list[dict[str, Any]]:
     if not isinstance(raw, (list, tuple)):
         return []
     return [normalize_profile(p) for p in raw if isinstance(p, dict)]
+
+
+def synced_profiles(profiles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The profiles that actually mirror onto a list — the rest have sync off.
+
+    What the driver needs to answer "is any list worth watching", which is a
+    different question from what the planner needs: a profile whose picker was
+    cleared still has items out there to take back off.
+    """
+    return [p for p in profiles if str(p["sync"]["entity_id"])]
 
 
 def resolve_profile(
@@ -125,7 +161,7 @@ def matches_filter(
 
     This pure matcher reads the ``labels``/``area_id``/
     ``device_id`` on the task dict; the HA-aware caller
-    (``notifier._effective_filter_tasks``) enriches those with **effective**
+    (``notifier.effective_filter_tasks``) enriches those with **effective**
     (device/area-inherited) ids before calling, so a Profile selects the same tasks here
     as it does on the panel/card, which resolve inheritance inline. The shared
     ``tests/fixtures/profile_filter_cases.json`` pins this agreement.

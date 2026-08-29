@@ -51,9 +51,17 @@ jobs:
           cache: npm
           cache-dependency-path: website/package-lock.json
 
+      # `npm run sync` renders the API reference with ci/generate_api_docs.py
+      # before Docusaurus builds.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
       - name: Install
         working-directory: website
-        run: npm ci
+        run: |
+          pip install PyYAML
+          npm ci
 
       - name: Extract version
         id: version

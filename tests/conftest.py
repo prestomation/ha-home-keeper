@@ -52,10 +52,22 @@ _PURE_MODULES = (
     "notifications",
     "tags",
     "card_resource",
+    "resolve",
+    # ``device_compat`` imports Home Assistant only under ``TYPE_CHECKING``, so the
+    # two device-registry shapes it reconciles are testable here with plain fakes.
+    "device_compat",
+    # Keep ``task_mirror`` after the siblings it imports (shopping/profiles/
+    # reconcile/transitions) and before ``options``, which imports *it*: a module
+    # first pulled in by a sibling and then re-executed here would leave two
+    # copies of it loaded, one of them nobody's tests can reach.
+    "task_mirror",
     # ``options`` imports Home Assistant only under ``TYPE_CHECKING``, so the merge
     # and normalization rules every write path shares are testable here. Keep it
     # after the siblings it does ``from . import`` (notifications/profiles/shopping).
     "options",
+    # ``api_surface`` is the index of every integrator-facing surface. Pure like the
+    # rest, and last because it does ``from . import options``.
+    "api_surface",
 )
 
 

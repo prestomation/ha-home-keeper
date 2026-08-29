@@ -30,6 +30,9 @@ def test_normalize_profile_defaults_and_id():
     prof = p.normalize_profile({"name": "Me"})
     assert prof["name"] == "Me"
     assert prof["id"]  # generated
+    # A nameless profile still has to read as something in every picker it fills.
+    assert p.normalize_profile({})["name"] == "Tasks"
+    assert p.normalize_profile({"name": ""})["name"] == "Tasks"
     assert prof["filter"]["status"] == p.STATUS_OVERDUE
     assert prof["filter"] == {
         "labels": [],
@@ -55,6 +58,75 @@ def test_normalize_profile_bad_status_falls_back():
     assert p.normalize_profile({"filter": {"status": "nope"}})["filter"]["status"] == (
         "overdue"
     )
+
+
+# ── the to-do list a profile syncs onto ─────────────────────────────────────
+
+
+def test_a_profile_saved_before_sync_existed_reads_back_switched_off():
+    # The migration case: every stored profile predates the block, and
+    # ``current_options`` re-normalizes on every read, so this is the whole
+    # migration. Off means the driver plans nothing for it.
+    prof = p.normalize_profile({"id": "x", "name": "Kitchen"})
+    assert prof["sync"] == {
+        "entity_id": "",
+        "two_way": True,
+        "vanish_as_completed": True,
+    }
+
+
+def test_normalize_sync_defaults_both_toggles_on():
+    sync = p.normalize_sync({"entity_id": "todo.family"})
+    assert sync["entity_id"] == "todo.family"
+    assert sync["two_way"] is True
+    assert sync["vanish_as_completed"] is True
+
+
+def test_normalize_sync_makes_the_two_toggles_booleans():
+    sync = p.normalize_sync({"two_way": 0, "vanish_as_completed": "yes"})
+    assert sync["two_way"] is False
+    assert sync["vanish_as_completed"] is True
+
+
+def test_normalize_sync_coerces_the_target_through_the_shared_rule():
+    # The same coercion the shopping mirror's target uses, so a typo switches the
+    # sync off rather than half-working.
+    assert p.normalize_sync({"entity_id": "  Todo.Family  "})["entity_id"] == (
+        "todo.family"
+    )
+    assert p.normalize_sync({"entity_id": "sensor.family"})["entity_id"] == ""
+    assert p.normalize_sync({"entity_id": None})["entity_id"] == ""
+    assert p.normalize_sync({})["entity_id"] == ""
+
+
+def test_normalize_sync_survives_something_that_is_not_a_mapping():
+    assert p.normalize_sync("nonsense")["entity_id"] == ""
+    assert p.normalize_sync(None)["two_way"] is True
+
+
+def test_normalize_sync_drops_a_key_it_does_not_declare():
+    # Rebuilt from a fixed key set, so the block doubles as the allowlist.
+    assert "profile_id" not in p.normalize_sync({"profile_id": "p1"})
+
+
+def test_normalize_profile_coerces_the_sync_block_it_is_given():
+    prof = p.normalize_profile(
+        {"id": "x", "name": "Kitchen", "sync": {"entity_id": "todo.family"}}
+    )
+    assert prof["sync"]["entity_id"] == "todo.family"
+    assert prof["sync"]["two_way"] is True
+
+
+def test_synced_profiles_keeps_only_the_ones_actually_mirroring():
+    off = p.normalize_profile({"id": "a", "name": "Off"})
+    on = p.normalize_profile(
+        {"id": "b", "name": "On", "sync": {"entity_id": "todo.family"}}
+    )
+    cleared = p.normalize_profile(
+        {"id": "c", "name": "Typo", "sync": {"entity_id": "sensor.nope"}}
+    )
+    assert [prof["id"] for prof in p.synced_profiles([off, on, cleared])] == ["b"]
+    assert p.synced_profiles([]) == []
 
 
 def test_resolve_profile_by_id_then_name():

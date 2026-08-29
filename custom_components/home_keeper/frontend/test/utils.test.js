@@ -26,6 +26,9 @@ import {
   parseRoute,
   buildPath,
   buildAssetTree,
+  ASSET_TABS,
+  DEFAULT_ASSET_TAB,
+  SETTINGS_SECTIONS,
 } from '../src/utils.ts';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -545,9 +548,37 @@ describe('parseRoute', () => {
     });
   });
   it('parses an asset detail under the appliances segment', () => {
+    // No sub-tab in the URL resolves to the default one, so every `/appliances/<id>`
+    // link minted before sub-tabs existed — including the `configuration_url` already
+    // written onto registered appliance devices — still lands somewhere real.
     expect(parseRoute('/appliances/xyz')).toEqual({
       view: 'appliances',
-      detail: { kind: 'asset', id: 'xyz' },
+      detail: { kind: 'asset', id: 'xyz', tab: 'parts' },
+    });
+  });
+  it('parses each appliance sub-tab from the third segment', () => {
+    for (const tab of ASSET_TABS) {
+      expect(parseRoute(`/appliances/xyz/${tab}`)).toEqual({
+        view: 'appliances',
+        detail: { kind: 'asset', id: 'xyz', tab },
+      });
+    }
+  });
+  it('falls back to the default sub-tab for an unknown one', () => {
+    // A hand-typed or stale URL should open the appliance, not nothing.
+    for (const bogus of ['nope', 'PARTS', '', 'documents2']) {
+      expect(parseRoute(`/appliances/xyz/${bogus}`).detail).toEqual({
+        kind: 'asset',
+        id: 'xyz',
+        tab: DEFAULT_ASSET_TAB,
+      });
+    }
+  });
+  it('does not give a task detail a sub-tab', () => {
+    // Only appliances have sub-tabs; a third segment on a task path is not one.
+    expect(parseRoute('/tasks/abc/documents')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: 'abc' },
     });
   });
   it('decodes percent-encoded ids and tolerates trailing slashes', () => {
@@ -555,6 +586,54 @@ describe('parseRoute', () => {
       view: 'tasks',
       detail: { kind: 'task', id: 'a/b' },
     });
+  });
+  it('decodes a percent-encoded section or sub-tab before matching it', () => {
+    // The segment is decoded and *then* matched, so an encoder that escaped a letter
+    // still lands on the section it named rather than silently on the fallback.
+    expect(parseRoute('/settings/%70rofiles').section).toBe('profiles');
+    expect(parseRoute('/appliances/x/%68istory').detail).toEqual({
+      kind: 'asset',
+      id: 'x',
+      tab: 'history',
+    });
+  });
+  it('trims whitespace around every segment', () => {
+    // A hand-typed or copy-pasted URL can carry stray space around a segment, and a
+    // segment that only looks like `settings` resolves to nothing at all.
+    expect(parseRoute(' /settings / problem ')).toEqual({
+      view: 'settings',
+      detail: null,
+      section: 'problem',
+    });
+    expect(parseRoute('/ appliances / xyz / history ').detail).toEqual({
+      kind: 'asset',
+      id: 'xyz',
+      tab: 'history',
+    });
+  });
+  it('parses each settings section from the second segment', () => {
+    for (const section of SETTINGS_SECTIONS) {
+      expect(parseRoute(`/settings/${section}`)).toEqual({
+        view: 'settings',
+        detail: null,
+        section,
+      });
+    }
+  });
+  it('reads a bare /settings as the section index, with no section', () => {
+    // Unlike an appliance sub-tab there is no default: the index is a destination in
+    // its own right, so no section is a state rather than a gap to fill in.
+    expect(parseRoute('/settings')).toEqual({ view: 'settings', detail: null });
+  });
+  it('falls back to the section index for an unknown section', () => {
+    for (const bogus of ['nope', 'General', 'profiles2', 'tasks']) {
+      expect(parseRoute(`/settings/${bogus}`)).toEqual({ view: 'settings', detail: null });
+    }
+  });
+  it('never gives settings a detail page', () => {
+    // Settings has sections, not records; a deeper path is still just a section.
+    expect(parseRoute('/settings/profiles/abc').detail).toBeNull();
+    expect(parseRoute('/settings/profiles/abc').section).toBe('profiles');
   });
 });
 
@@ -569,12 +648,43 @@ describe('buildPath', () => {
       '/appliances/x',
     );
   });
+  it('names a sub-tab in the path, but leaves the default one implicit', () => {
+    // `/appliances/x` and `/appliances/x/parts` are the same page, and a link to an
+    // appliance should be the short one.
+    expect(buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'x', tab: 'parts' } })).toBe(
+      '/appliances/x',
+    );
+    for (const tab of ASSET_TABS.filter((t) => t !== DEFAULT_ASSET_TAB)) {
+      expect(
+        buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'x', tab } }),
+      ).toBe(`/appliances/x/${tab}`);
+    }
+  });
+  it('encodes the id even with a sub-tab after it', () => {
+    expect(
+      buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'a/b', tab: 'history' } }),
+    ).toBe('/appliances/a%2Fb/history');
+  });
+  it('names a settings section in the path, and the index when there is none', () => {
+    expect(buildPath({ view: 'settings', detail: null })).toBe('/settings');
+    for (const section of SETTINGS_SECTIONS) {
+      expect(buildPath({ view: 'settings', detail: null, section })).toBe(`/settings/${section}`);
+    }
+  });
   it('round-trips with parseRoute', () => {
     const locs = [
       { view: 'tasks', detail: null },
       { view: 'appliances', detail: null },
+      { view: 'settings', detail: null },
+      ...SETTINGS_SECTIONS.map((section) => ({ view: 'settings', detail: null, section })),
       { view: 'tasks', detail: { kind: 'task', id: 'task-1' } },
-      { view: 'appliances', detail: { kind: 'asset', id: 'asset-9' } },
+      // An appliance always resolves with a sub-tab, so that is the shape a
+      // round-trip has to come back as.
+      { view: 'appliances', detail: { kind: 'asset', id: 'asset-9', tab: 'parts' } },
+      ...ASSET_TABS.map((tab) => ({
+        view: 'appliances',
+        detail: { kind: 'asset', id: 'asset-9', tab },
+      })),
     ];
     for (const loc of locs) {
       expect(parseRoute(buildPath(loc))).toEqual(loc);

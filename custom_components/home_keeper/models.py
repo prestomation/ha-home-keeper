@@ -9,6 +9,7 @@ unit-testable.
 
 from __future__ import annotations
 
+import calendar as _calendar
 import math
 import uuid
 from datetime import datetime
@@ -472,9 +473,8 @@ def _validate_season_window(data: Any, *, index: int | None = None) -> dict:
             ) from err
         if month < 1 or month > 12:
             raise TaskValidationError(f"{prefix} {label} month must be 1-12: {month}")
-        import calendar as _cal
-
-        max_day = _cal.monthrange(2000, month)[1]
+        # Leap year, so February 29 is a valid season boundary.
+        max_day = _calendar.monthrange(2000, month)[1]
         if day < 1 or day > max_day:
             raise TaskValidationError(
                 f"{prefix} {label} day must be 1-{max_day} for month {month}: {day}"

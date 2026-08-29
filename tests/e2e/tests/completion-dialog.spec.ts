@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { openPanel, trackPanelErrors } from './helpers';
+import { TASK } from '../fixture-ids';
 
-test.describe('Home Keeper panel — completion dialog', () => {
+test.describe('Home Keeper panel — completion dialog', { tag: '@responsive' }, () => {
   test('the completion-details dialog renders its action buttons and can be submitted', async ({
     page,
   }) => {
@@ -11,7 +12,7 @@ test.describe('Home Keeper panel — completion dialog', () => {
 
     // "Replace fridge filter" is seeded with completion_detail: "optional", which
     // opens the completion-details dialog on Done instead of completing in one tap.
-    await panel.locator('.done-btn[data-id="task_fridge_filter"]').click();
+    await panel.locator(`.done-btn[data-id="${TASK.fridgeFilter}"]`).click();
 
     // ha-dialog portals its surface, so wait on an inner field rather than the host.
     const dialog = panel.locator('ha-dialog[open]');
@@ -46,7 +47,7 @@ test.describe('Home Keeper panel — completion dialog', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
 
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
     await panel.locator('.hk-hist-move').first().click();
 
@@ -85,7 +86,7 @@ test.describe('Home Keeper panel — completion dialog', () => {
     if (!(await monitored.evaluate((el: HTMLDetailsElement) => el.open))) {
       await monitored.locator('summary').click();
     }
-    await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.nozzleUsage}"]`).click();
     const row = panel.locator('.hk-hist-list li').first();
     await expect(row.locator('.hk-hist-chips')).toContainText('at 660 h');
     await expect(panel.locator('.hk-meter-note').first()).toHaveText('180 h to go');

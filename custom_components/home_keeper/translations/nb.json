@@ -128,8 +128,8 @@
       "description": "Oppdater felter for en eksisterende oppgave.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til oppgaven som skal oppdateres."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven som skal oppdateres. Navnet fungerer også. Panelet viser id-en."
         },
         "name": {
           "name": "Navn",
@@ -218,8 +218,8 @@
       "description": "Slett en oppgave.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til oppgaven som skal slettes."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven som skal slettes. Navnet fungerer også. Panelet viser id-en."
         },
         "force": {
           "name": "Tving",
@@ -232,8 +232,8 @@
       "description": "Merk en oppgave som fullført og gå videre til neste gjentakelse.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til oppgaven som skal fullføres."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven som skal fullføres. Navnet fungerer også. Panelet viser id-en."
         },
         "completed_at": {
           "name": "Fullført",
@@ -270,8 +270,8 @@
       "description": "Endrer metadataene (notat, kostnad, bilde, hvem) for en allerede registrert fullføring, identifisert med tidsstempelet. Endrer verken tidsplanen eller forfallsdatoen.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til oppgaven du redigerer fullføringen for."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven du redigerer fullføringen for. Navnet fungerer også. Panelet viser id-en."
         },
         "ts": {
           "name": "Tidsstempel for fullføring",
@@ -304,8 +304,8 @@
       "description": "Aktiver en betingelsesstyrt (utløst) oppgave slik at den vises som forfalt nå — brukerens motstykke til Fullfør oppgave (som setter den tilbake i hvilemodus). Idempotent; gjelder kun for utløste oppgaver.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til den utløste oppgaven som skal aktiveres."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til den utløste oppgaven som skal aktiveres. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -314,8 +314,8 @@
       "description": "Forankrer utgangsverdien til en bruksbasert (måler-) sensoroppgave på nytt uten å registrere en fullføring. Bruk den når arbeidet ble gjort før Home Keeper fulgte med, eller når den tilknyttede måleren er byttet ut eller nullstilt. Utelates utgangsverdien, forankres det til sensorens gjeldende avlesning. Gjelder bare en sensoroppgave i bruksmodus.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til den bruksbaserte sensoroppgaven som skal forankres på nytt."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til den bruksbaserte sensoroppgaven som skal forankres på nytt. Navnet fungerer også. Panelet viser id-en."
         },
         "baseline": {
           "name": "Utgangsverdi",
@@ -328,8 +328,8 @@
       "description": "Utsett en oppgaves forfallsdato uten å registrere en fullføring eller flytte gjentakelsen fremover.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til oppgaven som skal utsettes."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven som skal utsettes. Navnet fungerer også. Panelet viser id-en."
         },
         "hours": {
           "name": "Timer",
@@ -346,8 +346,8 @@
       "description": "Flytt en oppgave frem til neste forekomst uten å registrere en fullføring.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til oppgaven som skal hoppes over."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven som skal hoppes over. Navnet fungerer også. Panelet viser id-en."
         },
         "origin": {
           "name": "Opprinnelse",
@@ -360,16 +360,16 @@
       "description": "Knytter en oppgave til en forbruksvare/del på et apparat, slik at fullføring forbruker én reservedel fra lageret og utløser en hendelse om lavt lager ved bestillingsgrensen. Utelat asset_id og part_id for å fjerne koblingen.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til den utløste oppgaven som skal aktiveres."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til den utløste oppgaven som skal aktiveres. Navnet fungerer også. Panelet viser id-en."
         },
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "ID-en til apparatet som reservedelen tilhører."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "part_id": {
-          "name": "Reservedels-ID",
-          "description": "ID-en til reservedelen hvis lager skal justeres."
+          "name": "Reservedelsnavn eller -ID",
+          "description": "ID-en til reservedelen hvis lager skal justeres. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -453,7 +453,7 @@
         },
         "parent_asset_id": {
           "name": "Overordnet apparat",
-          "description": "Gjør dette til en underenhet av et annet apparat."
+          "description": "Gjør dette til en underenhet av et annet apparat. Oppgi navnet eller id-en."
         },
         "related_device_ids": {
           "name": "Relaterte enheter",
@@ -470,8 +470,8 @@
       "description": "Oppdater felter for et eksisterende apparat/en eksisterende eiendel.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "ID-en til eiendelen som skal oppdateres."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "ID-en til eiendelen som skal oppdateres. Navnet fungerer også. Panelet viser id-en."
         },
         "name": {
           "name": "Navn",
@@ -519,7 +519,7 @@
         },
         "parent_asset_id": {
           "name": "Overordnet apparat",
-          "description": "Gjør dette til en underenhet av et annet apparat."
+          "description": "Gjør dette til en underenhet av et annet apparat. Oppgi navnet eller id-en."
         },
         "related_device_ids": {
           "name": "Relaterte enheter",
@@ -536,8 +536,8 @@
       "description": "Slett et apparat/en eiendel. Den virtuelle enheten (hvis noen) fjernes, og oppgaver knyttet til den blir frittstående.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "ID-en til eiendelen som skal slettes."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "ID-en til eiendelen som skal slettes. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -546,8 +546,8 @@
       "description": "Skjul et apparat/en eiendel fra standardvisningen uten å slette dataene. Enheten, entitetene og tilknyttede oppgaver berøres ikke; restore_asset angrer dette.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "ID-en til eiendelen som skal arkiveres."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "ID-en til eiendelen som skal arkiveres. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -556,8 +556,8 @@
       "description": "Angrer archive_asset, og bringer et arkivert apparat tilbake til standardvisningen.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "ID-en til eiendelen som skal gjenopprettes."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "ID-en til eiendelen som skal gjenopprettes. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -570,12 +570,12 @@
       "description": "Endre en reservedels lagermengde med en fortegnsbestemt differanse (begrenset til null); desimaler er tillatt. Når en reduksjon når eller krysser bestillingsterskelen, utløses en hendelse om lavt lager.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "ID-en til apparatet som reservedelen tilhører."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "part_id": {
-          "name": "Reservedels-ID",
-          "description": "ID-en til reservedelen hvis lager skal justeres."
+          "name": "Reservedelsnavn eller -ID",
+          "description": "ID-en til reservedelen hvis lager skal justeres. Navnet fungerer også. Panelet viser id-en."
         },
         "delta": {
           "name": "Differanse",
@@ -625,12 +625,12 @@
       "description": "Kobler fra en reservedels vedlagte fil (kvittering/datablad/bilde) og sletter den lagrede kopien fra disken. Last opp/erstatt en fil fra panelet; denne tjenesten håndterer bare fjerning.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "ID-en til apparatet som reservedelen tilhører."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "part_id": {
-          "name": "Reservedels-ID",
-          "description": "ID-en til reservedelen hvis fil skal fjernes."
+          "name": "Reservedelsnavn eller -ID",
+          "description": "ID-en til reservedelen hvis fil skal fjernes. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -639,8 +639,8 @@
       "description": "Fester et lenkedokument (håndbok/garanti/kvittering) til et apparat. Last opp filer fra panelet; denne tjenesten håndterer kun lenker.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "Id-en til apparatet dokumentet skal festes til."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "Id-en til apparatet dokumentet skal festes til. Navnet fungerer også. Panelet viser id-en."
         },
         "document": {
           "name": "Dokument",
@@ -653,12 +653,12 @@
       "description": "Kobler et dokument fra et apparat. For en opplastet fil slettes den lagrede kopien også fra disken.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "Id-en til apparatet dokumentet tilhører."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "Id-en til apparatet dokumentet tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "document_id": {
-          "name": "Dokument-id",
-          "description": "Id-en til dokumentet som skal fjernes."
+          "name": "Dokumentnavn eller -ID",
+          "description": "Id-en til dokumentet som skal fjernes. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -667,12 +667,12 @@
       "description": "Rediger et eksisterende dokument på et apparat – gi det nytt navn, eller (for lenkedokumenter) endre URL-en. Opplastede filer kan bare få nytt navn.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "Id-en til apparatet dokumentet tilhører."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "Id-en til apparatet dokumentet tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "document_id": {
-          "name": "Dokument-id",
-          "description": "Id-en til dokumentet som skal redigeres."
+          "name": "Dokumentnavn eller -ID",
+          "description": "Id-en til dokumentet som skal redigeres. Navnet fungerer også. Panelet viser id-en."
         },
         "changes": {
           "name": "Endringer",
@@ -685,8 +685,8 @@
       "description": "Gir en allerede registrert fullføring et nytt tidsstempel (sett den tilbake i tid eller korriger den), identifisert med gjeldende tidsstempel. I motsetning til Oppdater fullføring endrer dette fullføringens dato/klokkeslett og beregner oppgavens sist fullført- og forfallsdato på nytt ut fra resultatet.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til oppgaven du flytter fullføringen for."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven du flytter fullføringen for. Navnet fungerer også. Panelet viser id-en."
         },
         "old_ts": {
           "name": "Gjeldende tidsstempel for fullføring",
@@ -703,8 +703,8 @@
       "description": "Fjern én fullføring fra en oppgaves historikk (angre en utilsiktet «ferdig»), angitt med tidsstempelet.",
       "fields": {
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til oppgaven du fjerner fullføringen fra."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven du fjerner fullføringen fra. Navnet fungerer også. Panelet viser id-en."
         },
         "ts": {
           "name": "Fullføringstidsstempel",
@@ -721,12 +721,12 @@
       "description": "Fjern én fullføring fra et apparats arkiverte historikk, angitt med den opprinnelige oppgavens id og tidsstempel.",
       "fields": {
         "asset_id": {
-          "name": "Apparat-ID",
-          "description": "ID-en til apparatet du redigerer den arkiverte historikken for."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "ID-en til apparatet du redigerer den arkiverte historikken for. Navnet fungerer også. Panelet viser id-en."
         },
         "task_id": {
-          "name": "Oppgave-ID",
-          "description": "ID-en til den opprinnelige oppgaven som den arkiverte fullføringen tilhører."
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til den opprinnelige oppgaven som den arkiverte fullføringen tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "ts": {
           "name": "Fullføringstidsstempel",
@@ -777,12 +777,12 @@
       "description": "Oppretter en kortvarig URL (ingen autentiseringsheader nødvendig) som en ekstern kaller kan hente dokumentets bytes fra, f.eks. en MCP-tilkoblet agent.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "Id-en til apparatet dokumentet tilhører."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "Id-en til apparatet dokumentet tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "document_id": {
-          "name": "Dokument-id",
-          "description": "ID-en til dokumentet det skal signeres en URL for."
+          "name": "Dokumentnavn eller -ID",
+          "description": "ID-en til dokumentet det skal signeres en URL for. Navnet fungerer også. Panelet viser id-en."
         }
       }
     },
@@ -791,12 +791,12 @@
       "description": "Oppretter en kortvarig URL (ingen autentiseringsheader nødvendig) som en ekstern kaller kan hente en reservedels vedlagte filbytes fra, f.eks. en MCP-tilkoblet agent.",
       "fields": {
         "asset_id": {
-          "name": "Eiendels-ID",
-          "description": "ID-en til apparatet som reservedelen tilhører."
+          "name": "Eiendelsnavn eller -ID",
+          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også. Panelet viser id-en."
         },
         "part_id": {
-          "name": "Reservedels-ID",
-          "description": "ID-en til reservedelen hvis vedlagte fil det skal signeres en URL for."
+          "name": "Reservedelsnavn eller -ID",
+          "description": "ID-en til reservedelen hvis vedlagte fil det skal signeres en URL for. Navnet fungerer også. Panelet viser id-en."
         }
       }
     }
@@ -906,6 +906,18 @@
     },
     "failed_to_store_file": {
       "message": "Kunne ikke lagre filen."
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

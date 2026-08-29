@@ -1,8 +1,4 @@
 /** Config for the one-off NFC tag screenshot capture. */
-import baseConfig from './playwright.config';
+import { captureConfig } from './capture-config';
 
-export default {
-  ...baseConfig,
-  testDir: '.',
-  testMatch: 'screenshots-nfc.capture.ts',
-};
+export default captureConfig('screenshots-nfc.capture.ts');

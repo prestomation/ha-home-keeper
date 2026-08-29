@@ -32,6 +32,10 @@ Guard **every** service call with
 `hass.services.has_service("home_keeper", "<service>")` so your integration works fine
 when Home Keeper is absent.
 
+This guide teaches the flow. For the complete list of actions, their fields, every
+event and its payload, see the [API reference](https://prestomation.github.io/ha-home-keeper/developer/api), which is generated from the
+integration and shows the same labels Home Assistant does.
+
 ## 1. Creating a task
 
 Call the existing `home_keeper.add_task` service. Recurrence is either **floating**
@@ -122,6 +126,13 @@ task_id = next(
 > Embed a unique id of your own (e.g. a `schedule_id` you generate) inside `source` so
 > the match stays unambiguous even if the user creates tasks with matching names.
 
+Every `task_id` / `asset_id` / `part_id` / `document_id` service field also accepts the
+object's **name**. That is what makes the services usable in hand-written YAML. Don't
+build an integration on it. A name is user-editable and not unique, so a rename or a
+collision breaks you silently. Capture the id instead, or match on your own `source`
+namespace. A name that several objects share is rejected rather than guessed, so at
+least the failure is loud.
+
 ## 3. Reacting to a completion
 
 Home Keeper fires `home_keeper_task_completed` on **every** completion, whatever the
@@ -156,9 +167,9 @@ Event payload:
 | `origin` | `str \| None` | Whatever the completer passed. `None` for a manual/Home-Keeper-UI completion. |
 
 The payload also carries the common task **spine** (`device_id`, `area_id`,
-`recurrence_type`, `next_due`, `enabled`, `managed_by`). See
-[EVENTS.md](EVENTS.md#task-event-spine). If you only read the fields above, nothing
-changes for you.
+`recurrence_type`, `next_due`, `enabled`, `managed_by`), listed field by field in the
+[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#task-payload).
+If you only read the fields above, nothing changes for you.
 
 > **`home_keeper_task_completed` is one of a full catalog.** Home Keeper fires events
 > for the entire lifecycle: tasks created/updated/deleted/uncompleted/triggered,

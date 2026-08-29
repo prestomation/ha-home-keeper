@@ -7,6 +7,7 @@ import type {
   NotifyStatus,
   NotifyStyle,
   Profile,
+  ProfileSync,
   SensorBinding,
   SensorCombinator,
   SensorComparison,
@@ -146,9 +147,30 @@ export function backstopEnabled(task: Partial<Task>): boolean {
   return Boolean(task.sensor?.also_every);
 }
 
-function seasonWindows(
-  task: Partial<Task>,
-): Array<{ start: string; end: string }> {
+/**
+ * How many season windows the *panel* will edit on one task.
+ *
+ * The stored list is uncapped — a service-API caller can write more — but a form
+ * has to stop somewhere, and a task needing more than six windows a year is really
+ * describing a different schedule. Raising this later breaks nothing.
+ */
+export const MAX_SEASON_WINDOWS = 6;
+
+/** The window a freshly-added season starts as: April 1 through September 30. */
+const DEFAULT_SEASON = { startMonth: '4', startDay: 1, endMonth: '9', endDay: 30 };
+
+/** Last day of *month* (1-12), leap year, so February is 29 and never 28. */
+export function daysInMonth(month: number): number {
+  return new Date(2000, month, 0).getDate();
+}
+
+/**
+ * A task's stored season windows, from either representation.
+ *
+ * The stored shape is a list; a single `{start, end}` object is accepted on input
+ * (services and older tasks), so both are normalized here rather than at each reader.
+ */
+export function seasonWindows(task: Partial<Task>): Array<{ start: string; end: string }> {
   const s = task.active_season;
   if (!s) return [];
   if (Array.isArray(s)) return s;
@@ -156,10 +178,56 @@ function seasonWindows(
   return [];
 }
 
+/**
+ * Whether the task is restricted to a season, from either representation — the flat
+ * `season_on` switch the form holds, or the presence of stored windows. Same shape of
+ * predicate as {@link backstopEnabled}, for the same reason: schema, payload and hint
+ * must never disagree about whether the season fields count.
+ */
 export function seasonEnabled(task: Partial<Task>): boolean {
   const flag = (task as Record<string, unknown>).season_on;
   if (flag !== undefined && flag !== null) return Boolean(flag);
   return seasonWindows(task).length > 0;
+}
+
+/**
+ * How many windows the form is editing: the live `season_count` (the user added or
+ * removed one) wins over the stored list's length, so a removal isn't undone by the
+ * task it was removed from. Always at least one — the season switch being on means
+ * there is a window to fill in.
+ */
+export function seasonCount(task: Partial<Task>): number {
+  const flat = (task as Record<string, unknown>).season_count;
+  const n = Number(flat ?? seasonWindows(task).length) || 1;
+  return Math.min(MAX_SEASON_WINDOWS, Math.max(1, Math.floor(n)));
+}
+
+/**
+ * `season_2_start_month` → `season_start_month`.
+ *
+ * Every window is the same control repeated, so every window reads from one set of
+ * translations. Windows that each named themselves ("Active season", "Second window")
+ * is exactly the inconsistency reported on #242.
+ */
+export function seasonFieldLabelKey(name: string): string {
+  return name.replace(/^season_\d+_/, 'season_');
+}
+
+/** The four flat form values for window *i*, read from live edit state then storage. */
+function seasonWindowData(task: Partial<Task>, i: number): Record<string, unknown> {
+  const sd = task as Record<string, unknown>;
+  const w = seasonWindows(task)[i - 1];
+  const month = (mmdd: string | undefined, fallback: string): string =>
+    mmdd ? String(parseInt(mmdd, 10)) : fallback;
+  const day = (mmdd: string | undefined, fallback: number): number =>
+    mmdd ? parseInt(mmdd.split('-')[1], 10) : fallback;
+  return {
+    [`season_${i}_start_month`]:
+      sd[`season_${i}_start_month`] ?? month(w?.start, DEFAULT_SEASON.startMonth),
+    [`season_${i}_start_day`]: sd[`season_${i}_start_day`] ?? day(w?.start, DEFAULT_SEASON.startDay),
+    [`season_${i}_end_month`]: sd[`season_${i}_end_month`] ?? month(w?.end, DEFAULT_SEASON.endMonth),
+    [`season_${i}_end_day`]: sd[`season_${i}_end_day`] ?? day(w?.end, DEFAULT_SEASON.endDay),
+  };
 }
 
 /**
@@ -182,12 +250,69 @@ export function isBinarySensorBinding(task: Partial<Task>): boolean {
   return entityId.startsWith('binary_sensor.');
 }
 
-export function taskSchema(
+/**
+ * One labelled run of the task form. The panel renders each as its own `ha-form`
+ * under a section heading, which is the only way to get a heading *between* two
+ * fields: `ha-form` owns its rows and exposes no slot to interleave one.
+ *
+ * `key` names the section for the panel (heading text, and whether the section is
+ * the conditional one that gets indented behind a rule). `dependent` marks a run
+ * that only exists because of a choice made in the section above it.
+ */
+export interface TaskSchemaSection {
+  /**
+   * `basics` | `schedule` | `cadence` | `placement` | `completion`, or `season-<n>`
+   * for the nth active-season window — one section per window, because a window
+   * needs a heading and a Remove button of its own.
+   */
+  key: string;
+  fields: FormField[];
+  dependent?: boolean;
+}
+
+/** The month/day pair fields for season window *i*, as two `ha-form` grid rows. */
+function seasonWindowFields(task: Partial<Task>, i: number): FormField[] {
+  const data = seasonWindowData(task, i);
+  // The day picker's ceiling follows the month beside it, so February can't offer a
+  // 31st that the payload would silently clamp back to the 29th.
+  const dayField = (name: string, month: unknown): FormField => ({
+    name,
+    selector: { number: { min: 1, max: daysInMonth(Number(month)), mode: 'box' } },
+  });
+  return [
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: `season_${i}_start_month`, selector: selSelect(monthOptions()) },
+        dayField(`season_${i}_start_day`, data[`season_${i}_start_month`]),
+      ],
+    },
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: `season_${i}_end_month`, selector: selSelect(monthOptions()) },
+        dayField(`season_${i}_end_day`, data[`season_${i}_end_month`]),
+      ],
+    },
+  ];
+}
+
+/**
+ * The task form's fields, grouped into sections.
+ *
+ * {@link taskSchema} is the flattened form of exactly this, and a unit test asserts
+ * the two stay identical — so the grouping can never silently add, drop or reorder
+ * a field relative to the schema the payload builder and the tests are written
+ * against.
+ */
+export function taskSchemaSections(
   task: Partial<Task>,
   consumables: { value: string; label: string }[] = [],
   links: { value: string; label: string }[] = [],
   tags: { value: string; label: string }[] = [],
-): FormField[] {
+): TaskSchemaSection[] {
   const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
 
   // The NFC/RFID binding — offered for every task kind (a triggered task can carry a
@@ -214,19 +339,33 @@ export function taskSchema(
   // unlocked descriptive fields (notes), never a recurrence/cadence editor.
   if (task.recurrence_type === 'triggered') {
     return [
-      ...(!locked.has('name')
-        ? [{ name: 'name', required: true, selector: selText() } as FormField]
-        : []),
-      ...(!locked.has('notes') ? [{ name: 'notes', selector: selText(true) } as FormField] : []),
-      ...(!locked.has('device_id')
-        ? [{ name: 'device_id', selector: selDevice() } as FormField]
-        : []),
-      ...(!locked.has('area_id') ? [{ name: 'area_id', selector: selArea() } as FormField] : []),
-      ...tagFields,
-      ...(!locked.has('labels')
-        ? [{ name: 'labels', selector: selLabel(true) } as FormField]
-        : []),
-      ...cardLinksField,
+      {
+        key: 'basics',
+        fields: [
+          ...(!locked.has('name')
+            ? [{ name: 'name', required: true, selector: selText() } as FormField]
+            : []),
+          ...(!locked.has('notes')
+            ? [{ name: 'notes', selector: selText(true) } as FormField]
+            : []),
+        ],
+      },
+      {
+        key: 'placement',
+        fields: [
+          ...(!locked.has('device_id')
+            ? [{ name: 'device_id', selector: selDevice() } as FormField]
+            : []),
+          ...(!locked.has('area_id')
+            ? [{ name: 'area_id', selector: selArea() } as FormField]
+            : []),
+          ...tagFields,
+          ...(!locked.has('labels')
+            ? [{ name: 'labels', selector: selLabel(true) } as FormField]
+            : []),
+          ...cardLinksField,
+        ],
+      },
     ];
   }
 
@@ -237,6 +376,9 @@ export function taskSchema(
   // A sensor-based task has no clock cadence — its due-state comes from a bound
   // numeric sensor. Show the binding fields instead of interval/unit/freq.
   const isSensor = task.recurrence_type === 'sensor';
+  // A season restricts a repeating date to part of the year, so only the two kinds
+  // that compute one from a calendar offer it.
+  const seasonOffered = (isFloating || isFixed) && !locked.has('active_season');
 
   const cadenceSubFields: FormField[] = isOneOff || isSensor
     ? []
@@ -380,11 +522,15 @@ export function taskSchema(
       ]
     : [];
 
-  const fields: FormField[] = [
+  const basics: FormField[] = [
     ...(!locked.has('name')
       ? [{ name: 'name', required: true, selector: selText() } as FormField]
       : []),
     ...(!locked.has('notes') ? [{ name: 'notes', selector: selText(true) } as FormField] : []),
+  ];
+
+  // "How does this repeat?" — the one choice every field below it depends on.
+  const schedule: FormField[] = [
     ...(!locked.has('recurrence_type')
       ? [
           {
@@ -398,32 +544,16 @@ export function taskSchema(
           } as FormField,
         ]
       : []),
+  ];
+
+  // Everything the recurrence choice reveals. Rendered indented behind a rule, so
+  // "these exist because of the answer above" is visible rather than inferred.
+  const cadenceSection: FormField[] = [
     ...(cadence ? [cadence] : []),
-    ...((isFloating || isFixed) && !locked.has('active_season')
-      ? [
-          { name: 'season_on', selector: selBool() } as FormField,
-          ...(seasonEnabled(task)
-            ? [
-                {
-                  name: '',
-                  type: 'grid',
-                  schema: [
-                    { name: 'season_start_month', selector: selSelect(monthOptions()) },
-                    { name: 'season_start_day', selector: { number: { min: 1, max: 31, mode: 'box' } } },
-                  ] as FormField[],
-                } as FormField,
-                {
-                  name: '',
-                  type: 'grid',
-                  schema: [
-                    { name: 'season_end_month', selector: selSelect(monthOptions()) },
-                    { name: 'season_end_day', selector: { number: { min: 1, max: 31, mode: 'box' } } },
-                  ] as FormField[],
-                } as FormField,
-              ]
-            : []),
-        ]
-      : []),
+    // Restrict the task to part of the year. The windows themselves are sections of
+    // their own (below), so each one can be headed and removed; only the switch that
+    // reveals them belongs with the cadence it qualifies.
+    ...(seasonOffered ? [{ name: 'season_on', selector: selBool() } as FormField] : []),
     ...sensorFields,
     ...(isFixed && !locked.has('anchor')
       ? [{ name: 'anchor', selector: selDateTime() } as FormField]
@@ -440,6 +570,10 @@ export function taskSchema(
     ...(!task.id && !isOneOff && !locked.has('last_completed')
       ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
       : []),
+  ];
+
+  // Where the task hangs off the house: a device, a room, a sticker, a consumable.
+  const placement: FormField[] = [
     ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
     // A task's *own* area, independent of any device. A task with an attached device
     // already inherits that device's area for grouping and filtering (see
@@ -468,6 +602,10 @@ export function taskSchema(
       : []),
     ...(!locked.has('labels') ? [{ name: 'labels', selector: selLabel(true) } as FormField] : []),
     ...cardLinksField,
+  ];
+
+  // What happens when someone taps Done.
+  const completion: FormField[] = [
     ...(!locked.has('completion_detail')
       ? [
           {
@@ -481,7 +619,69 @@ export function taskSchema(
         ]
       : []),
   ];
-  return fields;
+
+  // One section per active-season window, each holding the same two rows. A window
+  // is a section rather than a run of fields so the panel can head it ("Season 1")
+  // and offer Remove beside it — `ha-form` has no slot between its own rows.
+  const seasons: TaskSchemaSection[] =
+    seasonOffered && seasonEnabled(task)
+      ? Array.from({ length: seasonCount(task) }, (_, i) => ({
+          key: `season-${i + 1}`,
+          fields: seasonWindowFields(task, i + 1),
+        }))
+      : [];
+
+  return [
+    { key: 'basics', fields: basics },
+    { key: 'schedule', fields: schedule },
+    { key: 'cadence', fields: cadenceSection, dependent: true },
+    ...seasons,
+    { key: 'placement', fields: placement },
+    { key: 'completion', fields: completion },
+  ];
+}
+
+/**
+ * Every field name a schema offers, including those nested inside a `grid` group.
+ */
+export function schemaFieldNames(schema: FormField[]): string[] {
+  return schema.flatMap((f) =>
+    f.schema ? schemaFieldNames(f.schema) : f.name ? [f.name] : [],
+  );
+}
+
+/**
+ * The slice of *data* belonging to *schema* — the seed for one section's `ha-form`.
+ *
+ * `ha-form` emits its entire `data` object on every change, so a section seeded with
+ * the whole form would re-assert a stale snapshot of every other section each time
+ * it changed. Narrowing the seed makes each section's event carry only that
+ * section's fields, which is also what lets the panel's change handler tell "this
+ * field was set to nothing" apart from "this field is not in this section".
+ */
+export function pickFormData(
+  data: Record<string, unknown>,
+  schema: FormField[],
+): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const name of schemaFieldNames(schema)) {
+    if (name in data) picked[name] = data[name];
+  }
+  return picked;
+}
+
+/**
+ * The task form's fields as one flat schema — the order the payload builder, the
+ * saved task and the tests are all written against. Kept as the flattening of
+ * {@link taskSchemaSections} so the two can never disagree.
+ */
+export function taskSchema(
+  task: Partial<Task>,
+  consumables: { value: string; label: string }[] = [],
+  links: { value: string; label: string }[] = [],
+  tags: { value: string; label: string }[] = [],
+): FormField[] {
+  return taskSchemaSections(task, consumables, links, tags).flatMap((s) => s.fields);
 }
 
 /** Map a task onto the `ha-form` data object (selector-shaped values). */
@@ -533,14 +733,13 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     tag_id: task.tag_id ?? undefined,
     require_tag_scan: task.require_tag_scan ?? false,
     season_on: seasonEnabled(task),
-    season_start_month: sd.season_start_month ??
-      (seasonWindows(task)[0] ? String(parseInt(seasonWindows(task)[0].start, 10)) : '4'),
-    season_start_day: sd.season_start_day ??
-      (seasonWindows(task)[0] ? parseInt(seasonWindows(task)[0].start.split('-')[1], 10) : 1),
-    season_end_month: sd.season_end_month ??
-      (seasonWindows(task)[0] ? String(parseInt(seasonWindows(task)[0].end, 10)) : '9'),
-    season_end_day: sd.season_end_day ??
-      (seasonWindows(task)[0] ? parseInt(seasonWindows(task)[0].end.split('-')[1], 10) : 30),
+    // How many windows the form shows. Every window's four values are flattened
+    // alongside it (`season_1_start_month`, …) and assembled back in buildTaskPayload.
+    season_count: seasonCount(task),
+    ...Object.assign(
+      {},
+      ...Array.from({ length: seasonCount(task) }, (_, i) => seasonWindowData(task, i + 1)),
+    ),
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
     // task's current part source.
@@ -579,6 +778,15 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
     d.sensor_mode,
     d.sensor_backstop_on,
     d.season_on,
+    // How many season windows are shown, and each one's two months — the months
+    // because a day picker's ceiling follows the month beside it (February offers 29
+    // days, not 31), so changing a month has to rebuild that row.
+    d.season_on
+      ? Array.from({ length: Number(d.season_count) }, (_, i) => [
+          d[`season_${i + 1}_start_month`],
+          d[`season_${i + 1}_end_month`],
+        ])
+      : null,
     // State mode's value control follows the bound entity: an on/off picker for a
     // binary sensor, free text for anything else. This predicate reads the flat and the
     // nested binding itself, so it needs no normalizing pass of its own.
@@ -723,21 +931,21 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
     }
     payload.completion_detail = task.completion_detail || 'none';
+    // Every window the form is showing, assembled from its flat fields — the whole
+    // list, so removing a window actually removes it. Season off sends an explicit
+    // null, which clears the season rather than leaving the stored one in place.
     if (seasonEnabled(task) && task.recurrence_type !== 'one-off') {
-      const r = task as Record<string, unknown>;
-      const sm = Number(r.season_start_month ?? 4);
-      const em = Number(r.season_end_month ?? 9);
-      const maxSd = new Date(2000, sm, 0).getDate();
-      const maxEd = new Date(2000, em, 0).getDate();
-      const sd = Math.min(Number(r.season_start_day ?? 1), maxSd);
-      const ed = Math.min(Number(r.season_end_day ?? maxEd), maxEd);
-      const windows: Array<{ start: string; end: string }> = [
-        {
-          start: `${String(sm).padStart(2, '0')}-${String(sd).padStart(2, '0')}`,
-          end: `${String(em).padStart(2, '0')}-${String(ed).padStart(2, '0')}`,
-        },
-      ];
-      payload.active_season = windows;
+      const mmdd = (month: number, day: number): string =>
+        `${String(month).padStart(2, '0')}-${String(Math.min(day, daysInMonth(month))).padStart(2, '0')}`;
+      payload.active_season = Array.from({ length: seasonCount(task) }, (_, i) => {
+        const w = seasonWindowData(task, i + 1);
+        const sm = Number(w[`season_${i + 1}_start_month`]);
+        const em = Number(w[`season_${i + 1}_end_month`]);
+        return {
+          start: mmdd(sm, Number(w[`season_${i + 1}_start_day`])),
+          end: mmdd(em, Number(w[`season_${i + 1}_end_day`])),
+        };
+      });
     } else {
       payload.active_season = null;
     }
@@ -953,8 +1161,22 @@ export function sensorHintText(
  * sensors.
  */
 export function problemSyncSchema(): FormField[] {
+  return [...problemSyncToggleSchema(), ...problemSyncExclusionsSchema()];
+}
+
+/** The switch that decides whether problem sensors are mirrored at all. */
+export function problemSyncToggleSchema(): FormField[] {
+  return [{ name: 'sync_problem_sensors', selector: selBool() }];
+}
+
+/**
+ * The four exclusion pickers, which only mean anything while the sync above them is
+ * on. Split from the toggle so the panel can indent them behind a rule and caption
+ * them — `ha-form` has no slot between two of its own rows. `problemSyncSchema` is
+ * the concatenation of the two, and a test holds them to that.
+ */
+export function problemSyncExclusionsSchema(): FormField[] {
   return [
-    { name: 'sync_problem_sensors', selector: selBool() },
     {
       name: 'problem_sensor_exclude_entities',
       selector: selEntity({ domain: 'binary_sensor', device_class: 'problem' }, true),
@@ -999,6 +1221,53 @@ const notifyOptions = (values: string[]): { value: string; label: string }[] =>
 const strList = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
 
 /**
+ * A switch whose stored default is **on**. `!!v` would read a missing key as off,
+ * which silently turns two-way sync (or vanish-as-completed) off for any profile
+ * snapshot that predates the field — the opposite of what the backend normalizer
+ * fills in.
+ */
+const boolOr = (value: unknown, fallback: boolean): boolean =>
+  value == null ? fallback : Boolean(value);
+
+/** A stored, form-emitted or entirely absent sync block, before normalization. */
+type SyncLike = { [K in keyof ProfileSync]?: unknown } | null | undefined;
+
+/**
+ * Normalize a sync block — read off a stored profile, or emitted by the sync form —
+ * into a full `ProfileSync`.
+ *
+ * Clearing the entity picker emits `undefined`, and JSON drops an undefined on the
+ * way to the backend, so the key would never reach the saved profile and "switch the
+ * sync off" silently wouldn't stick; `''` is what the backend reads as off. Both
+ * switches default **on**, matching the backend normalizer — a profile saved before
+ * these fields existed must not come back with two-way sync quietly disabled.
+ */
+export function toProfileSync(raw: SyncLike): ProfileSync {
+  return {
+    entity_id: String(raw?.entity_id ?? ''),
+    two_way: boolOr(raw?.two_way, true),
+    vanish_as_completed: boolOr(raw?.vanish_as_completed, true),
+  };
+}
+
+/**
+ * The `ha-form` schema for a profile's **Sync to a to-do list** group: the list
+ * itself, then the two switches that decide what a change on that list means here.
+ *
+ * There is no separate on/off control — an empty picker *is* off — so the picker is
+ * single-valued (a `multiple` one saves an array the backend reads as unusable).
+ * *exclude* drops Home Keeper's own to-do lists, exactly as `shoppingSchema` does:
+ * mirroring a list onto itself is a loop, and ours accepts no new items anyway.
+ */
+export function profileSyncSchema(exclude: string[] = []): FormField[] {
+  return [
+    { name: 'entity_id', selector: selEntity({ domain: 'todo' }, false, exclude) },
+    { name: 'two_way', selector: selBool() },
+    { name: 'vanish_as_completed', selector: selBool() },
+  ];
+}
+
+/**
  * The `ha-form` schema for one **profile** (a named, reusable task filter).
  *
  * The include lists come first, then the `exclude_*` lists that subtract from them —
@@ -1031,11 +1300,22 @@ export function profileFormData(p: Profile): Record<string, unknown> {
   };
 }
 
-/** Rebuild a profile (nested filter) from the flat form data, keeping *id*. */
-export function profileFormToProfile(id: string, data: Record<string, unknown>): Profile {
+/**
+ * Rebuild a profile (nested filter) from the flat form data, keeping *id*.
+ *
+ * The profile form doesn't render the sync fields — they live in their own group —
+ * so *sync* carries the profile's existing block through. Omitting it would wipe a
+ * configured to-do list the moment somebody renamed the profile.
+ */
+export function profileFormToProfile(
+  id: string,
+  data: Record<string, unknown>,
+  sync?: SyncLike,
+): Profile {
   return {
     id,
     name: String(data.name ?? '').trim() || t('profile.defaultName'),
+    sync: toProfileSync(sync),
     filter: {
       status: (data.status as NotifyStatus) ?? 'overdue',
       labels: strList(data.labels),
