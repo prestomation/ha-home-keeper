@@ -11,7 +11,12 @@
 // the filesystem / env when run directly as a script.
 import {readFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
-import {splitByH2, USER_SECTIONS, DEV_DOCS} from './doc-map.mjs';
+import {
+  splitByH2,
+  USER_SECTIONS,
+  DEV_DOCS,
+  GENERATED_DEV_PAGES,
+} from './doc-map.mjs';
 
 // Hidden marker so the workflow can find & update its own sticky comment.
 export const COMMENT_MARKER = '<!-- doc-preview-changed-pages -->';
@@ -30,6 +35,15 @@ const STATIC_PAGES = {
       d.file,
       {title: d.title, route: `/developer/${d.out.replace(/\.md$/, '')}`},
     ]),
+  ),
+  // Generated Developer Guide pages have no canonical Markdown file, so they are
+  // keyed on the repo files they are generated *from*. Touching a service or an
+  // event changes the API reference just as surely as editing a doc would, and
+  // the comment should say so.
+  ...Object.fromEntries(
+    GENERATED_DEV_PAGES.flatMap((page) =>
+      page.sources.map((source) => [source, {title: page.title, route: page.route}]),
+    ),
   ),
 };
 

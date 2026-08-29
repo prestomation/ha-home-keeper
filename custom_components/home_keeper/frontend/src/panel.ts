@@ -32,7 +32,9 @@ import {
   profileFormData,
   profileFormToProfile,
   profileSchema,
+  profileSyncSchema,
   shoppingSchema,
+  toProfileSync,
   selDevice,
   selIcon,
   selNumber,
@@ -75,6 +77,7 @@ import type {
   PanelInfo,
   Part,
   Profile,
+  ProfileSync,
   Task,
 } from './types';
 import {
@@ -86,6 +89,7 @@ import {
   deviceDomain,
   deviceName,
   dueLabel,
+  copyText,
   escapeHTML,
   formatQuantity,
   isHttpUrl,
@@ -633,6 +637,22 @@ const STYLES = `
     border-top: 1px solid var(--divider-color);
   }
   .hk-item-body ha-form { display: block; }
+  /* A profile's nested "Sync to a to-do list" group, and the chip on the collapsed
+     profile row that names the list it syncs to. Deliberately not an .hk-item-card:
+     a nested one would make every "how many rows?" selector ambiguous. */
+  .hk-sync-group {
+    border: 1px solid var(--divider-color); border-radius: 8px;
+    margin-top: 4px; overflow: hidden;
+  }
+  .hk-sync-group > .hk-item-header .hk-item-name { font-weight: 400; }
+  .hk-sync-group .hk-settings-intro { margin: 12px 0 0; }
+  .hk-sync-chip {
+    display: inline-flex; align-items: center; gap: 4px; flex: 0 1 auto;
+    max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 0.8rem; font-weight: 400; color: var(--secondary-text-color);
+    background: var(--secondary-background-color);
+    border-radius: 999px; padding: 1px 8px;
+  }
   .hk-notify-delete { align-self: flex-end; --mdc-theme-primary: var(--error-color, #db4437); }
   .hk-notify-add { margin-top: 12px; }
   /* Collapsible settings section headers (Profiles, Notifications). */
@@ -1137,6 +1157,27 @@ const STYLES = `
   /* Anything linked from a detail row must *look* clickable — an anchor whose href is
      filled in asynchronously (a signed file URL) gets no default affordance, which is
      what made document links read as dead text (issue #164). */
+  /* An id is a uuid: monospace so it can be read and checked character by character,
+     and allowed to wrap rather than widen the card on a phone. */
+  .hk-id-row .v { display: flex; align-items: center; gap: 4px; }
+  .hk-id-row code {
+    font-family: var(--code-font-family, monospace); font-size: 0.8rem;
+    color: var(--secondary-text-color); overflow-wrap: anywhere;
+  }
+  .hk-id-row ha-icon-button {
+    --mdc-icon-button-size: 32px; --mdc-icon-size: 18px;
+    color: var(--secondary-text-color); flex: 0 0 auto;
+  }
+  /* The compact form, for the part and document rows. */
+  .hk-id-inline { display: flex; align-items: center; gap: 2px; margin-top: 2px; }
+  .hk-id-inline code {
+    font-family: var(--code-font-family, monospace); font-size: 0.72rem;
+    color: var(--secondary-text-color); opacity: 0.85; overflow-wrap: anywhere;
+  }
+  .hk-id-inline ha-icon-button {
+    --mdc-icon-button-size: 24px; --mdc-icon-size: 14px;
+    color: var(--secondary-text-color); flex: 0 0 auto;
+  }
   .hk-detail-row .v a { color: var(--primary-color); cursor: pointer; }
   .hk-detail-row .v a:hover { text-decoration: underline; }
   /* Documents (manuals/warranties/receipts) sit in their own card, one row each. Both
@@ -3714,6 +3755,34 @@ export class HomeKeeperPanel extends HTMLElement {
     }</span></div>`;
   }
 
+  /**
+   * A detail row carrying an object's id, with a button that copies it.
+   *
+   * Every `home_keeper.*` service identifies its target by this id, and until now it
+   * appeared nowhere in the UI — so anyone automating against the services had to dig
+   * a uuid out of a `list_tasks` response first. The services take the object's *name*
+   * too, which covers most cases; the id is what settles the rest, where two things
+   * share a name and only the id says which one you mean.
+   */
+  private _idRow(id: string | null | undefined, compact = false): string {
+    if (!id) return '';
+    const copy = `<ha-icon-button class="hk-copy" data-copy="${escapeHTML(
+      id,
+    )}" label="${escapeHTML(t('btn.copyId'))}" title="${escapeHTML(
+      t('btn.copyId'),
+    )}"><ha-icon icon="mdi:content-copy"></ha-icon></ha-icon-button>`;
+    // Parts and documents are already dense rows, and an id is a footnote on them:
+    // the compact form drops the label and the divider and tucks the id under the
+    // name, so the list keeps its shape. A task or appliance page has a details card
+    // with room for a labelled row like any other field.
+    if (compact) {
+      return `<div class="hk-id-inline"><code>${escapeHTML(id)}</code>${copy}</div>`;
+    }
+    return `<div class="hk-detail-row hk-id-row"><span class="k">${escapeHTML(
+      t('detail.id'),
+    )}</span><span class="v"><code>${escapeHTML(id)}</code>${copy}</span></div>`;
+  }
+
   /** A human-readable line for a sensor task's binding, with live progress when the
    *  bound entity's current value is known: usage shows "consumed / target (entity)";
    *  threshold shows "entity: current (cmp value)"; state shows "entity: current
@@ -3910,6 +3979,7 @@ export class HomeKeeperPanel extends HTMLElement {
         ${task.recurrence_type === 'sensor' ? this._sensorProgressBar(task) : ''}
         ${this._row(t('detail.nextDue'), due)}
         ${this._row(t('field.consumable_link'), this._consumableLinkLabel(task), true)}
+        ${this._idRow(task.id)}
       </div></ha-card>
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>
@@ -3952,6 +4022,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._row(t('field.area_id'), areaName(this._hass?.areas, asset.area_id)),
       this._row(t('field.cost'), cost),
       meta,
+      this._idRow(asset.id),
     ].join('');
     const detailsCard = details
       ? `<div class="hk-section">${escapeHTML(t('detail.about'))}</div>
@@ -4064,7 +4135,10 @@ export class HomeKeeperPanel extends HTMLElement {
             : name;
         }
         return `<div class="hk-detail-row hk-doc-row"><span class="k"><ha-icon
-          icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}</span></div>`;
+          icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}${this._idRow(
+            d.id,
+            true,
+          )}</span></div>`;
       })
       .join('');
     return `<div class="hk-section">${escapeHTML(t('section.documents'))}</div>
@@ -4175,6 +4249,7 @@ export class HomeKeeperPanel extends HTMLElement {
               ${subLine}
               ${chipRow}
               ${partNotes}
+              ${this._idRow(p.id, true)}
             </div>
           </div>`;
       })
@@ -4690,6 +4765,8 @@ export class HomeKeeperPanel extends HTMLElement {
           }
         }),
       );
+      // Both kinds of detail page carry an id row with a copy button.
+      this._wireCopyButtons(root);
       // A task detail is a page of its own and stops here, so the wiring it shares
       // with the list views happens now rather than below.
       //
@@ -4890,6 +4967,23 @@ export class HomeKeeperPanel extends HTMLElement {
       }),
     );
     this._wireDeviceChips(root);
+  }
+
+  /** Wire every id row's copy button. One pass covers the task and appliance
+   *  pages plus the part and document rows, which all render the same row. */
+  private _wireCopyButtons(root: ShadowRoot): void {
+    root.querySelectorAll<HTMLElement>('.hk-copy[data-copy]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const id = el.dataset.copy;
+        if (!id) return;
+        // Report what actually happened: over plain HTTP the clipboard API is absent
+        // and the fallback can still fail, and claiming a copy that never landed
+        // leaves the user pasting whatever was there before.
+        void copyText(id).then((ok) => {
+          this._toast(ok ? t('toast.idCopied') : t('toast.copyFailed'));
+        });
+      });
+    });
   }
 
   /** Wire every `.detail-open` row to open its object's detail page. */
@@ -5491,6 +5585,11 @@ export class HomeKeeperPanel extends HTMLElement {
     nameSpan.className = 'hk-item-name';
     nameSpan.textContent = profile.name;
     header.appendChild(nameSpan);
+    // The row says where it syncs without being opened; the group below is the
+    // only place that can change it, so the chip is display-only.
+    const syncChip = document.createElement('span');
+    this._paintSyncChip(syncChip, profile.sync?.entity_id ?? '');
+    header.appendChild(syncChip);
     const chevron = document.createElement('ha-icon');
     (chevron as unknown as Record<string, string>).icon = 'mdi:chevron-down';
     chevron.className = 'hk-section-chevron' + (isExpanded ? ' open' : '');
@@ -5502,10 +5601,23 @@ export class HomeKeeperPanel extends HTMLElement {
     body.className = 'hk-item-body';
     if (!isExpanded) body.style.display = 'none';
 
+    // The filter form and the sync group are two `ha-form`s editing one profile, and
+    // both save through the same debounce key. Each keeps the other half in a closure
+    // so whichever fires last still writes both — and so a rename can't wipe a
+    // configured list, which is what saving the filter form alone would do.
+    let filter = profileFormData(profile);
+    let sync: ProfileSync = toProfileSync(profile.sync);
+    const saveProfile = (): void => {
+      const next = (this._options?.profiles ?? []).map((p) =>
+        p.id === profile.id ? profileFormToProfile(profile.id, filter, sync) : p,
+      );
+      this._debounce('profiles', () => void this._persistProfiles(next, false));
+    };
+
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
     form.schema = profileSchema();
-    form.data = profileFormData(profile);
+    form.data = filter;
     form.computeLabel = (s: { name: string }): string => {
       if (s.name === 'name') return t('field.name');
       if (s.name === 'labels') return t('field.labels');
@@ -5517,15 +5629,20 @@ export class HomeKeeperPanel extends HTMLElement {
     form.computeHelper = (s: { name: string }): string =>
       s.name === 'status' ? t('notify.status_help') : '';
     form.addEventListener('value-changed', (e: Event) => {
-      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
-      if (typeof value.name === 'string') nameSpan.textContent = value.name;
-      const next = (this._options?.profiles ?? []).map((p) =>
-        p.id === profile.id ? profileFormToProfile(profile.id, value) : p,
-      );
-      this._debounce('profiles', () => void this._persistProfiles(next, false));
+      filter = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      if (typeof filter.name === 'string') nameSpan.textContent = filter.name;
+      saveProfile();
     });
     this._liveHassEls.push(form);
     body.appendChild(form);
+
+    body.appendChild(
+      this._profileSyncGroup(profile, sync, (next) => {
+        sync = next;
+        this._paintSyncChip(syncChip, next.entity_id);
+        saveProfile();
+      }),
+    );
 
     const del = document.createElement('ha-button');
     del.className = 'hk-notify-delete';
@@ -5553,6 +5670,124 @@ export class HomeKeeperPanel extends HTMLElement {
     return card;
   }
 
+  /** The expand/collapse key for a profile's sync group. Namespaced so it can share
+   *  the panel's two expansion sets with the profile row itself. */
+  private _syncKey(profileId: string): string {
+    return `sync:${profileId}`;
+  }
+
+  /** Whether a profile's sync group starts open. A configured list is worth seeing
+   *  at a glance, so it defaults open and an unconfigured one stays folded — but an
+   *  explicit expand (`_itemExpanded`) or collapse (`_settingsSectionCollapsed`)
+   *  outranks the default, so re-rendering never undoes what the user just did. */
+  private _syncGroupExpanded(profile: Profile): boolean {
+    const key = this._syncKey(profile.id);
+    if (this._itemExpanded.has(key)) return true;
+    if (this._settingsSectionCollapsed.has(key)) return false;
+    return Boolean(profile.sync?.entity_id);
+  }
+
+  private _setSyncGroupExpanded(profileId: string, expanded: boolean): void {
+    const key = this._syncKey(profileId);
+    if (expanded) {
+      this._itemExpanded.add(key);
+      this._settingsSectionCollapsed.delete(key);
+    } else {
+      this._settingsSectionCollapsed.add(key);
+      this._itemExpanded.delete(key);
+    }
+  }
+
+  /** The synced list's friendly name, falling back to the raw entity id for a list
+   *  with no state yet (a freshly picked one, or one whose integration is offline). */
+  private _syncListName(entityId: string): string {
+    const friendly = this._hass?.states?.[entityId]?.attributes?.friendly_name;
+    return typeof friendly === 'string' && friendly ? friendly : entityId;
+  }
+
+  /** Paint (or clear) the chip on a collapsed profile row that names the to-do list
+   *  the profile syncs to. An unsynced profile shows nothing rather than an empty
+   *  pill, so the chip's presence is itself the signal. */
+  private _paintSyncChip(chip: HTMLElement, entityId: string): void {
+    if (!entityId) {
+      chip.className = '';
+      chip.removeAttribute('title');
+      chip.removeAttribute('aria-label');
+      chip.innerHTML = '';
+      return;
+    }
+    const name = this._syncListName(entityId);
+    const label = t('mirror.chip', { name });
+    chip.className = 'hk-sync-chip';
+    chip.setAttribute('title', label);
+    chip.setAttribute('aria-label', label);
+    // A plain span, not an `ha-assist-chip`: the row header is a <button>, and HA's
+    // chip renders a button of its own, which would nest one inside the other.
+    chip.innerHTML = `<ha-icon icon="mdi:swap-horizontal" class="hk-chip-ic"></ha-icon>${escapeHTML(name)}`;
+  }
+
+  /** A profile's collapsible **Sync to a to-do list** group: the list to mirror the
+   *  profile's tasks onto, plus what a change over there means here. There is no
+   *  delete button — clearing the picker is the off switch, which is why the schema
+   *  round-trips a cleared value to `''` rather than dropping the key. */
+  private _profileSyncGroup(
+    profile: Profile,
+    initial: ProfileSync,
+    onChange: (sync: ProfileSync) => void,
+  ): HTMLElement {
+    const isExpanded = this._syncGroupExpanded(profile);
+
+    const group = document.createElement('div');
+    group.className = 'hk-sync-group';
+
+    const header = document.createElement('button');
+    header.className = 'hk-item-header';
+    header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    const title = document.createElement('span');
+    title.className = 'hk-item-name';
+    title.textContent = t('mirror.group');
+    header.appendChild(title);
+    const chevron = document.createElement('ha-icon');
+    (chevron as unknown as Record<string, string>).icon = 'mdi:chevron-down';
+    chevron.className = 'hk-section-chevron' + (isExpanded ? ' open' : '');
+    header.appendChild(chevron);
+    group.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'hk-item-body';
+    if (!isExpanded) body.style.display = 'none';
+    const intro = document.createElement('div');
+    intro.className = 'hk-settings-intro';
+    intro.textContent = t('mirror.group_help');
+    body.appendChild(intro);
+
+    const form = document.createElement('ha-form') as HaFormElement;
+    form.hass = this._hass;
+    form.schema = profileSyncSchema(this._ownTodoEntities);
+    form.data = { ...initial };
+    form.computeLabel = (s: { name: string }): string => (s.name ? t('mirror.' + s.name) : '');
+    form.addEventListener('value-changed', (e: Event) => {
+      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
+      // Clearing the picker emits `undefined`, which JSON drops on the way to the
+      // backend; normalizing to '' is what makes "switch the sync off" stick.
+      onChange(toProfileSync(value));
+    });
+    this._liveHassEls.push(form);
+    body.appendChild(form);
+    group.appendChild(body);
+
+    header.addEventListener('click', () => {
+      const expanded = !this._syncGroupExpanded(profile);
+      this._setSyncGroupExpanded(profile.id, expanded);
+      const chev = header.querySelector<HTMLElement>('.hk-section-chevron');
+      body.style.display = expanded ? '' : 'none';
+      header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      chev?.classList.toggle('open', expanded);
+    });
+
+    return group;
+  }
+
   private _addProfile(): Promise<void> {
     const blank: Profile = {
       id: '',
@@ -5566,12 +5801,17 @@ export class HomeKeeperPanel extends HTMLElement {
         exclude_areas: [],
         exclude_devices: [],
       },
+      // No list picked: the sync does nothing until one is, and both switches
+      // carry the defaults the backend normalizer would fill in.
+      sync: { entity_id: '', two_way: true, vanish_as_completed: true },
     };
     return this._persistProfiles([...(this._options?.profiles ?? []), blank], true, true);
   }
 
   private _deleteProfile(id: string): Promise<void> {
     this._itemExpanded.delete(id);
+    this._itemExpanded.delete(this._syncKey(id));
+    this._settingsSectionCollapsed.delete(this._syncKey(id));
     const next = (this._options?.profiles ?? []).filter((p) => p.id !== id);
     return this._persistProfiles(next, true);
   }

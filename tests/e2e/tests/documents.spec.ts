@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openAppliance, openPanel, trackPanelErrors } from './helpers';
+import { ASSET, DOC, PART } from '../fixture-ids';
 
 /**
  * The appliance detail page's "Manuals & documents" section, and a part's attached
@@ -15,7 +16,7 @@ test.describe('Appliance documents open by a native tap (issue #164)', () => {
   test('every document and part file is an href-bearing anchor', async ({ page }) => {
     const errors = trackPanelErrors(page);
     await openPanel(page);
-    const panel = await openAppliance(page, 'asset_water_heater', 'documents');
+    const panel = await openAppliance(page, ASSET.waterHeater, 'documents');
 
     // The seeded water heater carries one of each: an external link document
     // ("Owner's manual") and an uploaded file document ("Installation guide (PDF)").
@@ -33,7 +34,7 @@ test.describe('Appliance documents open by a native tap (issue #164)', () => {
     const file = docs.filter({ hasText: 'Installation guide (PDF)' });
     await expect(file).toHaveAttribute(
       'href',
-      /^\/api\/home_keeper\/document\/asset_water_heater\/asset_water_heater_doc_manual_pdf\?authSig=/,
+      new RegExp(`^/api/home_keeper/document/${ASSET.waterHeater}/${DOC.manualPdf}\\?authSig=`),
       { timeout: 15_000 },
     );
     await expect(file).toHaveAttribute('target', '_blank');
@@ -43,10 +44,10 @@ test.describe('Appliance documents open by a native tap (issue #164)', () => {
     // The anode rod's attached receipt gets the same treatment. It lives with the
     // parts rather than the documents, so that is the sub-tab it is read from.
     await panel.locator('.hk-subtab[data-tab="parts"]').click();
-    const clip = panel.locator('a.hk-part-file[data-part="part_anode"]');
+    const clip = panel.locator(`a.hk-part-file[data-part="${PART.anode}"]`);
     await expect(clip).toHaveAttribute(
       'href',
-      /^\/api\/home_keeper\/part_document\/asset_water_heater\/part_anode\?authSig=/,
+      new RegExp(`^/api/home_keeper/part_document/${ASSET.waterHeater}/${PART.anode}\\?authSig=`),
       { timeout: 15_000 },
     );
 
@@ -57,7 +58,7 @@ test.describe('Appliance documents open by a native tap (issue #164)', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await panel.locator('#tab-appliances').click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
     await panel.locator('.d-edit').click();
 
     // The uploaded document's card in the documents editor — its Open action must be an
@@ -71,7 +72,7 @@ test.describe('Appliance documents open by a native tap (issue #164)', () => {
 
   test('tapping an uploaded document actually opens it', async ({ page }) => {
     await openPanel(page);
-    const panel = await openAppliance(page, 'asset_water_heater', 'documents');
+    const panel = await openAppliance(page, ASSET.waterHeater, 'documents');
 
     const file = panel
       .locator('.hk-doc-row a.hk-doc-file')

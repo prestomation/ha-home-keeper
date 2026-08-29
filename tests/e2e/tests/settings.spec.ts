@@ -17,6 +17,12 @@ test.describe('Home Keeper panel — Settings tab', () => {
     // …and so is the Shopping list card, which is where the buy-reminder mirror
     // is turned on.
     await expect(panel.locator('#hk-settings-shopping ha-form')).toBeVisible();
+    // …and the Profiles card, which is where a saved filter is edited — and, inside
+    // each one, the to-do list it syncs its tasks onto. With no profiles saved the
+    // card is an empty state plus its Add button, so the button is what proves it
+    // rendered either way.
+    await expect(panel.locator('#hk-profiles')).toBeVisible();
+    await expect(panel.locator('#hk-profile-add')).toBeVisible();
     // Deep-linked: the panel URL reflects the settings view (so Back/Forward work).
     await expect.poll(() => page.url()).toContain('/home-keeper/settings');
 

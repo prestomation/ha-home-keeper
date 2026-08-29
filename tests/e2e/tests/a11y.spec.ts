@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { callService, openPanel } from './helpers';
+import { TASK } from '../fixture-ids';
 
 /**
  * The accessibility contracts an audit found broken, pinned so they stay fixed.
@@ -112,17 +113,17 @@ test.describe('Home Keeper panel — accessibility contracts', () => {
     // No seeded task carries three chips, so make one: the battery task already has a
     // part chip and its integration's chip, and a tag is a third.
     await callService('home_keeper', 'update_task', {
-      task_id: 'task_door_battery',
+      task_id: TASK.doorBattery,
       tag_id: 'a11y-overflow-tag',
     });
     await openPanel(page);
     const panel = panelOf(page);
     // The panel is told about the change over its websocket subscription, so the row
     // may still be the pre-tag one on first paint.
-    const more = panel.locator('ha-card.hk-card[data-id="task_door_battery"] .hk-chip-more');
+    const more = panel.locator(`ha-card.hk-card[data-id="${TASK.doorBattery}"] .hk-chip-more`);
     await expect(more).toBeVisible({ timeout: 20_000 });
     await expect(more).toHaveAttribute('aria-expanded', 'false');
-    const row = panel.locator('ha-card.hk-card[data-id="task_door_battery"]');
+    const row = panel.locator(`ha-card.hk-card[data-id="${TASK.doorBattery}"]`);
     const hiddenBefore = await row.locator('.hk-chips-inline > *:nth-child(3)').isVisible();
     expect(hiddenBefore).toBe(false);
     await more.click();
@@ -130,7 +131,7 @@ test.describe('Home Keeper panel — accessibility contracts', () => {
     await expect(row.locator('.hk-chips-inline > *:nth-child(3)')).toBeVisible();
 
     await callService('home_keeper', 'update_task', {
-      task_id: 'task_door_battery',
+      task_id: TASK.doorBattery,
       tag_id: '',
     });
   });

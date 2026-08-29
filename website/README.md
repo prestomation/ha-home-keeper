@@ -7,8 +7,9 @@ The user-facing documentation site for Home Keeper, built with
 It has two audiences with independent sidebars:
 
 - **User Guide** (served at `/docs`) — how to install and use Home Keeper.
-- **Developer Guide** (served at `/developer`) — the equivalent of
-  `docs/INTEGRATING.md`: how other integrations talk to Home Keeper.
+- **Developer Guide** (served at `/developer`) — how other integrations talk to Home
+  Keeper: the `docs/INTEGRATING.md` walkthrough, plus an **API reference** generated
+  from the integration's own surfaces.
 
 ## Content is generated — edit the canonical sources
 
@@ -18,14 +19,26 @@ generates them from the repo's canonical Markdown and rewrites links/images:
 | Source (canonical) | Generated (gitignored) |
 |---|---|
 | `README.md` (split by `##` section) | `website/docs/guide/*.md` (User Guide) |
+| `CHANGELOG.md` | `website/docs/release-notes.md` |
 | `docs/INTEGRATING.md` | `website/developer/integrating.md` |
+| `docs/GLUE_INTEGRATIONS.md` | `website/developer/glue-integrations.md` |
 | `docs/EVENTS.md` | `website/developer/events.md` |
 | `docs/DESIGN.md` | `website/developer/architecture.md` |
+| `docs/SECURITY.md` | `website/developer/security.md` |
+
+One page has no Markdown source at all. `ci/generate_api_docs.py` renders
+`website/developer/api.md` — the **API reference** — from the integration itself:
+`custom_components/home_keeper/api_surface.py` for the structure, and `services.yaml`
+plus `strings.json` for every label and description, so the page and Home Assistant's
+own dialogs read from one string. `npm run sync` runs it after `sync-docs.mjs`, which
+clears that directory first, and it needs Python with `PyYAML` on the machine doing
+the build.
 
 So to change the docs, **edit `README.md` or `docs/*.md`** — never the generated
 trees (`website/docs/guide/`, `website/developer/`), which are wiped and rebuilt on
-every `npm run sync`. The only hand-authored pages in `website/` are the landing page
-(`src/pages/index.tsx`) and the User Guide intro (`docs/intro.md`).
+every `npm run sync`. To change the API reference, edit the integration. The only
+hand-authored pages in `website/` are the landing page (`src/pages/index.tsx`) and
+the User Guide intro (`docs/intro.md`).
 
 `README.md` is the source for the whole User Guide, so it stays the comprehensive
 user doc — don't slim it down to a stub.

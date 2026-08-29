@@ -49,6 +49,7 @@ export const USER_SECTIONS = [
   {h: 'Sensor-based tasks (usage meters, thresholds & states)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks'},
   {h: 'Settings', slug: 'settings', title: 'Settings'},
   {h: 'Profiles (saved filters you reuse everywhere)', slug: 'profiles', title: 'Profiles', label: 'Profiles'},
+  {h: 'Send tasks to your to-do lists', slug: 'todo-sync', title: 'To-do list sync', label: 'To-do list sync'},
   {h: 'Notifications (actionable reminders on your phone)', slug: 'notifications', title: 'Notifications', label: 'Notifications'},
   {h: 'Dashboard task card', slug: 'dashboard-card', title: 'Dashboard card', label: 'Dashboard card'},
   {h: 'Appliances & virtual devices', slug: 'appliances', title: 'Appliances', label: 'Appliances'},
@@ -61,13 +62,47 @@ export const USER_SECTIONS = [
 
 // Standalone canonical docs copied 1:1 into the Developer Guide. `out` is the
 // generated filename under `website/developer/`; the served route drops `.md`.
+// Position 2 is left to the generated API reference below.
 export const DEV_DOCS = [
   {file: 'docs/INTEGRATING.md', out: 'integrating.md', title: 'Integrating with Home Keeper', label: 'Integrating', pos: 1},
-  {file: 'docs/GLUE_INTEGRATIONS.md', out: 'glue-integrations.md', title: 'Glue integrations', label: 'Glue integrations', pos: 2},
-  {file: 'docs/EVENTS.md', out: 'events.md', title: 'Events reference', label: 'Events', pos: 3},
-  {file: 'docs/DESIGN.md', out: 'architecture.md', title: 'Architecture', label: 'Architecture', pos: 4},
-  {file: 'docs/SECURITY.md', out: 'security.md', title: 'Security model', label: 'Security', pos: 5},
+  {file: 'docs/GLUE_INTEGRATIONS.md', out: 'glue-integrations.md', title: 'Glue integrations', label: 'Glue integrations', pos: 3},
+  {file: 'docs/EVENTS.md', out: 'events.md', title: 'Events reference', label: 'Events', pos: 4},
+  {file: 'docs/DESIGN.md', out: 'architecture.md', title: 'Architecture', label: 'Architecture', pos: 5},
+  {file: 'docs/SECURITY.md', out: 'security.md', title: 'Security model', label: 'Security', pos: 6},
 ];
+
+// Developer Guide pages with no canonical Markdown source: `ci/generate_api_docs.py`
+// renders them straight into `website/developer/` after sync-docs.mjs has cleared it.
+// `sources` are the repo files the page is generated *from*, so a PR that only
+// changes a service or an event still shows up in the changed-pages comment.
+// tests/unit/test_generate_api_docs.py pins these values to the generator's own
+// frontmatter — the two are in different languages and can't import each other.
+export const GENERATED_DEV_PAGES = [
+  {
+    out: 'api.md',
+    route: '/developer/api',
+    title: 'API reference',
+    pos: 2,
+    sources: [
+      'custom_components/home_keeper/api_surface.py',
+      'custom_components/home_keeper/services.yaml',
+      'custom_components/home_keeper/strings.json',
+    ],
+  },
+];
+
+// In-repo docs that have a home on this site, so a relative link between two
+// canonical docs becomes an on-site link rather than a GitHub blob URL. Every
+// DEV_DOCS entry needs a row here; tests/frontend/changed-pages.test.js checks that,
+// because GLUE_INTEGRATIONS.md was published for months with its links still
+// pointing off-site.
+export const DOC_ROUTES = {
+  'docs/INTEGRATING.md': '/developer/integrating',
+  'docs/GLUE_INTEGRATIONS.md': '/developer/glue-integrations',
+  'docs/EVENTS.md': '/developer/events',
+  'docs/DESIGN.md': '/developer/architecture',
+  'docs/SECURITY.md': '/developer/security',
+};
 
 // README same-page anchors that now live on their own User Guide pages.
 export const ANCHOR_ROUTES = {
@@ -79,6 +114,8 @@ export const ANCHOR_ROUTES = {
   '#companions': '/docs/guide/settings#companions',
   '#notifications-actionable-reminders-on-your-phone': '/docs/guide/notifications',
   '#profiles-saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
+  // The Settings section links across to the task-mirror section (→ todo-sync page).
+  '#send-tasks-to-your-to-do-lists': '/docs/guide/todo-sync',
   '#dashboard-task-card': '/docs/guide/dashboard-card',
   // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
   // section (→ sensor-tasks page); "Parts & wear items" under Appliances; and

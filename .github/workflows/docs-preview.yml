@@ -10,6 +10,13 @@ on:
       - 'README.md'
       - 'CHANGELOG.md'
       - 'docs/**'
+      # The API reference page is generated from the integration itself
+      # (ci/generate_api_docs.py), so a PR that only adds a service or an event
+      # still changes a doc page.
+      - 'custom_components/home_keeper/api_surface.py'
+      - 'custom_components/home_keeper/services.yaml'
+      - 'custom_components/home_keeper/strings.json'
+      - 'ci/generate_api_docs.py'
       - '.github/workflows/docs-preview.yml'
 
 # Previews deploy to pr-preview/pr-<n>/ on the gh-pages branch and two sticky
@@ -41,10 +48,19 @@ jobs:
           cache: npm
           cache-dependency-path: website/package-lock.json
 
+      # `npm run sync` renders the API reference with ci/generate_api_docs.py
+      # before Docusaurus builds.
+      - uses: actions/setup-python@v7
+        if: github.event.action != 'closed'
+        with:
+          python-version: "3.13"
+
       - name: Install
         if: github.event.action != 'closed'
         working-directory: website
-        run: npm ci
+        run: |
+          pip install PyYAML
+          npm ci
 
       - name: Build
         if: github.event.action != 'closed'

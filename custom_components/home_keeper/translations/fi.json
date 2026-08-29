@@ -124,8 +124,8 @@
       "description": "Päivitä olemassa olevan tehtävän kenttiä.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Päivitettävän tehtävän tunnus."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Päivitettävän tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "name": {
           "name": "Nimi",
@@ -210,8 +210,8 @@
       "description": "Poista tehtävä.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Poistettavan tehtävän tunnus."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Poistettavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "force": {
           "name": "Pakota",
@@ -224,8 +224,8 @@
       "description": "Merkitse tehtävä valmiiksi ja siirrä sen toistuvuutta eteenpäin.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Valmistuvan tehtävän tunnus."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Valmistuvan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "completed_at": {
           "name": "Valmistumisaika",
@@ -262,8 +262,8 @@
       "description": "Muokkaa jo tallennetun suorituksen metatietoja (muistiinpano, kustannus, kuva, kuka), joka tunnistetaan aikaleimasta. Ei muuta aikataulua eikä eräpäivää.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Sen tehtävän tunnus, jonka suoritusta muokkaat."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jonka suoritusta muokkaat. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "ts": {
           "name": "Suorituksen aikaleima",
@@ -296,8 +296,8 @@
       "description": "Viritä ehtopohjainen (laukaistava) tehtävä niin, että se näkyy nyt erääntyneenä — käyttäjälle suunnattu vastine toiminnolle Merkitse tehtävä valmiiksi (joka palauttaa sen lepotilaan). Idempotentti; pätee vain laukaistaviin tehtäviin.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Viritettävän laukaistavan tehtävän tunnus."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Viritettävän laukaistavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -306,8 +306,8 @@
       "description": "Ankkuroi käyttöön perustuvan (mittari-) anturitehtävän lähtöarvon uudelleen kirjaamatta suoritusta. Käytä sitä, kun työ tehtiin ennen kuin Home Keeper seurasi sitä, tai kun sidottu mittari vaihdettiin tai nollattiin. Jos jätät lähtöarvon pois, ankkurointi tehdään anturin nykyiseen lukemaan. Pätee vain käyttötilassa olevaan anturitehtävään.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Uudelleen ankkuroitavan käyttöanturitehtävän tunnus."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Uudelleen ankkuroitavan käyttöanturitehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "baseline": {
           "name": "Lähtöarvo",
@@ -320,8 +320,8 @@
       "description": "Lykkää tehtävän eräpäivää tallentamatta suoritusta tai siirtämättä sen toistoa.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Lykättävän tehtävän tunnus."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Lykättävän tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "hours": {
           "name": "Tunnit",
@@ -338,8 +338,8 @@
       "description": "Siirrä tehtävä seuraavaan ajankohtaan tallentamatta suoritusta.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Ohitettavan tehtävän tunnus."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Ohitettavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "origin": {
           "name": "Alkuperä",
@@ -352,16 +352,16 @@
       "description": "Linkittää tehtävän laitteen kulutustarvikkeeseen/osaan niin, että sen valmiiksi merkitseminen kuluttaa yhden varaosan varastosta ja laukaisee vähäisen varaston tapahtuman tilausrajalla. Jätä asset_id ja part_id pois poistaaksesi linkin.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Viritettävän laukaistavan tehtävän tunnus."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Viritettävän laukaistavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Sen laitteen tunnus, johon varaosa kuuluu."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "part_id": {
-          "name": "Varaosan tunnus",
-          "description": "Sen varaosan tunnus, jonka varastoa säädetään."
+          "name": "Varaosan nimi tai tunnus",
+          "description": "Sen varaosan tunnus, jonka varastoa säädetään. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -445,7 +445,7 @@
         },
         "parent_asset_id": {
           "name": "Ylälaite",
-          "description": "Tee tästä toisen laitteen alalaite."
+          "description": "Tee tästä toisen laitteen alalaite. Anna sen nimi tai tunnus."
         },
         "related_device_ids": {
           "name": "Liittyvät laitteet",
@@ -462,8 +462,8 @@
       "description": "Päivitä olemassa olevan laitteen/kohteen kenttiä.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Päivitettävän kohteen tunnus."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Päivitettävän kohteen tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "name": {
           "name": "Nimi",
@@ -511,7 +511,7 @@
         },
         "parent_asset_id": {
           "name": "Ylälaite",
-          "description": "Tee tästä toisen laitteen alalaite."
+          "description": "Tee tästä toisen laitteen alalaite. Anna sen nimi tai tunnus."
         },
         "related_device_ids": {
           "name": "Liittyvät laitteet",
@@ -528,8 +528,8 @@
       "description": "Poista laite/kohde. Sen virtuaalilaite (jos sellainen on) poistetaan ja siihen liitetyt tehtävät muuttuvat itsenäisiksi.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Poistettavan kohteen tunnus."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Poistettavan kohteen tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -538,8 +538,8 @@
       "description": "Piilota laite/kohde oletusnäkymästä poistamatta sen tietoja. Sen laite, entiteetit ja liitetyt tehtävät pysyvät koskemattomina; restore_asset kumoaa tämän.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Arkistoitavan kohteen tunnus."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Arkistoitavan kohteen tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -548,8 +548,8 @@
       "description": "Kumoaa archive_asset-toiminnon ja palauttaa arkistoidun laitteen oletusnäkymään.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Palautettavan kohteen tunnus."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Palautettavan kohteen tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -562,12 +562,12 @@
       "description": "Muuta varaosan varastomäärää etumerkillisellä erotuksella (rajoitettu nollaan); desimaalit ovat sallittuja. Kun vähennys saavuttaa tilausrajan tai ylittää sen, käynnistyy alhaisen varaston tapahtuma.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Sen laitteen tunnus, johon varaosa kuuluu."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "part_id": {
-          "name": "Varaosan tunnus",
-          "description": "Sen varaosan tunnus, jonka varastoa säädetään."
+          "name": "Varaosan nimi tai tunnus",
+          "description": "Sen varaosan tunnus, jonka varastoa säädetään. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "delta": {
           "name": "Erotus",
@@ -617,12 +617,12 @@
       "description": "Irrottaa varaosan liitetyn tiedoston (kuitti/tietolomake/kuva) ja poistaa sen tallennetun kopion levyltä. Lataa tai korvaa tiedosto paneelista; tämä palvelu käsittelee vain poistamisen.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Sen laitteen tunnus, johon varaosa kuuluu."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "part_id": {
-          "name": "Varaosan tunnus",
-          "description": "Sen varaosan tunnus, jonka tiedosto poistetaan."
+          "name": "Varaosan nimi tai tunnus",
+          "description": "Sen varaosan tunnus, jonka tiedosto poistetaan. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -631,8 +631,8 @@
       "description": "Liittää linkkiasiakirjan (opas/takuu/kuitti) laitteeseen. Lataa tiedostot paneelista; tämä palvelu käsittelee vain linkkejä.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Sen laitteen tunnus, johon asiakirja liitetään."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Sen laitteen tunnus, johon asiakirja liitetään. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "document": {
           "name": "Asiakirja",
@@ -645,12 +645,12 @@
       "description": "Irrottaa asiakirjan laitteesta. Ladatun tiedoston tallennettu kopio poistetaan myös levyltä.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Sen laitteen tunnus, johon asiakirja kuuluu."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Sen laitteen tunnus, johon asiakirja kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "document_id": {
-          "name": "Asiakirjan tunnus",
-          "description": "Poistettavan asiakirjan tunnus."
+          "name": "Asiakirjan nimi tai tunnus",
+          "description": "Poistettavan asiakirjan tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -659,12 +659,12 @@
       "description": "Muokkaa laitteen olemassa olevaa asiakirjaa – nimeä se uudelleen tai (linkkiasiakirjoille) vaihda sen URL-osoite. Ladatut tiedostot voi vain nimetä uudelleen.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Sen laitteen tunnus, johon asiakirja kuuluu."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Sen laitteen tunnus, johon asiakirja kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "document_id": {
-          "name": "Asiakirjan tunnus",
-          "description": "Muokattavan asiakirjan tunnus."
+          "name": "Asiakirjan nimi tai tunnus",
+          "description": "Muokattavan asiakirjan tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "changes": {
           "name": "Muutokset",
@@ -677,8 +677,8 @@
       "description": "Antaa jo tallennetulle suoritukselle uuden aikaleiman (siirtää sen menneisyyteen tai korjaa sen), tunnistettuna nykyisestä aikaleimasta. Toisin kuin Päivitä suoritus, tämä muuttaa suorituksen päivämäärää/aikaa ja laskee tehtävän viimeisimmän suorituksen ja seuraavan eräpäivän uudelleen tuloksen perusteella.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Sen tehtävän tunnus, jonka suoritusta siirrät."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jonka suoritusta siirrät. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "old_ts": {
           "name": "Nykyinen suorituksen aikaleima",
@@ -695,8 +695,8 @@
       "description": "Poistaa yhden suorituksen tehtävän historiasta (kumoaa vahingossa tehdyn ”valmis”), tunnistettuna aikaleimalla.",
       "fields": {
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Sen tehtävän tunnus, jonka suorituksen poistat."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jonka suorituksen poistat. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "ts": {
           "name": "Suorituksen aikaleima",
@@ -713,12 +713,12 @@
       "description": "Poistaa yhden suorituksen laitteen arkistoidusta historiasta, tunnistettuna alkuperäisen tehtävän tunnuksella ja aikaleimalla.",
       "fields": {
         "asset_id": {
-          "name": "Laitteen tunnus",
-          "description": "Sen laitteen tunnus, jonka arkistoitua historiaa muokkaat."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Sen laitteen tunnus, jonka arkistoitua historiaa muokkaat. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "task_id": {
-          "name": "Tehtävän tunnus",
-          "description": "Alkuperäisen tehtävän tunnus, johon arkistoitu suoritus kuuluu."
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Alkuperäisen tehtävän tunnus, johon arkistoitu suoritus kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "ts": {
           "name": "Suorituksen aikaleima",
@@ -769,12 +769,12 @@
       "description": "Luo lyhytikäisen URL-osoitteen (ei vaadi todennusotsaketta), josta ulkoinen kutsuja voi noutaa asiakirjan tavut, esim. MCP-yhdistetty agentti.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Sen laitteen tunnus, johon asiakirja kuuluu."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Sen laitteen tunnus, johon asiakirja kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "document_id": {
-          "name": "Asiakirjan tunnus",
-          "description": "Sen asiakirjan tunnus, jolle URL allekirjoitetaan."
+          "name": "Asiakirjan nimi tai tunnus",
+          "description": "Sen asiakirjan tunnus, jolle URL allekirjoitetaan. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     },
@@ -783,12 +783,12 @@
       "description": "Luo lyhytikäisen URL-osoitteen (ei vaadi todennusotsaketta), josta ulkoinen kutsuja voi noutaa varaosan liitetyn tiedoston tavut, esim. MCP-yhdistetty agentti.",
       "fields": {
         "asset_id": {
-          "name": "Kohteen tunnus",
-          "description": "Sen laitteen tunnus, johon varaosa kuuluu."
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "part_id": {
-          "name": "Varaosan tunnus",
-          "description": "Sen varaosan tunnus, jonka liitetylle tiedostolle URL allekirjoitetaan."
+          "name": "Varaosan nimi tai tunnus",
+          "description": "Sen varaosan tunnus, jonka liitetylle tiedostolle URL allekirjoitetaan. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
     }
@@ -898,6 +898,18 @@
     },
     "failed_to_store_file": {
       "message": "Tiedoston tallentaminen epäonnistui."
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

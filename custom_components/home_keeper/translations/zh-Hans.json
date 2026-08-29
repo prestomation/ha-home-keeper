@@ -124,8 +124,8 @@
       "description": "更新现有任务的字段。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要更新的任务的 id。"
+          "name": "任务名称或 ID",
+          "description": "要更新的任务的 id。名称同样可用。面板中会显示 ID。"
         },
         "name": {
           "name": "名称",
@@ -210,8 +210,8 @@
       "description": "删除一个任务。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要删除的任务的 id。"
+          "name": "任务名称或 ID",
+          "description": "要删除的任务的 id。名称同样可用。面板中会显示 ID。"
         },
         "force": {
           "name": "强制",
@@ -224,8 +224,8 @@
       "description": "将任务标记为完成并推进其重复周期。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要完成的任务的 id。"
+          "name": "任务名称或 ID",
+          "description": "要完成的任务的 id。名称同样可用。面板中会显示 ID。"
         },
         "completed_at": {
           "name": "完成时间",
@@ -262,8 +262,8 @@
       "description": "修改已记录完成项（通过时间戳标识）的元数据（备注、花费、照片、由谁完成）。不会更改计划或到期日期。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要编辑其完成记录的任务的 id。"
+          "name": "任务名称或 ID",
+          "description": "要编辑其完成记录的任务的 id。名称同样可用。面板中会显示 ID。"
         },
         "ts": {
           "name": "完成时间戳",
@@ -296,8 +296,8 @@
       "description": "将由条件驱动的（触发式）任务置为待办，使其显示为现在到期 — 这是面向用户的“完成任务”的对应操作（完成任务会将其重置为休眠状态）。幂等；仅对触发式任务有效。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要置为待办的触发式任务的 id。"
+          "name": "任务名称或 ID",
+          "description": "要置为待办的触发式任务的 id。名称同样可用。面板中会显示 ID。"
         }
       }
     },
@@ -306,8 +306,8 @@
       "description": "在不记录完成的情况下，重新锚定用量（计量）传感器任务的起始值。适用于在 Home Keeper 开始监控之前就已完成保养，或绑定的计量器被更换、清零的情况。省略起始值时，将锚定到传感器的当前读数。仅适用于用量模式的传感器任务。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要重新锚定的用量传感器任务的 id。"
+          "name": "任务名称或 ID",
+          "description": "要重新锚定的用量传感器任务的 id。名称同样可用。面板中会显示 ID。"
         },
         "baseline": {
           "name": "起始值",
@@ -320,8 +320,8 @@
       "description": "推迟任务的到期日期，但不记录完成，也不推进其重复周期。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要推迟的任务的 id。"
+          "name": "任务名称或 ID",
+          "description": "要推迟的任务的 id。名称同样可用。面板中会显示 ID。"
         },
         "hours": {
           "name": "小时",
@@ -338,8 +338,8 @@
       "description": "将任务推进到下一次，但不记录完成。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要跳过的任务的 id。"
+          "name": "任务名称或 ID",
+          "description": "要跳过的任务的 id。名称同样可用。面板中会显示 ID。"
         },
         "origin": {
           "name": "发起方",
@@ -352,16 +352,16 @@
       "description": "将任务关联到设备的耗材/部件，这样完成任务时会从库存中消耗一个备件，并在补货阈值时触发低库存事件。省略 asset_id 和 part_id 可清除关联。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要置为待办的触发式任务的 id。"
+          "name": "任务名称或 ID",
+          "description": "要置为待办的触发式任务的 id。名称同样可用。面板中会显示 ID。"
         },
         "asset_id": {
-          "name": "资产 ID",
-          "description": "该零件所属设备的 ID。"
+          "name": "资产名称或 ID",
+          "description": "该零件所属设备的 ID。名称同样可用。面板中会显示 ID。"
         },
         "part_id": {
-          "name": "零件 ID",
-          "description": "要调整库存的零件的 ID。"
+          "name": "零件名称或 ID",
+          "description": "要调整库存的零件的 ID。名称同样可用。面板中会显示 ID。"
         }
       }
     },
@@ -445,7 +445,7 @@
         },
         "parent_asset_id": {
           "name": "上级电器",
-          "description": "将此设为另一个电器的子设备。"
+          "description": "将此设为另一个电器的子设备。填写其名称或 ID。"
         },
         "related_device_ids": {
           "name": "相关设备",
@@ -462,8 +462,8 @@
       "description": "更新现有电器/资产的字段。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "要更新的资产的 id。"
+          "name": "资产名称或 ID",
+          "description": "要更新的资产的 id。名称同样可用。面板中会显示 ID。"
         },
         "name": {
           "name": "名称",
@@ -511,7 +511,7 @@
         },
         "parent_asset_id": {
           "name": "上级电器",
-          "description": "将此设为另一个电器的子设备。"
+          "description": "将此设为另一个电器的子设备。填写其名称或 ID。"
         },
         "related_device_ids": {
           "name": "相关设备",
@@ -528,8 +528,8 @@
       "description": "删除一个电器/资产。其虚拟设备（如有）会被移除，关联到它的任务将变为独立任务。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "要删除的资产的 id。"
+          "name": "资产名称或 ID",
+          "description": "要删除的资产的 id。名称同样可用。面板中会显示 ID。"
         }
       }
     },
@@ -538,8 +538,8 @@
       "description": "从默认视图中隐藏电器/资产，但不删除其数据。其设备、实体和关联的任务保持不变；restore_asset 可撤销此操作。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "要归档的资产的 id。"
+          "name": "资产名称或 ID",
+          "description": "要归档的资产的 id。名称同样可用。面板中会显示 ID。"
         }
       }
     },
@@ -548,8 +548,8 @@
       "description": "撤销 archive_asset，将已归档的电器恢复到默认视图。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "要恢复的资产的 id。"
+          "name": "资产名称或 ID",
+          "description": "要恢复的资产的 id。名称同样可用。面板中会显示 ID。"
         }
       }
     },
@@ -562,12 +562,12 @@
       "description": "按带符号的增量更改零件的现有备件数量（下限为零），支持小数。当减少量达到或越过再订购阈值时，将触发低库存事件。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "该零件所属设备的 ID。"
+          "name": "资产名称或 ID",
+          "description": "该零件所属设备的 ID。名称同样可用。面板中会显示 ID。"
         },
         "part_id": {
-          "name": "零件 ID",
-          "description": "要调整库存的零件的 ID。"
+          "name": "零件名称或 ID",
+          "description": "要调整库存的零件的 ID。名称同样可用。面板中会显示 ID。"
         },
         "delta": {
           "name": "增量",
@@ -617,12 +617,12 @@
       "description": "分离零件的附件文件（收据/规格表/照片），并删除磁盘上保存的副本。请通过面板上传或替换文件；此服务仅处理移除操作。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "该零件所属设备的 ID。"
+          "name": "资产名称或 ID",
+          "description": "该零件所属设备的 ID。名称同样可用。面板中会显示 ID。"
         },
         "part_id": {
-          "name": "零件 ID",
-          "description": "要移除文件的零件的 ID。"
+          "name": "零件名称或 ID",
+          "description": "要移除文件的零件的 ID。名称同样可用。面板中会显示 ID。"
         }
       }
     },
@@ -631,8 +631,8 @@
       "description": "将链接文档（手册/保修/收据）附加到设备。请从面板上传文件；此服务仅处理链接。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "要附加文档的设备的 id。"
+          "name": "资产名称或 ID",
+          "description": "要附加文档的设备的 id。名称同样可用。面板中会显示 ID。"
         },
         "document": {
           "name": "文档",
@@ -645,12 +645,12 @@
       "description": "从设备分离文档。对于上传的文件，存储的副本也会从磁盘中删除。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "文档所属设备的 id。"
+          "name": "资产名称或 ID",
+          "description": "文档所属设备的 id。名称同样可用。面板中会显示 ID。"
         },
         "document_id": {
-          "name": "文档 ID",
-          "description": "要删除的文档的 id。"
+          "name": "文档名称或 ID",
+          "description": "要删除的文档的 id。名称同样可用。面板中会显示 ID。"
         }
       }
     },
@@ -659,12 +659,12 @@
       "description": "编辑设备上的现有文档——重命名它，或（对于链接文档）更改其 URL。上传的文件只能重命名。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "文档所属设备的 id。"
+          "name": "资产名称或 ID",
+          "description": "文档所属设备的 id。名称同样可用。面板中会显示 ID。"
         },
         "document_id": {
-          "name": "文档 ID",
-          "description": "要编辑的文档的 id。"
+          "name": "文档名称或 ID",
+          "description": "要编辑的文档的 id。名称同样可用。面板中会显示 ID。"
         },
         "changes": {
           "name": "更改",
@@ -677,8 +677,8 @@
       "description": "为已记录的完成项重新设置时间戳(将其改为更早的日期或更正它),通过其当前时间戳标识。与更新完成记录不同,此操作会更改完成项的日期/时间,并根据结果重新计算任务的上次完成和下次到期日期。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要移动其完成记录的任务的 id。"
+          "name": "任务名称或 ID",
+          "description": "要移动其完成记录的任务的 id。名称同样可用。面板中会显示 ID。"
         },
         "old_ts": {
           "name": "当前完成时间戳",
@@ -695,8 +695,8 @@
       "description": "从任务历史中移除一条完成记录（撤销误点的“完成”），通过其时间戳标识。",
       "fields": {
         "task_id": {
-          "name": "任务 ID",
-          "description": "要移除完成记录的任务的 ID。"
+          "name": "任务名称或 ID",
+          "description": "要移除完成记录的任务的 ID。名称同样可用。面板中会显示 ID。"
         },
         "ts": {
           "name": "完成时间戳",
@@ -713,12 +713,12 @@
       "description": "从设备的归档历史中移除一条完成记录，通过原始任务 ID 和时间戳标识。",
       "fields": {
         "asset_id": {
-          "name": "设备 ID",
-          "description": "要编辑归档历史的设备的 ID。"
+          "name": "资产名称或 ID",
+          "description": "要编辑归档历史的设备的 ID。名称同样可用。面板中会显示 ID。"
         },
         "task_id": {
-          "name": "任务 ID",
-          "description": "归档完成记录所属的原始任务的 ID。"
+          "name": "任务名称或 ID",
+          "description": "归档完成记录所属的原始任务的 ID。名称同样可用。面板中会显示 ID。"
         },
         "ts": {
           "name": "完成时间戳",
@@ -769,12 +769,12 @@
       "description": "生成一个短期有效的 URL（无需身份验证标头），外部调用方可通过它获取文档的字节数据，例如通过 MCP 连接的智能体。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "文档所属设备的 id。"
+          "name": "资产名称或 ID",
+          "description": "文档所属设备的 id。名称同样可用。面板中会显示 ID。"
         },
         "document_id": {
-          "name": "文档 ID",
-          "description": "要为其签署 URL 的文档的 ID。"
+          "name": "文档名称或 ID",
+          "description": "要为其签署 URL 的文档的 ID。名称同样可用。面板中会显示 ID。"
         }
       }
     },
@@ -783,12 +783,12 @@
       "description": "生成一个短期有效的 URL（无需身份验证标头），外部调用方可通过它获取零件附件文件的字节数据，例如通过 MCP 连接的智能体。",
       "fields": {
         "asset_id": {
-          "name": "资产 ID",
-          "description": "该零件所属设备的 ID。"
+          "name": "资产名称或 ID",
+          "description": "该零件所属设备的 ID。名称同样可用。面板中会显示 ID。"
         },
         "part_id": {
-          "name": "零件 ID",
-          "description": "要签署其附件文件 URL 的零件的 ID。"
+          "name": "零件名称或 ID",
+          "description": "要签署其附件文件 URL 的零件的 ID。名称同样可用。面板中会显示 ID。"
         }
       }
     }
@@ -898,6 +898,18 @@
     },
     "failed_to_store_file": {
       "message": "无法保存文件。"
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

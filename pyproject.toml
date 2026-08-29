@@ -57,14 +57,23 @@ source_paths = ["custom_components/home_keeper"]
 # is the same trap: it went in with a PR that changed no mutable Python, so the run
 # that would have caught it never happened. A test that reads a repo file needs that
 # file listed here.
-also_copy = ["ci", "CHANGELOG.md"]
+# ``test_generate_api_docs.py`` reads ``website/scripts/doc-map.mjs`` to check the
+# generated page's frontmatter against the route it is published at — the same
+# reads-a-repo-file trap as the two above, and it stayed hidden for the same
+# reason: no PR touching mutable Python had run since that assertion landed. It is
+# listed as its directory because mutmut ``copy2``s a bare file without creating
+# its parent, and only ``copytree``s a directory into place.
+also_copy = ["ci", "CHANGELOG.md", "website/scripts"]
 # The mutable surface: the pure core, which the fast `tests/unit` tier covers
 # directly. Everything else in the integration imports Home Assistant and is
 # only exercised by the Docker tiers — far too slow to run once per mutant, and
-# scoring it here would just report noise. Also excluded: const.py and
-# companions_catalog.py (data, not logic), backend_i18n.py (pure but with no
-# unit-test entry point) and testing.py (a helper for *other* integrations'
-# suites, already omitted from coverage).
+# scoring it here would just report noise. Also excluded: const.py,
+# companions_catalog.py and api_surface.py (data, not logic — api_surface is a
+# declarative index of the integration's surfaces, pinned by
+# tests/unit/test_api_surface.py against the real registrations rather than by
+# behavioural assertions), backend_i18n.py (pure but with no unit-test entry
+# point) and testing.py (a helper for *other* integrations' suites, already
+# omitted from coverage).
 only_mutate = [
     "custom_components/home_keeper/recurrence.py",
     "custom_components/home_keeper/models.py",
@@ -81,6 +90,8 @@ only_mutate = [
     "custom_components/home_keeper/transitions.py",
     "custom_components/home_keeper/tags.py",
     "custom_components/home_keeper/card_resource.py",
+    "custom_components/home_keeper/resolve.py",
+    "custom_components/home_keeper/task_mirror.py",
     # Imports Home Assistant only under ``TYPE_CHECKING``, so the fast unit tier runs
     # it directly (tests/unit/test_options.py) — see "Pure, HA-free core".
     "custom_components/home_keeper/options.py",

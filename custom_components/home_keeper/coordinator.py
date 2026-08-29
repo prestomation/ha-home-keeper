@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from .problem_sync import ProblemSensorSync
     from .sensor_watcher import SensorTaskWatcher
     from .shopping_sync import ShoppingListSync
+    from .task_mirror_sync import TaskMirrorSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -118,6 +119,9 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.sensor_watcher: SensorTaskWatcher | None = None
         # The shopping-list mirror, attached during async_setup_entry.
         self.shopping_sync: ShoppingListSync | None = None
+        # The task mirrors (profile-filtered tasks on external to-do lists),
+        # attached during async_setup_entry.
+        self.task_mirror_sync: TaskMirrorSync | None = None
         # Edge state for the time-based task events (overdue / due-soon). Carried
         # across refreshes so each is fired at most once per ``next_due``; see
         # transitions.detect_transitions. Seeded from the process-lifetime store so it
@@ -239,6 +243,13 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         # backstop. A no-op until something is actually mirrored.
         if self.shopping_sync is not None:
             self.shopping_sync.async_schedule_sweep()
+        # And sweep the task mirrors on the same cadence, for the same blind spot —
+        # plus one of their own: a task *falling due* mutates nothing, so no task
+        # event fires for it and only this periodic tick notices that a chore now
+        # belongs on a mirrored list. A no-op until a mirror is configured or
+        # something is mirrored.
+        if self.task_mirror_sync is not None:
+            self.task_mirror_sync.async_schedule_sweep()
         return tasks
 
     async def _purge_expired_one_offs(self) -> None:

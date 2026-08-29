@@ -140,6 +140,7 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
     - **retention days** — a ``NumberSelector`` sends a float, garbage becomes ``0``
     - **the shopping target** — anything unusable collapses to ``""``, the off switch
     - **profiles / notifications** — their own normalizers fill in per-item defaults
+      (a profile's to-do-list sync block among them)
     - **id lists** — stringified, and empties dropped: no registry id is falsy, and
       without the filter a ``None`` in the list would be stored as ``"None"``
 

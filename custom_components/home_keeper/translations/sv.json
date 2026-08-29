@@ -124,8 +124,8 @@
       "description": "Uppdatera fält för en befintlig uppgift.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID:t för uppgiften som ska uppdateras."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID:t för uppgiften som ska uppdateras. Namnet fungerar också. Panelen visar id:t."
         },
         "name": {
           "name": "Namn",
@@ -210,8 +210,8 @@
       "description": "Ta bort en uppgift.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID:t för uppgiften som ska tas bort."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID:t för uppgiften som ska tas bort. Namnet fungerar också. Panelen visar id:t."
         },
         "force": {
           "name": "Tvinga",
@@ -224,8 +224,8 @@
       "description": "Markera en uppgift som slutförd och gå vidare till nästa återkommande tillfälle.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID:t för uppgiften som ska slutföras."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID:t för uppgiften som ska slutföras. Namnet fungerar också. Panelen visar id:t."
         },
         "completed_at": {
           "name": "Slutförd",
@@ -262,8 +262,8 @@
       "description": "Ändrar metadata (anteckning, kostnad, foto, vem) för ett redan registrerat slutförande som identifieras med sin tidsstämpel. Ändrar varken schemat eller förfallodatumet.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID:t för uppgiften vars slutförande du redigerar."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID:t för uppgiften vars slutförande du redigerar. Namnet fungerar också. Panelen visar id:t."
         },
         "ts": {
           "name": "Tidsstämpel för slutförande",
@@ -296,8 +296,8 @@
       "description": "Aktivera en villkorsstyrd (utlöst) uppgift så att den visas som förfallen nu — användarens motsvarighet till Slutför uppgift (som återställer den till vilande). Idempotent; gäller endast utlösta uppgifter.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID:t för den utlösta uppgiften som ska aktiveras."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID:t för den utlösta uppgiften som ska aktiveras. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -306,8 +306,8 @@
       "description": "Förankrar utgångsvärdet för en förbrukningsuppgift (mätare) på nytt utan att registrera ett utförande. Använd den när arbetet gjordes innan Home Keeper bevakade det, eller när den kopplade mätaren har bytts ut eller nollställts. Utelämnas utgångsvärdet förankras det till sensorns aktuella avläsning. Gäller endast en sensoruppgift i förbrukningsläge.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID:t för den förbrukningssensoruppgift som ska förankras på nytt."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID:t för den förbrukningssensoruppgift som ska förankras på nytt. Namnet fungerar också. Panelen visar id:t."
         },
         "baseline": {
           "name": "Utgångsvärde",
@@ -320,8 +320,8 @@
       "description": "Skjut upp en uppgifts förfallodatum utan att registrera ett slutförande eller flytta fram dess upprepning.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID för uppgiften som ska skjutas upp."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som ska skjutas upp. Namnet fungerar också. Panelen visar id:t."
         },
         "hours": {
           "name": "Timmar",
@@ -338,8 +338,8 @@
       "description": "Flytta fram en uppgift till nästa tillfälle utan att registrera ett slutförande.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID för uppgiften som ska hoppas över."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som ska hoppas över. Namnet fungerar också. Panelen visar id:t."
         },
         "origin": {
           "name": "Ursprung",
@@ -352,16 +352,16 @@
       "description": "Länkar en uppgift till en förbrukningsvara/del på en apparat så att slutförandet förbrukar en reservdel från lagret och utlöser en händelse om lågt lager vid beställningsgränsen. Utelämna asset_id och part_id för att ta bort länken.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID:t för den utlösta uppgiften som ska aktiveras."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID:t för den utlösta uppgiften som ska aktiveras. Namnet fungerar också. Panelen visar id:t."
         },
         "asset_id": {
-          "name": "Objekt-ID",
-          "description": "ID för den apparat som delen tillhör."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "ID för den apparat som delen tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "part_id": {
-          "name": "Del-ID",
-          "description": "ID för den del vars lager ska justeras."
+          "name": "Delnamn eller -ID",
+          "description": "ID för den del vars lager ska justeras. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -445,7 +445,7 @@
         },
         "parent_asset_id": {
           "name": "Överordnad apparat",
-          "description": "Gör denna till en underenhet till en annan apparat."
+          "description": "Gör denna till en underenhet till en annan apparat. Ange namnet eller id:t."
         },
         "related_device_ids": {
           "name": "Relaterade enheter",
@@ -462,8 +462,8 @@
       "description": "Uppdatera fält för en befintlig apparat/tillgång.",
       "fields": {
         "asset_id": {
-          "name": "Tillgångs-ID",
-          "description": "ID:t för tillgången som ska uppdateras."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "ID:t för tillgången som ska uppdateras. Namnet fungerar också. Panelen visar id:t."
         },
         "name": {
           "name": "Namn",
@@ -511,7 +511,7 @@
         },
         "parent_asset_id": {
           "name": "Överordnad apparat",
-          "description": "Gör denna till en underenhet till en annan apparat."
+          "description": "Gör denna till en underenhet till en annan apparat. Ange namnet eller id:t."
         },
         "related_device_ids": {
           "name": "Relaterade enheter",
@@ -528,8 +528,8 @@
       "description": "Ta bort en apparat/tillgång. Dess virtuella enhet (om någon) tas bort och uppgifter kopplade till den blir fristående.",
       "fields": {
         "asset_id": {
-          "name": "Tillgångs-ID",
-          "description": "ID:t för tillgången som ska tas bort."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "ID:t för tillgången som ska tas bort. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -538,8 +538,8 @@
       "description": "Dölj en apparat/tillgång från standardvyn utan att radera dess data. Dess enhet, entiteter och kopplade uppgifter berörs inte; restore_asset ångrar detta.",
       "fields": {
         "asset_id": {
-          "name": "Tillgångs-ID",
-          "description": "ID:t för tillgången som ska arkiveras."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "ID:t för tillgången som ska arkiveras. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -548,8 +548,8 @@
       "description": "Ångrar archive_asset och för tillbaka en arkiverad apparat till standardvyn.",
       "fields": {
         "asset_id": {
-          "name": "Tillgångs-ID",
-          "description": "ID:t för tillgången som ska återställas."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "ID:t för tillgången som ska återställas. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -562,12 +562,12 @@
       "description": "Ändra en dels tillgängliga lagermängd med en differens med tecken (begränsad till noll); decimaler tillåts. När en minskning når eller passerar beställningsgränsen utlöses en händelse för lågt lagersaldo.",
       "fields": {
         "asset_id": {
-          "name": "Objekt-ID",
-          "description": "ID för den apparat som delen tillhör."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "ID för den apparat som delen tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "part_id": {
-          "name": "Del-ID",
-          "description": "ID för den del vars lager ska justeras."
+          "name": "Delnamn eller -ID",
+          "description": "ID för den del vars lager ska justeras. Namnet fungerar också. Panelen visar id:t."
         },
         "delta": {
           "name": "Differens",
@@ -617,12 +617,12 @@
       "description": "Kopplar bort en dels bifogade fil (kvitto/datablad/foto) och tar bort den lagrade kopian från disken. Ladda upp eller ersätt en fil från panelen; denna tjänst hanterar endast borttagning.",
       "fields": {
         "asset_id": {
-          "name": "Objekt-ID",
-          "description": "ID för den apparat som delen tillhör."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "ID för den apparat som delen tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "part_id": {
-          "name": "Del-ID",
-          "description": "ID för den del vars fil ska tas bort."
+          "name": "Delnamn eller -ID",
+          "description": "ID för den del vars fil ska tas bort. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -631,8 +631,8 @@
       "description": "Bifogar ett länkdokument (manual/garanti/kvitto) till en apparat. Ladda upp filer från panelen; den här tjänsten hanterar endast länkar.",
       "fields": {
         "asset_id": {
-          "name": "Tillgångs-ID",
-          "description": "Id för apparaten som dokumentet ska bifogas till."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "Id för apparaten som dokumentet ska bifogas till. Namnet fungerar också. Panelen visar id:t."
         },
         "document": {
           "name": "Dokument",
@@ -645,12 +645,12 @@
       "description": "Kopplar bort ett dokument från en apparat. För en uppladdad fil tas den sparade kopian också bort från disken.",
       "fields": {
         "asset_id": {
-          "name": "Tillgångs-ID",
-          "description": "Id för apparaten som dokumentet tillhör."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "Id för apparaten som dokumentet tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "document_id": {
-          "name": "Dokument-id",
-          "description": "Id för dokumentet som ska tas bort."
+          "name": "Dokumentnamn eller -ID",
+          "description": "Id för dokumentet som ska tas bort. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -659,12 +659,12 @@
       "description": "Redigera ett befintligt dokument på en apparat – byt namn på det eller (för länkdokument) ändra dess URL. Uppladdade filer kan bara byta namn.",
       "fields": {
         "asset_id": {
-          "name": "Tillgångs-ID",
-          "description": "Id för apparaten som dokumentet tillhör."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "Id för apparaten som dokumentet tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "document_id": {
-          "name": "Dokument-id",
-          "description": "Id för dokumentet som ska redigeras."
+          "name": "Dokumentnamn eller -ID",
+          "description": "Id för dokumentet som ska redigeras. Namnet fungerar också. Panelen visar id:t."
         },
         "changes": {
           "name": "Ändringar",
@@ -677,8 +677,8 @@
       "description": "Ger ett redan registrerat slutförande en ny tidsstämpel (backdatera eller korrigera det), identifierat med sin nuvarande tidsstämpel. Till skillnad från Uppdatera slutförande ändrar detta slutförandets datum/tid och beräknar om uppgiftens senast slutförda och nästa förfallodatum utifrån resultatet.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID:t för uppgiften vars slutförande du flyttar."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID:t för uppgiften vars slutförande du flyttar. Namnet fungerar också. Panelen visar id:t."
         },
         "old_ts": {
           "name": "Nuvarande tidsstämpel för slutförande",
@@ -695,8 +695,8 @@
       "description": "Tar bort ett slutförande från en uppgifts historik (ångra ett oavsiktligt ”klart”), angivet med dess tidsstämpel.",
       "fields": {
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID:t för uppgiften vars slutförande du tar bort."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID:t för uppgiften vars slutförande du tar bort. Namnet fungerar också. Panelen visar id:t."
         },
         "ts": {
           "name": "Tidsstämpel för slutförande",
@@ -713,12 +713,12 @@
       "description": "Tar bort ett slutförande från en apparats arkiverade historik, angivet med den ursprungliga uppgiftens id och tidsstämpel.",
       "fields": {
         "asset_id": {
-          "name": "Apparat-ID",
-          "description": "ID:t för apparaten vars arkiverade historik du redigerar."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "ID:t för apparaten vars arkiverade historik du redigerar. Namnet fungerar också. Panelen visar id:t."
         },
         "task_id": {
-          "name": "Uppgifts-ID",
-          "description": "ID:t för den ursprungliga uppgiften som det arkiverade slutförandet tillhör."
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID:t för den ursprungliga uppgiften som det arkiverade slutförandet tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "ts": {
           "name": "Tidsstämpel för slutförande",
@@ -769,12 +769,12 @@
       "description": "Skapar en kortlivad URL (ingen autentiseringshuvud behövs) som en extern anropare kan hämta dokumentets bytes från, t.ex. en MCP-ansluten agent.",
       "fields": {
         "asset_id": {
-          "name": "Tillgångs-ID",
-          "description": "Id för apparaten som dokumentet tillhör."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "Id för apparaten som dokumentet tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "document_id": {
-          "name": "Dokument-id",
-          "description": "ID för dokumentet som en URL ska signeras för."
+          "name": "Dokumentnamn eller -ID",
+          "description": "ID för dokumentet som en URL ska signeras för. Namnet fungerar också. Panelen visar id:t."
         }
       }
     },
@@ -783,12 +783,12 @@
       "description": "Skapar en kortlivad URL (ingen autentiseringshuvud behövs) som en extern anropare kan hämta en dels bifogade filbytes från, t.ex. en MCP-ansluten agent.",
       "fields": {
         "asset_id": {
-          "name": "Objekt-ID",
-          "description": "ID för den apparat som delen tillhör."
+          "name": "Tillgångsnamn eller -ID",
+          "description": "ID för den apparat som delen tillhör. Namnet fungerar också. Panelen visar id:t."
         },
         "part_id": {
-          "name": "Del-ID",
-          "description": "ID för delen vars bifogade fil ska signeras."
+          "name": "Delnamn eller -ID",
+          "description": "ID för delen vars bifogade fil ska signeras. Namnet fungerar också. Panelen visar id:t."
         }
       }
     }
@@ -898,6 +898,18 @@
     },
     "failed_to_store_file": {
       "message": "Det gick inte att spara filen."
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

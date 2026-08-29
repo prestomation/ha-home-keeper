@@ -293,6 +293,27 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   translations-parity test enforces this; hassfest requires the `services.yaml` ↔
   `strings.json` pairing). The websocket command, if any, is added alongside and
   delegates to the same `HomeKeeperStore` method — never a divergent code path.
+- **Every `*_id` service field accepts a name as well as an id, id first.** The ids are
+  `uuid4`s (`models.build_task`, `assets.build_asset`) that appear in no UI a person
+  reads, so an id-only field makes the whole service surface unusable by hand. This
+  follows Home Assistant core: `todo.update_item`'s single `item` field is labelled
+  "Item name or UID" and resolved by `_find_by_uid_or_summary`. Keep it **one field**
+  — never a `task_name` sibling beside `task_id` — and never rename the existing key,
+  which integrators and published automations already pass.
+  `resolve.py` holds the resolution (pure, HA-free, on the mutmut allowlist): exact id,
+  then exact name, then a trimmed/case-folded name, with parts and documents scoped to
+  their already-resolved asset. `__init__.py`'s `_task_ref`/`_asset_ref`/`_part_ref`/
+  `_document_ref` wrap it for the handlers.
+  **Ambiguity raises; it does not guess.** This is the one deliberate departure from
+  core, which takes the first name match: Home Keeper's names are not unique by design
+  (`docs/INTEGRATING.md` tells contributors to expect collisions) and the services
+  reached this way include `delete_task` and `delete_asset`. A name matching several
+  objects raises `<kind>_ambiguous` naming every candidate id. A name matching *nothing*
+  is passed through untouched so the handler's existing not-found error quotes what the
+  user actually typed.
+  The panel shows each object's id with a copy button (`panel.ts` `_idRow`), which is
+  what makes the id form reachable when a name is ambiguous. Websocket commands stay
+  id-only: the panel holds full objects and never types a name.
 - Read-only/report actions use `SupportsResponse.ONLY`; data mutations reload the
   entry or refresh the coordinator exactly as the equivalent CRUD service does.
 - **Uploaded document blobs are the one non-service mutation surface.** Asset documents
@@ -378,12 +399,43 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   **once per crossing** (keyed on `next_due` / threshold), never every refresh, and
   **baseline silently on startup** (the coordinator gates firing until setup completes)
   so a restart never replays a transition storm.
-- **Keep the catalog in sync.** A new event is not done until it's in
-  [`docs/EVENTS.md`](../../docs/EVENTS.md) (the canonical catalog: when it fires,
-  payload, semantics) and, if device-facing, exposed as a `device_trigger.py` trigger
-  with `strings.json` `device_automation` labels at full translation parity. Events are
-  *observations* of changes that already flow through services/store methods, so they
-  need **no** new service.
+- **Keep the catalog in sync.** A new event is not done until it has an `EventSpec` in
+  `api_surface.py` (name, payload shape, per-event extras, and the one-line "fires
+  when" the reference renders) and, if device-facing, a `device_trigger.py` trigger
+  with `strings.json` `device_automation` labels at full translation parity.
+  [`docs/EVENTS.md`](../../docs/EVENTS.md) keeps only what a table can't say: when
+  each event fires in context, edge-triggering, what a restart replays, worked
+  automations. Events are *observations* of changes that already flow through
+  services/store methods, so they need **no** new service.
+
+## The integrator-facing surface is modelled, and the reference is generated
+- **`api_surface.py` is the single index of every surface an integrator can touch** —
+  services, events and their payloads, device triggers, entity platforms and
+  attributes, config-entry options, plus the internal websocket commands and HTTP
+  views. A new one is not done until it has a spec there;
+  `tests/unit/test_api_surface.py` parses the component's own source and fails
+  otherwise, and `tests/integration/test_api_surface.py` checks the running system.
+- **The runtime consumes the model.** `__init__.async_unload_entry` iterates
+  `SERVICE_NAMES`; `device_trigger.py` builds `TASK_TRIGGERS`/`ASSET_TRIGGERS` from
+  `triggers_for()`. Never restate a modelled list as a second literal beside it —
+  that is exactly how `set_task_meter` shipped registered on setup and missing from
+  the teardown tuple, still callable against an unloaded integration.
+- **The model declares names and structure only.** Every string Home Assistant already
+  localizes — service and field labels, trigger labels, entity names, option labels,
+  error messages — is resolved at generation time from `services.yaml` /
+  `strings.json`, so the reference and the Home Assistant UI cannot describe the same
+  action differently. Never put a user-facing sentence in `api_surface.py`. The one
+  exception is `EventSpec.summary`: a bus event has no Home Assistant string source.
+- **The reference is generated, never written.** `ci/generate_api_docs.py` renders
+  `website/developer/api.md` from the model plus those two files, and `npm run sync`
+  runs it after `sync-docs.mjs` (which clears that directory). The page is gitignored
+  with the rest of the generated tree, so it can't go stale in git — which also means
+  a canonical doc links to it by its published URL, not a relative path.
+  `sync-docs.mjs` pulls those URLs back to site-relative routes so a PR preview links
+  within itself.
+- **`SURFACE_KINDS` lists the surfaces we don't offer too**, each with a status and a
+  one-sentence reason. A list of what exists can't tell you what was forgotten. Adding
+  a new kind of surface means adding a row there first.
 
 ## Errors, validation & security
 - Service handlers raise `ServiceValidationError` for user-facing errors.
@@ -763,6 +815,55 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   - Every `todo.*` call is best-effort (the `notifier.py` precedent) and `async_sync`
     swallows what reaches it: a pass runs off the back of a completion or a stock
     adjustment and must never be the thing that fails.
+- **Task mirror (To-do list sync).** Profile-filtered tasks kept in step with
+  *external* `todo.*` lists. **A mirror is a profile** — there is no mirror record and
+  no mirror id: a profile carries a `sync` block
+  (`{entity_id, two_way, vanish_as_completed}`, normalized by
+  `profiles.normalize_sync`) naming the one list it mirrors onto, so the config rides
+  on the existing panel-managed `profiles` option (**not** in `FLOW_OPTIONS`).
+  Clearing `sync.entity_id` is both the off switch and the delete, and one list per
+  profile is the cap — a household wanting two lists writes two profiles, which it
+  needed anyway to say what goes on each. Same split as the shopping mirror: pure
+  `task_mirror.py` (the diff engine, in `only_mutate`) and HA-aware
+  `task_mirror_sync.py`. It inherits the shopping mirror's rules verbatim —
+  retry-not-compensate, an unreadable list is not an empty one, `needs_pass` gates the
+  read, never mirror onto our own to-do entity, every `todo.*` call best-effort — plus
+  its own:
+  - **The profile is both filter and timing.** A mirror shows exactly what
+    `profiles.matches_filter` selects for that profile (status `overdue` = when due,
+    `due_soon` = the 3-day window, `all` = everything scheduled). The driver enriches
+    tasks with effective labels first (`notifier.effective_filter_tasks`), so a mirror
+    agrees with the panel/card. A profile cannot fail to resolve itself, so there is no
+    "misconfigured mirror" state to hold — don't reintroduce one. Auto-buy reminders
+    are excluded: the shopping mirror owns them, and two mirrors must not fight over
+    one line.
+  - **Bookkeeping is keyed per profile** (`mirror_key(profile_id, task_id)`) in the
+    storage doc's `task_mirror_items`, so two profiles can hold the same task on two
+    lists; one `claimed` set spans all of them so they never share one line. Entries
+    snapshot the task's `last_completed` at bind time — a live value strictly newer is
+    the pure "completed inside Home Keeper since mirrored" detector (an undo therefore
+    reads as content drift, never as a tick).
+  - **A completed item is never touched, and recurrence adds a fresh one.** Completing
+    a task ticks its item off and drops the entry; the next due cycle adds a new item
+    beside the old record.
+  - **A profile saved before `sync` existed reads back switched off.** `normalize_sync`
+    rebuilds the block from a fixed key set and `options.current_options` re-normalizes
+    on every read, so that is the whole migration.
+  - **Vanish semantics deliberately diverge from the shopping mirror.** With `two_way`
+    and `vanish_as_completed` on, a tracked open item that disappeared completes the
+    task — required for providers (Todoist) whose `todo` entity drops completed items —
+    but only when the entry captured a `uid` (an add that never confirmably landed is
+    re-added, never completed). Otherwise a vanish means deleted → recreate (strict
+    self-healing). With `two_way` off the inbound direction is inert and a ticked item
+    freezes its entry so phase 2 doesn't re-add against the user's wishes.
+  - **Content is capability-gated in the planner**, not the driver: due dates
+    (`SET_DUE_DATE_ON_ITEM`, written date-only like our own `todo.py`) and
+    descriptions (`SET_DESCRIPTION_ON_ITEM`, carrying the task's notes) are neither
+    emitted nor diffed for a list that can't hold them, or every pass would re-plan
+    the same update forever.
+  - Inbound completions use `origin=ORIGIN_TODO_MIRROR` (authorizes nothing);
+    `require_tag_scan` tasks reject it by design — the driver warns once and drops the
+    entry so a fresh open item reappears, honest feedback that the tick "didn't take".
 - **Problem-sensor sync.** When the `sync_problem_sensors` option is on, every
   `binary_sensor` with `device_class: problem` is mirrored as a **triggered** task by
   the pure `problem_tasks.reconcile_problem_tasks` (wrapped by
@@ -821,8 +922,9 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   exclusions, and `one_off_retention_days` (int; `0` = keep forever) which the
   **coordinator's periodic refresh** uses to auto-delete completed one-offs
   (`recurrence.one_off_expired` collects expired ids; `_purge_expired_one_offs` deletes
-  via `store.delete_task`), and `shopping_list_entity` (a `todo.*` entity id; `""` =
-  off) driving the shopping-list mirror. Put a new option's default in
+  via `store.delete_task`), `shopping_list_entity` (a `todo.*` entity id; `""` =
+  off) driving the shopping-list mirror. The task mirror has no option of its own —
+  its config is the `sync` block inside each profile. Put a new option's default in
   `options.py`'s `_empty_options` **and** its coercion in `_normalize` — both, or the
   key is invisible to every reader and dropped by every writer — then add it to all
   three surfaces (flow schema *and* `FLOW_OPTIONS`, `SET_OPTIONS_SCHEMA`, Settings
@@ -831,7 +933,8 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   - **The options *flow* merges; it never replaces.** Home Assistant stores whatever
     an options flow returns from `async_create_entry` as `entry.options` **verbatim**
     — the whole object, not a patch. The Configure dialog renders only
-    `options.FLOW_OPTIONS`; `profiles`, `notifications` and `dismissed_companions` are
+    `options.FLOW_OPTIONS`; `profiles` (to-do list sync included),
+    `notifications` and `dismissed_companions` are
     panel-only, so returning `user_input` deleted every one of them on each save, and
     notifications then stopped firing with nothing on screen to say why (`notifier`
     reads a missing key back as `[]`). `async_step_init` returns

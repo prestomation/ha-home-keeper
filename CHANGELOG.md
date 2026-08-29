@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.18.0b3]
+## [0.19.0b1]
 
 ### Changed
 
@@ -41,6 +41,58 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Text on coloured chips and buttons is readable again.** The Done button, the
   overdue pill, the "Integration offline" chip and the selected filter were all drawn
   below the contrast a label needs, in one theme or the other.
+
+## [0.18.0] - 2026-08-29
+
+### Added
+
+- **Send tasks to your to-do lists.** A Profile in *Settings → Profiles* mirrors the
+  tasks it selects onto any Home Assistant to-do list (such as a Todoist project), and
+  checking an item off there completes the task in Home Keeper. Recurring tasks add a
+  fresh item each time they fall due, leaving the checked-off one as your record.
+  (Fixes #239)
+- **Services take a task's name, not just its id.** Every `task_id`, `asset_id`,
+  `part_id` and `document_id` field now accepts the name you gave the thing, and the
+  panel prints the id with a copy button for when two share one. Home Keeper reports an
+  ambiguous name instead of guessing which you meant.
+- **Snooze a problem you can't fix right now.** A task mirroring a `problem` sensor now
+  accepts Snooze, and its reminders show that button instead of Mark done. Marking one
+  done is still blocked since only the integration that owns the sensor can decide
+  it's fixed.
+
+### Changed
+
+- **Profile status labels now spell out what's included.** The choices were always
+  cumulative, so the old *Due soon* already covered overdue tasks too. The new names
+  are *Overdue only*, *Overdue and due soon* and *Every scheduled task*.
+
+### Fixed
+
+- **Synced problem sensors show up in Profiles again.** Picking any Profile used to
+  hide every mirrored `problem` sensor. (Fixes #248)
+- **To-do items show the right due date outside UTC.** A task due at local midnight showed
+  the previous day on `todo.home_keeper_tasks` while the panel showed the correct one. A
+  wear part's last-replaced date shifted the same way when the replacement was back-dated.
+  (Fixes #250)
+
+## [0.18.0b4]
+
+### Added
+
+- **Send tasks to your to-do lists.** A Profile in *Settings → Profiles* mirrors the
+  tasks it selects onto any Home Assistant to-do list (such as a Todoist project), and
+  checking an item off there completes the task in Home Keeper. Recurring tasks add a
+  fresh item each time they fall due, leaving the checked-off one as your record.
+  (Fixes #239)
+
+## [0.18.0b3]
+
+### Added
+
+- **Services take a task's name, not just its id.** Every `task_id`, `asset_id`,
+  `part_id` and `document_id` field now accepts the name you gave the thing, and the
+  panel prints the id with a copy button for when two share one. Home Keeper reports an
+  ambiguous name instead of guessing which you meant.
 
 ## [0.18.0b2]
 
