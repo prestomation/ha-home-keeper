@@ -6,6 +6,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.18.0b4]
+
+### Added
+
+- **Send tasks to your to-do lists.** A Profile in *Settings → Profiles* mirrors the
+  tasks it selects onto any Home Assistant to-do list (such as a Todoist project), and
+  checking an item off there completes the task in Home Keeper. Recurring tasks add a
+  fresh item each time they fall due, leaving the checked-off one as your record.
+  (Fixes #239)
+
 ## [0.18.0b3]
 
 ### Added

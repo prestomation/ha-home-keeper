@@ -373,12 +373,27 @@ export interface NotifyFilter {
   status: NotifyStatus;
 }
 
+/** Where a profile's tasks are mirrored: one external `todo.*` list kept in step
+ *  with what the profile selects (see the backend `task_mirror.py`). An empty
+ *  `entity_id` is what "off" is spelled as — there is no separate enable switch,
+ *  so clearing the picker is what stops the sync. */
+export interface ProfileSync {
+  entity_id: string;
+  /** Ticking an item off the external list completes the Home Keeper task. */
+  two_way: boolean;
+  /** A tracked item that vanished counts as completed (Todoist drops its
+   *  completed items rather than reporting them). */
+  vanish_as_completed: boolean;
+}
+
 /** A named, reusable saved filter — consumed by notifications, the admin list, and
- *  the dashboard card (see backend profiles.py). */
+ *  the dashboard card (see backend profiles.py). Each profile also carries the
+ *  to-do list its tasks sync to, edited inside the profile's own editor. */
 export interface Profile {
   id: string;
   name: string;
   filter: NotifyFilter;
+  sync: ProfileSync;
 }
 
 /** A delivery binding that references a Profile and adds how to deliver it (see
@@ -408,7 +423,8 @@ export interface HomeKeeperOptions {
   shopping_list_entity: string;
   // Catalog glue domains dismissed from the Companions "Suggested" list.
   dismissed_companions?: string[];
-  // Saved filters and the notifications that consume them.
+  // Saved filters (each carrying its own to-do list sync) and the notifications
+  // that consume them.
   profiles: Profile[];
   notifications: Notification[];
 }

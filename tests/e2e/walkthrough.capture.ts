@@ -464,9 +464,91 @@ test('record Home Keeper panel walkthrough', async ({ browser }) => {
     await page.mouse.move(0, 0);
     await page.waitForTimeout(BEAT * 2);
 
-    // 7. The usage surfaces — native to-do list + calendar on a dashboard.
-    await openDashboard(page);
+    // 6b. Settings → Profiles — a saved filter, and inside it the to-do list the
+    //     household already checks. A mirror *is* a profile: the same filter that
+    //     chooses the chores also says where they go, so the tour opens the profile
+    //     and then its **Sync to a to-do list** group.
+    //
+    //     The profile is seeded over the public service rather than added on camera:
+    //     saving options reloads the config entry, which unregisters and re-registers
+    //     the sidebar panel, and Home Assistant's frontend answers that by bouncing
+    //     to the default dashboard. Seeding first keeps the tour on the panel; the
+    //     *scene* is the row opening to show what the sync holds.
+    await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      if (!hass) return;
+      await hass.callService('home_keeper', 'set_options', {
+        profiles: [
+          {
+            id: 'walkthrough_family_chores',
+            // Named for the people, not the list: the row's own chip names the list
+            // ("Family chores"), so reusing that here would read as one thing twice.
+            name: 'Household chores',
+            filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+            sync: {
+              entity_id: 'todo.family_chores',
+              two_way: true,
+              vanish_as_completed: true,
+            },
+          },
+        ],
+      });
+    });
+    await openPanel(page);
+    await panel.locator('#tab-settings').click();
+    const profilesCard = panel.locator('#hk-profiles');
+    await expect(profilesCard).toBeVisible();
+    await profilesCard.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(BEAT * 2);
+    // Rows start collapsed, so opening one is the beat: the filter that chooses the
+    // chores, and below it the Sync group — already open, because a list is set —
+    // naming the list and the two switches that cover the awkward providers.
+    //
+    //     Opening is guarded rather than a bare click: Home Assistant replaces the
+    //     custom-panel element a few seconds after a page settles, and a fresh panel
+    //     starts with every row folded, so an unguarded tour can record the group
+    //     quietly closing itself.
+    const syncedProfile = profilesCard.locator('.hk-item-card').first();
+    const openSyncedProfile = async (): Promise<void> => {
+      const header = syncedProfile.locator('> .hk-item-header');
+      if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+      await expect(syncedProfile.locator('.hk-sync-group .hk-item-body ha-form')).toBeVisible();
+    };
+    await openSyncedProfile();
+    await syncedProfile.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(BEAT * 2);
+    // Then glide down to the group itself. The filter form above it is long enough
+    // that framing the *row* leaves the sync below the fold, which is how an earlier
+    // cut of this tour managed to visit the feature without ever showing it.
+    await openSyncedProfile();
+    await syncedProfile.locator('.hk-sync-group').scrollIntoViewIfNeeded();
     await page.waitForTimeout(BEAT * 3);
+
+    // 7. The usage surfaces — the native to-do list and calendar, and beside them the
+    //    family's own list, now carrying the mirrored chores with their due dates.
+    await openDashboard(page);
+    await page.waitForTimeout(BEAT * 2);
+    const familyCard = page
+      .locator('hui-todo-list-card, todo-list-card')
+      .filter({ hasText: 'Family chores' })
+      .first();
+    await expect(
+      familyCard.locator('ha-check-list-item, ha-md-list-item').first(),
+    ).toBeVisible({ timeout: 40_000 });
+    await expect(familyCard).toContainText('Family chores');
+    // Framed on purpose rather than left to the masonry layout: the column order
+    // reflows with the cards' heights, and the mirrored chores change those, so which
+    // cards the closing shot happens to hold is otherwise luck. `scroll-margin-top`
+    // does the framing, because a plain scroll-to-top tucks the card's own "Family
+    // chores" heading under Home Assistant's sticky bar — and that heading is what
+    // tells the viewer this is the household's list, not ours.
+    await familyCard.evaluate((el) => {
+      (el as HTMLElement).style.scrollMarginTop = '96px';
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+    await page.waitForTimeout(BEAT * 4);
   } finally {
     // Close the context to flush the recording, then save it to a stable filename.
     await context.close();

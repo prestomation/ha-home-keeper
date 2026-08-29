@@ -697,6 +697,55 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   - Every `todo.*` call is best-effort (the `notifier.py` precedent) and `async_sync`
     swallows what reaches it: a pass runs off the back of a completion or a stock
     adjustment and must never be the thing that fails.
+- **Task mirror (To-do list sync).** Profile-filtered tasks kept in step with
+  *external* `todo.*` lists. **A mirror is a profile** — there is no mirror record and
+  no mirror id: a profile carries a `sync` block
+  (`{entity_id, two_way, vanish_as_completed}`, normalized by
+  `profiles.normalize_sync`) naming the one list it mirrors onto, so the config rides
+  on the existing panel-managed `profiles` option (**not** in `FLOW_OPTIONS`).
+  Clearing `sync.entity_id` is both the off switch and the delete, and one list per
+  profile is the cap — a household wanting two lists writes two profiles, which it
+  needed anyway to say what goes on each. Same split as the shopping mirror: pure
+  `task_mirror.py` (the diff engine, in `only_mutate`) and HA-aware
+  `task_mirror_sync.py`. It inherits the shopping mirror's rules verbatim —
+  retry-not-compensate, an unreadable list is not an empty one, `needs_pass` gates the
+  read, never mirror onto our own to-do entity, every `todo.*` call best-effort — plus
+  its own:
+  - **The profile is both filter and timing.** A mirror shows exactly what
+    `profiles.matches_filter` selects for that profile (status `overdue` = when due,
+    `due_soon` = the 3-day window, `all` = everything scheduled). The driver enriches
+    tasks with effective labels first (`notifier.effective_filter_tasks`), so a mirror
+    agrees with the panel/card. A profile cannot fail to resolve itself, so there is no
+    "misconfigured mirror" state to hold — don't reintroduce one. Auto-buy reminders
+    are excluded: the shopping mirror owns them, and two mirrors must not fight over
+    one line.
+  - **Bookkeeping is keyed per profile** (`mirror_key(profile_id, task_id)`) in the
+    storage doc's `task_mirror_items`, so two profiles can hold the same task on two
+    lists; one `claimed` set spans all of them so they never share one line. Entries
+    snapshot the task's `last_completed` at bind time — a live value strictly newer is
+    the pure "completed inside Home Keeper since mirrored" detector (an undo therefore
+    reads as content drift, never as a tick).
+  - **A completed item is never touched, and recurrence adds a fresh one.** Completing
+    a task ticks its item off and drops the entry; the next due cycle adds a new item
+    beside the old record.
+  - **A profile saved before `sync` existed reads back switched off.** `normalize_sync`
+    rebuilds the block from a fixed key set and `options.current_options` re-normalizes
+    on every read, so that is the whole migration.
+  - **Vanish semantics deliberately diverge from the shopping mirror.** With `two_way`
+    and `vanish_as_completed` on, a tracked open item that disappeared completes the
+    task — required for providers (Todoist) whose `todo` entity drops completed items —
+    but only when the entry captured a `uid` (an add that never confirmably landed is
+    re-added, never completed). Otherwise a vanish means deleted → recreate (strict
+    self-healing). With `two_way` off the inbound direction is inert and a ticked item
+    freezes its entry so phase 2 doesn't re-add against the user's wishes.
+  - **Content is capability-gated in the planner**, not the driver: due dates
+    (`SET_DUE_DATE_ON_ITEM`, written date-only like our own `todo.py`) and
+    descriptions (`SET_DESCRIPTION_ON_ITEM`, carrying the task's notes) are neither
+    emitted nor diffed for a list that can't hold them, or every pass would re-plan
+    the same update forever.
+  - Inbound completions use `origin=ORIGIN_TODO_MIRROR` (authorizes nothing);
+    `require_tag_scan` tasks reject it by design — the driver warns once and drops the
+    entry so a fresh open item reappears, honest feedback that the tick "didn't take".
 - **Problem-sensor sync.** When the `sync_problem_sensors` option is on, every
   `binary_sensor` with `device_class: problem` is mirrored as a **triggered** task by
   the pure `problem_tasks.reconcile_problem_tasks` (wrapped by
@@ -755,8 +804,9 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   exclusions, and `one_off_retention_days` (int; `0` = keep forever) which the
   **coordinator's periodic refresh** uses to auto-delete completed one-offs
   (`recurrence.one_off_expired` collects expired ids; `_purge_expired_one_offs` deletes
-  via `store.delete_task`), and `shopping_list_entity` (a `todo.*` entity id; `""` =
-  off) driving the shopping-list mirror. Put a new option's default in
+  via `store.delete_task`), `shopping_list_entity` (a `todo.*` entity id; `""` =
+  off) driving the shopping-list mirror. The task mirror has no option of its own —
+  its config is the `sync` block inside each profile. Put a new option's default in
   `options.py`'s `_empty_options` **and** its coercion in `_normalize` — both, or the
   key is invisible to every reader and dropped by every writer — then add it to all
   three surfaces (flow schema *and* `FLOW_OPTIONS`, `SET_OPTIONS_SCHEMA`, Settings
@@ -765,7 +815,8 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   - **The options *flow* merges; it never replaces.** Home Assistant stores whatever
     an options flow returns from `async_create_entry` as `entry.options` **verbatim**
     — the whole object, not a patch. The Configure dialog renders only
-    `options.FLOW_OPTIONS`; `profiles`, `notifications` and `dismissed_companions` are
+    `options.FLOW_OPTIONS`; `profiles` (to-do list sync included),
+    `notifications` and `dismissed_companions` are
     panel-only, so returning `user_input` deleted every one of them on each save, and
     notifications then stopped firing with nothing on screen to say why (`notifier`
     reads a missing key back as `[]`). `async_step_init` returns

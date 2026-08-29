@@ -7,6 +7,7 @@ import type {
   NotifyStatus,
   NotifyStyle,
   Profile,
+  ProfileSync,
   SensorBinding,
   SensorCombinator,
   SensorComparison,
@@ -924,6 +925,53 @@ const notifyOptions = (values: string[]): { value: string; label: string }[] =>
 const strList = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
 
 /**
+ * A switch whose stored default is **on**. `!!v` would read a missing key as off,
+ * which silently turns two-way sync (or vanish-as-completed) off for any profile
+ * snapshot that predates the field — the opposite of what the backend normalizer
+ * fills in.
+ */
+const boolOr = (value: unknown, fallback: boolean): boolean =>
+  value == null ? fallback : Boolean(value);
+
+/** A stored, form-emitted or entirely absent sync block, before normalization. */
+type SyncLike = { [K in keyof ProfileSync]?: unknown } | null | undefined;
+
+/**
+ * Normalize a sync block — read off a stored profile, or emitted by the sync form —
+ * into a full `ProfileSync`.
+ *
+ * Clearing the entity picker emits `undefined`, and JSON drops an undefined on the
+ * way to the backend, so the key would never reach the saved profile and "switch the
+ * sync off" silently wouldn't stick; `''` is what the backend reads as off. Both
+ * switches default **on**, matching the backend normalizer — a profile saved before
+ * these fields existed must not come back with two-way sync quietly disabled.
+ */
+export function toProfileSync(raw: SyncLike): ProfileSync {
+  return {
+    entity_id: String(raw?.entity_id ?? ''),
+    two_way: boolOr(raw?.two_way, true),
+    vanish_as_completed: boolOr(raw?.vanish_as_completed, true),
+  };
+}
+
+/**
+ * The `ha-form` schema for a profile's **Sync to a to-do list** group: the list
+ * itself, then the two switches that decide what a change on that list means here.
+ *
+ * There is no separate on/off control — an empty picker *is* off — so the picker is
+ * single-valued (a `multiple` one saves an array the backend reads as unusable).
+ * *exclude* drops Home Keeper's own to-do lists, exactly as `shoppingSchema` does:
+ * mirroring a list onto itself is a loop, and ours accepts no new items anyway.
+ */
+export function profileSyncSchema(exclude: string[] = []): FormField[] {
+  return [
+    { name: 'entity_id', selector: selEntity({ domain: 'todo' }, false, exclude) },
+    { name: 'two_way', selector: selBool() },
+    { name: 'vanish_as_completed', selector: selBool() },
+  ];
+}
+
+/**
  * The `ha-form` schema for one **profile** (a named, reusable task filter).
  *
  * The include lists come first, then the `exclude_*` lists that subtract from them —
@@ -956,11 +1004,22 @@ export function profileFormData(p: Profile): Record<string, unknown> {
   };
 }
 
-/** Rebuild a profile (nested filter) from the flat form data, keeping *id*. */
-export function profileFormToProfile(id: string, data: Record<string, unknown>): Profile {
+/**
+ * Rebuild a profile (nested filter) from the flat form data, keeping *id*.
+ *
+ * The profile form doesn't render the sync fields — they live in their own group —
+ * so *sync* carries the profile's existing block through. Omitting it would wipe a
+ * configured to-do list the moment somebody renamed the profile.
+ */
+export function profileFormToProfile(
+  id: string,
+  data: Record<string, unknown>,
+  sync?: SyncLike,
+): Profile {
   return {
     id,
     name: String(data.name ?? '').trim() || t('profile.defaultName'),
+    sync: toProfileSync(sync),
     filter: {
       status: (data.status as NotifyStatus) ?? 'overdue',
       labels: strList(data.labels),

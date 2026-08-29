@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.18.0b3"
+PANEL_VERSION = "0.18.0b4"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -166,7 +166,11 @@ OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
 OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
 # Profiles: named, reusable task filters (status + label/area/device). Standalone and
 # notification-agnostic — consumed by notifications, the panel's admin list filter, and
-# the Lovelace card. A list of ``{id, name, filter}``. See profiles.py.
+# the Lovelace card. A list of ``{id, name, filter, sync}``, where ``sync`` pairs the
+# profile with one external ``todo.*`` list (``{entity_id, two_way,
+# vanish_as_completed}``; ``entity_id: ""`` is the off switch) so the tasks it selects
+# reach Todoist, Google Tasks or a local family list. See profiles.py, and
+# task_mirror.py / task_mirror_sync.py for what the sync block drives.
 OPTION_PROFILES = "profiles"
 # Notifications: delivery bindings that reference a profile by ``profile_id`` and add
 # how to deliver (targets, button set, snooze duration, style, automatic triggers).
@@ -187,6 +191,14 @@ OPTION_SHOPPING_LIST_ENTITY = "shopping_list_entity"
 # completable by hand — it exists so an automation can tell "somebody ticked it
 # off at the shop" apart from "somebody pressed Done".
 ORIGIN_SHOPPING_LIST = f"{DOMAIN}_shopping_list"
+
+# Opaque ``origin`` marker the task mirror passes to ``complete_task`` when a
+# mirrored task is ticked off on an external to-do list. Like
+# ``ORIGIN_SHOPPING_LIST`` it authorizes nothing — it exists so an automation can
+# tell "checked off on a to-do list" apart from "somebody pressed Done", and it is
+# how the mirror's own completions stay recognisable in the event stream. See
+# task_mirror_sync.py.
+ORIGIN_TODO_MIRROR = f"{DOMAIN}_todo_mirror"
 
 # Opaque ``origin`` marker the actionable-notification action listener passes to
 # ``complete_task`` / ``snooze_task`` / ``skip_task`` so an automation can recognise

@@ -167,6 +167,19 @@ export const shoppingListCard = (page: Page) =>
     .filter({ hasText: 'Shopping list' })
     .first();
 
+/**
+ * The household's own to-do list card — a seeded `local_todo` list standing in for
+ * the Todoist project or kitchen-tablet list a *task* mirror writes onto.
+ *
+ * Scoped by title for the same reason as the two above: three to-do cards share the
+ * dashboard and masonry decides the column order.
+ */
+export const familyChoresCard = (page: Page) =>
+  page
+    .locator('hui-todo-list-card, todo-list-card')
+    .filter({ hasText: 'Family chores' })
+    .first();
+
 /** The native calendar card. Assumes the dashboard is already open. */
 export const calendarCard = (page: Page) => page.locator('ha-calendar, hui-calendar-card').first();
 

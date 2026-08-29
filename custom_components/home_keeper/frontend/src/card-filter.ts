@@ -169,7 +169,7 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  * (`DUE_SOON_DAYS` ↔ `transitions.DUE_SOON_WINDOW`) and the same **effective**
  * label/area resolution — own ids plus those inherited via the task's device and area.
  * The backend reaches parity by enriching tasks with their effective ids before
- * matching (`notifier._effective_filter_tasks`); here we resolve them inline via
+ * matching (`notifier.effective_filter_tasks`); here we resolve them inline via
  * `taskLabelIds`/`taskAreaId`.
  *
  * The `exclude_*` lists subtract after the include lists and win over them, so

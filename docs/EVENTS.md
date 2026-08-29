@@ -92,6 +92,17 @@ then retired with a `home_keeper_task_deleted`. The mirror's own bookkeeping
 (which line on which list stands for which reminder) stays **silent**, the same
 reasoning as the sensor watcher's baselines above.
 
+**Tasks ticked off on a mirrored to-do list** ride these same events. When a Profile in
+*Settings → Profiles* names an external to-do list, the tasks it selects are put on that
+list while they qualify. Ticking an item off fires an ordinary
+`home_keeper_task_completed` carrying `origin: home_keeper_todo_mirror` (so does an item
+that disappears from a list whose provider drops completed items, while the mirror's
+*treat removed items as completed* toggle is on). Match on that origin to tell "checked
+off on the list" from a press of Done. Completing the task in Home Keeper instead ticks
+the mirrored item off and leaves it there as the record; when a recurring task next
+falls due, a fresh item is added beside it. The mirror's bookkeeping (which item on
+which list stands for which task) stays **silent**, like the shopping list's.
+
 **Synced `problem` binary sensors** (when *Sync problem sensors* is on) ride these same
 events: a mirror task is `created` for each `device_class: problem` sensor, `triggered`
 when the sensor reports a problem, and `completed` when it clears. The completion event
