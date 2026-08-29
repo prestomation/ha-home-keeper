@@ -539,9 +539,11 @@ client check is a fast path, never the enforcement.
   ancestor HA wraps a custom panel in — the same reason the confirm scrim is
   appended to `document.body` rather than positioned from inside the shadow root.
   `fixed` is for genuine viewport overlays (the phone tab bar, the bottom sheet).
-- Breakpoints in use: **1000px** (Settings rail becomes a strip), **900px**
-  (drawer becomes a bottom sheet, appliance master pane steps aside), **700px**
-  (phone: bottom tab bar, floating Add, stacked rows).
+- Breakpoints in use: **1150px** (drawer becomes a bottom sheet), **1000px**
+  (Settings rail becomes an index, appliance master pane steps aside), **700px**
+  (phone: bottom tab bar, floating Add, wrapped filter chips, stacked rows). The
+  first two are 1150/1000 rather than the 900 they shipped with — see the sidebar
+  note below, which is what moved them.
 - **Never dim a container to recede it if a child must stay bright.** `opacity`
   creates a stacking context, so an opaque child of a faded parent is still faded.
   Fade the elements individually (see the drawer's treatment of the edited row).

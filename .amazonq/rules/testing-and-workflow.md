@@ -184,6 +184,67 @@
   whether the bundle was requested at all; "the bundle was never requested" is the line that
   ended it. A bare `waitFor` timeout says only that something, somewhere, did not happen.
 
+### The e2e suite runs at three widths
+
+- **The panel's layout is responsive, so the suite has three Playwright projects** —
+  `desktop` (1280x720), `tablet` (820x1180) and `phone` (390x844) — sharing one set of
+  test bodies. `tests/e2e/viewports.ts` is the only place a width is written down.
+  Tablet is not decoration: at 820px the drawer is already a sheet and the master pane
+  has already stepped aside while the top tabs are still up, which is where the 1150 /
+  1000 / 700 thresholds have to agree with each other.
+- **A spec opts into the extra widths with a tag**, and every tag starts with `@`:
+  `@responsive` (all three), `@narrow` (phone + tablet), `@phone` / `@tablet` (one
+  band). Untagged is desktop-only, which is the default and covers the Lovelace specs —
+  a dashboard card learns nothing from a second viewport. The `@` is load-bearing:
+  Playwright matches `grep` against the project name as well as the tags, so a project
+  named `tablet` with a bare `/tablet/` would match every test in it.
+- **A test that crosses a breakpoint within one page stays untagged and resizes
+  itself.** A project viewport is fixed for the life of the test, so it cannot express
+  a transition — and `_syncDrawerModality()`'s `matchMedia` listener, the only viewport
+  read in the panel, is reachable no other way. The two mechanisms coexist on purpose;
+  neither replaces the other.
+- **Never let a spec name a tab bar directly.** Both bars are in the DOM at every width
+  (`#tab-*` and `#mtab-*` differ only because two elements cannot share an id) and CSS
+  picks. Go through `gotoTab()`, which clicks whichever is *visible* — that is how a
+  spec asks for "the tab bar" while keeping the invariant that nothing but CSS reads
+  the viewport. Use `expectTabActive()` for "we got back to the list": the phone bar is
+  visible on every view, so asserting its presence there is vacuous. Reach a Settings
+  section with `openSettingsSection()`, because a narrow screen renders an index and
+  opens one section at a time, so "every section is on screen" is a desktop-only claim.
+- **A viewport project must not use a device descriptor.** `devices['Pixel 5']` also
+  sets `isMobile`, `hasTouch` and a `deviceScaleFactor`, none of which
+  `page.setViewportSize()` changes — so the project-driven runs and the self-resizing
+  tests would disagree about what a phone is. Override the viewport only.
+- **A capture config must pin the desktop project.** Each `*.config.ts` spreads
+  `playwright.config.ts`, which now carries three projects, so an unpinned capture
+  would shoot every committed PNG three times over at three widths and keep whichever
+  finished last. `captureConfig()` in `tests/e2e/capture-config.ts` applies the pin;
+  use it rather than spreading the base config by hand. Check with
+  `npx playwright test --config=screenshots.config.ts --list` — it must list one
+  project.
+- **Measure layout by relationships, not coordinates.** `responsive-layout.spec.ts`
+  uses `getComputedStyle` for keywords (`position`, `flex-wrap`, `overflow-x`) and
+  bounding boxes for relations (A is above B; this box is inside that one). No absolute
+  coordinate and no exact size, so a spacing tweak does not turn the suite red. Assert
+  a list is non-empty before looping over it, or a renamed class makes the loop pass by
+  iterating nothing. Prove an anchored element is anchored by *scrolling and re-reading
+  its box*, not by reading `position: fixed` once — the static read still passes under
+  a `container-type` regression that turns every fixed descendant into a
+  page-positioned one.
+- **The screenshot capture mutates the seeded fixture, and only a local re-run
+  notices.** It dismisses the first-run banner into HA's per-user frontend store and
+  leaves uploaded documents behind; those runtime files are gitignored, so CI starts
+  clean every time and never sees it, while a second local run fails on the banner it
+  already dismissed. Reset with `git clean -fdX tests/integration/ha_config/` (plus
+  `git clean -fd` and `git checkout --`) before each capture, and check
+  `git status tests/integration/` afterwards.
+- **The walkthrough records one context per width.** `recordVideo.size` is fixed when a
+  context is created, so resizing mid-recording leaves the phone viewport in a corner
+  of a desktop-sized frame — which is why an earlier attempt concluded the phone layout
+  could not be recorded. The `TOURS` table in `walkthrough.capture.ts` gives each width
+  its own context, its own `test()` and its own output basename. A phone tour is
+  different *beats*, not the desktop script at 390px.
+
 ## Mutation testing (a PR gate)
 Coverage proves a line *ran*; mutation testing proves a test would have *failed*
 had that line been wrong. `mutation.yml` runs on every PR and scores only the code

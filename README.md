@@ -281,6 +281,11 @@ floating button. The edit drawer becomes a full-height sheet. The scope pills co
 apart into separate chips that wrap onto a second row, so no filter ends up off the
 edge of the screen. The appliance list steps aside while you read an appliance. The
 back arrow brings it back.
+
+<p>
+  <img src="docs/images/52-panel-mobile-tasks.png" alt="The Tasks tab on a phone, with the scope pills wrapped onto two rows above the list" width="300">
+  <img src="docs/images/53-panel-mobile-appliances.png" alt="The Appliances tab on a phone" width="300">
+</p>
 <!-- vale ai-tells.ColonUsage = YES -->
 
 ## Complete tasks with NFC/RFID tags
