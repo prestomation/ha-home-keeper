@@ -160,12 +160,35 @@ export function isBinarySensorBinding(task: Partial<Task>): boolean {
   return entityId.startsWith('binary_sensor.');
 }
 
-export function taskSchema(
+/**
+ * One labelled run of the task form. The panel renders each as its own `ha-form`
+ * under a section heading, which is the only way to get a heading *between* two
+ * fields: `ha-form` owns its rows and exposes no slot to interleave one.
+ *
+ * `key` names the section for the panel (heading text, and whether the section is
+ * the conditional one that gets indented behind a rule). `dependent` marks a run
+ * that only exists because of a choice made in the section above it.
+ */
+export interface TaskSchemaSection {
+  key: 'basics' | 'schedule' | 'cadence' | 'placement' | 'completion';
+  fields: FormField[];
+  dependent?: boolean;
+}
+
+/**
+ * The task form's fields, grouped into sections.
+ *
+ * {@link taskSchema} is the flattened form of exactly this, and a unit test asserts
+ * the two stay identical — so the grouping can never silently add, drop or reorder
+ * a field relative to the schema the payload builder and the tests are written
+ * against.
+ */
+export function taskSchemaSections(
   task: Partial<Task>,
   consumables: { value: string; label: string }[] = [],
   links: { value: string; label: string }[] = [],
   tags: { value: string; label: string }[] = [],
-): FormField[] {
+): TaskSchemaSection[] {
   const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
 
   // The NFC/RFID binding — offered for every task kind (a triggered task can carry a
@@ -192,19 +215,33 @@ export function taskSchema(
   // unlocked descriptive fields (notes), never a recurrence/cadence editor.
   if (task.recurrence_type === 'triggered') {
     return [
-      ...(!locked.has('name')
-        ? [{ name: 'name', required: true, selector: selText() } as FormField]
-        : []),
-      ...(!locked.has('notes') ? [{ name: 'notes', selector: selText(true) } as FormField] : []),
-      ...(!locked.has('device_id')
-        ? [{ name: 'device_id', selector: selDevice() } as FormField]
-        : []),
-      ...(!locked.has('area_id') ? [{ name: 'area_id', selector: selArea() } as FormField] : []),
-      ...tagFields,
-      ...(!locked.has('labels')
-        ? [{ name: 'labels', selector: selLabel(true) } as FormField]
-        : []),
-      ...cardLinksField,
+      {
+        key: 'basics',
+        fields: [
+          ...(!locked.has('name')
+            ? [{ name: 'name', required: true, selector: selText() } as FormField]
+            : []),
+          ...(!locked.has('notes')
+            ? [{ name: 'notes', selector: selText(true) } as FormField]
+            : []),
+        ],
+      },
+      {
+        key: 'placement',
+        fields: [
+          ...(!locked.has('device_id')
+            ? [{ name: 'device_id', selector: selDevice() } as FormField]
+            : []),
+          ...(!locked.has('area_id')
+            ? [{ name: 'area_id', selector: selArea() } as FormField]
+            : []),
+          ...tagFields,
+          ...(!locked.has('labels')
+            ? [{ name: 'labels', selector: selLabel(true) } as FormField]
+            : []),
+          ...cardLinksField,
+        ],
+      },
     ];
   }
 
@@ -357,11 +394,15 @@ export function taskSchema(
       ]
     : [];
 
-  const fields: FormField[] = [
+  const basics: FormField[] = [
     ...(!locked.has('name')
       ? [{ name: 'name', required: true, selector: selText() } as FormField]
       : []),
     ...(!locked.has('notes') ? [{ name: 'notes', selector: selText(true) } as FormField] : []),
+  ];
+
+  // "How does this repeat?" — the one choice every field below it depends on.
+  const schedule: FormField[] = [
     ...(!locked.has('recurrence_type')
       ? [
           {
@@ -375,6 +416,11 @@ export function taskSchema(
           } as FormField,
         ]
       : []),
+  ];
+
+  // Everything the recurrence choice reveals. Rendered indented behind a rule, so
+  // "these exist because of the answer above" is visible rather than inferred.
+  const cadenceSection: FormField[] = [
     ...(cadence ? [cadence] : []),
     ...sensorFields,
     ...(isFixed && !locked.has('anchor')
@@ -392,6 +438,10 @@ export function taskSchema(
     ...(!task.id && !isOneOff && !locked.has('last_completed')
       ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
       : []),
+  ];
+
+  // Where the task hangs off the house: a device, a room, a sticker, a consumable.
+  const placement: FormField[] = [
     ...(!locked.has('device_id') ? [{ name: 'device_id', selector: selDevice() } as FormField] : []),
     // A task's *own* area, independent of any device. A task with an attached device
     // already inherits that device's area for grouping and filtering (see
@@ -420,6 +470,10 @@ export function taskSchema(
       : []),
     ...(!locked.has('labels') ? [{ name: 'labels', selector: selLabel(true) } as FormField] : []),
     ...cardLinksField,
+  ];
+
+  // What happens when someone taps Done.
+  const completion: FormField[] = [
     ...(!locked.has('completion_detail')
       ? [
           {
@@ -433,7 +487,57 @@ export function taskSchema(
         ]
       : []),
   ];
-  return fields;
+
+  return [
+    { key: 'basics', fields: basics },
+    { key: 'schedule', fields: schedule },
+    { key: 'cadence', fields: cadenceSection, dependent: true },
+    { key: 'placement', fields: placement },
+    { key: 'completion', fields: completion },
+  ];
+}
+
+/**
+ * Every field name a schema offers, including those nested inside a `grid` group.
+ */
+export function schemaFieldNames(schema: FormField[]): string[] {
+  return schema.flatMap((f) =>
+    f.schema ? schemaFieldNames(f.schema) : f.name ? [f.name] : [],
+  );
+}
+
+/**
+ * The slice of *data* belonging to *schema* — the seed for one section's `ha-form`.
+ *
+ * `ha-form` emits its entire `data` object on every change, so a section seeded with
+ * the whole form would re-assert a stale snapshot of every other section each time
+ * it changed. Narrowing the seed makes each section's event carry only that
+ * section's fields, which is also what lets the panel's change handler tell "this
+ * field was set to nothing" apart from "this field is not in this section".
+ */
+export function pickFormData(
+  data: Record<string, unknown>,
+  schema: FormField[],
+): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const name of schemaFieldNames(schema)) {
+    if (name in data) picked[name] = data[name];
+  }
+  return picked;
+}
+
+/**
+ * The task form's fields as one flat schema — the order the payload builder, the
+ * saved task and the tests are all written against. Kept as the flattening of
+ * {@link taskSchemaSections} so the two can never disagree.
+ */
+export function taskSchema(
+  task: Partial<Task>,
+  consumables: { value: string; label: string }[] = [],
+  links: { value: string; label: string }[] = [],
+  tags: { value: string; label: string }[] = [],
+): FormField[] {
+  return taskSchemaSections(task, consumables, links, tags).flatMap((s) => s.fields);
 }
 
 /** Map a task onto the `ha-form` data object (selector-shaped values). */
@@ -879,8 +983,22 @@ export function sensorHintText(
  * sensors.
  */
 export function problemSyncSchema(): FormField[] {
+  return [...problemSyncToggleSchema(), ...problemSyncExclusionsSchema()];
+}
+
+/** The switch that decides whether problem sensors are mirrored at all. */
+export function problemSyncToggleSchema(): FormField[] {
+  return [{ name: 'sync_problem_sensors', selector: selBool() }];
+}
+
+/**
+ * The four exclusion pickers, which only mean anything while the sync above them is
+ * on. Split from the toggle so the panel can indent them behind a rule and caption
+ * them — `ha-form` has no slot between two of its own rows. `problemSyncSchema` is
+ * the concatenation of the two, and a test holds them to that.
+ */
+export function problemSyncExclusionsSchema(): FormField[] {
   return [
-    { name: 'sync_problem_sensors', selector: selBool() },
     {
       name: 'problem_sensor_exclude_entities',
       selector: selEntity({ domain: 'binary_sensor', device_class: 'problem' }, true),

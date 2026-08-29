@@ -5,10 +5,16 @@ import {
   notifyFormData,
   notifyFormToNotification,
   notificationSchema,
+  pickFormData,
+  problemSyncExclusionsSchema,
+  problemSyncSchema,
+  problemSyncToggleSchema,
   profileSyncSchema,
+  schemaFieldNames,
   shoppingSchema,
   taskFormData,
   taskSchema,
+  taskSchemaSections,
   toProfileSync,
 } from '../src/forms.ts';
 import { setLanguage } from '../src/i18n.ts';
@@ -25,6 +31,131 @@ beforeEach(() => setLanguage('en'));
 // flat `map(f => f.name)` misses exactly the fields these tests care about.
 const names = (fields) =>
   fields.flatMap((f) => (f.schema ? names(f.schema) : [f.name])).filter(Boolean);
+
+// The drawer renders one `ha-form` per section so it can put a heading between two
+// fields, but the payload builder, the saved task and every test below are written
+// against the flat schema. These two views of the same form must never drift: a
+// field that exists in one and not the other is either a control the user cannot
+// reach or a value that never gets saved.
+describe('taskSchemaSections is exactly taskSchema, grouped', () => {
+  const cases = [
+    ['floating', { recurrence_type: 'floating' }],
+    ['fixed', { recurrence_type: 'fixed' }],
+    ['one-off', { recurrence_type: 'one-off' }],
+    ['triggered', { recurrence_type: 'triggered' }],
+    ['sensor / usage', { recurrence_type: 'sensor', sensor_mode: 'usage' }],
+    ['sensor / usage with a backstop', {
+      recurrence_type: 'sensor',
+      sensor_mode: 'usage',
+      sensor_backstop_on: true,
+    }],
+    ['sensor / threshold', { recurrence_type: 'sensor', sensor_mode: 'threshold' }],
+    ['sensor / state', { recurrence_type: 'sensor', sensor_mode: 'state' }],
+    ['a saved task (no last_completed seed)', { id: 't1', recurrence_type: 'floating' }],
+    ['a managed task with locked fields', {
+      recurrence_type: 'floating',
+      managed_by: { domain: 'x', locked_fields: ['name', 'interval', 'device_id'] },
+    }],
+  ];
+  const consumables = [{ value: 'a:p', label: 'Anode rod' }];
+  const links = [{ value: 'doc:1', label: 'Manual' }];
+  const tags = [{ value: 'tag_1', label: 'Kitchen sticker' }];
+
+  for (const [label, task] of cases) {
+    it(`flattens to the same fields, in the same order — ${label}`, () => {
+      const sections = taskSchemaSections(task, consumables, links, tags);
+      const flattened = sections.flatMap((s) => s.fields);
+      expect(flattened).toEqual(taskSchema(task, consumables, links, tags));
+      // Nothing is silently dropped on the way into a section.
+      expect(names(flattened)).toEqual(names(taskSchema(task, consumables, links, tags)));
+    });
+  }
+
+  it('puts the recurrence choice above the fields it reveals, and marks them dependent', () => {
+    const sections = taskSchemaSections({ recurrence_type: 'floating' });
+    const schedule = sections.findIndex((s) => s.key === 'schedule');
+    const cadence = sections.findIndex((s) => s.key === 'cadence');
+    expect(schedule).toBeGreaterThanOrEqual(0);
+    expect(cadence).toBeGreaterThan(schedule);
+    expect(names(sections[schedule].fields)).toEqual(['recurrence_type']);
+    expect(names(sections[cadence].fields)).toEqual(['interval', 'unit', 'last_completed']);
+    expect(sections[cadence].dependent).toBe(true);
+    // Only the revealed run is dependent — the rest stand on their own.
+    expect(sections.filter((s) => s.dependent).map((s) => s.key)).toEqual(['cadence']);
+  });
+
+  it('groups the descriptive fields apart from the placement ones', () => {
+    const byKey = Object.fromEntries(
+      taskSchemaSections({ recurrence_type: 'floating' }, [], [], tags).map((s) => [
+        s.key,
+        names(s.fields),
+      ]),
+    );
+    expect(byKey.basics).toEqual(['name', 'notes']);
+    expect(byKey.placement).toEqual([
+      'device_id',
+      'area_id',
+      'tag_id',
+      'require_tag_scan',
+      'labels',
+    ]);
+    expect(byKey.completion).toEqual(['completion_detail']);
+  });
+
+  it('keeps a triggered task to the two sections it can actually edit', () => {
+    const sections = taskSchemaSections({ recurrence_type: 'triggered' });
+    expect(sections.map((s) => s.key)).toEqual(['basics', 'placement']);
+    // No schedule section at all: an integration owns when a triggered task is due.
+    expect(sections.some((s) => s.key === 'cadence')).toBe(false);
+  });
+});
+
+describe('pickFormData', () => {
+  it('keeps only the keys the schema offers', () => {
+    const data = { name: 'x', notes: 'y', interval: 3, unit: 'months' };
+    expect(pickFormData(data, [{ name: 'name' }, { name: 'notes' }])).toEqual({
+      name: 'x',
+      notes: 'y',
+    });
+  });
+
+  it('reaches into a grid group, where the cadence fields live', () => {
+    const data = { interval: 3, unit: 'months', name: 'x' };
+    const schema = [{ name: '', type: 'grid', schema: [{ name: 'interval' }, { name: 'unit' }] }];
+    expect(pickFormData(data, schema)).toEqual({ interval: 3, unit: 'months' });
+  });
+
+  it('contributes nothing for an entry that is neither named nor a group', () => {
+    // A grid container carries no name of its own, and neither does anything else a
+    // schema might grow. Such an entry has to drop out rather than seed a key.
+    expect(schemaFieldNames([{ name: 'a' }, { type: 'constant' }, { name: 'b' }])).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(pickFormData({ a: 1, b: 2 }, [{ type: 'constant' }, { name: 'a' }])).toEqual({ a: 1 });
+  });
+
+  it('omits a key the data does not have rather than seeding it undefined', () => {
+    // A seeded `undefined` would read as "this field was cleared" when the form
+    // echoed it back, which is the difference between leaving a value alone and
+    // wiping it.
+    expect(pickFormData({ name: 'x' }, [{ name: 'name' }, { name: 'notes' }])).toEqual({
+      name: 'x',
+    });
+    expect('notes' in pickFormData({ name: 'x' }, [{ name: 'notes' }])).toBe(false);
+  });
+
+  it('splits the task form into sections that between them hold every value', () => {
+    const task = { recurrence_type: 'floating', name: 'Flush tank', interval: 3 };
+    const data = taskFormData(task);
+    const sections = taskSchemaSections(task);
+    const merged = Object.assign({}, ...sections.map((s) => pickFormData(data, s.fields)));
+    // Every field the form offers is seeded by exactly one section.
+    for (const name of names(taskSchema(task))) {
+      expect(merged[name], `${name} should be seeded by one of the sections`).toEqual(data[name]);
+    }
+  });
+});
 
 describe('taskSchema by recurrence type', () => {
   it('offers "every N units" for a floating task', () => {
@@ -244,6 +375,47 @@ describe('taskSchema respects locked fields', () => {
     );
     expect(got).toEqual(['device_id', 'area_id', 'tag_id', 'require_tag_scan', 'labels']);
   });
+
+  it('honours a lock on every field a triggered task offers', () => {
+    // A triggered task takes its own branch of the builder, so each key it can hide
+    // has to be exercised there — locking `name` proves nothing about `device_id`.
+    for (const field of ['name', 'notes', 'device_id', 'area_id', 'tag_id', 'labels']) {
+      const got = names(
+        taskSchema({
+          recurrence_type: 'triggered',
+          managed_by: { integration: 'x', locked_fields: [field] },
+        }),
+      );
+      expect(got).not.toContain(field);
+      // Locking one field hides one field.
+      expect(got).toHaveLength(names(taskSchema({ recurrence_type: 'triggered' })).length - 1);
+    }
+  });
+
+  it('never emits an entry that is neither a named field nor a group', () => {
+    // `names()` drops falsy entries so a `grid` container does not read as a field,
+    // which means a schema that grew a *nameless* entry would slip past every
+    // assertion written in terms of names. Assert the shape itself.
+    const lockSets = [
+      [],
+      ['name'],
+      ['notes'],
+      ['device_id'],
+      ['area_id'],
+      ['labels'],
+      ['name', 'notes', 'device_id', 'area_id', 'labels'],
+    ];
+    for (const kind of ['floating', 'fixed', 'one-off', 'sensor', 'triggered']) {
+      for (const locked_fields of lockSets) {
+        const schema = taskSchema(
+          { recurrence_type: kind, managed_by: { integration: 'x', locked_fields } },
+          [],
+          [{ value: 'a1:e1', label: 'Manual' }],
+        );
+        for (const field of schema) expect(field.name || field.schema).toBeTruthy();
+      }
+    }
+  });
 });
 
 describe('taskSchema card links', () => {
@@ -441,6 +613,29 @@ describe('notificationSchema', () => {
 // control: the wrong domain offers lists Home Keeper can't write to, and a
 // missing exclusion offers Home Keeper's own list — which would be a list
 // mirrored onto itself.
+// The Settings card renders the switch and the exclusions as two forms so the
+// exclusions can be indented behind the condition that makes them matter. The
+// options endpoint merges partial updates, so each form saving only its own fields
+// is safe — but only while the two halves still add up to the whole schema.
+describe('problemSyncSchema is its two halves, in order', () => {
+  it('concatenates the toggle and the exclusions', () => {
+    expect(problemSyncSchema()).toEqual([
+      ...problemSyncToggleSchema(),
+      ...problemSyncExclusionsSchema(),
+    ]);
+  });
+
+  it('puts the switch on its own and every exclusion in the dependent half', () => {
+    expect(problemSyncToggleSchema().map((f) => f.name)).toEqual(['sync_problem_sensors']);
+    expect(problemSyncExclusionsSchema().map((f) => f.name)).toEqual([
+      'problem_sensor_exclude_entities',
+      'problem_sensor_exclude_devices',
+      'problem_sensor_exclude_areas',
+      'problem_sensor_exclude_labels',
+    ]);
+  });
+});
+
 describe('shoppingSchema', () => {
   it('offers a single to-do entity picker', () => {
     expect(shoppingSchema()).toEqual([

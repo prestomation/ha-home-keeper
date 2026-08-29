@@ -57,8 +57,22 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
 - The panel's navigation state is **high-fidelity deep-linked**: every navigable
   destination maps to a URL under the panel prefix (`/home-keeper`). Current
   scheme: `/tasks` (default), `/appliances`, `/tasks/<id>`, `/appliances/<id>`
-  (asset detail lives under the `appliances` segment). Forms are ephemeral
-  overlays and are intentionally **not** deep-linked.
+  (asset detail lives under the `appliances` segment), `/appliances/<id>/<tab>`
+  for an appliance's sub-tabs (`ASSET_TABS` in `utils.ts`), and
+  `/settings/<section>` for a Settings section (`SETTINGS_SECTIONS`). Forms are
+  ephemeral overlays and are intentionally **not** deep-linked.
+- **A route may render differently at different widths, but only CSS may decide
+  which.** `/settings/<section>` is one section beside a rail on a desktop and a
+  section on its own with a back arrow on a phone. The panel renders all of it —
+  rail, section index, and every section — puts the named section on the layout as
+  `data-section` and marks its card `.hk-sec-current`, and the media query picks.
+  Nothing in `_render()` or `_hydrate()` reads the viewport, so the rule below
+  about viewport-agnostic rendering still holds.
+- **A new URL segment must keep the old URLs working.** The sub-tab segment is
+  optional and an unrecognised value falls back to the default tab, because
+  `/appliances/<id>` is already written into every registered appliance device's
+  `configuration_url`. `buildPath` leaves the *default* tab out of the URL, so the
+  canonical link to an appliance stays the short one.
 - **The URL is the single source of truth.** HA hands the panel a
   `route = { prefix, path }` for every in-panel URL change, including browser
   Back/Forward. The `set route` setter parses `path` and is the *only* place that
@@ -511,6 +525,112 @@ fails instantly instead of after a long transfer) is mirrored in
 `frontend/src/limits.ts` and drift-guarded by a pytest test
 (`tests/unit/test_upload_limit_parity.py`). The backend stays the authority — the
 client check is a fast path, never the enforcement.
+
+### The panel's visual language is a token block, never literal colour
+- `STYLES` opens with a `:host` block of `--hk-*` tokens (accent/danger/warn/ok,
+  surface/page/line/ink, radii, `--hk-tap`). **Every rule reads a token; no rule
+  hard-codes a colour.** Each token resolves to a Home Assistant theme variable, or
+  to a `color-mix()` off one for the tints HA does not publish (a 12% mix over the
+  *surface* darkens with the surface, so it reads correctly in a dark theme too).
+  A design comp is drawn in one palette; pasting its hexes breaks dark mode and
+  every custom theme.
+- **One primary action per surface.** The primary button is HA's default
+  `ha-button`; everything else on that surface is `appearance="filled"` (tonal) or
+  `"plain"`. Use HA's own `appearance`/`variant` attributes rather than restyling
+  the button — they follow the active theme, and the button's internals are a
+  shadow root we do not own.
+- Two shared primitives carry the system: `.hk-eyebrow` (uppercase micro-label
+  above a group) and `.hk-indent` (a rule down the left of fields that exist only
+  because of a choice above them). Reuse them rather than restating the rules.
+
+### Responsive: viewport media queries, sticky over fixed
+- Breakpoints are **viewport `@media` queries**, so `_render()` stays
+  viewport-agnostic and nothing depends on JS breakpoint state. **Never put
+  `container-type` on `:host`** — it makes the host a containing block for every
+  fixed descendant, which would anchor the phone tab bar to the bottom of the
+  content instead of the screen.
+- Prefer `position: sticky` for panes that stay put while the page scrolls (the
+  edit drawer, the appliance master pane, the Settings rail). Sticky is positioned
+  by its own scroll container, so it survives whatever transformed or contained
+  ancestor HA wraps a custom panel in — the same reason the confirm scrim is
+  appended to `document.body` rather than positioned from inside the shadow root.
+  `fixed` is for genuine viewport overlays (the phone tab bar, the bottom sheet).
+- Breakpoints in use: **1150px** (drawer becomes a bottom sheet), **1000px**
+  (Settings rail becomes an index, appliance master pane steps aside), **700px**
+  (phone: bottom tab bar, floating Add, wrapped filter chips, stacked rows). The
+  first two are 1150/1000 rather than the 900 they shipped with — see the sidebar
+  note below, which is what moved them.
+- **Never dim a container to recede it if a child must stay bright.** `opacity`
+  creates a stacking context, so an opaque child of a faded parent is still faded.
+  Fade the elements individually (see the drawer's treatment of the edited row).
+- **A media query measures the viewport; the panel gets the viewport minus Home
+  Assistant's ~256px sidebar.** Any breakpoint about *our* available width has to be
+  ~250px larger than the width being reasoned about. The drawer and the appliance
+  master pane both shipped with a 900px threshold that let a 400px drawer sit beside
+  a 320px list at a 1000px window, breaking task names one character per line; they
+  are 1150px and 1000px for this reason.
+- **Recede is not disable.** Dimming the list behind the drawer is presentation;
+  `pointer-events: none` on it takes away marking another task done, which the inline
+  form it replaced never did. Where the drawer genuinely covers the list (the phone
+  sheet) the content gets `inert` instead — which removes it from the tab order too,
+  something `pointer-events` never did.
+
+### Contrast and affordance are measured, not eyeballed
+- **Colour pairs are checked against rendered pixels, in both themes.** Sample the
+  computed colours through the shadow root and compute the ratio; the light and dark
+  failures are rarely the same ones. `--hk-accent-fg` on `--hk-accent` is 3.26:1 —
+  Home Assistant's own filled-button pairing, and not good enough for a 12px label,
+  so selected states use the soft/ink pair plus an edge.
+- **The `*-ink` tokens mix ~58% hue into `--primary-text-color`, not 78%.** At 78%
+  the mix barely moves off the hue in light mode, and stays red-on-red in dark. When
+  adding a semantic colour, pair a `*-soft` container with a `*-ink` label — never a
+  literal `#fff` over a mid-tone fill (that pairing measured 1.88–1.96:1).
+- **Enclosure means pressable.** A bordered status pill beside a borderless tonal
+  button reads as the pill being the control. Status chips carry no outline; the
+  row's action carries the ring.
+- **Reach into a Home Assistant component through its `part`, not its colour custom
+  properties.** `ha-button` reads only fill tokens, so the label colour is only
+  reachable as `.done-btn::part(base)`.
+
+### Accessibility contracts the panel has to keep
+- **`_render()` destroys the focused element, so `_render()` restores focus.**
+  Every control carries a stable `data-*` attribute; `_focusKey()` records one before
+  the rebuild and `_restoreFocus()` finds its replacement after. Without it every
+  activation drops a keyboard user at the top of the document.
+- **Focus a Home Assistant element through `_focus()`, never `el.focus()` directly.**
+  Its `focus()` dereferences a shadow root that may not exist yet immediately after an
+  `innerHTML` assignment, and the throw propagates out of `_render()` and skips
+  everything after it.
+- **State conveyed by colour needs a text equivalent.** The rail's dots carry
+  `role="img"` plus a label; the selected filter chip carries `aria-pressed`.
+- **Don't declare a widget role you have not implemented.** The appliance sub-tabs
+  and the phone tab bar are navigation between URLs, so they are buttons with
+  `aria-current="page"` — a `role="tab"` with no tabpanel, roving tabindex or arrow
+  keys is worse than no role at all.
+- `tests/e2e/tests/a11y.spec.ts` pins all of the above. The rest of the suite runs at
+  desktop width with a mouse and noticed none of it.
+
+### One `ha-form` per section — and seed each with only its own fields
+- `ha-form` renders its own rows and exposes no slot between them, so **a heading
+  between two fields is only reachable by splitting the schema.** The task form
+  (`taskSchemaSections`) and the problem-sensor settings card
+  (`problemSyncToggleSchema` + `problemSyncExclusionsSchema`) do this; in both
+  cases the *flat* schema builder is kept as the concatenation, with a unit test
+  asserting the two can never drift. `_renderAssetForm` has done this since before
+  the convention existed.
+- **Seed each section with `pickFormData(data, section.fields)`, never the whole
+  form.** `ha-form` emits its entire `data` object on every change, so a section
+  seeded with everything re-asserts a stale snapshot of every other section each
+  time it changes — typing a name and then changing the recurrence put the name
+  back to what it was before the first keystroke, and the save created nothing.
+- Because each event now carries only one section's fields, **a change handler
+  must check a field is present before reading it** (`'interval' in value`).
+  An unguarded read sees `undefined` for fields in other sections; the cadence
+  interval is coerced with `Number(...) || 1`, so it silently became 1.
+- Keep the wrapper's id (`hk-task-form`) on a `<div>` around the section forms, so
+  every `#hk-task-form <selector>` descendant lookup still resolves. Tests that
+  dispatch `value-changed` must address the *section that owns the field* — an
+  event dispatched at the wrapper reaches no listener and passes vacuously.
 
 ### Don't build on lazily-loaded HA components
 Only use an HA custom element that is registered on a *custom panel's* page. Several

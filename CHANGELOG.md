@@ -6,6 +6,46 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0b2]
+
+### Changed
+
+- **The panel has a new look.** A task row carries its status in a coloured edge and
+  a pill at the end of the line, and the filter row fits on one line with a count on
+  each scope. On a phone the tabs move to the bottom of the screen and the scope
+  pills wrap onto a second row rather than scrolling out of view.
+
+- **Editing opens in a drawer beside the list instead of a card above it.** The list
+  keeps its place, the row you are editing stays lit, and Save sits in a header that
+  does not scroll away. Delete and History join it in a footer.
+
+- **An appliance is read next to the list it came from.** Its sections are now
+  sub-tabs (Parts, Tasks, Documents, Details, Related, History), each with an address
+  of its own, so Back leaves a sub-tab and a sub-tab can be linked to.
+
+- **Settings names every section and what it is set to.** A rail beside the sections
+  marks which features are on and how many profiles, notifications and companions
+  you have. On a phone it opens on an index of the six instead, and each section has
+  an address of its own.
+
+- **The panel is easier to use with a keyboard and a screen reader.** Focus stays on
+  the control you just used instead of jumping to the top of the page, the edit sheet
+  on a phone behaves as a dialog that Escape closes, and the filter chips, dropdowns
+  and Settings dots now say what they are rather than showing it in colour alone.
+
+### Fixed
+
+- **The due date on a one-off task has a label again.** Creating a task that happens
+  just once showed a raw translation key above its date picker in every language.
+
+- **Text on coloured chips and buttons is readable again.** The Done button, the
+  overdue pill, the "Integration offline" chip and the selected filter were all drawn
+  below the contrast a label needs, in one theme or the other.
+
+- **A task row on a phone no longer carries an empty line.** The spacer that pushes
+  Done to the end of a single-line row stayed in a wrapped one, where it took a whole
+  line to itself and left a visible gap under the task name.
+
 ## [0.19.0b1]
 
 ### Fixed

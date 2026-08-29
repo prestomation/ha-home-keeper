@@ -33,12 +33,34 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+/**
+ * The `ha-form` inside `#hk-task-form` that offers *name*.
+ *
+ * The task form is rendered as one `ha-form` per section (Basics, Schedule, the
+ * fields the schedule reveals, Placement, Completion) so a heading can sit between
+ * two runs of fields. `#hk-task-form` is therefore the wrapper around them, not a
+ * form: a `value-changed` dispatched at the wrapper reaches no listener, so these
+ * tests must address the section that actually owns the field they are editing —
+ * otherwise they pass without exercising anything.
+ *
+ * Cadence fields sit inside an unnamed `grid` container, so look one level down too.
+ */
+const sectionWith = (panel, name) =>
+  [...(panel.shadowRoot?.querySelectorAll('#hk-task-form ha-form') ?? [])].find((f) =>
+    (f.schema ?? []).some(
+      (s) => s.name === name || (s.schema ?? []).some((child) => child.name === name),
+    ),
+  ) ?? null;
+
+/** Wait until a section form offering *name* is on screen. */
+const waitForSection = (panel, name) => waitFor(() => sectionWith(panel, name));
+
 describe('typing in the task form must not rebuild it (HA hotkeys eat the keystrokes)', () => {
   it('keeps the form and its focused field alive through the first character of a new task name', async () => {
     const { panel, addBtn } = await mountPanel('/tasks', makeHass());
     addBtn.click();
 
-    const form = await waitFor(() => panel.shadowRoot?.querySelector('#hk-task-form'));
+    const form = await waitForSection(panel, 'name');
     expect(form, 'the new-task form should render').toBeTruthy();
     const input = focusField(form);
 
@@ -46,7 +68,7 @@ describe('typing in the task form must not rebuild it (HA hotkeys eat the keystr
     emitChange(form, { name: 'D' });
 
     expect(
-      panel.shadowRoot.querySelector('#hk-task-form'),
+      sectionWith(panel, 'name'),
       'typing a name must not rebuild the form',
     ).toBe(form);
     expect(
@@ -59,7 +81,7 @@ describe('typing in the task form must not rebuild it (HA hotkeys eat the keystr
     for (const name of ['Di', 'Dis', 'Dish', 'Dishw', 'Dishwa', 'Dishwas']) {
       emitChange(form, { name });
     }
-    expect(panel.shadowRoot.querySelector('#hk-task-form')).toBe(form);
+    expect(sectionWith(panel, 'name')).toBe(form);
     expect(panel.shadowRoot.activeElement).toBe(input);
     expect(form.data.name).toBe('Dishwas');
   });
@@ -78,55 +100,109 @@ describe('typing in the task form must not rebuild it (HA hotkeys eat the keystr
     // The same entry point the list/detail "Edit" button uses.
     panel._openEdit(task);
 
-    const form = await waitFor(() => panel.shadowRoot?.querySelector('#hk-task-form'));
+    const form = await waitForSection(panel, 'name');
     expect(form, 'the edit form should render').toBeTruthy();
     const input = focusField(form);
 
     emitChange(form, { name: 'Change filters' });
 
     expect(
-      panel.shadowRoot.querySelector('#hk-task-form'),
+      sectionWith(panel, 'name'),
       'renaming an existing task must not rebuild the form',
     ).toBe(form);
     expect(panel.shadowRoot.activeElement).toBe(input);
+  });
+
+  // Splitting the form into sections means an event carries only the section that
+  // changed, so any handler that reads a field unconditionally sees `undefined` for
+  // the fields in every *other* section. The cadence interval is the one that bites:
+  // it is coerced with `Number(...) || 1`, so an unguarded read would silently reset
+  // "every 3 months" to "every 1 month" on the first character typed into the name.
+  it('leaves fields in other sections alone when one section changes', async () => {
+    const task = {
+      id: 't1',
+      name: 'Change filter',
+      recurrence_type: 'floating',
+      interval: 3,
+      unit: 'months',
+      enabled: true,
+    };
+    const { panel } = await mountPanel('/tasks', makeHass({ tasks: [task] }));
+    panel._openEdit(task);
+
+    const basics = await waitForSection(panel, 'name');
+    const cadence = sectionWith(panel, 'interval');
+    expect(cadence, 'the cadence fields should be on screen').toBeTruthy();
+    expect(cadence.data.interval).toBe(3);
+
+    emitChange(basics, { name: 'Change filters' });
+
+    expect(panel._edit.task.interval, 'typing a name must not reset the cadence').toBe(3);
+    expect(panel._edit.task.unit).toBe('months');
+    expect(panel._edit.task.name).toBe('Change filters');
+  });
+
+  // The bug this guards against: `ha-form` emits its whole `data` object on every
+  // change, so seeding every section with the whole form had each one re-asserting a
+  // snapshot of the others taken when it was built. Typing a name and then changing
+  // the recurrence put the name back to empty, and the save created nothing.
+  it('keeps what one section holds when another section changes', async () => {
+    const { panel, addBtn } = await mountPanel('/tasks', makeHass());
+    addBtn.click();
+
+    const basics = await waitForSection(panel, 'name');
+    // Each section is seeded with only its own fields, which is what makes an event
+    // from one of them say nothing about the others.
+    expect(Object.keys(basics.data).sort()).toEqual(['name', 'notes']);
+
+    emitChange(basics, { name: 'Renew passport' });
+    const kind = sectionWith(panel, 'recurrence_type');
+    emitChange(kind, { recurrence_type: 'one-off' });
+
+    expect(panel._edit.task.name, 'the typed name must survive the schema change').toBe(
+      'Renew passport',
+    );
+    expect(panel._edit.task.recurrence_type).toBe('one-off');
+    // …and the rebuilt form shows it, rather than an empty box over a set value.
+    const rebuilt = await waitForSection(panel, 'name');
+    expect(rebuilt.data.name).toBe('Renew passport');
   });
 
   it('still rebuilds the form when the recurrence type changes the visible fields', async () => {
     const { panel, addBtn } = await mountPanel('/tasks', makeHass());
     addBtn.click();
 
-    const form = await waitFor(() => panel.shadowRoot?.querySelector('#hk-task-form'));
+    const form = await waitForSection(panel, 'recurrence_type');
     expect(form.schema.map((f) => f.name)).toContain('recurrence_type');
 
     emitChange(form, { recurrence_type: 'sensor' });
 
     const rebuilt = await waitFor(() => {
-      const f = panel.shadowRoot?.querySelector('#hk-task-form');
+      const f = sectionWith(panel, 'recurrence_type');
       return f && f !== form ? f : null;
     });
     expect(
       rebuilt,
       'switching recurrence type must rebuild the form (its fields change)',
     ).toBeTruthy();
-    expect(rebuilt.schema.map((f) => f.name)).toContain('sensor_entity_id');
+    // The sensor binding is revealed *by* that choice, so it lands in the dependent
+    // section below it rather than alongside the recurrence picker.
+    expect(sectionWith(panel, 'sensor_entity_id')).toBeTruthy();
   });
 
   it('still rebuilds the form when the sensor mode changes the visible fields', async () => {
     const { panel, addBtn } = await mountPanel('/tasks', makeHass());
     addBtn.click();
 
-    let form = await waitFor(() => panel.shadowRoot?.querySelector('#hk-task-form'));
-    emitChange(form, { recurrence_type: 'sensor' });
-    form = await waitFor(() => {
-      const f = panel.shadowRoot?.querySelector('#hk-task-form');
-      return f && f.schema.some((s) => s.name === 'sensor_mode') ? f : null;
-    });
+    const kind = await waitForSection(panel, 'recurrence_type');
+    emitChange(kind, { recurrence_type: 'sensor' });
+    const form = await waitForSection(panel, 'sensor_mode');
     expect(form, 'sensor fields should be on screen').toBeTruthy();
 
     emitChange(form, { sensor_mode: 'threshold' });
 
     const rebuilt = await waitFor(() => {
-      const f = panel.shadowRoot?.querySelector('#hk-task-form');
+      const f = sectionWith(panel, 'sensor_mode');
       return f && f !== form ? f : null;
     });
     expect(rebuilt, 'switching sensor mode must rebuild the form').toBeTruthy();
@@ -137,17 +213,11 @@ describe('typing in the task form must not rebuild it (HA hotkeys eat the keystr
     const { panel, addBtn } = await mountPanel('/tasks', makeHass());
     addBtn.click();
 
-    let form = await waitFor(() => panel.shadowRoot?.querySelector('#hk-task-form'));
-    emitChange(form, { recurrence_type: 'sensor' });
-    form = await waitFor(() => {
-      const f = panel.shadowRoot?.querySelector('#hk-task-form');
-      return f && f.schema.some((s) => s.name === 'sensor_mode') ? f : null;
-    });
+    const kind = await waitForSection(panel, 'recurrence_type');
+    emitChange(kind, { recurrence_type: 'sensor' });
+    let form = await waitForSection(panel, 'sensor_mode');
     emitChange(form, { sensor_mode: 'state' });
-    form = await waitFor(() => {
-      const f = panel.shadowRoot?.querySelector('#hk-task-form');
-      return f && f.schema.some((s) => s.name === 'sensor_state') ? f : null;
-    });
+    form = await waitForSection(panel, 'sensor_state');
     expect(form, 'the state-mode fields should be on screen').toBeTruthy();
     // Free text until the bound entity is known to be a binary sensor.
     const stateField = (f) => f.schema.find((s) => s.name === 'sensor_state');
@@ -158,7 +228,7 @@ describe('typing in the task form must not rebuild it (HA hotkeys eat the keystr
     emitChange(form, { sensor_entity_id: 'binary_sensor.leak' });
 
     const rebuilt = await waitFor(() => {
-      const f = panel.shadowRoot?.querySelector('#hk-task-form');
+      const f = sectionWith(panel, 'sensor_state');
       return f && f !== form ? f : null;
     });
     expect(rebuilt, 'binding a binary sensor must rebuild the form').toBeTruthy();
@@ -202,7 +272,7 @@ describe('a late ha-markdown upgrade must not rebuild an open form', () => {
     const { panel, addBtn } = await mountPanel('/tasks', makeHass());
     addBtn.click();
 
-    const form = await waitFor(() => panel.shadowRoot?.querySelector('#hk-task-form'));
+    const form = await waitForSection(panel, 'name');
     const input = focusField(form);
     emitChange(form, { name: 'Da' });
 
@@ -213,7 +283,7 @@ describe('a late ha-markdown upgrade must not rebuild an open form', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     expect(
-      panel.shadowRoot.querySelector('#hk-task-form'),
+      sectionWith(panel, 'name'),
       'a background Markdown upgrade must not rebuild the form being typed in',
     ).toBe(form);
     expect(panel.shadowRoot.activeElement).toBe(input);

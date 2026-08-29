@@ -1,8 +1,4 @@
 /** Config for the one-off device-page-enrichment screenshot capture. */
-import baseConfig from './playwright.config';
+import { captureConfig } from './capture-config';
 
-export default {
-  ...baseConfig,
-  testDir: '.',
-  testMatch: 'screenshots-device-page.capture.ts',
-};
+export default captureConfig('screenshots-device-page.capture.ts');

@@ -56,7 +56,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "9ae8f75115f6776c333a1386e22010e3",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -294,7 +294,10 @@
             "label": "2× AAA",
             "icon": "mdi:battery"
           }
-        ]
+        ],
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "tag_id": null
       },
       "b61a0b0e-6838-46a9-89d5-7090f8b4aa35": {
         "id": "b61a0b0e-6838-46a9-89d5-7090f8b4aa35",
@@ -430,7 +433,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "9ae8f75115f6776c333a1386e22010e3",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -543,7 +546,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "9ae8f75115f6776c333a1386e22010e3",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "identifiers": [
           [
             "home_keeper",
@@ -712,7 +715,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "53297b4584607d1b7c8ac42d6f1cc1de",
+        "device_id": "38fc8a6288ef61807789fd638f6aebb5",
         "identifiers": [
           [
             "home_keeper",
@@ -737,7 +740,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "733a492122422d1782061169a8fc1449",
+        "device_id": "1d7169cdea49653c7d15595155fcfcf7",
         "identifiers": [
           [
             "home_keeper",
@@ -762,6 +765,7 @@
     "problem_notes": {
       "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer."
     },
-    "shopping_items": {}
+    "shopping_items": {},
+    "task_mirror_items": {}
   }
 }

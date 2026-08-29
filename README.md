@@ -245,6 +245,49 @@ entities and the dashboard card. The panel list view can group/filter tasks, and
 tapping any row opens a detail page with the full schedule, notes, and completion
 history.
 
+## Getting around the panel
+
+<!-- vale ai-tells.ColonUsage = NO -->
+Everything lives behind three tabs: **Tasks**, **Appliances** and **Settings**.
+
+![The Tasks tab: scope pills with counts, a task row per line with its status at the end](docs/images/1-panel-task-list.png)
+
+A task row shows what it is, when it is due, and one action. How overdue it is rides
+a pill at the end of the line, and the row's left edge is coloured to match, so a
+list can be skimmed for the red ones. The filter row above sits on one line: scope
+pills carrying a count each, then the saved **Profile** and **Group by** pickers,
+then **Add task**.
+
+**Editing opens in a drawer beside the list.** The list keeps its place and the row
+you are editing stays lit while the rest of it recedes, so you can see what you are
+changing in context. **Save** sits in a header that does not scroll away. **Delete**
+and **History** sit in a footer at the other end. The form is grouped into Basics,
+Schedule, Placement and Completion, and the fields a recurrence choice reveals are
+indented behind a rule so it is clear what they depend on.
+
+![Editing a task in the drawer, with the row being edited marked in the list behind it](docs/images/2-panel-create-floating.png)
+
+**An appliance is read next to the list it came from.** Its list stays as a pane on
+the left with the appliance you are looking at marked in it, and the appliance's own
+sections are sub-tabs: **Parts**, **Tasks**, **Documents**, **Details**, **Related**
+and **History**, each carrying how much it holds. Each sub-tab has an address of its
+own (`/home-keeper/appliances/<id>/documents`), so browser Back leaves a sub-tab like
+any other page and you can link straight to one.
+
+![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
+
+**On a phone** the tabs move to the bottom of the screen. **Add task** turns into a
+floating button. The edit drawer becomes a full-height sheet. The scope pills come
+apart into separate chips that wrap onto a second row, so no filter ends up off the
+edge of the screen. The appliance list steps aside while you read an appliance. The
+back arrow brings it back.
+
+<p>
+  <img src="docs/images/52-panel-mobile-tasks.png" alt="The Tasks tab on a phone, with the scope pills wrapped onto two rows above the list" width="300">
+  <img src="docs/images/53-panel-mobile-appliances.png" alt="The Appliances tab on a phone" width="300">
+</p>
+<!-- vale ai-tells.ColonUsage = YES -->
+
 ## Complete tasks with NFC/RFID tags
 
 Stick a cheap NFC sticker on the thing itself (the dog food bin, the furnace
@@ -582,11 +625,30 @@ one-offs. **Shopping list** picks the to-do list
 [buy reminders are mirrored onto](#send-buy-reminders-to-your-shopping-list).
 **Profiles** holds the saved filters, each carrying the to-do list
 [its tasks are mirrored onto](#send-tasks-to-your-to-do-lists).
-**Problem sensor sync** carries the toggle plus entity / area / label exclusions. The
-same options remain available through the HA options flow and the
-`home_keeper.set_options` service (for automations).
+**Problem sensor sync** carries the toggle, with the entity / area / label exclusions
+indented behind it since they only bite while the sync is on. The same options remain
+available through the HA options flow and the `home_keeper.set_options` service (for
+automations).
+
+A rail beside the sections names each one and marks what it is set to. A green dot
+means the feature is on. An amber one means notifications are configured with no
+mobile app to deliver them. A section holding a list carries a count instead of a dot.
+Each card also states its current value in a line under its name, so the page can be
+read without opening anything.
 
 ![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
+
+**On a phone, Settings opens on an index of its sections.** There is no room for a
+rail beside six expanded sections, so each one becomes a row naming it, what it is set
+to and its dot or count. Tapping a row opens that section by itself, with a back arrow
+to the index. Each section has an address of its own
+(`/home-keeper/settings/notifications`). Browser Back leaves a section the way it
+leaves any other page. A link can point straight at one.
+
+<p>
+  <img src="docs/images/50-panel-mobile-settings-index.png" alt="The Settings section index at phone width" width="300">
+  <img src="docs/images/51-panel-mobile-settings-section.png" alt="One Settings section open on a phone, with a back arrow" width="300">
+</p>
 
 ### Companions
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openPanel, trackPanelErrors } from './helpers';
+import { openPanel, openSettingsSection, trackPanelErrors } from './helpers';
 
 /**
  * Settings → Companions, exercised end-to-end against real installed companions.
@@ -14,13 +14,13 @@ import { openPanel, trackPanelErrors } from './helpers';
  * This locks the rendered Companions surface (previously only the pure
  * `build_companion_list` logic was unit-tested) so it can't silently regress.
  */
-test.describe('Home Keeper panel — companions', () => {
+test.describe('Home Keeper panel — companions', { tag: '@responsive' }, () => {
   test('Settings → Companions lists the connected stub companions', async ({ page }) => {
     const errors = trackPanelErrors(page);
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
 
-    await panel.locator('#tab-settings').click();
+    await openSettingsSection(panel, 'companions');
     const companions = panel.locator('#hk-companions');
     await expect(companions).toBeVisible();
 
@@ -42,7 +42,7 @@ test.describe('Home Keeper panel — companions', () => {
   test('a connected companion exposes a Configure deep-link', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-settings').click();
+    await openSettingsSection(panel, 'companions');
 
     // Pawsistant's Configure button targets its own integration domain.
     const configure = panel

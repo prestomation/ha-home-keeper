@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { callService, listStates, openPanel } from './helpers';
+import { callService, gotoTab, listStates, openPanel } from './helpers';
 import { ASSET, PART } from '../fixture-ids';
 
 /**
@@ -23,6 +23,10 @@ async function readPart(): Promise<Record<string, any>> {
   return asset.parts.find((p: any) => p.id === PART.descaler);
 }
 
+// Tagged per test rather than on the describe: only the two that take a `page`
+// have anything a viewport can change. The other two read the service and entity
+// APIs, where a second and third width would repeat identical work — and one of
+// them waits on a coordinator refresh to do it.
 test.describe('a part measured in units, not whole spares', () => {
   test.afterEach(async () => {
     // The e2e container's store is the committed seed fixture, so put the stock
@@ -38,10 +42,12 @@ test.describe('a part measured in units, not whole spares', () => {
     }
   });
 
-  test('shows its unit on the appliance page, on both amounts', async ({ page }) => {
+  test('shows its unit on the appliance page, on both amounts', { tag: '@responsive' }, async ({
+    page,
+  }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-appliances').click();
+    await gotoTab(panel, 'appliances');
     await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
 
     const row = panel.locator('.hk-part-row').filter({ hasText: 'Descaling solution' });
@@ -51,10 +57,12 @@ test.describe('a part measured in units, not whole spares', () => {
     await expect(row.getByText('Uses 250 ml per completion')).toBeVisible();
   });
 
-  test('offers the unit and per-completion fields in its editor', async ({ page }) => {
+  test('offers the unit and per-completion fields in its editor', { tag: '@responsive' }, async ({
+    page,
+  }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-appliances').click();
+    await gotoTab(panel, 'appliances');
     await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
     await panel.locator('.d-edit').click();
 
@@ -83,15 +91,24 @@ test.describe('a part measured in units, not whole spares', () => {
   });
 
   test("the device page's stock control carries the part's unit", async () => {
-    const states = await listStates();
-    const stock = states.find(
-      (s: any) =>
-        s.entity_id.startsWith('number.') &&
-        String(s.attributes.friendly_name || '').includes('Descaling solution'),
-    );
+    const readStock = async () =>
+      (await listStates()).find(
+        (s: any) =>
+          s.entity_id.startsWith('number.') &&
+          String(s.attributes.friendly_name || '').includes('Descaling solution'),
+      );
+
+    // Polled, not read once. The previous test spends half a millilitre and the
+    // `afterEach` puts it back, but that write lands in the *store* — the number
+    // entity's state is only rewritten when the coordinator next refreshes, so a
+    // bare read here races it and sees 749.5. Same lesson as `todoSummaries`.
+    await expect
+      .poll(async () => Number((await readStock())?.state), { timeout: 20_000 })
+      .toBe(SEEDED_STOCK);
+
+    const stock = await readStock();
     expect(stock, 'the measured part should have a stock number entity').toBeTruthy();
     expect(stock.attributes.unit_of_measurement).toBe('ml');
-    expect(Number(stock.state)).toBe(SEEDED_STOCK);
     // A measured part steps finely; a part counted in whole spares still steps by 1.
     expect(stock.attributes.step).toBeLessThan(1);
   });
