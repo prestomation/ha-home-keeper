@@ -103,11 +103,11 @@ task belongs in. Outside it, the next due date moves forward to the start of the
 window. *"Fertilize the yard every 2 months, April 1 through September 30"* completed
 on September 15 falls due on April 1 of the following year rather than November 15.
 
-Turn **Active season** on in the task form and pick the start and end dates. A task
-can carry several windows — **Add another season** puts spring and fall on the same
-task — and a window that wraps the new year (November through March) is fine. The
-`home_keeper.add_task` and `update_task` actions take the same windows as a list of
-`{"start": "MM-DD", "end": "MM-DD"}` objects, so automations can set a season too.
+Turn **Active season** on in the task form and pick the start and end dates.
+**Add another season** puts a second window on the task, so spring and fall can share
+one. A window that wraps the new year (November through March) works the same way.
+The `home_keeper.add_task` and `update_task` actions take the same windows as a list
+of `{"start": "MM-DD", "end": "MM-DD"}` objects, so an automation can set a season.
 
 <img src="docs/images/3b-panel-create-season.png" alt="The task form with Active season on, showing two windows with month and day pickers" width="820">
 

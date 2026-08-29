@@ -13,7 +13,7 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Give a task a season.** A task that repeats on a clock can be held to the part of
   the year it belongs in, so fertilising every two months stops in October and comes
   back in April rather than falling due in the snow. Add as many windows as the task
-  needs — spring and fall on the same task — from the task form or the
+  needs (spring and fall on the same task) from the task form or the
   `home_keeper.add_task` action. (Fixes #242)
 
 ## [0.19.0b2]
