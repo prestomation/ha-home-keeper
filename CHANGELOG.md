@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.19.0b1]
+## [0.19.0b2]
 
 ### Changed
 
@@ -35,10 +35,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
-- **Ready for Home Assistant 2026.9.** That release reshapes the device registry and
-  adds child devices, so Home Keeper reads both shapes and a task or appliance you
-  attached to a device still finds it after the upgrade. (Fixes #253)
-
 - **The due date on a one-off task has a label again.** Creating a task that happens
   just once showed a raw translation key above its date picker in every language.
 
@@ -49,6 +45,14 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **A task row on a phone no longer carries an empty line.** The spacer that pushes
   Done to the end of a single-line row stayed in a wrapped one, where it took a whole
   line to itself and left a visible gap under the task name.
+
+## [0.19.0b1]
+
+### Fixed
+
+- **Ready for Home Assistant 2026.9.** That release reshapes the device registry and
+  adds child devices, so Home Keeper reads both shapes and a task or appliance you
+  attached to a device still finds it after the upgrade. (Fixes #253)
 
 ## [0.18.0] - 2026-08-29
 
