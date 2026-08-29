@@ -103,6 +103,10 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   tier assert on the option merge rules every write path shares. Keep it that way —
   reach for `hass.<something>` at import time and `tests/unit/test_options.py` stops
   running without the HA harness.
+- `device_compat.py` sits on the same boundary for the same reason: it only ever calls
+  methods on a `DeviceRegistry` it is handed, so its `homeassistant` import is
+  `TYPE_CHECKING`-only and `tests/unit/test_device_compat.py` can drive both registry
+  shapes with plain fakes. Both modules are in the mutmut `only_mutate` allowlist.
 
 ## Datetimes & timezones
 - All datetimes are timezone-aware. Use `homeassistant.util.dt` (`dt_util`) at the
@@ -272,6 +276,18 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   `PROBLEM` `binary_sensor` (`assets.part_is_low`) for each `assets.part_has_reorder`
   part. Both enumerate via `coordinator.virtual_asset_parts(predicate)` and prune stale
   registry entries by unique-id shape (mirroring the asset-date-sensor cleanup).
+- **Read the device registry through `device_compat.py`, never `DeviceRegistry`
+  directly.** Home Assistant 2026.9 made `async_get` answer with a `ChildDeviceEntry`
+  (a separate class with no `connections`/`manufacturer`/`model`) as well as a
+  `DeviceEntry`, and turned `DeviceRegistry.devices` from an id-keyed mapping into a
+  collection of entries — so iterating it yields ids on one core and entries on the
+  next. `lint.yml` type-checks against *stable* HA, where `ChildDeviceEntry` has no
+  name, so the codebase keeps annotating registry devices as `dr.DeviceEntry` and
+  confines the approximation to that one module: `resolve_device` for a lookup by id,
+  `all_devices` to enumerate, `device_connections` for the one attribute a child
+  lacks. A child device is a valid attach target (HA links entities to either kind) —
+  don't filter them out. Reading any other `DeviceEntry`-only attribute off a resolved
+  device needs a helper there too, not a bare attribute access.
 - `diagnostics.py` provides **both** config-entry and **per-device**
   (`async_get_device_diagnostics`) downloads; the per-device one scopes to the device's
   appliance + its tasks. A device-level *action* was deliberately **not** added (the

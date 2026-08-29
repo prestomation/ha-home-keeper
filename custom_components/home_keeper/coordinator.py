@@ -31,6 +31,7 @@ from .const import (
     EVENT_TASK_OVERDUE,
     OPTION_ONE_OFF_RETENTION_DAYS,
 )
+from .device_compat import resolve_device
 from .options import current_options
 from .reconcile import buy_source
 from .store import HomeKeeperStore
@@ -312,9 +313,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         Single source of truth for "is this an existing device we can merge onto?"
         so the DeviceInfo and name-prefix decisions can't drift apart.
         """
-        if not device_id:
-            return None
-        return dr.async_get(self.hass).async_get(device_id)
+        return resolve_device(dr.async_get(self.hass), device_id)
 
     def task_uses_existing_device(self, task: dict[str, Any]) -> bool:
         """True when the task's per-task entities merge onto an existing device.

@@ -35,6 +35,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
+- **Ready for Home Assistant 2026.9.** That release reshapes the device registry and
+  adds child devices, so Home Keeper reads both shapes and a task or appliance you
+  attached to a device still finds it after the upgrade. (Fixes #253)
+
 - **The due date on a one-off task has a label again.** Creating a task that happens
   just once showed a raw translation key above its date picker in every language.
 

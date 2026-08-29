@@ -34,6 +34,7 @@ from homeassistant.helpers.typing import ConfigType
 from .api_surface import triggers_for
 from .const import ASSET_IDENTIFIER_PREFIX, DOMAIN
 from .coordinator import HomeKeeperCoordinator
+from .device_compat import resolve_device
 
 # trigger_type -> bus event, taken from the API-surface model rather than repeated
 # here: the triggers this platform offers and the ones the Developer Guide documents
@@ -77,7 +78,7 @@ def _filters(hass: HomeAssistant, device_id: str) -> tuple[dict | None, dict | N
     that kind (so that trigger type isn't offered). See the module docstring for why the
     task filter keys on ``task_id`` for a self-owned device but ``device_id`` otherwise.
     """
-    device = dr.async_get(hass).async_get(device_id)
+    device = resolve_device(dr.async_get(hass), device_id)
     if device is None:
         return None, None
     coord = _coordinator(hass)
@@ -130,7 +131,7 @@ def _attach_filter(hass: HomeAssistant, device_id: str, trigger_type: str) -> di
     and staying silent until the automation is reloaded. It also picks up tasks
     attached to the device after the automation was created (the old snapshot didn't).
     """
-    device = dr.async_get(hass).async_get(device_id)
+    device = resolve_device(dr.async_get(hass), device_id)
     if device is None:
         return _NO_MATCH
     if trigger_type in ASSET_TRIGGERS:

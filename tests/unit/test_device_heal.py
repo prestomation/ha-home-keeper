@@ -188,6 +188,38 @@ class FakeRegistry:
         return None
 
 
+class ModernFakeRegistry(FakeRegistry):
+    """``FakeRegistry`` with Home Assistant 2026.9's ``devices`` shape.
+
+    Up to 2026.8 ``DeviceRegistry.devices`` was a mapping keyed by device id, which is
+    what :class:`FakeRegistry` models; from 2026.9 it is a collection of entries, so
+    iterating it yields the entries themselves. The repair reads every device from it,
+    so it has to cope with both — see ``device_compat.all_devices``.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        by_id = self.devices
+        self.devices = _EntryCollection(by_id.values())
+        self._by_id = by_id
+
+    def async_get(self, device_id: str) -> FakeDevice | None:
+        return self._by_id.get(device_id)
+
+
+class _EntryCollection:
+    """A collection of device entries: iterable, sized, and not a mapping."""
+
+    def __init__(self, devices):
+        self._devices = list(devices)
+
+    def __iter__(self):
+        return iter(self._devices)
+
+    def __len__(self):
+        return len(self._devices)
+
+
 class FakeStore:
     """Task/asset storage with the two repoint methods the repair drives.
 
@@ -624,4 +656,20 @@ def test_heal_feeds_the_composite_map_to_the_duplicate_merge():
     )
     store = FakeStore()
     heal(FakeRegistry([survivor]), store)
+    assert store.merged == {"zwave_real": DEAD_THERMOSTAT}
+
+
+def test_heal_reads_every_device_from_a_2026_9_shaped_registry():
+    """The same merge map, off the collection-shaped ``devices`` of HA 2026.9 (#253).
+
+    Iterating the old mapping yields device *ids*, so a helper that iterated the new
+    collection the same way would hand the merge step strings instead of entries.
+    """
+    survivor = FakeDevice(
+        "zwave_real",
+        config_entries=frozenset({ZWAVE_ENTRY}),
+        composite_device_id=DEAD_THERMOSTAT,
+    )
+    store = FakeStore()
+    heal(ModernFakeRegistry([survivor]), store)
     assert store.merged == {"zwave_real": DEAD_THERMOSTAT}

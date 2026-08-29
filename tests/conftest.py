@@ -53,6 +53,9 @@ _PURE_MODULES = (
     "tags",
     "card_resource",
     "resolve",
+    # ``device_compat`` imports Home Assistant only under ``TYPE_CHECKING``, so the
+    # two device-registry shapes it reconciles are testable here with plain fakes.
+    "device_compat",
     # Keep ``task_mirror`` after the siblings it imports (shopping/profiles/
     # reconcile/transitions) and before ``options``, which imports *it*: a module
     # first pulled in by a sibling and then re-executed here would leave two
