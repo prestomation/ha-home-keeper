@@ -8,6 +8,13 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ## [0.19.0b3]
 
+### Changed
+
+- **Edit opens beside the page you pressed it on.** A task's or appliance's page now
+  stays on screen while its form is open, instead of being replaced by the list it came
+  from. On an appliance the list pane steps aside so the form is a second column rather
+  than a third.
+
 ### Fixed
 
 - **Picking a Settings section no longer jumps to the top of the page first.** The rail

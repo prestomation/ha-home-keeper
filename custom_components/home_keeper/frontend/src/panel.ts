@@ -383,15 +383,33 @@ const STYLES = `
 
      The dimming is applied per element rather than to the whole column: opacity
      creates a stacking context, so a fully-opaque child of a faded parent is still
-     faded — the edited row could never have been exempted that way. */
-  .hk-shell-drawer .hk-wrap > *:not(#hk-list),
-  .hk-shell-drawer #hk-list > ha-alert,
-  .hk-shell-drawer #hk-list .hk-group-head,
-  .hk-shell-drawer #hk-list ha-card:not(.hk-editing) { opacity: 0.72; }
-  .hk-shell-drawer #hk-list ha-card.hk-editing {
+     faded — the edited row could never have been exempted that way.
+
+     A detail page is exempt from all of it. There the drawer edits the one thing the
+     page is about, and the page is the context for the edit — its history, its notes,
+     its parts. Dimming it would be dimming the reason the form is open here. */
+  .hk-shell-drawer .hk-wrap:not([data-detail]) > *:not(#hk-list),
+  .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list > ha-alert,
+  .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list .hk-group-head,
+  .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list ha-card:not(.hk-editing) {
+    opacity: 0.72;
+  }
+  .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list ha-card.hk-editing {
     border: 2px solid var(--hk-accent);
     --ha-card-border-radius: var(--hk-r-row);
     box-shadow: 0 2px 12px color-mix(in srgb, var(--hk-accent) 28%, transparent);
+  }
+  /* An appliance is read beside its list, and the form is a third column the shell
+     has no room for. The list steps aside for as long as the form is open — the same
+     move it makes below 1000px, where there was never room for it either.
+
+     Only where the drawer is a column: below 1150px it is a sheet over the whole
+     page, so there is nothing to make room for, and this would hide the list for a
+     narrow reader who closes the sheet. Stated as a min-width rather than undone in
+     the sheet query, because "no third column to fit" is what the rule is about. */
+  @media (min-width: 1151px) {
+    .hk-shell-drawer .hk-wrap[data-detail="asset"] .hk-master,
+    .hk-shell-drawer .hk-wrap[data-detail="asset"] .hk-master-controls { display: none; }
   }
   ha-tab-group { margin-bottom: 16px; }
   ha-card.hk-card { margin-bottom: 12px; position: relative; }
@@ -1475,10 +1493,12 @@ const STYLES = `
     .hk-drawer ha-card.hk-form-card { min-height: 0; }
     /* The list behind a full-width sheet is covered, not consulted — so it keeps
        its normal contrast rather than being dimmed under an opaque surface. */
-    .hk-shell-drawer .hk-wrap > *:not(#hk-list),
-    .hk-shell-drawer #hk-list > ha-alert,
-    .hk-shell-drawer #hk-list .hk-group-head,
-    .hk-shell-drawer #hk-list ha-card:not(.hk-editing) { opacity: 1; }
+    .hk-shell-drawer .hk-wrap:not([data-detail]) > *:not(#hk-list),
+    .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list > ha-alert,
+    .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list .hk-group-head,
+    .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list ha-card:not(.hk-editing) {
+      opacity: 1;
+    }
   }
 `;
 
@@ -1838,6 +1858,29 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /**
+   * Mount whichever form the drawer is holding.
+   *
+   * The pairing is by view, not by page: the task form mounts wherever the tasks view
+   * is showing — its list or one task's page — and the appliance form likewise. Which
+   * of those the reader is on is `_openEdit`'s business, not this one's.
+   */
+  private _mountDrawerForm(root: ShadowRoot): void {
+    const host = root.getElementById('hk-form-host');
+    if (!host) return;
+    if (this._view === 'tasks' && this._edit.open) this._renderTaskForm(host);
+    else if (this._view === 'appliances' && this._assetEdit.open) this._renderAssetForm(host);
+    // Bring the row being edited on screen. Editing beside the list rather than on
+    // top of it only buys anything if the row is visible — open the twentieth task
+    // and the highlighted row is below the fold, which is a modal with a hole in it.
+    // (On a detail page there is no such row: the page itself is the subject.)
+    // Guarded because jsdom does not implement scrollIntoView.
+    const edited = root.querySelector<HTMLElement>('ha-card.hk-editing');
+    if (edited && typeof edited.scrollIntoView === 'function') {
+      edited.scrollIntoView({ block: 'center' });
+    }
+  }
+
+  /**
    * How a scroll this panel starts itself should move: smoothly, unless the reader has
    * asked their system for less motion.
    *
@@ -2153,20 +2196,37 @@ export class HomeKeeperPanel extends HTMLElement {
     // Seed the flat consumable_link so the picker reflects the current link and a
     // plain save (no edit) round-trips it unchanged.
     const seeded = { ...task, consumable_link: consumableLinkToken(task) } as Partial<Task>;
-    // Editing happens in the list view's form host; leave any open detail page. Drive
-    // this through the URL (the single source of truth) rather than mutating
-    // view/detail directly. When a detail page is open, the navigation changes the
-    // location, and `_applyLocation` clears ephemeral forms — so stash the target as a
-    // pending edit that `_applyLocation` re-opens after the reset (avoids the form
-    // flashing open then being wiped by the async route round-trip). When already on
-    // the list, the location is unchanged (no reset), so just open it directly.
-    if (this._view === 'tasks' && !this._detail) {
+    // The form opens beside whatever you were reading, and the location does not move:
+    // on the list that is the list, and on the task's own page it is that page — the
+    // history, the notes and the schedule that explain the values being edited. Edit
+    // used to leave the page it was pressed on, which threw all of that away to show a
+    // list nobody asked for.
+    //
+    // A *cross-view* edit is still a navigation (editing a task from an appliance's
+    // page, say): the task form only mounts on the tasks view. That one goes through
+    // the URL rather than mutating view/detail directly, and stashes the target as a
+    // pending edit, because `_applyLocation` clears ephemeral forms on the way — see
+    // `_pendingEdit`, which re-opens it once the location has settled.
+    if (this._view === 'tasks' && this._editsThisPage('task', task.id)) {
       this._edit = { open: true, task: seeded };
       this._render();
     } else {
       this._pendingEdit = seeded;
       this._navigate({ view: 'tasks', detail: null });
     }
+  }
+
+  /**
+   * Whether the form for the object named by *kind* and *id* belongs on the page that
+   * is open right now.
+   *
+   * True on the matching list (no detail), and on that object's own detail page. False
+   * on anyone else's page — editing a task listed on an appliance's page still has to
+   * go to the tasks view, because that is where the task form mounts.
+   */
+  private _editsThisPage(kind: 'task' | 'asset', id: string | undefined): boolean {
+    if (!this._detail) return true;
+    return this._detail.kind === kind && !!id && this._detail.id === id;
   }
   private _closeForm(): void {
     this._edit = { open: false, task: null };
@@ -2610,14 +2670,16 @@ export class HomeKeeperPanel extends HTMLElement {
     this._render();
   }
   private _openEditAsset(asset: Asset): void {
-    // URL-driven (single source of truth); see _openEdit for the pending-edit dance
-    // that survives `_applyLocation` clearing ephemeral forms on a route change.
+    // Opens beside the page it was pressed on — the appliance's own page keeps its
+    // parts, documents and history in view while the form is up. See `_openEdit` for
+    // the cross-view case and the pending-edit dance that survives `_applyLocation`
+    // clearing ephemeral forms on a route change.
     const seeded: Partial<Asset> = {
       ...asset,
       parts: [...(asset.parts || [])],
       metadata: (asset.metadata || []).map((m) => ({ ...m })),
     };
-    if (this._view === 'appliances' && !this._detail) {
+    if (this._view === 'appliances' && this._editsThisPage('asset', asset.id)) {
       this._assetEdit = { open: true, asset: seeded };
       this._render();
     } else {
@@ -2966,7 +3028,9 @@ export class HomeKeeperPanel extends HTMLElement {
         <div class="hk-toolbar-title">${escapeHTML(t('app.title'))}</div>
       </div>
       <div class="hk-shell${drawerOpen ? ' hk-shell-drawer' : ''}">
-        <div class="hk-wrap" data-view="${escapeHTML(this._view)}">
+        <div class="hk-wrap" data-view="${escapeHTML(this._view)}"${
+          this._detail ? ` data-detail="${escapeHTML(this._detail.kind)}"` : ''
+        }>
           ${inner}
           <div class="ver">v${escapeHTML(PANEL_VERSION)}</div>
         </div>
@@ -4794,6 +4858,12 @@ export class HomeKeeperPanel extends HTMLElement {
     if (dialogHost && this._moveCompletion.open) this._renderMoveCompletionDialog(dialogHost);
     // _renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
+    // The drawer is a sibling of the whole content column, so it belongs to every
+    // page that can open it — including a task's own page, which returns out of this
+    // method further down. Mounted here, before that return, or Edit on a task page
+    // would open an empty drawer.
+    this._mountDrawerForm(root);
+
     // Header sidebar toggle.
     const menuHost = root.getElementById('menu-host');
     if (menuHost) {
@@ -4937,19 +5007,6 @@ export class HomeKeeperPanel extends HTMLElement {
     );
 
     // Forms.
-    const host = root.getElementById('hk-form-host');
-    if (host) {
-      if (this._view === 'tasks' && this._edit.open) this._renderTaskForm(host);
-      else if (this._view === 'appliances' && this._assetEdit.open) this._renderAssetForm(host);
-      // Bring the row being edited on screen. Editing beside the list rather than on
-      // top of it only buys anything if the row is visible — open the twentieth task
-      // and the highlighted row is below the fold, which is a modal with a hole in it.
-      // Guarded because jsdom does not implement scrollIntoView.
-      const edited = root.querySelector<HTMLElement>('ha-card.hk-editing');
-      if (edited && typeof edited.scrollIntoView === 'function') {
-        edited.scrollIntoView({ block: 'center' });
-      }
-    }
     const settingsHost = root.getElementById('hk-settings-host');
     if (settingsHost) this._renderSettingsForm(settingsHost);
     const profilesHost = root.getElementById('hk-profiles-host');
@@ -6696,23 +6753,33 @@ export class HomeKeeperPanel extends HTMLElement {
       // it resolves to the theme's error colour rather than a hard-coded red.
       del.setAttribute('variant', 'danger');
       del.textContent = t('btn.delete');
+      const onThisTasksPage = this._detail?.kind === 'task' && this._detail.id === task.id;
       del.addEventListener('click', () =>
         this._openConfirmDialog(t('confirm.deleteTask', { name: String(task.name ?? '') }), () => {
           this._closeForm();
+          // Deleting from the task's own page empties that page: replace it with the
+          // list first, the same way the page's own Delete does, so neither the render
+          // that follows nor Forward lands on a task that is gone.
+          if (onThisTasksPage) this._navigate({ view: 'tasks', detail: null }, true);
           void this._delete(task as Task);
         }),
       );
       const spacer = document.createElement('span');
       spacer.className = 'hk-drawer-foot-spacer';
-      const history = document.createElement('ha-button');
-      history.className = 'hk-drawer-history';
-      history.setAttribute('appearance', 'plain');
-      history.textContent = t('btn.history');
-      history.addEventListener('click', () => {
-        this._closeForm();
-        this._openDetail('task', String(task.id));
-      });
-      foot.append(del, spacer, history);
+      foot.append(del, spacer);
+      // History is a way to the task's own page, so it is only offered from somewhere
+      // else. Editing on that page already has the history under the form.
+      if (!onThisTasksPage) {
+        const history = document.createElement('ha-button');
+        history.className = 'hk-drawer-history';
+        history.setAttribute('appearance', 'plain');
+        history.textContent = t('btn.history');
+        history.addEventListener('click', () => {
+          this._closeForm();
+          this._openDetail('task', String(task.id));
+        });
+        foot.append(history);
+      }
       card.appendChild(foot);
     }
     host.appendChild(card);
