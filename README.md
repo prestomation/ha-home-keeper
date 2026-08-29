@@ -970,8 +970,42 @@ fields:
   Snooze, or Skip then sends the next due task. When no task is due the walk sends
   an "All caught up" notification. The digest style sends one summary of all due
   tasks.
+- **Notification channel** and **Urgency**: the delivery settings that the phone
+  applies. See [Channels and urgency](#channels-and-urgency).
 - **Auto-send**: send the notification when a matching task becomes overdue or
   due soon.
+
+### Channels and urgency
+
+Home Keeper supports a **Notification channel** and an **Urgency** on each
+notification. This is useful when a medication task and a battery task must not
+arrive in the same way.
+
+On Android the channel is a notification channel. The companion app creates the
+channel the first time a notification uses the name. The channel then appears in the
+phone settings for Home Assistant, where the user sets its sound and its Do Not
+Disturb override.
+
+An iPhone has no channels. Home Keeper sends the same name as a thread identifier, so
+these notifications group together. The urgency becomes the iOS interruption level.
+
+| Urgency | Android | iPhone |
+| --- | --- | --- |
+| Quiet | Low importance | Passive |
+| Normal | App default | Active |
+| High | High importance | Time-sensitive |
+| Critical | Max importance | Critical alert |
+
+At High and Critical urgency Home Keeper also asks Android to deliver the
+notification immediately. An idle phone otherwise holds it until the next batch.
+
+Critical urgency has a condition on each platform. The user must allow **Critical
+Alerts** for Home Assistant in the iPhone settings. On Android a channel keeps the
+settings it was created with, so a change of urgency does not change a channel that
+exists. Give the channel a new name, or change the channel in the phone settings.
+
+If the channel is empty, the notification arrives on the General channel of the
+companion app.
 
 ### Language
 
@@ -992,18 +1026,77 @@ The `home_keeper.notify` service sends a notification from an automation. Set
 `target:` to override the destinations. The button actions fire events that other
 automations can use. See [Events & automations](#events--automations).
 
-![The Settings → Notifications card with a "My chores" profile: targets, filter, buttons, style, snooze and auto-send toggles](docs/images/22-panel-notifications.png)
+### Automation examples
 
+Home Keeper sends a notification once. Use a Home Assistant automation to send it
+again until the task is complete. The `home_keeper.notify` service sends nothing when
+no task matches, so a schedule that runs all day costs nothing on a day with no due
+task. Build these automations in **Settings → Automations & scenes**.
 
+Send the notification every 2 hours between 08:00 and 21:00:
 
+```yaml
+automation:
+  - alias: "Home Keeper → chores every 2 hours"
+    trigger:
+      - platform: time_pattern
+        hours: "/2"
+    condition:
+      - condition: time
+        after: "08:00:00"
+        before: "21:00:00"
+    action:
+      - service: home_keeper.notify
+        data:
+          notification: Walk my chores
+```
 
+Send the notification every 30 minutes in the evening, and only when a person is at
+home:
 
+```yaml
+automation:
+  - alias: "Home Keeper → chores while I'm home"
+    trigger:
+      - platform: time_pattern
+        minutes: "/30"
+    condition:
+      - condition: state
+        entity_id: person.sam
+        state: home
+      - condition: time
+        after: "17:00:00"
+        before: "21:00:00"
+    action:
+      - service: home_keeper.notify
+        data:
+          notification: Walk my chores
+```
 
+Send the notification every 15 minutes in a short window. Give this notification its
+own channel at Critical urgency:
 
+```yaml
+automation:
+  - alias: "Home Keeper → medication window"
+    trigger:
+      - platform: time_pattern
+        minutes: "/15"
+    condition:
+      - condition: time
+        after: "08:00:00"
+        before: "10:00:00"
+    action:
+      - service: home_keeper.notify
+        data:
+          notification: Medication
+```
 
+Each automation sends the same notification, so the phone replaces the previous one
+instead of adding a second. The next run of the automation finds no due task after
+the task is complete, and the notifications stop.
 
-
-
+![The Settings → Notifications card with a notification on the Chores channel at High urgency](docs/images/22-panel-notifications.png)
 
 
 ## Dashboard task card

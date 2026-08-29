@@ -899,6 +899,16 @@ function notificationEditor(
               if (s.name === 'profile_id') return t('notify.profile');
               return t('notify.' + s.name);
             },
+            // Both of these do something the field name cannot say. A channel is
+            // Android's word and means nothing on an iPhone, and its sound and Do Not
+            // Disturb settings belong to the phone once the channel exists — so raising
+            // the urgency later will not move a channel already created. Critical needs
+            // a permission on iOS.
+            computeHelper: (s) => {
+              if (s.name === 'channel') return t('notify.channel_help');
+              if (s.name === 'urgency') return t('notify.urgency_help');
+              return '';
+            },
           },
         ),
       );
@@ -917,6 +927,8 @@ function addNotification(p: PanelHost): Promise<void> {
     actions: ['complete', 'snooze', 'open'],
     snooze_hours: 24,
     style: 'walk',
+    channel: '',
+    urgency: 'normal',
     auto: { overdue: false, due_soon: false },
   };
   return persistOptionList(
