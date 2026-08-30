@@ -196,4 +196,55 @@ test.describe('Home Keeper panel — snooze and skip', { tag: '@responsive' }, (
     const unexpected = errors.filter((e) => !e.includes('not_loaded'));
     expect(unexpected, `panel errors:\n${unexpected.join('\n')}`).toHaveLength(0);
   });
+
+  test('on a phone the menu opens inside the viewport, not off the edge', async ({
+    page,
+  }) => {
+    // A list row puts its actions hard against the right margin, so a menu anchored
+    // to the split's left edge starts there and runs its full width past the screen.
+    // The symptom is a page that scrolls sideways to reach half a menu, which is why
+    // this asserts on the document's scroll width and not only on the menu's box.
+    await page.setViewportSize({ width: 360, height: 800 });
+    const panel = await gotoPanel(page, '/tasks');
+    const row = panel.locator('ha-card.hk-card').filter({ hasText: 'Front door sensor' }).first();
+    await row.scrollIntoViewIfNeeded();
+    await row.locator('.hk-split-caret').first().click();
+
+    const menu = row.locator('.hk-defer-menu').first();
+    await expect(menu.locator('.hk-defer-skip')).toBeVisible();
+    const box = await menu.boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(360);
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(scrollWidth).toBe(360);
+  });
+
+  test('a chip narrower than its label keeps that label inside the pill', async ({
+    page,
+  }) => {
+    // A wrapped label had nowhere to go: the chip's container height is fixed, so the
+    // second and third lines drew straight through the pill's outline and over the
+    // row. "Managed by Battery Notes" on a phone did exactly that.
+    //
+    // The width is forced rather than waited for, because whether the seeded chip
+    // happens to overflow depends on the viewport, the font and the integration's
+    // name — none of which this is really about. What it is about is what happens
+    // when a chip cannot fit, so the test creates that condition directly.
+    await page.setViewportSize({ width: 360, height: 800 });
+    const panel = await gotoPanel(page, '/tasks');
+    const row = panel.locator('ha-card.hk-card').filter({ hasText: 'Front door sensor' }).first();
+    await row.scrollIntoViewIfNeeded();
+    const label = await row.evaluate((card) => {
+      const chip = card.querySelectorAll('.hk-chips-inline ha-assist-chip')[1] as HTMLElement;
+      chip.style.maxWidth = '110px';
+      const el = (chip as HTMLElement & { shadowRoot: ShadowRoot }).shadowRoot.querySelector(
+        'span.label',
+      ) as HTMLElement;
+      return { box: Math.round(el.getBoundingClientRect().height), scroll: el.scrollHeight };
+    });
+    // The label's box is a fixed-height line and does not grow, so its height says
+    // nothing. What a wrapped label does is overflow that box — measured, 42 against
+    // a 32px box — and that overflow is what draws through the pill's outline.
+    expect(label.scroll).toBeLessThanOrEqual(label.box);
+  });
 });

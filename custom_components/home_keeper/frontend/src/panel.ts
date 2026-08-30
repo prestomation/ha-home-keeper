@@ -951,6 +951,16 @@ const STYLES = `
      the list still has the width to carry a chip, and hiding them changed the list
      into a different list at the moment it was meant to hold still. */
   .hk-chips.hk-chips-inline ha-assist-chip { --ha-assist-chip-container-height: 26px; }
+  /* A chip narrower than its label used to wrap that label onto two or three lines,
+     which spilled it straight out of the pill's outline — "Managed by Battery Notes"
+     on a phone did exactly that. The container height is fixed, so the extra lines
+     had nowhere to go and simply drew over the row.
+
+     white-space is inherited, and ha-assist-chip leaves its label span unstyled and
+     un-parted, so setting it on the host is what reaches the text. One line then gets
+     clipped by the row's own overflow, at the card's edge, instead of escaping it. A
+     truncated chip loses nothing: the detail page lists every chip in full. */
+  .hk-chips.hk-chips-inline ha-assist-chip { white-space: nowrap; }
   /* Everything past the second chip is folded behind the "+n" beside it. The chips
      stay in the DOM: this is a density decision about one row, not a decision to
      withhold what the task is tagged with — the detail page still lists them all. */
@@ -1248,14 +1258,21 @@ const STYLES = `
      a plain type-less one — so without this override the menu is laid out even while
      hidden, floating over the row beneath it and swallowing its clicks. */
   .hk-defer-menu[hidden] { display: none; }
+  /* The menu is anchored to whichever edge of the split is *inside* the layout, not
+     always the left one. A list row puts its actions hard against the right margin,
+     so a left-anchored menu starts at the row's right edge and runs 220px past the
+     viewport — on a phone that is a horizontally scrolling page and half a menu. The
+     detail page's actions sit at the left, where left-anchoring is the correct one.
+     The max-width is the backstop for a viewport narrower than the menu itself. */
   .hk-defer-menu {
     position: absolute; top: calc(100% + 6px); left: 0; z-index: 9;
-    min-width: 220px; padding: 6px;
+    min-width: 220px; max-width: calc(100vw - 24px); padding: 6px;
     display: flex; flex-direction: column; gap: 2px;
     background: var(--card-background-color);
     border: 1px solid var(--divider-color); border-radius: 10px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
   }
+  .hk-card-actions .hk-defer-menu { left: auto; right: 0; }
   .hk-defer-menu button {
     display: flex; align-items: flex-start; gap: 10px; width: 100%;
     padding: 9px 10px; border: 0; border-radius: 6px;
