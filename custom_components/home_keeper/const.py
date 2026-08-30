@@ -96,6 +96,13 @@ EVENT_PART_RESTOCKED = f"{DOMAIN}_part_restocked"
 # the task spine plus the edited completion's ``ts``, and ``meter_baseline`` when the
 # edit re-anchored a usage meter (see store.update_completion). See docs/EVENTS.md.
 EVENT_TASK_COMPLETION_UPDATED = f"{DOMAIN}_task_completion_updated"
+# The skip log's edit events, mirroring the two above. ``_skip_updated`` carries the
+# edited skip's ``ts`` (its ``old_ts`` after a move) plus ``meter_baseline`` when the
+# edit re-anchored a usage meter; ``_skip_removed`` carries the ``ts`` undone. There is
+# no re-add pair for a move: nothing downstream mirrors a skip the way an integration
+# mirrors a completion. See docs/EVENTS.md.
+EVENT_TASK_SKIP_UPDATED = f"{DOMAIN}_task_skip_updated"
+EVENT_TASK_SKIP_REMOVED = f"{DOMAIN}_task_skip_removed"
 # Asset (appliance) lifecycle — fired at the store.py asset chokepoints.
 EVENT_ASSET_CREATED = f"{DOMAIN}_asset_created"
 EVENT_ASSET_UPDATED = f"{DOMAIN}_asset_updated"  # payload carries ``changed_fields``
@@ -331,6 +338,12 @@ COMPLETION_CAPTURED_FIELDS = ["reading"]
 # the list to iterate when lifting/echoing/persisting a completion's fields; only
 # ``completion_required_fields`` validation uses the narrower metadata list above.
 COMPLETION_ENTRY_FIELDS = [*COMPLETION_METADATA_FIELDS, *COMPLETION_CAPTURED_FIELDS]
+
+# Every key a *skip* entry may carry beside its mandatory ``ts``. A skip answers "why
+# did this occurrence go by?", so it takes the note and the person, plus the meter
+# ``reading`` it was taken at. It has no ``cost`` or ``photo``: nothing was bought and
+# there is nothing to show — a narrower list, not an oversight.
+SKIP_ENTRY_FIELDS = ["note", "who", "reading"]
 
 # Floating interval units.
 UNIT_DAYS = "days"

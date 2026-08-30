@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Hours",
-          "description": "How many hours to defer the task (defaults to 24)."
+          "description": "How many hours to defer the task (defaults to 24). Leave out if you set Until."
+        },
+        "until": {
+          "name": "Until",
+          "description": "Defer the task to this exact date and time instead of a number of hours. Set either this or Hours, not both."
         },
         "origin": {
           "name": "Origin",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Skip task",
-      "description": "Advance a task to its next occurrence without recording a completion.",
+      "description": "Advance a task to its next occurrence without recording a completion. The skip is logged separately, so it never counts as a completion.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
           "description": "The id of the task to skip. Its name works too. The panel shows the id."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Why this occurrence was passed over."
+        },
+        "who": {
+          "name": "Who",
+          "description": "Who decided to skip it."
+        },
+        "reading": {
+          "name": "Meter reading",
+          "description": "The bound sensor's value at the moment of the skip, for a usage task."
         },
         "origin": {
           "name": "Origin",
@@ -791,6 +807,64 @@
     "list_companions": {
       "name": "List companions",
       "description": "Return the merged companion list (self-registered integrations plus detected upstreams whose glue isn't installed yet) as a response."
+    },
+    "update_skip": {
+      "name": "Update skip",
+      "description": "Amend a recorded skip's detail, identified by its timestamp. The skip keeps its date and the schedule is untouched.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task whose skip you are editing. Its name works too. The panel shows the id."
+        },
+        "ts": {
+          "name": "Skip timestamp",
+          "description": "The ISO timestamp (ts) of the skip entry to edit."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Why this occurrence was passed over. An empty value clears it."
+        },
+        "who": {
+          "name": "Who",
+          "description": "Who decided to skip it. An empty value clears it."
+        },
+        "reading": {
+          "name": "Meter reading",
+          "description": "The bound sensor's value at the moment of the skip, for a usage task."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Delete skip",
+      "description": "Remove a recorded skip, identified by its timestamp. Undoing the skip that last reset a usage meter restores that meter.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task whose skip you are removing. Its name works too. The panel shows the id."
+        },
+        "ts": {
+          "name": "Skip timestamp",
+          "description": "The ISO timestamp (ts) of the skip entry to remove."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Move skip",
+      "description": "Re-date a recorded skip, identified by its current timestamp. The task's schedule is untouched.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task whose skip you are moving. Its name works too. The panel shows the id."
+        },
+        "old_ts": {
+          "name": "Current skip timestamp",
+          "description": "The ISO timestamp (ts) of the skip entry to move."
+        },
+        "new_ts": {
+          "name": "New date",
+          "description": "The new date and time to record the skip at."
+        }
+      }
     }
   },
   "entity": {

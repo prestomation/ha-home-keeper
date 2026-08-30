@@ -33,6 +33,8 @@ from .const import (
     EVENT_TASK_COMPLETION_UPDATED,
     EVENT_TASK_CREATED,
     EVENT_TASK_DELETED,
+    EVENT_TASK_SKIP_REMOVED,
+    EVENT_TASK_SKIP_UPDATED,
     EVENT_TASK_SKIPPED,
     EVENT_TASK_SNOOZED,
     EVENT_TASK_TRIGGERED,
@@ -42,6 +44,7 @@ from .const import (
     REC_SENSOR,
     REC_TRIGGERED,
     SENSOR_MODE_USAGE,
+    SKIP_ENTRY_FIELDS,
     STORAGE_KEY,
     STORAGE_VERSION,
     TASK_SOURCE_BUY,
@@ -490,7 +493,8 @@ class HomeKeeperStore:
         self._hass.bus.async_fire(
             EVENT_TASK_SNOOZED,
             events.task_event_data(
-                existing, extra={"snoozed_until": existing["next_due"]}
+                existing,
+                extra={"snoozed_until": existing["next_due"], "origin": origin},
             ),
         )
         return existing
@@ -1548,6 +1552,144 @@ class HomeKeeperStore:
         self._hass.bus.async_fire(
             EVENT_TASK_COMPLETED,
             events.completion_event_data(updated, when_ts, None, metadata=metadata),
+        )
+        return updated
+
+    async def update_skip(
+        self, task_id: str, ts: str, metadata: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Amend a recorded skip's fields (``note``/``who``, and ``reading``).
+
+        The skip twin of :meth:`update_completion`: edits the entry identified by ISO
+        timestamp *ts* without moving ``ts`` or touching the schedule. Correcting the
+        ``reading`` on the skip that currently anchors a **usage** meter re-anchors
+        ``sensor.baseline`` to it, for the same reason the completion path does — the
+        baseline is defined as the reading at the last decision, so leaving it behind
+        would make the store contradict its own history.
+
+        Fires ``home_keeper_task_skip_updated`` (carrying ``meter_baseline`` when the
+        anchor moved). Raises ``KeyError`` for an unknown task and
+        ``TaskValidationError`` when no skip matches *ts*.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        # A synced problem task's history is owned by the sync, not the user.
+        _reject_synced_problem(existing, None)
+        clean_metadata = models.normalize_completion_metadata(
+            metadata, allow_reading=models.task_records_reading(existing)
+        )
+        try:
+            updated = recurrence.update_skip(
+                dict(existing),
+                ts,
+                clean_metadata,
+                fields=tuple(SKIP_ENTRY_FIELDS),
+            )
+        except ValueError as err:
+            raise models.TaskValidationError(str(err)) from err
+        moved_baseline = self._reanchor_from_skip(updated, ts)
+        self._tasks[task_id] = updated
+        await self._save()
+        extra: dict[str, Any] = {"ts": ts}
+        if moved_baseline is not None:
+            extra["meter_baseline"] = moved_baseline
+        self._hass.bus.async_fire(
+            EVENT_TASK_SKIP_UPDATED,
+            events.task_event_data(updated, extra=extra),
+        )
+        return updated
+
+    def _reanchor_from_skip(self, task: dict[str, Any], ts: str) -> float | None:
+        """Move a usage meter's baseline to the reading just edited onto skip *ts*.
+
+        The skip twin of :meth:`_reanchor_from_completion`; see it for the reasoning.
+        """
+        cfg = sensor_tasks.sensor_config(task)
+        if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
+            return None
+        if ts != sensor_tasks.latest_decision_ts(task):
+            return None
+        entry = next((s for s in task.get("skips", []) if s.get("ts") == ts), None)
+        reading = (entry or {}).get("reading")
+        if reading is None or reading == cfg.get("baseline"):
+            return None
+        cfg["baseline"] = reading
+        _LOGGER.debug(
+            "Re-anchored usage baseline for task %s to %s from an edited skip",
+            task.get("id"),
+            reading,
+        )
+        return float(reading)
+
+    async def delete_skip(self, task_id: str, ts: str) -> dict[str, Any]:
+        """Remove one skip from a task (undo an accidental or regretted skip).
+
+        Unlike :meth:`delete_completion` there is no schedule to re-derive: a skip
+        never set ``last_completed``, and ``next_due`` was advanced at the time rather
+        than computed from the log, so recomputing it here would be guesswork about a
+        schedule the user may since have moved on from. Deleting the skip that
+        anchored a **usage** meter *does* restore the baseline it replaced, recorded
+        on it as ``meter_start`` — otherwise the progress the user had stays lost.
+
+        Fires ``home_keeper_task_skip_removed``. A ``ts`` that isn't in the log is a
+        no-op: no save, and no event announcing the undo of a skip never taken.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        _reject_synced_problem(existing, None)
+        removed_entry = next(
+            (e for e in existing.get("skips", []) if e.get("ts") == ts), None
+        )
+        if removed_entry is None:
+            # Copy for the same reason delete_completion's no-op branch does: the
+            # contract is "returns the task", and handing back the live stored dict
+            # would make this the one path a caller could mutate the store by accident.
+            return dict(existing)
+        was_latest = ts == sensor_tasks.latest_decision_ts(existing)
+        updated = recurrence.remove_skip(dict(existing), ts)
+        should_set, restored = sensor_tasks.baseline_after_delete(
+            updated, removed_entry, was_latest=was_latest
+        )
+        if should_set:
+            cfg = sensor_tasks.sensor_config(updated)
+            if cfg is not None:
+                cfg["baseline"] = restored
+        self._tasks[task_id] = updated
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_TASK_SKIP_REMOVED,
+            events.task_event_data(updated, extra={"ts": ts}),
+        )
+        return updated
+
+    async def move_skip(self, task_id: str, old_ts: str, new_ts: str) -> dict[str, Any]:
+        """Re-timestamp a recorded skip (back-date or correct it).
+
+        The skip twin of :meth:`move_completion`, minus the re-derivation — see
+        :meth:`delete_skip` for why a skip's timestamp does not drive the schedule.
+        Modelled as a single ``home_keeper_task_skip_updated`` rather than the
+        remove/re-add pair ``move_completion`` fires: nothing downstream mirrors a
+        skip the way an integration mirrors a completion, so there is no undo/redo
+        for a listener to follow. Raises ``KeyError`` for an unknown task and
+        ``TaskValidationError`` when no skip matches *old_ts*.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        _reject_synced_problem(existing, None)
+        try:
+            updated = recurrence.move_skip(
+                dict(existing), old_ts, new_ts, now=dt_util.now()
+            )
+        except ValueError as err:
+            raise models.TaskValidationError(str(err)) from err
+        self._tasks[task_id] = updated
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_TASK_SKIP_UPDATED,
+            events.task_event_data(updated, extra={"ts": old_ts}),
         )
         return updated
 

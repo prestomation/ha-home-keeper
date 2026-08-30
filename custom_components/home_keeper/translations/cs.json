@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Hodiny",
-          "description": "O kolik hodin úkol odložit (výchozí 24)."
+          "description": "O kolik hodin úkol odložit (výchozí 24). Vynechte, pokud zadáte Do kdy."
+        },
+        "until": {
+          "name": "Do kdy",
+          "description": "Odloží úkol na přesně toto datum a čas místo počtu hodin. Zadejte buď toto, nebo Hodiny, ne obojí."
         },
         "origin": {
           "name": "Původ",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Přeskočit úkol",
-      "description": "Posunout úkol na jeho další výskyt bez zaznamenání dokončení.",
+      "description": "Posune úkol na jeho další výskyt bez zaznamenání dokončení. Přeskočení se zapisuje zvlášť, takže se nikdy nepočítá jako dokončení.",
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
           "description": "ID úkolu, který se má přeskočit. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "note": {
+          "name": "Poznámka",
+          "description": "Proč byl tento výskyt vynechán."
+        },
+        "who": {
+          "name": "Kdo",
+          "description": "Kdo rozhodl o přeskočení."
+        },
+        "reading": {
+          "name": "Stav měřidla",
+          "description": "Hodnota připojeného senzoru v okamžiku přeskočení, u úkolu podle spotřeby."
         },
         "origin": {
           "name": "Původ",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Název nebo ID dílu",
           "description": "Id dílu, jehož přiložený soubor se má podepsat. Funguje i jeho název. Panel zobrazuje id."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Upravit přeskočení",
+      "description": "Upraví podrobnosti zaznamenaného přeskočení určeného časovým razítkem. Přeskočení si ponechá své datum a plán zůstává beze změny.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, jehož přeskočení upravujete. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "ts": {
+          "name": "Časové razítko přeskočení",
+          "description": "Časové razítko ISO (ts) položky přeskočení, kterou chcete upravit."
+        },
+        "note": {
+          "name": "Poznámka",
+          "description": "Proč byl tento výskyt vynechán. Prázdná hodnota jej smaže."
+        },
+        "who": {
+          "name": "Kdo",
+          "description": "Kdo rozhodl o přeskočení. Prázdná hodnota jej smaže."
+        },
+        "reading": {
+          "name": "Stav měřidla",
+          "description": "Hodnota připojeného senzoru v okamžiku přeskočení, u úkolu podle spotřeby."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Smazat přeskočení",
+      "description": "Odebere zaznamenané přeskočení určené časovým razítkem. Vrácení přeskočení, které naposledy vynulovalo měřidlo spotřeby, toto měřidlo obnoví.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, jehož přeskočení odebíráte. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "ts": {
+          "name": "Časové razítko přeskočení",
+          "description": "Časové razítko ISO (ts) položky přeskočení, kterou chcete odebrat."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Přesunout přeskočení",
+      "description": "Změní datum zaznamenaného přeskočení určeného jeho současným časovým razítkem. Plán úkolu zůstává beze změny.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, jehož přeskočení přesouváte. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "old_ts": {
+          "name": "Současné časové razítko přeskočení",
+          "description": "Časové razítko ISO (ts) položky přeskočení, kterou chcete přesunout."
+        },
+        "new_ts": {
+          "name": "Nové datum",
+          "description": "Nové datum a čas, ke kterému se přeskočení zaznamená."
         }
       }
     }

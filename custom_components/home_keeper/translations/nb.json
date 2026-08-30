@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Timer",
-          "description": "Hvor mange timer oppgaven skal utsettes (standard 24)."
+          "description": "Hvor mange timer oppgaven skal utsettes (standard 24). Utelat den hvis du angir Til."
+        },
+        "until": {
+          "name": "Til",
+          "description": "Utsetter oppgaven til nøyaktig denne datoen og dette klokkeslettet i stedet for et antall timer. Angi enten denne eller Timer, ikke begge."
         },
         "origin": {
           "name": "Opprinnelse",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Hopp over oppgave",
-      "description": "Flytt en oppgave frem til neste forekomst uten å registrere en fullføring.",
+      "description": "Flytter en oppgave fram til neste forekomst uten å registrere en fullføring. Overhoppingen loggføres for seg, så den teller aldri som en fullføring.",
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
           "description": "ID-en til oppgaven som skal hoppes over. Navnet fungerer også. Panelet viser id-en."
+        },
+        "note": {
+          "name": "Notat",
+          "description": "Hvorfor denne forekomsten ble hoppet over."
+        },
+        "who": {
+          "name": "Hvem",
+          "description": "Hvem som bestemte at den skulle hoppes over."
+        },
+        "reading": {
+          "name": "Måleravlesning",
+          "description": "Verdien til den tilknyttede sensoren i det overhoppingen skjedde, for en forbruksoppgave."
         },
         "origin": {
           "name": "Opprinnelse",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Reservedelsnavn eller -ID",
           "description": "ID-en til reservedelen hvis vedlagte fil det skal signeres en URL for. Navnet fungerer også. Panelet viser id-en."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Oppdater overhopping",
+      "description": "Endrer detaljene i en loggført overhopping, identifisert ved tidsstempelet. Overhoppingen beholder datoen sin, og planen røres ikke.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven du redigerer overhoppingen for. Navnet fungerer også. Panelet viser id-en."
+        },
+        "ts": {
+          "name": "Overhoppingens tidsstempel",
+          "description": "ISO-tidsstempelet (ts) for overhoppingsoppføringen som skal redigeres."
+        },
+        "note": {
+          "name": "Notat",
+          "description": "Hvorfor denne forekomsten ble hoppet over. En tom verdi fjerner det."
+        },
+        "who": {
+          "name": "Hvem",
+          "description": "Hvem som bestemte at den skulle hoppes over. En tom verdi fjerner det."
+        },
+        "reading": {
+          "name": "Måleravlesning",
+          "description": "Verdien til den tilknyttede sensoren i det overhoppingen skjedde, for en forbruksoppgave."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Slett overhopping",
+      "description": "Fjerner en loggført overhopping, identifisert ved tidsstempelet. Angrer du overhoppingen som sist nullstilte en forbruksmåler, gjenopprettes den måleren.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven du fjerner overhoppingen for. Navnet fungerer også. Panelet viser id-en."
+        },
+        "ts": {
+          "name": "Overhoppingens tidsstempel",
+          "description": "ISO-tidsstempelet (ts) for overhoppingsoppføringen som skal fjernes."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Flytt overhopping",
+      "description": "Gir en loggført overhopping ny dato, identifisert ved det nåværende tidsstempelet. Oppgavens plan røres ikke.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven du flytter overhoppingen for. Navnet fungerer også. Panelet viser id-en."
+        },
+        "old_ts": {
+          "name": "Nåværende tidsstempel for overhoppingen",
+          "description": "ISO-tidsstempelet (ts) for overhoppingsoppføringen som skal flyttes."
+        },
+        "new_ts": {
+          "name": "Ny dato",
+          "description": "Den nye datoen og klokkeslettet overhoppingen skal registreres på."
         }
       }
     }

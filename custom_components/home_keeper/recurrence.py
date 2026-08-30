@@ -345,9 +345,7 @@ def apply_completion(
     return task
 
 
-def skip_occurrence(
-    task: dict, *, now: datetime, metadata: dict | None = None
-) -> dict:
+def skip_occurrence(task: dict, *, now: datetime, metadata: dict | None = None) -> dict:
     """Return *task* advanced past its current occurrence with **no** completion.
 
     "Skip this one" — move the task forward off every time surface without recording
@@ -543,7 +541,9 @@ def move_completion(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> d
     return task
 
 
-def update_skip(task: dict, ts: str, metadata: dict, *, fields: tuple[str, ...]) -> dict:
+def update_skip(
+    task: dict, ts: str, metadata: dict, *, fields: tuple[str, ...]
+) -> dict:
     """Edit the metadata of the skip at ISO timestamp *ts* in place.
 
     The skip twin of :func:`update_completion`, with the same clear-on-empty rule: a

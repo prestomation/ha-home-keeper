@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Godziny",
-          "description": "O ile godzin odroczyć zadanie (domyślnie 24)."
+          "description": "O ile godzin odłożyć zadanie (domyślnie 24). Pomiń, jeśli ustawiasz Do kiedy."
+        },
+        "until": {
+          "name": "Do kiedy",
+          "description": "Odkłada zadanie dokładnie na tę datę i godzinę zamiast o liczbę godzin. Ustaw to albo Godziny, nie oba naraz."
         },
         "origin": {
           "name": "Inicjator",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Pomiń zadanie",
-      "description": "Przesuń zadanie do następnego wystąpienia bez zapisywania ukończenia.",
+      "description": "Przesuwa zadanie do następnego wystąpienia bez zapisywania ukończenia. Pominięcie jest rejestrowane osobno, więc nigdy nie liczy się jako ukończenie.",
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
           "description": "Identyfikator zadania do pominięcia. Nazwa również działa. Panel pokazuje identyfikator."
+        },
+        "note": {
+          "name": "Notatka",
+          "description": "Dlaczego to wystąpienie zostało pominięte."
+        },
+        "who": {
+          "name": "Kto",
+          "description": "Kto zdecydował o pominięciu."
+        },
+        "reading": {
+          "name": "Odczyt licznika",
+          "description": "Wartość powiązanego czujnika w chwili pominięcia, dla zadania opartego na zużyciu."
         },
         "origin": {
           "name": "Inicjator",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Nazwa lub identyfikator części",
           "description": "Identyfikator części, dla której załączonego pliku ma zostać podpisany URL. Nazwa również działa. Panel pokazuje identyfikator."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Aktualizuj pominięcie",
+      "description": "Zmienia szczegóły zapisanego pominięcia wskazanego znacznikiem czasu. Pominięcie zachowuje swoją datę, a harmonogram pozostaje nietknięty.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania, którego pominięcie edytujesz. Nazwa również działa. Panel pokazuje identyfikator."
+        },
+        "ts": {
+          "name": "Znacznik czasu pominięcia",
+          "description": "Znacznik czasu ISO (ts) wpisu pominięcia do edycji."
+        },
+        "note": {
+          "name": "Notatka",
+          "description": "Dlaczego to wystąpienie zostało pominięte. Pusta wartość ją czyści."
+        },
+        "who": {
+          "name": "Kto",
+          "description": "Kto zdecydował o pominięciu. Pusta wartość ją czyści."
+        },
+        "reading": {
+          "name": "Odczyt licznika",
+          "description": "Wartość powiązanego czujnika w chwili pominięcia, dla zadania opartego na zużyciu."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Usuń pominięcie",
+      "description": "Usuwa zapisane pominięcie wskazane znacznikiem czasu. Cofnięcie pominięcia, które ostatnio wyzerowało licznik zużycia, przywraca ten licznik.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania, którego pominięcie usuwasz. Nazwa również działa. Panel pokazuje identyfikator."
+        },
+        "ts": {
+          "name": "Znacznik czasu pominięcia",
+          "description": "Znacznik czasu ISO (ts) wpisu pominięcia do usunięcia."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Przenieś pominięcie",
+      "description": "Zmienia datę zapisanego pominięcia wskazanego bieżącym znacznikiem czasu. Harmonogram zadania pozostaje nietknięty.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania, którego pominięcie przenosisz. Nazwa również działa. Panel pokazuje identyfikator."
+        },
+        "old_ts": {
+          "name": "Bieżący znacznik czasu pominięcia",
+          "description": "Znacznik czasu ISO (ts) wpisu pominięcia do przeniesienia."
+        },
+        "new_ts": {
+          "name": "Nowa data",
+          "description": "Nowa data i godzina, pod którą zostanie zapisane pominięcie."
         }
       }
     }

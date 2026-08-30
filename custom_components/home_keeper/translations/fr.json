@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Heures",
-          "description": "De combien d'heures reporter la tâche (24 par défaut)."
+          "description": "De combien d'heures reporter la tâche (24 par défaut). À omettre si vous renseignez Jusqu'à."
+        },
+        "until": {
+          "name": "Jusqu'à",
+          "description": "Reporte la tâche à cette date et heure précises plutôt que d'un nombre d'heures. Renseignez ceci ou Heures, pas les deux."
         },
         "origin": {
           "name": "Origine",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Ignorer la tâche",
-      "description": "Avancer une tâche à sa prochaine occurrence sans enregistrer d'achèvement.",
+      "description": "Fait passer une tâche à son occurrence suivante sans enregistrer d'achèvement. L'omission est consignée à part et ne compte donc jamais comme un achèvement.",
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
           "description": "L'identifiant de la tâche à ignorer. Son nom fonctionne aussi. Le panneau affiche l'id."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Pourquoi cette occurrence a été laissée passer."
+        },
+        "who": {
+          "name": "Qui",
+          "description": "Qui a décidé de l'ignorer."
+        },
+        "reading": {
+          "name": "Relevé du compteur",
+          "description": "La valeur du capteur lié au moment de l'omission, pour une tâche à l'usage."
         },
         "origin": {
           "name": "Origine",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Nom ou ID de la pièce",
           "description": "L'identifiant de la pièce dont le fichier joint doit être signé. Son nom fonctionne aussi. Le panneau affiche l'id."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Mettre à jour l'omission",
+      "description": "Modifie le détail d'une omission consignée, identifiée par son horodatage. L'omission garde sa date et la planification n'est pas touchée.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'identifiant de la tâche dont vous modifiez l'omission. Son nom fonctionne aussi. Le panneau affiche l'id."
+        },
+        "ts": {
+          "name": "Horodatage de l'omission",
+          "description": "L'horodatage ISO (ts) de l'entrée d'omission à modifier."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Pourquoi cette occurrence a été laissée passer. Une valeur vide l'efface."
+        },
+        "who": {
+          "name": "Qui",
+          "description": "Qui a décidé de l'ignorer. Une valeur vide l'efface."
+        },
+        "reading": {
+          "name": "Relevé du compteur",
+          "description": "La valeur du capteur lié au moment de l'omission, pour une tâche à l'usage."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Supprimer l'omission",
+      "description": "Retire une omission consignée, identifiée par son horodatage. Annuler l'omission qui a réinitialisé en dernier un compteur d'usage restaure ce compteur.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'identifiant de la tâche dont vous retirez l'omission. Son nom fonctionne aussi. Le panneau affiche l'id."
+        },
+        "ts": {
+          "name": "Horodatage de l'omission",
+          "description": "L'horodatage ISO (ts) de l'entrée d'omission à retirer."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Déplacer l'omission",
+      "description": "Redate une omission consignée, identifiée par son horodatage actuel. La planification de la tâche n'est pas touchée.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'identifiant de la tâche dont vous déplacez l'omission. Son nom fonctionne aussi. Le panneau affiche l'id."
+        },
+        "old_ts": {
+          "name": "Horodatage actuel de l'omission",
+          "description": "L'horodatage ISO (ts) de l'entrée d'omission à déplacer."
+        },
+        "new_ts": {
+          "name": "Nouvelle date",
+          "description": "La nouvelle date et heure auxquelles consigner l'omission."
         }
       }
     }

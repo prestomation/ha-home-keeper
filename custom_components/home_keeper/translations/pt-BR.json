@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Horas",
-          "description": "Em quantas horas adiar a tarefa (padrão de 24)."
+          "description": "Quantas horas adiar a tarefa (padrão 24). Deixe de fora se você definir Até."
+        },
+        "until": {
+          "name": "Até",
+          "description": "Adia a tarefa para exatamente esta data e hora em vez de um número de horas. Defina isto ou Horas, não os dois."
         },
         "origin": {
           "name": "Origem",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Pular tarefa",
-      "description": "Avançar uma tarefa para a próxima ocorrência sem registrar uma conclusão.",
+      "description": "Avança uma tarefa para a próxima ocorrência sem registrar uma conclusão. A omissão é registrada à parte, então nunca conta como conclusão.",
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
           "description": "O id da tarefa a pular. O nome também funciona. O painel mostra o id."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Por que esta ocorrência foi deixada passar."
+        },
+        "who": {
+          "name": "Quem",
+          "description": "Quem decidiu pular."
+        },
+        "reading": {
+          "name": "Leitura do medidor",
+          "description": "O valor do sensor vinculado no momento da omissão, para uma tarefa por uso."
         },
         "origin": {
           "name": "Origem",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Nome ou ID da peça",
           "description": "O id da peça cujo arquivo anexado deve ser assinado. O nome também funciona. O painel mostra o id."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Atualizar omissão",
+      "description": "Altera os detalhes de uma omissão registrada, identificada pelo carimbo de data/hora. A omissão mantém sua data e a programação não é alterada.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa cuja omissão você está editando. O nome também funciona. O painel mostra o id."
+        },
+        "ts": {
+          "name": "Carimbo de data/hora da omissão",
+          "description": "O carimbo de data/hora ISO (ts) da entrada de omissão a editar."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Por que esta ocorrência foi deixada passar. Um valor vazio a limpa."
+        },
+        "who": {
+          "name": "Quem",
+          "description": "Quem decidiu pular. Um valor vazio o limpa."
+        },
+        "reading": {
+          "name": "Leitura do medidor",
+          "description": "O valor do sensor vinculado no momento da omissão, para uma tarefa por uso."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Excluir omissão",
+      "description": "Remove uma omissão registrada, identificada pelo carimbo de data/hora. Desfazer a omissão que zerou por último um medidor de uso restaura esse medidor.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa cuja omissão você está removendo. O nome também funciona. O painel mostra o id."
+        },
+        "ts": {
+          "name": "Carimbo de data/hora da omissão",
+          "description": "O carimbo de data/hora ISO (ts) da entrada de omissão a remover."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Mover omissão",
+      "description": "Redata uma omissão registrada, identificada pelo carimbo de data/hora atual. A programação da tarefa não é alterada.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa cuja omissão você está movendo. O nome também funciona. O painel mostra o id."
+        },
+        "old_ts": {
+          "name": "Carimbo de data/hora atual da omissão",
+          "description": "O carimbo de data/hora ISO (ts) da entrada de omissão a mover."
+        },
+        "new_ts": {
+          "name": "Nova data",
+          "description": "A nova data e hora em que registrar a omissão."
         }
       }
     }

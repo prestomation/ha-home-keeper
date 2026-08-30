@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Stunden",
-          "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard: 24)."
+          "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard 24). Weglassen, wenn Bis gesetzt ist."
+        },
+        "until": {
+          "name": "Bis",
+          "description": "Verschiebt die Aufgabe auf genau dieses Datum und diese Uhrzeit statt um eine Stundenzahl. Entweder dies oder Stunden angeben, nicht beides."
         },
         "origin": {
           "name": "Ursprung",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Aufgabe überspringen",
-      "description": "Eine Aufgabe zum nächsten Termin vorrücken, ohne einen Abschluss zu erfassen.",
+      "description": "Setzt eine Aufgabe auf ihr nächstes Vorkommen, ohne eine Erledigung einzutragen. Das Überspringen wird getrennt protokolliert und zählt daher nie als Erledigung.",
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
           "description": "Die ID der zu überspringenden Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Warum dieses Vorkommen ausgelassen wurde."
+        },
+        "who": {
+          "name": "Wer",
+          "description": "Wer entschieden hat, es zu überspringen."
+        },
+        "reading": {
+          "name": "Zählerstand",
+          "description": "Der Wert des verknüpften Sensors zum Zeitpunkt des Überspringens, bei einer Verbrauchsaufgabe."
         },
         "origin": {
           "name": "Ursprung",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Teilename oder -ID",
           "description": "Die ID des Teils, dessen angehängte Datei signiert werden soll. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Überspringen aktualisieren",
+      "description": "Ändert die Angaben eines protokollierten Überspringens, bestimmt durch seinen Zeitstempel. Das Datum bleibt erhalten und der Zeitplan unberührt.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe, deren Überspringen Sie bearbeiten. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "ts": {
+          "name": "Zeitstempel des Überspringens",
+          "description": "Der ISO-Zeitstempel (ts) des zu bearbeitenden Übersprungeintrags."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Warum dieses Vorkommen ausgelassen wurde. Ein leerer Wert löscht sie."
+        },
+        "who": {
+          "name": "Wer",
+          "description": "Wer entschieden hat, es zu überspringen. Ein leerer Wert löscht die Angabe."
+        },
+        "reading": {
+          "name": "Zählerstand",
+          "description": "Der Wert des verknüpften Sensors zum Zeitpunkt des Überspringens, bei einer Verbrauchsaufgabe."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Überspringen löschen",
+      "description": "Entfernt ein protokolliertes Überspringen, bestimmt durch seinen Zeitstempel. Wird das Überspringen rückgängig gemacht, das zuletzt einen Verbrauchszähler zurückgesetzt hat, wird dieser Zähler wiederhergestellt.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe, deren Überspringen Sie entfernen. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "ts": {
+          "name": "Zeitstempel des Überspringens",
+          "description": "Der ISO-Zeitstempel (ts) des zu entfernenden Übersprungeintrags."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Überspringen verschieben",
+      "description": "Datiert ein protokolliertes Überspringen um, bestimmt durch seinen aktuellen Zeitstempel. Der Zeitplan der Aufgabe bleibt unberührt.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe, deren Überspringen Sie verschieben. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "old_ts": {
+          "name": "Aktueller Zeitstempel des Überspringens",
+          "description": "Der ISO-Zeitstempel (ts) des zu verschiebenden Übersprungeintrags."
+        },
+        "new_ts": {
+          "name": "Neues Datum",
+          "description": "Das neue Datum und die neue Uhrzeit, unter der das Überspringen eingetragen wird."
         }
       }
     }
