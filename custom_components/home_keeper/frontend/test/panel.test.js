@@ -473,11 +473,8 @@ describe('Notes render as Markdown (issue #163)', () => {
 
     const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
     editBtn.click();
-    // Editing from a detail page navigates to the owning list and re-opens the form
-    // there. `_navigate` only fires `location-changed`; in the real app HA's router
-    // answers by pushing a new `route` down. Nothing does that in jsdom, so stand in
-    // for the router here.
-    panel.route = { prefix: '/home-keeper', path: '/appliances' };
+    // Editing from a detail page opens the form beside that page — no navigation, so
+    // nothing here has to stand in for HA's router.
 
     const partForm = await waitFor(() => {
       const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];
@@ -510,7 +507,6 @@ describe('Notes render as Markdown (issue #163)', () => {
 
     const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
     editBtn.click();
-    panel.route = { prefix: '/home-keeper', path: '/appliances' };
 
     const partForm = await waitFor(() => {
       const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];
@@ -540,7 +536,6 @@ describe('Notes render as Markdown (issue #163)', () => {
 
     const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
     editBtn.click();
-    panel.route = { prefix: '/home-keeper', path: '/appliances' };
 
     const partForm = await waitFor(() => {
       const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];

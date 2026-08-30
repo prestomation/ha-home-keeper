@@ -151,6 +151,18 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/7-panel-task-detail.png`, fullPage: true });
 
+  // 1a1. Editing beside the page. Edit opens the form in the drawer next to the task's
+  // own page rather than throwing it away for the list, so the schedule, the notes and
+  // the completion history stay readable while the values that produced them are being
+  // changed.
+  await panel.locator('.d-edit').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  await page.waitForTimeout(400);
+  await shotWithDrawer(page, `${OUT}/54-panel-task-detail-edit.png`);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  await expect(panel.locator('.d-edit')).toBeVisible();
+
   // 1b1. The inline notes editor, open, with its live Markdown preview. Every task
   // gets this now (it used to be problem-sensor tasks only) — notes are prose, so
   // they're authored in a full-width box that previews as you type.
@@ -198,10 +210,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-task-form')).toBeVisible();
   await page.waitForTimeout(300);
   await shotWithDrawer(page, `${OUT}/10-panel-managed-edit-locked.png`);
-  // Opening the edit form from a detail page already navigates to the list with the
-  // form floating on top (see _openEdit's "leave any open detail page"), so Cancel
-  // lands directly on the list — there's no detail page's #back-btn to click here.
+  // The form opens beside the page it was pressed on, so Cancel lands back on that
+  // page (see `_openEdit`) — the way to the list is the page's own Back.
   await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 1e. Tasks grouped by managing integration — managed tasks bucket under their
@@ -436,8 +449,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/42-panel-task-area-detail.png`, fullPage: true });
 
-  // The Area picker in the task's edit form, holding the saved room. Editing from a
-  // detail page returns to the list and re-opens the form there.
+  // The Area picker in the task's edit form, holding the saved room. The form opens
+  // in the drawer beside the task's own page.
   await panel.locator('.d-edit').click();
   await expect(panel.locator('#hk-task-form')).toBeVisible();
   await expect(panel.locator('#hk-task-form ha-selector-area')).toBeVisible({ timeout: 10_000 });
@@ -447,9 +460,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await shotWithDrawer(page, `${OUT}/42b-panel-task-area-form.png`);
   // The task form is an inline card, not an `ha-dialog` — Escape leaves it open and
-  // it would then sit on top of the grouped-list shot below. Close it properly.
+  // it would then sit on top of the grouped-list shot below. Close it properly, then
+  // leave the task's page: the grouping control below belongs to the list.
   await panel.locator('#f-cancel').click();
   await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 42c. Grouped by Area — what the picker buys you: the task now sorts into its room
   // instead of the "Unassigned" bucket it was stuck in.
@@ -683,6 +699,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await shotWithDrawer(page, `${OUT}/36-panel-task-card-links.png`);
   await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 5. Appliances tab — the asset list with the seeded virtual device.
@@ -710,6 +728,18 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-part-notes ha-markdown strong').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/8-panel-appliance-detail.png`, fullPage: true });
+
+  // 8a0. Editing beside the appliance. The form is a second column, not a third: the
+  // list the appliance was opened from steps aside for as long as the form is up, so
+  // the parts and documents being edited stay next to the fields editing them.
+  await panel.locator('.d-edit').click();
+  await expect(panel.locator('#hk-asset-form')).toBeVisible();
+  await expect(panel.locator('.hk-master')).toBeHidden();
+  await page.waitForTimeout(400);
+  await shotWithDrawer(page, `${OUT}/55-panel-appliance-detail-edit.png`);
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await expect(panel.locator('.hk-master')).toBeVisible();
 
   // 8a. The other sub-tabs. Each is a URL of its own, so these are pages, not
   // panels — the appliance's own notes and identity live under Details, and the

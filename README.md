@@ -258,14 +258,18 @@ list can be skimmed for the red ones. The filter row above sits on one line: sco
 pills carrying a count each, then the saved **Profile** and **Group by** pickers,
 then **Add task**.
 
-**Editing opens in a drawer beside the list.** The list keeps its place and the row
-you are editing stays lit while the rest of it recedes, so you can see what you are
-changing in context. **Save** sits in a header that does not scroll away. **Delete**
-and **History** sit in a footer at the other end. The form is grouped into Basics,
-Schedule, Placement and Completion, and the fields a recurrence choice reveals are
-indented behind a rule so it is clear what they depend on.
+**Editing opens in a drawer beside what you were reading.** Press **Edit** on a task
+or an appliance and the form opens as a column next to that page. The page stays
+readable while its values are being changed. Adding from a list opens the same drawer
+beside the list with the row being edited lit and the rest of the list receding.
+**Save** sits in a header that does not scroll away and **Delete** in a footer at the
+other end. The form is grouped into Basics, Schedule, Placement and Completion. Fields
+that a recurrence choice reveals are indented behind a rule so it is clear what they
+depend on.
 
-![Editing a task in the drawer, with the row being edited marked in the list behind it](docs/images/2-panel-create-floating.png)
+![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
+
+![Adding a task in the drawer, with the row being edited marked in the list behind it](docs/images/2-panel-create-floating.png)
 
 **An appliance is read next to the list it came from.** Its list stays as a pane on
 the left with the appliance you are looking at marked in it, and the appliance's own
@@ -273,8 +277,11 @@ sections are sub-tabs: **Parts**, **Tasks**, **Documents**, **Details**, **Relat
 and **History**, each carrying how much it holds. Each sub-tab has an address of its
 own (`/home-keeper/appliances/<id>/documents`), so browser Back leaves a sub-tab like
 any other page and you can link straight to one.
+Editing an appliance opens beside it too, and the list pane steps aside to make room.
 
 ![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
+
+![An appliance's page with its edit form open beside it, the appliance list stepped aside to make room](docs/images/55-panel-appliance-detail-edit.png)
 
 **On a phone** the tabs move to the bottom of the screen. **Add task** turns into a
 floating button. The edit drawer becomes a full-height sheet. The scope pills come

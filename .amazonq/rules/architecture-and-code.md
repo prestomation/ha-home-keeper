@@ -89,6 +89,23 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   `buildPath`) so they unit-test in isolation and round-trip losslessly. Unknown
   or empty paths fall back to the tasks list; a detail URL whose id no longer
   exists renders the "gone" notice rather than erroring.
+- **Opening a form is not a navigation.** The edit drawer opens beside the page it
+  was pressed on — the list, or that object's own detail page — and the location does
+  not move (`_openEdit` / `_openEditAsset`, gated by `_editsThisPage`). Edit used to
+  navigate to the owning list, which threw away the schedule, notes and history that
+  the values being edited come from. Only a *cross-view* edit still navigates, because
+  a form mounts on its own view: the task form on `tasks`, the appliance form on
+  `appliances`. That one goes through `_navigate` plus `_pendingEdit`, since
+  `_applyLocation` clears ephemeral forms on the way.
+- **The drawer belongs to every page of its view, so mount it before any page-specific
+  wiring returns.** `_hydrate` returns early for a task detail ("a page of its own"),
+  so `_mountDrawerForm` runs above that return — mounted after it, Edit on a task page
+  opens an empty drawer.
+- **A form beside a detail page must not dim it.** The dimming that marks the edited
+  row on a list is keyed off `.hk-wrap:not([data-detail])`: on a detail page the page
+  *is* the subject of the form, so it stays at full contrast. Where a third column
+  would not fit (an appliance, read beside its list), the list steps aside above
+  1150px rather than everything shrinking.
 
 ## Pure, HA-free core
 - `recurrence.py` and `models.py` MUST NOT import anything from `homeassistant`.

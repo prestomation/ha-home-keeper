@@ -62,3 +62,65 @@ test.describe('Home Keeper panel — the bare Settings URL', () => {
     await expect(panel.locator('#hk-settings ha-form').first()).toBeVisible();
   });
 });
+
+/**
+ * The rail is the wide layout's table of contents, so it only exists here — untagged,
+ * desktop only.
+ */
+test.describe('Home Keeper panel — the Settings rail', () => {
+  test('a rail click re-marks the page in place and scrolls from where you are', async ({
+    page,
+  }) => {
+    // Clicking a rail entry used to rebuild the whole page to move one mark, which is
+    // what made the scroll jump: the replacement is briefly a fraction of its height
+    // (the `ha-form`s in it render after the swap), the browser clamps the scroll to
+    // that shorter page, and the smooth scroll the rail asked for then crawls back
+    // down from the top. Node identity is what pins the fix — a full render replaces
+    // `shadowRoot.innerHTML`, so nothing marked beforehand would survive it.
+    await page.goto('/home-keeper/settings');
+    const panel = page.locator('home-keeper-panel').first();
+    await expect(panel.locator('.hk-settings-rail')).toBeVisible();
+    await expect(panel.locator('#hk-companions')).toBeVisible();
+
+    const moved = await panel.evaluate(async (el: HTMLElement) => {
+      const root = el.shadowRoot as ShadowRoot;
+      const page_ = document.scrollingElement as HTMLElement;
+      (root.getElementById('hk-settings-general') as HTMLElement).dataset.e2eKept = 'yes';
+      // Start halfway down, so a jump to the top is a fall the samples below can see.
+      page_.scrollTop = Math.round(page_.scrollHeight * 0.45);
+      await new Promise((done) => setTimeout(done, 200));
+      const start = page_.scrollTop;
+
+      // Sample every frame across the click and the scroll it starts.
+      const seen: number[] = [];
+      const until = Date.now() + 1200;
+      const tick = (): void => {
+        seen.push(Math.round(page_.scrollTop));
+        if (Date.now() < until) requestAnimationFrame(tick);
+      };
+      tick();
+      (root.querySelector('.hk-rail-link[data-section="companions"]') as HTMLElement).click();
+      await new Promise((done) => setTimeout(done, 1400));
+      return {
+        kept: (root.getElementById('hk-settings-general') as HTMLElement)?.dataset.e2eKept,
+        start,
+        low: Math.min(...seen),
+        end: seen[seen.length - 1],
+      };
+    });
+
+    // The page it scrolled is the page that was already there.
+    expect(moved.kept, 'the rendered Settings page should survive a rail click').toBe('yes');
+    // Companions is the last section, so the scroll runs down the page — and never
+    // starts by falling to the top of it.
+    expect(moved.low).toBeGreaterThanOrEqual(moved.start - 4);
+    expect(moved.end).toBeGreaterThan(moved.start);
+
+    // …and the rail says where the reader now is, in the URL and on the entry.
+    await expect.poll(() => page.url()).toContain('/home-keeper/settings/companions');
+    await expect(panel.locator('.hk-rail-link[data-section="companions"]')).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+});

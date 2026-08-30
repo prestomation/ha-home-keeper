@@ -138,6 +138,16 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('.d-note-edit')).toBeVisible();
   await page.waitForTimeout(BEAT);
 
+  // 2a3. Edit opens beside the page rather than replacing it: the form slides in as a
+  //      column and the schedule, notes and history stay where they were. Cancel, so
+  //      the tour changes nothing here either.
+  await panel.locator('.d-edit').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(BEAT);
