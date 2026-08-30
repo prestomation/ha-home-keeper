@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Events reference | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/developer/events"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Events reference | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper fires a Home Assistant bus event for every state change:"><meta data-rh="true" property="og:description" content="Home Keeper fires a Home Assistant bus event for every state change:"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-272/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/developer/events"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/developer/events" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/developer/events" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Events","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/developer/events"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-272/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-272/assets/js/runtime~main.ee786603.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-272/assets/js/runtime~main.85f17d47.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-272/assets/js/main.6fc6322e.js" defer="defer"></script>
 </head>
 <body>
@@ -52,16 +52,22 @@ restart does to it.</p>
 lists every event with its payload. This section covers the behaviour a table
 can&#x27;t express.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="task-lifecycle">Task lifecycle<a href="#task-lifecycle" class="hash-link" aria-label="Direct link to Task lifecycle" title="Direct link to Task lifecycle" translate="no">​</a></h3>
-<p>A snooze moves only <code>next_due</code> and leaves the recurrence alone. A skip advances the
-schedule itself, so floating jumps an interval, fixed advances one occurrence, and
-one-off, triggered and sensor tasks go dormant. Both re-arm the edge-triggered
-overdue and due-soon announcements for the new date.</p>
+<p>Only <code>next_due</code> moves when a task is snoozed, leaving the recurrence alone. Skipping
+advances the schedule itself, by a step that depends on the kind of task:</p>
+<ul>
+<li class=""><strong>floating</strong> jumps a fresh interval from now</li>
+<li class=""><strong>fixed</strong> moves on one scheduled occurrence</li>
+<li class=""><strong>one-off</strong>, <strong>triggered</strong> and <strong>sensor</strong> tasks go dormant</li>
+</ul>
+<p>Both verbs re-arm the edge-triggered overdue and due-soon announcements for the new
+date.</p>
 <p>A skip is also <strong>recorded</strong>, in a <code>skips</code> list of its own beside <code>completions</code>. The
-two are deliberately separate: a skip is the record of an occurrence deliberately
-passed over, so it never sets <code>last_completed</code> and never counts toward anything
-derived from the completion log. <code>home_keeper_task_skipped</code> carries the new entry&#x27;s
-<code>ts</code>, which is its identity for the <code>update_skip</code> / <code>move_skip</code> / <code>delete_skip</code>
-services and for the <code>_skip_updated</code> / <code>_skip_removed</code> events those fire.</p>
+two lists stay deliberately separate. A skip records an occurrence that was passed
+over on purpose, so it never sets <code>last_completed</code>, and nothing derived from the
+completion log counts it. <code>home_keeper_task_skipped</code> carries the new entry&#x27;s <code>ts</code>.
+That timestamp is the entry&#x27;s identity for the <code>update_skip</code> / <code>move_skip</code> /
+<code>delete_skip</code> services, and for the <code>_skip_updated</code> / <code>_skip_removed</code> events they
+fire.</p>
 <p>Skipping a <strong>usage</strong> task resets its meter exactly as completing it does, so the next
 interval is measured from the reading at the skip. Its time backstop (<code>also_every</code>)
 measures from the same point, since with the default <code>combinator: &quot;any&quot;</code> an elapsed
