@@ -753,10 +753,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/8e-panel-appliance-history-tab.png`, fullPage: true });
 
-  // 8b. Delete now asks for confirmation and is styled as a destructive action
+  // 8b. Delete now asks for confirmation, and the confirm carries the one solid red
+  // fill in the panel — `danger-primary`, the weight reserved for a surface whose
+  // whole purpose is the deletion. (The old `destructive` attribute selected here
+  // was never read by ha-button; see utils.ts BtnWeight.)
   // (issue #173) — no more one-click loss of an appliance's documents/parts/history.
   await panel.locator('.d-del').click();
-  await expect(page.locator('.hk-confirm-scrim ha-button[destructive]')).toBeAttached({
+  await expect(page.locator('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]')).toBeAttached({
     timeout: 5_000,
   });
   await page.waitForTimeout(400);
@@ -982,7 +985,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await partsDetails.locator('.hk-part').first().locator('ha-icon-button.part-del').click();
   // Scrim is appended to document.body (not shadow root) so use page.locator.
   await expect(
-    page.locator('.hk-confirm-scrim ha-button[destructive]'),
+    page.locator('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]'),
   ).toBeAttached({ timeout: 5_000 });
   await page.waitForTimeout(500);
   // Viewport screenshot — position:fixed overlays render correctly here.

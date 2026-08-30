@@ -1047,10 +1047,11 @@ const STYLES = `
   /* The count reads as a companion figure, not part of the label: lighter, and
      tinted to the button's own foreground so it stays legible when active. */
   .hk-seg-count { font-size: 0.78rem; opacity: 0.72; font-variant-numeric: tabular-nums; }
-  /* A scope with nothing in it is dimmed and unpressable. The count is still legible —
-     "0" is the answer to a question worth asking — so the pill recedes rather than
-     disappearing, and the row keeps its shape as tasks come and go. */
-  .hk-seg-btn.hk-seg-empty { opacity: 0.45; cursor: default; }
+  /* A scope with nothing in it recedes rather than disappearing, so the row keeps its
+     shape as tasks come and go and the count stays legible — "0" is the answer to a
+     question worth asking. */
+  .hk-seg-btn.hk-seg-empty { opacity: 0.5; }
+  .hk-seg-btn.hk-seg-empty:hover { opacity: 0.75; }
   /* Label + value + caret, sized like the pills beside it. A refinement with more
      than a couple of options states its current value instead of showing them all. */
   .hk-menu { gap: 0; border: 1px solid var(--hk-line); border-radius: var(--hk-r-btn);
@@ -3413,17 +3414,19 @@ export class HomeKeeperPanel extends HTMLElement {
       .map((o) => {
         const count =
           o.count === undefined ? '' : `<span class="hk-seg-count">${escapeHTML(String(o.count))}</span>`;
-        // A scope that would show nothing is not worth a trip: it used to be pressable
-        // and landed on "No tasks match this filter" with no way out but the pill you
-        // came from. The *selected* one is never disabled, though — completing your
-        // last overdue task would otherwise leave you standing on a dead control.
+        // A scope holding nothing is dimmed, so the row says where there is something
+        // to see before you spend a click finding out. Deliberately still pressable:
+        // "is my shopping list really empty?" is a fair question, and the answer is
+        // that scope's empty state — which now carries its own way back out. The
+        // selected pill is never dimmed, so the one you are standing on stays solid
+        // when completing the last task empties it under you.
         const isCurrent = o.value === current;
         const empty = o.count === 0 && !isCurrent;
         return `<button class="hk-seg-btn${isCurrent ? ' active' : ''}${
           empty ? ' hk-seg-empty' : ''
-        }" aria-pressed="${isCurrent ? 'true' : 'false'}"${
-          empty ? ' disabled aria-disabled="true"' : ''
-        } data-seg-val="${escapeHTML(o.value)}">${escapeHTML(o.label)}${count}</button>`;
+        }" aria-pressed="${isCurrent ? 'true' : 'false'}" data-seg-val="${escapeHTML(
+          o.value,
+        )}">${escapeHTML(o.label)}${count}</button>`;
       })
       .join('');
     return `<div class="hk-seg" role="group" aria-label="${escapeHTML(
