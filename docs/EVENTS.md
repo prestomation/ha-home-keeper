@@ -42,12 +42,24 @@ can't express.
 
 ### Task lifecycle
 
-A snooze moves only `next_due`, leaving the recurrence alone; a skip advances the
+A snooze moves only `next_due` and leaves the recurrence alone. A skip advances the
 schedule itself, so floating jumps an interval, fixed advances one occurrence, and
 one-off, triggered and sensor tasks go dormant. Both re-arm the edge-triggered
-overdue and due-soon announcements for the new date. Editing the `reading` on a
-**usage** task's *latest* completion also re-anchors its meter, so that event can
-then add a `meter_baseline`.
+overdue and due-soon announcements for the new date.
+
+A skip is also **recorded**, in a `skips` list of its own beside `completions`. The
+two are deliberately separate: a skip is the record of an occurrence deliberately
+passed over, so it never sets `last_completed` and never counts toward anything
+derived from the completion log. `home_keeper_task_skipped` carries the new entry's
+`ts`, which is its identity for the `update_skip` / `move_skip` / `delete_skip`
+services and for the `_skip_updated` / `_skip_removed` events those fire.
+
+Skipping a **usage** task resets its meter exactly as completing it does, so the next
+interval is measured from the reading at the skip. Its time backstop (`also_every`)
+measures from the same point, since with the default `combinator: "any"` an elapsed
+backstop would otherwise re-arm the task however recently it was skipped. Editing the
+`reading` on whichever completion or skip currently anchors the meter re-anchors it,
+so `_completion_updated` and `_skip_updated` can then add a `meter_baseline`.
 
 **NFC/RFID tag scans** ride these same events: completing a task by scanning its
 linked tag fires an ordinary `home_keeper_task_completed` carrying
