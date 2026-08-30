@@ -10,6 +10,8 @@ import {
   profileFormData,
   profileFormToProfile,
   profileSchema,
+  skipSnoozeFlags,
+  skipSnoozeSchema,
   selArea,
   selBool,
   selDate,
@@ -462,5 +464,70 @@ describe('taskFormSchemaKey', () => {
     expect(taskFormSchemaKey({ recurrence_type: 'floating', device_id: 'dev2' })).not.toBe(
       taskFormSchemaKey({ recurrence_type: 'floating', device_id: 'dev1' }),
     );
+  });
+});
+
+describe('skipSnoozeSchema', () => {
+  it('renders exactly the two switches, in the order the section reads', () => {
+    expect(skipSnoozeSchema()).toEqual([
+      { name: 'allow_snooze', selector: { boolean: {} } },
+      { name: 'allow_skip', selector: { boolean: {} } },
+    ]);
+  });
+});
+
+describe('skipSnoozeFlags', () => {
+  it('reads both switches when they are stored', () => {
+    expect(skipSnoozeFlags({ allow_snooze: true, allow_skip: false })).toEqual({
+      allowSnooze: true,
+      allowSkip: false,
+    });
+    expect(skipSnoozeFlags({ allow_snooze: false, allow_skip: true })).toEqual({
+      allowSnooze: false,
+      allowSkip: true,
+    });
+  });
+
+  it('defaults a missing key to on, not off', () => {
+    // Every options document stored before these keys existed lacks them — which is
+    // all of them. `!!v` would read that as "off" and silently withdraw both verbs
+    // from every existing install.
+    expect(skipSnoozeFlags({})).toEqual({ allowSnooze: true, allowSkip: true });
+    expect(skipSnoozeFlags({ sync_problem_sensors: false })).toEqual({
+      allowSnooze: true,
+      allowSkip: true,
+    });
+  });
+
+  it('treats each switch independently', () => {
+    expect(skipSnoozeFlags({ allow_skip: false })).toEqual({
+      allowSnooze: true,
+      allowSkip: false,
+    });
+  });
+
+  it('survives options that have not loaded yet', () => {
+    // The panel calls this while `_options` is still undefined on first paint; a
+    // throw here would blank the task page rather than render it with both verbs.
+    expect(skipSnoozeFlags(undefined)).toEqual({ allowSnooze: true, allowSkip: true });
+  });
+
+  it('treats a stored null the same as absent — on, not off', () => {
+    // `null` is what a cleared field round-trips to through JSON, and it means "no
+    // answer" rather than "no". Reading it as off would be the same silent
+    // withdrawal as reading a missing key that way.
+    expect(skipSnoozeFlags({ allow_snooze: null })).toEqual({
+      allowSnooze: true,
+      allowSkip: true,
+    });
+  });
+
+  it('reads any other falsy value as off', () => {
+    // The backend coerces with `bool()`, so anything falsy that reaches the panel
+    // genuinely is off — only null/undefined mean "never set".
+    expect(skipSnoozeFlags({ allow_snooze: 0, allow_skip: '' })).toEqual({
+      allowSnooze: false,
+      allowSkip: false,
+    });
   });
 });

@@ -73,6 +73,41 @@ def test_skips_accumulate_and_are_capped():
     assert task["skips"][-1]["ts"] == dt(2026, 6, 5).isoformat()
 
 
+def test_the_log_is_capped_and_drops_its_oldest_entries():
+    """Both logs share one insert, so the cap is one behaviour rather than two.
+
+    Uncapped, a task skipped by an automation every hour would grow its stored
+    document without bound — the storage file is one JSON blob rewritten on every
+    save, so the cost is paid on every write, not just at read time.
+    """
+    task = floating()
+    cap = r.MAX_COMPLETION_HISTORY
+    task["skips"] = [
+        {"ts": dt(2020, 1, 1).isoformat(), "note": f"n{i}"} for i in range(cap)
+    ]
+    # Distinct timestamps, so none of these collapse into each other.
+    for i in range(cap):
+        task["skips"][i]["ts"] = (dt(2020, 1, 1) + timedelta(minutes=i)).isoformat()
+    oldest = task["skips"][0]["ts"]
+
+    out = r.skip_occurrence(task, now=dt(2026, 6, 13))
+
+    assert len(out["skips"]) == cap
+    assert all(s["ts"] != oldest for s in out["skips"])
+    assert out["skips"][-1]["ts"] == dt(2026, 6, 13).isoformat()
+
+
+def test_the_log_is_not_trimmed_before_it_reaches_the_cap():
+    task = floating()
+    cap = r.MAX_COMPLETION_HISTORY
+    task["skips"] = [
+        {"ts": (dt(2020, 1, 1) + timedelta(minutes=i)).isoformat()}
+        for i in range(cap - 1)
+    ]
+    out = r.skip_occurrence(task, now=dt(2026, 6, 13))
+    assert len(out["skips"]) == cap
+
+
 def test_a_skip_never_becomes_last_completed():
     """The floating clock measures from work done, not from a decision to defer.
 
@@ -235,6 +270,59 @@ def test_a_task_written_before_skips_existed_reads_as_having_none():
     del legacy["skips"]
     out = r.skip_occurrence(legacy, now=dt(2026, 6, 13))
     assert len(out["skips"]) == 1
+
+
+def test_removing_a_skip_from_a_pre_skip_document_is_a_no_op():
+    """Undo has to survive a document stored before the log existed, which is every
+    document there is — the key is absent, not empty."""
+    legacy = floating()
+    del legacy["skips"]
+    out = r.remove_skip(legacy, "2026-06-13T00:00:00-04:00")
+    assert out["skips"] == []
+
+
+def test_amending_a_skip_on_a_pre_skip_document_raises_rather_than_crashing():
+    legacy = floating()
+    del legacy["skips"]
+    with pytest.raises(ValueError, match="no skip at"):
+        r.update_skip(legacy, "2026-06-13T00:00:00-04:00", {}, fields=SKIP_FIELDS)
+
+
+def test_moving_a_skip_on_a_pre_skip_document_raises_rather_than_crashing():
+    legacy = floating()
+    del legacy["skips"]
+    with pytest.raises(ValueError, match="no skip at"):
+        r.move_skip(
+            legacy,
+            "2026-06-13T00:00:00-04:00",
+            "2026-06-01T00:00:00-04:00",
+            now=dt(2026, 6, 13),
+        )
+
+
+def test_an_empty_string_clears_a_field_rather_than_being_stored():
+    """A blanked note must remove the key, not store ``""`` — otherwise the history
+    row renders an empty note block instead of no note at all."""
+    now = dt(2026, 6, 13, 10)
+    task = r.skip_occurrence(floating(), now=now, metadata={"note": "away"})
+    out = r.update_skip(task, now.isoformat(), {"note": ""}, fields=SKIP_FIELDS)
+    assert "note" not in out["skips"][0]
+
+
+def test_amending_a_skip_invents_no_new_keys_on_the_task():
+    now = dt(2026, 6, 13, 10)
+    task = r.skip_occurrence(floating(), now=now, metadata={"note": "away"})
+    before = set(task)
+    out = r.update_skip(task, now.isoformat(), {"note": "x"}, fields=SKIP_FIELDS)
+    assert set(out) == before
+
+
+def test_a_task_with_no_recurrence_type_skips_as_a_floating_one():
+    """``floating`` is the documented default across the engine, and skip follows it
+    rather than raising on a task shape every other function accepts."""
+    now = dt(2026, 6, 13, 10)
+    out = r.skip_occurrence({"interval": 7, "unit": "days"}, now=now)
+    assert out["next_due"] == (now + timedelta(days=7)).isoformat()
 
 
 def test_a_reading_is_refused_for_a_task_with_no_meter():

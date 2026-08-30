@@ -134,6 +134,19 @@ def test_an_unparseable_stamp_is_ignored_rather_than_raising():
     assert st.latest_decision_ts(task) == "2026-05-01T00:00:00-04:00"
 
 
+def test_a_corrupt_stamp_does_not_hide_the_good_ones_after_it():
+    """One unreadable value skips that value, not the rest of the list.
+
+    A hand-edited store can hold a corrupt ``last_completed``; abandoning the scan
+    there would lose every valid skip behind it and silently re-anchor the backstop
+    to the task's creation date.
+    """
+    task = usage_task()
+    task["last_completed"] = "not a date"
+    task["skips"] = [{"ts": "2026-07-01T00:00:00-04:00"}]
+    assert st.latest_decision_ts(task) == "2026-07-01T00:00:00-04:00"
+
+
 # ── undo ────────────────────────────────────────────────────────────────────
 
 
@@ -153,6 +166,25 @@ def test_deleting_an_older_skip_leaves_the_meter_alone():
     after = r.remove_skip(dict(task), older["ts"])
     # The later skip is the anchor now, so undoing the older row is bookkeeping only.
     assert st.baseline_after_delete(after, older, was_latest=False) == (False, None)
+
+
+def test_an_entry_predating_meter_start_falls_back_to_the_previous_reading():
+    """A completion stamped before ``meter_start`` existed carries no baseline to
+    restore, so the anchor falls back to the reading on the completion now latest."""
+    task = usage_task()
+    task["completions"] = [
+        {"ts": "2026-05-01T00:00:00-04:00", "reading": 24000},
+    ]
+    task["last_completed"] = "2026-05-01T00:00:00-04:00"
+    assert st.baseline_after_delete(task, {"ts": "x"}, was_latest=True) == (True, 24000)
+
+
+def test_a_task_with_no_completion_log_at_all_clears_the_baseline():
+    """Nothing left to measure from, so the watcher re-anchors on its next reading
+    rather than counting from a figure that no longer means anything."""
+    task = usage_task()
+    del task["completions"]
+    assert st.baseline_after_delete(task, {"ts": "x"}, was_latest=True) == (True, None)
 
 
 def test_a_non_usage_task_never_moves_its_baseline():

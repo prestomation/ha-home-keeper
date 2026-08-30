@@ -275,7 +275,9 @@ def _record_entry(history: Iterable[dict], entry: dict) -> list[dict]:
         entries[dup] = entry
     else:
         entries.append(entry)
-    if len(entries) > MAX_COMPLETION_HISTORY:
+    # `>=` here would be equivalent, not a bug: at exactly the cap the slice returns
+    # the same entries, so only the strict form is observable.
+    if len(entries) > MAX_COMPLETION_HISTORY:  # pragma: no mutate
         entries = entries[-MAX_COMPLETION_HISTORY:]
     return entries
 
