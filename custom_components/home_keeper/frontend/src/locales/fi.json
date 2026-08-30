@@ -454,6 +454,7 @@
   "tab.appliances": "Laitteet",
   "tab.settings": "Asetukset",
   "tab.tasks": "Tehtävät",
+  "tasks.showAll": "Näytä kaikki tehtävät",
   "toast.copyFailed": "Kopiointi ei onnistunut. Valitse tunnus ja kopioi se käsin.",
   "toast.idCopied": "Tunnus kopioitu",
   "view.flat": "Luettelo",

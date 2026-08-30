@@ -84,13 +84,18 @@ import {
   areaName,
   assetSummary,
   brandLogoUrl,
+  btnAttrs,
+  type BtnWeight,
   buildPath,
   completionStats,
   deviceDomain,
   deviceName,
+  groupableDeviceId,
   dueLabel,
   copyText,
   escapeHTML,
+  formatDate,
+  formatDateTime,
   formatQuantity,
   isHttpUrl,
   isOverdue,
@@ -103,6 +108,7 @@ import {
   safeHref,
   recurrenceSummary,
   scanRequired,
+  setBtnWeight,
   tagName,
   taskRecordsReading,
   tasksForAsset,
@@ -257,6 +263,7 @@ const STYLES = `
     --hk-warn-ink: color-mix(in srgb, var(--warning-color, #ffa600) 58%, var(--primary-text-color));
     --hk-ok: var(--success-color, #43a047);
     --hk-ok-soft: color-mix(in srgb, var(--success-color, #43a047) 14%, var(--card-background-color, #fff));
+    --hk-ok-ink: color-mix(in srgb, var(--success-color, #43a047) 58%, var(--primary-text-color));
     --hk-surface: var(--card-background-color, #fff);
     --hk-page: var(--secondary-background-color);
     --hk-line: var(--divider-color);
@@ -422,6 +429,14 @@ const STYLES = `
     flex-wrap: wrap;
   }
   .hk-meta { color: var(--hk-ink-2); font-size: 0.85rem; margin-top: 2px; }
+  /* A finished one-off is struck through and faded wherever it appears. Group by
+     Status tucked it into a collapsed section, but every other grouping left it
+     mid-list looking like work still to do — and which grouping you chose should not
+     change what appears to be in your active list. Faded per element rather than on
+     the row: opacity on the card would make a stacking context and drag the status
+     pill and the chips down with it. */
+  .hk-card.hk-task-done .hk-name { text-decoration: line-through; opacity: 0.62; }
+  .hk-card.hk-task-done .hk-meta { opacity: 0.62; }
   .hk-card-actions { display: flex; align-items: center; gap: 4px; }
   /* A completion-blocked Done (e.g. a synced problem sensor): the inner ha-button is
      natively disabled (greyed), and the wrapping span stays clickable so a tap can
@@ -441,12 +456,12 @@ const STYLES = `
     --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
-  ha-assist-chip.hk-managed {
-    --ha-assist-chip-container-color: var(--info-color, #039BE5);
-    --md-assist-chip-label-text-color: #fff;
-    --ha-assist-chip-label-text-color: #fff;
-    --md-assist-chip-outline-color: transparent;
-  }
+  /* "Managed by X" and "Auto-synced" carry no rule at all: they take the stock
+     outlined chip, the same as the device chip beside them. They were a solid fill
+     the same weight as "Add task", which put the loudest thing in a task row on the
+     one piece of it you cannot act on — the eye reached the integration's name before
+     the task's. The integration's own icon carries the identity instead, which
+     _managedChip already renders. Filled white-on-mid-tone also measured 3.08:1. */
   /* Soft container, ink label — the same pairing the overdue chip uses. White on
      amber measured 1.96:1 and white on grey 1.88:1: not marginal, unreadable. */
   ha-assist-chip.hk-orphaned {
@@ -671,7 +686,7 @@ const STYLES = `
     background: var(--secondary-background-color);
     border-radius: 999px; padding: 1px 8px;
   }
-  .hk-notify-delete { align-self: flex-end; --mdc-theme-primary: var(--error-color, #db4437); }
+  .hk-notify-delete { align-self: flex-end; }
   .hk-notify-add { margin-top: 12px; }
   /* Collapsible settings section headers (Profiles, Notifications). */
   .hk-section-header {
@@ -691,13 +706,27 @@ const STYLES = `
     transition: transform 0.2s ease; transform: rotate(-90deg);
   }
   .hk-section-chevron.open { transform: rotate(0deg); }
+  /* Soft container, ink label — the pairing the overdue and orphaned chips already
+     use. White on the mid-tone success fill measured 3.30:1. The suggested chip moves
+     with it: the two sit side by side in the Companions list, and fixing only one
+     would read as the other being broken. */
   ha-assist-chip.hk-comp-connected {
-    --ha-assist-chip-container-color: var(--success-color, #43a047);
-    --ha-assist-chip-filled-container-color: var(--success-color, #43a047);
-    --md-assist-chip-label-text-color: var(--text-primary-color, #fff);
+    --ha-assist-chip-container-color: var(--hk-ok-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-ok-soft);
+    --md-assist-chip-label-text-color: var(--hk-ok-ink);
+    --ha-assist-chip-label-text-color: var(--hk-ok-ink);
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
   }
   ha-assist-chip.hk-comp-suggested {
-    --ha-assist-chip-container-color: var(--warning-color, #ffa600);
+    --ha-assist-chip-container-color: var(--hk-warn-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-warn-soft);
+    --md-assist-chip-label-text-color: var(--hk-warn-ink);
+    --ha-assist-chip-label-text-color: var(--hk-warn-ink);
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
   }
   .hk-section {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
@@ -926,10 +955,10 @@ const STYLES = `
   /* No outline on a status pill. A tonal Done and an outlined "Monitored" sat side by
      side at the same height and radius, and the one with the border was the one you
      could not press — enclosure now means pressable, and status reads as text.
-     Scoped away from the chips that carry a colour of their own (overdue, warn), so
-     removing the outline does not also remove what the colour was saying. */
+     Scoped away from the overdue chip, which carries a colour of its own, so removing
+     the outline does not also remove what the colour was saying. */
   .hk-status ha-assist-chip { --ha-assist-chip-container-height: 28px; }
-  .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-managed):not(.hk-warn) {
+  .hk-status ha-assist-chip:not(.hk-overdue) {
     --ha-assist-chip-outline-width: 0px;
     --md-assist-chip-outline-width: 0px;
     --ha-assist-chip-outline-color: transparent;
@@ -937,16 +966,17 @@ const STYLES = `
     --ha-assist-chip-container-color: var(--hk-page);
     --ha-assist-chip-filled-container-color: var(--hk-page);
   }
-  /* …and Done gets the ring, so the row's one control is drawn as one. HA's tonal
-     label sat at 2.85:1 on its own fill — under the 4.5:1 for text and even the 3:1
-     for a control — so the label is restated from our own accent ink. ha-button
-     exposes its inner button as part "base", which is the only lever that reaches the
-     label: every colour custom property it reads is a fill token. */
+  /* Every tonal button, not just Done. HA's tonal label sits at 2.85:1 on its own
+     fill — under the 4.5:1 for text and even the 3:1 for a control — so the label is
+     restated from our own accent ink, which measures 6.02:1 on the same fill.
+     ha-button exposes its inner button as part "base", and that is the only lever
+     that reaches the label: every colour custom property it reads is a fill token.
+     Keyed off the weight rather than a class so a button cannot opt out of it by
+     being written somewhere new. */
+  [data-hk-weight="secondary"]::part(base) { color: var(--hk-accent-ink); }
+  /* …and Done additionally gets the ring, so the row's one control is drawn as one. */
   .done-btn { --ha-button-border-radius: var(--hk-r-pill); }
-  .done-btn::part(base) {
-    color: var(--hk-accent-ink);
-    box-shadow: inset 0 0 0 1px var(--hk-accent-line);
-  }
+  .done-btn::part(base) { box-shadow: inset 0 0 0 1px var(--hk-accent-line); }
   ha-card.hk-card.hk-tree-child {
     margin-left: calc(var(--hk-tree-depth, 0) * 32px);
     border-left: 3px solid color-mix(in srgb, var(--primary-color) calc(40% + var(--hk-tree-depth, 0) * 15%), transparent);
@@ -1007,6 +1037,11 @@ const STYLES = `
   /* The count reads as a companion figure, not part of the label: lighter, and
      tinted to the button's own foreground so it stays legible when active. */
   .hk-seg-count { font-size: 0.78rem; opacity: 0.72; font-variant-numeric: tabular-nums; }
+  /* A scope with nothing in it recedes rather than disappearing, so the row keeps its
+     shape as tasks come and go and the count stays legible — "0" is the answer to a
+     question worth asking. */
+  .hk-seg-btn.hk-seg-empty { opacity: 0.5; }
+  .hk-seg-btn.hk-seg-empty:hover { opacity: 0.75; }
   /* Label + value + caret, sized like the pills beside it. A refinement with more
      than a couple of options states its current value instead of showing them all. */
   .hk-menu { gap: 0; border: 1px solid var(--hk-line); border-radius: var(--hk-r-btn);
@@ -1294,6 +1329,12 @@ const STYLES = `
   ha-icon-button.hk-hist-del, ha-icon-button.hk-hist-edit, ha-icon-button.hk-hist-move {
     --mdc-icon-button-size: 36px; color: var(--secondary-text-color);
   }
+  /* The destructive one of the three reads as destructive on approach rather than at
+     rest: three red trashcans down a history list is an alarm, and the row is a
+     record, not a control panel. */
+  ha-icon-button.hk-hist-del:hover, ha-icon-button.hk-hist-del:focus-visible {
+    color: var(--hk-danger-ink);
+  }
   .hk-hist-meta {
     display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
     margin: 0 0 6px 2px;
@@ -1435,7 +1476,6 @@ const STYLES = `
     .hk-add-btn {
       position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom));
       z-index: 5;
-      --mdc-theme-primary: var(--hk-accent);
       --ha-button-border-radius: 14px;
       box-shadow: var(--hk-shadow-float);
       border-radius: 14px;
@@ -2334,14 +2374,14 @@ export class HomeKeeperPanel extends HTMLElement {
           placeholder="${escapeHTML(placeholder)}">${escapeHTML(text)}</textarea>
         <div class="d-note-preview"></div>
         <div class="hk-detail-actions">
-          <ha-button raised class="d-note-save">${escapeHTML(t('btn.save'))}</ha-button>
-          <ha-button class="d-note-cancel">${escapeHTML(t('btn.cancel'))}</ha-button>
+          <ha-button ${btnAttrs('primary')} class="d-note-save">${escapeHTML(t('btn.save'))}</ha-button>
+          <ha-button ${btnAttrs('tertiary')} class="d-note-cancel">${escapeHTML(t('btn.cancel'))}</ha-button>
         </div>`;
     }
     const label = text ? t('note.edit') : t('note.add');
     return `${rendered}
       <div class="hk-detail-actions">
-        <ha-button class="d-note-edit">${escapeHTML(label)}</ha-button>
+        <ha-button ${btnAttrs('secondary')} class="d-note-edit">${escapeHTML(label)}</ha-button>
       </div>`;
   }
 
@@ -2553,13 +2593,16 @@ export class HomeKeeperPanel extends HTMLElement {
     };
 
     const cancel = document.createElement('ha-button');
+    setBtnWeight(cancel, 'tertiary');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', close);
 
+    // The one surface in the panel whose whole reason to exist is the destruction, so
+    // the one place Delete carries a solid fill. Its red comes from `variant`, which
+    // resolves against Home Assistant's document-level theme — this scrim is appended
+    // to document.body, where the panel's own `:host` tokens do not reach.
     const del = document.createElement('ha-button');
-    del.setAttribute('raised', '');
-    del.setAttribute('destructive', '');
-    del.setAttribute('variant', 'danger');
+    setBtnWeight(del, 'danger-primary');
     del.textContent = t('btn.delete');
     del.addEventListener('click', () => {
       onConfirm?.();
@@ -2636,11 +2679,12 @@ export class HomeKeeperPanel extends HTMLElement {
   /** Render a *disabled* Done for a completion-blocked task, wrapped in a clickable
    *  span (the native `disabled` greys the button correctly across HA button
    *  versions, but swallows clicks — so the span carries the tap → explanation and a
-   *  hover tooltip). ``raised`` matches the prominent detail-page button. */
-  private _blockedDone(wrapClass: string, task: Task, raised = false): string {
+   *  hover tooltip). *weight* matches whichever live Done it stands in for: the
+   *  detail page's primary, or the list row's tonal one. */
+  private _blockedDone(wrapClass: string, task: Task, weight: BtnWeight = 'secondary'): string {
     const reason = this._blockedReason(task);
     const cls = [wrapClass, 'done-blocked-wrap'].filter(Boolean).join(' ');
-    return `<span class="${cls}" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-button ${raised ? 'raised ' : ''}disabled>${escapeHTML(t('btn.done'))}</ha-button></span>`;
+    return `<span class="${cls}" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-button ${btnAttrs(weight)} disabled>${escapeHTML(t('btn.done'))}</ha-button></span>`;
   }
   /** A muted "Clears automatically" caption for a completion-blocked task in the list
    *  card — self-explanatory inline (no hover needed), unlike a dead greyed button. It's
@@ -2951,7 +2995,7 @@ export class HomeKeeperPanel extends HTMLElement {
       // (only the very first `set hass` retried). Show a retry instead.
       inner = `<div class="hk-loading"><ha-alert alert-type="error">${escapeHTML(
         t('error.loadFailed'),
-      )}</ha-alert><ha-button id="hk-retry" raised>${escapeHTML(
+      )}</ha-alert><ha-button id="hk-retry" ${btnAttrs('primary')}>${escapeHTML(
         t('btn.retry'),
       )}</ha-button></div>`;
     } else if (!this._loaded) {
@@ -2968,7 +3012,7 @@ export class HomeKeeperPanel extends HTMLElement {
       inner = `
         ${this._tabs()}
         <div class="hk-detailbar">
-          <ha-button id="back-btn" appearance="plain">‹ ${escapeHTML(t('btn.back'))}</ha-button>
+          <ha-button id="back-btn" ${btnAttrs('tertiary')}>‹ ${escapeHTML(t('btn.back'))}</ha-button>
         </div>
         <div class="hk-master-controls">${this._controls()}</div>
         <div class="hk-master-detail">
@@ -2980,7 +3024,7 @@ export class HomeKeeperPanel extends HTMLElement {
     } else if (this._detail) {
       inner = `
         <div class="hk-detailbar">
-          <ha-button id="back-btn">‹ ${escapeHTML(t('btn.back'))}</ha-button>
+          <ha-button id="back-btn" ${btnAttrs('tertiary')}>‹ ${escapeHTML(t('btn.back'))}</ha-button>
         </div>
         ${this._detailView()}`;
     } else if (this._view === 'settings') {
@@ -3283,8 +3327,8 @@ export class HomeKeeperPanel extends HTMLElement {
     const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
     const actions = `
       <span class="hk-controls-spacer"></span>
-      ${onTasks ? '' : `<ha-button appearance="filled" id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
-      <ha-button raised id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
+      ${onTasks ? '' : `<ha-button ${btnAttrs('secondary')} id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
+      <ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
     return `<div class="hk-controls">${filterControl}${assetFilterControl}${viewControl}${this._profileControl()}${groupControl}${actions}</div>`;
   }
 
@@ -3360,9 +3404,17 @@ export class HomeKeeperPanel extends HTMLElement {
       .map((o) => {
         const count =
           o.count === undefined ? '' : `<span class="hk-seg-count">${escapeHTML(String(o.count))}</span>`;
-        return `<button class="hk-seg-btn${o.value === current ? ' active' : ''}" aria-pressed="${
-          o.value === current ? 'true' : 'false'
-        }" data-seg-val="${escapeHTML(
+        // A scope holding nothing is dimmed, so the row says where there is something
+        // to see before you spend a click finding out. Deliberately still pressable:
+        // "is my shopping list really empty?" is a fair question, and the answer is
+        // that scope's empty state — which now carries its own way back out. The
+        // selected pill is never dimmed, so the one you are standing on stays solid
+        // when completing the last task empties it under you.
+        const isCurrent = o.value === current;
+        const empty = o.count === 0 && !isCurrent;
+        return `<button class="hk-seg-btn${isCurrent ? ' active' : ''}${
+          empty ? ' hk-seg-empty' : ''
+        }" aria-pressed="${isCurrent ? 'true' : 'false'}" data-seg-val="${escapeHTML(
           o.value,
         )}">${escapeHTML(o.label)}${count}</button>`;
       })
@@ -3463,7 +3515,10 @@ export class HomeKeeperPanel extends HTMLElement {
     if (group === 'device') {
       return this._groupByKey(
         tasks,
-        (task) => task.device_id ?? undefined,
+        // A device with no name to head a section with — gone from the registry, or
+        // present but nameless — sends its tasks to "No device" rather than under a
+        // bare id or an empty heading.
+        (task) => groupableDeviceId(this._hass?.devices, task.device_id),
         (id) => deviceName(this._hass?.devices, id),
         t('section.noDevice'),
         'device',
@@ -3577,7 +3632,7 @@ export class HomeKeeperPanel extends HTMLElement {
           <li>${t('tasks.intro.monitored')}</li>
           <li>${t('tasks.intro.companion')}</li>
         </ul>
-        <ha-button class="hk-intro-dismiss">${escapeHTML(t('tasks.intro.dismiss'))}</ha-button>
+        <ha-button ${btnAttrs('tertiary')} class="hk-intro-dismiss">${escapeHTML(t('tasks.intro.dismiss'))}</ha-button>
       </div>`;
   }
 
@@ -3604,7 +3659,16 @@ export class HomeKeeperPanel extends HTMLElement {
       return ad - bd;
     });
     if (!tasks.length) {
-      return `${intro}<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}</ha-alert>`;
+      // Closing the loop the other way: an empty result carries the way back to the
+      // full list, so the dead end is escapable even when it was a Profile rather
+      // than a scope pill that emptied it.
+      const showAll =
+        this._filter === 'all' && !this._activeProfile()
+          ? ''
+          : `<ha-button slot="action" ${btnAttrs('secondary')} id="hk-show-all">${escapeHTML(
+              t('tasks.showAll'),
+            )}</ha-button>`;
+      return `${intro}<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}${showAll}</ha-alert>`;
     }
     return `${intro}${this._orphanBanner()}${this._renderGroups(
       this._groupTasks(tasks, now),
@@ -3624,7 +3688,7 @@ export class HomeKeeperPanel extends HTMLElement {
     return `
       <ha-alert alert-type="warning" class="hk-orphan-banner">
         ${escapeHTML(tn('managed.orphanBanner', n))}
-        <ha-button slot="action" id="cleanup-orphans-btn">${escapeHTML(
+        <ha-button slot="action" ${btnAttrs('danger')} id="cleanup-orphans-btn">${escapeHTML(
           t('btn.removeOrphaned'),
         )}</ha-button>
       </ha-alert>`;
@@ -3716,9 +3780,9 @@ export class HomeKeeperPanel extends HTMLElement {
     const completedOneOff =
       task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
     const dueText = task.next_due
-      ? ` · ${escapeHTML(t('form.task.due', { date: new Date(task.next_due).toLocaleDateString() }))}`
+      ? ` · ${escapeHTML(t('form.task.due', { date: formatDate(task.next_due, this._lang()) }))}`
       : completedOneOff
-        ? ` · ${escapeHTML(t('form.task.completedOn', { date: new Date(task.last_completed as string).toLocaleDateString() }))}`
+        ? ` · ${escapeHTML(t('form.task.completedOn', { date: formatDate(task.last_completed, this._lang()) }))}`
         : '';
     // For an overdue task, append *how* overdue it is — a bare date hides urgency. Use
     // whole elapsed days (floor), and only once at least one full day has passed: a
@@ -3752,10 +3816,8 @@ export class HomeKeeperPanel extends HTMLElement {
         : scanRequired(task)
           ? this._blockedDone('', task)
           : // Tonal, not solid: every row carries a Done, and a page of solid accent
-            // buttons leaves the surface with no single primary action. `appearance`
-            // is Home Assistant's own button vocabulary, so this follows the active
-            // theme rather than hard-coding a tint.
-            `<ha-button appearance="filled" class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
+            // buttons leaves the surface with no single primary action.
+            `<ha-button ${btnAttrs('secondary')} class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
     // Descriptive chips (device, tag, integration) belong beside the name — they say
     // *what* this task is about, which is part of reading the title. Only the first two
     // are shown, with a "+n" for the rest; every chip stays in the DOM and the overflow
@@ -3778,7 +3840,9 @@ export class HomeKeeperPanel extends HTMLElement {
     const editing = this._edit.open && !!task.id && this._edit.task?.id === task.id;
     // The row opens the task's detail page; "Done" stays as a quick action.
     return `
-      <ha-card class="hk-card${overdue ? ' overdue' : ''}${editing ? ' hk-editing' : ''}" data-id="${escapeHTML(task.id)}">
+      <ha-card class="hk-card${overdue ? ' overdue' : ''}${editing ? ' hk-editing' : ''}${
+        completedOneOff ? ' hk-task-done' : ''
+      }" data-id="${escapeHTML(task.id)}">
         <div class="hk-card-row hk-row-task">
           <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
             <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
@@ -3798,9 +3862,12 @@ export class HomeKeeperPanel extends HTMLElement {
     const kindChip =
       x.kind === 'virtual'
         ? this._virtualDeviceChip(x)
+        // The no-device branch reached `deviceName(devices, undefined)`, which is
+        // always '' — so an appliance with no device carried a nameless empty chip.
+        // Matches the detail page, which has always rendered nothing here.
         : x.device_id
           ? this._deviceChip(x.device_id)
-          : `<ha-assist-chip label="${escapeHTML(deviceName(this._hass?.devices, x.device_id))}"></ha-assist-chip>`;
+          : '';
     const title =
       x.name || deviceName(this._hass?.devices, x.device_id) || t('appliance.fallbackName');
     const subCount = this._assets.filter((a) => a.parent_asset_id === x.id).length;
@@ -4040,18 +4107,18 @@ export class HomeKeeperPanel extends HTMLElement {
     const orphaned = this._isManagedOrphan(task);
     let manage = '';
     if (!sourceOwned) {
-      const editBtn = `<ha-button class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
+      const editBtn = `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
       // Deletion protection only holds while the owner is present. Once orphaned
       // (owner uninstalled/disabled), the Delete button returns so the user can
       // clean the task up — otherwise "delete it from X instead" points nowhere.
       const deleteBtn =
         mb?.deletion_protected && !orphaned
           ? `<span class="hk-managed-info">${escapeHTML(t('managed.deleteBlocked', { name: mb.display_name }))}</span>`
-          : `<ha-button destructive class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
+          : `<ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
       // "Edit in X" deep link when config_entry_id resolves to a loaded domain.
       const domain = mb?.config_entry_id ? this._entryDomains[mb.config_entry_id] : null;
       const openInBtn = domain && !orphaned
-        ? `<ha-button class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
+        ? `<ha-button ${btnAttrs('tertiary')} class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
         : '';
       manage = `${editBtn}${deleteBtn}${openInBtn}`;
     }
@@ -4071,9 +4138,9 @@ export class HomeKeeperPanel extends HTMLElement {
     const due = dormantTriggered
       ? t('due.monitored')
       : completedOneOff
-        ? t('form.task.completedOn', { date: new Date(task.last_completed as string).toLocaleString() })
+        ? t('form.task.completedOn', { date: formatDateTime(task.last_completed, this._lang()) })
         : task.next_due
-          ? new Date(task.next_due).toLocaleString()
+          ? formatDateTime(task.next_due, this._lang())
           : t('due.none');
     // Nothing to mark done while dormant — the integration arms it when the
     // monitored condition fires (e.g. a battery goes low) — or once a one-off is
@@ -4085,8 +4152,8 @@ export class HomeKeeperPanel extends HTMLElement {
     const doneBtn = dormantTriggered || completedOneOff
       ? ''
       : mb?.completion_blocked || scanRequired(task)
-        ? this._blockedDone('d-done-blocked-wrap', task, true)
-        : `<ha-button raised class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
+        ? this._blockedDone('d-done-blocked-wrap', task, 'primary')
+        : `<ha-button ${btnAttrs('primary')} class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
     // Notes get an inline editor right on the detail page: they're long-form prose
     // that renders as Markdown, so authoring deserves a full-width box with a live
     // preview rather than one cramped row among the schedule fields. (For a
@@ -4169,11 +4236,11 @@ export class HomeKeeperPanel extends HTMLElement {
       : '';
     const archived = Boolean(asset.archived_at);
     const archiveOrRestoreBtn = archived
-      ? `<ha-button class="d-restore">${escapeHTML(t('btn.restore'))}</ha-button>`
-      : `<ha-button class="d-archive">${escapeHTML(t('btn.archive'))}</ha-button>`;
+      ? `<ha-button ${btnAttrs('secondary')} class="d-restore">${escapeHTML(t('btn.restore'))}</ha-button>`
+      : `<ha-button ${btnAttrs('secondary')} class="d-archive">${escapeHTML(t('btn.archive'))}</ha-button>`;
     const archivedNote = archived
       ? `<div class="hk-managed-prompt">${escapeHTML(
-          t('detail.archivedOn', { date: new Date(asset.archived_at as string).toLocaleDateString() }),
+          t('detail.archivedOn', { date: formatDate(asset.archived_at, this._lang()) }),
         )}</div>`
       : '';
     // Seven stacked sections made an appliance a page you scrolled rather than read,
@@ -4200,9 +4267,9 @@ export class HomeKeeperPanel extends HTMLElement {
         <div class="hk-chips">${kindChip}${parentChip}</div>
         ${archivedNote}
         <div class="hk-detail-actions">
-          <ha-button raised class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>
+          <ha-button ${btnAttrs('primary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>
           ${archiveOrRestoreBtn}
-          <ha-button destructive class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>
+          <ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>
         </div>
       </div>
       <nav class="hk-subtabs" aria-label="${escapeHTML(asset.name)}">${this._assetSubtabs(asset, tab)}</nav>
@@ -4538,6 +4605,10 @@ export class HomeKeeperPanel extends HTMLElement {
    */
   private _deviceChip(deviceId: string): string {
     const name = deviceName(this._hass?.devices, deviceId);
+    // No name, no chip. The device has left the registry, so the chip had nothing to
+    // say and its link went to a config page that no longer exists — the same guard
+    // `_areaChip` has always had. `_virtualDeviceChip` checks the registry too.
+    if (!name) return '';
     const domain = deviceDomain(this._hass?.devices?.[deviceId], this._entryDomains);
     const icon = domain
       ? `<img slot="icon" class="hk-dev-img" alt="" src="${escapeHTML(
@@ -4953,6 +5024,13 @@ export class HomeKeeperPanel extends HTMLElement {
       .getElementById('cleanup-orphans-btn')
       ?.addEventListener('click', () => void this._cleanupOrphans());
 
+    // The way out of a filter that matches nothing: clears the scope *and* any active
+    // Profile, since either can be what emptied the list.
+    root.getElementById('hk-show-all')?.addEventListener('click', () => {
+      if (this._activeProfile()) this._setProfile('');
+      this._setFilter('all');
+    });
+
     // Filter / group-by segmented controls.
     root.querySelectorAll<HTMLElement>('.hk-seg-btn').forEach((b) =>
       b.addEventListener('click', () => {
@@ -5148,10 +5226,10 @@ export class HomeKeeperPanel extends HTMLElement {
   private _wireDetailActions(root: ShadowRoot): void {
     const d = this._detail;
     if (!d) return;
-    // `destructive` alone doesn't reflect into ha-button's Web Awesome variant when
-    // set as static markup (only when applied to an already-upgraded element), so
-    // force the red "danger" variant here rather than in the template string.
-    root.querySelector('.d-del')?.setAttribute('variant', 'danger');
+    // The `.d-del` variant used to be forced here, because `destructive` never
+    // reflected into a colour. `variant` is a real reactive attribute on ha-button,
+    // so `btnAttrs('danger')` in the markup does it — and does it for *every* match,
+    // which this querySelector (singular) never did.
     if (d.kind === 'task') {
       const task = this._tasks.find((x) => x.id === d.id);
       if (!task) return;
@@ -5453,7 +5531,7 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!current) return '';
     return `
       <div class="hk-settings-backbar">
-        <ha-button id="settings-back">‹ ${escapeHTML(t('btn.back'))}</ha-button>
+        <ha-button id="settings-back" ${btnAttrs('tertiary')}>‹ ${escapeHTML(t('btn.back'))}</ha-button>
         <span class="hk-settings-backtitle">${escapeHTML(current.label)}</span>
       </div>`;
   }
@@ -5685,6 +5763,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const add = document.createElement('ha-button');
     add.id = 'hk-profile-add';
     add.className = 'hk-notify-add';
+    setBtnWeight(add, 'secondary');
     add.textContent = t('notify.add_profile');
     add.addEventListener('click', () => void this._addProfile());
     body.appendChild(add);
@@ -5785,6 +5864,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
     const del = document.createElement('ha-button');
     del.className = 'hk-notify-delete';
+    setBtnWeight(del, 'danger');
     del.textContent = t('notify.delete');
     del.addEventListener('click', () => void this._deleteProfile(profile.id));
     body.appendChild(del);
@@ -6031,6 +6111,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const add = document.createElement('ha-button');
     add.id = 'hk-notify-add';
     add.className = 'hk-notify-add';
+    setBtnWeight(add, 'secondary');
     add.textContent = t('notify.add');
     if (!profiles.length) add.setAttribute('disabled', '');
     add.addEventListener('click', () => void this._addNotification());
@@ -6104,6 +6185,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
     const del = document.createElement('ha-button');
     del.className = 'hk-notify-delete';
+    setBtnWeight(del, 'danger');
     del.textContent = t('notify.delete');
     del.addEventListener('click', () => void this._deleteNotification(notification.id));
     body.appendChild(del);
@@ -6223,15 +6305,15 @@ export class HomeKeeperPanel extends HTMLElement {
     const actions: string[] =
       c.status === 'connected'
         ? [
-            `<ha-button class="hk-comp-configure" data-domain="${escapeHTML(c.configure_domain || c.domain)}">${escapeHTML(t('companions.configure'))}</ha-button>`,
+            `<ha-button ${btnAttrs('secondary')} class="hk-comp-configure" data-domain="${escapeHTML(c.configure_domain || c.domain)}">${escapeHTML(t('companions.configure'))}</ha-button>`,
           ]
         : [
-            `<ha-button raised class="hk-comp-install" data-url="${escapeHTML(c.install_url || '')}">${escapeHTML(t('companions.install'))}</ha-button>`,
-            `<ha-button class="hk-comp-dismiss" data-domain="${escapeHTML(c.domain)}">${escapeHTML(t('companions.dismiss'))}</ha-button>`,
+            `<ha-button ${btnAttrs('secondary')} class="hk-comp-install" data-url="${escapeHTML(c.install_url || '')}">${escapeHTML(t('companions.install'))}</ha-button>`,
+            `<ha-button ${btnAttrs('tertiary')} class="hk-comp-dismiss" data-domain="${escapeHTML(c.domain)}">${escapeHTML(t('companions.dismiss'))}</ha-button>`,
           ];
     if (c.docs_url) {
       actions.push(
-        `<ha-button class="hk-comp-docs" data-url="${escapeHTML(c.docs_url)}">${escapeHTML(t('companions.docs'))}</ha-button>`,
+        `<ha-button ${btnAttrs('tertiary')} class="hk-comp-docs" data-url="${escapeHTML(c.docs_url)}">${escapeHTML(t('companions.docs'))}</ha-button>`,
       );
     }
     const desc = c.description
@@ -6517,11 +6599,11 @@ export class HomeKeeperPanel extends HTMLElement {
       (subtitle ? `<div class="hk-drawer-sub">${escapeHTML(subtitle)}</div>` : '');
     const cancel = document.createElement('ha-button');
     cancel.id = ids.cancel;
-    cancel.setAttribute('appearance', 'plain');
+    setBtnWeight(cancel, 'tertiary');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', onCancel);
     const save = document.createElement('ha-button');
-    save.setAttribute('raised', '');
+    setBtnWeight(save, 'primary');
     save.id = ids.save;
     save.textContent = saveLabel;
     save.addEventListener('click', onSave);
@@ -6748,10 +6830,7 @@ export class HomeKeeperPanel extends HTMLElement {
       foot.className = 'hk-drawer-foot';
       const del = document.createElement('ha-button');
       del.className = 'hk-drawer-delete';
-      del.setAttribute('appearance', 'plain');
-      // `variant` is Home Assistant's own semantic colour vocabulary for buttons —
-      // it resolves to the theme's error colour rather than a hard-coded red.
-      del.setAttribute('variant', 'danger');
+      setBtnWeight(del, 'danger');
       del.textContent = t('btn.delete');
       const onThisTasksPage = this._detail?.kind === 'task' && this._detail.id === task.id;
       del.addEventListener('click', () =>
@@ -6772,7 +6851,7 @@ export class HomeKeeperPanel extends HTMLElement {
       if (!onThisTasksPage) {
         const history = document.createElement('ha-button');
         history.className = 'hk-drawer-history';
-        history.setAttribute('appearance', 'plain');
+        setBtnWeight(history, 'tertiary');
         history.textContent = t('btn.history');
         history.addEventListener('click', () => {
           this._closeForm();
@@ -6785,25 +6864,69 @@ export class HomeKeeperPanel extends HTMLElement {
     host.appendChild(card);
   }
 
+  /**
+   * The shell every panel dialog shares: an open `ha-dialog` carrying *title*, the
+   * content div its form goes in, and the footer its action buttons slot into.
+   *
+   * The panel's two dialogs were hand-built side by side, and Home Assistant has now
+   * broken both the same way twice by moving `ha-dialog` onto `wa-dialog`. #144 took
+   * the action buttons — only a `footer` slot survived, and buttons slotted straight
+   * onto `ha-dialog` stopped rendering. #262 took the titles — `heading` is no longer
+   * read at all, and the title now comes from a `headerTitle` slot, so both dialogs
+   * had been opening as a bare ✕ over their body with no way to tell which task you
+   * were completing. Each time the same fix had to be written twice. It is written
+   * once here.
+   *
+   * The title is set **both** ways rather than feature-detected. A current frontend
+   * renders the slotted span and ignores the unread attribute; an older one renders
+   * the attribute and drops the span, because a light-DOM child whose slot name
+   * matches no slot is not rendered at all. Neither can show the title twice.
+   */
+  private _makeDialog(
+    title: string,
+    onClosed: () => void,
+  ): { dialog: HTMLElement; body: HTMLElement; footer: HTMLElement; mount: () => void } {
+    const dialog = document.createElement('ha-dialog');
+    dialog.setAttribute('open', '');
+    dialog.setAttribute('heading', title);
+    const heading = document.createElement('span');
+    heading.setAttribute('slot', 'headerTitle');
+    heading.textContent = title;
+    dialog.appendChild(heading);
+    dialog.addEventListener('closed', onClosed);
+
+    const body = document.createElement('div');
+    body.className = 'hk-completion-body';
+
+    // Action buttons must be wrapped in <ha-dialog-footer slot="footer"> — current
+    // ha-dialog only exposes a "footer" slot; primaryAction/secondaryAction slotted
+    // directly on <ha-dialog> silently don't render. Fall back to slotting straight
+    // on <ha-dialog> (the pre-wa-dialog convention) if ha-dialog-footer isn't
+    // registered, so older HA frontends keep working too.
+    const hasFooter = Boolean(customElements.get('ha-dialog-footer'));
+    const footer: HTMLElement = hasFooter ? document.createElement('ha-dialog-footer') : dialog;
+    if (hasFooter) footer.setAttribute('slot', 'footer');
+
+    // Deferred so the caller can fill body and footer in whatever order reads best,
+    // while the dialog still reaches the DOM with its children already attached.
+    const mount = (): void => {
+      dialog.appendChild(body);
+      if (hasFooter) dialog.appendChild(footer);
+    };
+    return { dialog, body, footer, mount };
+  }
+
   /** Build the completion-details dialog (log a new completion, or edit a past one). */
   private _renderCompletionDialog(host: HTMLElement): void {
     const c = this._completion;
     if (!c.task) return;
     const editing = c.ts != null;
-    const dialog = document.createElement('ha-dialog') as HTMLElement & {
-      heading?: string;
-    };
-    dialog.setAttribute('open', '');
-    dialog.setAttribute(
-      'heading',
+    const { dialog, body, footer, mount } = this._makeDialog(
       editing ? t('completion.edit') : t('completion.title', { name: c.task.name }),
+      () => {
+        if (this._completion.open) this._closeCompletionDialog();
+      },
     );
-    dialog.addEventListener('closed', () => {
-      if (this._completion.open) this._closeCompletionDialog();
-    });
-
-    const body = document.createElement('div');
-    body.className = 'hk-completion-body';
 
     // note / cost / who via ha-form; required fields get the asterisk cue. Logging a
     // *new* completion also offers an optional "Completed at" date/time (defaults to
@@ -6889,24 +7012,12 @@ export class HomeKeeperPanel extends HTMLElement {
       err.textContent = c.error;
       body.appendChild(err);
     }
-    dialog.appendChild(body);
-
-    // Action buttons must be wrapped in <ha-dialog-footer slot="footer"> — current
-    // ha-dialog (backed by wa-dialog) only exposes a "footer" slot; primaryAction/
-    // secondaryAction slotted directly on <ha-dialog> silently don't render. Fall
-    // back to slotting straight on <ha-dialog> (the pre-wa-dialog convention) if
-    // ha-dialog-footer isn't registered, so older HA frontends keep working too.
-    const hasFooter = Boolean(customElements.get('ha-dialog-footer'));
-    const footer: HTMLElement = hasFooter
-      ? document.createElement('ha-dialog-footer')
-      : dialog;
-    if (hasFooter) footer.setAttribute('slot', 'footer');
-
     // Primary action: log (or save edit). Optional-mode logging also offers "skip
-    // details" to complete with nothing recorded.
+    // details" to complete with nothing recorded — a real alternative way through, so
+    // tonal; Cancel is the null action and stays tertiary beside them.
     const primary = document.createElement('ha-button');
     primary.setAttribute('slot', 'primaryAction');
-    primary.setAttribute('raised', '');
+    setBtnWeight(primary, 'primary');
     primary.textContent = editing ? t('btn.save') : t('completion.markDone');
     primary.addEventListener('click', () => void this._submitCompletion());
     footer.appendChild(primary);
@@ -6914,6 +7025,7 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!editing && c.task.completion_detail === 'optional') {
       const skip = document.createElement('ha-button');
       skip.setAttribute('slot', 'secondaryAction');
+      setBtnWeight(skip, 'secondary');
       skip.textContent = t('completion.skip');
       skip.addEventListener('click', () => {
         this._completion.data = {};
@@ -6923,11 +7035,12 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     const cancel = document.createElement('ha-button');
     cancel.setAttribute('slot', 'secondaryAction');
+    setBtnWeight(cancel, 'tertiary');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeCompletionDialog());
     footer.appendChild(cancel);
 
-    if (hasFooter) dialog.appendChild(footer);
+    mount();
     host.appendChild(dialog);
   }
 
@@ -6939,17 +7052,9 @@ export class HomeKeeperPanel extends HTMLElement {
   private _renderMoveCompletionDialog(host: HTMLElement): void {
     const m = this._moveCompletion;
     if (!m.task) return;
-    const dialog = document.createElement('ha-dialog') as HTMLElement & {
-      heading?: string;
-    };
-    dialog.setAttribute('open', '');
-    dialog.setAttribute('heading', t('completion.moveDate'));
-    dialog.addEventListener('closed', () => {
+    const { dialog, body, footer, mount } = this._makeDialog(t('completion.moveDate'), () => {
       if (this._moveCompletion.open) this._closeMoveCompletion();
     });
-
-    const body = document.createElement('div');
-    body.className = 'hk-completion-body';
 
     const schema: FormField[] = [{ name: 'completedAt', required: true, selector: selDateTime() }];
     const form = this._makeForm(
@@ -6968,30 +7073,22 @@ export class HomeKeeperPanel extends HTMLElement {
       err.textContent = m.error;
       body.appendChild(err);
     }
-    dialog.appendChild(body);
-
-    // See _renderCompletionDialog: current ha-dialog (backed by wa-dialog) only
-    // exposes a "footer" slot — primaryAction/secondaryAction slotted directly on
-    // <ha-dialog> silently don't render. Fall back to the old direct-slot
-    // convention if ha-dialog-footer isn't registered (older HA frontends).
-    const hasFooter = Boolean(customElements.get('ha-dialog-footer'));
-    const footer: HTMLElement = hasFooter ? document.createElement('ha-dialog-footer') : dialog;
-    if (hasFooter) footer.setAttribute('slot', 'footer');
 
     const primary = document.createElement('ha-button');
     primary.setAttribute('slot', 'primaryAction');
-    primary.setAttribute('raised', '');
+    setBtnWeight(primary, 'primary');
     primary.textContent = t('btn.save');
     primary.addEventListener('click', () => void this._submitMoveCompletion());
     footer.appendChild(primary);
 
     const cancel = document.createElement('ha-button');
     cancel.setAttribute('slot', 'secondaryAction');
+    setBtnWeight(cancel, 'tertiary');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeMoveCompletion());
     footer.appendChild(cancel);
 
-    if (hasFooter) dialog.appendChild(footer);
+    mount();
     host.appendChild(dialog);
   }
 
@@ -7225,12 +7322,13 @@ export class HomeKeeperPanel extends HTMLElement {
     const row = document.createElement('div');
     row.className = 'hk-doc-edit-actions';
     const save = document.createElement('ha-button');
-    save.setAttribute('raised', '');
+    setBtnWeight(save, 'primary');
     save.textContent = t('btn.save');
     save.addEventListener('click', () =>
       void this._updateDocument(d, isLink ? { name: draft.name, url: draft.url } : { name: draft.name }),
     );
     const cancel = document.createElement('ha-button');
+    setBtnWeight(cancel, 'tertiary');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => {
       this._assetEdit.editingDocId = undefined;
@@ -7276,6 +7374,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const seedRow = document.createElement('div');
     seedRow.className = 'hk-meta-seeds';
     const addLink = document.createElement('ha-button');
+    setBtnWeight(addLink, 'secondary');
     addLink.textContent = t('btn.addLink');
     addLink.addEventListener('click', () => void this._addLinkDocument(draft.name, draft.url));
     seedRow.appendChild(addLink);
@@ -7283,6 +7382,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // A file can only be uploaded once the appliance exists (its id keys the blob).
     if (assetId) {
       const upload = document.createElement('ha-button');
+      setBtnWeight(upload, 'secondary');
       upload.textContent = this._uploadButtonLabel(UPLOAD_KEY_DOCUMENT, t('btn.uploadFile'));
       const picker = document.createElement('input');
       picker.type = 'file';
@@ -7689,6 +7789,7 @@ export class HomeKeeperPanel extends HTMLElement {
       const label = document.createElement('div');
       label.className = 'hk-upload-label';
       const cancel = document.createElement('ha-button');
+      setBtnWeight(cancel, 'tertiary');
       cancel.textContent = t('btn.cancelUpload');
       // Safe at any point: the backend only writes the blob once the whole body has
       // been parsed, so an aborted upload leaves nothing behind.
@@ -7810,11 +7911,13 @@ export class HomeKeeperPanel extends HTMLElement {
     seedRow.className = 'hk-meta-seeds';
     for (const s of seeds) {
       const b = document.createElement('ha-button');
+      setBtnWeight(b, 'secondary');
       b.textContent = s.label;
       b.addEventListener('click', () => addEntry({ type: s.type, label: s.label, value: '' }));
       seedRow.appendChild(b);
     }
     const custom = document.createElement('ha-button');
+    setBtnWeight(custom, 'secondary');
     custom.textContent = t('btn.addField');
     custom.addEventListener('click', () => addEntry({ type: 'text', label: '', value: '' }));
     seedRow.appendChild(custom);
@@ -7965,6 +8068,7 @@ export class HomeKeeperPanel extends HTMLElement {
     });
 
     const add = document.createElement('ha-button');
+    setBtnWeight(add, 'secondary');
     add.id = 'a-add-part';
     add.textContent = t('btn.addPart');
     add.addEventListener('click', () => {
@@ -8027,6 +8131,7 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!assetId || !p.id) return;
     const key = uploadKeyPart(p.id);
     const upload = document.createElement('ha-button');
+    setBtnWeight(upload, 'secondary');
     upload.textContent = this._uploadButtonLabel(key, t('btn.attachFile'));
     const picker = document.createElement('input');
     picker.type = 'file';
@@ -8186,11 +8291,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const items = comps
       .map((c) => {
         const d = new Date(c.ts);
-        const date = d.toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
+        const date = formatDate(d, this._lang());
         const editBtn = editTask
           ? `<ha-icon-button class="hk-hist-edit" data-edit-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>`
           : '';
@@ -8255,6 +8356,12 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /** Format a cost in the instance's configured currency (falls back to the number). */
+  /** The language to format dates, times and numbers in — Home Assistant's, not the
+   *  browser's, so the panel's dates read the same way as the rest of HA. */
+  private _lang(): string | undefined {
+    return this._hass?.language;
+  }
+
   private _formatCost(amount: number): string {
     const currency = this._hass?.config?.currency;
     if (currency) {

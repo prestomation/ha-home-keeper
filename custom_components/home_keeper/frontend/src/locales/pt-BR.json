@@ -470,6 +470,7 @@
   "tab.appliances": "Eletrodomésticos",
   "tab.settings": "Configurações",
   "tab.tasks": "Tarefas",
+  "tasks.showAll": "Mostrar todas as tarefas",
   "toast.copyFailed": "Não foi possível copiar. Selecione o ID e copie manualmente.",
   "toast.idCopied": "ID copiado",
   "view.flat": "Lista",

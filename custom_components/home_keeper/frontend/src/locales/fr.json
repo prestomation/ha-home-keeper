@@ -470,6 +470,7 @@
   "tab.appliances": "Appareils",
   "tab.settings": "Réglages",
   "tab.tasks": "Tâches",
+  "tasks.showAll": "Afficher toutes les tâches",
   "toast.copyFailed": "Copie impossible. Sélectionnez l'ID et copiez-le à la main.",
   "toast.idCopied": "ID copié",
   "view.flat": "Liste",

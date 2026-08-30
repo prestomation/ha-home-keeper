@@ -486,6 +486,7 @@
   "tab.appliances": "Spotřebiče",
   "tab.settings": "Nastavení",
   "tab.tasks": "Úkoly",
+  "tasks.showAll": "Zobrazit všechny úkoly",
   "toast.copyFailed": "Kopírování selhalo. Označte ID a zkopírujte je ručně.",
   "toast.idCopied": "ID zkopírováno",
   "view.flat": "Seznam",

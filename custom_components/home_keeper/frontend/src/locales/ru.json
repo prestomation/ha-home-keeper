@@ -486,6 +486,7 @@
   "tab.appliances": "Устройства",
   "tab.settings": "Настройки",
   "tab.tasks": "Задачи",
+  "tasks.showAll": "Показать все задачи",
   "toast.copyFailed": "Не удалось скопировать. Выделите ID и скопируйте вручную.",
   "toast.idCopied": "ID скопирован",
   "view.flat": "Список",

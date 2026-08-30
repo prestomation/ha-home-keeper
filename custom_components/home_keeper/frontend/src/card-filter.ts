@@ -1,6 +1,6 @@
 import { t } from './i18n';
 import type { HassArea, HassDevice, RecurrenceType, Task } from './types';
-import { areaName, deviceName } from './utils';
+import { areaName, deviceName, groupableDeviceId } from './utils';
 
 /**
  * Pure (DOM-free) filtering / sorting / grouping for the dashboard card. Kept
@@ -372,7 +372,10 @@ export function groupTasks(
   if (groupBy === 'device') {
     return bucketByKey(
       tasks,
-      (task) => task.device_id ?? undefined,
+      // A device with no name to head a section with — gone from the registry, or
+      // present but nameless — sends its tasks to "No device" rather than under a bare
+      // id or an empty heading.
+      (task) => groupableDeviceId(devices, task.device_id),
       (id) => deviceName(devices, id),
       t('section.noDevice'),
       'device',

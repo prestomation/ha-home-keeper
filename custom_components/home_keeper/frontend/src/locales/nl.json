@@ -454,6 +454,7 @@
   "tab.appliances": "Apparaten",
   "tab.settings": "Instellingen",
   "tab.tasks": "Taken",
+  "tasks.showAll": "Alle taken tonen",
   "toast.copyFailed": "Kopiëren mislukt. Selecteer het id en kopieer het handmatig.",
   "toast.idCopied": "ID gekopieerd",
   "view.flat": "Lijst",

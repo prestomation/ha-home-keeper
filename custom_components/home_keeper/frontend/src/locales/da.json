@@ -454,6 +454,7 @@
   "tab.appliances": "Apparater",
   "tab.settings": "Indstillinger",
   "tab.tasks": "Opgaver",
+  "tasks.showAll": "Vis alle opgaver",
   "toast.copyFailed": "Kunne ikke kopiere. Markér id'et, og kopiér det manuelt.",
   "toast.idCopied": "ID kopieret",
   "view.flat": "Liste",

@@ -14,7 +14,11 @@ import {
   meterRemaining,
   taskRecordsReading,
   readingUnit,
+  btnAttrs,
   deviceName,
+  formatDate,
+  formatDateTime,
+  setBtnWeight,
   deviceDomain,
   brandLogoUrl,
   areaName,
@@ -146,17 +150,17 @@ describe('recurrenceSummary', () => {
   it('describes floating tasks relative to completion', () => {
     expect(
       recurrenceSummary({ recurrence_type: 'floating', interval: 1, unit: 'months' }),
-    ).toBe('every month after completion');
+    ).toBe('Every month after completion');
     expect(
       recurrenceSummary({ recurrence_type: 'floating', interval: 3, unit: 'months' }),
-    ).toBe('every 3 months after completion');
+    ).toBe('Every 3 months after completion');
   });
   it('describes fixed tasks by frequency', () => {
     expect(recurrenceSummary({ recurrence_type: 'fixed', interval: 1, freq: 'DAILY' })).toBe(
-      'every day',
+      'Every day',
     );
     expect(recurrenceSummary({ recurrence_type: 'fixed', interval: 2, freq: 'WEEKLY' })).toBe(
-      'every 2 weeks',
+      'Every 2 weeks',
     );
   });
   it('describes triggered tasks as monitored (no schedule)', () => {
@@ -204,6 +208,10 @@ describe('dueLabel', () => {
     expect(dueLabel({ next_due: '2026-06-14T12:00:00Z' }, now)).toBe('tomorrow');
     expect(dueLabel({ next_due: '2026-06-16T12:00:00Z' }, now)).toBe('in 3 days');
     expect(dueLabel({ next_due: '2026-06-12T12:00:00Z' }, now)).toBe('yesterday');
+    // The multi-day past had no assertion, so nothing distinguished "3 days ago" from
+    // "yesterday" or from the plural template being wrong.
+    expect(dueLabel({ next_due: '2026-06-10T12:00:00Z' }, now)).toBe('3 days ago');
+    expect(dueLabel({ next_due: '2026-06-14T12:00:00Z' }, now)).not.toBe('in 1 day');
   });
   it('labels a dormant triggered task as Monitored', () => {
     expect(dueLabel({ recurrence_type: 'triggered' }, now)).toBe('Monitored');
@@ -356,8 +364,8 @@ describe('deviceName', () => {
   it('falls back to name', () => {
     expect(deviceName(devices, 'def')).toBe('Furnace');
   });
-  it('returns id for unknown device, empty for none', () => {
-    expect(deviceName(devices, 'zzz')).toBe('zzz');
+  it('is empty for an unknown device and for none (#262)', () => {
+    expect(deviceName(devices, 'zzz')).toBe('');
     expect(deviceName(devices, null)).toBe('');
   });
 });
@@ -845,5 +853,157 @@ describe('buildAssetTree', () => {
     );
     expect(result.length).toBe(2);
     expect(result.every((e) => e.depth >= 0)).toBe(true);
+  });
+});
+
+describe('formatDate / formatDateTime (#262)', () => {
+  const ISO = '2026-07-01T13:00:00Z';
+
+  it('writes a date as a month name, not a numeric US-order string', () => {
+    // "7/1/2026" is ambiguous outside the US and was one of three different date
+    // shapes the panel used. Pin the shape, not just that a string comes back.
+    const out = formatDate(ISO, 'en-GB');
+    expect(out).toContain('2026');
+    expect(out).toMatch(/Jul/);
+    expect(out).not.toMatch(/\d+\/\d+\/\d+/);
+  });
+
+  it('drops seconds from a date-time', () => {
+    // The whole point: toLocaleString() gives "7/1/2026, 1:00:00 PM". A completion is
+    // something a person did on an afternoon, not a log line.
+    const out = formatDateTime(ISO, 'en-GB');
+    expect(out).toMatch(/Jul/);
+    expect(out).toMatch(/\d{1,2}:\d{2}/);
+    expect(out).not.toMatch(/\d{1,2}:\d{2}:\d{2}/);
+  });
+
+  it('honours the language it is given rather than the runtime default', () => {
+    // Both formatters, and both directions: a mutant that drops the language and
+    // always falls back to the runtime locale still produces a plausible-looking
+    // string, so the assertion has to be that two languages differ.
+    expect(formatDate(ISO, 'de-DE')).toMatch(/Juli|Jul/);
+    expect(formatDate(ISO, 'en-GB')).toMatch(/Jul/);
+    expect(formatDate(ISO, 'de-DE')).not.toBe(formatDate(ISO, 'en-GB'));
+    expect(formatDateTime(ISO, 'de-DE')).not.toBe(formatDateTime(ISO, 'en-GB'));
+    expect(formatDateTime(ISO, 'ja-JP')).not.toBe(formatDateTime(ISO, 'en-GB'));
+  });
+
+  it('falls back to the runtime locale when given no language', () => {
+    // `lang || undefined` — an empty string must mean "no preference", not a locale.
+    expect(formatDate(ISO)).toBe(formatDate(ISO, undefined));
+    expect(formatDate(ISO, '')).toBe(formatDate(ISO, undefined));
+    expect(formatDateTime(ISO)).toBe(formatDateTime(ISO, undefined));
+    expect(formatDateTime(ISO, '')).toBe(formatDateTime(ISO, undefined));
+  });
+
+  it('accepts a Date as well as an ISO string', () => {
+    expect(formatDate(new Date(ISO), 'en-GB')).toBe(formatDate(ISO, 'en-GB'));
+    expect(formatDateTime(new Date(ISO), 'en-GB')).toBe(formatDateTime(ISO, 'en-GB'));
+  });
+
+  it('is empty for nothing and for an unparseable value', () => {
+    for (const bad of [null, undefined, '', 'not a date']) {
+      expect(formatDate(bad, 'en-GB'), String(bad)).toBe('');
+      expect(formatDateTime(bad, 'en-GB'), String(bad)).toBe('');
+    }
+  });
+});
+
+describe('button weights (#262)', () => {
+  it('primary adds no appearance or variant — it is the element default', () => {
+    expect(btnAttrs('primary')).toBe('data-hk-weight="primary"');
+  });
+
+  it('spells each other weight in ha-button’s own vocabulary', () => {
+    expect(btnAttrs('secondary')).toBe('appearance="filled" data-hk-weight="secondary"');
+    // Neutral, not brand: plain-brand paints the label accent-coloured, which is
+    // 3.26:1 on a card and makes Cancel argue with the action beside it.
+    expect(btnAttrs('tertiary')).toBe(
+      'appearance="plain" variant="neutral" data-hk-weight="tertiary"',
+    );
+    expect(btnAttrs('danger')).toBe('appearance="plain" variant="danger" data-hk-weight="danger"');
+    expect(btnAttrs('danger-primary')).toBe('variant="danger" data-hk-weight="danger-primary"');
+  });
+
+  it('never emits the two attributes ha-button stopped reading', () => {
+    for (const weight of ['primary', 'secondary', 'tertiary', 'danger', 'danger-primary']) {
+      expect(btnAttrs(weight)).not.toMatch(/raised|destructive/);
+    }
+  });
+
+  it('setBtnWeight clears the attributes the new weight does not set', () => {
+    const el = document.createElement('span');
+    setBtnWeight(el, 'danger');
+    expect(el.getAttribute('appearance')).toBe('plain');
+    expect(el.getAttribute('variant')).toBe('danger');
+    // Re-weighting must not leave the old weight's attributes behind — a danger
+    // button re-weighted to primary would otherwise stay red.
+    setBtnWeight(el, 'primary');
+    expect(el.hasAttribute('appearance')).toBe(false);
+    expect(el.hasAttribute('variant')).toBe(false);
+    expect(el.getAttribute('data-hk-weight')).toBe('primary');
+  });
+
+  it('setBtnWeight leaves nothing behind, for every ordered pair of weights', () => {
+    // The strong form of the clearing rule: whatever a button was, becoming something
+    // else must leave it identical to a button that was always that. This is what
+    // fails if the cleared-attribute list ever stops covering the table it serves.
+    const weights = ['primary', 'secondary', 'tertiary', 'danger', 'danger-primary'];
+    const render = (el) =>
+      [...el.attributes]
+        .map((a) => `${a.name}="${a.value}"`)
+        .sort()
+        .join(' ');
+    for (const from of weights) {
+      for (const to of weights) {
+        const reweighted = document.createElement('span');
+        setBtnWeight(reweighted, from);
+        setBtnWeight(reweighted, to);
+        const fresh = document.createElement('span');
+        setBtnWeight(fresh, to);
+        expect(render(reweighted), `${from} -> ${to}`).toBe(render(fresh));
+      }
+    }
+  });
+
+  it('setBtnWeight agrees with btnAttrs for every weight', () => {
+    for (const weight of ['primary', 'secondary', 'tertiary', 'danger', 'danger-primary']) {
+      const el = document.createElement('span');
+      setBtnWeight(el, weight);
+      const rendered = [...el.attributes]
+        .map((a) => `${a.name}="${a.value}"`)
+        .sort()
+        .join(' ');
+      const expected = btnAttrs(weight).split(' ').sort().join(' ');
+      expect(rendered, weight).toBe(expected);
+    }
+  });
+});
+
+describe('recurrenceSummary sentence case (#262)', () => {
+  it('capitalises the clock-based fragments, which were written lowercase', () => {
+    // "every 12 months after completion" sat beside "Every 300 h of use" and
+    // "Monitored" in the same column of the same list.
+    expect(recurrenceSummary({ recurrence_type: 'floating', interval: 12, unit: 'months' })).toBe(
+      'Every 12 months after completion',
+    );
+    expect(recurrenceSummary({ recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY' })).toBe(
+      'Every month',
+    );
+  });
+
+  it('leaves the already-capitalised kinds untouched', () => {
+    expect(recurrenceSummary({ recurrence_type: 'triggered' })).toBe('Monitored');
+    expect(recurrenceSummary({ recurrence_type: 'one-off' })).toBe('One-off');
+  });
+
+  it('changes only the first character, never the rest of the sentence', () => {
+    // A blanket .toUpperCase() or a title-case pass would also hit the unit and the
+    // trailing clause; only the leading letter may move.
+    const out = recurrenceSummary({ recurrence_type: 'floating', interval: 3, unit: 'weeks' });
+    expect(out).toBe('Every 3 weeks after completion');
+    // Everything after the first character is exactly what the strings say — no
+    // title-casing of "Weeks", no capital on "After".
+    expect(out.slice(1)).toBe('very 3 weeks after completion');
   });
 });

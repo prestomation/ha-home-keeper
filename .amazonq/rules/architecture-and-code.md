@@ -551,11 +551,28 @@ client check is a fast path, never the enforcement.
   *surface* darkens with the surface, so it reads correctly in a dark theme too).
   A design comp is drawn in one palette; pasting its hexes breaks dark mode and
   every custom theme.
-- **One primary action per surface.** The primary button is HA's default
-  `ha-button`; everything else on that surface is `appearance="filled"` (tonal) or
-  `"plain"`. Use HA's own `appearance`/`variant` attributes rather than restyling
-  the button — they follow the active theme, and the button's internals are a
-  shadow root we do not own.
+- **One primary action per surface, and every button states its weight.** The
+  vocabulary lives in `utils.ts` as `BtnWeight` + `btnAttrs()` / `setBtnWeight()`:
+  `primary` (no attributes — HA's own default), `secondary` (`appearance="filled"`),
+  `tertiary` (`appearance="plain" variant="neutral"`), `danger`
+  (`appearance="plain" variant="danger"`) and `danger-primary` (`variant="danger"`).
+  **Never write `ha-button` attributes by hand**, and never re-introduce `raised` or
+  `destructive`: `ha-button` extends Web Awesome's `Button`, whose observed attributes
+  are `appearance`, `variant` and `size` only. Neither Material attribute is read, so
+  a button carrying one renders at the default accent fill exactly as a bare one does
+  — which is how twelve `raised` buttons, plus every bare one, silently converged on a
+  single weight (#262). `--mdc-theme-primary` is dead for the same reason.
+  - Because `primary` is spelled as the *absence* of attributes, "given the primary
+    weight" and "nobody thought about this button" are otherwise the same markup. The
+    helpers stamp `data-hk-weight`, which is what makes the difference legible, what
+    the tonal ink rule selects on, and what `tests/e2e/tests/button-weights.spec.ts`
+    walks.
+  - **Cancel is always `tertiary`.** A destructive action takes the weight of the
+    *surface's* purpose, not of the thing it destroys: `danger` where it sits among
+    other actions, `danger-primary` only on a surface whose whole job is the deletion
+    (the confirm scrim, and nowhere else).
+  - `tertiary` is `neutral` rather than brand on purpose — `appearance="plain"` alone
+    paints the label in the accent colour at 3.26:1 on a card.
 - Two shared primitives carry the system: `.hk-eyebrow` (uppercase micro-label
   above a group) and `.hk-indent` (a rule down the left of fields that exist only
   because of a choice above them). Reuse them rather than restating the rules.
@@ -607,7 +624,13 @@ client check is a fast path, never the enforcement.
   row's action carries the ring.
 - **Reach into a Home Assistant component through its `part`, not its colour custom
   properties.** `ha-button` reads only fill tokens, so the label colour is only
-  reachable as `.done-btn::part(base)`.
+  reachable as `::part(base)`. HA's tonal label on its own tonal fill measures
+  2.85:1, so every tonal button restates it from `--hk-accent-ink` — keyed off
+  `[data-hk-weight="secondary"]` rather than a class, so a button cannot opt out of
+  the fix by being written somewhere new.
+- **When a semantic colour needs a label, add the `*-ink` to match the `*-soft`.**
+  The `ok` family shipped with a container and no ink, which is why the "Connected"
+  chip was still white-on-mid-tone at 3.30:1 after #261 fixed its neighbours.
 
 ### Accessibility contracts the panel has to keep
 - **`_render()` destroys the focused element, so `_render()` restores focus.**
@@ -657,8 +680,28 @@ elements; `REQUIRED_COMPONENTS` only *waits* for a registration, it can't cause 
 Verify with `customElements.get('<tag>')` on `/home-keeper` in the e2e container before
 depending on one, and otherwise build the element from plain DOM plus theme CSS
 variables (`var(--primary-color)`, `var(--divider-color)`) — see the upload progress
-bar (`.hk-upload`). HA has broken us this way before (issue #144, `ha-dialog`'s slot
-API).
+bar (`.hk-upload`).
+
+**The same element has now broken us three times, always the same way: an API we were
+still using stopped being read, and nothing failed.** #144 took `ha-dialog`'s action
+buttons (only a `footer` slot survived), #262 took its title (`heading` is ignored; the
+title comes from a `headerTitle` slot) and, in the same release, every `raised` and
+`destructive` on `ha-button`. A string that is still correct, still translated and
+still asserted by anything reading the attribute is not evidence it reaches the screen.
+
+- **Both `ha-dialog`s are built by `panel.ts`'s `_makeDialog`.** Do not hand-roll a
+  third — the first two were duplicated side by side and each break had to be fixed
+  twice. It sets the title *both* ways: a current frontend renders the slotted span
+  and ignores the attribute, an older one renders the attribute and drops the span,
+  because a light-DOM child whose slot name matches no slot is not rendered at all.
+  Neither can show it twice, so this needs no feature detection.
+- **Assert on rendered pixels, not on markup, whenever HA owns the rendering.** Read
+  the computed style off the element's `part`, the way
+  `tests/e2e/tests/button-weights.spec.ts` does. An attribute assertion would have
+  passed throughout both of the above.
+- **Probe the real element before designing against it.** `observedAttributes` on the
+  constructor is the authoritative answer to "does it still read this?", and a
+  throwaway spec in the e2e container gets it in a minute.
 
 ### Frontend registrations outlive the config entry — never tear one down on unload
 The sidebar panel and the card's Lovelace resource are registered against the *HA

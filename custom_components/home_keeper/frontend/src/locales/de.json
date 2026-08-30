@@ -454,6 +454,7 @@
   "tab.appliances": "Geräte",
   "tab.settings": "Einstellungen",
   "tab.tasks": "Aufgaben",
+  "tasks.showAll": "Alle Aufgaben anzeigen",
   "toast.copyFailed": "Kopieren fehlgeschlagen. Markiere die ID und kopiere sie von Hand.",
   "toast.idCopied": "ID kopiert",
   "view.flat": "Liste",
