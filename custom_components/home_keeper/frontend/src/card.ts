@@ -24,16 +24,16 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
-import type { DeferDialogHost, SkipState, SnoozeState } from './defer';
+import type { SkipState, SnoozeState } from './defer';
+import type { DeferDialogHost } from './defer-dialogs';
+import { deferSplit, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
 import {
   DeferMenus,
-  deferSplit,
-  deferVerbs,
-  emptySkipState,
-  emptySnoozeState,
   renderSkipDialog,
   renderSnoozeDialog,
-} from './defer';
+  submitSkip,
+  submitSnooze,
+} from './defer-dialogs';
 import { makeForm } from './dialogs';
 import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';

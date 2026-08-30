@@ -57,18 +57,15 @@ import {
 import { selEntity } from './forms';
 import { setLanguage, t, tn } from './i18n';
 import type { DeferVerbs } from './defer';
-import type { DeferDialogHost } from './defer';
+import type { DeferDialogHost } from './defer-dialogs';
+import { deferSplit, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
 import {
   DeferMenus,
-  deferSplit,
-  deferVerbs,
-  emptySkipState,
-  emptySnoozeState,
   renderSkipDialog,
   renderSnoozeDialog,
   submitSkip,
   submitSnooze,
-} from './defer';
+} from './defer-dialogs';
 import type { DialogParts } from './dialogs';
 import { makeDialog, makeForm } from './dialogs';
 import { MAX_DOCUMENT_BYTES } from './limits';

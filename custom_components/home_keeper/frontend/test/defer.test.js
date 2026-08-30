@@ -8,7 +8,16 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { deferSplit, deferVerbs, snoozeTarget } from '../src/defer.ts';
+import {
+  deferMenuItems,
+  deferSplit,
+  deferVerbs,
+  emptySkipState,
+  emptySnoozeState,
+  snoozeHintText,
+  snoozeTarget,
+} from '../src/defer.ts';
+import { t } from '../src/i18n.ts';
 
 const task = (over = {}) => ({
   id: 't1',
@@ -112,5 +121,73 @@ describe('snoozeTarget', () => {
     expect(until.getFullYear()).toBe(2026);
     expect(until.getMonth()).toBe(3);
     expect(until.getDate()).toBe(1);
+  });
+});
+
+describe('deferMenuItems', () => {
+  it('labels each entry and says what it does to the schedule', () => {
+    // The verbs are not self-explanatory — the whole of #268 — so the sub-line is
+    // load-bearing rather than decoration, and both come from the string table.
+    const html = deferMenuItems({ snooze: true, skip: true });
+    expect(html).toContain(t('btn.snooze'));
+    expect(html).toContain(t('defer.snoozeHint'));
+    expect(html).toContain(t('btn.skip'));
+    expect(html).toContain(t('defer.skipHint'));
+  });
+
+  it('marks each entry as a menu item', () => {
+    expect(deferMenuItems({ snooze: true, skip: true })).toContain('role="menuitem"');
+  });
+
+  it('is empty when neither verb is on offer', () => {
+    expect(deferMenuItems({ snooze: false, skip: false })).toBe('');
+  });
+});
+
+describe('deferSplit chrome', () => {
+  it('marks the caret as a closed menu button and names it', () => {
+    // aria-expanded is what the controller flips, and what the e2e specs read.
+    const html = deferSplit(task(), '<b>Done</b>', { snooze: true, skip: true });
+    expect(html).toContain('aria-haspopup="menu"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain(`aria-label="${t('defer.more')}"`);
+  });
+
+  it('renders the menu hidden, so it is closed until the caret opens it', () => {
+    const html = deferSplit(task(), '<b>Done</b>', { snooze: true, skip: true });
+    expect(html).toMatch(/<div class="hk-defer-menu" role="menu" hidden>/);
+  });
+});
+
+describe('empty state factories', () => {
+  it('start closed, with no task, on the default preset', () => {
+    const s = emptySnoozeState();
+    expect(s.open).toBe(false);
+    expect(s.task).toBeNull();
+    // A fresh dialog must offer a usable default rather than an empty picker.
+    expect(snoozeTarget(s)).not.toBeNull();
+  });
+
+  it('hand back a fresh object each time, not a shared one', () => {
+    // These seed live dialog state; a shared object would leak one task's typed
+    // note into the next task's dialog.
+    const a = emptySkipState();
+    a.data.note = 'typed';
+    expect(emptySkipState().data.note).toBeUndefined();
+  });
+});
+
+describe('snoozeHintText', () => {
+  it('prompts for a date when the custom preset has none', () => {
+    const s = { open: true, task: task(), preset: 'custom' };
+    expect(snoozeHintText(s, 'en')).toBe(t('defer.snoozePickDate'));
+  });
+
+  it('states the resolved date once there is one', () => {
+    const s = { open: true, task: task(), preset: '1d' };
+    const text = snoozeHintText(s, 'en');
+    expect(text).not.toBe(t('defer.snoozePickDate'));
+    expect(text).not.toContain('defer.snoozeResolves');
+    expect(text.length).toBeGreaterThan(0);
   });
 });
