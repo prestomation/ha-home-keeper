@@ -6,6 +6,39 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0b4]
+
+### Fixed
+
+- **Dialogs have their titles back.** Completing a task or moving a completion date
+  opened a panel with nothing but a close button above it, so there was no way to tell
+  which task you were about to log. (Fixes #262)
+
+- **Buttons say how important they are again.** Done, Edit, Delete and Cancel had all
+  drifted into the same solid blue. Each action is drawn at its own weight now, and a
+  red fill appears only where you are asked to confirm a deletion.
+
+- **A device Home Assistant no longer knows shows nothing instead of its internal id.**
+  A task that outlived its device used to display a long string of letters and numbers
+  where the device name belongs.
+
+- **The "Managed by …" and "Connected" chips are readable again.** Both were drawn as
+  pale text on a mid-tone fill, below the contrast a label needs.
+
+- **The integration chips in a task row are quieter.** They were the loudest thing on
+  the line, which put the integration's name ahead of the task's own.
+
+- **A branch in the appliance tree no longer looks selected.** Child appliances were
+  tinted the same colour that marks the one you have open, and the collapse arrow now
+  sits beside the name it collapses rather than in the far corner.
+
+- **A finished one-off looks finished however the list is grouped.** Only Group by
+  Status used to set it aside. Grouping by area left it mid-list, looking like work
+  still to do.
+
+- **Dates read like dates.** The panel showed "7/1/2026, 1:00:00 PM" for the date a
+  task was completed, and used a different format on each screen.
+
 ## [0.19.0b3]
 
 ### Changed
