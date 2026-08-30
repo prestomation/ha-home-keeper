@@ -1223,27 +1223,35 @@ const STYLES = `
      in the same accent is all that separates them. Done still never changes meaning
      or costs an extra tap.
 
-     Done carries the secondary weight, which is appearance="filled", so the caret
-     paints the same fill, squares off the side that meets Done, and Done squares off
-     the side that meets the caret. A Done button outside a split keeps its full pill
-     from the rule above, which is every task the caret does not apply to.
+     Done keeps its own fully-rounded pill: ha-button owns that radius and does not
+     take an override, so trying to square off its right edge leaves the corners round
+     and opens two white crescents where the caret butts against the curve. The
+     wrapper closes them instead — it paints the same fill *behind* the pair, so the
+     crescents fill in and the join disappears. Painting rather than clipping, because
+     the menu hangs out of this box and overflow:hidden would eat it. That only works
+     because the fill is exactly the accent: Done's is rgb(0,154,199) and
+     --primary-color is #009ac7, the same colour, so the two cannot drift apart.
 
-     The height is 40px and the alignment is flex-start because ha-button paints a
-     40px pill inside a 48px box, with the slack at the bottom. Stretching the caret
-     to the box — or painting the wrapper — makes the pair stand 8px taller than the
-     Edit button beside it, which is exactly how the first cut read as wrong.
+     The wrapper is 40px because ha-button paints a 40px pill inside a 48px box with
+     the slack at the bottom. Sizing to the box — or letting the caret stretch to it —
+     makes the pair stand 8px taller than the Edit button beside it, which is exactly
+     how the first cut read as wrong. Clipping at 40px loses nothing: the pill sits at
+     the top of the box, and only the empty slack is cut.
 
      The divider is white at low alpha rather than a theme line, because it separates
      two halves of one accent fill; a solid line would read as a gap between them. */
-  .hk-split { position: relative; display: inline-flex; align-items: flex-start; }
-  .hk-split .done-btn { --ha-button-border-radius: var(--hk-r-pill) 0 0 var(--hk-r-pill); }
+  .hk-split {
+    position: relative; display: inline-flex; align-items: flex-start;
+    height: 40px;
+    background: var(--primary-color);
+    border-radius: var(--hk-r-pill);
+  }
   .hk-split .done-btn::part(base) { box-shadow: none; }
   button.hk-split-caret {
     height: 40px; width: 34px; padding: 0;
     display: inline-flex; align-items: center; justify-content: center;
     border: 0; border-left: 1px solid rgba(255, 255, 255, 0.32);
-    border-radius: 0 var(--hk-r-pill) var(--hk-r-pill) 0;
-    background: var(--primary-color);
+    background: transparent;
     color: var(--text-primary-color, #fff);
     cursor: pointer;
     --mdc-icon-size: 20px;
