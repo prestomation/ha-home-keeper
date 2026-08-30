@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_coordinator_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.15.4">coverage.py v7.15.4</a>,
-            created at 2026-08-30 05:13 +0000
+            created at 2026-08-30 08:14 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -92,7 +92,7 @@
     <p class="pln"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t"><span class="com"># Frontend panel.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t9" href="#t9">9</a></span><span class="t"><span class="com"># PANEL_VERSION is the single source of truth that release.yml validates against</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t10" href="#t10">10</a></span><span class="t"><span class="com"># manifest.json&#x27;s &quot;version&quot; (mirrors Pawsistant&#x27;s CARD_VERSION check).</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t"><span class="nam">PANEL_VERSION</span> <span class="op">=</span> <span class="str">&quot;0.19.0b4&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t"><span class="nam">PANEL_VERSION</span> <span class="op">=</span> <span class="str">&quot;0.19.0b5&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t12" href="#t12">12</a></span><span class="t"><span class="nam">PANEL_URL_PATH</span> <span class="op">=</span> <span class="str">&quot;home-keeper&quot;</span>  <span class="com"># sidebar route -&gt; /home-keeper</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t13" href="#t13">13</a></span><span class="t"><span class="nam">PANEL_STATIC_URL</span> <span class="op">=</span> <span class="str">&quot;/home_keeper_panel&quot;</span>  <span class="com"># static path that serves the JS bundle</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="nam">PANEL_JS_FILENAME</span> <span class="op">=</span> <span class="str">&quot;home-keeper-panel.js&quot;</span>&nbsp;</span><span class="r"></span></p>
@@ -254,7 +254,7 @@
     <p class="pln"><span class="n"><a id="t170" href="#t170">170</a></span><span class="t"><span class="com"># profile with one external ``todo.*`` list (``{entity_id, two_way,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t171" href="#t171">171</a></span><span class="t"><span class="com"># vanish_as_completed}``; ``entity_id: &quot;&quot;`` is the off switch) so the tasks it selects</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t172" href="#t172">172</a></span><span class="t"><span class="com"># reach Todoist, Google Tasks or a local family list. See profiles.py, and</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t173" href="#t173">173</a></span><span class="t"><span class="com"># task_mirror.py / task_mirror_sync.py for what the sync block drives.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t173" href="#t173">173</a></span><span class="t"><span class="com"># todo_list.py / todo_list_sync.py for what the sync block drives.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t174" href="#t174">174</a></span><span class="t"><span class="nam">OPTION_PROFILES</span> <span class="op">=</span> <span class="str">&quot;profiles&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t175" href="#t175">175</a></span><span class="t"><span class="com"># Notifications: delivery bindings that reference a profile by ``profile_id`` and add</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t176" href="#t176">176</a></span><span class="t"><span class="com"># how to deliver (targets, button set, snooze duration, style, automatic triggers).</span>&nbsp;</span><span class="r"></span></p>
@@ -276,13 +276,13 @@
     <p class="pln"><span class="n"><a id="t192" href="#t192">192</a></span><span class="t"><span class="com"># off at the shop&quot; apart from &quot;somebody pressed Done&quot;.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t193" href="#t193">193</a></span><span class="t"><span class="nam">ORIGIN_SHOPPING_LIST</span> <span class="op">=</span> <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">DOMAIN</span><span class="op">}</span><span class="fst">_shopping_list</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t194" href="#t194">194</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t195" href="#t195">195</a></span><span class="t"><span class="com"># Opaque ``origin`` marker the task mirror passes to ``complete_task`` when a</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t196" href="#t196">196</a></span><span class="t"><span class="com"># mirrored task is ticked off on an external to-do list. Like</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t195" href="#t195">195</a></span><span class="t"><span class="com"># Opaque ``origin`` marker the to-do list sync passes to ``complete_task`` when a</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t196" href="#t196">196</a></span><span class="t"><span class="com"># synced task is ticked off on an external to-do list. Like</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t197" href="#t197">197</a></span><span class="t"><span class="com"># ``ORIGIN_SHOPPING_LIST`` it authorizes nothing &#8212; it exists so an automation can</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t198" href="#t198">198</a></span><span class="t"><span class="com"># tell &quot;checked off on a to-do list&quot; apart from &quot;somebody pressed Done&quot;, and it is</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t199" href="#t199">199</a></span><span class="t"><span class="com"># how the mirror&#x27;s own completions stay recognisable in the event stream. See</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t200" href="#t200">200</a></span><span class="t"><span class="com"># task_mirror_sync.py.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t201" href="#t201">201</a></span><span class="t"><span class="nam">ORIGIN_TODO_MIRROR</span> <span class="op">=</span> <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">DOMAIN</span><span class="op">}</span><span class="fst">_todo_mirror</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t199" href="#t199">199</a></span><span class="t"><span class="com"># how the sync&#x27;s own completions stay recognisable in the event stream. See</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t200" href="#t200">200</a></span><span class="t"><span class="com"># todo_list_sync.py.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t201" href="#t201">201</a></span><span class="t"><span class="nam">ORIGIN_TODO_SYNC</span> <span class="op">=</span> <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">DOMAIN</span><span class="op">}</span><span class="fst">_todo_sync</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t202" href="#t202">202</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t203" href="#t203">203</a></span><span class="t"><span class="com"># Opaque ``origin`` marker the actionable-notification action listener passes to</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t204" href="#t204">204</a></span><span class="t"><span class="com"># ``complete_task`` / ``snooze_task`` / ``skip_task`` so an automation can recognise</span>&nbsp;</span><span class="r"></span></p>
@@ -602,7 +602,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_coordinator_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.15.4">coverage.py v7.15.4</a>,
-            created at 2026-08-30 05:13 +0000
+            created at 2026-08-30 08:14 +0000
         </p>
     </div>
 </footer>
