@@ -45,6 +45,7 @@ export const USER_SECTIONS = [
   {h: 'One-off (do-once) tasks', slug: 'one-off-tasks', title: 'One-off tasks', label: 'One-off tasks'},
   {h: 'Notes are Markdown', slug: 'markdown-notes', title: 'Markdown notes', label: 'Markdown notes'},
   {h: 'Logging completions (note, cost, photo, who)', slug: 'completions', title: 'Logging completions', label: 'Completions'},
+  {h: 'Snooze and skip', slug: 'snooze-and-skip', title: 'Snooze and skip', label: 'Snooze and skip'},
   {h: 'Condition-driven (triggered) tasks', slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks'},
   {h: 'Sensor-based tasks (usage meters, thresholds & states)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks'},
   {h: 'Settings', slug: 'settings', title: 'Settings'},
@@ -117,6 +118,7 @@ export const ANCHOR_ROUTES = {
   // The Settings section links across to the to-do list sync section (→ todo-sync page).
   '#send-tasks-to-your-to-do-lists': '/docs/guide/todo-sync',
   '#dashboard-task-card': '/docs/guide/dashboard-card',
+  '#snooze-and-skip': '/docs/guide/snooze-and-skip',
   // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
   // section (→ sensor-tasks page); "Parts & wear items" under Appliances; and
   // "Sync problem binary sensors" under Condition-driven tasks (→ triggered-tasks),
