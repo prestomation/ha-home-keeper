@@ -237,6 +237,27 @@ describe('groupTasks', () => {
     ]);
   });
 
+  it('groups by device, and sinks a device the registry lost into "No device" (#262)', () => {
+    setLanguage('en');
+    const devices = { d1: { id: 'd1', name: 'Water heater' } };
+    const known = { ...overdue, id: 'k', device_id: 'd1' };
+    // The card renders a task whose device has left the registry — a removed
+    // integration, a deleted device. It used to head a section with the raw id.
+    const lost = { ...soon, id: 'l', device_id: 'ffffffffffffffffffffffffffffffff' };
+    const none = { ...later, id: 'n', device_id: null };
+
+    const groups = groupTasks([known, lost, none], 'device', {}, devices, NOW);
+    const byKey = Object.fromEntries(groups.map((g) => [g.key, g]));
+
+    expect(byKey['device:d1'].label).toBe('Water heater');
+    expect(byKey['device:d1'].items.map((t) => t.id)).toEqual(['k']);
+    // Both the unknown device and the no-device task land in the same fallback,
+    // and no section is headed by an id.
+    expect(byKey['device:none'].items.map((t) => t.id).sort()).toEqual(['l', 'n']);
+    expect(groups.map((g) => g.label)).not.toContain('ffffffffffffffffffffffffffffffff');
+    for (const g of groups) expect(g.label).not.toMatch(/[0-9a-f]{32}/);
+  });
+
   it('groups by area with a fallback bucket sunk to the bottom', () => {
     const areas = { kitchen: { area_id: 'kitchen', name: 'Kitchen' } };
     const k = task({ id: 'k', area_id: 'kitchen', next_due: new Date(NOW + DAY).toISOString() });

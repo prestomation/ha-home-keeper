@@ -874,9 +874,22 @@ describe('formatDate / formatDateTime (#262)', () => {
   });
 
   it('honours the language it is given rather than the runtime default', () => {
+    // Both formatters, and both directions: a mutant that drops the language and
+    // always falls back to the runtime locale still produces a plausible-looking
+    // string, so the assertion has to be that two languages differ.
     expect(formatDate(ISO, 'de-DE')).toMatch(/Juli|Jul/);
     expect(formatDate(ISO, 'en-GB')).toMatch(/Jul/);
     expect(formatDate(ISO, 'de-DE')).not.toBe(formatDate(ISO, 'en-GB'));
+    expect(formatDateTime(ISO, 'de-DE')).not.toBe(formatDateTime(ISO, 'en-GB'));
+    expect(formatDateTime(ISO, 'ja-JP')).not.toBe(formatDateTime(ISO, 'en-GB'));
+  });
+
+  it('falls back to the runtime locale when given no language', () => {
+    // `lang || undefined` — an empty string must mean "no preference", not a locale.
+    expect(formatDate(ISO)).toBe(formatDate(ISO, undefined));
+    expect(formatDate(ISO, '')).toBe(formatDate(ISO, undefined));
+    expect(formatDateTime(ISO)).toBe(formatDateTime(ISO, undefined));
+    expect(formatDateTime(ISO, '')).toBe(formatDateTime(ISO, undefined));
   });
 
   it('accepts a Date as well as an ISO string', () => {
