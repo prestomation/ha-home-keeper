@@ -1797,6 +1797,11 @@ export class HomeKeeperPanel extends HTMLElement {
   // The document keydown (Escape) handler bound while the confirm dialog is open, held
   // as a field so disconnectedCallback can remove it if we unmount mid-dialog.
   private _confirmOnKey: ((e: KeyboardEvent) => void) | null = null;
+  // The open deferral menu and the document handlers dismissing it. One at a time:
+  // opening a second closes the first, so these never hold a stale pair.
+  private _deferOpen: { caret: HTMLElement; menu: HTMLElement } | null = null;
+  private _deferOnKey: ((e: KeyboardEvent) => void) | null = null;
+  private _deferOnClick: ((e: Event) => void) | null = null;
   // config entry id -> integration domain, for resolving device brand logos.
   private _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.
@@ -3251,6 +3256,10 @@ export class HomeKeeperPanel extends HTMLElement {
   // ── rendering ───────────────────────────────────────────────────────────────
   private _render(): void {
     if (!this.shadowRoot) return;
+    // An open deferral menu is about to be thrown away with the rest of the tree, so
+    // drop it and its document handlers rather than leaving them pointed at nodes
+    // that no longer exist.
+    this._closeDeferMenu();
     // Whatever had focus is about to be destroyed; note it so `_restoreFocus` can put
     // the keyboard back on the same control in the rebuilt tree.
     const focused = this._focusKey();
@@ -5626,34 +5635,65 @@ export class HomeKeeperPanel extends HTMLElement {
     const caret = split.querySelector<HTMLElement>('.hk-split-caret');
     const menu = split.querySelector<HTMLElement>('.hk-defer-menu');
     if (!caret || !menu) return;
-    const close = (): void => {
-      menu.hidden = true;
-      caret.setAttribute('aria-expanded', 'false');
-    };
     caret.addEventListener('click', (e) => {
       // A list row opens the task's detail page and the caret sits inside it —
       // without this the menu would open and immediately navigate away from itself.
       e.stopPropagation();
-      const opening = menu.hidden;
-      menu.hidden = !opening;
-      caret.setAttribute('aria-expanded', String(opening));
+      if (menu.hidden) this._openDeferMenu(split, caret, menu);
+      else this._closeDeferMenu();
     });
     menu.addEventListener('click', (e) => e.stopPropagation());
-    const root = split.getRootNode() as unknown as HTMLElement;
-    root.addEventListener?.('click', (e: Event) => {
-      if (!split.contains(e.target as Node)) close();
-    });
-    root.addEventListener?.('keydown', (e: Event) => {
-      if ((e as KeyboardEvent).key === 'Escape') close();
-    });
     menu.querySelector('.hk-defer-snooze')?.addEventListener('click', () => {
-      close();
+      this._closeDeferMenu();
       this._openSnooze(task);
     });
     menu.querySelector('.hk-defer-skip')?.addEventListener('click', () => {
-      close();
+      this._closeDeferMenu();
       this._openSkip(task);
     });
+  }
+
+  /**
+   * Open one deferral menu, closing any other, and arm its dismiss handlers.
+   *
+   * The handlers go on `document` rather than the panel's own root, and are added on
+   * open and removed on close rather than once per render. Both details matter.
+   * Escape is delivered to whatever holds focus, and after a background refresh
+   * replaces the caret that is the document body — so a listener confined to the
+   * shadow root would simply never see the key. And a listener bound during render
+   * would be re-added on every subsequent render, since the root outlives them all.
+   */
+  private _openDeferMenu(split: HTMLElement, caret: HTMLElement, menu: HTMLElement): void {
+    this._closeDeferMenu();
+    menu.hidden = false;
+    caret.setAttribute('aria-expanded', 'true');
+    this._deferOnKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') this._closeDeferMenu();
+    };
+    this._deferOnClick = (e: Event) => {
+      // A click inside a shadow root retargets to the host at document level, so
+      // `contains` would see the panel rather than the menu; the composed path is
+      // what still names the real target.
+      if (!e.composedPath().includes(split)) this._closeDeferMenu();
+    };
+    document.addEventListener('keydown', this._deferOnKey);
+    document.addEventListener('click', this._deferOnClick);
+    this._deferOpen = { caret, menu };
+  }
+
+  private _closeDeferMenu(): void {
+    if (this._deferOnKey) {
+      document.removeEventListener('keydown', this._deferOnKey);
+      this._deferOnKey = null;
+    }
+    if (this._deferOnClick) {
+      document.removeEventListener('click', this._deferOnClick);
+      this._deferOnClick = null;
+    }
+    if (!this._deferOpen) return;
+    this._deferOpen.menu.hidden = true;
+    this._deferOpen.caret.setAttribute('aria-expanded', 'false');
+    this._deferOpen = null;
   }
 
   private _wireDetailActions(root: ShadowRoot): void {

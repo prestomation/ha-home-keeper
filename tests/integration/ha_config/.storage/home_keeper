@@ -15,8 +15,8 @@
         "area_id": null,
         "enabled": true,
         "created": "2026-05-01T09:00:00-04:00",
-        "last_completed": "2026-08-28T21:33:26.584760-04:00",
-        "next_due": "2026-09-28T21:33:26.584760-04:00",
+        "last_completed": "2026-08-28T20:36:21.325085-04:00",
+        "next_due": "2026-09-30T05:21:43.349573-04:00",
         "completions": [
           {
             "ts": "2026-03-01T09:00:00-04:00"
@@ -37,17 +37,14 @@
           },
           {
             "ts": "2026-08-28T20:36:21.325085-04:00"
-          },
-          {
-            "ts": "2026-08-28T21:33:26.584760-04:00",
-            "note": "E2E completion dialog regression check"
           }
         ],
         "labels": [
           "home"
         ],
         "completion_detail": "optional",
-        "completion_required_fields": []
+        "completion_required_fields": [],
+        "skips": []
       },
       "25f086ad-91ce-4ca4-8f05-73b443565479": {
         "id": "25f086ad-91ce-4ca4-8f05-73b443565479",
@@ -56,7 +53,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
+        "device_id": "cb91faa0d9f54ee957d30ff442754e60",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -166,7 +163,9 @@
             "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
             "entry_id": "56656a41-c3a1-4db7-9adf-d1b0fb9e0c23"
           }
-        ]
+        ],
+        "tag_id": null,
+        "require_tag_scan": false
       },
       "a5d646cc-ab00-471f-b945-73dda6080ddb": {
         "id": "a5d646cc-ab00-471f-b945-73dda6080ddb",
@@ -433,7 +432,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
+        "device_id": "cb91faa0d9f54ee957d30ff442754e60",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -546,7 +545,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
+        "device_id": "cb91faa0d9f54ee957d30ff442754e60",
         "identifiers": [
           [
             "home_keeper",
@@ -715,7 +714,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "38fc8a6288ef61807789fd638f6aebb5",
+        "device_id": "dab201ffd847040e96063a9e85f6ccb9",
         "identifiers": [
           [
             "home_keeper",
@@ -740,7 +739,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "1d7169cdea49653c7d15595155fcfcf7",
+        "device_id": "c3273ed26cb3695bea6cdcb1394000f4",
         "identifiers": [
           [
             "home_keeper",

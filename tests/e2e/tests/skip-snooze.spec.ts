@@ -79,7 +79,10 @@ test.describe('Home Keeper panel — snooze and skip', { tag: '@responsive' }, (
     page,
   }) => {
     const errors = trackPanelErrors(page);
-    const panel = await gotoPanel(page, `/tasks/${TASK.carRegistration}`);
+    // A live recurring task with existing history. (A completed one-off such as
+    // `carRegistration` has no caret at all — there is no occurrence left to defer,
+    // which is correct, and the dormant case below covers it.)
+    const panel = await gotoPanel(page, `/tasks/${TASK.fridgeFilter}`);
 
     const before = await panel.locator('.hk-hist-sub').first().textContent();
 
@@ -147,6 +150,10 @@ test.describe('Home Keeper panel — snooze and skip', { tag: '@responsive' }, (
     await panel.locator('#hk-settings-skipsnooze ha-switch').nth(1).click();
     await expect(panel.locator('#hk-settings-skipsnooze')).toContainText(/available/i);
 
-    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    // Saving an option reloads the config entry, so a fetch landing inside that
+    // window is answered `not_loaded`. That is the panel reporting a known transient
+    // and retrying, not a fault — every other error still fails the test.
+    const unexpected = errors.filter((e) => !e.includes('not_loaded'));
+    expect(unexpected, `panel errors:\n${unexpected.join('\n')}`).toHaveLength(0);
   });
 });
