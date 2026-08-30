@@ -898,17 +898,17 @@ button taps and the standalone
 
 The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizable list
 of your tasks with a one-tap **Done** button on each row, and a
-[snooze and a skip](#snooze-and-skip) button beside it. It's a focused
+[snooze and a skip](#snooze-and-skip) button beside it. The card is a focused
 do-and-glance surface: mark tasks done, add a new one from the header **+**, and open
 any documentation links a task shows (see below), while **editing and deleting a task
 live in the sidebar panel**, so a stray tap on the dashboard can't open a form or
-accidentally delete a task. It's auto-registered (Home Keeper adds its own entry under
-**Settings > Dashboards > Resources**, so there's nothing for you to set up) and
-appears in the dashboard **"Add card"** picker. Its GUI editor lets you filter (by
+accidentally delete a task. Registration happens for you (Home Keeper adds its own
+entry under **Settings > Dashboards > Resources**), and the card appears in the
+dashboard **"Add card"** picker. A GUI editor lets you filter (by
 status, area, device, **label**, recurrence type, a "due within N days" horizon, or a
 saved [Profile](#profiles-saved-filters-you-reuse-everywhere)), sort, group, cap rows,
-and toggle what each row shows. It's built from HA's own components and theme and
-reflects completions made anywhere else in real time.
+and toggle what each row shows. Everything is built from HA's own components and theme,
+and reflects completions made anywhere else in real time.
 
 **Hide card when empty** makes the card disappear from the dashboard entirely
 (header and all) instead of showing a "No tasks match this filter." message when its

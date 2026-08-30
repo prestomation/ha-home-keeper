@@ -97,7 +97,14 @@
   Diff-scoping only checks added/changed lines, so a wholesale rewrite of a file's
   prose (not just a small edit) can surface pre-existing hits on lines that just
   moved. Run `vale <file>` on the whole file yourself before a rewrite-style PR to
-  catch those ahead of CI. There's no automated version-bump for the pinned
+  catch those ahead of CI. **A one-line edit is enough to do this**, because the
+  rules apply per *block*: adding a clause to the first sentence of a paragraph puts
+  the whole paragraph in scope, and a rule like `StackedAnaphora` then reports
+  against a sentence further down that you never touched. A local check that keeps
+  only hits whose line number you added will filter that hit out and tell you the
+  branch is clean — #272 shipped a red `vale` that way. Compare the *set* of hits in
+  each file you edited against `origin/main` instead, or just read the whole
+  paragraph you touched. There's no automated version-bump for the pinned
   `ai-tells.zip` release in `.vale.ini` (Dependabot/Renovate don't track raw
   GitHub release URLs), so bump it by hand occasionally, e.g. alongside the next
   full-corpus cleanup pass.
