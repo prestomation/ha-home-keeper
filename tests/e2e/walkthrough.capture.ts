@@ -635,6 +635,20 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //    family's own list, now carrying the synced chores with their due dates.
   await openDashboard(page);
   await page.waitForTimeout(BEAT * 2);
+
+  // 8a. Snooze and skip reach the dashboard too. The card's Done is a dense icon
+  //     rather than the panel's pill, so the caret is a narrower sibling — but the
+  //     menu behind it, and the dialogs behind that, are the same ones. Escape out
+  //     so the closing shot below frames the cards, not a menu.
+  const hkCard = page.locator('home-keeper-card').first();
+  await expect(hkCard.locator('.hk-split').first()).toBeVisible({ timeout: 40_000 });
+  await hkCard.locator('.hk-split .hk-row-caret').first().click();
+  await expect(hkCard.locator('.hk-defer-menu .hk-defer-skip').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await page.keyboard.press('Escape');
+  await expect(hkCard.locator('.hk-defer-menu').first()).toBeHidden();
+  await page.waitForTimeout(BEAT);
+
   const familyCard = page
     .locator('hui-todo-list-card, todo-list-card')
     .filter({ hasText: 'Family chores' })

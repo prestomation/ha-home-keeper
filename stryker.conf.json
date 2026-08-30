@@ -34,7 +34,8 @@
     "custom_components/home_keeper/frontend/src/documents.ts",
     "custom_components/home_keeper/frontend/src/markdown.ts",
     "custom_components/home_keeper/frontend/src/i18n.ts",
-    "custom_components/home_keeper/frontend/src/limits.ts"
+    "custom_components/home_keeper/frontend/src/limits.ts",
+    "custom_components/home_keeper/frontend/src/defer.ts"
   ],
   "thresholds": {
     "high": 90,
