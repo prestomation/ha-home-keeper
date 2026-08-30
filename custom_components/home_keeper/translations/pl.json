@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Opcje Home Keeper",
-        "description": "Odwzorowuj czujniki binarne o klasie urządzenia „problem” jako zadania. Zsynchronizowane zadanie pozostaje aktywne, dopóki czujnik zgłasza problem, i jest automatycznie czyszczone, gdy integracja źródłowa go rozwiąże; nie można go ukończyć w Home Keeper. Poniżej wyklucz wybrane czujniki, obszary lub etykiety.",
+        "description": "Synchronizuj czujniki binarne o klasie urządzenia „problem” jako zadania. Zsynchronizowane zadanie pozostaje aktywne, dopóki czujnik zgłasza problem, i jest automatycznie czyszczone, gdy integracja źródłowa go rozwiąże; nie można go ukończyć w Home Keeper. Poniżej wyklucz wybrane czujniki, obszary lub etykiety.",
         "data": {
           "sync_problem_sensors": "Synchronizuj czujniki problemów jako zadania",
           "problem_sensor_exclude_entities": "Wykluczone czujniki",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "Zsynchronizowane zadanie zamyka się dopiero, gdy integracja źródłowa rozwiąże problem, a nie po naciśnięciu Gotowe. Przypomnienia o nim oferują Odłóż zamiast Gotowe.",
           "one_off_retention_days": "Automatycznie usuwaj ukończone zadanie jednorazowe po upływie tylu dni od jego ukończenia. Wartość 0 zachowuje ukończone zadania jednorazowe na zawsze.",
-          "shopping_list_entity": "Kopiuje automatyczne przypomnienia o zakupie na tę listę zadań. Odhaczenie pozycji tam kończy przypomnienie w Home Keeper i uzupełnia zapas części. Pozostaw puste, aby wyłączyć kopiowanie."
+          "shopping_list_entity": "Synchronizuje automatyczne przypomnienia o zakupie z tą listą zadań. Odhaczenie pozycji tam kończy przypomnienie w Home Keeper i uzupełnia zapas części. Pozostaw puste, aby wyłączyć synchronizację."
         }
       }
     }
@@ -604,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Lista zakupów",
-          "description": "Istniejąca lista zadań, na którą kopiowane są automatyczne przypomnienia o zakupie. Odhaczenie pozycji tam kończy przypomnienie i uzupełnia zapas. Puste pole wyłącza tę funkcję."
+          "description": "Istniejąca lista zadań, z którą synchronizowane są automatyczne przypomnienia o zakupie. Odhaczenie pozycji tam kończy przypomnienie i uzupełnia zapas. Puste pole wyłącza tę funkcję."
         },
         "dismissed_companions": {
           "name": "Odrzuceni towarzysze",

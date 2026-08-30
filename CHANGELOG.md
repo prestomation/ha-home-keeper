@@ -6,6 +6,20 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0b5]
+
+### Changed
+
+- **One word for keeping Home Keeper in step with something outside it: sync.** The
+  panel, the options flow and the service descriptions said "mirror" in some places and
+  "sync" in others for the same feature. Every surface now says sync, in all sixteen
+  languages.
+
+- **The to-do list sync reports itself as `home_keeper_todo_sync`.** An automation
+  matching on the old `origin: home_keeper_todo_mirror` needs that one string updated.
+  Nothing else changes: the sync re-adopts the lines already on your list on its first
+  pass.
+
 ## [0.19.0b4]
 
 ### Fixed

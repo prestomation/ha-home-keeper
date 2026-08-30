@@ -1,7 +1,7 @@
-"""Home-Assistant-aware half of the task mirror.
+"""Home-Assistant-aware half of the to-do list sync.
 
 Reads every configured to-do list over ``todo.get_items``, asks the pure planner in
-``task_mirror.py`` what each mirror wants done about it, applies the answer with
+``todo_list.py`` what each sync wants done about it, applies the answer with
 ``todo.add_item`` / ``todo.update_item`` / ``todo.remove_item``, and feeds the
 household's side of the loop — a chore ticked off on somebody's phone — back into
 the store as a completion. Same split as ``shopping.py`` / ``shopping_sync.py``,
@@ -17,16 +17,16 @@ and this module inherits that sibling's three properties:
   raised puts its entry back, so the next pass tries again. Dropping an entry for
   a remove that never happened would orphan that line on the list forever.
 * **It reads a to-do list only when there is a reason to.** ``needs_pass``
-  answers "has Home Keeper drifted from what it mirrored" from memory alone, so
-  the great majority of task events — which concern tasks no mirror wants —
+  answers "has Home Keeper drifted from what it last wrote" from memory alone, so
+  the great majority of task events — which concern tasks no sync wants —
   cost no service calls. The surfaces that watch for the household's side (each
   list's own state changes, and the periodic sweep) ask for a full pass
   regardless, since that side is invisible from here.
 
-Where the two mirrors diverge is what a *vanished* item means: the shopping mirror
-leaves a deleted line deleted, while a task mirror may read it as "done" so that
+Where the two syncs diverge is what a *vanished* item means: the shopping-list sync
+leaves a deleted line deleted, while a to-do list sync may read it as "done" so that
 providers which drop completed items (Todoist) can still tick a chore off. That
-divergence lives entirely in the planner — see ``task_mirror.py`` — and this
+divergence lives entirely in the planner — see ``todo_list.py`` — and this
 driver only supplies the inputs it needs.
 """
 
@@ -47,7 +47,7 @@ from homeassistant.core import (
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
-from . import notifier, profiles, task_mirror
+from . import notifier, profiles, todo_list
 from .const import (
     EVENT_TASK_COMPLETED,
     EVENT_TASK_CREATED,
@@ -58,7 +58,7 @@ from .const import (
     EVENT_TASK_UNCOMPLETED,
     EVENT_TASK_UPDATED,
     OPTION_PROFILES,
-    ORIGIN_TODO_MIRROR,
+    ORIGIN_TODO_SYNC,
 )
 from .models import TaskValidationError
 from .options import current_options
@@ -79,8 +79,8 @@ _TODO_SERVICE_DOMAIN = "todo"
 _MAX_PASSES = 4
 
 # Every store mutation that can change which tasks a profile surfaces, or what a
-# mirrored item should say. A pass off one of these is *not* forced — ``needs_pass``
-# decides whether any list is worth reading — so the churn from tasks no mirror
+# synced item should say. A pass off one of these is *not* forced — ``needs_pass``
+# decides whether any list is worth reading — so the churn from tasks no sync
 # wants costs nothing, and our own inbound completion echoing back through here
 # settles for free.
 _TASK_EVENTS = (
@@ -95,7 +95,7 @@ _TASK_EVENTS = (
 )
 
 
-class TaskMirrorSync:
+class TodoListSync:
     """Keeps external to-do lists in step with the tasks each profile surfaces."""
 
     def __init__(
@@ -111,33 +111,33 @@ class TaskMirrorSync:
         self._pending = False
         self._stopped = False
         # Reasons already logged at warning level, so a permanently misconfigured
-        # mirror says its piece once instead of on every task event.
+        # sync says its piece once instead of on every task event.
         self._warned: set[str] = set()
 
     # ── lifecycle ────────────────────────────────────────────────────────────
     async def async_initial_sync(self) -> None:
-        """Bring the mirrors in step once Home Assistant has finished starting.
+        """Bring the synced lists in step once Home Assistant has finished starting.
 
         Deferred to the started event rather than run during setup: the lists we
-        mirror onto belong to other integrations, which may not have set up yet,
+        sync onto belong to other integrations, which may not have set up yet,
         and a target that reads as missing would have us do nothing.
         """
         await self.async_sync(force=True)
 
     @callback
     def async_start_listeners(self) -> None:
-        """Watch the mirrored lists, and the task changes that feed them.
+        """Watch the synced lists, and the task changes that feed them.
 
         Subscriptions go through ``entry.async_on_unload``, so unload/reload tears
         them down. There is no resubscribe path on purpose: the only thing that
-        changes which lists are mirrored is an options save, and that reloads the
+        changes which lists are synced is an options save, and that reloads the
         entry.
         """
         self._entry.async_on_unload(self._async_stop)
         targets = sorted(
             {
-                str(mirror["sync"]["entity_id"])
-                for mirror in profiles.synced_profiles(self._configured_mirrors())
+                str(profile["sync"]["entity_id"])
+                for profile in profiles.synced_profiles(self._configured_syncs())
             }
         )
         if targets:
@@ -167,7 +167,7 @@ class TaskMirrorSync:
     @callback
     def _handle_task_event(self, event: Event[Any]) -> None:
         # Unforced: ``needs_pass`` gates the read, so a completion on a task no
-        # mirror wants costs nothing. Our own inbound completions echo back through
+        # sync wants costs nothing. Our own inbound completions echo back through
         # here as well, and settle for free.
         self._hass.async_create_task(self.async_sync())
 
@@ -180,18 +180,18 @@ class TaskMirrorSync:
         produces no state change at all, so the listener alone can miss a tick-off.
         And a task *falling due* is not a store mutation, so no task event fires
         for it: the periodic pass is what puts a newly-overdue chore on the list.
-        Costs nothing until something is configured or mirrored.
+        Costs nothing until something is configured or synced.
         """
         if self._stopped:
             return
-        configured = profiles.synced_profiles(self._configured_mirrors())
-        if not configured and not self._coordinator.store.get_task_mirror_items():
+        configured = profiles.synced_profiles(self._configured_syncs())
+        if not configured and not self._coordinator.store.get_todo_list_items():
             return
         self._hass.async_create_task(self.async_sync(force=True))
 
     # ── the pass ─────────────────────────────────────────────────────────────
     async def async_sync(self, *, force: bool = False) -> None:
-        """Bring the mirrors in step. Never raises.
+        """Bring the synced lists in step. Never raises.
 
         *force* reads the lists even when Home Keeper's own state looks settled,
         which is the only way to notice the household's side of the loop.
@@ -212,13 +212,13 @@ class TaskMirrorSync:
                 self._pending = False
             else:
                 # The budget exists so the loop always ends, not because ending
-                # this way is fine: a converging mirror settles in two passes.
+                # this way is fine: a converging sync settles in two passes.
                 # Burning the whole budget means something is failing and
                 # retrying — say so, rather than exiting quietly and leaving the
                 # lists stale with no trace of why.
                 _LOGGER.warning(
                     "Home Keeper's to-do list sync did not settle in %d passes; "
-                    "the mirrored lists may be out of step until the next change",
+                    "the synced lists may be out of step until the next change",
                     _MAX_PASSES,
                 )
         except Exception:  # a broken list must never break a task mutation
@@ -234,35 +234,35 @@ class TaskMirrorSync:
         if self._stopped:
             return False
         store = self._coordinator.store
-        tracked = store.get_task_mirror_items()
-        mirrors = self._resolve_mirrors()
+        tracked = store.get_todo_list_items()
+        synced = self._resolve_syncs()
         # Tasks are enriched with their **effective** labels/area — the ones they
         # inherit from a device or an area — by the same helper the notifier uses,
-        # so a profile picks the same tasks for a mirrored list as it does for a
+        # so a profile picks the same tasks for a synced list as it does for a
         # notification, the admin list and the card.
         enriched = notifier.effective_filter_tasks(
             self._hass, list(store.get_tasks().values())
         )
-        desired = task_mirror.desired_by_mirror(mirrors, enriched, now=dt_util.now())
-        if not force and not task_mirror.needs_pass(
-            tracked=tracked, desired=desired, mirrors=mirrors
+        desired = todo_list.desired_by_sync(synced, enriched, now=dt_util.now())
+        if not force and not todo_list.needs_pass(
+            tracked=tracked, desired=desired, synced=synced
         ):
             return False
 
         targets = {
-            str(mirror["sync"]["entity_id"])
-            for mirror in profiles.synced_profiles(mirrors)
+            str(profile["sync"]["entity_id"])
+            for profile in profiles.synced_profiles(synced)
         }
         items_by_entity = await self._read_lists(
-            task_mirror.lists_to_read(tracked, mirrors), targets=targets
+            todo_list.lists_to_read(tracked, synced), targets=targets
         )
         if self._stopped:
             return False
         capabilities = {
             entity_id: self._capabilities(entity_id) for entity_id in items_by_entity
         }
-        plan = task_mirror.plan_sync(
-            mirrors=mirrors,
+        plan = todo_list.plan_sync(
+            synced=synced,
             tracked=tracked,
             desired=desired,
             items_by_entity=items_by_entity,
@@ -276,7 +276,7 @@ class TaskMirrorSync:
         # everything that wakes off it — the task events it fires, the sweep on the
         # refresh — re-enters this class. What they find should be what this pass
         # concluded, not what the one before it did.
-        await store.async_set_task_mirror_items(settled)
+        await store.async_set_todo_list_items(settled)
         if not completed:
             return False
         # An inbound completion has to behave like every other completion surface —
@@ -285,7 +285,7 @@ class TaskMirrorSync:
         await self._coordinator.async_settle_buy_tasks()
         return True
 
-    async def _complete_tasks(self, plan: task_mirror.TaskMirrorPlan) -> bool:
+    async def _complete_tasks(self, plan: todo_list.TodoListPlan) -> bool:
         """Complete the tasks whose items the household ticked off.
 
         Nothing is restored to the bookkeeping here, and both failure paths mean
@@ -300,10 +300,10 @@ class TaskMirrorSync:
         completed = False
         for op in plan.complete:
             try:
-                await store.complete_task(op.task_id, origin=ORIGIN_TODO_MIRROR)
+                await store.complete_task(op.task_id, origin=ORIGIN_TODO_SYNC)
             except KeyError:
                 # Deleted while the pass was in flight; its item is somebody else's
-                # record now and there is nothing left to mirror.
+                # record now and there is nothing left to sync.
                 _LOGGER.debug(
                     "Task %s was gone before the to-do list tick reached it",
                     op.task_id,
@@ -321,8 +321,8 @@ class TaskMirrorSync:
         return completed
 
     # ── reading ──────────────────────────────────────────────────────────────
-    def _configured_mirrors(self) -> list[dict[str, Any]]:
-        """The stored profiles, normalized — a mirror is a profile's ``sync`` block.
+    def _configured_syncs(self) -> list[dict[str, Any]]:
+        """The stored profiles, normalized — a sync is a profile's ``sync`` block.
 
         A profile whose ``sync.entity_id`` is ``""`` has its sync switched off, and
         stays in the list: the planner has to see it to take back off whatever it
@@ -332,29 +332,29 @@ class TaskMirrorSync:
             current_options(self._entry).get(OPTION_PROFILES, [])
         )
 
-    def _resolve_mirrors(self) -> list[dict[str, Any]]:
+    def _resolve_syncs(self) -> list[dict[str, Any]]:
         """The configured profiles, with any pointed at our own list switched off.
 
-        Mirroring Home Keeper's tasks onto Home Keeper's own to-do list is a
+        Syncing Home Keeper's tasks onto Home Keeper's own to-do list is a
         feedback loop, and that list declares only ``UPDATE_TODO_ITEM`` so it could
         not accept the items anyway. Blanking the target rather than dropping the
-        profile keeps the planner's own rule intact: a mirror the user turned off
+        profile keeps the planner's own rule intact: a sync the user turned off
         clears what it wrote, so anything already on that list still comes back off
         it.
         """
         ours = set(own_todo_entity_ids(self._hass))
         resolved: list[dict[str, Any]] = []
-        for mirror in self._configured_mirrors():
-            entity_id = str(mirror["sync"]["entity_id"])
+        for profile in self._configured_syncs():
+            entity_id = str(profile["sync"]["entity_id"])
             if entity_id and entity_id in ours:
                 self._warn_once(
                     f"own:{entity_id}",
-                    "Home Keeper cannot mirror its tasks onto its own to-do list "
+                    "Home Keeper cannot sync its tasks onto its own to-do list "
                     "(%s); pick a different list in Settings",
                     entity_id,
                 )
-                mirror = {**mirror, "sync": {**mirror["sync"], "entity_id": ""}}
-            resolved.append(mirror)
+                profile = {**profile, "sync": {**profile["sync"], "entity_id": ""}}
+            resolved.append(profile)
         return resolved
 
     async def _read_lists(
@@ -380,7 +380,7 @@ class TaskMirrorSync:
                 if entity_id in targets:
                     self._warn_once(
                         f"missing:{entity_id}",
-                        "Home Keeper's mirrored to-do list %s does not exist; its "
+                        "Home Keeper's synced to-do list %s does not exist; its "
                         "tasks are not being kept in step",
                         entity_id,
                     )
@@ -418,14 +418,14 @@ class TaskMirrorSync:
         """
         caps: set[str] = set()
         if self._supports(entity_id, TodoListEntityFeature.SET_DUE_DATE_ON_ITEM):
-            caps.add(task_mirror.CAP_DUE_DATE)
+            caps.add(todo_list.CAP_DUE_DATE)
         if self._supports(entity_id, TodoListEntityFeature.SET_DESCRIPTION_ON_ITEM):
-            caps.add(task_mirror.CAP_DESCRIPTION)
+            caps.add(todo_list.CAP_DESCRIPTION)
         return frozenset(caps)
 
     # ── writing ──────────────────────────────────────────────────────────────
     async def _apply(
-        self, plan: task_mirror.TaskMirrorPlan, *, before: dict[str, dict[str, Any]]
+        self, plan: todo_list.TodoListPlan, *, before: dict[str, dict[str, Any]]
     ) -> dict[str, dict[str, Any]]:
         """Run the plan and return the bookkeeping that actually holds.
 
@@ -494,7 +494,7 @@ class TaskMirrorSync:
             self._warn_once(
                 f"feature:{entity_id}:{service}",
                 "To-do list %s does not support %s, so Home Keeper cannot keep it "
-                "fully in step with the tasks mirrored onto it",
+                "fully in step with the tasks synced onto it",
                 entity_id,
                 service,
             )

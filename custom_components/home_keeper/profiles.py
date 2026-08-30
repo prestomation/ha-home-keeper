@@ -7,9 +7,9 @@ notifications (``notifications.py``) are one consumer that references a profile 
 but the same profile also drives the panel's admin list filter and the Lovelace card.
 
 The ``sync`` block is a second consumer living *inside* the profile rather than beside
-it: it names one external ``todo.*`` list the profile's tasks are mirrored onto, so a
+it: it names one external ``todo.*`` list the profile's tasks are synced onto, so a
 household gets at most one list per profile and no second id to keep in step. Clearing
-``entity_id`` is the off switch — and the delete. ``task_mirror.py`` reads it.
+``entity_id`` is the off switch — and the delete. ``todo_list.py`` reads it.
 
 Everything here is HA-free so it's unit-testable in isolation (like ``recurrence.py``).
 The filter semantics are the single source of truth that the TS side (``card-filter``)
@@ -62,14 +62,14 @@ def normalize_filter(raw: Any) -> dict[str, Any]:
 
 
 def normalize_sync(raw: Any) -> dict[str, Any]:
-    """Coerce a profile's ``sync`` block — the to-do list it mirrors onto — to shape.
+    """Coerce a profile's ``sync`` block — the to-do list it syncs onto — to shape.
 
     Rebuilt from a fixed key set like :func:`normalize_filter`, so a profile saved
     before the block existed reads back as sync **off** and needs no migration.
     ``entity_id`` goes through ``shopping.normalize_target``, the same coercion the
-    shopping mirror's target uses: anything unusable — a cleared picker, an entity
+    shopping list's target uses: anything unusable — a cleared picker, an entity
     outside the ``todo`` domain, a typo — collapses to ``""``, which is both the off
-    switch and, since a mirror *is* its profile, the delete. Both toggles default on,
+    switch and, since a sync *is* its profile, the delete. Both toggles default on,
     because a household that picks a list means the obvious thing by it.
     """
     raw = raw if isinstance(raw, dict) else {}
@@ -84,7 +84,7 @@ def normalize_profile(raw: Any) -> dict[str, Any]:
     """Coerce one raw profile to the stored ``{id, name, filter, sync}``.
 
     Generates a stable ``id`` when absent (so notifications/cards can reference it
-    across edits — and so the mirror's bookkeeping keys survive an edit) and defaults
+    across edits — and so the sync's bookkeeping keys survive an edit) and defaults
     every field so forms and consumers never special-case a missing key.
     """
     raw = raw if isinstance(raw, dict) else {}
@@ -104,7 +104,7 @@ def normalize_profiles(raw: Any) -> list[dict[str, Any]]:
 
 
 def synced_profiles(profiles: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """The profiles that actually mirror onto a list — the rest have sync off.
+    """The profiles that actually sync onto a list — the rest have sync off.
 
     What the driver needs to answer "is any list worth watching", which is a
     different question from what the planner needs: a profile whose picker was

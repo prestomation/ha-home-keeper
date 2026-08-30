@@ -612,7 +612,7 @@ describe('notificationSchema', () => {
 // The Settings tab's Shopping list card. The picker's shape is the whole
 // control: the wrong domain offers lists Home Keeper can't write to, and a
 // missing exclusion offers Home Keeper's own list — which would be a list
-// mirrored onto itself.
+// synced onto itself.
 // The Settings card renders the switch and the exclusions as two forms so the
 // exclusions can be indented behind the condition that makes them matter. The
 // options endpoint merges partial updates, so each form saving only its own fields
@@ -683,7 +683,7 @@ describe('profileSyncSchema', () => {
   });
 
   it("keeps Home Keeper's own to-do lists out of the picker", () => {
-    // Mirroring our own list onto itself is a loop, and ours accepts no new items.
+    // Syncing our own list onto itself is a loop, and ours accepts no new items.
     const field = profileSyncSchema(['todo.home_keeper_tasks']).find(
       (f) => f.name === 'entity_id',
     );

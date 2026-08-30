@@ -5936,7 +5936,7 @@ export class HomeKeeperPanel extends HTMLElement {
       return;
     }
     const name = this._syncListName(entityId);
-    const label = t('mirror.chip', { name });
+    const label = t('todo_sync.chip', { name });
     chip.className = 'hk-sync-chip';
     chip.setAttribute('title', label);
     chip.setAttribute('aria-label', label);
@@ -5945,7 +5945,7 @@ export class HomeKeeperPanel extends HTMLElement {
     chip.innerHTML = `<ha-icon icon="mdi:swap-horizontal" class="hk-chip-ic"></ha-icon>${escapeHTML(name)}`;
   }
 
-  /** A profile's collapsible **Sync to a to-do list** group: the list to mirror the
+  /** A profile's collapsible **Sync to a to-do list** group: the list to sync the
    *  profile's tasks onto, plus what a change over there means here. There is no
    *  delete button — clearing the picker is the off switch, which is why the schema
    *  round-trips a cleared value to `''` rather than dropping the key. */
@@ -5964,7 +5964,7 @@ export class HomeKeeperPanel extends HTMLElement {
     header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
     const title = document.createElement('span');
     title.className = 'hk-item-name';
-    title.textContent = t('mirror.group');
+    title.textContent = t('todo_sync.group');
     header.appendChild(title);
     const chevron = document.createElement('ha-icon');
     (chevron as unknown as Record<string, string>).icon = 'mdi:chevron-down';
@@ -5977,14 +5977,14 @@ export class HomeKeeperPanel extends HTMLElement {
     if (!isExpanded) body.style.display = 'none';
     const intro = document.createElement('div');
     intro.className = 'hk-settings-intro';
-    intro.textContent = t('mirror.group_help');
+    intro.textContent = t('todo_sync.group_help');
     body.appendChild(intro);
 
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
     form.schema = profileSyncSchema(this._ownTodoEntities);
     form.data = { ...initial };
-    form.computeLabel = (s: { name: string }): string => (s.name ? t('mirror.' + s.name) : '');
+    form.computeLabel = (s: { name: string }): string => (s.name ? t('todo_sync.' + s.name) : '');
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
       // Clearing the picker emits `undefined`, which JSON drops on the way to the

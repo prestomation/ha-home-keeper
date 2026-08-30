@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Home Keeper-innstillinger",
-        "description": "Speil binærsensorer med enhetsklassen «problem» som oppgaver. En synkronisert oppgave forblir aktiv så lenge sensoren melder et problem, og tømmes automatisk når kildeintegrasjonen løser det; den kan ikke fullføres i Home Keeper. Utelat bestemte sensorer, områder eller etiketter nedenfor.",
+        "description": "Synkronisér binærsensorer med enhetsklassen «problem» som oppgaver. En synkronisert oppgave forblir aktiv så lenge sensoren melder et problem, og tømmes automatisk når kildeintegrasjonen løser det; den kan ikke fullføres i Home Keeper. Utelat bestemte sensorer, områder eller etiketter nedenfor.",
         "data": {
           "sync_problem_sensors": "Synkroniser problemsensorer som oppgaver",
           "problem_sensor_exclude_entities": "Ekskluderte sensorer",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "En synkronisert oppgave lukkes først når kildeintegrasjonen løser problemet, ikke når du trykker Ferdig. Påminnelser for den tilbyr Utsett i stedet for Ferdig.",
           "one_off_retention_days": "Slett automatisk en fullført engangsoppgave så mange dager etter at den er fullført. 0 beholder fullførte engangsoppgaver for alltid.",
-          "shopping_list_entity": "Speiler automatiske kjøpspåminnelser til denne oppgavelisten. Å krysse av et element der fullfører påminnelsen i Home Keeper og fyller på reservedelen. La feltet stå tomt for å slå av speilingen."
+          "shopping_list_entity": "Synkroniserer automatiske kjøpspåminnelser til denne oppgavelisten. Å krysse av et element der fullfører påminnelsen i Home Keeper og fyller på reservedelen. La feltet stå tomt for å slå av synkroniseringen."
         }
       }
     }
@@ -604,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Handleliste",
-          "description": "En eksisterende oppgaveliste å speile automatiske kjøpspåminnelser til. Å krysse av et element der fullfører påminnelsen og fyller på lageret. Et tomt felt slår funksjonen av."
+          "description": "En eksisterende oppgaveliste å synkronisere automatiske kjøpspåminnelser til. Å krysse av et element der fullfører påminnelsen og fyller på lageret. Et tomt felt slår funksjonen av."
         },
         "dismissed_companions": {
           "name": "Avviste følgesvenner",

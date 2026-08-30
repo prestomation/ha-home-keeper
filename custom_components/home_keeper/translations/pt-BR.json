@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Opções do Home Keeper",
-        "description": "Espelhe sensores binários com a classe de dispositivo \"problema\" como tarefas. Uma tarefa sincronizada permanece ativa enquanto o sensor relata um problema e é limpa automaticamente quando a integração de origem o resolve; ela não pode ser concluída no Home Keeper. Exclua abaixo sensores, áreas ou etiquetas específicos.",
+        "description": "Sincronize sensores binários com a classe de dispositivo \"problema\" como tarefas. Uma tarefa sincronizada permanece ativa enquanto o sensor relata um problema e é limpa automaticamente quando a integração de origem o resolve; ela não pode ser concluída no Home Keeper. Exclua abaixo sensores, áreas ou etiquetas específicos.",
         "data": {
           "sync_problem_sensors": "Sincronizar sensores de problema como tarefas",
           "problem_sensor_exclude_entities": "Sensores excluídos",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "Uma tarefa sincronizada só se encerra quando a integração de origem resolve o problema, não ao tocar em Concluído. Os lembretes dela oferecem Adiar no lugar de Concluído.",
           "one_off_retention_days": "Excluir automaticamente uma tarefa avulsa concluída este número de dias após sua conclusão. 0 mantém as tarefas avulsas concluídas para sempre.",
-          "shopping_list_entity": "Espelha os lembretes de compra automática nesta lista de tarefas. Marcar um item ali conclui o lembrete do Home Keeper e repõe o estoque da peça. Deixe vazio para desativar o espelhamento."
+          "shopping_list_entity": "Sincroniza os lembretes de compra automática com esta lista de tarefas. Marcar um item ali conclui o lembrete do Home Keeper e repõe o estoque da peça. Deixe vazio para desativar a sincronização."
         }
       }
     }
@@ -604,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Lista de compras",
-          "description": "Uma lista de tarefas existente para espelhar os lembretes de compra automática. Marcar um item ali conclui o lembrete e repõe o estoque. Um campo vazio desativa o recurso."
+          "description": "Uma lista de tarefas existente para sincronizar os lembretes de compra automática. Marcar um item ali conclui o lembrete e repõe o estoque. Um campo vazio desativa o recurso."
         },
         "dismissed_companions": {
           "name": "Companions dispensados",

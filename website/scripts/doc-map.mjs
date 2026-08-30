@@ -114,7 +114,7 @@ export const ANCHOR_ROUTES = {
   '#companions': '/docs/guide/settings#companions',
   '#notifications-actionable-reminders-on-your-phone': '/docs/guide/notifications',
   '#profiles-saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
-  // The Settings section links across to the task-mirror section (→ todo-sync page).
+  // The Settings section links across to the to-do list sync section (→ todo-sync page).
   '#send-tasks-to-your-to-do-lists': '/docs/guide/todo-sync',
   '#dashboard-task-card': '/docs/guide/dashboard-card',
   // The "Link a task to a consumable" subsection lives under the Sensor-based tasks

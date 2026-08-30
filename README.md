@@ -32,7 +32,7 @@ changes, water filters, taking medicine, and anything else that recurs).
 - **Used through native HA entities**: a `todo` list, an upcoming-tasks `calendar`,
   and per-device **button / next-due sensor / overdue binary_sensor** on a task's
   device page.
-- **Mirror tasks onto other to-do lists**: profile-filtered chores are mirrored onto
+- **Sync tasks onto other to-do lists**: profile-filtered chores are synced onto
   a Todoist project (or any `todo` entity) as they come due, and checking one off
   there completes it here.
 - **Dashboard task card**: a bundled, auto-registered `custom:home-keeper-card` with
@@ -377,7 +377,7 @@ before you open a drawer.
 Lots of integrations already expose a `binary_sensor` with the **`problem`** device
 class, such as a leak detector, an appliance fault, a UPS on battery, a printer error. Turn on
 **Sync problem sensors** (*Settings → Devices & services → Home Keeper → Configure*) and
-Home Keeper automatically mirrors every one of them as a triggered task, so a real-world
+Home Keeper automatically syncs every one of them as a triggered task, so a real-world
 problem becomes a visible, trackable to-do without writing an automation.
 
 - **What it solves:** one place that surfaces *"something is wrong"* across every
@@ -403,7 +403,7 @@ problem becomes a visible, trackable to-do without writing an automation.
   record what you want to remember the *next* time this problem fires: the steps that
   cleared it last time, a part number, where the shut-off valve is. The note **sticks
   with the sensor**: it survives the task clearing and re-arming, and even survives the
-  mirror being removed and recreated (toggling problem-sensor sync off and on, or
+  task being removed and recreated (toggling problem-sensor sync off and on, or
   temporarily excluding the sensor), so it's waiting for you the next time the same
   problem goes off.
 
@@ -586,7 +586,7 @@ it off (the default) when you want the task to wait for you, which is usually ri
 anything you actually have to go and do.
 
 > **How this differs from [problem-sensor sync](#sync-problem-binary-sensors-as-tasks).**
-> That mirrors `device_class: problem` sensors automatically, all of them at once, as
+> That syncs `device_class: problem` sensors automatically, all of them at once, as
 > tasks you can't complete by hand. State mode is the opposite trade: you create one task
 > deliberately, for **any** entity and any device class (`battery_almost_empty` is
 > `device_class: battery`, so the sync never sees it), you choose which state arms it, and
@@ -626,12 +626,12 @@ detail then shows the linked part and its current stock.
 
 Home Keeper's integration options are editable right in the panel (a **Settings**
 tab alongside Tasks and Appliances) so you never have to dig through *Settings →
-Devices & services → Configure*. It's a plain form that mirrors the options flow and
+Devices & services → Configure*. It's a plain form that matches the options flow and
 **saves as you change it**. The **General** card holds how long to keep completed
 one-offs. **Shopping list** picks the to-do list
-[buy reminders are mirrored onto](#send-buy-reminders-to-your-shopping-list).
+[buy reminders are synced onto](#send-buy-reminders-to-your-shopping-list).
 **Profiles** holds the saved filters, each carrying the to-do list
-[its tasks are mirrored onto](#send-tasks-to-your-to-do-lists).
+[its tasks are synced onto](#send-tasks-to-your-to-do-lists).
 **Problem sensor sync** carries the toggle, with the entity / area / label exclusions
 indented behind it since they only bite while the sync is on. The same options remain
 available through the HA options flow and the `home_keeper.set_options` service (for
@@ -708,7 +708,7 @@ The same Profile drives filtering in four places:
 - **Notifications**: a notification points at a Profile to decide which tasks it pushes
   (see below). Profiles with different labels make separate people's lists.
 - **To-do list sync**: a Profile carries the external to-do list its tasks are
-  mirrored onto, so one saved filter says both which chores are sent and when (next
+  synced onto, so one saved filter says both which chores are sent and when (next
   section).
 - **The admin task list**: the **Profile** dropdown on the **Tasks** tab narrows the
   panel list to a saved Profile's tasks.
@@ -727,7 +727,7 @@ Exclusions read labels and areas the same way the include pickers do, through wh
 a task inherits. Excluding the `professional` label also leaves out a task that carries
 it only because its device or its area does.
 
-**Synced problem sensors count too.** A task mirroring a
+**Synced problem sensors count too.** A task synced from a
 [`problem` binary sensor](#sync-problem-binary-sensors-as-tasks) is overdue work while
 its sensor reports a problem, so a Profile lists it like anything else. A notification
 for one offers **Snooze** in place of *Mark done*, since only the originating
@@ -740,7 +740,7 @@ integration can decide the problem is dealt with.
 ## Send tasks to your to-do lists
 
 A chore that only exists in Home Keeper is easy to ignore, so a
-[Profile](#profiles-saved-filters-you-reuse-everywhere) mirrors its tasks onto a to-do
+[Profile](#profiles-saved-filters-you-reuse-everywhere) syncs its tasks onto a to-do
 list the household already checks. Any `todo` entity works, whether that's a Todoist
 project, Google Tasks, or a `local_todo` list on the kitchen tablet.
 
@@ -793,9 +793,9 @@ your Todoist API token. Every Todoist project then shows up as a `todo` entity. 
 a Profile's **To-do list** picker at the project's entity and your chores follow you
 onto every device Todoist reaches.
 
-![A Profile's Sync to a to-do list group, with the list it mirrors onto picked](docs/images/47-panel-profile-sync.png)
+![A Profile's Sync to a to-do list group, with the list it syncs onto picked](docs/images/47-panel-profile-sync.png)
 
-![A mirrored task with its due date on a to-do list card](docs/images/48-todo-sync-mirrored-task.png)
+![A synced task with its due date on a to-do list card](docs/images/48-todo-sync-synced-task.png)
 
 <!-- vale ai-tells.OverusedVocabulary = NO -->
 ## Notifications (actionable reminders on your phone)
@@ -1258,7 +1258,7 @@ automation:
 ```
 
 (For a part already on auto-buy, the built-in
-[shopping-list mirror](#send-buy-reminders-to-your-shopping-list) does this for you, and
+[shopping-list sync](#send-buy-reminders-to-your-shopping-list) does this for you, and
 takes the line off again when the part is restocked.)
 
 Events are **edge-triggered** (one event per crossing, never repeated each cycle) and
@@ -1279,7 +1279,7 @@ pet tracker that schedules *"give medicine"*.
 |---|---|---|
 | [Home Keeper - Battery Notes](https://github.com/prestomation/ha-home-keeper-battery-notes) | Glue between [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes) and Home Keeper | Uses Home Keeper's **triggered** task type, arming a *"Replace battery"* task when a battery goes low and clearing it when replaced, keeping both sides in sync so completion from either side is recorded in both. |
 | [Pawsistant](https://github.com/prestomation/pawsistant) | Pet-care logger for tracking recurring pet activities | Attaches Home Keeper floating-recurrence tasks to pet care schedules (e.g. *"medicine every 2 weeks"*). Completing the task in Home Keeper logs the event in Pawsistant, and completing it in Pawsistant marks the Home Keeper task done, with neither side looping back to the other. |
-| [Home Keeper - Bambu Lab](https://github.com/prestomation/ha-home-keeper-bambu-lab) | Glue between [Bambu Lab](https://github.com/greghesp/ha-bambulab) 3D printers and Home Keeper | Uses Home Keeper's **triggered** task type to mirror a printer's firmware-update status as a read-only *"Update firmware: …"* task, armed when an update is available and cleared once it's installed. Optionally also creates a per-printer maintenance-task catalog (lead-screw greasing, filter replacement, and more, following Bambu Lab's own published schedule), gated on each printer's detected model. |
+| [Home Keeper - Bambu Lab](https://github.com/prestomation/ha-home-keeper-bambu-lab) | Glue between [Bambu Lab](https://github.com/greghesp/ha-bambulab) 3D printers and Home Keeper | Uses Home Keeper's **triggered** task type to track a printer's firmware-update status as a read-only *"Update firmware: …"* task, armed when an update is available and cleared once it's installed. Optionally also creates a per-printer maintenance-task catalog (lead-screw greasing, filter replacement, and more, following Bambu Lab's own published schedule), gated on each printer's detected model. |
 
 Installed companions show up automatically in the panel's **[Companions](#companions)**
 section (Settings tab), where you can jump to each one's settings, and Home Keeper will

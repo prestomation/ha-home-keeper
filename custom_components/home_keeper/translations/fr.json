@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Options de Home Keeper",
-        "description": "Refléter les capteurs binaires de classe « problème » sous forme de tâches. Une tâche synchronisée reste active tant que son capteur signale un problème et se vide automatiquement lorsque l'intégration d'origine le résout ; elle ne peut pas être terminée dans Home Keeper. Excluez ci-dessous certains capteurs, zones ou étiquettes.",
+        "description": "Synchroniser les capteurs binaires de classe « problème » sous forme de tâches. Une tâche synchronisée reste active tant que son capteur signale un problème et se vide automatiquement lorsque l'intégration d'origine le résout ; elle ne peut pas être terminée dans Home Keeper. Excluez ci-dessous certains capteurs, zones ou étiquettes.",
         "data": {
           "sync_problem_sensors": "Synchroniser les capteurs de problème en tâches",
           "problem_sensor_exclude_entities": "Capteurs exclus",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "Une tâche synchronisée ne se referme que lorsque l'intégration d'origine résout le problème, pas en appuyant sur Terminé. Ses rappels proposent Reporter au lieu de Terminé.",
           "one_off_retention_days": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 conserve indéfiniment les tâches ponctuelles terminées.",
-          "shopping_list_entity": "Recopie les rappels d'achat automatiques sur cette liste de tâches. Y cocher un élément termine le rappel Home Keeper et réapprovisionne la pièce. Laissez vide pour désactiver la recopie."
+          "shopping_list_entity": "Synchronise les rappels d'achat automatiques avec cette liste de tâches. Y cocher un élément termine le rappel Home Keeper et réapprovisionne la pièce. Laissez vide pour désactiver la synchronisation."
         }
       }
     }
@@ -604,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Liste de courses",
-          "description": "Une liste de tâches existante sur laquelle recopier les rappels d'achat automatiques. Y cocher un élément termine le rappel et réapprovisionne le stock. Un champ vide désactive la fonction."
+          "description": "Une liste de tâches existante avec laquelle synchroniser les rappels d'achat automatiques. Y cocher un élément termine le rappel et réapprovisionne le stock. Un champ vide désactive la fonction."
         },
         "dismissed_companions": {
           "name": "Companions ignorés",

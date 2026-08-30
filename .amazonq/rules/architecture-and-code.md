@@ -893,33 +893,33 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   - Every `todo.*` call is best-effort (the `notifier.py` precedent) and `async_sync`
     swallows what reaches it: a pass runs off the back of a completion or a stock
     adjustment and must never be the thing that fails.
-- **Task mirror (To-do list sync).** Profile-filtered tasks kept in step with
-  *external* `todo.*` lists. **A mirror is a profile** — there is no mirror record and
-  no mirror id: a profile carries a `sync` block
+- **To-do list sync.** Profile-filtered tasks kept in step with
+  *external* `todo.*` lists. **A sync is a profile** — there is no sync record and
+  no sync id: a profile carries a `sync` block
   (`{entity_id, two_way, vanish_as_completed}`, normalized by
-  `profiles.normalize_sync`) naming the one list it mirrors onto, so the config rides
+  `profiles.normalize_sync`) naming the one list it syncs onto, so the config rides
   on the existing panel-managed `profiles` option (**not** in `FLOW_OPTIONS`).
   Clearing `sync.entity_id` is both the off switch and the delete, and one list per
   profile is the cap — a household wanting two lists writes two profiles, which it
-  needed anyway to say what goes on each. Same split as the shopping mirror: pure
-  `task_mirror.py` (the diff engine, in `only_mutate`) and HA-aware
-  `task_mirror_sync.py`. It inherits the shopping mirror's rules verbatim —
+  needed anyway to say what goes on each. Same split as the shopping-list sync: pure
+  `todo_list.py` (the diff engine, in `only_mutate`) and HA-aware
+  `todo_list_sync.py`. It inherits the shopping-list sync's rules verbatim —
   retry-not-compensate, an unreadable list is not an empty one, `needs_pass` gates the
-  read, never mirror onto our own to-do entity, every `todo.*` call best-effort — plus
+  read, never sync onto our own to-do entity, every `todo.*` call best-effort — plus
   its own:
-  - **The profile is both filter and timing.** A mirror shows exactly what
+  - **The profile is both filter and timing.** A sync shows exactly what
     `profiles.matches_filter` selects for that profile (status `overdue` = when due,
     `due_soon` = the 3-day window, `all` = everything scheduled). The driver enriches
-    tasks with effective labels first (`notifier.effective_filter_tasks`), so a mirror
+    tasks with effective labels first (`notifier.effective_filter_tasks`), so a sync
     agrees with the panel/card. A profile cannot fail to resolve itself, so there is no
-    "misconfigured mirror" state to hold — don't reintroduce one. Auto-buy reminders
-    are excluded: the shopping mirror owns them, and two mirrors must not fight over
+    "misconfigured sync" state to hold — don't reintroduce one. Auto-buy reminders
+    are excluded: the shopping-list sync owns them, and two syncs must not fight over
     one line.
-  - **Bookkeeping is keyed per profile** (`mirror_key(profile_id, task_id)`) in the
-    storage doc's `task_mirror_items`, so two profiles can hold the same task on two
+  - **Bookkeeping is keyed per profile** (`sync_key(profile_id, task_id)`) in the
+    storage doc's `todo_list_items`, so two profiles can hold the same task on two
     lists; one `claimed` set spans all of them so they never share one line. Entries
     snapshot the task's `last_completed` at bind time — a live value strictly newer is
-    the pure "completed inside Home Keeper since mirrored" detector (an undo therefore
+    the pure "completed inside Home Keeper since it was synced" detector (an undo therefore
     reads as content drift, never as a tick).
   - **A completed item is never touched, and recurrence adds a fresh one.** Completing
     a task ticks its item off and drops the entry; the next due cycle adds a new item
@@ -927,7 +927,7 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   - **A profile saved before `sync` existed reads back switched off.** `normalize_sync`
     rebuilds the block from a fixed key set and `options.current_options` re-normalizes
     on every read, so that is the whole migration.
-  - **Vanish semantics deliberately diverge from the shopping mirror.** With `two_way`
+  - **Vanish semantics deliberately diverge from the shopping-list sync.** With `two_way`
     and `vanish_as_completed` on, a tracked open item that disappeared completes the
     task — required for providers (Todoist) whose `todo` entity drops completed items —
     but only when the entry captured a `uid` (an add that never confirmably landed is
@@ -939,7 +939,7 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
     descriptions (`SET_DESCRIPTION_ON_ITEM`, carrying the task's notes) are neither
     emitted nor diffed for a list that can't hold them, or every pass would re-plan
     the same update forever.
-  - Inbound completions use `origin=ORIGIN_TODO_MIRROR` (authorizes nothing);
+  - Inbound completions use `origin=ORIGIN_TODO_SYNC` (authorizes nothing);
     `require_tag_scan` tasks reject it by design — the driver warns once and drops the
     entry so a fresh open item reappears, honest feedback that the tick "didn't take".
 - **Problem-sensor sync.** When the `sync_problem_sensors` option is on, every
@@ -1001,7 +1001,7 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   **coordinator's periodic refresh** uses to auto-delete completed one-offs
   (`recurrence.one_off_expired` collects expired ids; `_purge_expired_one_offs` deletes
   via `store.delete_task`), `shopping_list_entity` (a `todo.*` entity id; `""` =
-  off) driving the shopping-list mirror. The task mirror has no option of its own —
+  off) driving the shopping-list mirror. The to-do list sync has no option of its own —
   its config is the `sync` block inside each profile. Put a new option's default in
   `options.py`'s `_empty_options` **and** its coercion in `_normalize` — both, or the
   key is invisible to every reader and dropped by every writer — then add it to all

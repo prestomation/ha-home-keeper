@@ -373,8 +373,8 @@ export interface NotifyFilter {
   status: NotifyStatus;
 }
 
-/** Where a profile's tasks are mirrored: one external `todo.*` list kept in step
- *  with what the profile selects (see the backend `task_mirror.py`). An empty
+/** Where a profile's tasks are synced: one external `todo.*` list kept in step
+ *  with what the profile selects (see the backend `todo_list.py`). An empty
  *  `entity_id` is what "off" is spelled as — there is no separate enable switch,
  *  so clearing the picker is what stops the sync. */
 export interface ProfileSync {

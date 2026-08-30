@@ -18,7 +18,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     await expect(panel.locator('#hk-settings ha-form')).toHaveCount(2);
     await expect(panel.locator('#hk-settings ha-form').first()).toBeVisible();
     await expect(panel.locator('#hk-settings ha-form').last()).toBeVisible();
-    // …and so is the Shopping list card, which is where the buy-reminder mirror
+    // …and so is the Shopping list card, which is where the buy-reminder sync
     // is turned on.
     await openSettingsSection(panel, 'shopping');
     await expect(panel.locator('#hk-settings-shopping ha-form')).toBeVisible();

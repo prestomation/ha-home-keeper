@@ -82,7 +82,7 @@ from .resolve import (
 from .sensor_watcher import SensorTaskWatcher, read_sensor_value
 from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
-from .task_mirror_sync import TaskMirrorSync
+from .todo_list_sync import TodoListSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -599,18 +599,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await shopping_sync.async_initial_sync()
 
     entry.async_on_unload(async_at_started(hass, _mirror_when_started))
-    # The task mirrors — profile-filtered tasks kept in step with existing to-do
-    # lists. Same shape and same reasoning as the shopping mirror above: listeners
+    # The to-do list syncs — profile-filtered tasks kept in step with existing
+    # to-do lists. Same shape and same reasoning as the shopping list above: listeners
     # now, first pass once HA has started, because the lists belong to other
     # integrations that may not have set up yet.
-    task_mirror_sync = TaskMirrorSync(hass, entry, coordinator)
-    coordinator.task_mirror_sync = task_mirror_sync
-    task_mirror_sync.async_start_listeners()
+    todo_list_sync = TodoListSync(hass, entry, coordinator)
+    coordinator.todo_list_sync = todo_list_sync
+    todo_list_sync.async_start_listeners()
 
-    async def _task_mirrors_when_started(_hass: HomeAssistant) -> None:
-        await task_mirror_sync.async_initial_sync()
+    async def _todo_lists_when_started(_hass: HomeAssistant) -> None:
+        await todo_list_sync.async_initial_sync()
 
-    entry.async_on_unload(async_at_started(hass, _task_mirrors_when_started))
+    entry.async_on_unload(async_at_started(hass, _todo_lists_when_started))
     # Listen for actionable-notification taps (mobile_app_notification_action) so a
     # Mark done / Snooze / Skip button routes back into the store and advances a walk.
     entry.async_on_unload(notifier.async_setup_notifications(hass, entry, coordinator))

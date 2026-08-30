@@ -170,7 +170,7 @@ export const shoppingListCard = (page: Page) =>
 
 /**
  * The household's own to-do list card — a seeded `local_todo` list standing in for
- * the Todoist project or kitchen-tablet list a *task* mirror writes onto.
+ * the Todoist project or kitchen-tablet list a *to-do list sync* writes onto.
  *
  * Scoped by title for the same reason as the two above: three to-do cards share the
  * dashboard and masonry decides the column order.

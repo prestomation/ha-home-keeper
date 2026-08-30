@@ -1,18 +1,18 @@
-"""Integration coverage for the task mirror, against a real to-do list.
+"""Integration coverage for the task sync, against a real to-do list.
 
 The unit tier proves the planner and the driver in isolation; what only a real
 Home Assistant can show is that ``todo.get_items`` / ``add_item`` / ``update_item``
-behave the way the driver assumes, that a due date written by the mirror survives
+behave the way the driver assumes, that a due date written by the sync survives
 the round trip through somebody else's to-do integration, and that ticking a chore
-off on that list actually reaches the store as a completion carrying the mirror's
+off on that list actually reaches the store as a completion carrying the sync's
 origin. The container seeds a ``local_todo`` list ("Family chores",
-``todo.family_chores``) purely as something to mirror onto — it stands in for the
+``todo.family_chores``) purely as something to sync onto — it stands in for the
 Todoist project or kitchen-tablet list a household already checks.
 
-**A mirror is a profile**, so every test here configures one by saving ``profiles``
+**A sync is a profile**, so every test here configures one by saving ``profiles``
 — the call the panel's Settings tab makes — with a profile carrying a ``sync`` block
 naming the list. There is no second record to keep in step and no separate id: the
-profile's own filter is the mirror's filter, and clearing ``sync.entity_id`` is both
+profile's own filter is the sync's filter, and clearing ``sync.entity_id`` is both
 the off switch and the delete, which gets a case of its own below.
 
 ``local_todo`` is a deliberate choice of stand-in: it supports due dates and
@@ -37,7 +37,7 @@ wholesale. Restoring is also what clears the lines the profile wrote; the probe 
 are then deleted and the list swept clean, leaving the committed fixture and the
 container unchanged. The sweep takes the *whole* list, not just this suite's own
 lines: an overdue profile also puts every seeded overdue chore on it, and a ticked-off
-line is never removed by the mirror itself (it is the household's record). Nothing
+line is never removed by the sync itself (it is the household's record). Nothing
 else in this tier writes to the seeded list, so it is this suite's to leave empty.
 """
 
@@ -49,15 +49,15 @@ import pytest
 from conftest import call_service, poll_state
 from ha_registry import ws_command
 
-MIRROR_LIST = "todo.family_chores"
+SYNC_LIST = "todo.family_chores"
 #: Every task and item this suite creates. Shares the "probe" marker
 #: ``tests/unit/test_integration_fixture_clean.py`` watches for, so a leaked task
 #: fails the fast unit lane rather than quietly joining the seed fixture.
-PROBE = "Task mirror probe"
-#: The completion event's origin, mirrored into a helper by the capture automation
+PROBE = "Task sync probe"
+#: The completion event's origin, synced into a helper by the capture automation
 #: in ``ha_config/configuration.yaml``.
 ORIGIN_SENTINEL = "input_text.hk_last_completed_origin"
-ORIGIN_TODO_MIRROR = "home_keeper_todo_mirror"
+ORIGIN_TODO_SYNC = "home_keeper_todo_sync"
 
 
 def _sync(**overrides):
@@ -67,7 +67,7 @@ def _sync(**overrides):
     the module docstring. ``two_way`` stays on, which is the panel's own default.
     """
     return {
-        "entity_id": MIRROR_LIST,
+        "entity_id": SYNC_LIST,
         "two_way": True,
         "vanish_as_completed": False,
         **overrides,
@@ -83,16 +83,12 @@ def _profile(profile_id, name, status, **sync_overrides):
     }
 
 
-#: A profile that wants a task while it is due — the shape of mirror that takes a
+#: A profile that wants a task while it is due — the shape of sync that takes a
 #: chore back off the list once completing it has rescheduled it.
-DUE_NOW_PROFILE = _profile(
-    "itest_task_mirror_due", "Task mirror probe profile", "overdue"
-)
-#: A profile that wants a task whatever its due date — the shape of mirror that
+DUE_NOW_PROFILE = _profile("itest_todo_list_due", "Task sync probe profile", "overdue")
+#: A profile that wants a task whatever its due date — the shape of sync that
 #: keeps a chore on the list across its completion.
-ALL_PROFILE = _profile(
-    "itest_task_mirror_all", "Task mirror probe profile (all)", "all"
-)
+ALL_PROFILE = _profile("itest_todo_list_all", "Task sync probe profile (all)", "all")
 
 
 def _list_tasks(ha):
@@ -105,13 +101,13 @@ def _get_task(ha, task_id):
 
 
 def _items(ha, status=None):
-    """The mirrored list's items, optionally filtered by status."""
-    data = {"entity_id": MIRROR_LIST}
+    """The synced list's items, optionally filtered by status."""
+    data = {"entity_id": SYNC_LIST}
     if status is not None:
         data["status"] = status
     resp = call_service(ha, "todo", "get_items", data, return_response=True)
     body = resp.get("service_response", resp)
-    return body[MIRROR_LIST]["items"]
+    return body[SYNC_LIST]["items"]
 
 
 def _summaries(ha, status=None):
@@ -126,11 +122,11 @@ def _find(ha, summary, status=None):
 def _poll(fn, *, timeout=60):
     """First truthy ``fn()`` within *timeout*, tolerating mid-reload 500s.
 
-    Configuring a mirror settles through an entry reload, so a read taken right
+    Configuring a sync settles through an entry reload, so a read taken right
     after one can transiently hit "No active coordinator" (same reason
-    ``test_shopping_sync._poll`` exists). A mirror pass is also a chain of service
+    ``test_shopping_sync._poll`` exists). A sync pass is also a chain of service
     calls into somebody else's integration, so the window is wider than the
-    shopping mirror's.
+    shopping sync's.
     """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -201,13 +197,13 @@ def _clear_list(ha):
 
     Everything on it got there from a profile this suite configured — the probes and,
     on an overdue profile, the seeded overdue chores too — and the *ticked-off* lines
-    are ones the mirror deliberately never removes (they are the household's record),
+    are ones the sync deliberately never removes (they are the household's record),
     so without this they would pile up across runs.
     """
     leftovers = [i["uid"] for i in _items(ha)]
     if leftovers:
         call_service(
-            ha, "todo", "remove_item", {"entity_id": MIRROR_LIST, "item": leftovers}
+            ha, "todo", "remove_item", {"entity_id": SYNC_LIST, "item": leftovers}
         )
 
 
@@ -218,8 +214,8 @@ def _restore(ha, saved_profiles):
     profile is what clears the open lines it wrote — the planner reads a tracked entry
     whose profile is gone exactly as it reads a cleared picker — so that goes first;
     the sweep then has to wait for that pass to actually land, or it races a run still
-    in flight, and a sweep that removes a line the mirror still believes it owns is
-    exactly the "the household deleted it" input the mirror is built to react to.
+    in flight, and a sweep that removes a line the sync still believes it owns is
+    exactly the "the household deleted it" input the sync is built to react to.
     """
     _set_options(ha, {"profiles": saved_profiles})
     _poll(lambda: not _items(ha, ["needs_action"]), timeout=30)
@@ -228,7 +224,7 @@ def _restore(ha, saved_profiles):
 
 
 @contextmanager
-def _mirroring(ha, profile):
+def _syncing(ha, profile):
     """Append *profile* (which syncs onto the household's list) for one test.
 
     Appended rather than saved on its own because profiles are shared state: the
@@ -244,26 +240,26 @@ def _mirroring(ha, profile):
 
 
 @pytest.fixture
-def mirrored(ha):
+def synced(ha):
     """A profile that wants a task while it is due, syncing onto the family's list."""
-    with _mirroring(ha, DUE_NOW_PROFILE):
+    with _syncing(ha, DUE_NOW_PROFILE):
         yield
 
 
 @pytest.fixture
-def mirrored_all(ha):
+def synced_all(ha):
     """A profile that wants a task whatever its due date, syncing onto that list."""
-    with _mirroring(ha, ALL_PROFILE):
+    with _syncing(ha, ALL_PROFILE):
         yield
 
 
-def test_an_overdue_task_reaches_the_mirrored_list(ha, mirrored):
+def test_an_overdue_task_reaches_the_synced_list(ha, synced):
     """The point of the feature: the chore turns up where the household looks."""
     task_id = _add_probe(ha, "A")
     name = f"{PROBE} A"
 
     item = _poll(lambda: _find(ha, name, ["needs_action"]))
-    assert item, "an overdue task should have been mirrored onto the household's list"
+    assert item, "an overdue task should have been synced onto the household's list"
 
     # The item is not just a summary: it carries the task's own due date, which is
     # what makes the line actionable on a phone. To-do lists work in whole days, so
@@ -271,11 +267,11 @@ def test_an_overdue_task_reaches_the_mirrored_list(ha, mirrored):
     task = _get_task(ha, task_id)
     expected_due = datetime.fromisoformat(task["next_due"]).date().isoformat()
     assert item["due"] == expected_due, (
-        f"the mirrored item should carry the task's due date ({expected_due})"
+        f"the synced item should carry the task's due date ({expected_due})"
     )
 
 
-def test_completing_it_in_home_keeper_ticks_the_item_off(ha, mirrored_all):
+def test_completing_it_in_home_keeper_ticks_the_item_off(ha, synced_all):
     """Outbound: Done in the panel ticks the line off, and never deletes it.
 
     Deleting would be the easy implementation and the wrong one — the household's
@@ -287,12 +283,12 @@ def test_completing_it_in_home_keeper_ticks_the_item_off(ha, mirrored_all):
     task_id = _add_probe(ha, "B")
     name = f"{PROBE} B"
     open_item = _poll(lambda: _find(ha, name, ["needs_action"]))
-    assert open_item, "expected the mirrored item"
+    assert open_item, "expected the synced item"
 
     _call(ha, "complete_task", {"task_id": task_id})
 
     ticked = _poll(lambda: _find(ha, name, ["completed"]))
-    assert ticked, "completing the task should have ticked its mirrored item off"
+    assert ticked, "completing the task should have ticked its synced item off"
     assert ticked["uid"] == open_item["uid"], (
         "the line must be ticked off in place, not removed and re-added"
     )
@@ -300,35 +296,33 @@ def test_completing_it_in_home_keeper_ticks_the_item_off(ha, mirrored_all):
     # The chore recurs, so a *fresh* line for the next occurrence goes on beside the
     # ticked-off one — carrying the rescheduled due date, not the old one.
     fresh = _poll(lambda: _find(ha, name, ["needs_action"]))
-    assert fresh, "the next occurrence should have been mirrored alongside the record"
+    assert fresh, "the next occurrence should have been synced alongside the record"
     task = _get_task(ha, task_id)
     assert fresh["due"] == datetime.fromisoformat(task["next_due"]).date().isoformat()
     assert fresh["uid"] != open_item["uid"]
 
 
-def test_completing_a_task_the_mirror_stops_wanting_takes_its_line_off(ha, mirrored):
+def test_completing_a_task_the_sync_stops_wanting_takes_its_line_off(ha, synced):
     """The other half: on an overdue profile, completing takes the chore off the list.
 
     Completing reschedules the task a day out, so the profile no longer selects it —
-    and a mirror only holds what its profile currently wants. That is the same rule
+    and a sync only holds what its profile currently wants. That is the same rule
     as disabling a task or filtering it out, and it is why a household that wants the
     done line kept gives the syncing profile an "all" filter.
     """
     task_id = _add_probe(ha, "D")
     name = f"{PROBE} D"
-    assert _poll(lambda: _find(ha, name, ["needs_action"])), (
-        "expected the mirrored item"
-    )
+    assert _poll(lambda: _find(ha, name, ["needs_action"])), "expected the synced item"
 
     _call(ha, "complete_task", {"task_id": task_id})
 
     assert _poll(lambda: name not in _summaries(ha)), (
-        "a task the mirror no longer wants should have its line taken off the list"
+        "a task the sync no longer wants should have its line taken off the list"
     )
 
 
-def test_ticking_the_item_off_completes_the_task(ha, mirrored):
-    """Inbound: the loop closes from the household's list, marked as the mirror's.
+def test_ticking_the_item_off_completes_the_task(ha, synced):
+    """Inbound: the loop closes from the household's list, marked as the sync's.
 
     This is the half no amount of unit testing reaches — a tick lands on somebody
     else's ``todo`` entity, and Home Keeper has to notice it, record a completion,
@@ -337,7 +331,7 @@ def test_ticking_the_item_off_completes_the_task(ha, mirrored):
     task_id = _add_probe(ha, "C")
     name = f"{PROBE} C"
     item = _poll(lambda: _find(ha, name, ["needs_action"]))
-    assert item, "expected the mirrored item"
+    assert item, "expected the synced item"
 
     # Park the sentinel first: it holds the *last* completion's origin, so a value
     # left by an earlier run would let the assertion below pass without this tick
@@ -351,7 +345,7 @@ def test_ticking_the_item_off_completes_the_task(ha, mirrored):
         ha,
         "todo",
         "update_item",
-        {"entity_id": MIRROR_LIST, "item": item["uid"], "status": "completed"},
+        {"entity_id": SYNC_LIST, "item": item["uid"], "status": "completed"},
     )
 
     assert _poll(lambda: (_get_task(ha, task_id) or {}).get("last_completed")), (
@@ -361,24 +355,22 @@ def test_ticking_the_item_off_completes_the_task(ha, mirrored):
     assert len(task["completions"]) == 1, "the tick belongs in the completion history"
 
     # The completion event says where it came from, which is what lets an
-    # automation (or another mirror) tell a remote tick from a tap on Done.
-    poll_state(ha, ORIGIN_SENTINEL, lambda s: s == ORIGIN_TODO_MIRROR, timeout=60)
+    # automation (or another sync) tell a remote tick from a tap on Done.
+    poll_state(ha, ORIGIN_SENTINEL, lambda s: s == ORIGIN_TODO_SYNC, timeout=60)
 
 
-def test_clearing_the_list_takes_the_profiles_lines_back_off(ha, mirrored):
+def test_clearing_the_list_takes_the_profiles_lines_back_off(ha, synced):
     """Clearing the picker is the off switch *and* the delete, in one gesture.
 
     Worth a case of its own because it is the whole shape of the new model. There is
-    no mirror record to delete, so "stop syncing" is a save of the same profile with
+    no sync record to delete, so "stop syncing" is a save of the same profile with
     an empty ``entity_id`` — and that save has to take the open lines with it, or a
     household would be left with chores stranded on a list nothing updates any more.
     The profile itself must survive: they cleared a list, not a saved filter.
     """
     _add_probe(ha, "E")
     name = f"{PROBE} E"
-    assert _poll(lambda: _find(ha, name, ["needs_action"])), (
-        "expected the mirrored item"
-    )
+    assert _poll(lambda: _find(ha, name, ["needs_action"])), "expected the synced item"
 
     # Exactly what the panel writes when the To-do list field is cleared: the same
     # profiles list, with this one's sync target emptied.

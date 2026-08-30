@@ -149,21 +149,21 @@ class HomeKeeperStore:
         # being deleted — the moment the mirror most needs it, since that is when
         # the item has to come off the list. See ``get_shopping_items``.
         self._shopping_items: dict[str, dict[str, Any]] = {}
-        # Which item on which external to-do list mirrors which task, for which
-        # mirror (``task_mirror.mirror_key(mirror_id, task_id) -> {entity_id, uid,
-        # summary, due, last_completed}``). Keyed per *mirror* rather than per task
-        # because two mirrors can hold the same task on two different lists, and one
-        # entry could not describe both. Bookkeeping for ``task_mirror_sync.py``,
+        # Which item on which external to-do list stands for which task, for which
+        # profile (``todo_list.sync_key(profile_id, task_id) -> {entity_id, uid,
+        # summary, due, last_completed}``). Keyed per *profile* rather than per task
+        # because two syncs can hold the same task on two different lists, and one
+        # entry could not describe both. Bookkeeping for ``todo_list_sync.py``,
         # kept out of the task for the same reason as the shopping map: the moment
-        # it matters most is after the task — or the mirror — is deleted, since that
-        # is when the item has to come off the list. See ``get_task_mirror_items``.
-        self._task_mirror_items: dict[str, dict[str, Any]] = {}
+        # it matters most is after the task — or the sync — is deleted, since that
+        # is when the item has to come off the list. See ``get_todo_list_items``.
+        self._todo_list_items: dict[str, dict[str, Any]] = {}
 
     async def load(self) -> None:
         """Load tasks and assets from disk (no-op safe on first run).
 
         The ``assets``, ``problem_notes``, ``shopping_items`` and
-        ``task_mirror_items`` keys are additive — documents written before they
+        ``todo_list_items`` keys are additive — documents written before they
         existed simply lack them, so we default to empty without a storage
         migration.
         """
@@ -184,10 +184,10 @@ class HomeKeeperStore:
             self._shopping_items = data["shopping_items"]
         else:
             self._shopping_items = {}
-        if data and isinstance(data.get("task_mirror_items"), dict):
-            self._task_mirror_items = data["task_mirror_items"]
+        if data and isinstance(data.get("todo_list_items"), dict):
+            self._todo_list_items = data["todo_list_items"]
         else:
-            self._task_mirror_items = {}
+            self._todo_list_items = {}
         # Additive migrations (no storage-version bump): fold a legacy
         # ``part_numbers`` string into structured ``parts`` and drop links to
         # assets that no longer exist.
@@ -209,7 +209,7 @@ class HomeKeeperStore:
                 "assets": self._assets,
                 "problem_notes": self._problem_notes,
                 "shopping_items": self._shopping_items,
-                "task_mirror_items": self._task_mirror_items,
+                "todo_list_items": self._todo_list_items,
             }
         )
 
@@ -229,7 +229,7 @@ class HomeKeeperStore:
         self._assets = {}
         self._problem_notes = {}
         self._shopping_items = {}
-        self._task_mirror_items = {}
+        self._todo_list_items = {}
 
     # ── reads ────────────────────────────────────────────────────────────────
     def get_tasks(self) -> dict[str, dict[str, Any]]:
@@ -259,27 +259,25 @@ class HomeKeeperStore:
         await self._save()
         return True
 
-    def get_task_mirror_items(self) -> dict[str, dict[str, Any]]:
-        """The task mirrors' bookkeeping (see ``task_mirror_sync.py``)."""
-        return self._task_mirror_items
+    def get_todo_list_items(self) -> dict[str, dict[str, Any]]:
+        """The to-do list syncs' bookkeeping (see ``todo_list_sync.py``)."""
+        return self._todo_list_items
 
-    async def async_set_task_mirror_items(
-        self, items: dict[str, dict[str, Any]]
-    ) -> bool:
-        """Replace the task-mirror bookkeeping; persists only on a real change.
+    async def async_set_todo_list_items(self, items: dict[str, dict[str, Any]]) -> bool:
+        """Replace the todo-list-sync bookkeeping; persists only on a real change.
 
         Fires no event, for the same reason as ``async_set_shopping_items``: this
         records which line on somebody else's to-do list stands for which task on
-        which mirror, not a Home Keeper state change anyone can act on — the task's
+        which profile, not a Home Keeper state change anyone can act on — the task's
         own created/completed/deleted events already say everything observable.
 
         The unchanged check is not an optimization detail: a pass runs on every task
-        mutation and every edit to a mirrored list, and most of them settle to
+        mutation and every edit to a synced list, and most of them settle to
         exactly what was already stored.
         """
-        if items == self._task_mirror_items:
+        if items == self._todo_list_items:
             return False
-        self._task_mirror_items = items
+        self._todo_list_items = items
         await self._save()
         return True
 

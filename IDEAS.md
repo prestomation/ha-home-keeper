@@ -133,8 +133,8 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
 
 - **`list_tasks` profile filter.** An optional `profile` field (id or name) on
   `home_keeper.list_tasks` that returns only the tasks the profile currently selects,
-  through the same effective-label matching the panel, card, notifications and task
-  mirrors share. Deferred from the task-mirror work (#239): the in-process mirror
+  through the same effective-label matching the panel, card, notifications and to-do
+  list syncs share. Deferred from the to-do list sync work (#239): the in-process sync
   calls the filter helper directly, so nothing has needed it from the service surface
   yet. An afternoon of work (schema field, shared helper, services.yaml/strings
   parity, a test, an INTEGRATING.md note) when an automation use case shows up.
