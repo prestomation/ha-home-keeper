@@ -473,7 +473,6 @@
   "tasks.showAll": "Mostra tutte le attività",
   "toast.copyFailed": "Copia non riuscita. Seleziona l'ID e copialo a mano.",
   "toast.idCopied": "ID copiato",
-  "tree.toggle": "Espandi o comprimi {name}",
   "view.flat": "Elenco",
   "view.label": "Vista",
   "view.tree": "Albero",

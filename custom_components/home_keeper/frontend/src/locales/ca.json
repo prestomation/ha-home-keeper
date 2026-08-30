@@ -471,7 +471,6 @@
   "tasks.showAll": "Mostra totes les tasques",
   "toast.copyFailed": "No s'ha pogut copiar. Selecciona l'ID i copia'l a mà.",
   "toast.idCopied": "ID copiat",
-  "tree.toggle": "Desplega o replega {name}",
   "view.flat": "Llista",
   "view.label": "Vista",
   "view.tree": "Arbre",

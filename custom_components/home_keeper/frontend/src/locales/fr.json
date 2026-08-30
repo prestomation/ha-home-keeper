@@ -473,7 +473,6 @@
   "tasks.showAll": "Afficher toutes les tâches",
   "toast.copyFailed": "Copie impossible. Sélectionnez l'ID et copiez-le à la main.",
   "toast.idCopied": "ID copié",
-  "tree.toggle": "Développer ou réduire {name}",
   "view.flat": "Liste",
   "view.label": "Vue",
   "view.tree": "Arbre",

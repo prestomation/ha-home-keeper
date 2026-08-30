@@ -457,7 +457,6 @@
   "tasks.showAll": "Vis alle opgaver",
   "toast.copyFailed": "Kunne ikke kopiere. Markér id'et, og kopiér det manuelt.",
   "toast.idCopied": "ID kopieret",
-  "tree.toggle": "Udvid eller skjul {name}",
   "view.flat": "Liste",
   "view.label": "Visning",
   "view.tree": "Træ",

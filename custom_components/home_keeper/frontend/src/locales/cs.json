@@ -489,7 +489,6 @@
   "tasks.showAll": "Zobrazit všechny úkoly",
   "toast.copyFailed": "Kopírování selhalo. Označte ID a zkopírujte je ručně.",
   "toast.idCopied": "ID zkopírováno",
-  "tree.toggle": "Rozbalit nebo sbalit {name}",
   "view.flat": "Seznam",
   "view.label": "Zobrazení",
   "view.tree": "Strom",

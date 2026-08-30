@@ -28,10 +28,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **The integration chips in a task row are quieter.** They were the loudest thing on
   the line, which put the integration's name ahead of the task's own.
 
-- **A branch in the appliance tree no longer looks selected.** Child appliances were
-  tinted the same colour that marks the one you have open, and the collapse arrow now
-  sits beside the name it collapses rather than in the far corner.
-
 - **A finished one-off looks finished however the list is grouped.** Only Group by
   Status used to set it aside. Grouping by area left it mid-list, looking like work
   still to do.

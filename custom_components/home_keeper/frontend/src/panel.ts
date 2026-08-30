@@ -977,35 +977,25 @@ const STYLES = `
   /* …and Done additionally gets the ring, so the row's one control is drawn as one. */
   .done-btn { --ha-button-border-radius: var(--hk-r-pill); }
   .done-btn::part(base) { box-shadow: inset 0 0 0 1px var(--hk-accent-line); }
-  /* Indentation carries the hierarchy; the rail is neutral and blue is left to mean
-     "selected". A child used to get an accent tint and an accent rail — the same two
-     properties, the same hue, as the selection treatment right below this rule — so
-     every child in the tree read as selected, and a genuinely selected one had nothing
-     left to say it with. */
   ha-card.hk-card.hk-tree-child {
     margin-left: calc(var(--hk-tree-depth, 0) * 32px);
-    border-left: 3px solid var(--hk-line);
+    border-left: 3px solid color-mix(in srgb, var(--primary-color) calc(40% + var(--hk-tree-depth, 0) * 15%), transparent);
+    background: color-mix(in srgb, var(--primary-color) calc(var(--hk-tree-depth, 0) * 4%), var(--card-background-color, #fff));
   }
   .hk-tree-group { margin: 0; }
   .hk-tree-group:not(.hk-tree-open) > .hk-tree-children { display: none; }
-  /* The caret sits at the head of the row, next to the name it collapses, rather than
-     pinned to the far right corner of the card. A leaf reserves the same box so names
-     stay in one column whether or not a row can be collapsed. */
-  .hk-chevron, .hk-chevron-space {
-    flex: none;
-    width: 24px; height: 24px;
-  }
   .hk-chevron {
+    position: absolute;
+    top: 8px;
+    right: 8px;
     display: flex; align-items: center; justify-content: center;
-    padding: 0;
-    border: 0;
+    width: 24px; height: 24px;
     border-radius: 6px;
     cursor: pointer;
-    background: transparent;
-    color: inherit;
+    background: var(--secondary-background-color);
+    z-index: 1;
   }
-  .hk-chevron:hover { background: var(--hk-page); }
-  .hk-chevron:focus-visible { outline: 2px solid var(--hk-accent); outline-offset: 1px; }
+  .hk-chevron:hover { background: var(--divider-color); }
   .hk-chevron::after {
     content: '';
     display: inline-block;
@@ -3742,13 +3732,13 @@ export class HomeKeeperPanel extends HTMLElement {
               const [childrenHtml, nextI] = sub(i + 1, depth);
               const isOpen = !this._treeCollapsed.has(entry.item.id);
               html += `<div class="hk-tree-group${isOpen ? ' hk-tree-open' : ''}">
-                ${this._assetCard(entry.item, depth, true, entry.item.id)}
+                ${this._assetCard(entry.item, depth, false, entry.item.id)}
                 <div class="hk-tree-children">${childrenHtml}</div>
               </div>`;
               i = nextI;
             } else {
               i++;
-              html += this._assetCard(entry.item, depth, true);
+              html += this._assetCard(entry.item, depth);
             }
           }
           return [html, i];
@@ -3868,7 +3858,7 @@ export class HomeKeeperPanel extends HTMLElement {
       </ha-card>`;
   }
 
-  private _assetCard(x: Asset, depth = 0, inTree = false, toggleId = ''): string {
+  private _assetCard(x: Asset, depth = 0, isLast = false, toggleId = ''): string {
     const kindChip =
       x.kind === 'virtual'
         ? this._virtualDeviceChip(x)
@@ -3900,22 +3890,17 @@ export class HomeKeeperPanel extends HTMLElement {
     ].join('');
     const depthClass = depth > 0 ? ' hk-tree-child' : '';
     const depthStyle = depth > 0 ? ` style="--hk-tree-depth: ${depth}"` : '';
-    const expanded = !this._treeCollapsed.has(x.id);
     const chevron = toggleId
-      ? `<button class="hk-chevron" type="button" data-tree-toggle="${escapeHTML(toggleId)}" aria-expanded="${expanded}" aria-label="${escapeHTML(
-          t('tree.toggle', { name: x.name || t('appliance.fallbackName') }),
-        )}"></button>`
-      : inTree
-        ? '<span class="hk-chevron-space" aria-hidden="true"></span>'
-        : '';
+      ? `<span class="hk-chevron" data-tree-toggle="${escapeHTML(toggleId)}"></span>`
+      : '';
     // In the master pane the list doubles as a picker, so the appliance on screen
     // beside it is marked.
     const selected =
       this._detail?.kind === 'asset' && this._detail.id === x.id ? ' hk-selected' : '';
     return `
       <ha-card class="hk-card${depthClass}${selected}" data-id="${escapeHTML(x.id)}"${depthStyle}>
+        ${chevron}
         <div class="hk-card-row">
-          ${chevron}
           <div class="grow clickable detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(x.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(title)}</div>
             <div class="hk-meta">${escapeHTML(assetSummary(x, this._hass?.areas))}</div>
@@ -5090,9 +5075,6 @@ export class HomeKeeperPanel extends HTMLElement {
         e.stopPropagation();
         const group = ch.closest('.hk-tree-group');
         if (group) group.classList.toggle('hk-tree-open');
-        // The caret is a real control now, so its state has to move with the group —
-        // the class toggle is what the CSS reads, this is what a screen reader reads.
-        ch.setAttribute('aria-expanded', String(Boolean(group?.classList.contains('hk-tree-open'))));
         const id = ch.dataset.treeToggle;
         if (id) {
           if (this._treeCollapsed.has(id)) this._treeCollapsed.delete(id);

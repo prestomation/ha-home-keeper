@@ -457,7 +457,6 @@
   "tasks.showAll": "Show all tasks",
   "toast.copyFailed": "Could not copy. Select the ID and copy it by hand.",
   "toast.idCopied": "ID copied",
-  "tree.toggle": "Expand or collapse {name}",
   "view.flat": "List",
   "view.label": "View",
   "view.tree": "Tree",

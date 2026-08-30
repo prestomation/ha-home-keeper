@@ -457,7 +457,6 @@
   "tasks.showAll": "Visa alla uppgifter",
   "toast.copyFailed": "Kunde inte kopiera. Markera id:t och kopiera det manuellt.",
   "toast.idCopied": "ID kopierat",
-  "tree.toggle": "Expandera eller dölj {name}",
   "view.flat": "Lista",
   "view.label": "Vy",
   "view.tree": "Träd",

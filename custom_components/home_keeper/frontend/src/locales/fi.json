@@ -457,7 +457,6 @@
   "tasks.showAll": "Näytä kaikki tehtävät",
   "toast.copyFailed": "Kopiointi ei onnistunut. Valitse tunnus ja kopioi se käsin.",
   "toast.idCopied": "Tunnus kopioitu",
-  "tree.toggle": "Laajenna tai supista {name}",
   "view.flat": "Luettelo",
   "view.label": "Näkymä",
   "view.tree": "Puu",

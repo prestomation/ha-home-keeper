@@ -489,7 +489,6 @@
   "tasks.showAll": "Показать все задачи",
   "toast.copyFailed": "Не удалось скопировать. Выделите ID и скопируйте вручную.",
   "toast.idCopied": "ID скопирован",
-  "tree.toggle": "Развернуть или свернуть {name}",
   "view.flat": "Список",
   "view.label": "Вид",
   "view.tree": "Дерево",
