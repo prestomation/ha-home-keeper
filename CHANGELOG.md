@@ -16,9 +16,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   languages.
 
 - **The to-do list sync reports itself as `home_keeper_todo_sync`.** An automation
-  matching on `origin: home_keeper_todo_mirror` needs that one string updated. The
-  sync's own bookkeeping is rebuilt on the first pass after upgrading, so a list may
-  briefly regain an item it already holds.
+  matching on the old `origin: home_keeper_todo_mirror` needs that one string updated.
+  Nothing else changes: the sync re-adopts the lines already on your list on its first
+  pass.
 
 ## [0.19.0b4]
 
