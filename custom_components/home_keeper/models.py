@@ -699,6 +699,11 @@ def build_task(data: dict, *, now: datetime) -> dict:
         "created": now.isoformat(),
         "last_completed": None,
         "completions": [],
+        # Deliberately *not* a completion. A skip records that an occurrence was
+        # passed over on purpose, so it never counts toward the completion tally,
+        # the cadence average or ``last_completed``. Read everywhere with
+        # ``.get("skips", [])`` — documents written before this existed lack it.
+        "skips": [],
         # Optional provenance, e.g. {"part": {"asset_id", "part_id"}} for a task
         # derived from an asset wear part. Owned by its reconciler when present.
         "source": data.get("source"),

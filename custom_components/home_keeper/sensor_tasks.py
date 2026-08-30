@@ -107,19 +107,54 @@ def compare(reading: float, comparison: str, value: float) -> bool:
     raise ValueError(f"unknown comparison: {comparison!r}")
 
 
+def latest_decision_ts(task: dict[str, Any]) -> str | None:
+    """The timestamp of the most recent deliberate decision about *task*.
+
+    The later of the last completion and the last skip, or ``None`` when there has
+    been neither. Both reset a usage meter's baseline, so this is the entry that
+    currently *anchors* the meter — which is what tells an undo whether it is
+    restoring the anchor or just tidying an older row.
+
+    A skip counts as a decision ("I looked, it doesn't need doing") and that is what
+    makes skipping a usage task work: with the default ``combinator: "any"`` an
+    elapsed time backstop re-arms the task no matter where the meter stands, so
+    advancing only the baseline would leave a skipped task bouncing straight back on
+    the next watcher tick.
+    """
+    stamps = [
+        raw
+        for raw in (
+            task.get("last_completed"),
+            *(entry.get("ts") for entry in task.get("skips", [])),
+        )
+        if raw
+    ]
+    # ISO-8601 with a consistent offset sorts lexicographically, but a store that has
+    # seen a timezone change can hold mixed offsets, so compare parsed instants.
+    parsed = []
+    for raw in stamps:
+        try:
+            when = recurrence._parse(raw)
+        except ValueError:
+            continue
+        if when is not None:
+            parsed.append((when, raw))
+    return max(parsed)[1] if parsed else None
+
+
 def backstop_due(task: dict[str, Any], cfg: dict[str, Any]) -> datetime | None:
     """When a usage task's time backstop comes due, or ``None`` if it has none.
 
-    The backstop measures time **since the last service**, so it is anchored to
-    ``last_completed`` and falls back to the task's ``created`` timestamp while it has
-    never been completed. (It is deliberately *not* anchored to the meter baseline: a
-    meter reset — a replaced controller, a rolled-over counter — is not a service, and
-    must not silently push the calendar half of the interval out.)
+    The backstop measures time since the last decision about the task (see
+    :func:`latest_decision_ts`), falling back to ``created`` while there has been
+    none. Deliberately *not* anchored to the meter baseline: a meter reset — a
+    replaced controller, a rolled-over counter — is not a decision about the task,
+    and must not silently push the calendar half of the interval out.
     """
     also_every = cfg.get("also_every")
     if not isinstance(also_every, dict):
         return None
-    raw_anchor = task.get("last_completed") or task.get("created")
+    raw_anchor = latest_decision_ts(task) or task.get("created")
     if not raw_anchor:
         return None
     try:
@@ -139,19 +174,21 @@ def baseline_after_delete(
     *,
     was_latest: bool,
 ) -> tuple[bool, float | None]:
-    """Decide a usage meter's baseline after a completion is undone.
+    """Decide a usage meter's baseline after a completion **or skip** is undone.
 
     Completing a usage task moves ``sensor.baseline`` forward to the completion
     reading (see ``store._reset_usage_baseline``), so undoing that completion must
     put the baseline back where it was — otherwise the partial progress the user had
-    (3,000 of 10,000 miles) stays lost at zero. Only the **latest** completion
-    anchors the meter, so undoing an older row is pure bookkeeping and leaves the
-    baseline alone.
+    (3,000 of 10,000 miles) stays lost at zero. Skipping does the same thing for the
+    same reason (a skipped oil change starts its next 5,000 miles from here), so
+    undoing a skip restores it the same way. Only whichever entry currently *anchors*
+    the meter matters; undoing an older row either way is pure bookkeeping and leaves
+    the baseline alone.
 
-    *task* is the task **after** the entry was removed (its ``completions`` no longer
-    include *removed_entry*); *removed_entry* is the entry that was deleted; and
-    *was_latest* is whether that entry was the anchor (its ``ts`` equalled
-    ``last_completed``) before removal.
+    *task* is the task **after** the entry was removed (it no longer appears in
+    ``completions``/``skips``); *removed_entry* is the entry that was deleted; and
+    *was_latest* is whether that entry was the meter anchor before removal — the
+    caller knows which list it came from, so it decides.
 
     Returns ``(should_set, new_baseline)``:
 

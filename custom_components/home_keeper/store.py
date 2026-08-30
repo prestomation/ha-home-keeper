@@ -124,7 +124,7 @@ def _changed_fields(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     aren't user-meaningful are ignored so a reschedule doesn't spam ``next_due``/
     ``completions`` churn as "changes".
     """
-    ignore = {"completions", "last_completed", "next_due", "created"}
+    ignore = {"completions", "skips", "last_completed", "next_due", "created"}
     keys = (set(before) | set(after)) - ignore
     return sorted(k for k in keys if before.get(k) != after.get(k))
 
@@ -496,25 +496,65 @@ class HomeKeeperStore:
         return existing
 
     async def skip_task(
-        self, task_id: str, *, origin: str | None = None
+        self,
+        task_id: str,
+        *,
+        origin: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Advance a task to its next occurrence with **no** completion recorded.
 
         "Skip this one": delegates the (pure) recurrence math to
         :func:`recurrence.skip_occurrence` — floating jumps a fresh interval, fixed
-        advances one scheduled occurrence, and one-off/triggered/sensor go dormant —
-        without stamping history or ``last_completed``. Rejects a synced
-        problem-sensor task. Fires ``home_keeper_task_skipped``.
+        advances one scheduled occurrence, and one-off/triggered/sensor go dormant.
+        ``completions`` and ``last_completed`` are untouched, so a skip never counts
+        as a completion anywhere; the skip itself is logged in ``skips`` with the
+        optional *metadata* (``note``/``who``, plus ``reading`` for a meter task).
+        Rejects a synced problem-sensor task. Fires ``home_keeper_task_skipped``.
+
+        For a **usage** sensor task it also resets the meter, exactly as a completion
+        does: skipping "every 5,000 miles" starts the next 5,000 from the reading the
+        skip was taken at. Without that the task would re-arm on the next watcher tick
+        — ``evaluate_usage`` would still see the old baseline exceeded — which made
+        skipping a meter task a no-op that bounced straight back (#268).
         """
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
         _reject_synced_problem(existing, origin)
-        updated = recurrence.skip_occurrence(dict(existing), now=dt_util.now())
+        now = dt_util.now()
+        records_reading = models.task_records_reading(existing)
+        clean_metadata = models.normalize_completion_metadata(
+            metadata, allow_reading=records_reading
+        )
+        # Same resolution order as ``complete_task``: the caller's number wins (a skip
+        # logged for an earlier moment carries the reading the user typed for it),
+        # otherwise read the bound entity now. The same figure anchors the meter below,
+        # so the history row and the progress bar can't disagree.
+        reading: float | None = clean_metadata.get("reading")
+        if records_reading and reading is None:
+            reading = sensor_watcher.read_sensor_value(
+                self._hass, sensor_tasks.sensor_config(existing)
+            )
+            if reading is not None:
+                clean_metadata["reading"] = reading
+        updated = recurrence.skip_occurrence(
+            dict(existing), now=now, metadata=clean_metadata
+        )
+        # Record the baseline this skip is about to replace *on the skip*, before the
+        # reset below overwrites it, so deleting the skip restores the meter progress
+        # the user had (see ``delete_skip``). Mirrors ``complete_task``.
+        self._stamp_meter_start(updated, now, entries="skips")
+        self._reset_usage_baseline(updated, reading)
         self._tasks[task_id] = updated
         await self._save()
         _LOGGER.debug("Skipped task %s; next due %s", task_id, updated.get("next_due"))
-        self._hass.bus.async_fire(EVENT_TASK_SKIPPED, events.task_event_data(updated))
+        self._hass.bus.async_fire(
+            EVENT_TASK_SKIPPED,
+            events.task_event_data(
+                updated, extra={"ts": now.isoformat(), "origin": origin}
+            ),
+        )
         return updated
 
     async def set_sensor_baseline(
@@ -1366,8 +1406,9 @@ class HomeKeeperStore:
     def _reanchor_from_completion(self, task: dict[str, Any], ts: str) -> float | None:
         """Move a usage meter's baseline to the reading just edited onto *ts*.
 
-        Only the **latest** completion anchors the meter, so editing an older row is
-        pure bookkeeping and leaves it alone. Returns the new baseline when it moved,
+        Only the entry that currently **anchors** the meter — the most recent
+        completion or skip — moves it, so editing an older row is pure bookkeeping and
+        leaves it alone. Returns the new baseline when it moved,
         else ``None`` — the caller puts that in the event so a listener can see the
         anchor followed. Clearing a reading is not a re-anchor: the user removed a
         number, they didn't assert a new one.
@@ -1375,7 +1416,10 @@ class HomeKeeperStore:
         cfg = sensor_tasks.sensor_config(task)
         if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
             return None
-        if ts != task.get("last_completed"):
+        # Only the entry currently anchoring the meter re-anchors it, and a later skip
+        # may hold that role — correcting the reading on a completion a skip has since
+        # superseded is pure bookkeeping.
+        if ts != sensor_tasks.latest_decision_ts(task):
             return None
         entry = next(
             (c for c in task.get("completions", []) if c.get("ts") == ts), None
@@ -1424,12 +1468,15 @@ class HomeKeeperStore:
             # "returns the task", and handing back the live stored dict would make the
             # no-op branch the one place a caller could mutate the store by accident.
             return dict(existing)
-        was_latest = ts == existing.get("last_completed")
+        # A skip resets the meter too, so the anchor is whichever of the two happened
+        # last — undoing a completion that a later skip has since superseded must not
+        # rewind the baseline the skip set.
+        was_latest = ts == sensor_tasks.latest_decision_ts(existing)
         updated = recurrence.remove_completion(dict(existing), ts, now=dt_util.now())
         # Undoing the anchoring completion of a usage meter restores the baseline it
         # moved — putting the partial progress the user had back, instead of leaving
-        # the meter stuck at zero. Only the latest completion anchors the meter, so
-        # undoing an older row leaves the baseline alone.
+        # the meter stuck at zero. Only the anchoring entry counts, so undoing an
+        # older row leaves the baseline alone.
         should_set, restored = sensor_tasks.baseline_after_delete(
             updated, removed_entry, was_latest=was_latest
         )
@@ -1526,13 +1573,18 @@ class HomeKeeperStore:
             )
         return asset
 
-    def _stamp_meter_start(self, task: dict[str, Any], when: Any) -> None:
-        """Record the pre-completion baseline on the completion entry at *when*.
+    def _stamp_meter_start(
+        self, task: dict[str, Any], when: Any, *, entries: str = "completions"
+    ) -> None:
+        """Record the pre-reset baseline on the log entry at *when*.
 
-        For a usage task, the completion entry keeps ``meter_start`` — the meter
-        baseline in effect *before* this completion reset it — so undoing the
-        completion (:meth:`delete_completion`) can put the meter back exactly where
-        it was. Called before :meth:`_reset_usage_baseline` overwrites the baseline.
+        For a usage task, the entry keeps ``meter_start`` — the meter baseline in
+        effect *before* this completion or skip reset it — so undoing it
+        (:meth:`delete_completion` / :meth:`delete_skip`) can put the meter back
+        exactly where it was. Called before :meth:`_reset_usage_baseline` overwrites
+        the baseline. *entries* names the log to stamp into, since both reset the
+        meter for the same reason.
+
         Internal bookkeeping, deliberately not a ``COMPLETION_*_FIELDS`` metadata
         key: it is stamped by the store and survives ``update_completion`` (which
         only touches its ``fields``) and ``move_completion`` (whole-entry).
@@ -1541,9 +1593,7 @@ class HomeKeeperStore:
         if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
             return
         ts = when.isoformat()
-        entry = next(
-            (c for c in task.get("completions", []) if c.get("ts") == ts), None
-        )
+        entry = next((c for c in task.get(entries, []) if c.get("ts") == ts), None)
         if entry is not None:
             entry["meter_start"] = cfg.get("baseline")
 

@@ -24,6 +24,7 @@ Two recurrence models are supported:
 from __future__ import annotations
 
 import calendar as _calendar
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 
 from .const import (
@@ -258,6 +259,27 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
     raise ValueError(f"unknown recurrence_type: {rec_type!r}")
 
 
+def _record_entry(history: Iterable[dict], entry: dict) -> list[dict]:
+    """Return *history* with *entry* recorded, deduped on ``ts`` and capped.
+
+    Shared by the completion log and the skip log: both are ``ts``-keyed lists of
+    dated entries with the same identity rule, so they get the same insert. A second
+    entry at the exact same instant (a double-tapped notification action, a duplicated
+    automation) would otherwise create an ambiguous twin that undo/edit can't tell
+    apart, so it *replaces* the entry already at that ``ts`` rather than appending.
+    """
+    entries = list(history)
+    ts_iso = entry["ts"]
+    dup = next((i for i, e in enumerate(entries) if e.get("ts") == ts_iso), None)
+    if dup is not None:
+        entries[dup] = entry
+    else:
+        entries.append(entry)
+    if len(entries) > MAX_COMPLETION_HISTORY:
+        entries = entries[-MAX_COMPLETION_HISTORY:]
+    return entries
+
+
 def apply_completion(
     task: dict,
     completed_at: datetime,
@@ -292,23 +314,11 @@ def apply_completion(
     # raises ``TypeError`` until the storage file is hand-edited.
     if completed_at.tzinfo is None:
         completed_at = completed_at.replace(tzinfo=now.tzinfo)
-    history = list(task.get("completions", []))
     ts_iso = completed_at.isoformat()
     entry: dict = {"ts": ts_iso}
     if metadata:
         entry.update(metadata)
-    # Completions are keyed by their ISO ``ts``; a second completion at the exact same
-    # instant (a double-tapped notification action, a duplicated automation) would
-    # otherwise create an ambiguous duplicate that undo/edit can't disambiguate.
-    # Replace the existing entry at that ts rather than appending a twin.
-    dup = next((i for i, e in enumerate(history) if e.get("ts") == ts_iso), None)
-    if dup is not None:
-        history[dup] = entry
-    else:
-        history.append(entry)
-    if len(history) > MAX_COMPLETION_HISTORY:
-        history = history[-MAX_COMPLETION_HISTORY:]
-    task["completions"] = history
+    task["completions"] = _record_entry(task.get("completions", []), entry)
     task["last_completed"] = completed_at.isoformat()
 
     rec_type = task.get("recurrence_type", REC_FLOATING)
@@ -335,13 +345,24 @@ def apply_completion(
     return task
 
 
-def skip_occurrence(task: dict, *, now: datetime) -> dict:
+def skip_occurrence(
+    task: dict, *, now: datetime, metadata: dict | None = None
+) -> dict:
     """Return *task* advanced past its current occurrence with **no** completion.
 
     "Skip this one" — move the task forward off every time surface without recording
-    that it was done (so the maintenance log and ``last_completed`` are untouched, and
-    a floating task's clock is *not* reset from a completion). Mutates only
-    ``next_due``; because that changes, the coordinator's edge detection re-arms the
+    that it was *done*. The maintenance log (``completions``) and ``last_completed``
+    stay untouched, so a floating task's clock is not reset and every completion count,
+    cadence average and "last done" reading is unaffected: a skip is the record of
+    deliberately *not* doing the thing.
+
+    The skip is still logged, in its own ``skips`` list — same ``ts``-keyed entry shape
+    as a completion, carrying the same optional *metadata* (``note``/``who``, plus
+    ``reading`` for a meter task) — so the panel can show it in history and the user
+    can amend or undo it. Keeping the two lists apart is what makes "a skip is not a
+    completion" true by construction rather than by filtering at eighteen call sites.
+
+    ``next_due`` moves; because it does, the coordinator's edge detection re-arms the
     overdue/due-soon announcements for the new date.
 
     * floating  -> ``now + interval·unit`` (a fresh interval from now; the next
@@ -355,6 +376,11 @@ def skip_occurrence(task: dict, *, now: datetime) -> dict:
       triggered/sensor task is re-armed only by its owner/the watcher; a one-off stays
       done unless its completion is undone).
     """
+    entry: dict = {"ts": now.isoformat()}
+    if metadata:
+        entry.update(metadata)
+    task["skips"] = _record_entry(task.get("skips", []), entry)
+
     rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FLOATING:
         task["next_due"] = add_interval(
@@ -514,6 +540,71 @@ def move_completion(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> d
         task["next_due"] = None
     elif rec_type not in (REC_TRIGGERED, REC_SENSOR):
         task["next_due"] = compute_next_due(task, now=now).isoformat()
+    return task
+
+
+def update_skip(task: dict, ts: str, metadata: dict, *, fields: tuple[str, ...]) -> dict:
+    """Edit the metadata of the skip at ISO timestamp *ts* in place.
+
+    The skip twin of :func:`update_completion`, with the same clear-on-empty rule: a
+    non-empty value in *metadata* is set, an absent or empty one removes the key, so
+    blanking a note deletes it rather than storing ``""``. ``ts`` and the schedule are
+    never touched — amending the log must not re-time or re-arm anything.
+
+    Unlike the completion twin it returns just the task: a skip carries no ``photo``,
+    so there is never an orphaned upload for the caller to clean up. Raises
+    ``ValueError`` when no skip matches *ts*, mirroring ``update_completion``.
+    """
+    skips = list(task.get("skips", []))
+    target = next((e for e in skips if e.get("ts") == ts), None)
+    if target is None:
+        raise ValueError(f"no skip at {ts!r}")
+    for key in fields:
+        value = metadata.get(key)
+        if value in (None, ""):
+            target.pop(key, None)
+        else:
+            target[key] = value
+    task["skips"] = skips
+    return task
+
+
+def remove_skip(task: dict, ts: str) -> dict:
+    """Return *task* with the skip at ISO timestamp *ts* removed.
+
+    Undoes a skip. Unlike :func:`remove_completion` there is nothing to re-derive:
+    skips never set ``last_completed``, and ``next_due`` was advanced by the skip at
+    the time rather than computed from the log, so re-deriving it here would be
+    guesswork about a schedule the user may have since moved on from. Restoring a
+    usage meter's baseline *is* real state and is the store's job (it holds the
+    ``meter_start`` the skip recorded). A no-op when *ts* is not present.
+    """
+    task["skips"] = [e for e in task.get("skips", []) if e.get("ts") != ts]
+    return task
+
+
+def move_skip(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> dict:
+    """Return *task* with the skip at *old_ts* re-timestamped to *new_ts*.
+
+    The skip twin of :func:`move_completion`, minus the re-derivation: see
+    :func:`remove_skip` for why a skip's timestamp does not drive the schedule.
+    A naive *new_ts* is qualified with *now*'s zone the same way, and colliding with
+    an existing skip at *new_ts* replaces it (the moved entry's metadata wins).
+    Raises ``ValueError`` when no skip matches *old_ts*.
+    """
+    skips = list(task.get("skips", []))
+    index = next((i for i, e in enumerate(skips) if e.get("ts") == old_ts), None)
+    if index is None:
+        raise ValueError(f"no skip at {old_ts!r}")
+    entry = dict(skips[index])
+    del skips[index]
+
+    new_dt = _parse(new_ts)
+    assert new_dt is not None
+    if new_dt.tzinfo is None:
+        new_dt = new_dt.replace(tzinfo=now.tzinfo)
+    entry["ts"] = new_dt.isoformat()
+    task["skips"] = _record_entry(skips, entry)
     return task
 
 
