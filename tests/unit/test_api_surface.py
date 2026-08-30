@@ -43,6 +43,7 @@ _COMPONENT = Path(__file__).resolve().parents[2] / "custom_components" / "home_k
 _INIT_TREE = ast.parse((_COMPONENT / "__init__.py").read_text(encoding="utf-8"))
 _WS_TREE = ast.parse((_COMPONENT / "websocket_api.py").read_text(encoding="utf-8"))
 _MANUALS_TREE = ast.parse((_COMPONENT / "manuals.py").read_text(encoding="utf-8"))
+_STORE_TREE = ast.parse((_COMPONENT / "store.py").read_text(encoding="utf-8"))
 _STRINGS = json.loads((_COMPONENT / "strings.json").read_text(encoding="utf-8"))
 
 _FIX = "Add or update its spec in custom_components/home_keeper/api_surface.py."
@@ -430,6 +431,109 @@ def test_completion_extras_match_the_builder() -> None:
     assert built - spine == _extras(const.EVENT_TASK_COMPLETED), {
         "built": sorted(built - spine),
         "modelled": sorted(_extras(const.EVENT_TASK_COMPLETED)),
+        "fix": _FIX,
+    }
+
+
+def _extra_keys(node: ast.expr, scope: ast.AST) -> set[str]:
+    """The literal keys an ``extra=`` argument contributes.
+
+    Two shapes appear in store.py and both have to be read, because the difference is
+    incidental: a fire site with a fixed payload passes a dict literal inline, while
+    one with a conditional key builds the dict in a local first. Reading only the
+    literal form is what let the two ``*_updated`` payloads drift unnoticed.
+    """
+    if isinstance(node, ast.Dict):
+        return {
+            k.value
+            for k in node.keys
+            if isinstance(k, ast.Constant) and isinstance(k.value, str)
+        }
+    if not isinstance(node, ast.Name):
+        return set()
+    keys: set[str] = set()
+    for stmt in ast.walk(scope):
+        # `extra = {...}` / `extra: dict[...] = {...}`
+        targets: list[ast.expr] = []
+        value: ast.expr | None = None
+        if isinstance(stmt, ast.Assign):
+            targets, value = list(stmt.targets), stmt.value
+        elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+            targets, value = [stmt.target], stmt.value
+        for target in targets:
+            if isinstance(target, ast.Name) and target.id == node.id:
+                if isinstance(value, ast.Dict):
+                    keys |= _extra_keys(value, scope)
+            # `extra["meter_baseline"] = ...`
+            elif (
+                isinstance(target, ast.Subscript)
+                and isinstance(target.value, ast.Name)
+                and target.value.id == node.id
+                and isinstance(target.slice, ast.Constant)
+                and isinstance(target.slice.value, str)
+            ):
+                keys.add(target.slice.value)
+    return keys
+
+
+def _fired_extras() -> dict[str, set[str]]:
+    """Every ``bus.async_fire(EVENT_X, …, extra=…)`` in store.py, as its literal keys.
+
+    Read off the source rather than by calling the store, which imports Home Assistant.
+    Each fire site is resolved within its enclosing function, so a key assigned onto a
+    local ``extra`` dict counts the same as one written inline.
+    """
+    found: dict[str, set[str]] = {}
+    for scope in ast.walk(_STORE_TREE):
+        if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for node in ast.walk(scope):
+            if not (
+                isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+            ):
+                continue
+            if node.func.attr != "async_fire" or not node.args:
+                continue
+            event = node.args[0]
+            if not isinstance(event, ast.Name) or not hasattr(const, event.id):
+                continue
+            keys: set[str] = set()
+            for arg in node.args[1:]:
+                if isinstance(arg, ast.Call):
+                    extra = _kwarg(arg, "extra")
+                    if extra is not None:
+                        keys |= _extra_keys(extra, scope)
+            name = getattr(const, event.id)
+            found.setdefault(name, set())
+            found[name] |= keys
+    return found
+
+
+@pytest.mark.parametrize(
+    "event_const",
+    [
+        "EVENT_TASK_SNOOZED",
+        "EVENT_TASK_SKIPPED",
+        "EVENT_TASK_SKIP_UPDATED",
+        "EVENT_TASK_SKIP_REMOVED",
+        "EVENT_TASK_UNCOMPLETED",
+        "EVENT_TASK_COMPLETION_UPDATED",
+    ],
+)
+def test_event_extras_match_what_the_store_fires(event_const: str) -> None:
+    """An event's modelled ``extra`` fields are the ones its fire site actually adds.
+
+    The completion and transition payloads had this check; the rest did not, so a key
+    added to one of these events drifted from its spec in silence — and the generated
+    API reference is rendered straight from that spec, so the drift reaches
+    integrators as documentation of a payload that isn't the payload.
+    """
+    name = getattr(const, event_const)
+    fired = _fired_extras().get(name)
+    assert fired is not None, f"{event_const} is never fired in store.py"
+    assert fired == _extras(name), {
+        "fired": sorted(fired),
+        "modelled": sorted(_extras(name)),
         "fix": _FIX,
     }
 
