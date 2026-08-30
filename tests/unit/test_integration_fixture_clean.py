@@ -117,23 +117,37 @@ def test_seeded_fixture_has_no_archived_assets() -> None:
     assert not archived, f"seeded assets should not be archived: {archived}"
 
 
-def test_seeded_fixture_carries_no_todo_sync_bookkeeping() -> None:
-    """``todo_list_items`` is runtime bookkeeping and is never authored by hand.
+#: Maps of what a sync wrote onto an external list, keyed by the record it mirrors.
+#: Both are written only by their syncer, never authored, and both belong to a
+#: reconciler that runs at startup — so a committed one is not just evidence of a
+#: local run, it actively rewrites the store before the first test.
+SYNC_BOOKKEEPING = ("todo_list_items", "shopping_items")
 
-    It maps a profile's synced tasks to the uids it wrote on an external to-do list.
-    Committing a populated one is proof a local run was baked in — and, unlike the
-    named-leftover leaks above, it is *load-bearing*: paired with a seeded two-way
-    sync profile (guarded below) it makes the integration reconcile against a stale
-    external list during platform setup, silently completing every task the list has
-    ticked. Nine seeded tasks were completed before the first test ran, which is what
-    took ``test_todo_entity_exists_with_seeded_tasks`` red on a pristine checkout
-    while a dirty local container stayed green.
+
+def test_seeded_fixture_carries_no_sync_bookkeeping() -> None:
+    """Sync bookkeeping is runtime state and is never authored by hand.
+
+    ``todo_list_items`` maps a profile's synced tasks to the uids it wrote on an
+    external to-do list. Committing a populated one is proof a local run was baked
+    in — and, unlike the named-leftover leaks above, it is *load-bearing*: paired
+    with a seeded two-way sync profile (guarded below) it makes the integration
+    reconcile against a stale external list during platform setup, silently
+    completing every task the list has ticked. Nine seeded tasks were completed
+    before the first test ran, which is what took
+    ``test_todo_entity_exists_with_seeded_tasks`` red on a pristine checkout while a
+    dirty local container stayed green.
+
+    ``shopping_items`` is the same shape of state for the shopping-list sync, which
+    also reconciles at startup. Nothing has leaked through it yet; it is here because
+    the to-do half proved the class is real and there is no reason to wait for the
+    second one to bite.
     """
-    payload = json.loads(FIXTURE.read_text())
-    items = payload.get("data", {}).get("todo_list_items") or {}
-    assert not items, (
-        "The committed fixture carries to-do sync bookkeeping, so a local run was "
-        f"committed: {sorted(items)[:5]}. Restore it with "
+    data = json.loads(FIXTURE.read_text()).get("data", {})
+    populated = {key: sorted(data.get(key) or {})[:5] for key in SYNC_BOOKKEEPING}
+    offenders = {key: sample for key, sample in populated.items() if sample}
+    assert not offenders, (
+        "The committed fixture carries sync bookkeeping, so a local run was "
+        f"committed: {offenders}. Restore it with "
         "`git checkout -- tests/integration/ha_config/` and re-commit."
     )
 
