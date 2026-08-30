@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   deferMenuItems,
+  deferRowActions,
   deferSplit,
   deferVerbs,
   emptySkipState,
@@ -189,5 +190,45 @@ describe('snoozeHintText', () => {
     expect(text).not.toBe(t('defer.snoozePickDate'));
     expect(text).not.toContain('defer.snoozeResolves');
     expect(text.length).toBeGreaterThan(0);
+  });
+});
+
+describe('deferRowActions', () => {
+  it('renders both verbs, snooze before skip', () => {
+    // Order is the design: the two exceptions sit ahead of Done, so the rightmost
+    // target on the row stays the one people actually mean.
+    const html = deferRowActions(task(), { snooze: true, skip: true });
+    expect(html.indexOf('hk-defer-snooze')).toBeGreaterThanOrEqual(0);
+    expect(html.indexOf('hk-defer-snooze')).toBeLessThan(html.indexOf('hk-defer-skip'));
+  });
+
+  it('renders only the verb on offer', () => {
+    const blocked = deferRowActions(task(), { snooze: true, skip: false });
+    expect(blocked).toContain('hk-defer-snooze');
+    expect(blocked).not.toContain('hk-defer-skip');
+  });
+
+  it('renders nothing when neither verb is on offer', () => {
+    expect(deferRowActions(task(), { snooze: false, skip: false })).toBe('');
+  });
+
+  it('labels each button, since an icon alone does not say which verb it is', () => {
+    const html = deferRowActions(task(), { snooze: true, skip: true });
+    expect(html).toContain(`label="${t('btn.snooze')}"`);
+    expect(html).toContain(`title="${t('btn.skip')}"`);
+  });
+
+  it('carries the task id so a click knows which row it came from', () => {
+    expect(deferRowActions(task({ id: 'abc' }), { snooze: true, skip: true })).toContain(
+      'data-id="abc"',
+    );
+  });
+
+  it('escapes the task id', () => {
+    const html = deferRowActions(task({ id: 'a"><script>x</script>' }), {
+      snooze: true,
+      skip: true,
+    });
+    expect(html).not.toContain('<script>');
   });
 });

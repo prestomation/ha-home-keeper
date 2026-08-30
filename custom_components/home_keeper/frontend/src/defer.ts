@@ -92,6 +92,29 @@ export function deferSplit(
   );
 }
 
+/**
+ * The row's deferral actions, as their own buttons rather than behind a caret.
+ *
+ * The card takes this shape and the task page takes `deferSplit`, because the two
+ * surfaces are answering different questions. A task page is *about* one task, so
+ * the one action it is really for stays primary and the exceptions tuck behind a
+ * caret. A card row is a list you scan, and a chevron with no container to lean on
+ * read as decoration — so here the verbs are simply present, muted, ahead of Done.
+ *
+ * Returns '' when neither verb is on offer, which leaves the row exactly as it was
+ * before this existed.
+ */
+export function deferRowActions(task: Task, verbs: DeferVerbs): string {
+  const id = escapeHTML(task.id);
+  const btn = (cls: string, label: string): string =>
+    `<ha-icon-button class="hk-row-action ${cls}" data-id="${id}" ` +
+    `label="${escapeHTML(label)}" title="${escapeHTML(label)}"></ha-icon-button>`;
+  return (
+    (verbs.snooze ? btn('hk-defer-snooze', t('btn.snooze')) : '') +
+    (verbs.skip ? btn('hk-defer-skip', t('btn.skip')) : '')
+  );
+}
+
 export interface SnoozeState {
   open: boolean;
   task: Task | null;

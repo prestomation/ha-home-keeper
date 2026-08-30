@@ -279,11 +279,19 @@ If you do not want them, **Settings → Skip & snooze** turns either off. Both s
 and turning one off removes it from the panel and from your notification buttons. The
 services keep working either way, so an automation you already wrote is unaffected.
 
+The dashboard card puts both verbs on the row instead of behind a caret. A chevron
+beside the card's dense Done button has nothing to lean on and reads as decoration, and
+a card is a list you scan rather than a page about one task. Snooze and skip sit ahead
+of Done in a muted grey against its accent, so the row keeps one obvious action. Both
+open the same dialogs the panel does.
+
 <img src="docs/images/51-panel-skip-snooze-menu.png" alt="A task's Done button with its caret open, showing Snooze and Skip with a line each explaining what they do" width="820">
 
 <img src="docs/images/52-panel-snooze-dialog.png" alt="The snooze dialog: a duration dropdown and a line stating the date the due date moves to" width="820">
 
 <img src="docs/images/53-panel-skip-in-history.png" alt="A task's history with a skipped occurrence marked as skipped, sitting between two completions" width="820">
+
+<img src="docs/images/card-skip-snooze-row.png" alt="A dashboard card whose rows carry a snooze and a skip button ahead of the accent Done button" width="330">
 
 ## Getting around the panel
 
@@ -889,7 +897,8 @@ button taps and the standalone
 ## Dashboard task card
 
 The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizable list
-of your tasks with a one-tap **Done** button on each row. It's a focused
+of your tasks with a one-tap **Done** button on each row, and a
+[snooze and a skip](#snooze-and-skip) button beside it. It's a focused
 do-and-glance surface: mark tasks done, add a new one from the header **+**, and open
 any documentation links a task shows (see below), while **editing and deleting a task
 live in the sidebar panel**, so a stray tap on the dashboard can't open a form or

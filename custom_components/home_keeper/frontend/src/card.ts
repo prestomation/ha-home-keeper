@@ -26,14 +26,8 @@ import {
 } from './forms';
 import type { SkipState, SnoozeState } from './defer';
 import type { DeferDialogHost } from './defer-dialogs';
-import { deferSplit, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
-import {
-  DeferMenus,
-  renderSkipDialog,
-  renderSnoozeDialog,
-  submitSkip,
-  submitSnooze,
-} from './defer-dialogs';
+import { deferRowActions, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
+import { renderSkipDialog, renderSnoozeDialog } from './defer-dialogs';
 import { makeForm } from './dialogs';
 import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
@@ -59,6 +53,14 @@ const MDI_CHECK =
   'M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,' +
   '20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,' +
   '20 12,20M16.59,7.58L10,14.17L7.41,11.59L6,13L10,17L18,9L16.59,7.58Z';
+// mdi:clock-outline and mdi:skip-next-outline — the row's snooze and skip actions,
+// sitting ahead of Done rather than behind a menu (see defer.deferRowActions).
+const MDI_CLOCK =
+  'M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,' +
+  '1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,' +
+  '14.92L16.25,16.15L11,13V7H12.5Z';
+const MDI_SKIP =
+  'M5,5V19L16,12M18,5V19H20V5H18Z';
 // mdi:plus — the header "add task" action.
 const MDI_PLUS = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
 // `ha-icon` names for the per-task document chips (external link / metadata link vs
@@ -223,52 +225,18 @@ const STYLES = `
   /* A completion-blocked task's mark-done looks inert but stays tappable to explain. */
   ha-icon-button.hk-done.blocked { color: var(--disabled-text-color); }
 
-  /* Snooze and skip, behind a caret on Done — the same control as the panel's, drawn
-     for a dense row: the card's Done is an icon button rather than a filled pill, so
-     there is no surface to divide and the caret is simply a narrower sibling. */
-  .hk-split { position: relative; display: inline-flex; align-items: center; flex: none; }
-  button.hk-row-caret {
-    height: 32px; width: 26px; padding: 0; margin-left: -4px;
-    display: inline-flex; align-items: center; justify-content: center;
-    border: 0; border-radius: 8px;
-    background: transparent; color: var(--secondary-text-color);
-    cursor: pointer;
-    --mdc-icon-size: 18px;
+  /* Snooze and skip sit on the row as their own buttons rather than behind a caret.
+     A chevron beside a same-sized icon button had nothing to lean on and read as
+     decoration; these say what they are. They are muted against Done's accent so the
+     row still has one obvious action, and they come *before* it, so the rightmost
+     target — the one a thumb reaches first — stays the one people mean. */
+  .hk-acts { display: flex; align-items: center; flex: none; }
+  ha-icon-button.hk-row-action {
+    --mdc-icon-button-size: 36px;
+    --mdc-icon-size: 20px;
+    color: var(--secondary-text-color);
   }
-  button.hk-row-caret:hover {
-    background: var(--secondary-background-color);
-    color: var(--primary-text-color);
-  }
-  button.hk-row-caret:focus-visible {
-    outline: 2px solid var(--primary-color); outline-offset: -2px;
-  }
-  /* The display below beats the user-agent rule for the hidden attribute, which is a
-     plain type-less one — so without this override the menu is laid out even while
-     hidden, floating over the row beneath it and swallowing its clicks. */
-  .hk-defer-menu[hidden] { display: none; }
-  .hk-defer-menu {
-    position: absolute; top: calc(100% + 6px); right: 0; z-index: 9;
-    min-width: 220px; padding: 6px;
-    display: flex; flex-direction: column; gap: 2px;
-    background: var(--card-background-color);
-    border: 1px solid var(--divider-color); border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
-  }
-  .hk-defer-menu button {
-    display: flex; align-items: flex-start; gap: 10px; width: 100%;
-    padding: 9px 10px; border: 0; border-radius: 6px;
-    background: transparent; color: var(--primary-text-color);
-    font: inherit; text-align: left; cursor: pointer;
-  }
-  .hk-defer-menu button:hover { background: var(--secondary-background-color); }
-  .hk-defer-menu button:focus-visible {
-    outline: 2px solid var(--primary-color); outline-offset: -2px;
-  }
-  .hk-defer-menu ha-icon { flex: none; color: var(--secondary-text-color); }
-  .hk-defer-text { display: flex; flex-direction: column; min-width: 0; }
-  /* The verbs are not self-explanatory — which is what #268 was about — so each
-     carries one line saying what it does to the schedule. */
-  .hk-defer-sub { color: var(--secondary-text-color); font-size: 0.82em; }
+  ha-icon-button.hk-row-action:hover { color: var(--primary-text-color); }
   .hk-snooze-hint { color: var(--secondary-text-color); font-size: 0.9em; margin: 8px 0 0; }
   .hk-loading { display: flex; justify-content: center; padding: 32px 0; }
   .hk-empty { padding: 16px; }
@@ -336,17 +304,6 @@ export class HomeKeeperCard extends HTMLElement {
     refresh: () => this._refresh(),
   };
 
-  private readonly _deferMenus = new DeferMenus({
-    taskById: (id) => this._tasks.find((x) => x.id === id),
-    onSnooze: (task) => {
-      this._snooze = { ...emptySnoozeState(), open: true, task };
-      this._render();
-    },
-    onSkip: (task) => {
-      this._skip = { ...emptySkipState(), open: true, task };
-      this._render();
-    },
-  });
   private _config: HomeKeeperCardConfig = { type: '' };
   private _tasks: Task[] = [];
   private _profiles: Profile[] = [];
@@ -718,9 +675,6 @@ export class HomeKeeperCard extends HTMLElement {
     // so the card reappears as soon as a task matches again.
     this.style.display = this._loaded && this._isHiddenEmpty(this._visibleCount()) ? 'none' : '';
     this._ensureMarkdown();
-    // The open menu's element is about to be thrown away with the rest of the
-    // markup; closing first is what unbinds its document-level dismiss handlers.
-    this._deferMenus.close();
     this._liveHassEls = [];
     const title = this._config.title ?? t('tab.tasks');
     const showAdd = this._config.show_add !== false;
@@ -985,18 +939,13 @@ export class HomeKeeperCard extends HTMLElement {
           ${notes}
           <div class="hk-chips">${statusChip}${areaChip}${tagChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
         </div>
-        ${this._deferSplit(task, done)}
+        <div class="hk-acts">${this._deferActions(task)}${done}</div>
       </div>`;
   }
 
-  /**
-   * Wrap the row's Done in the deferral split, when the task has a verb to offer.
-   *
-   * The card's Done is a dense icon button rather than the panel's pill, so the
-   * caret is asked to match it — `hk-row-caret` is what sizes it down.
-   */
-  private _deferSplit(task: Task, done: string): string {
-    return deferSplit(task, done, deferVerbs(task, this._options), 'hk-split-caret hk-row-caret');
+  /** Snooze and Skip for this row, ahead of Done. Empty when neither is on offer. */
+  private _deferActions(task: Task): string {
+    return deferRowActions(task, deferVerbs(task, this._options));
   }
 
   // ── hydration ─────────────────────────────────────────────────────────────
@@ -1028,7 +977,27 @@ export class HomeKeeperCard extends HTMLElement {
       });
     });
 
-    this._deferMenus.wire(root);
+    const wireAction = (cls: string, open: (task: Task) => void): void => {
+      root.querySelectorAll<HTMLElement>(cls).forEach((b) => {
+        (b as HTMLElement & { path?: string }).path =
+          cls === '.hk-defer-snooze' ? MDI_CLOCK : MDI_SKIP;
+        b.addEventListener('click', (e) => {
+          // The row itself opens the task, and these sit inside it.
+          e.stopPropagation();
+          const task = this._tasks.find((x) => x.id === b.dataset.id);
+          if (task) open(task);
+        });
+      });
+    };
+    wireAction('.hk-defer-snooze', (task) => {
+      this._snooze = { ...emptySnoozeState(), open: true, task };
+      this._render();
+    });
+    wireAction('.hk-defer-skip', (task) => {
+      this._skip = { ...emptySkipState(), open: true, task };
+      this._render();
+    });
+
     if (host && this._snooze.open) {
       renderSnoozeDialog(this._deferHost, this._snooze, host, () => {
         this._snooze = emptySnoozeState();

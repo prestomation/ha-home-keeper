@@ -14,6 +14,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   both, on the task page and on each row of the list. Each entry says what it does to
   the schedule, which is what was unclear about them. (Fixes #268)
 
+- **The dashboard card offers both verbs too.** They sit on each row ahead of Done and
+  open the same dialogs the panel does. A row that cannot take one, such as a blocked or
+  dormant task, leaves it out.
+
 - **A skipped occurrence is recorded.** It shows in the task's history with a note and
   whoever decided, and can be edited or undone like a completion. A skip never counts
   toward the completion tally or the average interval.

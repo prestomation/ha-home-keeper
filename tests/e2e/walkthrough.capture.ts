@@ -134,10 +134,14 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //      opens the menu, lingers on the line each entry carries, then shows the
   //      snooze dialog resolving its preset to a real date. Escape out of both so
   //      the seeded schedule is left where the later beats expect it.
-  await panel.locator('.hk-detail-actions .hk-split-caret').click();
-  await expect(panel.locator('.hk-defer-menu .hk-defer-skip')).toBeVisible();
+  //      Every locator here is scoped to the detail actions: the list beside the
+  //      detail renders its own split buttons, so an unscoped `.hk-defer-snooze`
+  //      finds one of their closed menus instead of the open one.
+  const detailActions = panel.locator('.hk-detail-actions');
+  await detailActions.locator('.hk-split-caret').click();
+  await expect(detailActions.locator('.hk-defer-menu .hk-defer-skip')).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
-  await panel.locator('.hk-defer-snooze').click();
+  await detailActions.locator('.hk-defer-snooze').click();
   await expect(panel.locator('ha-dialog[open] .hk-snooze-hint')).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
   await page.keyboard.press('Escape');
@@ -636,17 +640,18 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await openDashboard(page);
   await page.waitForTimeout(BEAT * 2);
 
-  // 8a. Snooze and skip reach the dashboard too. The card's Done is a dense icon
-  //     rather than the panel's pill, so the caret is a narrower sibling — but the
-  //     menu behind it, and the dialogs behind that, are the same ones. Escape out
-  //     so the closing shot below frames the cards, not a menu.
+  // 8a. Snooze and skip reach the dashboard too, and here they are simply on the
+  //     row: a caret beside a same-sized icon button had nothing to lean on. Open
+  //     the snooze dialog so the tour shows the preset resolving to a real date,
+  //     then Escape out so the closing shot frames the cards.
   const hkCard = page.locator('home-keeper-card').first();
-  await expect(hkCard.locator('.hk-split').first()).toBeVisible({ timeout: 40_000 });
-  await hkCard.locator('.hk-split .hk-row-caret').first().click();
-  await expect(hkCard.locator('.hk-defer-menu .hk-defer-skip').first()).toBeVisible();
+  await expect(hkCard.locator('.hk-defer-snooze').first()).toBeVisible({ timeout: 40_000 });
+  await page.waitForTimeout(BEAT);
+  await hkCard.locator('.hk-defer-snooze').first().click();
+  await expect(page.locator('ha-dialog[open] .hk-snooze-hint').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 3);
   await page.keyboard.press('Escape');
-  await expect(hkCard.locator('.hk-defer-menu').first()).toBeHidden();
+  await expect(page.locator('ha-dialog[open] .hk-snooze-hint')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
   const familyCard = page

@@ -70,21 +70,11 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await expect(card.locator('a.hk-link-chip').first()).toBeVisible();
   await shotCard(page, card, `${OUT}/card-task-links.png`);
 
-  // 2c. Snooze and skip, reached from a card row (#268). The caret sits beside the
-  // row's Done and opens the same menu the panel offers, so the clip has to include
-  // the open menu — which overflows the card, hence a page shot around it rather
-  // than `shotCard`'s tight clip.
-  const deferRow = card.locator('.hk-split').first();
-  await deferRow.locator('.hk-row-caret').click();
-  await expect(card.locator('.hk-defer-menu .hk-defer-skip').first()).toBeVisible();
-  const cardBox = await card.locator('ha-card').first().boundingBox();
-  if (!cardBox) throw new Error('no bounding box for card-skip-snooze-menu');
-  await page.screenshot({
-    path: `${OUT}/card-skip-snooze-menu.png`,
-    clip: { ...cardBox, height: cardBox.height + 120 },
-  });
-  await page.keyboard.press('Escape');
-  await expect(card.locator('.hk-defer-menu').first()).toBeHidden();
+  // 2c. Snooze and skip, on the row (#268). Both sit ahead of Done as their own
+  // buttons, so the default card clip already shows them — this shot names the
+  // feature, and the dialog they open gets its own below.
+  await expect(card.locator('.hk-defer-snooze').first()).toBeVisible();
+  await shotCard(page, card, `${OUT}/card-skip-snooze-row.png`);
 
   // 3. The grouped-by-status card.
   const grouped = page.locator('home-keeper-card').nth(1);
