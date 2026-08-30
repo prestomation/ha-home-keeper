@@ -14,7 +14,11 @@ import {
   meterRemaining,
   taskRecordsReading,
   readingUnit,
+  btnAttrs,
   deviceName,
+  formatDate,
+  formatDateTime,
+  setBtnWeight,
   deviceDomain,
   brandLogoUrl,
   areaName,
@@ -146,17 +150,17 @@ describe('recurrenceSummary', () => {
   it('describes floating tasks relative to completion', () => {
     expect(
       recurrenceSummary({ recurrence_type: 'floating', interval: 1, unit: 'months' }),
-    ).toBe('every month after completion');
+    ).toBe('Every month after completion');
     expect(
       recurrenceSummary({ recurrence_type: 'floating', interval: 3, unit: 'months' }),
-    ).toBe('every 3 months after completion');
+    ).toBe('Every 3 months after completion');
   });
   it('describes fixed tasks by frequency', () => {
     expect(recurrenceSummary({ recurrence_type: 'fixed', interval: 1, freq: 'DAILY' })).toBe(
-      'every day',
+      'Every day',
     );
     expect(recurrenceSummary({ recurrence_type: 'fixed', interval: 2, freq: 'WEEKLY' })).toBe(
-      'every 2 weeks',
+      'Every 2 weeks',
     );
   });
   it('describes triggered tasks as monitored (no schedule)', () => {
@@ -845,5 +849,122 @@ describe('buildAssetTree', () => {
     );
     expect(result.length).toBe(2);
     expect(result.every((e) => e.depth >= 0)).toBe(true);
+  });
+});
+
+describe('formatDate / formatDateTime (#262)', () => {
+  const ISO = '2026-07-01T13:00:00Z';
+
+  it('writes a date as a month name, not a numeric US-order string', () => {
+    // "7/1/2026" is ambiguous outside the US and was one of three different date
+    // shapes the panel used. Pin the shape, not just that a string comes back.
+    const out = formatDate(ISO, 'en-GB');
+    expect(out).toContain('2026');
+    expect(out).toMatch(/Jul/);
+    expect(out).not.toMatch(/\d+\/\d+\/\d+/);
+  });
+
+  it('drops seconds from a date-time', () => {
+    // The whole point: toLocaleString() gives "7/1/2026, 1:00:00 PM". A completion is
+    // something a person did on an afternoon, not a log line.
+    const out = formatDateTime(ISO, 'en-GB');
+    expect(out).toMatch(/Jul/);
+    expect(out).toMatch(/\d{1,2}:\d{2}/);
+    expect(out).not.toMatch(/\d{1,2}:\d{2}:\d{2}/);
+  });
+
+  it('honours the language it is given rather than the runtime default', () => {
+    expect(formatDate(ISO, 'de-DE')).toMatch(/Juli|Jul/);
+    expect(formatDate(ISO, 'en-GB')).toMatch(/Jul/);
+    expect(formatDate(ISO, 'de-DE')).not.toBe(formatDate(ISO, 'en-GB'));
+  });
+
+  it('accepts a Date as well as an ISO string', () => {
+    expect(formatDate(new Date(ISO), 'en-GB')).toBe(formatDate(ISO, 'en-GB'));
+    expect(formatDateTime(new Date(ISO), 'en-GB')).toBe(formatDateTime(ISO, 'en-GB'));
+  });
+
+  it('is empty for nothing and for an unparseable value', () => {
+    for (const bad of [null, undefined, '', 'not a date']) {
+      expect(formatDate(bad, 'en-GB'), String(bad)).toBe('');
+      expect(formatDateTime(bad, 'en-GB'), String(bad)).toBe('');
+    }
+  });
+});
+
+describe('button weights (#262)', () => {
+  it('primary adds no appearance or variant — it is the element default', () => {
+    expect(btnAttrs('primary')).toBe('data-hk-weight="primary"');
+  });
+
+  it('spells each other weight in ha-button’s own vocabulary', () => {
+    expect(btnAttrs('secondary')).toBe('appearance="filled" data-hk-weight="secondary"');
+    // Neutral, not brand: plain-brand paints the label accent-coloured, which is
+    // 3.26:1 on a card and makes Cancel argue with the action beside it.
+    expect(btnAttrs('tertiary')).toBe(
+      'appearance="plain" variant="neutral" data-hk-weight="tertiary"',
+    );
+    expect(btnAttrs('danger')).toBe('appearance="plain" variant="danger" data-hk-weight="danger"');
+    expect(btnAttrs('danger-primary')).toBe('variant="danger" data-hk-weight="danger-primary"');
+  });
+
+  it('never emits the two attributes ha-button stopped reading', () => {
+    for (const weight of ['primary', 'secondary', 'tertiary', 'danger', 'danger-primary']) {
+      expect(btnAttrs(weight)).not.toMatch(/raised|destructive/);
+    }
+  });
+
+  it('setBtnWeight clears the attributes the new weight does not set', () => {
+    const el = document.createElement('span');
+    setBtnWeight(el, 'danger');
+    expect(el.getAttribute('appearance')).toBe('plain');
+    expect(el.getAttribute('variant')).toBe('danger');
+    // Re-weighting must not leave the old weight's attributes behind — a danger
+    // button re-weighted to primary would otherwise stay red.
+    setBtnWeight(el, 'primary');
+    expect(el.hasAttribute('appearance')).toBe(false);
+    expect(el.hasAttribute('variant')).toBe(false);
+    expect(el.getAttribute('data-hk-weight')).toBe('primary');
+  });
+
+  it('setBtnWeight agrees with btnAttrs for every weight', () => {
+    for (const weight of ['primary', 'secondary', 'tertiary', 'danger', 'danger-primary']) {
+      const el = document.createElement('span');
+      setBtnWeight(el, weight);
+      const rendered = [...el.attributes]
+        .map((a) => `${a.name}="${a.value}"`)
+        .sort()
+        .join(' ');
+      const expected = btnAttrs(weight).split(' ').sort().join(' ');
+      expect(rendered, weight).toBe(expected);
+    }
+  });
+});
+
+describe('recurrenceSummary sentence case (#262)', () => {
+  it('capitalises the clock-based fragments, which were written lowercase', () => {
+    // "every 12 months after completion" sat beside "Every 300 h of use" and
+    // "Monitored" in the same column of the same list.
+    expect(recurrenceSummary({ recurrence_type: 'floating', interval: 12, unit: 'months' })).toBe(
+      'Every 12 months after completion',
+    );
+    expect(recurrenceSummary({ recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY' })).toBe(
+      'Every month',
+    );
+  });
+
+  it('leaves the already-capitalised kinds untouched', () => {
+    expect(recurrenceSummary({ recurrence_type: 'triggered' })).toBe('Monitored');
+    expect(recurrenceSummary({ recurrence_type: 'one-off' })).toBe('One-off');
+  });
+
+  it('changes only the first character, never the rest of the sentence', () => {
+    // A blanket .toUpperCase() or a title-case pass would also hit the unit and the
+    // trailing clause; only the leading letter may move.
+    const out = recurrenceSummary({ recurrence_type: 'floating', interval: 3, unit: 'weeks' });
+    expect(out).toBe('Every 3 weeks after completion');
+    // Everything after the first character is exactly what the strings say — no
+    // title-casing of "Weeks", no capital on "After".
+    expect(out.slice(1)).toBe('very 3 weeks after completion');
   });
 });

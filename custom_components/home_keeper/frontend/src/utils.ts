@@ -256,8 +256,70 @@ export function readingUnit(
   return (state?.attributes?.unit_of_measurement as string | undefined) || '';
 }
 
-/** Human-readable summary of a task's recurrence rule. */
+// ── Dates and times, as a person would write them ───────────────────────────
+/**
+ * A date, in the viewer's language — "1 Jul 2026", not "7/1/2026".
+ *
+ * Absolute dates used to be formatted at each call site with a bare
+ * `toLocaleDateString()`/`toLocaleString()`, which gave the panel three different
+ * shapes on three surfaces, and none of them passed the language Home Assistant
+ * already knows, so a German user reading a German panel got US formatting.
+ */
+export function formatDate(value: string | Date | null | undefined, lang?: string): string {
+  const d = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(lang || undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * A date and time, to the minute — "1 Jul 2026, 13:00".
+ *
+ * Deliberately no seconds. `toLocaleString()` renders "7/1/2026, 1:00:00 PM", and a
+ * completion is a thing a person did on an afternoon, not an event log line: the
+ * ":00" at the end is precision the panel does not have and nobody asked for.
+ */
+export function formatDateTime(value: string | Date | null | undefined, lang?: string): string {
+  const d = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(lang || undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Sentence-case *text*, leaving everything after the first character alone.
+ *
+ * Scripts without letter case (Chinese) are unaffected: `toUpperCase` is a no-op on
+ * a character that has no upper-case mapping.
+ */
+function sentenceCase(text: string): string {
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
+
+/**
+ * Human-readable summary of a task's recurrence rule, in sentence case.
+ *
+ * The strings underneath it are inconsistent by history rather than by design: the
+ * clock ones were written as embeddable fragments ("every 12 months after
+ * completion") and the sensor and status ones as standalone labels ("Every 300 h of
+ * use", "Monitored"). Every caller renders the result as the first words of a line —
+ * a task row's meta, the detail page's Recurrence row, the form's live preview — so
+ * the case is fixed here rather than in sixteen locale files, where it would have to
+ * be re-decided per language and could not be enforced.
+ */
 export function recurrenceSummary(task: Task): string {
+  return sentenceCase(recurrenceText(task));
+}
+
+function recurrenceText(task: Task): string {
   // A triggered task has no schedule — it is "monitored" and only due when its
   // owning integration arms it (e.g. Battery Notes when a battery goes low).
   if (task.recurrence_type === 'triggered') return t('recurrence.triggered');

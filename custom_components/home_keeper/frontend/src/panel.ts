@@ -94,6 +94,8 @@ import {
   dueLabel,
   copyText,
   escapeHTML,
+  formatDate,
+  formatDateTime,
   formatQuantity,
   isHttpUrl,
   isOverdue,
@@ -427,6 +429,14 @@ const STYLES = `
     flex-wrap: wrap;
   }
   .hk-meta { color: var(--hk-ink-2); font-size: 0.85rem; margin-top: 2px; }
+  /* A finished one-off is struck through and faded wherever it appears. Group by
+     Status tucked it into a collapsed section, but every other grouping left it
+     mid-list looking like work still to do — and which grouping you chose should not
+     change what appears to be in your active list. Faded per element rather than on
+     the row: opacity on the card would make a stacking context and drag the status
+     pill and the chips down with it. */
+  .hk-card.hk-task-done .hk-name { text-decoration: line-through; opacity: 0.62; }
+  .hk-card.hk-task-done .hk-meta { opacity: 0.62; }
   .hk-card-actions { display: flex; align-items: center; gap: 4px; }
   /* A completion-blocked Done (e.g. a synced problem sensor): the inner ha-button is
      natively disabled (greyed), and the wrapping span stays clickable so a tap can
@@ -967,25 +977,35 @@ const STYLES = `
   /* …and Done additionally gets the ring, so the row's one control is drawn as one. */
   .done-btn { --ha-button-border-radius: var(--hk-r-pill); }
   .done-btn::part(base) { box-shadow: inset 0 0 0 1px var(--hk-accent-line); }
+  /* Indentation carries the hierarchy; the rail is neutral and blue is left to mean
+     "selected". A child used to get an accent tint and an accent rail — the same two
+     properties, the same hue, as the selection treatment right below this rule — so
+     every child in the tree read as selected, and a genuinely selected one had nothing
+     left to say it with. */
   ha-card.hk-card.hk-tree-child {
     margin-left: calc(var(--hk-tree-depth, 0) * 32px);
-    border-left: 3px solid color-mix(in srgb, var(--primary-color) calc(40% + var(--hk-tree-depth, 0) * 15%), transparent);
-    background: color-mix(in srgb, var(--primary-color) calc(var(--hk-tree-depth, 0) * 4%), var(--card-background-color, #fff));
+    border-left: 3px solid var(--hk-line);
   }
   .hk-tree-group { margin: 0; }
   .hk-tree-group:not(.hk-tree-open) > .hk-tree-children { display: none; }
-  .hk-chevron {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    display: flex; align-items: center; justify-content: center;
+  /* The caret sits at the head of the row, next to the name it collapses, rather than
+     pinned to the far right corner of the card. A leaf reserves the same box so names
+     stay in one column whether or not a row can be collapsed. */
+  .hk-chevron, .hk-chevron-space {
+    flex: none;
     width: 24px; height: 24px;
+  }
+  .hk-chevron {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+    border: 0;
     border-radius: 6px;
     cursor: pointer;
-    background: var(--secondary-background-color);
-    z-index: 1;
+    background: transparent;
+    color: inherit;
   }
-  .hk-chevron:hover { background: var(--divider-color); }
+  .hk-chevron:hover { background: var(--hk-page); }
+  .hk-chevron:focus-visible { outline: 2px solid var(--hk-accent); outline-offset: 1px; }
   .hk-chevron::after {
     content: '';
     display: inline-block;
@@ -1027,6 +1047,10 @@ const STYLES = `
   /* The count reads as a companion figure, not part of the label: lighter, and
      tinted to the button's own foreground so it stays legible when active. */
   .hk-seg-count { font-size: 0.78rem; opacity: 0.72; font-variant-numeric: tabular-nums; }
+  /* A scope with nothing in it is dimmed and unpressable. The count is still legible —
+     "0" is the answer to a question worth asking — so the pill recedes rather than
+     disappearing, and the row keeps its shape as tasks come and go. */
+  .hk-seg-btn.hk-seg-empty { opacity: 0.45; cursor: default; }
   /* Label + value + caret, sized like the pills beside it. A refinement with more
      than a couple of options states its current value instead of showing them all. */
   .hk-menu { gap: 0; border: 1px solid var(--hk-line); border-radius: var(--hk-r-btn);
@@ -3389,11 +3413,17 @@ export class HomeKeeperPanel extends HTMLElement {
       .map((o) => {
         const count =
           o.count === undefined ? '' : `<span class="hk-seg-count">${escapeHTML(String(o.count))}</span>`;
-        return `<button class="hk-seg-btn${o.value === current ? ' active' : ''}" aria-pressed="${
-          o.value === current ? 'true' : 'false'
-        }" data-seg-val="${escapeHTML(
-          o.value,
-        )}">${escapeHTML(o.label)}${count}</button>`;
+        // A scope that would show nothing is not worth a trip: it used to be pressable
+        // and landed on "No tasks match this filter" with no way out but the pill you
+        // came from. The *selected* one is never disabled, though — completing your
+        // last overdue task would otherwise leave you standing on a dead control.
+        const isCurrent = o.value === current;
+        const empty = o.count === 0 && !isCurrent;
+        return `<button class="hk-seg-btn${isCurrent ? ' active' : ''}${
+          empty ? ' hk-seg-empty' : ''
+        }" aria-pressed="${isCurrent ? 'true' : 'false'}"${
+          empty ? ' disabled aria-disabled="true"' : ''
+        } data-seg-val="${escapeHTML(o.value)}">${escapeHTML(o.label)}${count}</button>`;
       })
       .join('');
     return `<div class="hk-seg" role="group" aria-label="${escapeHTML(
@@ -3635,7 +3665,16 @@ export class HomeKeeperPanel extends HTMLElement {
       return ad - bd;
     });
     if (!tasks.length) {
-      return `${intro}<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}</ha-alert>`;
+      // Closing the loop the other way: an empty result carries the way back to the
+      // full list, so the dead end is escapable even when it was a Profile rather
+      // than a scope pill that emptied it.
+      const showAll =
+        this._filter === 'all' && !this._activeProfile()
+          ? ''
+          : `<ha-button slot="action" ${btnAttrs('secondary')} id="hk-show-all">${escapeHTML(
+              t('tasks.showAll'),
+            )}</ha-button>`;
+      return `${intro}<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}${showAll}</ha-alert>`;
     }
     return `${intro}${this._orphanBanner()}${this._renderGroups(
       this._groupTasks(tasks, now),
@@ -3699,13 +3738,13 @@ export class HomeKeeperPanel extends HTMLElement {
               const [childrenHtml, nextI] = sub(i + 1, depth);
               const isOpen = !this._treeCollapsed.has(entry.item.id);
               html += `<div class="hk-tree-group${isOpen ? ' hk-tree-open' : ''}">
-                ${this._assetCard(entry.item, depth, false, entry.item.id)}
+                ${this._assetCard(entry.item, depth, true, entry.item.id)}
                 <div class="hk-tree-children">${childrenHtml}</div>
               </div>`;
               i = nextI;
             } else {
               i++;
-              html += this._assetCard(entry.item, depth);
+              html += this._assetCard(entry.item, depth, true);
             }
           }
           return [html, i];
@@ -3747,9 +3786,9 @@ export class HomeKeeperPanel extends HTMLElement {
     const completedOneOff =
       task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
     const dueText = task.next_due
-      ? ` · ${escapeHTML(t('form.task.due', { date: new Date(task.next_due).toLocaleDateString() }))}`
+      ? ` · ${escapeHTML(t('form.task.due', { date: formatDate(task.next_due, this._lang()) }))}`
       : completedOneOff
-        ? ` · ${escapeHTML(t('form.task.completedOn', { date: new Date(task.last_completed as string).toLocaleDateString() }))}`
+        ? ` · ${escapeHTML(t('form.task.completedOn', { date: formatDate(task.last_completed, this._lang()) }))}`
         : '';
     // For an overdue task, append *how* overdue it is — a bare date hides urgency. Use
     // whole elapsed days (floor), and only once at least one full day has passed: a
@@ -3807,7 +3846,9 @@ export class HomeKeeperPanel extends HTMLElement {
     const editing = this._edit.open && !!task.id && this._edit.task?.id === task.id;
     // The row opens the task's detail page; "Done" stays as a quick action.
     return `
-      <ha-card class="hk-card${overdue ? ' overdue' : ''}${editing ? ' hk-editing' : ''}" data-id="${escapeHTML(task.id)}">
+      <ha-card class="hk-card${overdue ? ' overdue' : ''}${editing ? ' hk-editing' : ''}${
+        completedOneOff ? ' hk-task-done' : ''
+      }" data-id="${escapeHTML(task.id)}">
         <div class="hk-card-row hk-row-task">
           <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
             <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
@@ -3823,7 +3864,7 @@ export class HomeKeeperPanel extends HTMLElement {
       </ha-card>`;
   }
 
-  private _assetCard(x: Asset, depth = 0, isLast = false, toggleId = ''): string {
+  private _assetCard(x: Asset, depth = 0, inTree = false, toggleId = ''): string {
     const kindChip =
       x.kind === 'virtual'
         ? this._virtualDeviceChip(x)
@@ -3855,17 +3896,22 @@ export class HomeKeeperPanel extends HTMLElement {
     ].join('');
     const depthClass = depth > 0 ? ' hk-tree-child' : '';
     const depthStyle = depth > 0 ? ` style="--hk-tree-depth: ${depth}"` : '';
+    const expanded = !this._treeCollapsed.has(x.id);
     const chevron = toggleId
-      ? `<span class="hk-chevron" data-tree-toggle="${escapeHTML(toggleId)}"></span>`
-      : '';
+      ? `<button class="hk-chevron" type="button" data-tree-toggle="${escapeHTML(toggleId)}" aria-expanded="${expanded}" aria-label="${escapeHTML(
+          t('tree.toggle', { name: x.name || t('appliance.fallbackName') }),
+        )}"></button>`
+      : inTree
+        ? '<span class="hk-chevron-space" aria-hidden="true"></span>'
+        : '';
     // In the master pane the list doubles as a picker, so the appliance on screen
     // beside it is marked.
     const selected =
       this._detail?.kind === 'asset' && this._detail.id === x.id ? ' hk-selected' : '';
     return `
       <ha-card class="hk-card${depthClass}${selected}" data-id="${escapeHTML(x.id)}"${depthStyle}>
-        ${chevron}
         <div class="hk-card-row">
+          ${chevron}
           <div class="grow clickable detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(x.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(title)}</div>
             <div class="hk-meta">${escapeHTML(assetSummary(x, this._hass?.areas))}</div>
@@ -4103,9 +4149,9 @@ export class HomeKeeperPanel extends HTMLElement {
     const due = dormantTriggered
       ? t('due.monitored')
       : completedOneOff
-        ? t('form.task.completedOn', { date: new Date(task.last_completed as string).toLocaleString() })
+        ? t('form.task.completedOn', { date: formatDateTime(task.last_completed, this._lang()) })
         : task.next_due
-          ? new Date(task.next_due).toLocaleString()
+          ? formatDateTime(task.next_due, this._lang())
           : t('due.none');
     // Nothing to mark done while dormant — the integration arms it when the
     // monitored condition fires (e.g. a battery goes low) — or once a one-off is
@@ -4205,7 +4251,7 @@ export class HomeKeeperPanel extends HTMLElement {
       : `<ha-button ${btnAttrs('secondary')} class="d-archive">${escapeHTML(t('btn.archive'))}</ha-button>`;
     const archivedNote = archived
       ? `<div class="hk-managed-prompt">${escapeHTML(
-          t('detail.archivedOn', { date: new Date(asset.archived_at as string).toLocaleDateString() }),
+          t('detail.archivedOn', { date: formatDate(asset.archived_at, this._lang()) }),
         )}</div>`
       : '';
     // Seven stacked sections made an appliance a page you scrolled rather than read,
@@ -4989,6 +5035,13 @@ export class HomeKeeperPanel extends HTMLElement {
       .getElementById('cleanup-orphans-btn')
       ?.addEventListener('click', () => void this._cleanupOrphans());
 
+    // The way out of a filter that matches nothing: clears the scope *and* any active
+    // Profile, since either can be what emptied the list.
+    root.getElementById('hk-show-all')?.addEventListener('click', () => {
+      if (this._activeProfile()) this._setProfile('');
+      this._setFilter('all');
+    });
+
     // Filter / group-by segmented controls.
     root.querySelectorAll<HTMLElement>('.hk-seg-btn').forEach((b) =>
       b.addEventListener('click', () => {
@@ -5033,6 +5086,9 @@ export class HomeKeeperPanel extends HTMLElement {
         e.stopPropagation();
         const group = ch.closest('.hk-tree-group');
         if (group) group.classList.toggle('hk-tree-open');
+        // The caret is a real control now, so its state has to move with the group —
+        // the class toggle is what the CSS reads, this is what a screen reader reads.
+        ch.setAttribute('aria-expanded', String(Boolean(group?.classList.contains('hk-tree-open'))));
         const id = ch.dataset.treeToggle;
         if (id) {
           if (this._treeCollapsed.has(id)) this._treeCollapsed.delete(id);
@@ -8249,11 +8305,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const items = comps
       .map((c) => {
         const d = new Date(c.ts);
-        const date = d.toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
+        const date = formatDate(d, this._lang());
         const editBtn = editTask
           ? `<ha-icon-button class="hk-hist-edit" data-edit-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>`
           : '';
@@ -8318,6 +8370,12 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /** Format a cost in the instance's configured currency (falls back to the number). */
+  /** The language to format dates, times and numbers in — Home Assistant's, not the
+   *  browser's, so the panel's dates read the same way as the rest of HA. */
+  private _lang(): string | undefined {
+    return this._hass?.language;
+  }
+
   private _formatCost(amount: number): string {
     const currency = this._hass?.config?.currency;
     if (currency) {
