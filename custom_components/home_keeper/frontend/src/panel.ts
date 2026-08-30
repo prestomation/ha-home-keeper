@@ -57,7 +57,18 @@ import {
 import { selEntity } from './forms';
 import { setLanguage, t, tn } from './i18n';
 import type { DeferVerbs } from './defer';
-import { DeferMenus, deferSplit, deferVerbs } from './defer';
+import type { DeferDialogHost } from './defer';
+import {
+  DeferMenus,
+  deferSplit,
+  deferVerbs,
+  emptySkipState,
+  emptySnoozeState,
+  renderSkipDialog,
+  renderSnoozeDialog,
+  submitSkip,
+  submitSnooze,
+} from './defer';
 import type { DialogParts } from './dialogs';
 import { makeDialog, makeForm } from './dialogs';
 import { MAX_DOCUMENT_BYTES } from './limits';
@@ -1828,6 +1839,15 @@ export class HomeKeeperPanel extends HTMLElement {
   private _confirmOnKey: ((e: KeyboardEvent) => void) | null = null;
   // The open deferral menu and the document handlers dismissing it. One at a time:
   // opening a second closes the first, so these never hold a stale pair.
+  /** What the shared Snooze/Skip dialogs need from this host. */
+  private readonly _deferHost: DeferDialogHost = {
+    hass: () => this._hass,
+    lang: () => this._lang(),
+    makeForm: (schema, data, onChange) => this._makeForm(schema, data, onChange),
+    rerender: () => this._render(),
+    refresh: () => this._refresh(),
+  };
+
   private readonly _deferMenus = new DeferMenus({
     taskById: (id) => this._tasks.find((x) => x.id === id),
     onSnooze: (task) => this._openSnooze(task),
@@ -2681,33 +2701,12 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _closeSnooze(): void {
-    this._snooze = { open: false, task: null, preset: DEFAULT_SNOOZE_PRESET };
+    this._snooze = emptySnoozeState();
     this._render();
   }
 
-  /** The instant the current snooze selection resolves to, or `null` if unusable. */
-  private _snoozeTarget(): Date | null {
-    const s = this._snooze;
-    if (s.preset !== 'custom') return resolveSnoozePreset(s.preset, new Date());
-    if (!s.customAt) return null;
-    const iso = haDateTimeToIso(s.customAt);
-    if (!iso) return null;
-    const parsed = new Date(iso);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-
   private async _submitSnooze(): Promise<void> {
-    const s = this._snooze;
-    const until = this._snoozeTarget();
-    if (!this._hass || !s.task || !until) return;
-    try {
-      await api.snoozeTask(this._hass, s.task.id, until.toISOString());
-      this._closeSnooze();
-      await this._refresh();
-    } catch (err) {
-      s.error = String((err as { message?: string })?.message || err);
-      this._render();
-    }
+    await submitSnooze(this._deferHost, this._snooze, () => this._closeSnooze());
   }
 
   /** Open the skip dialog — for a new skip, or to amend a logged one when *ts* is
@@ -2724,22 +2723,12 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _closeSkip(): void {
-    this._skip = { open: false, task: null, data: {} };
+    this._skip = emptySkipState();
     this._render();
   }
 
   private async _submitSkip(): Promise<void> {
-    const s = this._skip;
-    if (!this._hass || !s.task) return;
-    try {
-      if (s.ts != null) await api.updateSkip(this._hass, s.task.id, s.ts, s.data);
-      else await api.skipTask(this._hass, s.task.id, s.data);
-      this._closeSkip();
-      await this._refresh();
-    } catch (err) {
-      s.error = String((err as { message?: string })?.message || err);
-      this._render();
-    }
+    await submitSkip(this._deferHost, this._skip, () => this._closeSkip());
   }
 
   private async _deleteSkip(taskId: string, ts: string): Promise<void> {
@@ -7507,79 +7496,7 @@ export class HomeKeeperPanel extends HTMLElement {
    * `taskFormSchemaKey` exists to avoid on the task form).
    */
   private _renderSnoozeDialog(host: HTMLElement): void {
-    const s = this._snooze;
-    if (!s.task) return;
-    const { dialog, body, footer, mount } = this._makeDialog(t('defer.snoozeTitle'), () => {
-      if (this._snooze.open) this._closeSnooze();
-    });
-
-    const options = SNOOZE_PRESETS.map((p) => ({
-      value: p.id,
-      label: t('defer.preset.' + p.id),
-    }));
-    const schema: FormField[] = [
-      { name: 'snoozePreset', required: true, selector: selSelect(options) },
-    ];
-    if (s.preset === 'custom') {
-      schema.push({ name: 'snoozeAt', required: true, selector: selDateTime() });
-    }
-    const data: Record<string, unknown> = { snoozePreset: s.preset };
-    if (s.preset === 'custom') data.snoozeAt = s.customAt ?? '';
-    const form = this._makeForm(schema, data, (value) => {
-      const preset = String(value.snoozePreset ?? s.preset) as SnoozePresetId;
-      const wasCustom = s.preset === 'custom';
-      s.preset = preset;
-      s.customAt = value.snoozeAt == null ? s.customAt : String(value.snoozeAt);
-      s.error = undefined;
-      // Only a change in *which fields exist* justifies a re-render.
-      if (wasCustom !== (preset === 'custom')) this._render();
-      else this._updateSnoozeHint();
-    });
-    body.appendChild(form);
-
-    const hint = document.createElement('div');
-    hint.className = 'hk-snooze-hint';
-    hint.textContent = this._snoozeHintText();
-    body.appendChild(hint);
-
-    if (s.error) {
-      const err = document.createElement('ha-alert');
-      err.setAttribute('alert-type', 'error');
-      err.textContent = s.error;
-      body.appendChild(err);
-    }
-
-    const primary = document.createElement('ha-button');
-    primary.setAttribute('slot', 'primaryAction');
-    setBtnWeight(primary, 'primary');
-    primary.textContent = t('btn.snooze');
-    primary.addEventListener('click', () => void this._submitSnooze());
-    footer.appendChild(primary);
-
-    const cancel = document.createElement('ha-button');
-    cancel.setAttribute('slot', 'secondaryAction');
-    setBtnWeight(cancel, 'tertiary');
-    cancel.textContent = t('btn.cancel');
-    cancel.addEventListener('click', () => this._closeSnooze());
-    footer.appendChild(cancel);
-
-    mount();
-    host.appendChild(dialog);
-  }
-
-  /** The line stating where the current snooze choice lands, or a prompt if unset. */
-  private _snoozeHintText(): string {
-    const until = this._snoozeTarget();
-    if (!until) return t('defer.snoozePickDate');
-    return t('defer.snoozeResolves', {
-      date: formatDateTime(until.toISOString(), this._lang()),
-    });
-  }
-
-  /** Refresh the resolved-date line without re-rendering (which would steal focus). */
-  private _updateSnoozeHint(): void {
-    const hint = this.shadowRoot?.querySelector<HTMLElement>('.hk-snooze-hint');
-    if (hint) hint.textContent = this._snoozeHintText();
+    renderSnoozeDialog(this._deferHost, this._snooze, host, () => this._closeSnooze());
   }
 
   /**
@@ -7590,78 +7507,7 @@ export class HomeKeeperPanel extends HTMLElement {
    * primary button read differently when `ts` is set.
    */
   private _renderSkipDialog(host: HTMLElement): void {
-    const s = this._skip;
-    if (!s.task) return;
-    const editing = s.ts != null;
-    const { dialog, body, footer, mount } = this._makeDialog(
-      editing ? t('defer.skipEditTitle') : t('defer.skipTitle'),
-      () => {
-        if (this._skip.open) this._closeSkip();
-      },
-    );
-
-    if (!editing) {
-      const lead = document.createElement('div');
-      lead.className = 'hk-snooze-hint';
-      lead.textContent = t('defer.skipLead');
-      body.appendChild(lead);
-    }
-
-    const schema: FormField[] = [
-      { name: 'skipNote', selector: selText(true) },
-      { name: 'skipWho', selector: selText() },
-    ];
-    // Only a metered task has a reading to record; asking every task for one would be
-    // a field with no meaning attached. Bare number selector like the completion
-    // dialog's: a reading can be 0 or negative, so it takes no minimum.
-    if (taskRecordsReading(s.task)) {
-      schema.push({ name: 'skipReading', selector: { number: { mode: 'box', step: 'any' } } });
-    }
-    const form = this._makeForm(
-      schema,
-      {
-        skipNote: s.data.note ?? '',
-        skipWho: s.data.who ?? '',
-        skipReading: s.data.reading ?? '',
-      },
-      (value) => {
-        const reading = Number(value.skipReading);
-        s.data = {
-          note: String(value.skipNote ?? '') || undefined,
-          who: String(value.skipWho ?? '') || undefined,
-          reading:
-            value.skipReading === '' || value.skipReading == null || Number.isNaN(reading)
-              ? undefined
-              : reading,
-        };
-        s.error = undefined;
-      },
-    );
-    body.appendChild(form);
-
-    if (s.error) {
-      const err = document.createElement('ha-alert');
-      err.setAttribute('alert-type', 'error');
-      err.textContent = s.error;
-      body.appendChild(err);
-    }
-
-    const primary = document.createElement('ha-button');
-    primary.setAttribute('slot', 'primaryAction');
-    setBtnWeight(primary, 'primary');
-    primary.textContent = editing ? t('btn.save') : t('btn.skip');
-    primary.addEventListener('click', () => void this._submitSkip());
-    footer.appendChild(primary);
-
-    const cancel = document.createElement('ha-button');
-    cancel.setAttribute('slot', 'secondaryAction');
-    setBtnWeight(cancel, 'tertiary');
-    cancel.textContent = t('btn.cancel');
-    cancel.addEventListener('click', () => this._closeSkip());
-    footer.appendChild(cancel);
-
-    mount();
-    host.appendChild(dialog);
+    renderSkipDialog(this._deferHost, this._skip, host, () => this._closeSkip());
   }
 
   private _renderAssetForm(host: HTMLElement): void {

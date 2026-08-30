@@ -10,10 +10,22 @@
  * but to different places — and in nothing else.
  */
 
-import { skipSnoozeFlags } from './forms';
+import * as api from './api';
+import { makeDialog } from './dialogs';
+import type { FormField, HaFormElement } from './forms';
+import { haDateTimeToIso, selDateTime, selSelect, selText, skipSnoozeFlags } from './forms';
 import { t } from './i18n';
-import { escapeHTML } from './utils';
-import type { Task } from './types';
+import type { Hass, Task } from './types';
+import type { SnoozePresetId } from './utils';
+import {
+  DEFAULT_SNOOZE_PRESET,
+  SNOOZE_PRESETS,
+  escapeHTML,
+  formatDateTime,
+  resolveSnoozePreset,
+  setBtnWeight,
+  taskRecordsReading,
+} from './utils';
 
 /** Which deferral verbs a task may be offered right now. */
 export interface DeferVerbs {
@@ -177,5 +189,252 @@ export class DeferMenus {
     document.addEventListener('keydown', this._onKey);
     document.addEventListener('click', this._onClick);
     this._open = { caret, menu };
+  }
+}
+
+/* ── The Snooze and Skip dialogs ──────────────────────────────────────────────
+   Both hosts open the same two dialogs, so they are built here against a small
+   host interface rather than against either component. The host supplies what
+   genuinely differs — its `hass`, its language, how it builds a form, and how it
+   re-renders and reloads — and nothing else. */
+
+/** What a host must supply for the dialogs to build and submit. */
+export interface DeferDialogHost {
+  /** A function, not a field: the host's `hass` is replaced on every update. */
+  hass(): Hass | undefined;
+  lang(): string | undefined;
+  makeForm(
+    schema: FormField[],
+    data: Record<string, unknown>,
+    onChange: (value: Record<string, unknown>) => void,
+  ): HaFormElement;
+  /** Re-render the host, which is how a dialog picks up new state. */
+  rerender(): void;
+  /** Reload tasks after a successful write. */
+  refresh(): Promise<void>;
+}
+
+export interface SnoozeState {
+  open: boolean;
+  task: Task | null;
+  preset: SnoozePresetId;
+  customAt?: string;
+  error?: string;
+}
+
+export interface SkipState {
+  open: boolean;
+  task: Task | null;
+  ts?: string;
+  data: { note?: string; who?: string; reading?: number };
+  error?: string;
+}
+
+export const emptySnoozeState = (): SnoozeState => ({
+  open: false,
+  task: null,
+  preset: DEFAULT_SNOOZE_PRESET,
+});
+
+export const emptySkipState = (): SkipState => ({ open: false, task: null, data: {} });
+
+/** The instant the current snooze selection resolves to, or `null` if unusable. */
+export function snoozeTarget(s: SnoozeState, now: Date = new Date()): Date | null {
+  if (s.preset !== 'custom') return resolveSnoozePreset(s.preset, now);
+  if (!s.customAt) return null;
+  const iso = haDateTimeToIso(s.customAt);
+  if (!iso) return null;
+  const parsed = new Date(iso);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** The line stating where the current choice lands, or a prompt if unset. */
+export function snoozeHintText(s: SnoozeState, lang?: string): string {
+  const until = snoozeTarget(s);
+  if (!until) return t('defer.snoozePickDate');
+  return t('defer.snoozeResolves', { date: formatDateTime(until.toISOString(), lang) });
+}
+
+function footerButtons(
+  footer: HTMLElement,
+  primaryLabel: string,
+  onPrimary: () => void,
+  onCancel: () => void,
+): void {
+  const primary = document.createElement('ha-button');
+  primary.setAttribute('slot', 'primaryAction');
+  setBtnWeight(primary, 'primary');
+  primary.textContent = primaryLabel;
+  primary.addEventListener('click', onPrimary);
+  footer.appendChild(primary);
+
+  const cancel = document.createElement('ha-button');
+  cancel.setAttribute('slot', 'secondaryAction');
+  setBtnWeight(cancel, 'tertiary');
+  cancel.textContent = t('btn.cancel');
+  cancel.addEventListener('click', onCancel);
+  footer.appendChild(cancel);
+}
+
+function errorAlert(body: HTMLElement, message?: string): void {
+  if (!message) return;
+  const err = document.createElement('ha-alert');
+  err.setAttribute('alert-type', 'error');
+  err.textContent = message;
+  body.appendChild(err);
+}
+
+/** Build the snooze dialog into *mountTo*, closing through *close*. */
+export function renderSnoozeDialog(
+  host: DeferDialogHost,
+  s: SnoozeState,
+  mountTo: HTMLElement,
+  close: () => void,
+): void {
+  if (!s.task) return;
+  const { dialog, body, footer, mount } = makeDialog(t('defer.snoozeTitle'), () => {
+    if (s.open) close();
+  });
+
+  const options = SNOOZE_PRESETS.map((p) => ({ value: p.id, label: t('defer.preset.' + p.id) }));
+  const schema: FormField[] = [
+    { name: 'snoozePreset', required: true, selector: selSelect(options) },
+  ];
+  if (s.preset === 'custom') schema.push({ name: 'snoozeAt', required: true, selector: selDateTime() });
+  const data: Record<string, unknown> = { snoozePreset: s.preset };
+  if (s.preset === 'custom') data.snoozeAt = s.customAt ?? '';
+
+  const form = host.makeForm(schema, data, (value) => {
+    const preset = String(value.snoozePreset ?? s.preset) as SnoozePresetId;
+    const wasCustom = s.preset === 'custom';
+    s.preset = preset;
+    s.customAt = value.snoozeAt == null ? s.customAt : String(value.snoozeAt);
+    s.error = undefined;
+    // Only a change in *which fields exist* justifies a re-render; anything else
+    // would steal focus mid-keystroke, so the hint is updated in place instead.
+    if (wasCustom !== (preset === 'custom')) host.rerender();
+    else updateSnoozeHint(mountTo, s, host.lang());
+  });
+  body.appendChild(form);
+
+  const hint = document.createElement('div');
+  hint.className = 'hk-snooze-hint';
+  hint.textContent = snoozeHintText(s, host.lang());
+  body.appendChild(hint);
+
+  errorAlert(body, s.error);
+  footerButtons(footer, t('btn.snooze'), () => void submitSnooze(host, s, close), close);
+  mount();
+  mountTo.appendChild(dialog);
+}
+
+/** Refresh the resolved-date line without re-rendering (which would steal focus). */
+export function updateSnoozeHint(root: ParentNode, s: SnoozeState, lang?: string): void {
+  const hint = root.querySelector<HTMLElement>('.hk-snooze-hint');
+  if (hint) hint.textContent = snoozeHintText(s, lang);
+}
+
+export async function submitSnooze(
+  host: DeferDialogHost,
+  s: SnoozeState,
+  close: () => void,
+): Promise<void> {
+  const until = snoozeTarget(s);
+  const hass = host.hass();
+  if (!hass || !s.task || !until) return;
+  try {
+    await api.snoozeTask(hass, s.task.id, until.toISOString());
+    close();
+    await host.refresh();
+  } catch (err) {
+    s.error = String((err as { message?: string })?.message || err);
+    host.rerender();
+  }
+}
+
+/**
+ * Build the skip dialog into *mountTo* — the note, who, and (for a usage task) the
+ * meter reading.
+ *
+ * No duration: a skip advances to the next occurrence and that is the whole of it.
+ * The same dialog amends an already-logged skip, which is why the title and the
+ * primary button read differently when `ts` is set.
+ */
+export function renderSkipDialog(
+  host: DeferDialogHost,
+  s: SkipState,
+  mountTo: HTMLElement,
+  close: () => void,
+): void {
+  if (!s.task) return;
+  const editing = s.ts != null;
+  const { dialog, body, footer, mount } = makeDialog(
+    editing ? t('defer.skipEditTitle') : t('defer.skipTitle'),
+    () => {
+      if (s.open) close();
+    },
+  );
+
+  if (!editing) {
+    const lead = document.createElement('div');
+    lead.className = 'hk-snooze-hint';
+    lead.textContent = t('defer.skipLead');
+    body.appendChild(lead);
+  }
+
+  const schema: FormField[] = [
+    { name: 'skipNote', selector: selText(true) },
+    { name: 'skipWho', selector: selText() },
+  ];
+  // Only a metered task has a reading to record; asking every task for one would be
+  // a field with no meaning attached. Bare number selector like the completion
+  // dialog's: a reading can be 0 or negative, so it takes no minimum.
+  if (taskRecordsReading(s.task)) {
+    schema.push({ name: 'skipReading', selector: { number: { mode: 'box', step: 'any' } } });
+  }
+  const form = host.makeForm(
+    schema,
+    { skipNote: s.data.note ?? '', skipWho: s.data.who ?? '', skipReading: s.data.reading ?? '' },
+    (value) => {
+      const reading = Number(value.skipReading);
+      s.data = {
+        note: String(value.skipNote ?? '') || undefined,
+        who: String(value.skipWho ?? '') || undefined,
+        reading:
+          value.skipReading === '' || value.skipReading == null || Number.isNaN(reading)
+            ? undefined
+            : reading,
+      };
+      s.error = undefined;
+    },
+  );
+  body.appendChild(form);
+
+  errorAlert(body, s.error);
+  footerButtons(
+    footer,
+    editing ? t('btn.save') : t('btn.skip'),
+    () => void submitSkip(host, s, close),
+    close,
+  );
+  mount();
+  mountTo.appendChild(dialog);
+}
+
+export async function submitSkip(
+  host: DeferDialogHost,
+  s: SkipState,
+  close: () => void,
+): Promise<void> {
+  const hass = host.hass();
+  if (!hass || !s.task) return;
+  try {
+    if (s.ts != null) await api.updateSkip(hass, s.task.id, s.ts, s.data);
+    else await api.skipTask(hass, s.task.id, s.data);
+    close();
+    await host.refresh();
+  } catch (err) {
+    s.error = String((err as { message?: string })?.message || err);
+    host.rerender();
   }
 }
