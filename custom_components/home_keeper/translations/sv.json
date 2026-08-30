@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Home Keeper-inställningar",
-        "description": "Spegla binärsensorer med enhetsklassen ”problem” som uppgifter. En synkroniserad uppgift förblir aktiv så länge sensorn rapporterar ett problem och rensas automatiskt när källintegrationen löser det; den kan inte slutföras i Home Keeper. Uteslut specifika sensorer, områden eller etiketter nedan.",
+        "description": "Synkronisera binärsensorer med enhetsklassen ”problem” som uppgifter. En synkroniserad uppgift förblir aktiv så länge sensorn rapporterar ett problem och rensas automatiskt när källintegrationen löser det; den kan inte slutföras i Home Keeper. Uteslut specifika sensorer, områden eller etiketter nedan.",
         "data": {
           "sync_problem_sensors": "Synkronisera problemsensorer som uppgifter",
           "problem_sensor_exclude_entities": "Uteslutna sensorer",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "En synkroniserad uppgift avslutas först när källintegrationen löser problemet, inte när du trycker på Klar. Påminnelser om den erbjuder Skjut upp i stället för Klar.",
           "one_off_retention_days": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter att den slutförts. 0 behåller slutförda engångsuppgifter för alltid.",
-          "shopping_list_entity": "Speglar automatiska inköpspåminnelser till den här uppgiftslistan. Att bocka av en post där slutför påminnelsen i Home Keeper och fyller på reservdelen. Lämna tomt för att stänga av speglingen."
+          "shopping_list_entity": "Synkroniserar automatiska inköpspåminnelser till den här uppgiftslistan. Att bocka av en post där slutför påminnelsen i Home Keeper och fyller på reservdelen. Lämna tomt för att stänga av synkroniseringen."
         }
       }
     }
@@ -604,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Inköpslista",
-          "description": "En befintlig uppgiftslista att spegla automatiska inköpspåminnelser till. Att bocka av en post där slutför påminnelsen och fyller på lagret. Ett tomt fält stänger av funktionen."
+          "description": "En befintlig uppgiftslista att synkronisera automatiska inköpspåminnelser till. Att bocka av en post där slutför påminnelsen och fyller på lagret. Ett tomt fält stänger av funktionen."
         },
         "dismissed_companions": {
           "name": "Avfärdade kompanjoner",

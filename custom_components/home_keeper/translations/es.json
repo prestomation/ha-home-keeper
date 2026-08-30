@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Opciones de Home Keeper",
-        "description": "Refleja los sensores binarios con la clase de dispositivo «problema» como tareas. Una tarea sincronizada permanece activa mientras su sensor informa de un problema y se borra automáticamente cuando la integración de origen lo resuelve; no se puede completar en Home Keeper. Excluye abajo sensores, áreas o etiquetas concretos.",
+        "description": "Sincroniza los sensores binarios con la clase de dispositivo «problema» como tareas. Una tarea sincronizada permanece activa mientras su sensor informa de un problema y se borra automáticamente cuando la integración de origen lo resuelve; no se puede completar en Home Keeper. Excluye abajo sensores, áreas o etiquetas concretos.",
         "data": {
           "sync_problem_sensors": "Sincronizar sensores de problema como tareas",
           "problem_sensor_exclude_entities": "Sensores excluidos",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "Una tarea sincronizada solo se cierra cuando la integración de origen resuelve el problema, no al pulsar Hecho. Sus recordatorios ofrecen Posponer en lugar de Hecho.",
           "one_off_retention_days": "Eliminar automáticamente una tarea única completada transcurridos estos días desde su finalización. El valor 0 conserva las tareas únicas completadas para siempre.",
-          "shopping_list_entity": "Refleja los recordatorios de compra automática en esta lista de tareas. Al marcar un elemento allí se completa el recordatorio de Home Keeper y se repone el repuesto. Déjalo vacío para desactivarlo."
+          "shopping_list_entity": "Sincroniza los recordatorios de compra automática con esta lista de tareas. Al marcar un elemento allí se completa el recordatorio de Home Keeper y se repone el repuesto. Déjalo vacío para desactivarlo."
         }
       }
     }
@@ -604,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Lista de la compra",
-          "description": "Una lista de tareas existente donde reflejar los recordatorios de compra automática. Marcar un elemento allí completa el recordatorio y repone las existencias. Vacío lo desactiva."
+          "description": "Una lista de tareas existente donde sincronizar los recordatorios de compra automática. Marcar un elemento allí completa el recordatorio y repone las existencias. Vacío lo desactiva."
         },
         "dismissed_companions": {
           "name": "Companions descartados",

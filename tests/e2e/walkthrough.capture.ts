@@ -533,7 +533,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT * 2);
 
   // 6b. Settings → Profiles — a saved filter, and inside it the to-do list the
-  //     household already checks. A mirror *is* a profile: the same filter that
+  //     household already checks. A sync *is* a profile: the same filter that
   //     chooses the chores also says where they go, so the tour opens the profile
   //     and then its **Sync to a to-do list** group.
   //
@@ -607,7 +607,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   }
 
   // 8. The usage surfaces — the native to-do list and calendar, and beside them the
-  //    family's own list, now carrying the mirrored chores with their due dates.
+  //    family's own list, now carrying the synced chores with their due dates.
   await openDashboard(page);
   await page.waitForTimeout(BEAT * 2);
   const familyCard = page
@@ -619,7 +619,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   ).toBeVisible({ timeout: 40_000 });
   await expect(familyCard).toContainText('Family chores');
   // Framed on purpose rather than left to the masonry layout: the column order
-  // reflows with the cards' heights, and the mirrored chores change those, so which
+  // reflows with the cards' heights, and the synced chores change those, so which
   // cards the closing shot happens to hold is otherwise luck. `scroll-margin-top`
   // does the framing, because a plain scroll-to-top tucks the card's own "Family
   // chores" heading under Home Assistant's sticky bar — and that heading is what

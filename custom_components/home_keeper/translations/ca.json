@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Opcions de Home Keeper",
-        "description": "Reflecteix els sensors binaris amb la classe de dispositiu «problema» com a tasques. Una tasca sincronitzada es manté activa mentre el sensor informa d'un problema i s'esborra automàticament quan la integració d'origen el resol; no es pot completar a Home Keeper. Exclou a sota sensors, àrees o etiquetes concrets.",
+        "description": "Sincronitza els sensors binaris amb la classe de dispositiu «problema» com a tasques. Una tasca sincronitzada es manté activa mentre el sensor informa d'un problema i s'esborra automàticament quan la integració d'origen el resol; no es pot completar a Home Keeper. Exclou a sota sensors, àrees o etiquetes concrets.",
         "data": {
           "sync_problem_sensors": "Sincronitza els sensors de problema com a tasques",
           "problem_sensor_exclude_entities": "Sensors exclosos",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "Una tasca sincronitzada només es tanca quan la integració d'origen resol el problema, no quan toques Fet. Els recordatoris n'ofereixen Ajorna en lloc de Fet.",
           "one_off_retention_days": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 manté les tasques úniques completades per sempre.",
-          "shopping_list_entity": "Reflecteix els recordatoris de compra automàtica en aquesta llista de tasques. Marcar-hi un element completa el recordatori de Home Keeper i reposa l'estoc de la peça. Deixa-ho buit per desactivar-ho."
+          "shopping_list_entity": "Sincronitza els recordatoris de compra automàtica amb aquesta llista de tasques. Marcar-hi un element completa el recordatori de Home Keeper i reposa l'estoc de la peça. Deixa-ho buit per desactivar-ho."
         }
       }
     }
@@ -604,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Llista de la compra",
-          "description": "Una llista de tasques existent on reflectir els recordatoris de compra automàtica. Marcar-hi un element completa el recordatori i reposa l'estoc. Deixa-ho buit per desactivar-ho."
+          "description": "Una llista de tasques existent on sincronitzar els recordatoris de compra automàtica. Marcar-hi un element completa el recordatori i reposa l'estoc. Deixa-ho buit per desactivar-ho."
         },
         "dismissed_companions": {
           "name": "Companys descartats",

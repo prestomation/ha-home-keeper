@@ -1133,11 +1133,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // empty pickers; "My chores" stays unfiltered because the Tasks-tab shot below
   // filters the admin list by it.
   //
-  // "My chores" also carries the `sync` block that mirrors its tasks onto "Family
+  // "My chores" also carries the `sync` block that syncs its tasks onto "Family
   // chores" — the seeded local_todo list standing in for a Todoist project. That is
   // where a to-do list sync lives now, so seeding it here is what gives the profile
-  // shots below (and the mirrored-list shot at 48) something real to show: an
-  // unconfigured Sync group is an empty picker, and an unmirrored list is a blank card.
+  // shots below (and the synced-list shot at 48) something real to show: an
+  // unconfigured Sync group is an empty picker, and an unsynced list is a blank card.
   await page.evaluate(async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
@@ -1234,14 +1234,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
 
   // 17c. Settings → Profiles → "My chores" → its **Sync to a to-do list** group: the
-  // to-do list this profile's tasks are mirrored onto ("Family chores", the seeded
+  // to-do list this profile's tasks are synced onto ("Family chores", the seeded
   // local_todo list standing in for a Todoist project), plus what a change over there
   // means here. The sync block was seeded onto the profile at 17a, so the picker is
   // holding a real list rather than sitting empty.
   //
   // The profile row is shot on its own, not the whole card: the group is *inside* one
   // profile, and that containment is the thing the shot has to show — there is no
-  // separate mirror record and no Delete button, because clearing the picker is both
+  // separate sync record and no Delete button, because clearing the picker is both
   // the off switch and the delete.
   await openPanel(page);
   await panel.locator('#tab-settings').click();
@@ -1266,7 +1266,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await openSyncedProfile();
   await syncedProfile.screenshot({ path: `${OUT}/47-panel-profile-sync.png` });
 
-  // 48. The payoff: the mirrored chores sitting on the family's own to-do list, each
+  // 48. The payoff: the synced chores sitting on the family's own to-do list, each
   // with the due date that makes it actionable on somebody's phone.
   //
   // Taller viewport for this one shot: the card runs past the 720px default, and an
@@ -1284,7 +1284,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     familyCard.locator('ha-check-list-item, ha-md-list-item').first(),
   ).toBeVisible({ timeout: 40_000 });
   await page.waitForTimeout(600);
-  await familyCard.screenshot({ path: `${OUT}/48-todo-sync-mirrored-task.png` });
+  await familyCard.screenshot({ path: `${OUT}/48-todo-sync-synced-task.png` });
   await page.setViewportSize(DESKTOP);
 
   // 46. The payoff: the buy reminder sitting on the household's own shopping list,

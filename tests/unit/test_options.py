@@ -53,7 +53,7 @@ _FULL: dict[str, Any] = {
             "id": "p1",
             "name": "My chores",
             "filter": {"status": "overdue"},
-            # The to-do list this profile mirrors onto rides *inside* the profile,
+            # The to-do list this profile syncs onto rides *inside* the profile,
             # so the options flow has to preserve it along with everything else.
             "sync": {"entity_id": "todo.family", "two_way": False},
         }
@@ -106,7 +106,7 @@ def test_merge_flow_input_preserves_the_keys_the_form_does_not_render() -> None:
         assert merged[key] == before[key], f"{key} was not preserved"
     assert merged[const.OPTION_PROFILES], "sanity: the fixture must seed profiles"
     # A profile's to-do list sync has no key of its own to be preserved by, so it
-    # is spelled out: the form deleting it would silently stop a mirrored list.
+    # is spelled out: the form deleting it would silently stop a synced list.
     assert merged[const.OPTION_PROFILES][0]["sync"] == {
         "entity_id": "todo.family",
         "two_way": False,

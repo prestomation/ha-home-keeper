@@ -117,7 +117,7 @@ def test_normalize_profile_coerces_the_sync_block_it_is_given():
     assert prof["sync"]["two_way"] is True
 
 
-def test_synced_profiles_keeps_only_the_ones_actually_mirroring():
+def test_synced_profiles_keeps_only_the_ones_actually_syncing():
     off = p.normalize_profile({"id": "a", "name": "Off"})
     on = p.normalize_profile(
         {"id": "b", "name": "On", "sync": {"entity_id": "todo.family"}}

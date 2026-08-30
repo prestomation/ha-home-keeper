@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Home Keeper -asetukset",
-        "description": "Peilaa laiteluokan ”ongelma” binäärianturit tehtäviksi. Synkronoitu tehtävä pysyy aktiivisena niin kauan kuin anturi ilmoittaa ongelmasta ja tyhjenee automaattisesti, kun lähdeintegraatio ratkaisee sen; sitä ei voi merkitä valmiiksi Home Keeperissä. Sulje alta pois tietyt anturit, alueet tai tunnisteet.",
+        "description": "Synkronoi laiteluokan ”ongelma” binäärianturit tehtäviksi. Synkronoitu tehtävä pysyy aktiivisena niin kauan kuin anturi ilmoittaa ongelmasta ja tyhjenee automaattisesti, kun lähdeintegraatio ratkaisee sen; sitä ei voi merkitä valmiiksi Home Keeperissä. Sulje alta pois tietyt anturit, alueet tai tunnisteet.",
         "data": {
           "sync_problem_sensors": "Synkronoi ongelma-anturit tehtäviksi",
           "problem_sensor_exclude_entities": "Poissuljetut anturit",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "Synkronoitu tehtävä sulkeutuu vasta, kun lähdeintegraatio ratkaisee ongelman, ei Valmis-painikkeesta. Sen muistutukset tarjoavat Torkun Valmis-painikkeen sijaan.",
           "one_off_retention_days": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää valmiit kertaluonteiset tehtävät pysyvästi.",
-          "shopping_list_entity": "Peilaa automaattiset ostomuistutukset tähän tehtävälistaan. Kun merkitset kohteen siellä tehdyksi, Home Keeperin muistutus kuittautuu ja varaosan varasto täydentyy. Jätä tyhjäksi ottaaksesi peilauksen pois käytöstä."
+          "shopping_list_entity": "Synkronoi automaattiset ostomuistutukset tähän tehtävälistaan. Kun merkitset kohteen siellä tehdyksi, Home Keeperin muistutus kuittautuu ja varaosan varasto täydentyy. Jätä tyhjäksi ottaaksesi synkronoinnin pois käytöstä."
         }
       }
     }
@@ -604,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Ostoslista",
-          "description": "Olemassa oleva tehtävälista, johon automaattiset ostomuistutukset peilataan. Siellä tehdyksi merkitty kohde kuittaa muistutuksen ja täydentää varaston. Tyhjä kenttä poistaa toiminnon käytöstä."
+          "description": "Olemassa oleva tehtävälista, johon automaattiset ostomuistutukset synkronoidaan. Siellä tehdyksi merkitty kohde kuittaa muistutuksen ja täydentää varaston. Tyhjä kenttä poistaa toiminnon käytöstä."
         },
         "dismissed_companions": {
           "name": "Hylätyt kumppanit",

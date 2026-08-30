@@ -34,10 +34,10 @@ test.describe('Home Keeper panel — Settings on a narrow screen', { tag: '@narr
     const rows = panel.locator('.hk-index-row');
     await expect(rows).toHaveCount(6);
     await expect(panel.locator('.hk-settings-rail')).toBeHidden();
-    // The row states the section's current value, so the index answers "is the mirror
+    // The row states the section's current value, so the index answers "is the sync
     // on" without opening anything — the job the rail does on a wide screen.
     await expect(panel.locator('.hk-index-row[data-section="shopping"]')).toContainText(
-      /not mirrored/i,
+      /not synced/i,
     );
     // Nothing scrolls sideways: every row is inside the viewport it is drawn in.
     const overflow = await panel.evaluate((el) => {

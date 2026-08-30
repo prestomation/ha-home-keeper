@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Home-Keeper-Optionen",
-        "description": "Binärsensoren mit der Geräteklasse „Problem“ als Aufgaben spiegeln. Eine synchronisierte Aufgabe bleibt aktiv, solange ihr Sensor ein Problem meldet, und wird automatisch gelöscht, wenn die Quellintegration es behebt; sie kann in Home Keeper nicht abgeschlossen werden. Schließe unten bestimmte Sensoren, Bereiche oder Labels aus.",
+        "description": "Binärsensoren mit der Geräteklasse „Problem“ als Aufgaben synchronisieren. Eine synchronisierte Aufgabe bleibt aktiv, solange ihr Sensor ein Problem meldet, und wird automatisch gelöscht, wenn die Quellintegration es behebt; sie kann in Home Keeper nicht abgeschlossen werden. Schließe unten bestimmte Sensoren, Bereiche oder Labels aus.",
         "data": {
           "sync_problem_sensors": "Problemsensoren als Aufgaben synchronisieren",
           "problem_sensor_exclude_entities": "Ausgeschlossene Sensoren",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "Eine synchronisierte Aufgabe wird erst geschlossen, wenn die Quellintegration das Problem behebt, nicht beim Tippen auf Erledigt. Erinnerungen dazu bieten Später statt Erledigt.",
           "one_off_retention_days": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach ihrem Abschluss automatisch löschen. 0 behält abgeschlossene Einmalaufgaben dauerhaft.",
-          "shopping_list_entity": "Spiegelt automatische Einkaufserinnerungen auf diese Aufgabenliste. Wird ein Eintrag dort abgehakt, schließt Home Keeper die Erinnerung ab und füllt den Bestand des Ersatzteils auf. Leer lassen, um die Spiegelung abzuschalten."
+          "shopping_list_entity": "Synchronisiert automatische Einkaufserinnerungen mit dieser Aufgabenliste. Wird ein Eintrag dort abgehakt, schließt Home Keeper die Erinnerung ab und füllt den Bestand des Ersatzteils auf. Leer lassen, um die Synchronisierung abzuschalten."
         }
       }
     }
@@ -604,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Einkaufsliste",
-          "description": "Eine vorhandene Aufgabenliste, auf die automatische Einkaufserinnerungen gespiegelt werden. Ein dort abgehakter Eintrag schließt die Erinnerung ab und füllt den Bestand auf. Ein leeres Feld schaltet das ab."
+          "description": "Eine vorhandene Aufgabenliste, mit der automatische Einkaufserinnerungen synchronisiert werden. Ein dort abgehakter Eintrag schließt die Erinnerung ab und füllt den Bestand auf. Ein leeres Feld schaltet das ab."
         },
         "dismissed_companions": {
           "name": "Ausgeblendete Companions",

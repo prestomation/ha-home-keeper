@@ -11,7 +11,7 @@ import {
 } from './helpers';
 
 /**
- * Task mirrors, from the household's side.
+ * Task synced, from the household's side.
  *
  * The integration suite proves the loop over the service API. What only a browser
  * shows is the payoff: the chore appearing as an ordinary line on the family's own
@@ -20,7 +20,7 @@ import {
  * surface with nothing asserting on it is how #221 hid in plain sight for months,
  * so this spec reads the card's *contents*, not its count.
  *
- * A mirror is a **profile**: the sync lives in the profile's own `sync` block, so
+ * A sync is a **profile**: the sync lives in the profile's own `sync` block, so
  * configuring one here means saving `profiles`, and the panel half of this spec
  * checks the profile editor's **Sync to a to-do list** group rather than a card of
  * its own.
@@ -34,8 +34,8 @@ import {
  */
 
 const FAMILY_LIST = 'todo.family_chores';
-const CHORE = 'E2E mirror chore';
-const PROFILE_ID = 'e2e_mirror_profile';
+const CHORE = 'E2E sync chore';
+const PROFILE_ID = 'e2e_todo_sync_profile';
 const PROFILE_NAME = 'Household chores';
 
 /** The items on the household list, optionally filtered by status. */
@@ -71,7 +71,7 @@ async function callWhenReady(service: string, data: Record<string, unknown>): Pr
  * Point one profile's sync at the household list — the save the panel's Settings tab
  * makes when you pick a list in a profile's **Sync to a to-do list** group.
  *
- * The filter is *overdue*, which is also the mirror's timing: a task goes on the list
+ * The filter is *overdue*, which is also the sync's timing: a task goes on the list
  * the moment it falls due. Saving `[]` drops the profile again, which is what clears
  * the lines it wrote (the planner reads a tracked entry whose profile is gone exactly
  * as it reads a cleared picker). Profiles are saved as a whole list and nothing else
@@ -93,7 +93,7 @@ async function setSync(on: boolean): Promise<void> {
   });
 }
 
-test.describe('Home Keeper — tasks mirrored onto a household to-do list', () => {
+test.describe('Home Keeper — tasks synced onto a household to-do list', () => {
   let taskId: string | undefined;
 
   test.beforeEach(async () => {
@@ -105,7 +105,7 @@ test.describe('Home Keeper — tasks mirrored onto a household to-do list', () =
     // to leave nothing behind — the profile, the task, and both the open and
     // ticked-off lines. Dropping the profile is what clears the open ones, so it
     // goes first, and the sweep waits for that pass to land: removing a line the
-    // mirror still believes it owns is exactly the "the household deleted it" input
+    // sync still believes it owns is exactly the "the household deleted it" input
     // it is built to react to. The sweep takes the whole list because an overdue
     // profile puts every seeded overdue chore on it too, and nothing else here
     // writes to that list.
@@ -153,7 +153,7 @@ test.describe('Home Keeper — tasks mirrored onto a household to-do list', () =
     // way for whoever reads it).
     const task = (await listTasks()).find((t) => t.id === taskId);
     const item = (await familyItems(['needs_action'])).find((i) => i.summary === CHORE);
-    expect(item.due, 'the mirrored line should carry a due date').toBeTruthy();
+    expect(item.due, 'the synced line should carry a due date').toBeTruthy();
     expect(item.due).toBe(String(task!.next_due).slice(0, 10));
   });
 

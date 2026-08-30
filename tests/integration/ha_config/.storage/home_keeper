@@ -766,6 +766,6 @@
       "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer."
     },
     "shopping_items": {},
-    "task_mirror_items": {}
+    "todo_list_items": {}
   }
 }

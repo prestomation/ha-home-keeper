@@ -108,6 +108,8 @@ describe('Settings tab — the profile sync group', () => {
     // competing place to configure the same thing.
     const { hass } = makeHass({ profiles: [SYNCED] });
     const panel = await mountSettings(hass);
+    // Historical ids from the standalone mirror card this feature replaced; the
+    // assertions guard against it coming back, so the old spellings stay.
     expect(panel.shadowRoot.querySelector('#hk-task-mirrors')).toBeNull();
     expect(panel.shadowRoot.querySelector('#hk-mirror-add')).toBeNull();
     const ids = [...panel.shadowRoot.querySelectorAll('ha-card')].map((c) => c.id);
@@ -148,7 +150,7 @@ describe('Settings tab — the profile sync group', () => {
       two_way: true,
       vanish_as_completed: true,
     });
-    // Mirroring Home Keeper's own list onto itself is a loop.
+    // Syncing Home Keeper's own list onto itself is a loop.
     const entityField = form.schema.find((f) => f.name === 'entity_id');
     expect(entityField.selector.entity.exclude_entities).toEqual(['todo.home_keeper_tasks']);
     // No profile picker: the group is already inside the profile it belongs to.

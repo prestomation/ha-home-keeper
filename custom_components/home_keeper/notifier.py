@@ -85,9 +85,9 @@ def effective_filter_tasks(
     area labelled ``dog``). ``device_id`` is unchanged — a device filter matches the
     task's own device, like the frontend.
 
-    Public because the task mirror is the second consumer: ``task_mirror_sync``
+    Public because the to-do list sync is the second consumer: ``todo_list_sync``
     enriches through this same helper before planning, so a profile selects exactly
-    the same tasks for a mirrored to-do list as it does for a notification.
+    the same tasks for a synced to-do list as it does for a notification.
     """
     dev_reg = dr.async_get(hass)
     area_reg = ar.async_get(hass)
