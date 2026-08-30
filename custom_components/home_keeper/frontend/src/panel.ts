@@ -1,5 +1,6 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
+import type { SkipMetadata } from './api';
 import { profileMatches } from './card-filter';
 import type { SignedFileRef } from './documents';
 import {
@@ -70,6 +71,7 @@ import type {
   AssetKind,
   Companion,
   Completion,
+  Skip,
   Hass,
   HomeKeeperOptions,
   ManagedBy,
@@ -105,6 +107,10 @@ import {
   parseRoute,
   randomId,
   readingUnit,
+  resolveSnoozePreset,
+  DEFAULT_SNOOZE_PRESET,
+  SNOOZE_PRESETS,
+  type SnoozePresetId,
   round1,
   safeFileHref,
   safeHref,
@@ -1196,6 +1202,44 @@ const STYLES = `
   }
   .hk-detail-card .hk-chips { margin-top: 10px; }
   .hk-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  /* The Done split button. The caret is its own hit target butted against Done, so
+     Done never changes meaning or costs an extra tap; the divider is what says they
+     are two controls rather than one wide button. */
+  .hk-split { position: relative; display: inline-flex; align-items: stretch; }
+  .hk-split ha-icon-button.hk-split-caret {
+    --mdc-icon-button-size: 40px; margin-left: 2px; align-self: center;
+    color: var(--secondary-text-color);
+    border-left: 1px solid var(--divider-color); border-radius: 0;
+  }
+  .hk-defer-menu {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 9;
+    min-width: 220px; padding: 6px;
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  }
+  .hk-defer-menu button {
+    display: flex; align-items: flex-start; gap: 10px; width: 100%;
+    padding: 9px 10px; border: 0; border-radius: 6px;
+    background: transparent; color: var(--primary-text-color);
+    font: inherit; text-align: left; cursor: pointer;
+  }
+  .hk-defer-menu button:hover { background: var(--secondary-background-color); }
+  .hk-defer-menu button:focus-visible {
+    outline: 2px solid var(--primary-color); outline-offset: -2px;
+  }
+  .hk-defer-menu ha-icon { flex: none; color: var(--secondary-text-color); }
+  .hk-defer-text { display: flex; flex-direction: column; min-width: 0; }
+  /* The verbs are not self-explanatory — which is what #268 was about — so each
+     carries one line saying what it does to the schedule. */
+  .hk-defer-sub { font-size: 12px; color: var(--secondary-text-color); margin-top: 2px; }
+  /* The resolved date under the snooze picker: the user reads the answer rather than
+     doing the arithmetic. */
+  .hk-snooze-hint {
+    font-size: 13px; color: var(--secondary-text-color);
+    padding: 4px 2px 0; line-height: 1.4;
+  }
   .hk-detail-row {
     display: flex; gap: 12px; padding: 6px 0; align-items: baseline;
     border-bottom: 1px solid var(--divider-color);
@@ -1335,13 +1379,25 @@ const STYLES = `
   ul.hk-hist-list .date { flex: 1; min-width: 0; }
   ul.hk-hist-list .when { color: var(--secondary-text-color); font-size: 0.85rem; white-space: nowrap; }
   .hk-hist-actions { display: flex; align-items: center; }
-  ha-icon-button.hk-hist-del, ha-icon-button.hk-hist-edit, ha-icon-button.hk-hist-move {
+  ha-icon-button.hk-hist-del, ha-icon-button.hk-hist-edit, ha-icon-button.hk-hist-move,
+  ha-icon-button.hk-hist-skip-del, ha-icon-button.hk-hist-skip-edit,
+  ha-icon-button.hk-hist-skip-move {
     --mdc-icon-button-size: 36px; color: var(--secondary-text-color);
+  }
+  /* A skipped occurrence is a record of *not* doing the thing, so its row sits back
+     from the completions around it: the date is muted and the chip names what it is.
+     Without the chip the two kinds of row look identical, which misreads the list. */
+  .hk-hist-is-skip .date { color: var(--secondary-text-color); }
+  .hk-hist-skip-chip {
+    font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap;
+    padding: 3px 8px; border-radius: 10px;
+    background: var(--secondary-background-color); color: var(--secondary-text-color);
   }
   /* The destructive one of the three reads as destructive on approach rather than at
      rest: three red trashcans down a history list is an alarm, and the row is a
      record, not a control panel. */
-  ha-icon-button.hk-hist-del:hover, ha-icon-button.hk-hist-del:focus-visible {
+  ha-icon-button.hk-hist-del:hover, ha-icon-button.hk-hist-del:focus-visible,
+  ha-icon-button.hk-hist-skip-del:hover, ha-icon-button.hk-hist-skip-del:focus-visible {
     color: var(--hk-danger-ink);
   }
   .hk-hist-meta {
@@ -1637,11 +1693,46 @@ interface MoveCompletionDialogState {
   ts: string;
   newTs?: string;
   error?: string;
+  /** Which log the entry lives in. Re-dating is the same interaction either way —
+   *  one date field on one entry — so the two share a dialog and differ only in
+   *  which service the save calls. */
+  kind?: 'completion' | 'skip';
+}
+
+/**
+ * The snooze dialog: which task, which preset, and the custom instant when the preset
+ * is `custom`. `error` carries a backend rejection back into the dialog rather than a
+ * toast, so the user can correct the date without reopening.
+ */
+interface SnoozeDialogState {
+  open: boolean;
+  task: Task | null;
+  preset: SnoozePresetId;
+  customAt?: string;
+  error?: string;
+}
+
+/**
+ * The skip dialog. Unlike snooze it takes no duration — a skip advances to the next
+ * occurrence, full stop — so it collects only the optional note and person, plus the
+ * meter reading for a usage task.
+ */
+interface SkipDialogState {
+  open: boolean;
+  task: Task | null;
+  /** Set when editing an already-logged skip; unset when taking a new one. */
+  ts?: string;
+  data: SkipMetadata;
+  error?: string;
 }
 /** One task's completion list within a history dialog (live or archived). */
 interface HistoryGroup {
   name: string;
   completions: Completion[];
+  /** Logged skips, shown interleaved with the completions above but never counted
+   *  among them. Absent on an archived group — a deleted task's skips are not carried
+   *  onto the appliance, since the cadence they belong to is gone. */
+  skips?: Skip[];
   archived?: boolean;
   // Deletion context for the per-completion trash button: a live task carries
   // `taskId`; an archived (removed-task) group carries `assetId` + `archivedTaskId`.
@@ -1690,6 +1781,12 @@ export class HomeKeeperPanel extends HTMLElement {
     task: null,
     ts: '',
   };
+  private _snooze: SnoozeDialogState = {
+    open: false,
+    task: null,
+    preset: DEFAULT_SNOOZE_PRESET,
+  };
+  private _skip: SkipDialogState = { open: false, task: null, data: {} };
   private _confirmDelete: { open: boolean; label: string; onConfirm: (() => void) | null } = {
     open: false,
     label: '',
@@ -2513,7 +2610,13 @@ export class HomeKeeperPanel extends HTMLElement {
    * via `api.moveCompletion`, never `api.updateCompletion`.
    */
   private _openMoveCompletion(task: Task, ts: string): void {
-    this._moveCompletion = { open: true, task, ts, newTs: ts };
+    this._moveCompletion = { open: true, task, ts, newTs: ts, kind: 'completion' };
+    this._render();
+  }
+
+  /** Re-date a logged skip. Same dialog as a completion's — see the state's `kind`. */
+  private _openMoveSkip(task: Task, ts: string): void {
+    this._moveCompletion = { open: true, task, ts, newTs: ts, kind: 'skip' };
     this._render();
   }
 
@@ -2526,12 +2629,90 @@ export class HomeKeeperPanel extends HTMLElement {
     const m = this._moveCompletion;
     if (!this._hass || !m.task || !m.newTs) return;
     try {
-      await api.moveCompletion(this._hass, m.task.id, m.ts, m.newTs);
+      if (m.kind === 'skip') await api.moveSkip(this._hass, m.task.id, m.ts, m.newTs);
+      else await api.moveCompletion(this._hass, m.task.id, m.ts, m.newTs);
       this._closeMoveCompletion();
       await this._refresh();
     } catch (err) {
       m.error = String((err as { message?: string })?.message || err);
       this._render();
+    }
+  }
+
+  private _openSnooze(task: Task): void {
+    this._snooze = { open: true, task, preset: DEFAULT_SNOOZE_PRESET };
+    this._render();
+  }
+
+  private _closeSnooze(): void {
+    this._snooze = { open: false, task: null, preset: DEFAULT_SNOOZE_PRESET };
+    this._render();
+  }
+
+  /** The instant the current snooze selection resolves to, or `null` if unusable. */
+  private _snoozeTarget(): Date | null {
+    const s = this._snooze;
+    if (s.preset !== 'custom') return resolveSnoozePreset(s.preset, new Date());
+    if (!s.customAt) return null;
+    const iso = haDateTimeToIso(s.customAt);
+    if (!iso) return null;
+    const parsed = new Date(iso);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private async _submitSnooze(): Promise<void> {
+    const s = this._snooze;
+    const until = this._snoozeTarget();
+    if (!this._hass || !s.task || !until) return;
+    try {
+      await api.snoozeTask(this._hass, s.task.id, until.toISOString());
+      this._closeSnooze();
+      await this._refresh();
+    } catch (err) {
+      s.error = String((err as { message?: string })?.message || err);
+      this._render();
+    }
+  }
+
+  /** Open the skip dialog — for a new skip, or to amend a logged one when *ts* is
+   *  given. Both collect the same fields, so they share a dialog. */
+  private _openSkip(task: Task, ts?: string): void {
+    const entry = ts ? (task.skips ?? []).find((x) => x.ts === ts) : undefined;
+    this._skip = {
+      open: true,
+      task,
+      ts,
+      data: entry ? { note: entry.note, who: entry.who, reading: entry.reading } : {},
+    };
+    this._render();
+  }
+
+  private _closeSkip(): void {
+    this._skip = { open: false, task: null, data: {} };
+    this._render();
+  }
+
+  private async _submitSkip(): Promise<void> {
+    const s = this._skip;
+    if (!this._hass || !s.task) return;
+    try {
+      if (s.ts != null) await api.updateSkip(this._hass, s.task.id, s.ts, s.data);
+      else await api.skipTask(this._hass, s.task.id, s.data);
+      this._closeSkip();
+      await this._refresh();
+    } catch (err) {
+      s.error = String((err as { message?: string })?.message || err);
+      this._render();
+    }
+  }
+
+  private async _deleteSkip(taskId: string, ts: string): Promise<void> {
+    if (!this._hass) return;
+    try {
+      await api.deleteSkip(this._hass, taskId, ts);
+      await this._refresh();
+    } catch (err) {
+      this._toast(String((err as { message?: string })?.message || err));
     }
   }
 
@@ -2721,6 +2902,57 @@ export class HomeKeeperPanel extends HTMLElement {
     const label = t('done.autoClears');
     return `<span class="hk-auto-clear done-blocked-wrap" data-id="${escapeHTML(task.id)}" title="${escapeHTML(reason)}" aria-label="${escapeHTML(`${label}: ${reason}`)}"><ha-icon icon="mdi:autorenew" class="hk-chip-ic"></ha-icon>${escapeHTML(label)}</span>`;
   }
+  /**
+   * Which deferral verbs *this* task can actually take, given the global switches.
+   *
+   * Two gates, and both have to pass. The `allow_snooze` / `allow_skip` options say
+   * whether Home Keeper offers the verb at all; then the task itself decides. Skip is
+   * refused on a completion-blocked task — the store rejects it, because only the
+   * originating integration can say a problem is dealt with — while Snooze is
+   * deliberately allowed there, since deferring a reminder asserts nothing about the
+   * problem. Snooze is refused on a dormant task, which has no due date to defer.
+   *
+   * Hiding rather than disabling: a button that explains why it is dead earns its
+   * place when the action is the page's whole point (see `_blockedDone`), but these
+   * are already tucked behind a caret, and a menu of dead entries is just noise.
+   */
+  private _deferVerbs(task: Task): { snooze: boolean; skip: boolean } {
+    const { allowSnooze, allowSkip } = skipSnoozeFlags(this._options ?? {});
+    const blocked = !!task.managed_by?.completion_blocked;
+    const dormant = !task.next_due;
+    return { snooze: allowSnooze && !dormant, skip: allowSkip && !blocked && !dormant };
+  }
+
+  /**
+   * Wrap *doneBtn* in a split button whose caret opens the deferral menu.
+   *
+   * Returns *doneBtn* untouched when there is no verb to offer, so a task with both
+   * switches off — or a dormant one — looks exactly as it did before this existed.
+   */
+  private _deferMenu(task: Task, doneBtn: string): string {
+    const verbs = this._deferVerbs(task);
+    if (!doneBtn || (!verbs.snooze && !verbs.skip)) return doneBtn;
+    const item = (cls: string, icon: string, label: string, sub: string): string =>
+      `<button type="button" role="menuitem" class="${cls}">` +
+      `<ha-icon icon="${icon}"></ha-icon>` +
+      `<span class="hk-defer-text">${escapeHTML(label)}` +
+      `<span class="hk-defer-sub">${escapeHTML(sub)}</span></span></button>`;
+    const items =
+      (verbs.snooze
+        ? item('hk-defer-snooze', 'mdi:clock-outline', t('btn.snooze'), t('defer.snoozeHint'))
+        : '') +
+      (verbs.skip
+        ? item('hk-defer-skip', 'mdi:skip-next-outline', t('btn.skip'), t('defer.skipHint'))
+        : '');
+    return (
+      `<span class="hk-split" data-id="${escapeHTML(task.id)}">${doneBtn}` +
+      `<ha-icon-button class="hk-split-caret" aria-haspopup="menu" aria-expanded="false" ` +
+      `label="${escapeHTML(t('defer.more'))}" title="${escapeHTML(t('defer.more'))}">` +
+      `<ha-icon icon="mdi:chevron-down"></ha-icon></ha-icon-button>` +
+      `<div class="hk-defer-menu" role="menu" hidden>${items}</div></span>`
+    );
+  }
+
   private async _delete(task: Task): Promise<void> {
     if (!this._hass) return;
     try {
@@ -2897,13 +3129,21 @@ export class HomeKeeperPanel extends HTMLElement {
     if (kind === 'task') {
       const task = this._tasks.find((t) => t.id === id);
       if (!task) return [];
-      return [{ name: task.name, completions: task.completions || [], taskId: task.id }];
+      return [
+        {
+          name: task.name,
+          completions: task.completions || [],
+          skips: task.skips || [],
+          taskId: task.id,
+        },
+      ];
     }
     const asset = this._assets.find((a) => a.id === id);
     if (!asset) return [];
     const groups: HistoryGroup[] = tasksForAsset(asset, this._tasks).map((task) => ({
       name: task.name,
       completions: task.completions || [],
+      skips: task.skips || [],
       taskId: task.id,
     }));
     for (const entry of asset.task_history || []) {
@@ -2916,7 +3156,10 @@ export class HomeKeeperPanel extends HTMLElement {
       });
     }
     const lastTs = (g: HistoryGroup): number =>
-      g.completions.reduce((m, c) => Math.max(m, new Date(c.ts).getTime() || 0), 0);
+      [...g.completions, ...(g.skips ?? [])].reduce(
+        (m, c) => Math.max(m, new Date(c.ts).getTime() || 0),
+        0,
+      );
     groups.sort((a, b) => lastTs(b) - lastTs(a));
     return groups;
   }
@@ -2988,7 +3231,9 @@ export class HomeKeeperPanel extends HTMLElement {
         this._assetEdit.open ||
         this._noteEdit ||
         this._completion.open ||
-        this._moveCompletion.open,
+        this._moveCompletion.open ||
+        this._snooze.open ||
+        this._skip.open,
     );
   }
 
@@ -3965,7 +4210,7 @@ export class HomeKeeperPanel extends HTMLElement {
           <span class="hk-row-spacer"></span>
           <div class="hk-status">${statusChip}</div>
           <div class="hk-card-actions">
-            ${doneAction}
+            ${this._deferMenu(task, doneAction)}
           </div>
         </div>
       </ha-card>`;
@@ -4279,6 +4524,11 @@ export class HomeKeeperPanel extends HTMLElement {
       : mb?.completion_blocked || scanRequired(task)
         ? this._blockedDone('d-done-blocked-wrap', task, 'primary')
         : `<ha-button ${btnAttrs('primary')} class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
+    // Snooze and Skip hang off a caret beside Done rather than sitting as buttons of
+    // their own: they are the exceptions to the one action a task page is really for,
+    // and three peers would read as three equal choices. Done keeps its own hit
+    // target, so it never costs an extra tap or changes meaning.
+    const deferMenu = this._deferMenu(task, doneBtn);
     // Notes get an inline editor right on the detail page: they're long-form prose
     // that renders as Markdown, so authoring deserves a full-width box with a live
     // preview rather than one cramped row among the schedule fields. (For a
@@ -4298,7 +4548,7 @@ export class HomeKeeperPanel extends HTMLElement {
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
         <div class="hk-chips">${statusChip}${dev}${areaChip}${tagChip}${taskChips}${managedChip}</div>
         <div class="hk-detail-actions">
-          ${doneBtn}
+          ${deferMenu}
           ${manage}
         </div>
         ${completionHint}
@@ -5052,6 +5302,8 @@ export class HomeKeeperPanel extends HTMLElement {
     const dialogHost = root.getElementById('hk-dialog-host');
     if (dialogHost && this._completion.open) this._renderCompletionDialog(dialogHost);
     if (dialogHost && this._moveCompletion.open) this._renderMoveCompletionDialog(dialogHost);
+    if (dialogHost && this._snooze.open) this._renderSnoozeDialog(dialogHost);
+    if (dialogHost && this._skip.open) this._renderSkipDialog(dialogHost);
     // _renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
     // The drawer is a sibling of the whole content column, so it belongs to every
@@ -5270,6 +5522,8 @@ export class HomeKeeperPanel extends HTMLElement {
           if (task) void this._complete(task);
         }),
       );
+      // One caret per row, each resolving its own task.
+      this._wireDeferMenus(root);
       root.querySelectorAll<HTMLElement>('.hk-intro-dismiss').forEach((b) =>
         b.addEventListener('click', () => {
           this._introDismissed = true;
@@ -5348,6 +5602,60 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /** Wire the detail page's Done / Edit / Delete / Open-in buttons. */
+  /**
+   * Wire every split button under *root*, resolving each row's task from its id.
+   *
+   * The list renders one per row, so this is the many-rows counterpart of the single
+   * call `_wireDetailActions` makes for the detail page.
+   */
+  private _wireDeferMenus(root: ParentNode): void {
+    root.querySelectorAll<HTMLElement>('.hk-split').forEach((split) => {
+      const task = this._tasks.find((x) => x.id === split.dataset.id);
+      if (task) this._wireOneDeferMenu(split, task);
+    });
+  }
+
+  /**
+   * Wire one split button's caret and its menu items.
+   *
+   * The menu closes on Escape and on any click outside it, both bound to the panel's
+   * own shadow root: a click inside a shadow root never reaches a document listener
+   * as the same target.
+   */
+  private _wireOneDeferMenu(split: HTMLElement, task: Task): void {
+    const caret = split.querySelector<HTMLElement>('.hk-split-caret');
+    const menu = split.querySelector<HTMLElement>('.hk-defer-menu');
+    if (!caret || !menu) return;
+    const close = (): void => {
+      menu.hidden = true;
+      caret.setAttribute('aria-expanded', 'false');
+    };
+    caret.addEventListener('click', (e) => {
+      // A list row opens the task's detail page and the caret sits inside it —
+      // without this the menu would open and immediately navigate away from itself.
+      e.stopPropagation();
+      const opening = menu.hidden;
+      menu.hidden = !opening;
+      caret.setAttribute('aria-expanded', String(opening));
+    });
+    menu.addEventListener('click', (e) => e.stopPropagation());
+    const root = split.getRootNode() as unknown as HTMLElement;
+    root.addEventListener?.('click', (e: Event) => {
+      if (!split.contains(e.target as Node)) close();
+    });
+    root.addEventListener?.('keydown', (e: Event) => {
+      if ((e as KeyboardEvent).key === 'Escape') close();
+    });
+    menu.querySelector('.hk-defer-snooze')?.addEventListener('click', () => {
+      close();
+      this._openSnooze(task);
+    });
+    menu.querySelector('.hk-defer-skip')?.addEventListener('click', () => {
+      close();
+      this._openSkip(task);
+    });
+  }
+
   private _wireDetailActions(root: ShadowRoot): void {
     const d = this._detail;
     if (!d) return;
@@ -5362,6 +5670,7 @@ export class HomeKeeperPanel extends HTMLElement {
       root
         .querySelector('.d-done-blocked-wrap')
         ?.addEventListener('click', () => this._notifyBlocked(task));
+      this._wireDeferMenus(root);
       root.querySelector('.d-edit')?.addEventListener('click', () => this._openEdit(task));
       this._wireNoteEditor(root, { kind: 'task', id: task.id });
       root.querySelector('.d-del')?.addEventListener('click', () => {
@@ -7259,6 +7568,173 @@ export class HomeKeeperPanel extends HTMLElement {
     host.appendChild(dialog);
   }
 
+  /**
+   * Build the snooze dialog — a preset dropdown plus, for `custom`, a date-time field.
+   *
+   * The helper line under the field states the date the choice resolves to, so the
+   * user reads the answer rather than doing the arithmetic. Changing the preset to or
+   * from `custom` swaps the schema, so the dialog re-renders on that transition only
+   * — re-rendering on every keystroke would steal focus mid-edit (the same trap
+   * `taskFormSchemaKey` exists to avoid on the task form).
+   */
+  private _renderSnoozeDialog(host: HTMLElement): void {
+    const s = this._snooze;
+    if (!s.task) return;
+    const { dialog, body, footer, mount } = this._makeDialog(t('defer.snoozeTitle'), () => {
+      if (this._snooze.open) this._closeSnooze();
+    });
+
+    const options = SNOOZE_PRESETS.map((p) => ({
+      value: p.id,
+      label: t('defer.preset.' + p.id),
+    }));
+    const schema: FormField[] = [
+      { name: 'snoozePreset', required: true, selector: selSelect(options) },
+    ];
+    if (s.preset === 'custom') {
+      schema.push({ name: 'snoozeAt', required: true, selector: selDateTime() });
+    }
+    const data: Record<string, unknown> = { snoozePreset: s.preset };
+    if (s.preset === 'custom') data.snoozeAt = s.customAt ?? '';
+    const form = this._makeForm(schema, data, (value) => {
+      const preset = String(value.snoozePreset ?? s.preset) as SnoozePresetId;
+      const wasCustom = s.preset === 'custom';
+      s.preset = preset;
+      s.customAt = value.snoozeAt == null ? s.customAt : String(value.snoozeAt);
+      s.error = undefined;
+      // Only a change in *which fields exist* justifies a re-render.
+      if (wasCustom !== (preset === 'custom')) this._render();
+      else this._updateSnoozeHint();
+    });
+    body.appendChild(form);
+
+    const hint = document.createElement('div');
+    hint.className = 'hk-snooze-hint';
+    hint.textContent = this._snoozeHintText();
+    body.appendChild(hint);
+
+    if (s.error) {
+      const err = document.createElement('ha-alert');
+      err.setAttribute('alert-type', 'error');
+      err.textContent = s.error;
+      body.appendChild(err);
+    }
+
+    const primary = document.createElement('ha-button');
+    primary.setAttribute('slot', 'primaryAction');
+    setBtnWeight(primary, 'primary');
+    primary.textContent = t('btn.snooze');
+    primary.addEventListener('click', () => void this._submitSnooze());
+    footer.appendChild(primary);
+
+    const cancel = document.createElement('ha-button');
+    cancel.setAttribute('slot', 'secondaryAction');
+    setBtnWeight(cancel, 'tertiary');
+    cancel.textContent = t('btn.cancel');
+    cancel.addEventListener('click', () => this._closeSnooze());
+    footer.appendChild(cancel);
+
+    mount();
+    host.appendChild(dialog);
+  }
+
+  /** The line stating where the current snooze choice lands, or a prompt if unset. */
+  private _snoozeHintText(): string {
+    const until = this._snoozeTarget();
+    if (!until) return t('defer.snoozePickDate');
+    return t('defer.snoozeResolves', {
+      date: formatDateTime(until.toISOString(), this._lang()),
+    });
+  }
+
+  /** Refresh the resolved-date line without re-rendering (which would steal focus). */
+  private _updateSnoozeHint(): void {
+    const hint = this.shadowRoot?.querySelector<HTMLElement>('.hk-snooze-hint');
+    if (hint) hint.textContent = this._snoozeHintText();
+  }
+
+  /**
+   * Build the skip dialog — the note, who, and (for a usage task) the meter reading.
+   *
+   * No duration: a skip advances to the next occurrence and that is the whole of it.
+   * The same dialog amends an already-logged skip, which is why the title and the
+   * primary button read differently when `ts` is set.
+   */
+  private _renderSkipDialog(host: HTMLElement): void {
+    const s = this._skip;
+    if (!s.task) return;
+    const editing = s.ts != null;
+    const { dialog, body, footer, mount } = this._makeDialog(
+      editing ? t('defer.skipEditTitle') : t('defer.skipTitle'),
+      () => {
+        if (this._skip.open) this._closeSkip();
+      },
+    );
+
+    if (!editing) {
+      const lead = document.createElement('div');
+      lead.className = 'hk-snooze-hint';
+      lead.textContent = t('defer.skipLead');
+      body.appendChild(lead);
+    }
+
+    const schema: FormField[] = [
+      { name: 'skipNote', selector: selText(true) },
+      { name: 'skipWho', selector: selText() },
+    ];
+    // Only a metered task has a reading to record; asking every task for one would be
+    // a field with no meaning attached. Bare number selector like the completion
+    // dialog's: a reading can be 0 or negative, so it takes no minimum.
+    if (taskRecordsReading(s.task)) {
+      schema.push({ name: 'skipReading', selector: { number: { mode: 'box', step: 'any' } } });
+    }
+    const form = this._makeForm(
+      schema,
+      {
+        skipNote: s.data.note ?? '',
+        skipWho: s.data.who ?? '',
+        skipReading: s.data.reading ?? '',
+      },
+      (value) => {
+        const reading = Number(value.skipReading);
+        s.data = {
+          note: String(value.skipNote ?? '') || undefined,
+          who: String(value.skipWho ?? '') || undefined,
+          reading:
+            value.skipReading === '' || value.skipReading == null || Number.isNaN(reading)
+              ? undefined
+              : reading,
+        };
+        s.error = undefined;
+      },
+    );
+    body.appendChild(form);
+
+    if (s.error) {
+      const err = document.createElement('ha-alert');
+      err.setAttribute('alert-type', 'error');
+      err.textContent = s.error;
+      body.appendChild(err);
+    }
+
+    const primary = document.createElement('ha-button');
+    primary.setAttribute('slot', 'primaryAction');
+    setBtnWeight(primary, 'primary');
+    primary.textContent = editing ? t('btn.save') : t('btn.skip');
+    primary.addEventListener('click', () => void this._submitSkip());
+    footer.appendChild(primary);
+
+    const cancel = document.createElement('ha-button');
+    cancel.setAttribute('slot', 'secondaryAction');
+    setBtnWeight(cancel, 'tertiary');
+    cancel.textContent = t('btn.cancel');
+    cancel.addEventListener('click', () => this._closeSkip());
+    footer.appendChild(cancel);
+
+    mount();
+    host.appendChild(dialog);
+  }
+
   private _renderAssetForm(host: HTMLElement): void {
     const x = this._assetEdit.asset || {};
     const editing = Boolean(x.id);
@@ -8415,7 +8891,13 @@ export class HomeKeeperPanel extends HTMLElement {
 
   // ── completion-history rendering (inline in the detail page) ─────────────────
   private _historyBody(groups: HistoryGroup[]): string {
-    const withAny = groups.filter((g) => (g.completions?.length ?? 0) > 0);
+    // A group earns a place if it has *anything* to show. Keying this on completions
+    // alone would hide a task that has only ever been skipped behind "no completions
+    // recorded yet" — doubly wrong, since the skips are precisely the record
+    // explaining why there are none.
+    const withAny = groups.filter(
+      (g) => (g.completions?.length ?? 0) > 0 || (g.skips?.length ?? 0) > 0,
+    );
     if (!withAny.length) {
       return `<ha-alert alert-type="info">${escapeHTML(t('history.empty'))}</ha-alert>`;
     }
@@ -8426,9 +8908,16 @@ export class HomeKeeperPanel extends HTMLElement {
   private _historyGroup(group: HistoryGroup, showHead: boolean): string {
     // Sort the completion objects (not just Dates) so each row keeps its `ts`
     // string for the per-row delete button.
-    const comps = [...(group.completions || [])]
-      .filter((c) => !Number.isNaN(new Date(c.ts).getTime()))
-      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+    type Row = { entry: Completion | Skip; kind: 'completion' | 'skip' };
+    const comps: Row[] = [
+      ...(group.completions || []).map((entry) => ({ entry, kind: 'completion' as const })),
+      ...(group.skips || []).map((entry) => ({ entry, kind: 'skip' as const })),
+    ]
+      .filter((r) => !Number.isNaN(new Date(r.entry.ts).getTime()))
+      .sort((a, b) => new Date(b.entry.ts).getTime() - new Date(a.entry.ts).getTime());
+    // Deliberately `group.completions`: the count and the cadence are statements about
+    // work actually done, so a skip must not inflate the tally or shorten the average
+    // interval — the one number the cadence exists to report.
     const stats = completionStats(group.completions);
     const sub: string[] = [tn('history.count', stats.count)];
     if (stats.avgIntervalDays) sub.push(t('history.cadence', { days: stats.avgIntervalDays }));
@@ -8456,22 +8945,35 @@ export class HomeKeeperPanel extends HTMLElement {
       this._hass,
     );
     const items = comps
-      .map((c) => {
+      .map(({ entry: c, kind }) => {
         const d = new Date(c.ts);
         const date = formatDate(d, this._lang());
+        const skip = kind === 'skip';
+        // A skip's edit/move/delete go to their own services, so the buttons carry
+        // their own classes; a skip's delete target is always the live task, since
+        // skips are never archived onto an appliance.
         const editBtn = editTask
-          ? `<ha-icon-button class="hk-hist-edit" data-edit-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>`
+          ? `<ha-icon-button class="${skip ? 'hk-hist-skip-edit' : 'hk-hist-edit'}" data-edit-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>`
           : '';
         // Moving a completion's date only applies to a live task, same as editing
         // its metadata — move_completion doesn't operate on archived history.
         const moveBtn = editTask
-          ? `<ha-icon-button class="hk-hist-move" data-move-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.moveDate'))}"></ha-icon-button>`
+          ? `<ha-icon-button class="${skip ? 'hk-hist-skip-move' : 'hk-hist-move'}" data-move-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.moveDate'))}"></ha-icon-button>`
           : '';
-        return `<li>
+        const delBtn = skip
+          ? `<ha-icon-button class="hk-hist-skip-del" data-del-skip="${escapeHTML(group.taskId || '')}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`
+          : `<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`;
+        // The chip is what stops a skip reading as a completion at a glance — the
+        // dates alone look identical, and mistaking the two misreads the whole list.
+        const chip = skip
+          ? `<span class="hk-hist-skip-chip">${escapeHTML(t('history.skipped'))}</span>`
+          : '';
+        return `<li class="${skip ? 'hk-hist-is-skip' : ''}">
             <div class="hk-hist-row">
               <span class="date">${escapeHTML(date)}</span>
+              ${chip}
               <span class="when">${escapeHTML(this._relativeDay(d))}</span>
-              <span class="hk-hist-actions">${moveBtn}${editBtn}<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button></span>
+              <span class="hk-hist-actions">${moveBtn}${editBtn}${delBtn}</span>
             </div>
             ${this._completionMeta(c, unit)}
           </li>`;
@@ -8581,6 +9083,37 @@ export class HomeKeeperPanel extends HTMLElement {
         if (!ts || !taskId) return;
         const task = this._tasks.find((x) => x.id === taskId);
         if (task) this._openMoveCompletion(task, ts);
+      });
+    });
+    // The skip rows' three buttons. Same icons and shape as the completion ones above
+    // — a skip is editable exactly as a completion is — but routed to the skip
+    // services, since the two logs are separate lists keyed on their own timestamps.
+    root.querySelectorAll<HTMLElement>('.hk-hist-skip-del').forEach((b) => {
+      this._setIcon(b, MDI_DELETE);
+      b.addEventListener('click', () => {
+        const ts = b.dataset.ts;
+        const taskId = b.dataset.delSkip;
+        if (ts && taskId) void this._deleteSkip(taskId, ts);
+      });
+    });
+    root.querySelectorAll<HTMLElement>('.hk-hist-skip-edit').forEach((b) => {
+      this._setIcon(b, MDI_EDIT);
+      b.addEventListener('click', () => {
+        const ts = b.dataset.ts;
+        const taskId = b.dataset.editTask;
+        if (!ts || !taskId) return;
+        const task = this._tasks.find((x) => x.id === taskId);
+        if (task) this._openSkip(task, ts);
+      });
+    });
+    root.querySelectorAll<HTMLElement>('.hk-hist-skip-move').forEach((b) => {
+      this._setIcon(b, MDI_MOVE_DATE);
+      b.addEventListener('click', () => {
+        const ts = b.dataset.ts;
+        const taskId = b.dataset.moveTask;
+        if (!ts || !taskId) return;
+        const task = this._tasks.find((x) => x.id === taskId);
+        if (task) this._openMoveSkip(task, ts);
       });
     });
   }

@@ -65,6 +65,24 @@ export interface Completion {
   reading?: number;
 }
 
+/**
+ * One logged skip — an occurrence deliberately passed over.
+ *
+ * Shaped like a `Completion` and shown beside them in history, but kept in its own
+ * list because it is the record of *not* doing the thing: it never counts toward the
+ * completion tally or the cadence average, and never becomes "last done". Carries no
+ * `cost` or `photo` — nothing was bought and there is nothing to show.
+ */
+export interface Skip {
+  ts: string;
+  note?: string;
+  who?: string;
+  /** The bound sensor's value when a usage task was skipped. Skipping resets the
+   *  meter just as completing does, so this is the reading the next interval counts
+   *  from. */
+  reading?: number;
+}
+
 /** Ownership block set by an integration at task-creation time. Home Keeper
  *  inspects this (unlike the opaque `source`) to enforce UI behavior. */
 export interface ManagedBy {
@@ -102,6 +120,7 @@ export interface Task {
   last_completed?: string | null;
   next_due?: string;
   completions?: Completion[];
+  skips?: Skip[];
   // Per-task completion-capture mode (default `none` = one-tap done).
   completion_detail?: CompletionDetail;
   // An HA tag (NFC/RFID) bound to this task: scanning it records a completion.

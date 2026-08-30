@@ -686,6 +686,55 @@ export function sortedCompletions(completions?: { ts: string }[]): Date[] {
     .sort((a, b) => b.getTime() - a.getTime());
 }
 
+/**
+ * The durations the snooze dialog offers, in order, plus the custom escape hatch.
+ *
+ * One home for the list so the dialog, its labels and any future "editable presets"
+ * option all read the same definition. `custom` carries no offset — it reveals a
+ * date-time field instead.
+ */
+export const SNOOZE_PRESETS = [
+  { id: '1h', hours: 1 },
+  { id: '1d', days: 1 },
+  { id: '1w', days: 7 },
+  { id: '1mo', months: 1 },
+  { id: 'custom' },
+] as const;
+
+export type SnoozePresetId = (typeof SNOOZE_PRESETS)[number]['id'];
+
+/** The preset the dialog opens on. A week is the middle of the range and the one a
+ *  "not this time" deferral most often means. */
+export const DEFAULT_SNOOZE_PRESET: SnoozePresetId = '1w';
+
+/**
+ * Resolve a snooze preset to a real instant, measured from *from*.
+ *
+ * Month arithmetic clamps a day the target month does not have (Jan 31 + 1 month is
+ * Feb 28), matching what the backend's `recurrence.add_months` does — so the date the
+ * dialog previews is the date the task ends up with. Returns `null` for `custom`,
+ * which has no offset of its own.
+ */
+export function resolveSnoozePreset(id: SnoozePresetId, from: Date): Date | null {
+  const preset = SNOOZE_PRESETS.find((p) => p.id === id);
+  if (!preset || id === 'custom') return null;
+  const out = new Date(from.getTime());
+  const spec = preset as { hours?: number; days?: number; months?: number };
+  if (spec.hours) out.setHours(out.getHours() + spec.hours);
+  if (spec.days) out.setDate(out.getDate() + spec.days);
+  if (spec.months) {
+    const day = out.getDate();
+    // Set the day to 1 before shifting the month: `setMonth` on the 31st of a month
+    // whose target is shorter rolls *forward* into the next month (Jan 31 -> Mar 3),
+    // which is the opposite of clamping.
+    out.setDate(1);
+    out.setMonth(out.getMonth() + spec.months);
+    const lastDay = new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate();
+    out.setDate(Math.min(day, lastDay));
+  }
+  return out;
+}
+
 export interface CompletionStats {
   count: number;
   last?: Date;

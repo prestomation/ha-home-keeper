@@ -170,6 +170,13 @@ export interface CompletionMetadata {
   reading?: number;
 }
 
+/**
+ * Optional per-skip metadata. A narrower set than a completion's: a skip answers
+ * "why did this one go by?", so it takes the note, the person and the meter reading,
+ * but has no cost or photo.
+ */
+export type SkipMetadata = Pick<CompletionMetadata, 'note' | 'who' | 'reading'>;
+
 /** Drop empty metadata keys so we never send blank `note: ""` etc. */
 function metadataMsg(metadata?: CompletionMetadata): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -234,6 +241,79 @@ export async function moveCompletion(
     task_id: taskId,
     old_ts: oldTs,
     new_ts: newTs,
+  });
+  return res.task;
+}
+
+/**
+ * Defer a task's due date to `until` without recording a completion.
+ *
+ * The wire carries a resolved instant rather than the service's `hours`: the panel
+ * turns the chosen preset into a real date before sending, so a month means the same
+ * thing here as it does on the button the user pressed.
+ */
+export async function snoozeTask(hass: Hass, taskId: string, until: string): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/snooze_task',
+    task_id: taskId,
+    until,
+  });
+  return res.task;
+}
+
+/**
+ * Advance a task to its next occurrence, logging the skip.
+ *
+ * A skip is *not* a completion: it never touches `completions`, `last_completed` or
+ * any count derived from them. It carries note/who/reading only — no cost or photo,
+ * since nothing was bought and there is nothing to show.
+ */
+export async function skipTask(hass: Hass, taskId: string, metadata?: SkipMetadata): Promise<Task> {
+  const msg: Record<string, unknown> = { type: 'home_keeper/skip_task', task_id: taskId };
+  const clean = metadataMsg(metadata);
+  if (Object.keys(clean).length) msg.metadata = clean;
+  const res = await hass.callWS<{ task: Task }>(msg);
+  return res.task;
+}
+
+/** Amend a recorded skip's detail (identified by its `ts`). */
+export async function updateSkip(
+  hass: Hass,
+  taskId: string,
+  ts: string,
+  metadata: SkipMetadata,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/update_skip',
+    task_id: taskId,
+    ts,
+    metadata: metadataMsg(metadata),
+  });
+  return res.task;
+}
+
+/** Re-date a recorded skip, identified by its current `ts`. */
+export async function moveSkip(
+  hass: Hass,
+  taskId: string,
+  oldTs: string,
+  newTs: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/move_skip',
+    task_id: taskId,
+    old_ts: oldTs,
+    new_ts: newTs,
+  });
+  return res.task;
+}
+
+/** Remove a recorded skip (undo an accidental or regretted skip). */
+export async function deleteSkip(hass: Hass, taskId: string, ts: string): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/delete_skip',
+    task_id: taskId,
+    ts,
   });
   return res.task;
 }
