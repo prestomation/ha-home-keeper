@@ -54,6 +54,82 @@ export function safeFileHref(url: unknown): string {
   return isSafeImageUrl(url) ? escapeHTML(url) : '';
 }
 
+// ── Button weights ──────────────────────────────────────────────────────────
+/**
+ * The panel's four button weights, expressed in Home Assistant's own vocabulary.
+ *
+ * `ha-button` extends Web Awesome's `Button`, whose reactive attributes are
+ * `appearance` (`accent`/`filled`/`outlined`/`plain`) and `variant`
+ * (`brand`/`neutral`/`success`/`warning`/`danger`). **`raised` and `destructive` are
+ * not among them** — they are Material leftovers the element never reads, so a button
+ * carrying either renders at the default accent fill, exactly as a bare one does.
+ * That is why Done, Edit, Cancel and Delete all arrived at the same weight (#262):
+ * three quarters of the panel was asking for a weight in a language the button had
+ * stopped speaking. Ask in this one instead, and never re-introduce those two.
+ *
+ * Measured against the rendered pixels in the e2e container, on the default light
+ * theme's white card:
+ *
+ * | weight           | attributes                              | label vs its fill |
+ * | ---------------- | --------------------------------------- | ----------------- |
+ * | `primary`        | *(none — HA's default)*                 | 3.26:1 †          |
+ * | `secondary`      | `appearance=filled`                     | 6.02:1 ‡          |
+ * | `tertiary`       | `appearance=plain variant=neutral`      | 6.49:1            |
+ * | `danger`         | `appearance=plain variant=danger`       | 7.04:1            |
+ * | `danger-primary` | `variant=danger`                        | 4.59:1            |
+ *
+ * † Home Assistant's own filled-button pairing, used unchanged across HA itself.
+ * ‡ Only with the `[data-hk-weight="secondary"]::part(base)` ink override in `STYLES`
+ *   — HA's tonal label on its own tonal fill measures 2.85:1, which is what the
+ *   `.done-btn` rule was already working around one button at a time.
+ *
+ * `tertiary` is deliberately `neutral` rather than brand: `appearance="plain"` alone
+ * paints the label in the accent colour, which is 3.26:1 on a card and makes Cancel
+ * compete with the action beside it.
+ */
+export type BtnWeight = 'primary' | 'secondary' | 'tertiary' | 'danger' | 'danger-primary';
+
+/** Attribute set per weight. `primary` is the element's own default, so it adds none. */
+const BTN_ATTRS: Record<BtnWeight, Record<string, string>> = {
+  primary: {},
+  secondary: { appearance: 'filled' },
+  tertiary: { appearance: 'plain', variant: 'neutral' },
+  danger: { appearance: 'plain', variant: 'danger' },
+  'danger-primary': { variant: 'danger' },
+};
+
+/** Every attribute any weight can set, so re-weighting clears the previous one. */
+const BTN_ATTR_NAMES = ['appearance', 'variant'] as const;
+
+/**
+ * The attributes for *weight*, as markup — `btnAttrs('tertiary')` →
+ * `appearance="plain" variant="neutral" data-hk-weight="tertiary"`.
+ *
+ * `data-hk-weight` is not decoration. It is what the tonal ink rule and the
+ * `button-weights` e2e guard select on, and it is the difference between "this button
+ * was given the primary weight" and "nobody thought about this button" — which, with
+ * `primary` spelled as the absence of attributes, are otherwise the same markup.
+ */
+export function btnAttrs(weight: BtnWeight): string {
+  const attrs = Object.entries(BTN_ATTRS[weight]).map(([k, v]) => `${k}="${v}"`);
+  attrs.push(`data-hk-weight="${weight}"`);
+  return attrs.join(' ');
+}
+
+/**
+ * Apply *weight* to an already-created `ha-button`, for the call sites that build
+ * their buttons with `createElement` rather than a template string. Idempotent:
+ * clears the attributes the new weight does not set, so a button can be re-weighted.
+ */
+export function setBtnWeight(el: Element, weight: BtnWeight): void {
+  const attrs = BTN_ATTRS[weight];
+  for (const name of BTN_ATTR_NAMES) {
+    if (name in attrs) el.setAttribute(name, attrs[name]);
+    else el.removeAttribute(name);
+  }
+  el.setAttribute('data-hk-weight', weight);
+}
+
 /**
  * A random UUID-v4 string for client-minted ids (document ids, working-copy entries).
  *
