@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Hodiny",
-          "description": "O kolik hodin úkol odložit (výchozí 24). Vynechte, pokud zadáte Do kdy."
+          "description": "O kolik hodin úkol odložit (výchozí 24). Ignoruje se, když je zadáno Do kdy."
         },
         "until": {
           "name": "Do kdy",
-          "description": "Odloží úkol na přesně toto datum a čas místo počtu hodin. Zadejte buď toto, nebo Hodiny, ne obojí."
+          "description": "Odloží úkol na přesně toto datum a čas místo počtu hodin. Když jej zadáte, pole Hodiny se nepoužije."
         },
         "origin": {
           "name": "Původ",

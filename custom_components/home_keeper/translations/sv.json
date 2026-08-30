@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Timmar",
-          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24). Utelämna om du anger Till."
+          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24). Ignoreras när Till är angivet."
         },
         "until": {
           "name": "Till",
-          "description": "Skjuter upp uppgiften till exakt detta datum och klockslag i stället för ett antal timmar. Ange antingen detta eller Timmar, inte båda."
+          "description": "Skjuter upp uppgiften till exakt detta datum och klockslag i stället för ett antal timmar. Anger du den används inte fältet Timmar."
         },
         "origin": {
           "name": "Ursprung",

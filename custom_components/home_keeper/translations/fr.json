@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Heures",
-          "description": "De combien d'heures reporter la tâche (24 par défaut). À omettre si vous renseignez Jusqu'à."
+          "description": "De combien d'heures reporter la tâche (24 par défaut). Ignoré si Jusqu'à est renseigné."
         },
         "until": {
           "name": "Jusqu'à",
-          "description": "Reporte la tâche à cette date et heure précises plutôt que d'un nombre d'heures. Renseignez ceci ou Heures, pas les deux."
+          "description": "Reporte la tâche à cette date et heure précises plutôt que d'un nombre d'heures. Si vous le renseignez, le champ Heures n'est pas utilisé."
         },
         "origin": {
           "name": "Origine",

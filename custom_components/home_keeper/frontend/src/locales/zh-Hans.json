@@ -496,7 +496,7 @@
   "settings.retention_summary.one": "已完成的一次性任务将在 {n} 天后删除",
   "settings.sync_on_excluding.one": "问题传感器已同步，{n} 项排除",
   "settings.skipsnooze_heading": "跳过与延后",
-  "settings.skipsnooze_help": "延后会把任务的到期日往后推，但不记录已完成；跳过会把它推进到下一次，并把跳过与完成分开记录。关闭其中一项，它就不再出现在面板和通知按钮中。home_keeper.snooze_task 和 skip_task 服务照常可用，因此自动化不受影响。即使关闭，故障传感器任务仍会提供“延后”，因为没有别的办法让这类提醒继续推进。",
+  "settings.skipsnooze_help": "延后会把任务的到期日往后推，但不记录已完成。跳过会把它推进到下一次，并把跳过与完成分开记录。关闭其中一项，它就不再出现在面板和通知按钮中。home_keeper.snooze_task 和 skip_task 服务照常可用，因此自动化不受影响。即使关闭，故障传感器任务仍会提供“延后”，因为没有别的办法让这类提醒继续推进。",
   "settings.allow_snooze": "允许延后",
   "settings.allow_snooze_help": "在任务上提供“延后”，并允许通知带上“延后”按钮。",
   "settings.allow_skip": "允许跳过",

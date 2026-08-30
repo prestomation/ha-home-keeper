@@ -640,7 +640,7 @@ snooze_task:
         text:
     hours:
       name: Hours
-      description: How many hours to defer the task (defaults to 24). Leave out if you set Until.
+      description: How many hours to defer the task (defaults to 24). Ignored when Until is set.
       selector:
         number:
           min: 1
@@ -653,7 +653,7 @@ snooze_task:
       description: >-
         Defer the task to this exact date and time instead of a number of hours. Use
         it for a target a whole number of hours cannot name, such as next Tuesday
-        morning. Set either this or Hours, not both.
+        morning. Setting this leaves Hours unused.
       selector:
         datetime:
     origin:

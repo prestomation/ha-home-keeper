@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Tunnit",
-          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24). Jätä pois, jos asetat Mihin asti."
+          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24). Ohitetaan, kun Mihin asti on asetettu."
         },
         "until": {
           "name": "Mihin asti",
-          "description": "Lykkää tehtävän tarkalleen tähän päivämäärään ja kellonaikaan tuntimäärän sijaan. Aseta joko tämä tai Tunnit, ei molempia."
+          "description": "Lykkää tehtävän tarkalleen tähän päivämäärään ja kellonaikaan tuntimäärän sijaan. Kun tämä on asetettu, Tunnit-kenttää ei käytetä."
         },
         "origin": {
           "name": "Alkuperä",

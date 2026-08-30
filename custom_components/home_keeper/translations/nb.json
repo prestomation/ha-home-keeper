@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Timer",
-          "description": "Hvor mange timer oppgaven skal utsettes (standard 24). Utelat den hvis du angir Til."
+          "description": "Hvor mange timer oppgaven skal utsettes (standard 24). Ignoreres når Til er angitt."
         },
         "until": {
           "name": "Til",
-          "description": "Utsetter oppgaven til nøyaktig denne datoen og dette klokkeslettet i stedet for et antall timer. Angi enten denne eller Timer, ikke begge."
+          "description": "Utsetter oppgaven til nøyaktig denne datoen og dette klokkeslettet i stedet for et antall timer. Angir du den, brukes ikke feltet Timer."
         },
         "origin": {
           "name": "Opprinnelse",

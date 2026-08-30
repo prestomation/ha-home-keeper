@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Hours",
-          "description": "How many hours to defer the task (defaults to 24). Leave out if you set Until."
+          "description": "How many hours to defer the task (defaults to 24). Ignored when Until is set."
         },
         "until": {
           "name": "Until",
-          "description": "Defer the task to this exact date and time instead of a number of hours. Set either this or Hours, not both."
+          "description": "Defer the task to this exact date and time instead of a number of hours. Setting this leaves Hours unused."
         },
         "origin": {
           "name": "Origin",

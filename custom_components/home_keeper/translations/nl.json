@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Uren",
-          "description": "Hoeveel uur de taak wordt uitgesteld (standaard 24). Laat dit weg als je Tot invult."
+          "description": "Hoeveel uur de taak wordt uitgesteld (standaard 24). Genegeerd als Tot is ingevuld."
         },
         "until": {
           "name": "Tot",
-          "description": "Stelt de taak uit tot precies deze datum en tijd in plaats van een aantal uren. Vul dit of Uren in, niet allebei."
+          "description": "Stelt de taak uit tot precies deze datum en tijd in plaats van een aantal uren. Vul je dit in, dan wordt het veld Uren niet gebruikt."
         },
         "origin": {
           "name": "Oorsprong",

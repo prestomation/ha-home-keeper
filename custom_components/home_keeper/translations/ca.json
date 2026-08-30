@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Hores",
-          "description": "Quantes hores s'ha d'ajornar la tasca (per defecte 24). Ometeu-ho si indiqueu Fins a."
+          "description": "Quantes hores s'ha d'ajornar la tasca (per defecte 24). S'ignora si s'indica Fins a."
         },
         "until": {
           "name": "Fins a",
-          "description": "Ajorna la tasca fins a aquesta data i hora exactes en lloc d'un nombre d'hores. Indiqueu això o bé Hores, no ambdues coses."
+          "description": "Ajorna la tasca fins a aquesta data i hora exactes en lloc d'un nombre d'hores. Si l'indiqueu, el camp Hores no s'utilitza."
         },
         "origin": {
           "name": "Origen",

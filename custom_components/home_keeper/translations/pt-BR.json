@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Horas",
-          "description": "Quantas horas adiar a tarefa (padrão 24). Deixe de fora se você definir Até."
+          "description": "Quantas horas adiar a tarefa (padrão 24). Ignorado quando Até está definido."
         },
         "until": {
           "name": "Até",
-          "description": "Adia a tarefa para exatamente esta data e hora em vez de um número de horas. Defina isto ou Horas, não os dois."
+          "description": "Adia a tarefa para exatamente esta data e hora em vez de um número de horas. Se você definir isto, o campo Horas não é usado."
         },
         "origin": {
           "name": "Origem",

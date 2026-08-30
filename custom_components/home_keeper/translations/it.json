@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Ore",
-          "description": "Di quante ore rinviare l'attività (24 come predefinito). Ometti se imposti Fino a."
+          "description": "Di quante ore rinviare l'attività (24 come predefinito). Ignorato se è impostato Fino a."
         },
         "until": {
           "name": "Fino a",
-          "description": "Rinvia l'attività a questa data e ora esatte anziché di un numero di ore. Imposta questo oppure Ore, non entrambi."
+          "description": "Rinvia l'attività a questa data e ora esatte anziché di un numero di ore. Se lo imposti, il campo Ore non viene usato."
         },
         "origin": {
           "name": "Origine",

@@ -248,9 +248,9 @@ history.
 ## Snooze and skip
 
 Not every occurrence gets done on time, and not every one needs doing at all. **Done**
-carries a caret that opens the other two answers: **Snooze**, which pushes the due date
-out and leaves the schedule alone, and **Skip**, which advances the task to its next
-occurrence and records that this one went by.
+carries a caret that opens the other two answers. **Snooze** pushes the due date out and
+leaves the schedule alone. **Skip** advances the task to its next occurrence and records
+that this one went by.
 
 **Use case.** You were away all month and the water filter does not need changing yet.
 Skip this occurrence with a note saying why. The next one is due a month from today.

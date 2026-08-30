@@ -325,11 +325,11 @@
         },
         "hours": {
           "name": "Stunden",
-          "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard 24). Weglassen, wenn Bis gesetzt ist."
+          "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard 24). Wird ignoriert, wenn Bis gesetzt ist."
         },
         "until": {
           "name": "Bis",
-          "description": "Verschiebt die Aufgabe auf genau dieses Datum und diese Uhrzeit statt um eine Stundenzahl. Entweder dies oder Stunden angeben, nicht beides."
+          "description": "Verschiebt die Aufgabe auf genau dieses Datum und diese Uhrzeit statt um eine Stundenzahl. Wird es gesetzt, bleibt Stunden ungenutzt."
         },
         "origin": {
           "name": "Ursprung",
