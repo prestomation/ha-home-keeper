@@ -701,6 +701,8 @@ HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
 
 OPTIONS: tuple[OptionSpec, ...] = (
     OptionSpec(const.OPTION_SYNC_PROBLEM_SENSORS, in_flow=True),
+    OptionSpec(const.OPTION_ALLOW_SNOOZE, in_flow=False),
+    OptionSpec(const.OPTION_ALLOW_SKIP, in_flow=False),
     OptionSpec(const.OPTION_ONE_OFF_RETENTION_DAYS, in_flow=True),
     OptionSpec(const.OPTION_SHOPPING_LIST_ENTITY, in_flow=True),
     OptionSpec(const.OPTION_PROFILES, in_flow=False),

@@ -167,6 +167,17 @@ OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS = "problem_sensor_exclude_labels"
 # (the default) keeps completed one-offs forever; ``N > 0`` purges them once
 # ``last_completed + N days`` has passed, via the coordinator's periodic refresh.
 OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
+# Whether Home Keeper *offers* Snooze and Skip. Both default **on**: they are
+# long-standing verbs, and defaulting them off would hide a feature people already
+# struggle to find (#268). Turning one off withdraws it from the surfaces Home Keeper
+# controls — the panel's task actions and a notification's button set — but never from
+# ``home_keeper.snooze_task`` / ``skip_task``. Services are the interoperability
+# contract, and silently breaking an automation someone already wrote is not a setting.
+# One documented exception: ``notifications.actions_for`` still forces Snooze onto a
+# completion-blocked task, because a notification walk only advances on a successful
+# action and such a task can be neither completed nor skipped (#248).
+OPTION_ALLOW_SNOOZE = "allow_snooze"  # bool, default True
+OPTION_ALLOW_SKIP = "allow_skip"  # bool, default True
 # Catalog glue domains the user dismissed from the Settings → Companions
 # "Suggested" list. A list of domain strings; dismissing only silences a
 # *suggestion* (a connected pairing is always shown). See companions.py.

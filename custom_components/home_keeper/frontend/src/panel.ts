@@ -34,6 +34,8 @@ import {
   profileSchema,
   profileSyncSchema,
   shoppingSchema,
+  skipSnoozeFlags,
+  skipSnoozeSchema,
   toProfileSync,
   selDevice,
   selIcon,
@@ -5544,6 +5546,18 @@ export class HomeKeeperPanel extends HTMLElement {
         mark: dot(opts?.sync_problem_sensors ? 'on' : 'off'),
       },
       {
+        key: 'skipsnooze',
+        card: 'hk-settings-skipsnooze',
+        // Both switches default on, so the dot is green unless one has been turned
+        // off — the state worth spotting from the rail is a *withdrawn* verb.
+        label: t('settings.skipsnooze_heading'),
+        mark: dot(
+          skipSnoozeFlags(opts ?? {}).allowSnooze && skipSnoozeFlags(opts ?? {}).allowSkip
+            ? 'on'
+            : 'off',
+        ),
+      },
+      {
         key: 'profiles',
         card: 'hk-profiles',
         label: t('notify.profiles_heading'),
@@ -5660,14 +5674,19 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /** Render the Settings tab — `ha-form` mirrors of the options flow that autosave
-   *  each change (the backend reloads + re-runs the problem sync). Three cards: a
+   *  each change (the backend reloads + re-runs the problem sync). Four cards: a
    *  **General** card for settings (like one-off retention) that aren't tied to any
-   *  single feature, the **Shopping list** mirror, and problem-sensor sync. The two
-   *  feature cards each carry a paragraph, because both do something to the user's
-   *  data they should read about before switching it on. */
+   *  single feature, the **Shopping list** sync, problem-sensor sync, and the
+   *  **Skip & snooze** switches. The feature cards each carry a paragraph, because
+   *  each does something to the user's data they should read about first. */
   private _renderSettingsForm(host: HTMLElement): void {
     const opts: HomeKeeperOptions = this._options ?? {
       sync_problem_sensors: false,
+      // Both default on: see forms.skipSnoozeFlags. This fallback object stands in
+      // for options that haven't loaded yet, so it must agree with the backend's
+      // defaults or the switches would flicker off on first paint.
+      allow_snooze: true,
+      allow_skip: true,
       problem_sensor_exclude_entities: [],
       problem_sensor_exclude_devices: [],
       problem_sensor_exclude_areas: [],
@@ -5719,6 +5738,16 @@ export class HomeKeeperPanel extends HTMLElement {
           labelKey: 'settings.exclusions',
           noteKey: 'settings.exclusions_note',
         },
+      ),
+    );
+    // Skip & snooze — whether the two deferral verbs are offered at all.
+    host.appendChild(
+      this._settingsCard(
+        'hk-settings-skipsnooze',
+        'settings.skipsnooze_heading',
+        'settings.skipsnooze_help',
+        skipSnoozeSchema(),
+        opts,
       ),
     );
   }
@@ -5805,6 +5834,13 @@ export class HomeKeeperPanel extends HTMLElement {
    * the controls below it. Returns '' where a card has nothing worth restating.
    */
   private _settingsSummary(id: string, opts: HomeKeeperOptions): string {
+    if (id === 'hk-settings-skipsnooze') {
+      const { allowSnooze, allowSkip } = skipSnoozeFlags(opts);
+      if (allowSnooze && allowSkip) return t('settings.skipsnooze_both');
+      if (allowSnooze) return t('settings.skipsnooze_snooze_only');
+      if (allowSkip) return t('settings.skipsnooze_skip_only');
+      return t('settings.skipsnooze_neither');
+    }
     if (id === 'hk-settings-general') {
       const days = Number(opts.one_off_retention_days) || 0;
       return days > 0 ? tn('settings.retention_summary', days) : t('settings.retention_forever');

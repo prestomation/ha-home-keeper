@@ -488,5 +488,15 @@
   "tasks.intro.title": "Us donem la benvinguda a Home Keeper",
   "tasks.noMatch": "Cap tasca coincideix amb aquest filtre.",
   "settings.retention_summary.many": "Les tasques úniques completades s’esborren després de {n} dies",
-  "settings.sync_on_excluding.many": "Sensors de problema reflectits, {n} exclusions"
+  "settings.sync_on_excluding.many": "Sensors de problema reflectits, {n} exclusions",
+  "settings.skipsnooze_heading": "Ometre i posposar",
+  "settings.skipsnooze_help": "Posposar allunya la data de venciment d'una tasca sense registrar que s'ha fet; ometre l'avança a la pròxima ocurrència i registra l'omissió a part de les realitzacions. Desactivar-ne una la treu del tauler i dels botons de notificació. Els serveis home_keeper.snooze_task i skip_task continuen funcionant igualment, de manera que les automatitzacions no es veuen afectades. Una tasca de sensor de problema continua oferint Posposa encara que estigui desactivat, perquè res més no pot fer avançar aquest recordatori.",
+  "settings.allow_snooze": "Permet posposar",
+  "settings.allow_snooze_help": "Ofereix Posposa en una tasca i permet que una notificació porti un botó Posposa.",
+  "settings.allow_skip": "Permet ometre",
+  "settings.allow_skip_help": "Ofereix Omet en una tasca i permet que una notificació porti un botó Omet.",
+  "settings.skipsnooze_both": "Posposar i ometre estan disponibles",
+  "settings.skipsnooze_snooze_only": "Només posposar està disponible",
+  "settings.skipsnooze_skip_only": "Només ometre està disponible",
+  "settings.skipsnooze_neither": "Ni posposar ni ometre estan disponibles"
 }

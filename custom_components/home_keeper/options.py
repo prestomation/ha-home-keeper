@@ -28,6 +28,8 @@ from typing import TYPE_CHECKING, Any
 
 from . import notifications, profiles, shopping
 from .const import (
+    OPTION_ALLOW_SKIP,
+    OPTION_ALLOW_SNOOZE,
     OPTION_DISMISSED_COMPANIONS,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
@@ -44,8 +46,7 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
-# The exclusion options (and the dismissed-companions list) are id/domain lists;
-# the sync toggle is the only boolean.
+# The exclusion options (and the dismissed-companions list) are id/domain lists.
 _LIST_OPTIONS = (
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
@@ -54,18 +55,34 @@ _LIST_OPTIONS = (
     OPTION_DISMISSED_COMPANIONS,
 )
 
+# The plain on/off options. ``_normalize`` coerces each with ``bool()`` when a
+# submission carries it, so they share one branch rather than accumulating an ``if``
+# apiece. Note their *defaults* differ (see ``_empty_options``): problem-sensor syncing
+# is opt-in, while snooze and skip are on until someone turns them off.
+_BOOL_OPTIONS = (
+    OPTION_SYNC_PROBLEM_SENSORS,
+    OPTION_ALLOW_SNOOZE,
+    OPTION_ALLOW_SKIP,
+)
+
 
 def _empty_options() -> dict[str, Any]:
-    """Every option key at its default: toggle off, lists empty, pickers cleared.
+    """Every option key at its default: lists empty, pickers cleared.
 
     The single definition of *which keys exist* and *what each looks like holding
     nothing*. ``current_options`` builds on it and ``merge_flow_input`` resets a
     cleared form field to its entry here, so a default and a "cleared" value can
     never disagree. Returns a fresh dict each call — the list values are handed out
     to callers.
+
+    "Nothing" is not always ``False``. ``allow_snooze`` / ``allow_skip`` default to
+    **True**, so a document written before they existed — every existing install —
+    reads back with both verbs available, which is what those installs already have.
     """
     return {
         OPTION_SYNC_PROBLEM_SENSORS: False,
+        OPTION_ALLOW_SNOOZE: True,
+        OPTION_ALLOW_SKIP: True,
         OPTION_ONE_OFF_RETENTION_DAYS: 0,
         OPTION_SHOPPING_LIST_ENTITY: "",
         OPTION_PROFILES: [],
@@ -136,7 +153,7 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
     because the value can arrive from a form, a service call or an automation, none of
     which is obliged to send the stored shape:
 
-    - **the sync toggle** — anything truthy becomes a real ``bool``
+    - **the on/off toggles** — anything truthy becomes a real ``bool``
     - **retention days** — a ``NumberSelector`` sends a float, garbage becomes ``0``
     - **the shopping target** — anything unusable collapses to ``""``, the off switch
     - **profiles / notifications** — their own normalizers fill in per-item defaults
@@ -148,8 +165,9 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
     update partial.
     """
     merged = dict(base)
-    if OPTION_SYNC_PROBLEM_SENSORS in updates:
-        merged[OPTION_SYNC_PROBLEM_SENSORS] = bool(updates[OPTION_SYNC_PROBLEM_SENSORS])
+    for key in _BOOL_OPTIONS:
+        if key in updates:
+            merged[key] = bool(updates[key])
     if OPTION_ONE_OFF_RETENTION_DAYS in updates:
         merged[OPTION_ONE_OFF_RETENTION_DAYS] = _coerce_days(
             updates[OPTION_ONE_OFF_RETENTION_DAYS]

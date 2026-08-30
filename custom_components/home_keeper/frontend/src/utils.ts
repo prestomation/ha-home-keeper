@@ -579,6 +579,7 @@ export const SETTINGS_SECTIONS = [
   'general',
   'shopping',
   'problem',
+  'skipsnooze',
   'profiles',
   'notifications',
   'companions',

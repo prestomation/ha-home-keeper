@@ -248,30 +248,54 @@ def is_completion_blocked(task: dict[str, Any]) -> bool:
     return isinstance(managed_by, dict) and bool(managed_by.get("completion_blocked"))
 
 
-def actions_for(task: dict[str, Any], actions: list[str]) -> list[str]:
+def actions_for(
+    task: dict[str, Any],
+    actions: list[str],
+    *,
+    allow_snooze: bool = True,
+    allow_skip: bool = True,
+) -> list[str]:
     """The subset of *actions* that can actually act on *task*, in configured order.
 
-    A completion-blocked task (today, a ``problem``-sensor mirror) rejects *Mark done*
-    and *Skip* in the store: both assert the problem is dealt with, and only the
-    originating integration can decide that. Offering buttons the store will refuse
-    is worse than offering none — ``notifier`` swallows the rejection, so the tap
-    reads as a dead button.
+    Two filters, in order. First the integration-wide switches: *allow_snooze* and
+    *allow_skip* are the ``allow_snooze`` / ``allow_skip`` options, and a verb turned
+    off there is not offered on any button set. They are passed in rather than read
+    here so this stays a pure function of its inputs — the caller
+    (:func:`build_notification`) holds the entry.
+
+    Then the per-task one. A completion-blocked task (today, a ``problem``-sensor
+    mirror) rejects *Mark done* and *Skip* in the store: both assert the problem is
+    dealt with, and only the originating integration can decide that. Offering buttons
+    the store will refuse is worse than offering none — ``notifier`` swallows the
+    rejection, so the tap reads as a dead button.
 
     *Snooze* is the one mutating verb that stays honest on such a task: it defers the
     reminder and leaves the problem standing. So it is offered here **even when the
     notification's own button set leaves it out** — a walk advances only on a
     successful action, and without Snooze one of these at the head of the queue would
     re-send forever and never reach the tasks behind it (#248).
+
+    That injection also **outranks a disabled** *allow_snooze*, the one place the
+    switch does not have the last word. The alternative is a notification with no verb
+    that can move it on, which is not "snooze is off" but "this reminder is now
+    unanswerable" — a worse outcome than one button the user asked not to see. The
+    setting's help text says so.
     """
-    if not is_completion_blocked(task):
-        return list(actions)
-    kept = [verb for verb in actions if verb in (ACTION_SNOOZE, ACTION_OPEN)]
-    if ACTION_SNOOZE not in kept:
-        # Deliberately overriding the user's button set, which is the one place this
-        # function adds rather than subtracts. `open` is a client-side URI that never
-        # calls back, so a set of only `open` (or an empty one) leaves a walk with
-        # nothing that advances it and it re-sends this task forever. One button the
-        # user did not ask for beats a notification that can never be got past.
+    blocked = is_completion_blocked(task)
+    kept = [
+        verb
+        for verb in actions
+        if (allow_snooze or verb != ACTION_SNOOZE)
+        and (allow_skip or verb != ACTION_SKIP)
+        and (not blocked or verb in (ACTION_SNOOZE, ACTION_OPEN))
+    ]
+    if blocked and ACTION_SNOOZE not in kept:
+        # Deliberately overriding both the user's button set and the allow_snooze
+        # switch — the one place this function adds rather than subtracts. `open` is a
+        # client-side URI that never calls back, so a set of only `open` (or an empty
+        # one) leaves a walk with nothing that advances it and it re-sends this task
+        # forever. One button the user did not ask for beats a notification that can
+        # never be got past.
         kept.insert(0, ACTION_SNOOZE)
     return kept
 
@@ -404,11 +428,23 @@ def build_notification(
     notification: dict[str, Any],
     now: datetime,
     lang: str = _DEFAULT_LANG,
+    allow_snooze: bool = True,
+    allow_skip: bool = True,
 ) -> dict[str, Any]:
-    """Build the ``notify`` service data for a single task in a *walk* notification."""
+    """Build the ``notify`` service data for a single task in a *walk* notification.
+
+    *allow_snooze* / *allow_skip* are the integration-wide switches; they default to
+    on so a caller that does not care about them (every test that builds one payload)
+    need not thread them through. See :func:`actions_for`.
+    """
     actions = [
         _action_button(v, task, notification, lang=lang)
-        for v in actions_for(task, notification["actions"])
+        for v in actions_for(
+            task,
+            notification["actions"],
+            allow_snooze=allow_snooze,
+            allow_skip=allow_skip,
+        )
     ]
     return {
         "title": str(task.get("name") or "Home Keeper"),

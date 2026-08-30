@@ -25,6 +25,8 @@ from homeassistant.util import dt as dt_util
 
 from . import notifications, profiles, recurrence
 from .const import (
+    OPTION_ALLOW_SKIP,
+    OPTION_ALLOW_SNOOZE,
     OPTION_NOTIFICATIONS,
     OPTION_PROFILES,
     ORIGIN_NOTIFICATION_ACTION,
@@ -130,6 +132,16 @@ def _notification_profile(
     return profiles.normalize_profile({"name": "all"}), False
 
 
+def _verb_allowed(coord: HomeKeeperCoordinator, verb: str) -> bool:
+    """Whether the ``allow_snooze`` / ``allow_skip`` switch still permits *verb*."""
+    opts = current_options(coord.entry)
+    if verb == notifications.ACTION_SNOOZE:
+        return bool(opts[OPTION_ALLOW_SNOOZE])
+    if verb == notifications.ACTION_SKIP:
+        return bool(opts[OPTION_ALLOW_SKIP])
+    return True
+
+
 async def _send_payload(
     hass: HomeAssistant, targets: list[str], payload: dict[str, Any]
 ) -> None:
@@ -148,6 +160,8 @@ async def _build_payload(
     *,
     now: datetime,
     lang: str,
+    allow_snooze: bool = True,
+    allow_skip: bool = True,
 ) -> tuple[dict[str, Any], str | None]:
     """Build the ``notify`` payload for *queue*, off the event loop.
 
@@ -176,6 +190,8 @@ async def _build_payload(
             notification=notification,
             now=now,
             lang=lang,
+            allow_snooze=allow_snooze,
+            allow_skip=allow_skip,
         )
     )
     return payload, head["id"]
@@ -212,8 +228,15 @@ async def _send(
         )
         return len(queue), None
     lang = hass.config.language
+    opts = current_options(coord.entry)
     payload, sent_id = await _build_payload(
-        hass, notification, queue, now=now, lang=lang
+        hass,
+        notification,
+        queue,
+        now=now,
+        lang=lang,
+        allow_snooze=bool(opts[OPTION_ALLOW_SNOOZE]),
+        allow_skip=bool(opts[OPTION_ALLOW_SKIP]),
     )
     await _send_payload(hass, notification["targets"], payload)
     _LOGGER.debug(
@@ -396,6 +419,14 @@ def async_setup_notifications(
                     task_id, origin=ORIGIN_NOTIFICATION_ACTION
                 )
             elif verb == notifications.ACTION_SNOOZE:
+                # A card already on someone's phone keeps whatever buttons it was
+                # built with, so a verb switched off since then can still be tapped.
+                # Ignore it the same way a stale completion tap is ignored, rather
+                # than honouring a button the setting has withdrawn. The exception in
+                # ``actions_for`` doesn't apply here: it exists so a *walk* can
+                # advance, and by this point the tap has already advanced it.
+                if not _verb_allowed(coord, notifications.ACTION_SNOOZE):
+                    return
                 hours = (
                     notification["snooze_hours"]
                     if notification
@@ -407,6 +438,8 @@ def async_setup_notifications(
                     origin=ORIGIN_NOTIFICATION_ACTION,
                 )
             elif verb == notifications.ACTION_SKIP:
+                if not _verb_allowed(coord, notifications.ACTION_SKIP):
+                    return
                 await coord.store.skip_task(task_id, origin=ORIGIN_NOTIFICATION_ACTION)
             else:  # ACTION_OPEN — the URI deep-link is handled on the device
                 return

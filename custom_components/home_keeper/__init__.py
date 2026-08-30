@@ -50,6 +50,8 @@ from .assets import AssetValidationError, card_projection
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     DOMAIN,
+    OPTION_ALLOW_SKIP,
+    OPTION_ALLOW_SNOOZE,
     OPTION_DISMISSED_COMPANIONS,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
@@ -496,6 +498,10 @@ NOTIFY_SCHEMA = vol.Schema(
 SET_OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Optional(OPTION_SYNC_PROBLEM_SENSORS): cv.boolean,
+        # Whether the panel and notification button sets offer Snooze / Skip. The
+        # services themselves stay callable either way (see const.OPTION_ALLOW_SNOOZE).
+        vol.Optional(OPTION_ALLOW_SNOOZE): cv.boolean,
+        vol.Optional(OPTION_ALLOW_SKIP): cv.boolean,
         vol.Optional(OPTION_ONE_OFF_RETENTION_DAYS): vol.All(
             vol.Coerce(int), vol.Range(min=0)
         ),

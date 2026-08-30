@@ -413,6 +413,11 @@ export interface Notification {
  *  the options flow + the `home_keeper.set_options` service). */
 export interface HomeKeeperOptions {
   sync_problem_sensors: boolean;
+  // Whether the panel offers Snooze / Skip on a task, and whether a notification's
+  // button set may include them. Both default true; the `home_keeper.*` services stay
+  // callable either way, so an existing automation is never broken by the switch.
+  allow_snooze: boolean;
+  allow_skip: boolean;
   problem_sensor_exclude_entities: string[];
   problem_sensor_exclude_devices: string[];
   problem_sensor_exclude_areas: string[];
