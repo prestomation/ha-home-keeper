@@ -145,6 +145,12 @@
     confirm the URLs weren't mangled and verify each returns HTTP 200. (In-repo
     README/docs markdown with relative `docs/images/…` paths is fine — this only bites
     PR/issue bodies set through the API.)
+    **An HTML `<img>` is not immune either, and the trigger is a character-entity
+    reference in an attribute value.** On #272 the one `<img>` whose `alt` contained
+    `&#39;` came back backtick-wrapped and fully entity-escaped, three submissions
+    running, while its two neighbours — identical but for that entity — went through
+    untouched. Write attribute text with no entities at all: reword around the
+    apostrophe rather than escaping it. Wrapping the tag in `<p>` does not help.
   - **Always visually inspect every captured screenshot before committing it.** Read
     the PNG file with the Read tool and look at the rendered image. Confirm the
     changed surface is visible and correct — dialogs show their heading and buttons,
