@@ -15,8 +15,8 @@
         "area_id": null,
         "enabled": true,
         "created": "2026-05-01T09:00:00-04:00",
-        "last_completed": "2026-08-28T20:36:21.325085-04:00",
-        "next_due": "2026-09-30T05:27:08.027235-04:00",
+        "last_completed": "2026-08-28T21:33:26.584760-04:00",
+        "next_due": "2026-09-28T21:33:26.584760-04:00",
         "completions": [
           {
             "ts": "2026-03-01T09:00:00-04:00"
@@ -37,15 +37,17 @@
           },
           {
             "ts": "2026-08-28T20:36:21.325085-04:00"
+          },
+          {
+            "ts": "2026-08-28T21:33:26.584760-04:00",
+            "note": "E2E completion dialog regression check"
           }
         ],
         "labels": [
           "home"
         ],
         "completion_detail": "optional",
-        "completion_required_fields": [],
-        "skips": [],
-        "tag_id": null
+        "completion_required_fields": []
       },
       "25f086ad-91ce-4ca4-8f05-73b443565479": {
         "id": "25f086ad-91ce-4ca4-8f05-73b443565479",
@@ -54,7 +56,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "cb91faa0d9f54ee957d30ff442754e60",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -119,11 +121,7 @@
         ],
         "labels": [
           "home"
-        ],
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "tag_id": null,
-        "require_tag_scan": false
+        ]
       },
       "acb13a18-979a-4812-8a00-2e4a426df8db": {
         "id": "acb13a18-979a-4812-8a00-2e4a426df8db",
@@ -168,9 +166,7 @@
             "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
             "entry_id": "56656a41-c3a1-4db7-9adf-d1b0fb9e0c23"
           }
-        ],
-        "tag_id": null,
-        "require_tag_scan": false
+        ]
       },
       "a5d646cc-ab00-471f-b945-73dda6080ddb": {
         "id": "a5d646cc-ab00-471f-b945-73dda6080ddb",
@@ -437,7 +433,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "cb91faa0d9f54ee957d30ff442754e60",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -550,7 +546,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "cb91faa0d9f54ee957d30ff442754e60",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "identifiers": [
           [
             "home_keeper",
@@ -710,26 +706,16 @@
             "filename": "manual.pdf",
             "content_type": "application/pdf",
             "size": 605
-          },
-          {
-            "id": "bea8bcb0-439f-4b88-936b-26dc1c4ac58f",
-            "kind": "file",
-            "created": "2026-08-30T05:50:11.480571-04:00",
-            "size": 2097168,
-            "filename": "water-heater-manual.pdf",
-            "content_type": "application/pdf",
-            "name": "water-heater-manual.pdf"
           }
         ],
         "serial_number": "RH-2021-0099823",
-        "notes": "Shut-off is the **red lever** on the cold inlet, above the tank.\n\n| Setting | Value |\n| --- | --- |\n| Thermostat | 120 °F |\n| Capacity | 50 gal |\n\nDrain the tank yearly — hose bib is at the *front left*.",
-        "archived_at": null
+        "notes": "Shut-off is the **red lever** on the cold inlet, above the tank.\n\n| Setting | Value |\n| --- | --- |\n| Thermostat | 120 °F |\n| Capacity | 50 gal |\n\nDrain the tank yearly — hose bib is at the *front left*."
       },
       "1f938cf8-c2a3-4438-aab3-840d0d749725": {
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "dab201ffd847040e96063a9e85f6ccb9",
+        "device_id": "38fc8a6288ef61807789fd638f6aebb5",
         "identifiers": [
           [
             "home_keeper",
@@ -754,7 +740,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "c3273ed26cb3695bea6cdcb1394000f4",
+        "device_id": "1d7169cdea49653c7d15595155fcfcf7",
         "identifiers": [
           [
             "home_keeper",
@@ -780,70 +766,6 @@
       "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer."
     },
     "shopping_items": {},
-    "todo_list_items": {
-      "walkthrough_family_chores:10561eb5-1ab5-4151-aa8e-5f6269a0c28a": {
-        "entity_id": "todo.family_chores",
-        "uid": "8fd2d78c-a456-11f1-afde-bed4a0d16acd",
-        "summary": "Replace furnace filter",
-        "due": "2026-08-28",
-        "last_completed": null
-      },
-      "walkthrough_family_chores:21720ccd-21e3-4171-abc7-639ec6ee00f4": {
-        "entity_id": "todo.family_chores",
-        "uid": "8fd38f74-a456-11f1-afde-bed4a0d16acd",
-        "summary": "Replace battery: Front door sensor",
-        "due": "2026-06-11",
-        "last_completed": "2025-04-02T09:00:00-04:00"
-      },
-      "walkthrough_family_chores:25f086ad-91ce-4ca4-8f05-73b443565479": {
-        "entity_id": "todo.family_chores",
-        "uid": "8fd40224-a456-11f1-afde-bed4a0d16acd",
-        "summary": "Replace Anode rod (Garage water heater)",
-        "due": "2026-05-01",
-        "last_completed": "2025-05-01T10:00:00-04:00"
-      },
-      "walkthrough_family_chores:8ad982ca-e5f9-4f53-bebd-93a05e078844": {
-        "entity_id": "todo.family_chores",
-        "uid": "8fd48596-a456-11f1-afde-bed4a0d16acd",
-        "summary": "Rex: Vet checkup",
-        "due": "2026-07-10",
-        "last_completed": "2026-01-10T09:00:00-04:00"
-      },
-      "walkthrough_family_chores:96e74181-ebe2-4b4c-97d0-781fc952924f": {
-        "entity_id": "todo.family_chores",
-        "uid": "8fd5488c-a456-11f1-afde-bed4a0d16acd",
-        "summary": "Take medicine",
-        "due": "2026-06-14",
-        "last_completed": null
-      },
-      "walkthrough_family_chores:a5d646cc-ab00-471f-b945-73dda6080ddb": {
-        "entity_id": "todo.family_chores",
-        "uid": "8fd60812-a456-11f1-afde-bed4a0d16acd",
-        "summary": "Buddy: Medicine",
-        "due": "2026-06-22",
-        "last_completed": "2026-06-08T08:00:00-04:00"
-      },
-      "walkthrough_family_chores:acb13a18-979a-4812-8a00-2e4a426df8db": {
-        "entity_id": "todo.family_chores",
-        "uid": "8fd7085c-a456-11f1-afde-bed4a0d16acd",
-        "summary": "Replace water filter",
-        "due": "2026-05-20",
-        "last_completed": "2026-04-20T12:00:00-04:00"
-      },
-      "walkthrough_family_chores:cfc844bd-e9de-4efe-84b3-5f4417d186c9": {
-        "entity_id": "todo.family_chores",
-        "uid": "8fd7ab72-a456-11f1-afde-bed4a0d16acd",
-        "summary": "Replace T&P relief valve (Garage water heater)",
-        "due": "2026-06-27",
-        "last_completed": null
-      },
-      "walkthrough_family_chores:e0eaf3f3-ab51-4a8e-a9c7-71d0c6001160": {
-        "entity_id": "todo.family_chores",
-        "uid": "8fd88010-a456-11f1-afde-bed4a0d16acd",
-        "summary": "Renew passport",
-        "due": "2026-07-15",
-        "last_completed": null
-      }
-    }
+    "todo_list_items": {}
   }
 }
