@@ -1211,6 +1211,10 @@ const STYLES = `
     color: var(--secondary-text-color);
     border-left: 1px solid var(--divider-color); border-radius: 0;
   }
+  /* The display below beats the user-agent rule for the hidden attribute, which is
+     a plain type-less one — so without this override the menu is laid out even while
+     hidden, floating over the row beneath it and swallowing its clicks. */
+  .hk-defer-menu[hidden] { display: none; }
   .hk-defer-menu {
     position: absolute; top: calc(100% + 6px); left: 0; z-index: 9;
     min-width: 220px; padding: 6px;

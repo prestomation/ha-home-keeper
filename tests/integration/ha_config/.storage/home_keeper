@@ -16,7 +16,7 @@
         "enabled": true,
         "created": "2026-05-01T09:00:00-04:00",
         "last_completed": "2026-08-28T20:36:21.325085-04:00",
-        "next_due": "2026-09-30T05:21:43.349573-04:00",
+        "next_due": "2026-09-30T05:27:08.027235-04:00",
         "completions": [
           {
             "ts": "2026-03-01T09:00:00-04:00"
@@ -538,30 +538,6 @@
         "interval": 3,
         "unit": "months",
         "next_due": "2026-08-28T20:36:48.461809-04:00"
-      },
-      "bd36d02d-293e-48cb-89bd-139e9dbbc933": {
-        "id": "bd36d02d-293e-48cb-89bd-139e9dbbc933",
-        "created": "2026-08-30T05:24:47.994800-04:00",
-        "last_completed": null,
-        "completions": [],
-        "skips": [],
-        "source": null,
-        "managed_by": null,
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "E2E one-off probe",
-        "notes": "",
-        "recurrence_type": "one-off",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "due": "2026-08-30T09:24:47+00:00",
-        "next_due": "2026-08-30T09:24:47+00:00"
       }
     },
     "assets": {

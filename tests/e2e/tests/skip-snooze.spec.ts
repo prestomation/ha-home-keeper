@@ -41,6 +41,46 @@ test.describe('Home Keeper panel — snooze and skip', { tag: '@responsive' }, (
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
+  test('the closed menu takes up no space and swallows no clicks', async ({ page }) => {
+    // A regression guard with teeth. `.hk-defer-menu` sets `display: flex`, which
+    // beats the user-agent rule for the hidden attribute — so without an explicit
+    // override the menu renders while "hidden", floats over the row beneath it and
+    // intercepts that row's Done button. The unit test cannot see this: it asserts
+    // the `hidden` property, and jsdom does no layout.
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    const menu = panel.locator('.hk-defer-menu').first();
+    await expect(menu).toBeAttached();
+    await expect(menu).toBeHidden();
+    await expect(menu).toHaveCSS('display', 'none');
+
+    // The real symptom: every Done in the list stays clickable.
+    const dones = panel.locator('.done-btn');
+    const count = await dones.count();
+    expect(count).toBeGreaterThan(1);
+    for (let i = 0; i < count; i += 1) {
+      const box = await dones.nth(i).boundingBox();
+      if (!box) continue;
+      const topmost = await page.evaluate(
+        ([x, y]) => {
+          const el = document.elementFromPoint(x as number, y as number);
+          const path = el?.shadowRoot ? [el] : [el];
+          // Walk into shadow roots so the check names the real hit target.
+          let node: Element | null = el;
+          while (node?.shadowRoot) {
+            const inner = node.shadowRoot.elementFromPoint(x as number, y as number);
+            if (!inner || inner === node) break;
+            node = inner;
+            path.push(node);
+          }
+          return path.map((n) => n?.className || n?.tagName || '').join(' ');
+        },
+        [box.x + box.width / 2, box.y + box.height / 2],
+      );
+      expect(topmost).not.toContain('hk-defer');
+    }
+  });
+
   test('Escape closes the menu without acting', async ({ page }) => {
     const panel = await gotoPanel(page, `/tasks/${TASK.waterFilter}`);
 
