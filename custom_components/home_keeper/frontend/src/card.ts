@@ -24,6 +24,17 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
+import type { DeferDialogHost, SkipState, SnoozeState } from './defer';
+import {
+  DeferMenus,
+  deferSplit,
+  deferVerbs,
+  emptySkipState,
+  emptySnoozeState,
+  renderSkipDialog,
+  renderSnoozeDialog,
+} from './defer';
+import { makeForm } from './dialogs';
 import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
@@ -211,6 +222,54 @@ const STYLES = `
   ha-icon-button.hk-done { color: var(--primary-color); flex: none; }
   /* A completion-blocked task's mark-done looks inert but stays tappable to explain. */
   ha-icon-button.hk-done.blocked { color: var(--disabled-text-color); }
+
+  /* Snooze and skip, behind a caret on Done — the same control as the panel's, drawn
+     for a dense row: the card's Done is an icon button rather than a filled pill, so
+     there is no surface to divide and the caret is simply a narrower sibling. */
+  .hk-split { position: relative; display: inline-flex; align-items: center; flex: none; }
+  button.hk-row-caret {
+    height: 32px; width: 26px; padding: 0; margin-left: -4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-radius: 8px;
+    background: transparent; color: var(--secondary-text-color);
+    cursor: pointer;
+    --mdc-icon-size: 18px;
+  }
+  button.hk-row-caret:hover {
+    background: var(--secondary-background-color);
+    color: var(--primary-text-color);
+  }
+  button.hk-row-caret:focus-visible {
+    outline: 2px solid var(--primary-color); outline-offset: -2px;
+  }
+  /* The display below beats the user-agent rule for the hidden attribute, which is a
+     plain type-less one — so without this override the menu is laid out even while
+     hidden, floating over the row beneath it and swallowing its clicks. */
+  .hk-defer-menu[hidden] { display: none; }
+  .hk-defer-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 9;
+    min-width: 220px; padding: 6px;
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  }
+  .hk-defer-menu button {
+    display: flex; align-items: flex-start; gap: 10px; width: 100%;
+    padding: 9px 10px; border: 0; border-radius: 6px;
+    background: transparent; color: var(--primary-text-color);
+    font: inherit; text-align: left; cursor: pointer;
+  }
+  .hk-defer-menu button:hover { background: var(--secondary-background-color); }
+  .hk-defer-menu button:focus-visible {
+    outline: 2px solid var(--primary-color); outline-offset: -2px;
+  }
+  .hk-defer-menu ha-icon { flex: none; color: var(--secondary-text-color); }
+  .hk-defer-text { display: flex; flex-direction: column; min-width: 0; }
+  /* The verbs are not self-explanatory — which is what #268 was about — so each
+     carries one line saying what it does to the schedule. */
+  .hk-defer-sub { color: var(--secondary-text-color); font-size: 0.82em; }
+  .hk-snooze-hint { color: var(--secondary-text-color); font-size: 0.9em; margin: 8px 0 0; }
   .hk-loading { display: flex; justify-content: center; padding: 32px 0; }
   .hk-empty { padding: 16px; }
   .hk-more {
@@ -259,6 +318,35 @@ interface DocumentChip {
 
 export class HomeKeeperCard extends HTMLElement {
   private _hass?: Hass;
+  /** The integration's options, for the skip/snooze switches. Both default on, so
+   *  an empty object until the first load reads as "offer both" rather than
+   *  flickering the caret in once the fetch lands. */
+  private _options: { allow_snooze?: unknown; allow_skip?: unknown } = {};
+  private _snooze: SnoozeState = emptySnoozeState();
+  private _skip: SkipState = emptySkipState();
+
+  /** What the shared Snooze/Skip dialogs need from this host. The card keeps no
+   *  live-form registry, so `makeForm` is passed straight through. */
+  private readonly _deferHost: DeferDialogHost = {
+    hass: () => this._hass,
+    lang: () => this._hass?.language,
+    makeForm: (schema, data, onChange) =>
+      makeForm(this._hass, schema, data, onChange, (form) => this._liveHassEls.push(form)),
+    rerender: () => this._render(),
+    refresh: () => this._refresh(),
+  };
+
+  private readonly _deferMenus = new DeferMenus({
+    taskById: (id) => this._tasks.find((x) => x.id === id),
+    onSnooze: (task) => {
+      this._snooze = { ...emptySnoozeState(), open: true, task };
+      this._render();
+    },
+    onSkip: (task) => {
+      this._skip = { ...emptySkipState(), open: true, task };
+      this._render();
+    },
+  });
   private _config: HomeKeeperCardConfig = { type: '' };
   private _tasks: Task[] = [];
   private _profiles: Profile[] = [];
@@ -449,6 +537,10 @@ export class HomeKeeperCard extends HTMLElement {
     this._refreshing = true;
     try {
       this._tasks = await api.getTasks(this._hass);
+      // The skip/snooze switches. Best-effort and non-fatal: the card is not
+      // admin-only, and if this ever fails both verbs stay at their default (on)
+      // rather than the caret silently vanishing from every row.
+      this._options = (await api.getOptions(this._hass).catch(() => null))?.options ?? this._options;
       // Profiles are only needed when the card filters by one; fetch best-effort.
       if (this._config.profile) {
         this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
@@ -626,6 +718,9 @@ export class HomeKeeperCard extends HTMLElement {
     // so the card reappears as soon as a task matches again.
     this.style.display = this._loaded && this._isHiddenEmpty(this._visibleCount()) ? 'none' : '';
     this._ensureMarkdown();
+    // The open menu's element is about to be thrown away with the rest of the
+    // markup; closing first is what unbinds its document-level dismiss handlers.
+    this._deferMenus.close();
     this._liveHassEls = [];
     const title = this._config.title ?? t('tab.tasks');
     const showAdd = this._config.show_add !== false;
@@ -890,8 +985,18 @@ export class HomeKeeperCard extends HTMLElement {
           ${notes}
           <div class="hk-chips">${statusChip}${areaChip}${tagChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
         </div>
-        ${done}
+        ${this._deferSplit(task, done)}
       </div>`;
+  }
+
+  /**
+   * Wrap the row's Done in the deferral split, when the task has a verb to offer.
+   *
+   * The card's Done is a dense icon button rather than the panel's pill, so the
+   * caret is asked to match it — `hk-row-caret` is what sizes it down.
+   */
+  private _deferSplit(task: Task, done: string): string {
+    return deferSplit(task, done, deferVerbs(task, this._options), 'hk-split-caret hk-row-caret');
   }
 
   // ── hydration ─────────────────────────────────────────────────────────────
@@ -922,6 +1027,20 @@ export class HomeKeeperCard extends HTMLElement {
         else void this._complete(task);
       });
     });
+
+    this._deferMenus.wire(root);
+    if (host && this._snooze.open) {
+      renderSnoozeDialog(this._deferHost, this._snooze, host, () => {
+        this._snooze = emptySnoozeState();
+        this._render();
+      });
+    }
+    if (host && this._skip.open) {
+      renderSkipDialog(this._deferHost, this._skip, host, () => {
+        this._skip = emptySkipState();
+        this._render();
+      });
+    }
 
     root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
       d.addEventListener('toggle', () => {

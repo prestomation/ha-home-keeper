@@ -87,11 +87,14 @@ export function deferSplit(
   caretClass = 'hk-split-caret',
 ): string {
   if (!doneBtn || (!verbs.snooze && !verbs.skip)) return doneBtn;
+  // A native button, not ha-icon-button. The latter renders its own nested ha-button,
+  // which sizes itself and ignores the size custom property — so the caret could not
+  // be matched to the height of the pill it is supposed to be part of.
   return (
     `<span class="hk-split" data-id="${escapeHTML(task.id)}">${doneBtn}` +
-    `<ha-icon-button class="${caretClass}" aria-haspopup="menu" aria-expanded="false" ` +
-    `label="${escapeHTML(t('defer.more'))}" title="${escapeHTML(t('defer.more'))}">` +
-    `<ha-icon icon="mdi:chevron-down"></ha-icon></ha-icon-button>` +
+    `<button type="button" class="${caretClass}" aria-haspopup="menu" aria-expanded="false" ` +
+    `aria-label="${escapeHTML(t('defer.more'))}" title="${escapeHTML(t('defer.more'))}">` +
+    `<ha-icon icon="mdi:chevron-down"></ha-icon></button>` +
     `<div class="hk-defer-menu" role="menu" hidden>${deferMenuItems(verbs)}</div></span>`
   );
 }

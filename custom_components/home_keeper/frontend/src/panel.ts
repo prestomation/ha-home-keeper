@@ -1223,29 +1223,34 @@ const STYLES = `
      in the same accent is all that separates them. Done still never changes meaning
      or costs an extra tap.
 
-     Done carries the secondary weight, which is appearance="filled", so the fill is
-     what the two halves have to share: the wrapper paints it and the caret sits on
-     it, leaving Done's own filled part to cover the left half in the same colour.
-     Done also gives up its radius and its ring for as long as it is inside a split —
-     otherwise its outline draws a second pill around the left half and the seam
-     doubles. A Done button outside a split keeps both from the rule above, which is
-     every task the caret does not apply to.
+     Done carries the secondary weight, which is appearance="filled", so the caret
+     paints the same fill, squares off the side that meets Done, and Done squares off
+     the side that meets the caret. A Done button outside a split keeps its full pill
+     from the rule above, which is every task the caret does not apply to.
+
+     The height is 40px and the alignment is flex-start because ha-button paints a
+     40px pill inside a 48px box, with the slack at the bottom. Stretching the caret
+     to the box — or painting the wrapper — makes the pair stand 8px taller than the
+     Edit button beside it, which is exactly how the first cut read as wrong.
 
      The divider is white at low alpha rather than a theme line, because it separates
      two halves of one accent fill; a solid line would read as a gap between them. */
-  .hk-split {
-    position: relative; display: inline-flex; align-items: stretch;
-    background: var(--primary-color);
-    border-radius: var(--hk-r-pill);
-  }
+  .hk-split { position: relative; display: inline-flex; align-items: flex-start; }
   .hk-split .done-btn { --ha-button-border-radius: var(--hk-r-pill) 0 0 var(--hk-r-pill); }
   .hk-split .done-btn::part(base) { box-shadow: none; }
-  .hk-split ha-icon-button.hk-split-caret {
-    --mdc-icon-button-size: 40px;
-    align-self: stretch; width: 40px;
-    color: var(--text-primary-color, #fff);
-    border-left: 1px solid rgba(255, 255, 255, 0.32);
+  button.hk-split-caret {
+    height: 40px; width: 34px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-left: 1px solid rgba(255, 255, 255, 0.32);
     border-radius: 0 var(--hk-r-pill) var(--hk-r-pill) 0;
+    background: var(--primary-color);
+    color: var(--text-primary-color, #fff);
+    cursor: pointer;
+    --mdc-icon-size: 20px;
+  }
+  button.hk-split-caret:hover { filter: brightness(1.08); }
+  button.hk-split-caret:focus-visible {
+    outline: 2px solid var(--primary-text-color); outline-offset: 2px;
   }
   /* The display below beats the user-agent rule for the hidden attribute, which is
      a plain type-less one — so without this override the menu is laid out even while
