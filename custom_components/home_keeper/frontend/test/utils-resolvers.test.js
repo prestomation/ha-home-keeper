@@ -3,6 +3,7 @@ import {
   areaName,
   brandLogoUrl,
   deviceDomain,
+  deviceKnown,
   deviceName,
   isArmedTriggered,
   isHttpUrl,
@@ -164,18 +165,36 @@ describe('round1', () => {
 });
 
 describe('registry resolvers', () => {
-  it('deviceName prefers the user name, then the name, then the id', () => {
+  it('deviceName prefers the user name, then the name', () => {
     const devices = {
       d1: { name: 'Fridge', name_by_user: 'Kitchen fridge' },
       d2: { name: 'Fridge', name_by_user: null },
-      d3: {},
     };
     expect(deviceName(devices, 'd1')).toBe('Kitchen fridge');
     expect(deviceName(devices, 'd2')).toBe('Fridge');
-    expect(deviceName(devices, 'd3')).toBe('d3');
-    // An unknown id shows the id, so a stale reference is still identifiable.
-    expect(deviceName(devices, 'gone')).toBe('gone');
-    expect(deviceName(undefined, 'd1')).toBe('d1');
+  });
+
+  // #262: the id used to be the fallback, which put a raw
+  // "5ff1f1bb41a19a763aa4ab750cd37c97" on screen as a chip label whenever a task
+  // outlived the device it pointed at. An id is not a name in any language.
+  it('deviceName is empty when there is no name to show, never the id', () => {
+    const devices = { d1: { name: 'Fridge' }, d3: {} };
+    expect(deviceName(devices, 'd3')).toBe('');
+    expect(deviceName(devices, 'gone')).toBe('');
+    expect(deviceName(undefined, 'd1')).toBe('');
+    expect(deviceName({}, 'd1')).toBe('');
+  });
+
+  it('deviceKnown reports registry presence, not whether the device has a name', () => {
+    const devices = { d1: { name: 'Fridge' }, d3: {} };
+    expect(deviceKnown(devices, 'd1')).toBe(true);
+    // Present but nameless is still present — the caller that groups by device wants
+    // to know the id resolves, and the caller that labels a chip wants the name.
+    expect(deviceKnown(devices, 'd3')).toBe(true);
+    expect(deviceKnown(devices, 'gone')).toBe(false);
+    expect(deviceKnown(undefined, 'd1')).toBe(false);
+    expect(deviceKnown(devices, null)).toBe(false);
+    expect(deviceKnown(devices, '')).toBe(false);
   });
 
   it('deviceName is empty for a missing id, not the string "null"', () => {

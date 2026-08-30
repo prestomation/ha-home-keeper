@@ -89,6 +89,7 @@ import {
   buildPath,
   completionStats,
   deviceDomain,
+  deviceKnown,
   deviceName,
   dueLabel,
   copyText,
@@ -260,6 +261,7 @@ const STYLES = `
     --hk-warn-ink: color-mix(in srgb, var(--warning-color, #ffa600) 58%, var(--primary-text-color));
     --hk-ok: var(--success-color, #43a047);
     --hk-ok-soft: color-mix(in srgb, var(--success-color, #43a047) 14%, var(--card-background-color, #fff));
+    --hk-ok-ink: color-mix(in srgb, var(--success-color, #43a047) 58%, var(--primary-text-color));
     --hk-surface: var(--card-background-color, #fff);
     --hk-page: var(--secondary-background-color);
     --hk-line: var(--divider-color);
@@ -444,12 +446,12 @@ const STYLES = `
     --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
-  ha-assist-chip.hk-managed {
-    --ha-assist-chip-container-color: var(--info-color, #039BE5);
-    --md-assist-chip-label-text-color: #fff;
-    --ha-assist-chip-label-text-color: #fff;
-    --md-assist-chip-outline-color: transparent;
-  }
+  /* "Managed by X" and "Auto-synced" carry no rule at all: they take the stock
+     outlined chip, the same as the device chip beside them. They were a solid fill
+     the same weight as "Add task", which put the loudest thing in a task row on the
+     one piece of it you cannot act on — the eye reached the integration's name before
+     the task's. The integration's own icon carries the identity instead, which
+     _managedChip already renders. Filled white-on-mid-tone also measured 3.08:1. */
   /* Soft container, ink label — the same pairing the overdue chip uses. White on
      amber measured 1.96:1 and white on grey 1.88:1: not marginal, unreadable. */
   ha-assist-chip.hk-orphaned {
@@ -694,13 +696,27 @@ const STYLES = `
     transition: transform 0.2s ease; transform: rotate(-90deg);
   }
   .hk-section-chevron.open { transform: rotate(0deg); }
+  /* Soft container, ink label — the pairing the overdue and orphaned chips already
+     use. White on the mid-tone success fill measured 3.30:1. The suggested chip moves
+     with it: the two sit side by side in the Companions list, and fixing only one
+     would read as the other being broken. */
   ha-assist-chip.hk-comp-connected {
-    --ha-assist-chip-container-color: var(--success-color, #43a047);
-    --ha-assist-chip-filled-container-color: var(--success-color, #43a047);
-    --md-assist-chip-label-text-color: var(--text-primary-color, #fff);
+    --ha-assist-chip-container-color: var(--hk-ok-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-ok-soft);
+    --md-assist-chip-label-text-color: var(--hk-ok-ink);
+    --ha-assist-chip-label-text-color: var(--hk-ok-ink);
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
   }
   ha-assist-chip.hk-comp-suggested {
-    --ha-assist-chip-container-color: var(--warning-color, #ffa600);
+    --ha-assist-chip-container-color: var(--hk-warn-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-warn-soft);
+    --md-assist-chip-label-text-color: var(--hk-warn-ink);
+    --ha-assist-chip-label-text-color: var(--hk-warn-ink);
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
   }
   .hk-section {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
@@ -929,10 +945,10 @@ const STYLES = `
   /* No outline on a status pill. A tonal Done and an outlined "Monitored" sat side by
      side at the same height and radius, and the one with the border was the one you
      could not press — enclosure now means pressable, and status reads as text.
-     Scoped away from the chips that carry a colour of their own (overdue, warn), so
-     removing the outline does not also remove what the colour was saying. */
+     Scoped away from the overdue chip, which carries a colour of its own, so removing
+     the outline does not also remove what the colour was saying. */
   .hk-status ha-assist-chip { --ha-assist-chip-container-height: 28px; }
-  .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-managed):not(.hk-warn) {
+  .hk-status ha-assist-chip:not(.hk-overdue) {
     --ha-assist-chip-outline-width: 0px;
     --md-assist-chip-outline-width: 0px;
     --ha-assist-chip-outline-color: transparent;
@@ -3476,7 +3492,9 @@ export class HomeKeeperPanel extends HTMLElement {
     if (group === 'device') {
       return this._groupByKey(
         tasks,
-        (task) => task.device_id ?? undefined,
+        // A device the registry no longer knows has no name to head a section with,
+        // so its tasks fall into "No device" rather than under a bare id.
+        (task) => (deviceKnown(this._hass?.devices, task.device_id) ? task.device_id! : undefined),
         (id) => deviceName(this._hass?.devices, id),
         t('section.noDevice'),
         'device',
@@ -3809,9 +3827,12 @@ export class HomeKeeperPanel extends HTMLElement {
     const kindChip =
       x.kind === 'virtual'
         ? this._virtualDeviceChip(x)
+        // The no-device branch reached `deviceName(devices, undefined)`, which is
+        // always '' — so an appliance with no device carried a nameless empty chip.
+        // Matches the detail page, which has always rendered nothing here.
         : x.device_id
           ? this._deviceChip(x.device_id)
-          : `<ha-assist-chip label="${escapeHTML(deviceName(this._hass?.devices, x.device_id))}"></ha-assist-chip>`;
+          : '';
     const title =
       x.name || deviceName(this._hass?.devices, x.device_id) || t('appliance.fallbackName');
     const subCount = this._assets.filter((a) => a.parent_asset_id === x.id).length;
@@ -4549,6 +4570,10 @@ export class HomeKeeperPanel extends HTMLElement {
    */
   private _deviceChip(deviceId: string): string {
     const name = deviceName(this._hass?.devices, deviceId);
+    // No name, no chip. The device has left the registry, so the chip had nothing to
+    // say and its link went to a config page that no longer exists — the same guard
+    // `_areaChip` has always had. `_virtualDeviceChip` checks the registry too.
+    if (!name) return '';
     const domain = deviceDomain(this._hass?.devices?.[deviceId], this._entryDomains);
     const icon = domain
       ? `<img slot="icon" class="hk-dev-img" alt="" src="${escapeHTML(

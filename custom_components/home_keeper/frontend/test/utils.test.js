@@ -356,8 +356,8 @@ describe('deviceName', () => {
   it('falls back to name', () => {
     expect(deviceName(devices, 'def')).toBe('Furnace');
   });
-  it('returns id for unknown device, empty for none', () => {
-    expect(deviceName(devices, 'zzz')).toBe('zzz');
+  it('is empty for an unknown device and for none (#262)', () => {
+    expect(deviceName(devices, 'zzz')).toBe('');
     expect(deviceName(devices, null)).toBe('');
   });
 });

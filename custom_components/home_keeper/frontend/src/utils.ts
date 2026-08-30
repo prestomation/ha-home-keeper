@@ -376,15 +376,36 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
   return ago === 1 ? t('due.yesterday') : tn('due.days_ago', ago);
 }
 
-/** Resolve a device id to its display name using hass.devices. */
+/**
+ * Resolve a device id to its display name using `hass.devices`, or `''` when there is
+ * no name to show.
+ *
+ * It used to fall back to the id itself, which meant a task pointing at a device that
+ * had left the registry — a removed integration, a deleted device — rendered
+ * `5ff1f1bb41a19a763aa4ab750cd37c97` as its chip, cut mid-string by the chip's own
+ * border. The id is not a name in any language, and it made things worse than a blank:
+ * the four callers that read `asset.name || deviceName(…) || t('appliance.fallbackName')`
+ * could never reach the friendly fallback, because a raw id is truthy.
+ *
+ * Returning `''` puts the decision where the context is. Every caller either already
+ * guards on an empty string or now does.
+ */
 export function deviceName(
   devices: Record<string, { name?: string; name_by_user?: string | null }> | undefined,
   deviceId: string | null | undefined,
 ): string {
   if (!deviceId) return '';
   const dev = devices?.[deviceId];
-  if (!dev) return deviceId;
-  return dev.name_by_user || dev.name || deviceId;
+  if (!dev) return '';
+  return dev.name_by_user || dev.name || '';
+}
+
+/** True when *deviceId* names a device the registry still knows about. */
+export function deviceKnown(
+  devices: Record<string, unknown> | undefined,
+  deviceId: string | null | undefined,
+): boolean {
+  return Boolean(deviceId && devices?.[deviceId]);
 }
 
 /** Resolve a device to its integration domain via the config-entry → domain map. */
