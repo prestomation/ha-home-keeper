@@ -208,6 +208,10 @@ describe('dueLabel', () => {
     expect(dueLabel({ next_due: '2026-06-14T12:00:00Z' }, now)).toBe('tomorrow');
     expect(dueLabel({ next_due: '2026-06-16T12:00:00Z' }, now)).toBe('in 3 days');
     expect(dueLabel({ next_due: '2026-06-12T12:00:00Z' }, now)).toBe('yesterday');
+    // The multi-day past had no assertion, so nothing distinguished "3 days ago" from
+    // "yesterday" or from the plural template being wrong.
+    expect(dueLabel({ next_due: '2026-06-10T12:00:00Z' }, now)).toBe('3 days ago');
+    expect(dueLabel({ next_due: '2026-06-14T12:00:00Z' }, now)).not.toBe('in 1 day');
   });
   it('labels a dormant triggered task as Monitored', () => {
     expect(dueLabel({ recurrence_type: 'triggered' }, now)).toBe('Monitored');
@@ -938,6 +942,28 @@ describe('button weights (#262)', () => {
     expect(el.hasAttribute('appearance')).toBe(false);
     expect(el.hasAttribute('variant')).toBe(false);
     expect(el.getAttribute('data-hk-weight')).toBe('primary');
+  });
+
+  it('setBtnWeight leaves nothing behind, for every ordered pair of weights', () => {
+    // The strong form of the clearing rule: whatever a button was, becoming something
+    // else must leave it identical to a button that was always that. This is what
+    // fails if the cleared-attribute list ever stops covering the table it serves.
+    const weights = ['primary', 'secondary', 'tertiary', 'danger', 'danger-primary'];
+    const render = (el) =>
+      [...el.attributes]
+        .map((a) => `${a.name}="${a.value}"`)
+        .sort()
+        .join(' ');
+    for (const from of weights) {
+      for (const to of weights) {
+        const reweighted = document.createElement('span');
+        setBtnWeight(reweighted, from);
+        setBtnWeight(reweighted, to);
+        const fresh = document.createElement('span');
+        setBtnWeight(fresh, to);
+        expect(render(reweighted), `${from} -> ${to}`).toBe(render(fresh));
+      }
+    }
   });
 
   it('setBtnWeight agrees with btnAttrs for every weight', () => {

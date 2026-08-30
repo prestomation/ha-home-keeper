@@ -98,8 +98,16 @@ const BTN_ATTRS: Record<BtnWeight, Record<string, string>> = {
   'danger-primary': { variant: 'danger' },
 };
 
-/** Every attribute any weight can set, so re-weighting clears the previous one. */
-const BTN_ATTR_NAMES = ['appearance', 'variant'] as const;
+/**
+ * Every attribute any weight can set, so re-weighting clears the previous one.
+ *
+ * Derived from the table rather than restated beside it: a hand-written list silently
+ * stops clearing an attribute the moment a weight adds one the list does not name, and
+ * the symptom is a button that keeps a colour from the weight it used to have.
+ */
+const BTN_ATTR_NAMES: readonly string[] = [
+  ...new Set(Object.values(BTN_ATTRS).flatMap((attrs) => Object.keys(attrs))),
+];
 
 /**
  * The attributes for *weight*, as markup — `btnAttrs('tertiary')` →
@@ -456,18 +464,27 @@ export function deviceName(
   devices: Record<string, { name?: string; name_by_user?: string | null }> | undefined,
   deviceId: string | null | undefined,
 ): string {
+  // Stryker disable next-line ConditionalExpression: equivalent — a falsy id looks up
+  // `undefined` in the map, which the `!dev` guard below turns into the same ''. The
+  // early return is for readers, not for behaviour.
   if (!deviceId) return '';
   const dev = devices?.[deviceId];
   if (!dev) return '';
   return dev.name_by_user || dev.name || '';
 }
 
-/** True when *deviceId* names a device the registry still knows about. */
-export function deviceKnown(
-  devices: Record<string, unknown> | undefined,
+/**
+ * The device id to group *task* under, or `undefined` for the "No device" bucket.
+ *
+ * The test is whether the device can be **named**, not whether it is in the registry:
+ * a bucket is headed by its label, and a device that is present but nameless resolves
+ * to `''`, which would head a section with nothing at all.
+ */
+export function groupableDeviceId(
+  devices: Record<string, { name?: string; name_by_user?: string | null }> | undefined,
   deviceId: string | null | undefined,
-): boolean {
-  return Boolean(deviceId && devices?.[deviceId]);
+): string | undefined {
+  return deviceId && deviceName(devices, deviceId) ? deviceId : undefined;
 }
 
 /** Resolve a device to its integration domain via the config-entry → domain map. */

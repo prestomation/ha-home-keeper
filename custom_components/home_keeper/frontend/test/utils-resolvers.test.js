@@ -3,7 +3,7 @@ import {
   areaName,
   brandLogoUrl,
   deviceDomain,
-  deviceKnown,
+  groupableDeviceId,
   deviceName,
   isArmedTriggered,
   isHttpUrl,
@@ -185,16 +185,17 @@ describe('registry resolvers', () => {
     expect(deviceName({}, 'd1')).toBe('');
   });
 
-  it('deviceKnown reports registry presence, not whether the device has a name', () => {
+  it('groupableDeviceId groups only by a device that can be named', () => {
     const devices = { d1: { name: 'Fridge' }, d3: {} };
-    expect(deviceKnown(devices, 'd1')).toBe(true);
-    // Present but nameless is still present — the caller that groups by device wants
-    // to know the id resolves, and the caller that labels a chip wants the name.
-    expect(deviceKnown(devices, 'd3')).toBe(true);
-    expect(deviceKnown(devices, 'gone')).toBe(false);
-    expect(deviceKnown(undefined, 'd1')).toBe(false);
-    expect(deviceKnown(devices, null)).toBe(false);
-    expect(deviceKnown(devices, '')).toBe(false);
+    expect(groupableDeviceId(devices, 'd1')).toBe('d1');
+    // Registry presence is NOT the test. A device that is present but nameless
+    // resolves to '', which would head its section with nothing at all — so it goes
+    // to the "No device" bucket like one that has left the registry entirely.
+    expect(groupableDeviceId(devices, 'd3')).toBeUndefined();
+    expect(groupableDeviceId(devices, 'gone')).toBeUndefined();
+    expect(groupableDeviceId(undefined, 'd1')).toBeUndefined();
+    expect(groupableDeviceId(devices, null)).toBeUndefined();
+    expect(groupableDeviceId(devices, '')).toBeUndefined();
   });
 
   it('deviceName is empty for a missing id, not the string "null"', () => {

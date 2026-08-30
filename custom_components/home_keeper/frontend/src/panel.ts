@@ -89,8 +89,8 @@ import {
   buildPath,
   completionStats,
   deviceDomain,
-  deviceKnown,
   deviceName,
+  groupableDeviceId,
   dueLabel,
   copyText,
   escapeHTML,
@@ -3525,9 +3525,10 @@ export class HomeKeeperPanel extends HTMLElement {
     if (group === 'device') {
       return this._groupByKey(
         tasks,
-        // A device the registry no longer knows has no name to head a section with,
-        // so its tasks fall into "No device" rather than under a bare id.
-        (task) => (deviceKnown(this._hass?.devices, task.device_id) ? task.device_id! : undefined),
+        // A device with no name to head a section with — gone from the registry, or
+        // present but nameless — sends its tasks to "No device" rather than under a
+        // bare id or an empty heading.
+        (task) => groupableDeviceId(this._hass?.devices, task.device_id),
         (id) => deviceName(this._hass?.devices, id),
         t('section.noDevice'),
         'device',

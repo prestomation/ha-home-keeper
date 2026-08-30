@@ -245,15 +245,20 @@ describe('groupTasks', () => {
     // integration, a deleted device. It used to head a section with the raw id.
     const lost = { ...soon, id: 'l', device_id: 'ffffffffffffffffffffffffffffffff' };
     const none = { ...later, id: 'n', device_id: null };
+    // Present in the registry but with no name at all — an empty label would head a
+    // section with nothing in it, so this belongs in the fallback too.
+    const nameless = { ...later, id: 'm', device_id: 'd2' };
+    devices.d2 = { id: 'd2' };
 
-    const groups = groupTasks([known, lost, none], 'device', {}, devices, NOW);
+    const groups = groupTasks([known, lost, none, nameless], 'device', {}, devices, NOW);
     const byKey = Object.fromEntries(groups.map((g) => [g.key, g]));
 
     expect(byKey['device:d1'].label).toBe('Water heater');
     expect(byKey['device:d1'].items.map((t) => t.id)).toEqual(['k']);
-    // Both the unknown device and the no-device task land in the same fallback,
-    // and no section is headed by an id.
-    expect(byKey['device:none'].items.map((t) => t.id).sort()).toEqual(['l', 'n']);
+    // The unknown device, the nameless one and the no-device task share the fallback,
+    // and no section is headed by an id or by nothing.
+    expect(byKey['device:none'].items.map((t) => t.id).sort()).toEqual(['l', 'm', 'n']);
+    for (const g of groups) expect(g.label).not.toBe('');
     expect(groups.map((g) => g.label)).not.toContain('ffffffffffffffffffffffffffffffff');
     for (const g of groups) expect(g.label).not.toMatch(/[0-9a-f]{32}/);
   });
