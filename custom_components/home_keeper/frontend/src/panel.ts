@@ -56,6 +56,10 @@ import {
 } from './forms';
 import { selEntity } from './forms';
 import { setLanguage, t, tn } from './i18n';
+import type { DeferVerbs } from './defer';
+import { DeferMenus, deferSplit, deferVerbs } from './defer';
+import type { DialogParts } from './dialogs';
+import { makeDialog, makeForm } from './dialogs';
 import { MAX_DOCUMENT_BYTES } from './limits';
 import {
   createPreview,
@@ -1202,14 +1206,35 @@ const STYLES = `
   }
   .hk-detail-card .hk-chips { margin-top: 10px; }
   .hk-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
-  /* The Done split button. The caret is its own hit target butted against Done, so
-     Done never changes meaning or costs an extra tap; the divider is what says they
-     are two controls rather than one wide button. */
-  .hk-split { position: relative; display: inline-flex; align-items: stretch; }
+  /* The Done split button — one pill carrying two hit targets. The caret sits inside
+     Done's own outline rather than beside it, so the pair reads as a single control
+     that opens rather than as a second button someone parked next to Done; a hairline
+     in the same accent is all that separates them. Done still never changes meaning
+     or costs an extra tap.
+
+     Done carries the secondary weight, which is appearance="filled", so the fill is
+     what the two halves have to share: the wrapper paints it and the caret sits on
+     it, leaving Done's own filled part to cover the left half in the same colour.
+     Done also gives up its radius and its ring for as long as it is inside a split —
+     otherwise its outline draws a second pill around the left half and the seam
+     doubles. A Done button outside a split keeps both from the rule above, which is
+     every task the caret does not apply to.
+
+     The divider is white at low alpha rather than a theme line, because it separates
+     two halves of one accent fill; a solid line would read as a gap between them. */
+  .hk-split {
+    position: relative; display: inline-flex; align-items: stretch;
+    background: var(--primary-color);
+    border-radius: var(--hk-r-pill);
+  }
+  .hk-split .done-btn { --ha-button-border-radius: var(--hk-r-pill) 0 0 var(--hk-r-pill); }
+  .hk-split .done-btn::part(base) { box-shadow: none; }
   .hk-split ha-icon-button.hk-split-caret {
-    --mdc-icon-button-size: 40px; margin-left: 2px; align-self: center;
-    color: var(--secondary-text-color);
-    border-left: 1px solid var(--divider-color); border-radius: 0;
+    --mdc-icon-button-size: 40px;
+    align-self: stretch; width: 40px;
+    color: var(--text-primary-color, #fff);
+    border-left: 1px solid rgba(255, 255, 255, 0.32);
+    border-radius: 0 var(--hk-r-pill) var(--hk-r-pill) 0;
   }
   /* The display below beats the user-agent rule for the hidden attribute, which is
      a plain type-less one — so without this override the menu is laid out even while
@@ -1803,9 +1828,11 @@ export class HomeKeeperPanel extends HTMLElement {
   private _confirmOnKey: ((e: KeyboardEvent) => void) | null = null;
   // The open deferral menu and the document handlers dismissing it. One at a time:
   // opening a second closes the first, so these never hold a stale pair.
-  private _deferOpen: { caret: HTMLElement; menu: HTMLElement } | null = null;
-  private _deferOnKey: ((e: KeyboardEvent) => void) | null = null;
-  private _deferOnClick: ((e: Event) => void) | null = null;
+  private readonly _deferMenus = new DeferMenus({
+    taskById: (id) => this._tasks.find((x) => x.id === id),
+    onSnooze: (task) => this._openSnooze(task),
+    onSkip: (task) => this._openSkip(task),
+  });
   // config entry id -> integration domain, for resolving device brand logos.
   private _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.
@@ -2925,41 +2952,13 @@ export class HomeKeeperPanel extends HTMLElement {
    * place when the action is the page's whole point (see `_blockedDone`), but these
    * are already tucked behind a caret, and a menu of dead entries is just noise.
    */
-  private _deferVerbs(task: Task): { snooze: boolean; skip: boolean } {
-    const { allowSnooze, allowSkip } = skipSnoozeFlags(this._options ?? {});
-    const blocked = !!task.managed_by?.completion_blocked;
-    const dormant = !task.next_due;
-    return { snooze: allowSnooze && !dormant, skip: allowSkip && !blocked && !dormant };
+  private _deferVerbs(task: Task): DeferVerbs {
+    return deferVerbs(task, this._options ?? {});
   }
 
-  /**
-   * Wrap *doneBtn* in a split button whose caret opens the deferral menu.
-   *
-   * Returns *doneBtn* untouched when there is no verb to offer, so a task with both
-   * switches off — or a dormant one — looks exactly as it did before this existed.
-   */
+  /** Wrap *doneBtn* in the split button whose caret opens the deferral menu. */
   private _deferMenu(task: Task, doneBtn: string): string {
-    const verbs = this._deferVerbs(task);
-    if (!doneBtn || (!verbs.snooze && !verbs.skip)) return doneBtn;
-    const item = (cls: string, icon: string, label: string, sub: string): string =>
-      `<button type="button" role="menuitem" class="${cls}">` +
-      `<ha-icon icon="${icon}"></ha-icon>` +
-      `<span class="hk-defer-text">${escapeHTML(label)}` +
-      `<span class="hk-defer-sub">${escapeHTML(sub)}</span></span></button>`;
-    const items =
-      (verbs.snooze
-        ? item('hk-defer-snooze', 'mdi:clock-outline', t('btn.snooze'), t('defer.snoozeHint'))
-        : '') +
-      (verbs.skip
-        ? item('hk-defer-skip', 'mdi:skip-next-outline', t('btn.skip'), t('defer.skipHint'))
-        : '');
-    return (
-      `<span class="hk-split" data-id="${escapeHTML(task.id)}">${doneBtn}` +
-      `<ha-icon-button class="hk-split-caret" aria-haspopup="menu" aria-expanded="false" ` +
-      `label="${escapeHTML(t('defer.more'))}" title="${escapeHTML(t('defer.more'))}">` +
-      `<ha-icon icon="mdi:chevron-down"></ha-icon></ha-icon-button>` +
-      `<div class="hk-defer-menu" role="menu" hidden>${items}</div></span>`
-    );
+    return deferSplit(task, doneBtn, this._deferVerbs(task));
   }
 
   private async _delete(task: Task): Promise<void> {
@@ -5622,82 +5621,11 @@ export class HomeKeeperPanel extends HTMLElement {
    * call `_wireDetailActions` makes for the detail page.
    */
   private _wireDeferMenus(root: ParentNode): void {
-    root.querySelectorAll<HTMLElement>('.hk-split').forEach((split) => {
-      const task = this._tasks.find((x) => x.id === split.dataset.id);
-      if (task) this._wireOneDeferMenu(split, task);
-    });
-  }
-
-  /**
-   * Wire one split button's caret and its menu items.
-   *
-   * The menu closes on Escape and on any click outside it, both bound to the panel's
-   * own shadow root: a click inside a shadow root never reaches a document listener
-   * as the same target.
-   */
-  private _wireOneDeferMenu(split: HTMLElement, task: Task): void {
-    const caret = split.querySelector<HTMLElement>('.hk-split-caret');
-    const menu = split.querySelector<HTMLElement>('.hk-defer-menu');
-    if (!caret || !menu) return;
-    caret.addEventListener('click', (e) => {
-      // A list row opens the task's detail page and the caret sits inside it —
-      // without this the menu would open and immediately navigate away from itself.
-      e.stopPropagation();
-      if (menu.hidden) this._openDeferMenu(split, caret, menu);
-      else this._closeDeferMenu();
-    });
-    menu.addEventListener('click', (e) => e.stopPropagation());
-    menu.querySelector('.hk-defer-snooze')?.addEventListener('click', () => {
-      this._closeDeferMenu();
-      this._openSnooze(task);
-    });
-    menu.querySelector('.hk-defer-skip')?.addEventListener('click', () => {
-      this._closeDeferMenu();
-      this._openSkip(task);
-    });
-  }
-
-  /**
-   * Open one deferral menu, closing any other, and arm its dismiss handlers.
-   *
-   * The handlers go on `document` rather than the panel's own root, and are added on
-   * open and removed on close rather than once per render. Both details matter.
-   * Escape is delivered to whatever holds focus, and after a background refresh
-   * replaces the caret that is the document body — so a listener confined to the
-   * shadow root would simply never see the key. And a listener bound during render
-   * would be re-added on every subsequent render, since the root outlives them all.
-   */
-  private _openDeferMenu(split: HTMLElement, caret: HTMLElement, menu: HTMLElement): void {
-    this._closeDeferMenu();
-    menu.hidden = false;
-    caret.setAttribute('aria-expanded', 'true');
-    this._deferOnKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') this._closeDeferMenu();
-    };
-    this._deferOnClick = (e: Event) => {
-      // A click inside a shadow root retargets to the host at document level, so
-      // `contains` would see the panel rather than the menu; the composed path is
-      // what still names the real target.
-      if (!e.composedPath().includes(split)) this._closeDeferMenu();
-    };
-    document.addEventListener('keydown', this._deferOnKey);
-    document.addEventListener('click', this._deferOnClick);
-    this._deferOpen = { caret, menu };
+    this._deferMenus.wire(root);
   }
 
   private _closeDeferMenu(): void {
-    if (this._deferOnKey) {
-      document.removeEventListener('keydown', this._deferOnKey);
-      this._deferOnKey = null;
-    }
-    if (this._deferOnClick) {
-      document.removeEventListener('click', this._deferOnClick);
-      this._deferOnClick = null;
-    }
-    if (!this._deferOpen) return;
-    this._deferOpen.menu.hidden = true;
-    this._deferOpen.caret.setAttribute('aria-expanded', 'false');
-    this._deferOpen = null;
+    this._deferMenus.close();
   }
 
   private _wireDetailActions(root: ShadowRoot): void {
@@ -6908,24 +6836,11 @@ export class HomeKeeperPanel extends HTMLElement {
     data: Record<string, unknown>,
     onChange: (value: Record<string, unknown>) => void,
   ): HaFormElement {
-    const form = document.createElement('ha-form') as HaFormElement;
-    form.hass = this._hass;
-    form.schema = schema;
-    form.data = data;
-    form.computeLabel = (s: { name: string }): string => (s.name ? t('field.' + s.name) : '');
-    // Muted per-field helper text under each field (keyed `help.<field>`); returns ''
-    // where no string is authored, so helpers appear only where we wrote them.
-    form.computeHelper = (s: { name: string }): string => {
-      if (!s.name) return '';
-      const h = t('help.' + s.name);
-      return h === 'help.' + s.name ? '' : h;
-    };
-    form.addEventListener('value-changed', (e: Event) => {
-      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
-      onChange(value);
-    });
-    this._liveHassEls.push(form);
-    return form;
+    // The panel's contribution is the live-element registry: every form it builds is
+    // re-handed its `hass` on update. The rest is shared with the card.
+    return makeForm(this._hass, schema, data, onChange, (form) =>
+      this._liveHassEls.push(form),
+    );
   }
 
   /** Appliances associated with a task's attached device (its own or related). */
@@ -7402,38 +7317,8 @@ export class HomeKeeperPanel extends HTMLElement {
    * the attribute and drops the span, because a light-DOM child whose slot name
    * matches no slot is not rendered at all. Neither can show the title twice.
    */
-  private _makeDialog(
-    title: string,
-    onClosed: () => void,
-  ): { dialog: HTMLElement; body: HTMLElement; footer: HTMLElement; mount: () => void } {
-    const dialog = document.createElement('ha-dialog');
-    dialog.setAttribute('open', '');
-    dialog.setAttribute('heading', title);
-    const heading = document.createElement('span');
-    heading.setAttribute('slot', 'headerTitle');
-    heading.textContent = title;
-    dialog.appendChild(heading);
-    dialog.addEventListener('closed', onClosed);
-
-    const body = document.createElement('div');
-    body.className = 'hk-completion-body';
-
-    // Action buttons must be wrapped in <ha-dialog-footer slot="footer"> — current
-    // ha-dialog only exposes a "footer" slot; primaryAction/secondaryAction slotted
-    // directly on <ha-dialog> silently don't render. Fall back to slotting straight
-    // on <ha-dialog> (the pre-wa-dialog convention) if ha-dialog-footer isn't
-    // registered, so older HA frontends keep working too.
-    const hasFooter = Boolean(customElements.get('ha-dialog-footer'));
-    const footer: HTMLElement = hasFooter ? document.createElement('ha-dialog-footer') : dialog;
-    if (hasFooter) footer.setAttribute('slot', 'footer');
-
-    // Deferred so the caller can fill body and footer in whatever order reads best,
-    // while the dialog still reaches the DOM with its children already attached.
-    const mount = (): void => {
-      dialog.appendChild(body);
-      if (hasFooter) dialog.appendChild(footer);
-    };
-    return { dialog, body, footer, mount };
+  private _makeDialog(title: string, onClosed: () => void): DialogParts {
+    return makeDialog(title, onClosed);
   }
 
   /** Build the completion-details dialog (log a new completion, or edit a past one). */
