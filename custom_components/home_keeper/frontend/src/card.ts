@@ -61,6 +61,8 @@ const MDI_CLOCK =
   '14.92L16.25,16.15L11,13V7H12.5Z';
 const MDI_SKIP =
   'M5,5V19L16,12M18,5V19H20V5H18Z';
+/** How long a press has to be held before the row action explains itself. */
+const LONG_PRESS_MS = 500;
 // mdi:plus — the header "add task" action.
 const MDI_PLUS = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
 // `ha-icon` names for the per-task document chips (external link / metadata link vs
@@ -977,23 +979,63 @@ export class HomeKeeperCard extends HTMLElement {
       });
     });
 
-    const wireAction = (cls: string, open: (task: Task) => void): void => {
+    /**
+     * Wire one row action: tap to open its dialog, press and hold to be told what it
+     * does.
+     *
+     * Two icons on a row are quick to reach and say nothing about themselves, so the
+     * only way to learn them would be to try one and watch the schedule move. Hold
+     * reads out the same line the panel's menu shows under each verb, and the hold
+     * deliberately does *not* then act — someone holding to ask a question has not
+     * agreed to have it answered by doing the thing.
+     *
+     * `title` covers a pointer hovering; this covers touch, where there is no hover.
+     */
+    const wireAction = (
+      cls: string,
+      icon: string,
+      labelKey: string,
+      hintKey: string,
+      open: (task: Task) => void,
+    ): void => {
       root.querySelectorAll<HTMLElement>(cls).forEach((b) => {
-        (b as HTMLElement & { path?: string }).path =
-          cls === '.hk-defer-snooze' ? MDI_CLOCK : MDI_SKIP;
+        (b as HTMLElement & { path?: string }).path = icon;
+        let timer: number | undefined;
+        let explained = false;
+        // No pointermove here: a finger never holds perfectly still, so cancelling on
+        // movement would make the hold near-impossible on the surface it exists for.
+        // A scroll sends pointercancel, which is the signal that actually means it.
+        const cancel = (): void => {
+          if (timer !== undefined) window.clearTimeout(timer);
+          timer = undefined;
+        };
+        b.addEventListener('pointerdown', () => {
+          explained = false;
+          timer = window.setTimeout(() => {
+            explained = true;
+            this._toast(`${t(labelKey)} — ${t(hintKey)}`);
+          }, LONG_PRESS_MS);
+        });
+        for (const evt of ['pointerup', 'pointerleave', 'pointercancel']) {
+          b.addEventListener(evt, cancel);
+        }
         b.addEventListener('click', (e) => {
           // The row itself opens the task, and these sit inside it.
           e.stopPropagation();
+          if (explained) {
+            explained = false;
+            return;
+          }
           const task = this._tasks.find((x) => x.id === b.dataset.id);
           if (task) open(task);
         });
       });
     };
-    wireAction('.hk-defer-snooze', (task) => {
+    wireAction('.hk-defer-snooze', MDI_CLOCK, 'btn.snooze', 'defer.snoozeHint', (task) => {
       this._snooze = { ...emptySnoozeState(), open: true, task };
       this._render();
     });
-    wireAction('.hk-defer-skip', (task) => {
+    wireAction('.hk-defer-skip', MDI_SKIP, 'btn.skip', 'defer.skipHint', (task) => {
       this._skip = { ...emptySkipState(), open: true, task };
       this._render();
     });

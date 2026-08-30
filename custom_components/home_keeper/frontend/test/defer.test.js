@@ -81,9 +81,24 @@ describe('deferSplit', () => {
     expect(html).not.toContain('hk-defer-skip');
   });
 
-  it('takes the caret class the host asks for', () => {
-    const html = deferSplit(task(), '<b>Done</b>', { snooze: true, skip: true }, 'row-caret');
-    expect(html).toContain('class="row-caret"');
+  it('gives the caret the same weight as the Done it joins', () => {
+    // This is what keeps the two halves the same colour. Home Assistant fills a
+    // button from its appearance, and the weights differ by surface, so a caret on a
+    // different weight paints a different fill and the pill reads as two buttons.
+    const primary = deferSplit(task(), '<b>Done</b>', { snooze: true, skip: true }, 'primary');
+    const secondary = deferSplit(task(), '<b>Done</b>', { snooze: true, skip: true }, 'secondary');
+    expect(primary).toContain('data-hk-weight="primary"');
+    expect(secondary).toContain('data-hk-weight="secondary"');
+    expect(secondary).toContain('appearance="filled"');
+  });
+
+  it('clips the pair to one pill, with the menu outside the clip', () => {
+    // The menu hangs below the button, so it has to be a sibling of the element
+    // whose overflow rounds the corners rather than a child of it.
+    const html = deferSplit(task(), '<b>Done</b>', { snooze: true, skip: true });
+    const pillEnd = html.indexOf('</span>');
+    expect(html.indexOf('hk-split-pill')).toBeLessThan(pillEnd);
+    expect(html.indexOf('hk-defer-menu')).toBeGreaterThan(pillEnd);
   });
 
   it('escapes the task id it puts in the dataset', () => {

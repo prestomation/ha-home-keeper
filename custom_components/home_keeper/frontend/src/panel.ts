@@ -1216,46 +1216,33 @@ const STYLES = `
   .hk-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
   /* The Done split button — one pill carrying two hit targets. The caret sits inside
      Done's own outline rather than beside it, so the pair reads as a single control
-     that opens rather than as a second button someone parked next to Done; a hairline
-     in the same accent is all that separates them. Done still never changes meaning
-     or costs an extra tap.
+     that opens rather than as a second button someone parked next to Done. Done still
+     never changes meaning or costs an extra tap.
 
-     Done keeps its own fully-rounded pill: ha-button owns that radius and does not
-     take an override, so trying to square off its right edge leaves the corners round
-     and opens two white crescents where the caret butts against the curve. The
-     wrapper closes them instead — it paints the same fill *behind* the pair, so the
-     crescents fill in and the join disappears. Painting rather than clipping, because
-     the menu hangs out of this box and overflow:hidden would eat it. That only works
-     because the fill is exactly the accent: Done's is rgb(0,154,199) and
-     --primary-color is #009ac7, the same colour, so the two cannot drift apart.
+     The caret is an ha-button carrying Done's own weight, so Home Assistant paints
+     both halves from the same rule. Naming a colour here was the earlier mistake: the
+     task page's Done is solid accent while a list row's is a pale tonal, so a wrapper
+     painted with the primary colour matched the first and clashed badly on the second,
+     and would clash again under anyone else's theme.
 
-     The wrapper is 40px because ha-button paints a 40px pill inside a 48px box with
-     the slack at the bottom. Sizing to the box — or letting the caret stretch to it —
-     makes the pair stand 8px taller than the Edit button beside it, which is exactly
-     how the first cut read as wrong. Clipping at 40px loses nothing: the pill sits at
-     the top of the box, and only the empty slack is cut.
+     Both halves square off and the pill wrapper rounds the pair by clipping, because
+     ha-button takes a single-value radius override and rejects a four-value one. The
+     menu is a sibling of that clip rather than a child: it hangs below the button, and
+     the overflow that rounds the corners would cut it off.
 
-     The divider is white at low alpha rather than a theme line, because it separates
-     two halves of one accent fill; a solid line would read as a gap between them. */
-  .hk-split {
-    position: relative; display: inline-flex; align-items: flex-start;
-    height: 40px;
-    background: var(--primary-color);
-    border-radius: var(--hk-r-pill);
+     The seam is drawn from currentColor, which inside a filled button is its label
+     colour — legible against the fill whichever weight the surface uses. */
+  .hk-split { position: relative; display: inline-flex; }
+  .hk-split-pill {
+    display: inline-flex; align-items: stretch;
+    border-radius: var(--hk-r-pill); overflow: hidden;
   }
-  .hk-split .done-btn::part(base) { box-shadow: none; }
-  button.hk-split-caret {
-    height: 40px; width: 34px; padding: 0;
-    display: inline-flex; align-items: center; justify-content: center;
-    border: 0; border-left: 1px solid rgba(255, 255, 255, 0.32);
-    background: transparent;
-    color: var(--text-primary-color, #fff);
-    cursor: pointer;
-    --mdc-icon-size: 20px;
-  }
-  button.hk-split-caret:hover { filter: brightness(1.08); }
-  button.hk-split-caret:focus-visible {
-    outline: 2px solid var(--primary-text-color); outline-offset: 2px;
+  .hk-split-pill > ha-button { --ha-button-border-radius: 0; }
+  .hk-split-pill > ha-button::part(base) { box-shadow: none; }
+  ha-button.hk-split-caret { --mdc-icon-size: 20px; }
+  ha-button.hk-split-caret::part(base) {
+    min-width: 0; padding-left: 7px; padding-right: 7px;
+    border-left: 1px solid color-mix(in srgb, currentColor 28%, transparent);
   }
   /* The display below beats the user-agent rule for the hidden attribute, which is
      a plain type-less one — so without this override the menu is laid out even while
@@ -2956,8 +2943,8 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /** Wrap *doneBtn* in the split button whose caret opens the deferral menu. */
-  private _deferMenu(task: Task, doneBtn: string): string {
-    return deferSplit(task, doneBtn, this._deferVerbs(task));
+  private _deferMenu(task: Task, doneBtn: string, weight: BtnWeight = 'primary'): string {
+    return deferSplit(task, doneBtn, this._deferVerbs(task), weight);
   }
 
   private async _delete(task: Task): Promise<void> {
@@ -4221,7 +4208,7 @@ export class HomeKeeperPanel extends HTMLElement {
           <span class="hk-row-spacer"></span>
           <div class="hk-status">${statusChip}</div>
           <div class="hk-card-actions">
-            ${this._deferMenu(task, doneAction)}
+            ${this._deferMenu(task, doneAction, 'secondary')}
           </div>
         </div>
       </ha-card>`;

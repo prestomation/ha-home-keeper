@@ -47,6 +47,26 @@ test.describe('Home Keeper card — snooze and skip', () => {
     await expect(dialog).toHaveAttribute('heading', /.+/);
   });
 
+  test('press and hold says what a button does, without doing it @responsive', async ({
+    page,
+  }) => {
+    // Two icons on a row say nothing about themselves, so the only way to learn them
+    // would be to try one and watch the schedule move. Holding asks; it must answer
+    // without also acting.
+    const card = await openCardDashboard(page);
+    const btn = card.locator('.hk-defer-snooze').first();
+    const box = await btn.boundingBox();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(800);
+    await page.mouse.up();
+
+    // The toast carries the same line the panel's menu shows under Snooze.
+    await expect(page.getByText('Push the due date out').first()).toBeVisible();
+    // ...and the hold did not open the dialog it would have opened on a tap.
+    await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
+  });
+
   test('a completion-blocked row offers snooze but not skip @responsive', async ({ page }) => {
     const card = await openCardDashboard(page);
     // The synced problem task: the store rejects skipping it, so the button that

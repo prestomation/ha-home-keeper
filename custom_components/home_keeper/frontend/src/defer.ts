@@ -12,9 +12,10 @@
 import { haDateTimeToIso, skipSnoozeFlags } from './forms';
 import { t } from './i18n';
 import type { Task } from './types';
-import type { SnoozePresetId } from './utils';
+import type { BtnWeight, SnoozePresetId } from './utils';
 import {
   DEFAULT_SNOOZE_PRESET,
+  btnAttrs,
   escapeHTML,
   formatDateTime,
   resolveSnoozePreset,
@@ -71,23 +72,32 @@ export function deferMenuItems(verbs: DeferVerbs): string {
  *
  * Returns *doneBtn* untouched when there is no verb to offer, so a task with both
  * switches off — or a dormant one — looks exactly as it did before this existed.
- * *caretClass* lets the card ask for its own, denser caret.
+ * *weight* must be the weight *doneBtn* itself carries; see below.
  */
 export function deferSplit(
   task: Task,
   doneBtn: string,
   verbs: DeferVerbs,
-  caretClass = 'hk-split-caret',
+  weight: BtnWeight = 'primary',
 ): string {
   if (!doneBtn || (!verbs.snooze && !verbs.skip)) return doneBtn;
-  // A native button, not ha-icon-button. The latter renders its own nested ha-button,
-  // which sizes itself and ignores the size custom property — so the caret could not
-  // be matched to the height of the pill it is supposed to be part of.
+  // The caret is an ha-button carrying *Done's own weight*, which is the only way the
+  // two halves are guaranteed to paint the same. Home Assistant fills a button from
+  // its appearance, and the weights differ by surface — the task page's Done is solid
+  // accent, a list row's is a pale tonal — so anything that names a colour here is
+  // wrong on one of them, and wrong again under someone else's theme.
+  //
+  // Both halves square off (ha-button takes a single-value radius override, and
+  // rejects a four-value one), and `.hk-split-pill` rounds the pair by clipping. The
+  // menu is deliberately outside that clip: it hangs below the button, and the
+  // overflow that rounds the corners would otherwise cut it off.
   return (
-    `<span class="hk-split" data-id="${escapeHTML(task.id)}">${doneBtn}` +
-    `<button type="button" class="${caretClass}" aria-haspopup="menu" aria-expanded="false" ` +
-    `aria-label="${escapeHTML(t('defer.more'))}" title="${escapeHTML(t('defer.more'))}">` +
-    `<ha-icon icon="mdi:chevron-down"></ha-icon></button>` +
+    `<span class="hk-split" data-id="${escapeHTML(task.id)}">` +
+    `<span class="hk-split-pill">${doneBtn}` +
+    `<ha-button ${btnAttrs(weight)} class="hk-split-caret" aria-haspopup="menu" ` +
+    `aria-expanded="false" aria-label="${escapeHTML(t('defer.more'))}" ` +
+    `title="${escapeHTML(t('defer.more'))}">` +
+    `<ha-icon icon="mdi:chevron-down"></ha-icon></ha-button></span>` +
     `<div class="hk-defer-menu" role="menu" hidden>${deferMenuItems(verbs)}</div></span>`
   );
 }
