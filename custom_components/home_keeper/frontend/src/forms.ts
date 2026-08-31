@@ -96,6 +96,20 @@ export const selSelect = (
 export const selSelectCustom = (options: { value: string; label: string }[]): Selector => ({
   select: { mode: 'dropdown', options, custom_value: true },
 });
+/**
+ * The interval-unit dropdown. One list, because two forms ask the same question: a
+ * floating task's cadence ("every 3 months") and a wear part's replacement schedule
+ * in the panel, which carried its own copy of these three options.
+ *
+ * Built per call rather than hoisted to a constant: the labels are translated at build
+ * time, and the panel rebuilds its schemas when the language changes.
+ */
+export const selUnit = (): Selector =>
+  selSelect([
+    { value: 'days', label: t('opt.unit.days') },
+    { value: 'weeks', label: t('opt.unit.weeks') },
+    { value: 'months', label: t('opt.unit.months') },
+  ]);
 
 // ── datetime <-> HA selector string helpers ────────────────────────────────
 // HA's datetime selector uses local "YYYY-MM-DD HH:mm:ss"; we persist ISO.
@@ -272,18 +286,7 @@ export function taskSchemaSections(
       ]
     : [
         ...(!locked.has('interval') ? [{ name: 'interval', selector: selNumber(1) }] : []),
-        ...(!locked.has('unit')
-          ? [
-              {
-                name: 'unit',
-                selector: selSelect([
-                  { value: 'days', label: t('opt.unit.days') },
-                  { value: 'weeks', label: t('opt.unit.weeks') },
-                  { value: 'months', label: t('opt.unit.months') },
-                ]),
-              },
-            ]
-          : []),
+        ...(!locked.has('unit') ? [{ name: 'unit', selector: selUnit() }] : []),
       ];
   const cadence: FormField | null =
     cadenceSubFields.length > 0 ? { name: '', type: 'grid', schema: cadenceSubFields } : null;

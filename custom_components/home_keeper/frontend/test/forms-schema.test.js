@@ -11,6 +11,7 @@ import {
   problemSyncToggleSchema,
   profileSyncSchema,
   schemaFieldNames,
+  selUnit,
   shoppingSchema,
   taskFormData,
   taskSchema,
@@ -154,6 +155,42 @@ describe('pickFormData', () => {
     for (const name of names(taskSchema(task))) {
       expect(merged[name], `${name} should be seeded by one of the sections`).toEqual(data[name]);
     }
+  });
+});
+
+describe('selUnit', () => {
+  // One list behind two forms: a floating task's cadence and, in the panel, a wear
+  // part's replacement schedule. They used to carry a copy each.
+  it('offers exactly days / weeks / months, labelled in the active language', () => {
+    expect(selUnit()).toEqual({
+      select: {
+        mode: 'dropdown',
+        sort: false,
+        multiple: false,
+        options: [
+          { value: 'days', label: 'days' },
+          { value: 'weeks', label: 'weeks' },
+          { value: 'months', label: 'months' },
+        ],
+      },
+    });
+  });
+
+  it('translates the labels while the stored values stay in English', () => {
+    setLanguage('de');
+    const { options } = selUnit().select;
+    expect(options.map((o) => o.value)).toEqual(['days', 'weeks', 'months']);
+    // A German panel must still save `unit: "months"` — the label moves, the value
+    // is the recurrence field the backend reads.
+    for (const o of options) expect(o.label).not.toBe(o.value);
+    setLanguage('en');
+  });
+
+  it('is the selector the task form actually hands to ha-form', () => {
+    const unit = taskSchema({ recurrence_type: 'floating' })
+      .flatMap((f) => f.schema ?? [f])
+      .find((f) => f.name === 'unit');
+    expect(unit.selector).toEqual(selUnit());
   });
 });
 

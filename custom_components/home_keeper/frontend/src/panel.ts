@@ -15,6 +15,8 @@ import {
   assetFileRefs,
   documentIcon,
   documentLabel,
+  documentTypeLabel,
+  formatBytes,
   isDisplayableDocument,
   openDocument,
   openPartFile,
@@ -47,6 +49,7 @@ import {
   selNumber,
   selSelect,
   selText,
+  selUnit,
   DEFAULT_BACKSTOP_INTERVAL,
   formRecurrenceSummary,
   sensorHintText,
@@ -90,6 +93,11 @@ import type {
 import {
   areaName,
   assetSummary,
+  formatCost,
+  navigateTo,
+  personName,
+  relativeDay,
+  toast,
   brandLogoUrl,
   btnAttrs,
   type BtnWeight,
@@ -2366,7 +2374,7 @@ export class HomeKeeperPanel extends HTMLElement {
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Home Keeper: failed to save note', err);
-      this._toast(t('error.actionFailed'));
+      toast(this, t('error.actionFailed'));
     }
   }
 
@@ -2462,7 +2470,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // A scan-locked task is completed by its tag, not by this button. The backend
     // rejects the call outright, so say why here rather than surfacing its error.
     if (scanRequired(task)) {
-      this._toast(t('done.needsScan'));
+      toast(this, t('done.needsScan'));
       return;
     }
     // Tasks set to capture detail open a dialog first; the default one-taps.
@@ -2475,7 +2483,7 @@ export class HomeKeeperPanel extends HTMLElement {
       await api.completeTask(this._hass, task.id);
     } catch (err) {
       console.error('home-keeper: complete failed', err);
-      this._toast(t('error.actionFailed'));
+      toast(this, t('error.actionFailed'));
     }
     await this._refresh();
   }
@@ -2693,7 +2701,7 @@ export class HomeKeeperPanel extends HTMLElement {
    *  here — its owning integration clears it. Explain why instead of completing.
    *  A scan-locked task is blocked for a different reason, so it says so instead. */
   private _notifyBlocked(task: Task): void {
-    this._toast(this._blockedReason(task));
+    toast(this, this._blockedReason(task));
   }
 
   /** Why *task*'s Done action is unavailable, in the words the user needs: a
@@ -2730,7 +2738,7 @@ export class HomeKeeperPanel extends HTMLElement {
       await this._refresh();
     } catch (err) {
       const msg = String((err as { message?: string })?.message || err);
-      this._toast(msg);
+      toast(this, msg);
       await this._refresh();
     }
   }
@@ -2805,7 +2813,7 @@ export class HomeKeeperPanel extends HTMLElement {
       await api.deleteAsset(this._hass, asset.id);
     } catch (err) {
       console.error('home-keeper: delete appliance failed', err);
-      this._toast(t('error.actionFailed'));
+      toast(this, t('error.actionFailed'));
     }
     await this._refresh();
   }
@@ -2819,7 +2827,7 @@ export class HomeKeeperPanel extends HTMLElement {
       await this._refresh();
     } catch (err) {
       console.error('home-keeper: archive appliance failed', err);
-      this._toast(t('error.actionFailed'));
+      toast(this, t('error.actionFailed'));
     }
   }
 
@@ -2830,7 +2838,7 @@ export class HomeKeeperPanel extends HTMLElement {
       await this._refresh();
     } catch (err) {
       console.error('home-keeper: restore appliance failed', err);
-      this._toast(t('error.actionFailed'));
+      toast(this, t('error.actionFailed'));
     }
   }
 
@@ -2847,7 +2855,7 @@ export class HomeKeeperPanel extends HTMLElement {
       this._downloadFile(`home-keeper-inventory-${stamp}.csv`, csv, 'text/csv');
     } catch (err) {
       console.error('home-keeper: inventory export failed', err);
-      this._toast(t('error.exportFailed'));
+      toast(this, t('error.exportFailed'));
     }
   }
 
@@ -2859,17 +2867,6 @@ export class HomeKeeperPanel extends HTMLElement {
       delete this._persistTimers[key];
       fn();
     }, ms);
-  }
-
-  /** Surface a transient message via HA's toast notification. */
-  private _toast(message: string): void {
-    this.dispatchEvent(
-      new CustomEvent('hass-notification', {
-        detail: { message },
-        bubbles: true,
-        composed: true,
-      }),
-    );
   }
 
   /** Trigger a client-side file download (no server round-trip for the blob). */
@@ -2929,7 +2926,7 @@ export class HomeKeeperPanel extends HTMLElement {
       await api.deleteCompletion(this._hass, taskId, ts);
     } catch (err) {
       console.error('home-keeper: delete completion failed', err);
-      this._toast(t('error.actionFailed'));
+      toast(this, t('error.actionFailed'));
     }
     await this._refresh();
   }
@@ -2944,7 +2941,7 @@ export class HomeKeeperPanel extends HTMLElement {
       await api.deleteArchivedCompletion(this._hass, assetId, archivedTaskId, ts);
     } catch (err) {
       console.error('home-keeper: delete archived completion failed', err);
-      this._toast(t('error.actionFailed'));
+      toast(this, t('error.actionFailed'));
     }
     await this._refresh();
   }
@@ -3748,7 +3745,7 @@ export class HomeKeeperPanel extends HTMLElement {
     try {
       for (const task of orphans) await api.deleteTask(this._hass, task.id);
     } catch (err) {
-      this._toast(String((err as { message?: string })?.message || err));
+      toast(this, String((err as { message?: string })?.message || err));
     }
     await this._refresh();
   }
@@ -4697,17 +4694,6 @@ export class HomeKeeperPanel extends HTMLElement {
     return `<ha-assist-chip label="${label}" title="${tip}"></ha-assist-chip>`;
   }
 
-  private _navigateToDevice(deviceId: string): void {
-    history.pushState(null, '', `/config/devices/device/${deviceId}`);
-    window.dispatchEvent(
-      new CustomEvent('location-changed', {
-        detail: { replace: false },
-        bubbles: true,
-        composed: true,
-      }),
-    );
-  }
-
   /** Wire navigation + brand-logo fallback for every device chip in the tree. */
   private _wireDeviceChips(root: ShadowRoot): void {
     root.querySelectorAll<HTMLElement>('.hk-device-chip').forEach((chip) => {
@@ -4717,7 +4703,7 @@ export class HomeKeeperPanel extends HTMLElement {
       // row's open-detail handler and the chip never reaches its device page.
       const go = (e?: Event): void => {
         e?.stopPropagation();
-        if (id) this._navigateToDevice(id);
+        if (id) navigateTo(`/config/devices/device/${id}`);
       };
       chip.addEventListener('click', go);
       chip.addEventListener('keydown', (e) => {
@@ -4949,14 +4935,7 @@ export class HomeKeeperPanel extends HTMLElement {
         type: 'grid',
         schema: [
           { name: 'replace_interval', selector: selNumber(1) },
-          {
-            name: 'replace_unit',
-            selector: selSelect([
-              { value: 'days', label: t('opt.unit.days') },
-              { value: 'weeks', label: t('opt.unit.weeks') },
-              { value: 'months', label: t('opt.unit.months') },
-            ]),
-          },
+          { name: 'replace_unit', selector: selUnit() },
         ],
       });
       // Let the user record when the part was last replaced so the derived
@@ -5255,7 +5234,7 @@ export class HomeKeeperPanel extends HTMLElement {
         // and the fallback can still fail, and claiming a copy that never landed
         // leaves the user pasting whatever was there before.
         void copyText(id).then((ok) => {
-          this._toast(ok ? t('toast.idCopied') : t('toast.copyFailed'));
+          toast(this, ok ? t('toast.idCopied') : t('toast.copyFailed'));
         });
       });
     });
@@ -5310,7 +5289,7 @@ export class HomeKeeperPanel extends HTMLElement {
       root.querySelectorAll<HTMLElement>('.d-open-in').forEach((btn) => {
         btn.addEventListener('click', () => {
           const domain = btn.dataset.domain;
-          if (domain) this._navigateToIntegration(domain);
+          if (domain) navigateTo(`/config/integrations/integration/${domain}`);
         });
       });
       return;
@@ -5783,9 +5762,9 @@ export class HomeKeeperPanel extends HTMLElement {
       // still editing) so the change is reflected the moment they return to the
       // Tasks tab, rather than lingering until the next refresh.
       await this._reload();
-      this._toast(t('settings.saved'));
+      toast(this, t('settings.saved'));
     } catch (err) {
-      this._toast(String((err as { message?: string })?.message || err));
+      toast(this, String((err as { message?: string })?.message || err));
     }
   }
 
@@ -6117,9 +6096,9 @@ export class HomeKeeperPanel extends HTMLElement {
         if (saved.length) this._itemExpanded.add(saved[saved.length - 1].id);
       }
       if (render) this._render();
-      this._toast(t('settings.saved'));
+      toast(this, t('settings.saved'));
     } catch (err) {
-      this._toast(String((err as { message?: string })?.message || err));
+      toast(this, String((err as { message?: string })?.message || err));
     }
   }
 
@@ -6314,9 +6293,9 @@ export class HomeKeeperPanel extends HTMLElement {
         if (saved.length) this._itemExpanded.add(saved[saved.length - 1].id);
       }
       if (render) this._render();
-      this._toast(t('settings.saved'));
+      toast(this, t('settings.saved'));
     } catch (err) {
-      this._toast(String((err as { message?: string })?.message || err));
+      toast(this, String((err as { message?: string })?.message || err));
     }
   }
 
@@ -6404,7 +6383,7 @@ export class HomeKeeperPanel extends HTMLElement {
     root.querySelectorAll<HTMLElement>('.hk-comp-configure').forEach((b) =>
       b.addEventListener('click', () => {
         const domain = b.dataset.domain;
-        if (domain) this._navigateToIntegration(domain);
+        if (domain) navigateTo(`/config/integrations/integration/${domain}`);
       }),
     );
     root.querySelectorAll<HTMLElement>('.hk-comp-install, .hk-comp-docs').forEach((b) =>
@@ -6423,18 +6402,6 @@ export class HomeKeeperPanel extends HTMLElement {
     );
   }
 
-  /** Deep-link to an integration's config page (same pattern as "Edit in X"). */
-  private _navigateToIntegration(domain: string): void {
-    history.pushState(null, '', `/config/integrations/integration/${domain}`);
-    window.dispatchEvent(
-      new CustomEvent('location-changed', {
-        detail: { replace: false },
-        bubbles: true,
-        composed: true,
-      }),
-    );
-  }
-
   /** Hide a suggested companion by persisting its domain to dismissed_companions. */
   private async _dismissCompanion(domain: string): Promise<void> {
     if (!this._hass) return;
@@ -6445,7 +6412,7 @@ export class HomeKeeperPanel extends HTMLElement {
       await api.setOptions(this._hass, { dismissed_companions });
       await this._refresh();
     } catch (err) {
-      this._toast(String((err as { message?: string })?.message || err));
+      toast(this, String((err as { message?: string })?.message || err));
     }
   }
 
@@ -7482,32 +7449,11 @@ export class HomeKeeperPanel extends HTMLElement {
     if (d.kind === 'link') return d.url || '';
     const parts: string[] = [];
     if (d.filename) parts.push(d.filename);
-    const size = this._formatBytes(d.size);
+    const size = formatBytes(d.size);
     if (size) parts.push(size);
-    const type = this._documentTypeLabel(d.content_type);
+    const type = documentTypeLabel(d.content_type);
     if (type) parts.push(type);
     return parts.join(' · ');
-  }
-
-  /** Format a byte count as a short human size ("950 B", "1.2 MB"). */
-  private _formatBytes(bytes?: number): string {
-    if (!bytes || bytes <= 0) return '';
-    const units = ['B', 'KB', 'MB', 'GB'];
-    let value = bytes;
-    let i = 0;
-    while (value >= 1024 && i < units.length - 1) {
-      value /= 1024;
-      i += 1;
-    }
-    const rounded = i === 0 || value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
-    return `${rounded} ${units[i]}`;
-  }
-
-  /** A short type badge from a MIME type ("application/pdf" → "PDF", "image/jpeg" → "JPEG"). */
-  private _documentTypeLabel(contentType?: string): string {
-    if (!contentType) return '';
-    const subtype = contentType.split('/')[1] || '';
-    return subtype.split(';')[0].trim().toUpperCase();
   }
 
   /**
@@ -7706,7 +7652,7 @@ export class HomeKeeperPanel extends HTMLElement {
         onProgress: (p) => this._onUploadProgress(key, p),
         signal: this._uploadAbort.signal,
       });
-      this._toast(t('doc.uploadComplete', { name: file.name }));
+      toast(this, t('doc.uploadComplete', { name: file.name }));
       return result;
     } catch (err) {
       const e = err as api.UploadError;
@@ -7730,8 +7676,8 @@ export class HomeKeeperPanel extends HTMLElement {
     if (file.size <= MAX_DOCUMENT_BYTES) return undefined;
     return t('doc.uploadTooLargeLocal', {
       name: file.name,
-      size: this._formatBytes(file.size),
-      limit: this._formatBytes(MAX_DOCUMENT_BYTES),
+      size: formatBytes(file.size),
+      limit: formatBytes(MAX_DOCUMENT_BYTES),
     });
   }
 
@@ -7761,7 +7707,7 @@ export class HomeKeeperPanel extends HTMLElement {
    *  control, plus HA's toast (viewport-fixed, so it can't scroll out of sight). */
   private _failUpload(key: string, message: string, link?: string): void {
     this._assetEdit.uploadError = { key, message, link };
-    this._toast(message);
+    toast(this, message);
     this._scrollToError = key;
     this._render();
   }
@@ -7825,8 +7771,8 @@ export class HomeKeeperPanel extends HTMLElement {
     return t('doc.uploadProgress', {
       name: state.filename,
       pct: String(pct),
-      done: this._formatBytes(state.loaded),
-      total: this._formatBytes(state.total),
+      done: formatBytes(state.loaded),
+      total: formatBytes(state.total),
     });
   }
 
@@ -8226,9 +8172,9 @@ export class HomeKeeperPanel extends HTMLElement {
   /** Details line for a part's attached file: filename · size · type. */
   private _partFileSubtitle(p: Part): string {
     const parts: string[] = [];
-    const size = this._formatBytes(p.file_size ?? undefined);
+    const size = formatBytes(p.file_size ?? undefined);
     if (size) parts.push(size);
-    const type = this._documentTypeLabel(p.file_content_type ?? undefined);
+    const type = documentTypeLabel(p.file_content_type ?? undefined);
     if (type) parts.push(type);
     return parts.join(' · ');
   }
@@ -8369,7 +8315,7 @@ export class HomeKeeperPanel extends HTMLElement {
         return `<li>
             <div class="hk-hist-row">
               <span class="date">${escapeHTML(date)}</span>
-              <span class="when">${escapeHTML(this._relativeDay(d))}</span>
+              <span class="when">${escapeHTML(relativeDay(d))}</span>
               <span class="hk-hist-actions">${moveBtn}${editBtn}<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button></span>
             </div>
             ${this._completionMeta(c, unit)}
@@ -8399,8 +8345,8 @@ export class HomeKeeperPanel extends HTMLElement {
           }),
         ),
       );
-    if (c.cost != null) bits.push(escapeHTML(this._formatCost(c.cost)));
-    if (c.who) bits.push(escapeHTML(t('completion.by', { who: this._personName(c.who) })));
+    if (c.cost != null) bits.push(escapeHTML(formatCost(this._hass, c.cost)));
+    if (c.who) bits.push(escapeHTML(t('completion.by', { who: personName(this._hass, c.who) })));
     const line = bits.length
       ? `<span class="hk-hist-chips">${bits.join(' · ')}</span>`
       : '';
@@ -8426,27 +8372,6 @@ export class HomeKeeperPanel extends HTMLElement {
    *  browser's, so the panel's dates read the same way as the rest of HA. */
   private _lang(): string | undefined {
     return this._hass?.language;
-  }
-
-  private _formatCost(amount: number): string {
-    const currency = this._hass?.config?.currency;
-    if (currency) {
-      try {
-        return new Intl.NumberFormat(this._hass?.language, {
-          style: 'currency',
-          currency,
-        }).format(amount);
-      } catch {
-        /* fall through to a bare number */
-      }
-    }
-    return String(amount);
-  }
-
-  /** Resolve a person entity id to its friendly name (falls back to the id). */
-  private _personName(entityId: string): string {
-    const friendly = this._hass?.states?.[entityId]?.attributes?.friendly_name;
-    return typeof friendly === 'string' && friendly ? friendly : entityId;
   }
 
   /** Set the trash/pencil icons and wire each per-completion delete/edit button. */
@@ -8482,13 +8407,5 @@ export class HomeKeeperPanel extends HTMLElement {
         if (task) this._openMoveCompletion(task, ts);
       });
     });
-  }
-
-  /** "today" / "yesterday" / "N days ago" for a past completion date. */
-  private _relativeDay(d: Date, now: Date = new Date()): string {
-    const days = Math.round((now.getTime() - d.getTime()) / DAY_MS);
-    if (days <= 0) return t('due.today');
-    if (days === 1) return t('due.yesterday');
-    return tn('due.days_ago', days);
   }
 }

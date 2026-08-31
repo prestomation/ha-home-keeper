@@ -66,6 +66,31 @@ export function documentIcon(doc: AssetDocument): string {
   }
 }
 
+/**
+ * Format a byte count as a short human size ("950 B", "1.2 MB"). Empty for a size
+ * there is nothing to say about — absent, zero or negative — so the caller can join
+ * the parts of a subtitle without punctuating around a gap.
+ */
+export function formatBytes(bytes?: number): string {
+  if (!bytes || bytes <= 0) return '';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i += 1;
+  }
+  const rounded = i === 0 || value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
+  return `${rounded} ${units[i]}`;
+}
+
+/** A short type badge from a MIME type ("application/pdf" → "PDF", "image/jpeg" → "JPEG"). */
+export function documentTypeLabel(contentType?: string): string {
+  if (!contentType) return '';
+  const subtype = contentType.split('/')[1] || '';
+  return subtype.split(';')[0].trim().toUpperCase();
+}
+
 // ── pre-signed file URLs ─────────────────────────────────────────────────────
 
 /** A stored blob whose openable URL has to be signed: an uploaded asset document, or

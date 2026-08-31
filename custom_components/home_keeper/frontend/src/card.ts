@@ -37,10 +37,12 @@ import {
   isHttpUrl,
   isOverdue,
   labelName,
+  navigateTo,
   recurrenceSummary,
   safeFileHref,
   safeHref,
   scanRequired,
+  toast,
 } from './utils';
 
 // mdi:check-circle-outline — the trailing "mark done" action on each row.
@@ -510,33 +512,10 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   // ── completion / CRUD ───────────────────────────────────────────────────────
-  /** Surface a transient message via HA's toast notification. */
-  private _toast(message: string): void {
-    this.dispatchEvent(
-      new CustomEvent('hass-notification', {
-        detail: { message },
-        bubbles: true,
-        composed: true,
-      }),
-    );
-  }
-
-  /** Navigate to the sidebar panel's detail page for a task (HA SPA navigation). */
-  private _navigateToPanel(taskId: string): void {
-    history.pushState(null, '', `/home-keeper/tasks/${encodeURIComponent(taskId)}`);
-    window.dispatchEvent(
-      new CustomEvent('location-changed', {
-        detail: { replace: false },
-        bubbles: true,
-        composed: true,
-      }),
-    );
-  }
-
   /** A completion-blocked task (e.g. a synced problem sensor) can't be marked done
    *  here — its owning integration clears it. Explain why instead of completing. */
   private _notifyBlocked(task: Task): void {
-    this._toast(task.managed_by?.completion_prompt || t('done.blocked'));
+    toast(this, task.managed_by?.completion_prompt || t('done.blocked'));
   }
 
   private async _complete(task: Task): Promise<void> {
@@ -551,12 +530,12 @@ export class HomeKeeperCard extends HTMLElement {
     // even in the panel — so this explains and stops, rather than sending the user
     // somewhere that would refuse them just the same.
     if (scanRequired(task)) {
-      this._toast(t('done.needsScan'));
+      toast(this, t('done.needsScan'));
       return;
     }
     if (task.completion_detail === 'required') {
-      this._toast(t('done.needsDetails'));
-      this._navigateToPanel(task.id);
+      toast(this, t('done.needsDetails'));
+      navigateTo(`/home-keeper/tasks/${encodeURIComponent(task.id)}`);
       return;
     }
     const prompt = task.managed_by?.completion_prompt;

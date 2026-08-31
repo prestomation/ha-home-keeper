@@ -29,6 +29,11 @@ import {
   tasksForAsset,
   parseRoute,
   buildPath,
+  formatCost,
+  navigateTo,
+  personName,
+  relativeDay,
+  toast,
   buildAssetTree,
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
@@ -1005,5 +1010,149 @@ describe('recurrenceSummary sentence case (#262)', () => {
     // Everything after the first character is exactly what the strings say — no
     // title-casing of "Weeks", no capital on "After".
     expect(out.slice(1)).toBe('very 3 weeks after completion');
+  });
+});
+
+describe('toast', () => {
+  it("emits HA's notification event from the element, escaping the shadow root", () => {
+    const el = document.createElement('div');
+    const seen = [];
+    el.addEventListener('hass-notification', (e) => seen.push(e));
+
+    toast(el, 'Saved');
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].type).toBe('hass-notification');
+    expect(seen[0].detail).toEqual({ message: 'Saved' });
+    // Both flags are load-bearing: HA listens above the panel/card, and the event is
+    // fired inside a shadow root. Either one false and the toast never shows.
+    expect(seen[0].bubbles).toBe(true);
+    expect(seen[0].composed).toBe(true);
+  });
+
+  it('carries whatever message it was given, including an empty one', () => {
+    const el = document.createElement('div');
+    let detail;
+    el.addEventListener('hass-notification', (e) => (detail = e.detail));
+    toast(el, '');
+    expect(detail).toEqual({ message: '' });
+  });
+});
+
+describe('navigateTo', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('pushes the path and tells HA’s router to re-route', () => {
+    const push = vi.spyOn(history, 'pushState').mockImplementation(() => {});
+    const seen = [];
+    const onNav = (e) => seen.push(e);
+    window.addEventListener('location-changed', onNav);
+
+    navigateTo('/config/devices/device/abc');
+
+    window.removeEventListener('location-changed', onNav);
+    // The title argument stays empty — HA's router reads the URL, and a title here
+    // would be the only thing that ever set the document title from a chip press.
+    expect(push).toHaveBeenCalledWith(null, '', '/config/devices/device/abc');
+    expect(seen).toHaveLength(1);
+    expect(seen[0].type).toBe('location-changed');
+    // Always a push, never a replace: Back returns to the page the user left.
+    expect(seen[0].detail).toEqual({ replace: false });
+    expect(seen[0].bubbles).toBe(true);
+    expect(seen[0].composed).toBe(true);
+  });
+
+  it('fires on window, not on the element that asked (which may be unmounted)', () => {
+    vi.spyOn(history, 'pushState').mockImplementation(() => {});
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const onEl = vi.fn();
+    el.addEventListener('location-changed', onEl);
+    const onWin = vi.fn();
+    window.addEventListener('location-changed', onWin);
+
+    navigateTo('/home-keeper/tasks/t1');
+
+    window.removeEventListener('location-changed', onWin);
+    el.remove();
+    expect(onWin).toHaveBeenCalledTimes(1);
+    expect(onEl).not.toHaveBeenCalled();
+  });
+});
+
+describe('relativeDay', () => {
+  const now = new Date('2026-06-13T12:00:00Z');
+
+  it('names the recent past in whole days', () => {
+    expect(relativeDay(new Date('2026-06-13T09:00:00Z'), now)).toBe('today');
+    expect(relativeDay(new Date('2026-06-12T12:00:00Z'), now)).toBe('yesterday');
+    expect(relativeDay(new Date('2026-06-10T12:00:00Z'), now)).toBe('3 days ago');
+    // Plural template, not "3 day ago" — and singular where singular is right.
+    expect(relativeDay(new Date('2026-06-12T12:00:00Z'), now)).not.toBe('1 days ago');
+  });
+
+  it('reads a future date as today rather than counting backwards', () => {
+    // A completion timestamped a few minutes ahead (clock skew) still happened now.
+    expect(relativeDay(new Date('2026-06-13T18:00:00Z'), now)).toBe('today');
+    expect(relativeDay(new Date('2026-06-20T12:00:00Z'), now)).toBe('today');
+  });
+
+  it('rounds to the nearest whole day at the half-day mark', () => {
+    // 1.4 days ago is still "yesterday"; 1.6 rounds up to two.
+    expect(relativeDay(new Date('2026-06-12T02:24:00Z'), now)).toBe('yesterday');
+    expect(relativeDay(new Date('2026-06-11T21:36:00Z'), now)).toBe('2 days ago');
+  });
+
+  it('defaults to the real clock when no now is given', () => {
+    expect(relativeDay(new Date())).toBe('today');
+    expect(relativeDay(new Date(Date.now() - 86_400_000))).toBe('yesterday');
+  });
+});
+
+describe('formatCost', () => {
+  it('formats in the instance currency, in the instance language', () => {
+    const hass = { config: { currency: 'USD' }, language: 'en-US' };
+    expect(formatCost(hass, 12.5)).toBe('$12.50');
+    const eu = { config: { currency: 'EUR' }, language: 'en-US' };
+    expect(formatCost(eu, 12.5)).toBe('€12.50');
+  });
+
+  it('falls back to the bare number when there is no currency to format in', () => {
+    expect(formatCost({ language: 'en-US' }, 12.5)).toBe('12.5');
+    expect(formatCost({ config: {} }, 12.5)).toBe('12.5');
+    expect(formatCost(undefined, 12.5)).toBe('12.5');
+  });
+
+  it('falls back to the bare number for a currency code Intl refuses', () => {
+    // A free-text currency in HA's config (or a code Intl has never heard of) used to
+    // throw out of the render; the number is worth more than an exception.
+    expect(formatCost({ config: { currency: 'not-a-currency' }, language: 'en-US' }, 12.5)).toBe(
+      '12.5',
+    );
+  });
+});
+
+describe('personName', () => {
+  const hass = {
+    states: {
+      'person.sam': { attributes: { friendly_name: 'Sam' } },
+      'person.blank': { attributes: { friendly_name: '' } },
+      'person.bare': { attributes: {} },
+      'person.odd': { attributes: { friendly_name: 42 } },
+    },
+  };
+
+  it('prefers the friendly name', () => {
+    expect(personName(hass, 'person.sam')).toBe('Sam');
+  });
+
+  it('falls back to the entity id whenever there is no name to show', () => {
+    // An empty friendly_name is not a name: it would render "Completed by " and stop.
+    expect(personName(hass, 'person.blank')).toBe('person.blank');
+    expect(personName(hass, 'person.bare')).toBe('person.bare');
+    expect(personName(hass, 'person.odd')).toBe('person.odd');
+    expect(personName(hass, 'person.gone')).toBe('person.gone');
+    expect(personName({}, 'person.sam')).toBe('person.sam');
+    expect(personName(undefined, 'person.sam')).toBe('person.sam');
   });
 });
