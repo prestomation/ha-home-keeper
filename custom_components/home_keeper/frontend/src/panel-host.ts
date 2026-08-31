@@ -24,6 +24,7 @@
 
 import type { SignedUrlCache } from './documents';
 import type { FormField, HaFormElement } from './forms';
+import type { MarkdownPreview } from './markdown';
 import type {
   AssetEditState,
   AssetFilter,
@@ -53,6 +54,10 @@ export interface PanelHost extends HTMLElement {
   _assetTab(): AssetTab;
   /** Flat list or parent/child tree, for the appliance list. */
   _assetView: AssetView;
+  /** Build a live Markdown preview under *host*, seeded with *initial*. The panel's
+   *  only preview constructor: it registers each one for disposal (see the field
+   *  comment on `_previews`), so a region must never build one itself. */
+  _attachNotePreview(host: HTMLElement, initial: string): MarkdownPreview;
   /** A *disabled* Done wrapped in a clickable span that explains why, for a task whose
    *  source clears it (or which wants its tag scanned). */
   _blockedDone(wrapClass: string, task: Task, weight?: BtnWeight): string;
@@ -159,6 +164,8 @@ export interface PanelHost extends HTMLElement {
   _restoreAsset(asset: Asset): Promise<void>;
   /** How a scroll the panel starts itself should move (honours reduced-motion). */
   _scrollBehavior(): ScrollBehavior;
+  /** One-shot: the upload-error key the next render should scroll into view. */
+  _scrollToError?: string;
   _setAssetFilter(value: AssetFilter): void;
   /** Switch the open appliance's sub-tab (replaces, so Back leaves the appliance). */
   _setAssetTab(tab: AssetTab): void;
@@ -178,6 +185,10 @@ export interface PanelHost extends HTMLElement {
   _tasks: Task[];
   /** Appliance ids whose tree children are folded away. */
   _treeCollapsed: Set<string>;
+  /** Cancels the in-flight upload; undefined when none is running. */
+  _uploadAbort?: AbortController;
+  /** Pending "the upload has run long enough to show a bar" timer. */
+  _uploadShowTimer?: ReturnType<typeof setTimeout>;
   /** Which top-level tab is showing. */
   _view: 'tasks' | 'appliances' | 'settings';
   /** Wire a detail page's inline notes editor (buttons + live preview). Stays on the

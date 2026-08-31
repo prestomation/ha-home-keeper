@@ -1,18 +1,11 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
-import type { SignedFileRef } from './documents';
 import {
   SIGNED_URL_REFRESH_MS,
   SignedUrlCache,
   assetFileRefs,
-  documentIcon,
   documentLabel,
-  documentTypeLabel,
-  formatBytes,
   isDisplayableDocument,
-  openDocument,
-  openPartFile,
-  signedFileKey,
 } from './documents';
 import {
   buildTaskPayload,
@@ -21,15 +14,12 @@ import {
   haDateTimeToIso,
   isoToHaDateTime,
   selArea,
-  selBool,
-  selDate,
   selDateTime,
   selDevice,
   selIcon,
   selNumber,
   selSelect,
   selText,
-  selUnit,
   DEFAULT_BACKSTOP_INTERVAL,
   formRecurrenceSummary,
   sensorHintText,
@@ -43,7 +33,6 @@ import {
 } from './forms';
 import { selEntity } from './forms';
 import { setLanguage, t } from './i18n';
-import { MAX_DOCUMENT_BYTES } from './limits';
 import {
   createPreview,
   ensureMarkdown,
@@ -52,20 +41,17 @@ import {
   wireMarkdown,
   type MarkdownPreview,
 } from './markdown';
+import {
+  renderDocumentsEditor,
+  renderMetadataEditor,
+  renderPartsEditor,
+} from './panel-asset-editors';
 import { wireDeviceChips } from './panel-chips';
 import { controls, wireControls } from './panel-controls';
 import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
 import { collapsibleSection, section, setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
-import {
-  DOCS_UPLOAD_413_URL,
-  MDI_CLOSE,
-  MDI_DELETE,
-  MDI_EDIT,
-  MDI_OPEN_IN_NEW,
-  REQUIRED_COMPONENTS,
-  SENSOR_DOCS_URL,
-} from './panel-icons';
+import { MDI_CLOSE, REQUIRED_COMPONENTS, SENSOR_DOCS_URL } from './panel-icons';
 import { assetsList, tasksList, wireLists } from './panel-lists';
 import {
   settingsBackbar,
@@ -83,9 +69,6 @@ import {
   LS_GROUP,
   LS_PROFILE,
   LS_TREE_COLLAPSED,
-  UPLOAD_BAR_DELAY_MS,
-  UPLOAD_KEY_DOCUMENT,
-  uploadKeyPart,
   type AssetEditState,
   type AssetFilter,
   type AssetView,
@@ -95,21 +78,17 @@ import {
   type MoveCompletionDialogState,
   type NoteTarget,
   type TaskFilter,
-  type UploadState,
 } from './panel-types';
+import { errorAlert, setAssetError } from './panel-upload';
 import type {
   Asset,
-  AssetDocument,
   AssetKind,
   Companion,
   Completion,
   Hass,
   HomeKeeperOptions,
   ManagedBy,
-  MetadataEntry,
-  MetadataType,
   PanelInfo,
-  Part,
   Profile,
   Task,
 } from './types';
@@ -120,9 +99,7 @@ import {
   buildPath,
   escapeHTML,
   formatQuantity,
-  isHttpUrl,
   parseRoute,
-  randomId,
   safeHref,
   scanRequired,
   setBtnWeight,
@@ -133,12 +110,6 @@ import {
   DEFAULT_ASSET_TAB,
   type SettingsSection,
 } from './utils';
-
-// The smallest a part quantity that must be *positive* can be. Stock itself may be
-// zero (you're out), but "how much a completion uses" and "how much a restock adds"
-// can't be — a zero there is a field that quietly does nothing. A number selector
-// has no exclusive minimum, so the floor is one step of the stored precision.
-const MIN_POSITIVE_QUANTITY = 0.001;
 
 /**
  * The Home Keeper panel is built entirely from Home Assistant's own web
@@ -193,10 +164,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // object or hold a copy of it, or the save writes stale values.
   _assetEdit: AssetEditState = { open: false, asset: null };
   // Cancels the in-flight upload (see `_runUpload`); undefined when none is running.
-  private _uploadAbort?: AbortController;
-  private _uploadShowTimer?: ReturnType<typeof setTimeout>;
+  _uploadAbort?: AbortController;
+  _uploadShowTimer?: ReturnType<typeof setTimeout>;
   // One-shot: the upload-error key to scroll to on the next render.
-  private _scrollToError?: string;
+  _scrollToError?: string;
   _view: 'tasks' | 'appliances' | 'settings' = 'tasks';
   // Integration options for the Settings tab (loaded lazily with the rest).
   _options: HomeKeeperOptions | null = null;
@@ -918,7 +889,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * preview can never outlive its DOM with a debounce timer still armed. Constructing
    * one directly with `createPreview` would leak — don't.
    */
-  private _attachNotePreview(host: HTMLElement, initial: string): MarkdownPreview {
+  _attachNotePreview(host: HTMLElement, initial: string): MarkdownPreview {
     const preview = createPreview(t('note.preview'));
     this._previews.push(preview);
     host.appendChild(preview.el);
@@ -1258,12 +1229,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (!this._hass || !this._assetEdit.asset) return;
     const a = this._assetEdit.asset;
     if (a.kind === 'virtual' && !String(a.name || '').trim()) {
-      this._setAssetError(t('error.nameRequiredAppliance'));
+      setAssetError(this, t('error.nameRequiredAppliance'));
       this._render();
       return;
     }
     if (a.kind === 'existing' && !a.device_id) {
-      this._setAssetError(t('error.pickDevice'));
+      setAssetError(this, t('error.pickDevice'));
       this._render();
       return;
     }
@@ -1283,7 +1254,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._closeAssetForm();
       await this._refresh();
     } catch (err) {
-      this._setAssetError(String((err as { message?: string })?.message || err));
+      setAssetError(this, String((err as { message?: string })?.message || err));
       this._render();
     }
   }
@@ -1871,108 +1842,6 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Structured field that wires into HA: the asset's value (for the inventory). */
   private _structuredDetailsSchema(): FormField[] {
     return [{ name: 'cost', selector: selNumber(0) }];
-  }
-
-  /** Schema for one free-form metadata entry. The value control swaps by type, and
-   *  a `date` entry adds a "track as sensor" toggle (opt-in automation). */
-  private _metadataSchema(m: MetadataEntry): FormField[] {
-    const valueSelector = m.type === 'date' ? selDate() : selText();
-    const fields: FormField[] = [
-      {
-        name: '',
-        type: 'grid',
-        schema: [
-          {
-            name: 'type',
-            selector: selSelect([
-              { value: 'text', label: t('opt.meta.text') },
-              { value: 'link', label: t('opt.meta.link') },
-              { value: 'date', label: t('opt.meta.date') },
-            ]),
-          },
-          { name: 'label', selector: selText() },
-        ],
-      },
-      { name: 'value', selector: valueSelector },
-    ];
-    if (m.type === 'date') fields.push({ name: 'track', selector: selBool() });
-    return fields;
-  }
-
-  private _partSchema(p: Part): FormField[] {
-    const isWear = p.type === 'wear';
-    const base: FormField[] = [
-      {
-        name: '',
-        type: 'grid',
-        schema: [
-          { name: 'part_name', selector: selText() },
-          { name: 'part_number', selector: selText() },
-          {
-            name: 'type',
-            selector: selSelect([
-              { value: 'consumable', label: t('opt.part.consumable') },
-              { value: 'wear', label: t('opt.part.wear') },
-            ]),
-          },
-        ],
-      },
-      {
-        name: '',
-        type: 'grid',
-        schema: [
-          { name: 'vendor', selector: selText() },
-          { name: 'cost', selector: selNumber(0) },
-        ],
-      },
-      { name: 'part_url', selector: selText() },
-      // Free-form notes about this part (rendered as Markdown on the appliance's
-      // detail page) — the field has always existed in the stored model but had no
-      // editor until now.
-      { name: 'notes', selector: selText(true) },
-      // Spare quantities are decimal (`'any'`): a part measured in millilitres or
-      // topped up a third of a bottle at a time is as valid as one counted in whole
-      // filters. `stock_unit` is the label those numbers are shown with.
-      {
-        name: '',
-        type: 'grid',
-        schema: [
-          { name: 'stock', selector: selNumber(0, 'any') },
-          { name: 'reorder_at', selector: selNumber(0, 'any') },
-          { name: 'stock_unit', selector: selText() },
-        ],
-      },
-    ];
-    // How much one completion draws down. Only meaningful once the part is tracking
-    // stock at all — with nothing to draw from, the field would promise nothing.
-    if (p.stock != null) {
-      base.push({ name: 'consume_quantity', selector: selNumber(MIN_POSITIVE_QUANTITY, 'any') });
-    }
-    // Auto-buy: only meaningful once a reorder threshold is set (that's what defines
-    // "low"). When enabled, offer the restock quantity added on completing the reminder.
-    if (p.reorder_at != null) {
-      base.push({ name: 'create_buy_task', selector: selBool() });
-      if (p.create_buy_task) {
-        base.push({
-          name: 'restock_quantity',
-          selector: selNumber(MIN_POSITIVE_QUANTITY, 'any'),
-        });
-      }
-    }
-    if (isWear) {
-      base.push({
-        name: '',
-        type: 'grid',
-        schema: [
-          { name: 'replace_interval', selector: selNumber(1) },
-          { name: 'replace_unit', selector: selUnit() },
-        ],
-      });
-      // Let the user record when the part was last replaced so the derived
-      // maintenance task's clock starts from the real date instead of "now".
-      base.push({ name: 'last_replaced', selector: selDate() });
-    }
-    return base;
   }
 
   // ── hydration: build/configure live HA components ───────────────────────────
@@ -2887,7 +2756,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
     const mergeAsset = (value: Record<string, unknown>): void => {
       this._assetEdit.asset = { ...this._assetEdit.asset, ...value } as Partial<Asset>;
-      this._setAssetError(undefined);
+      setAssetError(this, undefined);
     };
 
     // Identity (kind toggle re-renders since the schema changes).
@@ -2947,11 +2816,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     );
     assetNotePreview = this._attachNotePreview(inner, String(x.notes ?? ''));
 
-    this._renderDocumentsEditor(inner);
+    renderDocumentsEditor(this, inner);
 
-    this._renderMetadataEditor(inner);
+    renderMetadataEditor(this, inner);
 
-    this._renderPartsEditor(inner);
+    renderPartsEditor(this, inner);
 
     inner.appendChild(section(t('section.related')));
     inner.appendChild(
@@ -2963,7 +2832,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     );
 
     if (this._assetEdit.error) {
-      inner.appendChild(this._errorAlert(this._assetEdit.error, this._assetEdit.errorLink));
+      inner.appendChild(errorAlert(this._assetEdit.error, this._assetEdit.errorLink));
     }
 
     card.appendChild(inner);
@@ -2984,987 +2853,6 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
           el.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
       });
-    }
-  }
-
-  /** Documents editor: list existing docs with a remove button, plus controls to add
-   *  a link or upload a file. Documents are managed live (each its own backend call),
-   *  so a file upload needs an already-saved appliance (it must have an id). */
-  private _renderDocumentsEditor(inner: HTMLElement): void {
-    inner.appendChild(section(t('section.documents')));
-    const docs = this._assetEdit.asset?.documents || [];
-
-    // Existing documents: each is a clear card (icon + name + details) with Open /
-    // Edit / Remove actions — except the one being edited, which shows its form.
-    docs.forEach((d) => {
-      if (d.id && this._assetEdit.editingDocId === d.id) this._renderDocumentEdit(inner, d);
-      else this._renderDocumentCard(inner, d);
-    });
-
-    this._renderDocumentAdd(inner);
-  }
-
-  /** One existing document as a read row: icon, name, a details subtitle, and the
-   *  Open (link/signed-file URL) / Edit / Remove actions. */
-  private _renderDocumentCard(inner: HTMLElement, d: AssetDocument): void {
-    const card = document.createElement('div');
-    card.className = 'hk-doc-card';
-
-    const ic = document.createElement('div');
-    ic.className = 'hk-doc-ic';
-    const icon = document.createElement('ha-icon');
-    icon.setAttribute('icon', documentIcon(d));
-    ic.appendChild(icon);
-
-    const main = document.createElement('div');
-    main.className = 'hk-doc-main';
-    const name = document.createElement('div');
-    name.className = 'hk-doc-name';
-    name.textContent = documentLabel(d);
-    main.appendChild(name);
-    const subText = this._documentSubtitle(d);
-    if (subText) {
-      const sub = document.createElement('div');
-      sub.className = 'hk-doc-sub';
-      sub.textContent = subText;
-      main.appendChild(sub);
-    }
-
-    const actions = document.createElement('div');
-    actions.className = 'hk-doc-actions';
-    // Open is only meaningful for a link with a URL, or a file already saved (it owns
-    // a blob keyed by its id — a brand-new asset's links have no file to open).
-    const canOpen = d.kind === 'file' ? Boolean(d.id) : Boolean(d.url);
-    if (canOpen) {
-      // A real link for the same reason the detail page's rows are — a `window.open`
-      // after the async sign never fires in the iOS app's WKWebView.
-      const assetId = this._assetEdit.asset?.id;
-      const target: SignedFileRef | string | undefined =
-        d.kind === 'file'
-          ? assetId && d.id
-            ? { kind: 'document', assetId, id: d.id }
-            : undefined
-          : d.url;
-      actions.appendChild(this._openFileAnchor(target, () => this._openDocument(d)));
-    }
-    const edit = document.createElement('ha-icon-button');
-    edit.setAttribute('label', t('btn.edit'));
-    setIcon(edit, MDI_EDIT);
-    edit.addEventListener('click', () => {
-      this._assetEdit.editingDocId = d.id;
-      this._render();
-    });
-    const del = document.createElement('ha-icon-button');
-    del.setAttribute('label', t('btn.removeDocument'));
-    setIcon(del, MDI_DELETE);
-    del.addEventListener('click', () => void this._removeDocument(d));
-    actions.append(edit, del);
-
-    card.append(ic, main, actions);
-    inner.appendChild(card);
-  }
-
-  /** Inline editor for one document: a link edits name + URL; a file (upload-only) edits
-   *  only its display name. Save commits, Cancel discards. */
-  private _renderDocumentEdit(inner: HTMLElement, d: AssetDocument): void {
-    const box = document.createElement('div');
-    box.className = 'hk-part hk-doc-edit';
-    const isLink = d.kind === 'link';
-    const draft = { name: d.name || '', url: d.kind === 'link' ? d.url ?? '' : '' };
-    const schema: FormField[] = isLink
-      ? [
-          {
-            name: '',
-            type: 'grid',
-            schema: [
-              { name: 'doc_name', selector: selText() },
-              { name: 'doc_url', selector: selText() },
-            ],
-          },
-        ]
-      : [{ name: 'doc_name', selector: selText() }];
-    const data = isLink ? { doc_name: draft.name, doc_url: draft.url } : { doc_name: draft.name };
-    box.appendChild(
-      this._makeForm(schema, data, (value) => {
-        if ('doc_name' in value) draft.name = String(value.doc_name ?? '');
-        if ('doc_url' in value) draft.url = String(value.doc_url ?? '');
-      }),
-    );
-
-    const row = document.createElement('div');
-    row.className = 'hk-doc-edit-actions';
-    const save = document.createElement('ha-button');
-    setBtnWeight(save, 'primary');
-    save.textContent = t('btn.save');
-    save.addEventListener('click', () =>
-      void this._updateDocument(d, isLink ? { name: draft.name, url: draft.url } : { name: draft.name }),
-    );
-    const cancel = document.createElement('ha-button');
-    setBtnWeight(cancel, 'tertiary');
-    cancel.textContent = t('btn.cancel');
-    cancel.addEventListener('click', () => {
-      this._assetEdit.editingDocId = undefined;
-      this._render();
-    });
-    row.append(save, cancel);
-    box.appendChild(row);
-    inner.appendChild(box);
-  }
-
-  /** The "add a document" area: a name + URL link form (always available, even before
-   *  the appliance is saved) and — once saved — a file upload control. */
-  private _renderDocumentAdd(inner: HTMLElement): void {
-    const assetId = this._assetEdit.asset?.id;
-    const add = document.createElement('div');
-    add.className = 'hk-doc-add';
-    const title = document.createElement('div');
-    title.className = 'hk-doc-add-title';
-    title.textContent = t('doc.addHeading');
-    add.appendChild(title);
-
-    const draft: { name: string; url: string } = { name: '', url: '' };
-    add.appendChild(
-      this._makeForm(
-        [
-          {
-            name: '',
-            type: 'grid',
-            schema: [
-              { name: 'doc_name', selector: selText() },
-              { name: 'doc_url', selector: selText() },
-            ],
-          },
-        ],
-        { doc_name: '', doc_url: '' },
-        (value) => {
-          draft.name = String(value.doc_name ?? '');
-          draft.url = String(value.doc_url ?? '');
-        },
-      ),
-    );
-
-    const seedRow = document.createElement('div');
-    seedRow.className = 'hk-meta-seeds';
-    const addLink = document.createElement('ha-button');
-    setBtnWeight(addLink, 'secondary');
-    addLink.textContent = t('btn.addLink');
-    addLink.addEventListener('click', () => void this._addLinkDocument(draft.name, draft.url));
-    seedRow.appendChild(addLink);
-
-    // A file can only be uploaded once the appliance exists (its id keys the blob).
-    if (assetId) {
-      const upload = document.createElement('ha-button');
-      setBtnWeight(upload, 'secondary');
-      upload.textContent = this._uploadButtonLabel(UPLOAD_KEY_DOCUMENT, t('btn.uploadFile'));
-      const picker = document.createElement('input');
-      picker.type = 'file';
-      picker.accept = 'application/pdf,image/png,image/jpeg,image/webp,image/gif';
-      picker.style.display = 'none';
-      picker.addEventListener('change', () => {
-        const file = picker.files?.[0];
-        if (file) void this._uploadDocument(file);
-        picker.value = '';
-      });
-      upload.addEventListener('click', () => picker.click());
-      if (this._assetEdit.upload) upload.setAttribute('disabled', '');
-      seedRow.append(upload, picker);
-    }
-    add.appendChild(seedRow);
-    // Progress / failure for this control, right where the user pressed the button.
-    this._renderUploadStatus(add, UPLOAD_KEY_DOCUMENT);
-
-    if (!assetId) {
-      const hint = document.createElement('div');
-      hint.className = 'hk-meta';
-      hint.textContent = t('doc.saveFirstHint');
-      add.appendChild(hint);
-    }
-    inner.appendChild(add);
-  }
-
-  /** Human-readable details line for a document card: a link shows its URL; a file shows
-   *  filename · size · type (e.g. "manual.pdf · 1.2 MB · PDF"). */
-  private _documentSubtitle(d: AssetDocument): string {
-    if (d.kind === 'link') return d.url || '';
-    const parts: string[] = [];
-    if (d.filename) parts.push(d.filename);
-    const size = formatBytes(d.size);
-    if (size) parts.push(size);
-    const type = documentTypeLabel(d.content_type);
-    if (type) parts.push(type);
-    return parts.join(' · ');
-  }
-
-  /**
-   * The editor's "Open" affordance: an anchor styled like the icon-buttons beside it,
-   * so activating it is a native navigation rather than a scripted one (the same reason
-   * the detail page's document rows are anchors — see `documents.ts`). It carries the
-   * icon *itself* rather than wrapping an `ha-icon-button`: nesting one interactive
-   * control inside another leaves it to the browser whether the click reaches the link,
-   * and "it depends on the browser" is precisely the bug being fixed here.
-   *
-   * *target* is the stored URL of a link document, a `SignedFileRef` for an uploaded
-   * file (the href is stamped on by `_signFiles` once minted — the anchor carries the
-   * cache key meanwhile), or undefined when neither is available. *fallback* covers the
-   * window before a signed href lands, and stands down as soon as there is one.
-   */
-  private _openFileAnchor(
-    target: SignedFileRef | string | undefined,
-    fallback: () => void,
-  ): HTMLAnchorElement {
-    const a = document.createElement('a');
-    a.className = 'hk-doc-open';
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.title = t('btn.openDocument');
-    a.setAttribute('aria-label', a.title);
-    if (typeof target === 'string') {
-      // Set as a property, so the raw URL (not the HTML-escaped `safeHref` form) lands
-      // on the anchor — same validation, no double-escaping of `&` in a query string.
-      if (isHttpUrl(target)) a.href = target;
-    } else if (target) {
-      const key = signedFileKey(target);
-      a.dataset.sign = key;
-      const href = this._signedFiles.getByKey(key);
-      if (href) a.href = href;
-    }
-    a.addEventListener('click', (e) => {
-      if (a.getAttribute('href')) return; // native tap — don't double-open
-      e.preventDefault();
-      fallback();
-    });
-    const icon = document.createElement('ha-svg-icon');
-    setIcon(icon, MDI_OPEN_IN_NEW);
-    a.appendChild(icon);
-    return a;
-  }
-
-  /** Open a document from the editor: a link opens its URL; a file opens via a signed
-   *  URL. A link needs no asset id (it carries its own URL), so an unsaved asset's
-   *  links still open. Fallback only — `_openFileAnchor` is the primary path. */
-  private _openDocument(d: AssetDocument): void {
-    if (this._hass) void openDocument(this._hass, this._assetEdit.asset?.id ?? '', d);
-  }
-
-  /** Append the live document list onto the in-progress edit copy and re-render. */
-  private _setEditDocuments(asset: Asset): void {
-    if (this._assetEdit.asset) this._assetEdit.asset.documents = asset.documents || [];
-    this._render();
-  }
-
-  /** Set (or clear) the appliance-form error, plus an optional "Learn more" link. */
-  private _setAssetError(message?: string, link?: string): void {
-    this._assetEdit.error = message;
-    this._assetEdit.errorLink = link;
-  }
-
-  private async _addLinkDocument(name: string, url: string): Promise<void> {
-    if (!url.trim()) return;
-    const assetId = this._assetEdit.asset?.id;
-    // A saved appliance persists links through the service; a brand-new one collects
-    // them on the working copy so they ride along in the create payload.
-    if (!assetId) {
-      const list = [...(this._assetEdit.asset?.documents || [])];
-      list.push({ id: randomId(), kind: 'link', name, url });
-      this._assetEdit.asset!.documents = list;
-      this._render();
-      return;
-    }
-    if (!this._hass) return;
-    try {
-      const asset = await api.addAssetDocument(this._hass, assetId, { name, url });
-      this._setEditDocuments(asset);
-    } catch (err) {
-      this._setAssetError(String((err as { message?: string })?.message || err));
-      this._render();
-    }
-  }
-
-  private async _updateDocument(
-    doc: AssetDocument,
-    changes: { name: string; url?: string },
-  ): Promise<void> {
-    if (!doc.id) return;
-    const assetId = this._assetEdit.asset?.id;
-    if (!assetId) {
-      const list = [...(this._assetEdit.asset?.documents || [])];
-      const idx = list.findIndex((d) => d.id === doc.id);
-      if (idx >= 0) {
-        const merged: AssetDocument = { ...list[idx], name: changes.name };
-        if (merged.kind === 'link' && changes.url !== undefined) merged.url = changes.url;
-        list[idx] = merged;
-        this._assetEdit.asset!.documents = list;
-      }
-      this._assetEdit.editingDocId = undefined;
-      this._render();
-      return;
-    }
-    if (!this._hass) return;
-    try {
-      const asset = await api.updateAssetDocument(this._hass, assetId, doc.id, changes);
-      this._assetEdit.editingDocId = undefined;
-      this._setEditDocuments(asset);
-    } catch (err) {
-      this._setAssetError(String((err as { message?: string })?.message || err));
-      this._render();
-    }
-  }
-
-  private async _removeDocument(doc: AssetDocument): Promise<void> {
-    if (!doc.id) return;
-    const assetId = this._assetEdit.asset?.id;
-    if (this._assetEdit.editingDocId === doc.id) this._assetEdit.editingDocId = undefined;
-    if (!assetId) {
-      this._assetEdit.asset!.documents = (this._assetEdit.asset?.documents || []).filter(
-        (d) => d.id !== doc.id,
-      );
-      this._render();
-      return;
-    }
-    if (!this._hass) return;
-    try {
-      const asset = await api.removeAssetDocument(this._hass, assetId, doc.id);
-      this._setEditDocuments(asset);
-    } catch (err) {
-      this._setAssetError(String((err as { message?: string })?.message || err));
-      this._render();
-    }
-  }
-
-  private async _uploadDocument(file: File): Promise<void> {
-    const assetId = this._assetEdit.asset?.id;
-    if (!this._hass || !assetId) return;
-    const documentId = randomId();
-    const hass = this._hass;
-    const asset = await this._runUpload(UPLOAD_KEY_DOCUMENT, file, (opts) =>
-      api.uploadAssetDocument(hass, assetId, documentId, file, undefined, opts),
-    );
-    if (asset) this._setEditDocuments(asset);
-  }
-
-  /**
-   * Run an upload with a size pre-check, progress reporting and visible failures.
-   *
-   * Shared by the appliance-documents and part-file controls so both behave
-   * identically. Returns the upload's result, or `undefined` if it failed or was
-   * cancelled — the caller only grafts its own state on success.
-   */
-  private async _runUpload<T>(
-    key: string,
-    file: File,
-    run: (opts: api.UploadOptions) => Promise<T>,
-  ): Promise<T | undefined> {
-    // A previous failure is stale the moment a new upload starts.
-    this._assetEdit.uploadError = undefined;
-    this._setAssetError(undefined);
-
-    // Refuse an oversized file *here*: uploading 30 MB just to have the backend 413 it
-    // wastes minutes, and on a slow link looks like a hang.
-    const tooLarge = this._uploadSizeError(file);
-    if (tooLarge) {
-      this._failUpload(key, tooLarge);
-      return undefined;
-    }
-
-    this._assetEdit.upload = {
-      key,
-      filename: file.name,
-      loaded: 0,
-      total: file.size,
-      indeterminate: true,
-      sent: false,
-      visible: false,
-    };
-    this._uploadAbort = new AbortController();
-    // Small files finish before this fires, so they never flash a progress bar — the
-    // disabled "Uploading…" button is the only affordance they need.
-    this._uploadShowTimer = setTimeout(() => {
-      if (this._assetEdit.upload) {
-        this._assetEdit.upload.visible = true;
-        this._render();
-      }
-    }, UPLOAD_BAR_DELAY_MS);
-    this._render();
-
-    try {
-      const result = await run({
-        onProgress: (p) => this._onUploadProgress(key, p),
-        signal: this._uploadAbort.signal,
-      });
-      toast(this, t('doc.uploadComplete', { name: file.name }));
-      return result;
-    } catch (err) {
-      const e = err as api.UploadError;
-      // A cancellation is the user's own doing — no error to report.
-      if (!e?.aborted) {
-        const { message, link } = this._uploadErrorMessage(e, file);
-        this._failUpload(key, message, link);
-      }
-      return undefined;
-    } finally {
-      if (this._uploadShowTimer) clearTimeout(this._uploadShowTimer);
-      this._uploadShowTimer = undefined;
-      this._uploadAbort = undefined;
-      this._assetEdit.upload = undefined;
-      this._render();
-    }
-  }
-
-  /** The pre-check message for a file over the shared ceiling, else undefined. */
-  private _uploadSizeError(file: File): string | undefined {
-    if (file.size <= MAX_DOCUMENT_BYTES) return undefined;
-    return t('doc.uploadTooLargeLocal', {
-      name: file.name,
-      size: formatBytes(file.size),
-      limit: formatBytes(MAX_DOCUMENT_BYTES),
-    });
-  }
-
-  /** Map an upload failure onto localized user-facing text (plus an optional docs link). */
-  private _uploadErrorMessage(
-    e: api.UploadError,
-    file: File,
-  ): { message: string; link?: string } {
-    // A 413 with no Home Keeper message body means a reverse proxy in front of HA
-    // rejected the upload (its request-body limit) — guide the user to the fix.
-    if (e?.status === 413 && !e.serverMessage) {
-      return { message: t('doc.uploadTooLargeProxy'), link: DOCS_UPLOAD_413_URL };
-    }
-    if (!e?.status) {
-      // No HTTP status at all. If the body was still going out, the connection was cut
-      // mid-upload — classically a proxy body limit, which closes rather than replying,
-      // so the browser never sees the 413. Offer that fix without asserting it.
-      if ((e?.bytesSent ?? 0) > 0 && e.bytesSent! < file.size) {
-        return { message: t('doc.uploadNetworkOrProxy'), link: DOCS_UPLOAD_413_URL };
-      }
-      return { message: t('doc.uploadNetworkError') };
-    }
-    return { message: t('doc.uploadFailed', { error: String(e?.message ?? '') }) };
-  }
-
-  /** Report an upload failure where the user is actually looking: inline next to the
-   *  control, plus HA's toast (viewport-fixed, so it can't scroll out of sight). */
-  private _failUpload(key: string, message: string, link?: string): void {
-    this._assetEdit.uploadError = { key, message, link };
-    toast(this, message);
-    this._scrollToError = key;
-    this._render();
-  }
-
-  /** Patch the live progress bar in place. Deliberately does *not* re-render: a render
-   *  replaces the whole shadow root, which would thrash on every progress event. */
-  private _onUploadProgress(key: string, p: api.UploadProgress): void {
-    const state = this._assetEdit.upload;
-    if (!state || state.key !== key) return;
-    const before = this._uploadPercent(state);
-    Object.assign(state, {
-      loaded: p.loaded,
-      total: p.total || state.total,
-      indeterminate: p.indeterminate,
-      sent: p.sent,
-    });
-    // Whole-percent changes only; a large upload fires progress events far more often
-    // than the bar can meaningfully move.
-    if (!p.sent && this._uploadPercent(state) === before) return;
-    const host = this.shadowRoot?.getElementById('hk-upload');
-    // Gone — a re-render happened. State is authoritative; the next render rebuilds it.
-    if (!host) return;
-    this._applyUploadProgress(host, state);
-  }
-
-  /** Percent complete, or undefined while indeterminate. */
-  private _uploadPercent(state: UploadState): number | undefined {
-    if (state.indeterminate || !state.total) return undefined;
-    return Math.min(100, Math.round((state.loaded / state.total) * 100));
-  }
-
-  /** Write a progress state onto an existing bar (shared by first render and updates). */
-  private _applyUploadProgress(host: HTMLElement, state: UploadState): void {
-    const pct = this._uploadPercent(state);
-    const track = host.querySelector('.hk-upload-track');
-    const fill = host.querySelector<HTMLElement>('.hk-upload-fill');
-    const label = host.querySelector('.hk-upload-label');
-    const bar = host.querySelector('#hk-upload-bar');
-    if (track) track.classList.toggle('indeterminate', pct === undefined);
-    if (fill && pct !== undefined) fill.style.width = `${pct}%`;
-    if (bar) {
-      // Screen readers announce a determinate bar by value; while indeterminate there
-      // is no value to announce, so drop it and mark the region busy instead.
-      if (pct === undefined) {
-        bar.removeAttribute('aria-valuenow');
-        bar.setAttribute('aria-busy', 'true');
-      } else {
-        bar.setAttribute('aria-valuenow', String(pct));
-        bar.removeAttribute('aria-busy');
-      }
-    }
-    if (label) label.textContent = this._uploadLabel(state);
-  }
-
-  /** The line under the bar: "manual.pdf · 42% · 4.2 MB of 10 MB", or a phase message
-   *  while there's no percentage to show. */
-  private _uploadLabel(state: UploadState): string {
-    if (state.sent) return t('doc.uploadFinishing', { name: state.filename });
-    const pct = this._uploadPercent(state);
-    if (pct === undefined) return t('doc.uploadPreparing', { name: state.filename });
-    return t('doc.uploadProgress', {
-      name: state.filename,
-      pct: String(pct),
-      done: formatBytes(state.loaded),
-      total: formatBytes(state.total),
-    });
-  }
-
-  /** Render the progress bar and/or the inline error for one upload control. Called
-   *  from both upload call sites so they stay identical. */
-  private _renderUploadStatus(host: HTMLElement, key: string): void {
-    const state = this._assetEdit.upload;
-    if (state?.key === key && state.visible) {
-      const wrap = document.createElement('div');
-      wrap.className = 'hk-upload';
-      wrap.id = 'hk-upload';
-      const bar = document.createElement('div');
-      bar.id = 'hk-upload-bar';
-      bar.setAttribute('role', 'progressbar');
-      bar.setAttribute('aria-valuemin', '0');
-      bar.setAttribute('aria-valuemax', '100');
-      bar.setAttribute('aria-label', t('doc.uploadPreparing', { name: state.filename }));
-      const track = document.createElement('div');
-      track.className = 'hk-upload-track';
-      const fill = document.createElement('div');
-      fill.className = 'hk-upload-fill';
-      track.appendChild(fill);
-      bar.appendChild(track);
-      // No aria-live on the bar: announcing every percent tick would flood a screen
-      // reader. The completion toast and the role="alert" error carry the outcome.
-      const label = document.createElement('div');
-      label.className = 'hk-upload-label';
-      const cancel = document.createElement('ha-button');
-      setBtnWeight(cancel, 'tertiary');
-      cancel.textContent = t('btn.cancelUpload');
-      // Safe at any point: the backend only writes the blob once the whole body has
-      // been parsed, so an aborted upload leaves nothing behind.
-      cancel.addEventListener('click', () => this._uploadAbort?.abort());
-      wrap.append(bar, label, cancel);
-      this._applyUploadProgress(wrap, state);
-      host.appendChild(wrap);
-    }
-    const failure = this._assetEdit.uploadError;
-    if (failure?.key === key) {
-      const alert = this._errorAlert(failure.message, failure.link);
-      alert.id = `hk-upload-err-${key}`;
-      host.appendChild(alert);
-    }
-  }
-
-  /** An error alert with an optional "Learn more" link. */
-  private _errorAlert(message: string, link?: string): HTMLElement {
-    const err = document.createElement('ha-alert');
-    err.setAttribute('alert-type', 'error');
-    err.textContent = message;
-    if (link) {
-      const a = document.createElement('a');
-      a.href = link;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.textContent = t('btn.learnMore');
-      a.style.marginInlineStart = '8px';
-      err.appendChild(a);
-    }
-    return err;
-  }
-
-  private _renderMetadataEditor(inner: HTMLElement): void {
-    const entries = this._assetEdit.asset?.metadata || [];
-    const { details, body } = collapsibleSection(
-      this,
-      t('section.metadata'),
-      'metadata',
-      entries.length,
-    );
-    inner.appendChild(details);
-    entries.forEach((m, i) => {
-      const box = document.createElement('div');
-      box.className = 'hk-part';
-      box.dataset.idx = String(i);
-      const head = document.createElement('div');
-      head.className = 'hk-part-head';
-      head.innerHTML = `<span class="label">${escapeHTML(t('section.meta_n', { n: i + 1 }))}</span>`;
-      const del = document.createElement('ha-icon-button');
-      del.className = 'part-del';
-      del.setAttribute('label', t('btn.removeField'));
-      setIcon(del, MDI_DELETE);
-      del.addEventListener('click', () => {
-        const dlabel = m.label
-          ? t('confirm.removeNamed', { name: m.label })
-          : t('confirm.removeField', { n: i + 1 });
-        this._openConfirmDialog(dlabel, () => {
-          const list = this._assetEdit.asset?.metadata || [];
-          this._assetEdit.asset!.metadata = list.filter((_, j) => j !== i);
-        });
-      });
-      head.appendChild(del);
-      box.appendChild(head);
-
-      const form = this._makeForm(
-        this._metadataSchema(m),
-        {
-          type: m.type ?? 'text',
-          label: m.label ?? '',
-          value: m.value ?? '',
-          track: Boolean(m.track),
-        },
-        (value) => {
-          const prevType = this._assetEdit.asset?.metadata?.[i]?.type;
-          const newType = (value.type as MetadataType) ?? 'text';
-          const updated: MetadataEntry = {
-            id: m.id,
-            type: newType,
-            label: String(value.label ?? ''),
-            // A date control emits selector-shaped strings; text/link emit text.
-            value: value.value != null ? String(value.value) : '',
-            // `track` only applies to dates — drop it otherwise so it can't strand.
-            track: newType === 'date' ? Boolean(value.track) : undefined,
-          };
-          const list = [...(this._assetEdit.asset?.metadata || [])];
-          list[i] = updated;
-          this._assetEdit.asset!.metadata = list;
-          // Re-render when the type changes so the value control (and the date
-          // "track" toggle) swaps to match.
-          if (newType !== prevType) this._render();
-        },
-      );
-      box.appendChild(form);
-
-      if (m.type === 'date') {
-        const note = document.createElement('div');
-        note.className = 'hk-meta';
-        note.textContent = t('meta.trackHint');
-        box.appendChild(note);
-      }
-      body.appendChild(box);
-    });
-
-    // Quick-add seeds for the common fields (each prelabeled, right type), plus a
-    // generic blank entry — they're all just entries in the list.
-    const seeds: { label: string; type: MetadataType }[] = [
-      { label: t('meta.seed.serial'), type: 'text' },
-      { label: t('meta.seed.warranty_expiry'), type: 'date' },
-      { label: t('meta.seed.purchase_date'), type: 'date' },
-      { label: t('meta.seed.install_date'), type: 'date' },
-      { label: t('meta.seed.warranty_provider'), type: 'text' },
-      { label: t('meta.seed.vendor'), type: 'text' },
-      { label: t('meta.seed.product_link'), type: 'link' },
-      { label: t('meta.seed.notes'), type: 'text' },
-    ];
-    const addEntry = (entry: MetadataEntry): void => {
-      const list = [...(this._assetEdit.asset?.metadata || [])];
-      list.push(entry);
-      this._assetEdit.asset!.metadata = list;
-      this._render();
-    };
-    const seedRow = document.createElement('div');
-    seedRow.className = 'hk-meta-seeds';
-    for (const s of seeds) {
-      const b = document.createElement('ha-button');
-      setBtnWeight(b, 'secondary');
-      b.textContent = s.label;
-      b.addEventListener('click', () => addEntry({ type: s.type, label: s.label, value: '' }));
-      seedRow.appendChild(b);
-    }
-    const custom = document.createElement('ha-button');
-    setBtnWeight(custom, 'secondary');
-    custom.textContent = t('btn.addField');
-    custom.addEventListener('click', () => addEntry({ type: 'text', label: '', value: '' }));
-    seedRow.appendChild(custom);
-    body.appendChild(seedRow);
-  }
-
-  private _renderPartsEditor(inner: HTMLElement): void {
-    const parts = this._assetEdit.asset?.parts || [];
-    const { details, body } = collapsibleSection(
-      this,
-      t('section.parts'),
-      'parts',
-      parts.length,
-    );
-    inner.appendChild(details);
-    parts.forEach((p, i) => {
-      const box = document.createElement('div');
-      box.className = 'hk-part';
-      box.dataset.idx = String(i);
-      const head = document.createElement('div');
-      head.className = 'hk-part-head';
-      head.innerHTML = `<span class="label">${escapeHTML(t('section.part_n', { n: i + 1 }))}</span>`;
-      const del = document.createElement('ha-icon-button');
-      del.className = 'part-del';
-      del.setAttribute('label', t('btn.removePart'));
-      setIcon(del, MDI_DELETE);
-      del.addEventListener('click', () => {
-        const dlabel = p.name
-          ? t('confirm.removeNamed', { name: p.name })
-          : t('confirm.removePart', { n: i + 1 });
-        this._openConfirmDialog(dlabel, () => {
-          const list = this._assetEdit.asset?.parts || [];
-          this._assetEdit.asset!.parts = list.filter((_, j) => j !== i);
-        });
-      });
-      head.appendChild(del);
-      box.appendChild(head);
-
-      // Declared before the form so its value-changed handler can feed it; attached
-      // below, after the form, so it renders directly under the part's fields.
-      let partNotePreview: MarkdownPreview | null = null;
-      const form = this._makeForm(
-        this._partSchema(p),
-        {
-          part_name: p.name ?? '',
-          part_number: p.part_number ?? '',
-          type: p.type ?? 'consumable',
-          vendor: p.vendor ?? '',
-          cost: p.cost ?? undefined,
-          part_url: p.url ?? '',
-          notes: p.notes ?? '',
-          stock: p.stock ?? undefined,
-          reorder_at: p.reorder_at ?? undefined,
-          stock_unit: p.stock_unit ?? '',
-          consume_quantity: p.consume_quantity ?? undefined,
-          create_buy_task: p.create_buy_task ?? false,
-          restock_quantity: p.restock_quantity ?? undefined,
-          replace_interval: p.replace_interval ?? undefined,
-          replace_unit: p.replace_unit ?? 'months',
-          last_replaced: p.last_replaced ?? undefined,
-        },
-        (value) => {
-          const prevPart = this._assetEdit.asset?.parts?.[i];
-          const prevType = prevPart?.type;
-          // These fields gate which others render (see _partSchema): the reorder
-          // threshold reveals the auto-buy toggle, and the toggle reveals the restock
-          // quantity. Re-render when one of them flips so the dependent field appears.
-          const prevHasReorder = prevPart?.reorder_at != null;
-          const prevBuy = Boolean(prevPart?.create_buy_task);
-          // Tracking stock at all is what reveals the per-completion amount.
-          const prevTracksStock = prevPart?.stock != null;
-          partNotePreview?.update(String(value.notes ?? ''));
-          const updated: Part = {
-            id: p.id,
-            // The last-replaced date is only editable for wear items; preserve any
-            // existing value when the part is a consumable (no field shown).
-            last_replaced:
-              value.type === 'wear'
-                ? value.last_replaced
-                  ? String(value.last_replaced)
-                  : null
-                : (p.last_replaced ?? null),
-            name: String(value.part_name ?? ''),
-            part_number: String(value.part_number ?? ''),
-            type: (value.type as Part['type']) ?? 'consumable',
-            vendor: String(value.vendor ?? ''),
-            cost: value.cost != null && value.cost !== '' ? Number(value.cost) : null,
-            url: String(value.part_url ?? '').trim(),
-            notes: String(value.notes ?? ''),
-            stock: value.stock != null && value.stock !== '' ? Number(value.stock) : null,
-            reorder_at:
-              value.reorder_at != null && value.reorder_at !== ''
-                ? Number(value.reorder_at)
-                : null,
-            // What the numbers above are counted in ("ml", "bottles"), and how much
-            // one completion takes off. Both free of a value means the part behaves
-            // exactly as parts did before units existed: whole spares, one per use.
-            stock_unit: String(value.stock_unit ?? '').trim(),
-            consume_quantity:
-              value.consume_quantity != null && value.consume_quantity !== ''
-                ? Number(value.consume_quantity)
-                : null,
-            // Auto-buy a low spare. Only exposed once a reorder threshold is set (the
-            // field is hidden otherwise, so value.create_buy_task is then undefined →
-            // off, which is correct — no threshold means no "low" to act on).
-            create_buy_task: Boolean(value.create_buy_task),
-            restock_quantity:
-              value.restock_quantity != null && value.restock_quantity !== ''
-                ? Number(value.restock_quantity)
-                : null,
-            replace_interval:
-              value.type === 'wear' && value.replace_interval
-                ? Number(value.replace_interval)
-                : null,
-            replace_unit:
-              value.type === 'wear' && value.replace_interval
-                ? (value.replace_unit as Part['replace_unit'])
-                : null,
-            // Not editable in this form (upload-only — see _renderPartFile); carry
-            // the current known values forward so the in-progress client copy stays
-            // accurate between saves. The server ignores whatever this sends anyway
-            // and always restores the stored values (see assets._merge_parts), but
-            // without this the local UI would show "no file" the moment any other
-            // field on this part changes, even though nothing was actually lost.
-            file_name: p.file_name ?? null,
-            file_content_type: p.file_content_type ?? null,
-            file_size: p.file_size ?? null,
-          };
-          const list = [...(this._assetEdit.asset?.parts || [])];
-          list[i] = updated;
-          this._assetEdit.asset!.parts = list;
-          const nowHasReorder = updated.reorder_at != null;
-          if (
-            value.type !== prevType ||
-            nowHasReorder !== prevHasReorder ||
-            (updated.stock != null) !== prevTracksStock ||
-            Boolean(updated.create_buy_task) !== prevBuy
-          )
-            this._render();
-        },
-      );
-      box.appendChild(form);
-      partNotePreview = this._attachNotePreview(box, String(p.notes ?? ''));
-      this._renderPartFile(box, p, i);
-
-      if (p.type === 'wear') {
-        const note = document.createElement('div');
-        note.className = 'hk-meta';
-        note.textContent = t('part.wearHint');
-        box.appendChild(note);
-      }
-      body.appendChild(box);
-    });
-
-    const add = document.createElement('ha-button');
-    setBtnWeight(add, 'secondary');
-    add.id = 'a-add-part';
-    add.textContent = t('btn.addPart');
-    add.addEventListener('click', () => {
-      const list = [...(this._assetEdit.asset?.parts || [])];
-      list.push({ name: '', type: 'consumable' });
-      this._assetEdit.asset!.parts = list;
-      this._render();
-    });
-    body.appendChild(add);
-  }
-
-  /** A part's single attached file: a card (icon, filename · size · type, Open /
-   *  Remove) when one is attached; otherwise an "Attach file" upload button — only
-   *  once both the appliance and this part row are saved (a part gets its id from
-   *  the backend, so a brand-new unsaved part has none yet to upload against). */
-  private _renderPartFile(box: HTMLElement, p: Part, i: number): void {
-    const assetId = this._assetEdit.asset?.id;
-    if (p.file_name) {
-      const card = document.createElement('div');
-      card.className = 'hk-doc-card';
-
-      const ic = document.createElement('div');
-      ic.className = 'hk-doc-ic';
-      const icon = document.createElement('ha-icon');
-      icon.setAttribute('icon', 'mdi:paperclip');
-      ic.appendChild(icon);
-
-      const main = document.createElement('div');
-      main.className = 'hk-doc-main';
-      const name = document.createElement('div');
-      name.className = 'hk-doc-name';
-      name.textContent = p.file_name;
-      main.appendChild(name);
-      const subText = this._partFileSubtitle(p);
-      if (subText) {
-        const sub = document.createElement('div');
-        sub.className = 'hk-doc-sub';
-        sub.textContent = subText;
-        main.appendChild(sub);
-      }
-
-      const actions = document.createElement('div');
-      actions.className = 'hk-doc-actions';
-      const del = document.createElement('ha-icon-button');
-      del.setAttribute('label', t('btn.removePartFile'));
-      setIcon(del, MDI_DELETE);
-      del.addEventListener('click', () => void this._removePartFile(p, i));
-      // Same native-anchor treatment as an uploaded document (see `_openFileAnchor`).
-      actions.append(
-        this._openFileAnchor(assetId && p.id ? { kind: 'part', assetId, id: p.id } : undefined, () =>
-          this._openPartFile(p),
-        ),
-        del,
-      );
-
-      card.append(ic, main, actions);
-      box.appendChild(card);
-      return;
-    }
-    if (!assetId || !p.id) return;
-    const key = uploadKeyPart(p.id);
-    const upload = document.createElement('ha-button');
-    setBtnWeight(upload, 'secondary');
-    upload.textContent = this._uploadButtonLabel(key, t('btn.attachFile'));
-    const picker = document.createElement('input');
-    picker.type = 'file';
-    picker.accept = 'application/pdf,image/png,image/jpeg,image/webp,image/gif';
-    picker.style.display = 'none';
-    picker.addEventListener('change', () => {
-      const file = picker.files?.[0];
-      if (file) void this._uploadPartFile(p, i, file);
-      picker.value = '';
-    });
-    upload.addEventListener('click', () => picker.click());
-    if (this._assetEdit.upload) upload.setAttribute('disabled', '');
-    const row = document.createElement('div');
-    row.className = 'hk-meta-seeds';
-    row.append(upload, picker);
-    box.appendChild(row);
-    this._renderUploadStatus(box, key);
-  }
-
-  /** An upload button reads "Uploading…" while it owns the in-flight upload. Every
-   *  upload button is disabled meanwhile — only one upload runs at a time. */
-  private _uploadButtonLabel(key: string, idle: string): string {
-    return this._assetEdit.upload?.key === key ? t('btn.uploading') : idle;
-  }
-
-  /** Details line for a part's attached file: filename · size · type. */
-  private _partFileSubtitle(p: Part): string {
-    const parts: string[] = [];
-    const size = formatBytes(p.file_size ?? undefined);
-    if (size) parts.push(size);
-    const type = documentTypeLabel(p.file_content_type ?? undefined);
-    if (type) parts.push(type);
-    return parts.join(' · ');
-  }
-
-  private _openPartFile(p: Part): void {
-    const assetId = this._assetEdit.asset?.id;
-    if (this._hass && assetId) void openPartFile(this._hass, assetId, p);
-  }
-
-  private async _uploadPartFile(p: Part, i: number, file: File): Promise<void> {
-    const assetId = this._assetEdit.asset?.id;
-    if (!this._hass || !assetId || !p.id) return;
-    const hass = this._hass;
-    const partId = p.id;
-    const updated = await this._runUpload(uploadKeyPart(partId), file, (opts) =>
-      api.uploadPartFile(hass, assetId, partId, file, undefined, opts),
-    );
-    if (!updated) return;
-    const list = [...(this._assetEdit.asset?.parts || [])];
-    list[i] = {
-      ...list[i],
-      file_name: updated.file_name,
-      file_content_type: updated.file_content_type,
-      file_size: updated.file_size,
-    };
-    this._assetEdit.asset!.parts = list;
-    this._render();
-  }
-
-  private async _removePartFile(p: Part, i: number): Promise<void> {
-    const assetId = this._assetEdit.asset?.id;
-    if (!this._hass || !assetId || !p.id) return;
-    try {
-      await api.removePartFile(this._hass, assetId, p.id);
-      const list = [...(this._assetEdit.asset?.parts || [])];
-      list[i] = { ...list[i], file_name: null, file_content_type: null, file_size: null };
-      this._assetEdit.asset!.parts = list;
-      this._render();
-    } catch (err) {
-      this._setAssetError(String((err as { message?: string })?.message || err));
-      this._render();
     }
   }
 
