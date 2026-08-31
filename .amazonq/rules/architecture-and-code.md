@@ -235,6 +235,13 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   effective area (`taskAreaId`). This is what lets a card be scoped to a "subject"
   (dog/car/kid) that isn't an HA area or device — keep this transitive rule intact when
   touching card filtering, and keep `card-filter.ts` pure/DOM-free.
+- **`card-filter.ts` is the one bucketing/grouping implementation for both surfaces.**
+  The panel and the card share `statusBucket`, `bucketByKey`, `taskAreaId`, `SOON_DAYS`
+  and `DAY_MS`; the two surfaces' genuine differences ride on `statusBucket`'s options
+  (the card splits out `today`, the panel adds `completed` for done one-offs), and the
+  defaults reproduce the card. The per-surface *section vocabularies* (labels, order)
+  stay in `panel.ts`'s `_groupTasks` and `card.ts`'s `groupTasks` on purpose. The module
+  is on the Stryker mutation surface — a new branch there needs a killing test.
 - All task mutations go through `HomeKeeperStore`; entities and the panel read via
   the `HomeKeeperCoordinator` and never mutate storage directly.
 - **Per-completion metadata.** A `completions[]` entry is `{ ts }` plus any of the
@@ -672,6 +679,37 @@ client check is a fast path, never the enforcement.
   dispatch `value-changed` must address the *section that owns the field* — an
   event dispatched at the wrapper reaches no listener and passes vacuously.
 
+### The panel is one element plus flat region modules
+
+`panel.ts` holds the element itself — the field declarations, `set hass` / `set route`,
+`_applyLocation`, `_render`, `_hydrate`, `connectedCallback`/`disconnectedCallback`,
+the form/note-editor lifecycles, and `_attachNotePreview` (the **only**
+`MarkdownPreview` constructor; `_disposeAllPreviews` is the only teardown). Everything
+else lives in a flat `panel-*.ts` region module (styles, icons, types, controls, lists,
+detail, chips, history, settings, dialogs, asset editors, upload, task/asset forms).
+
+- **Region modules export free functions over `PanelHost`** (`panel-host.ts`) — no
+  sub-controller classes, no mixins, no forwarder shims. A method moves as `this.` →
+  `p.`; a region that wires listeners exports `wireXxx(p, root)` called from
+  `_hydrate` at the position its inline block occupied (`_hydrate`'s ordering is
+  load-bearing — the detail-page early return and the `.detail-open` single-wiring
+  rule live in `wireDetail`).
+- **`PanelHost` is the coupling surface.** Every member is public-with-underscore on
+  the class and nothing outside `src/panel-*.ts` may use it. Adding a member is a
+  deliberate widening — prefer passing a value as an argument.
+- **New frontend modules stay flat in `src/`.** `i18n-parity.test.js` reads `src/*.ts`
+  with a non-recursive `readdirSync`, and Stryker's `disableTypeChecks` glob is also
+  non-recursive — a subdirectory silently drops out of the key-usage gate and the
+  type-check disabling.
+- **`panel-*.ts` modules stay off the Stryker `mutate` list**, like `panel.ts` — they
+  are covered indirectly through the element by `panel.test.js` and friends, and a
+  1,000-line region with no direct unit tests would score near zero. Pure logic that
+  earns direct tests belongs in an on-surface module (`utils`, `forms`, `documents`,
+  `card-filter`) instead.
+- Shared mutable state contracts to respect when touching regions: `_liveHassEls` is
+  pushed to via `_makeForm` and reset only in `_render`; `_assetEdit.asset` is mutated
+  in place by the metadata/parts/documents editors and read by `_submitAssetForm`.
+
 ### Don't build on lazily-loaded HA components
 Only use an HA custom element that is registered on a *custom panel's* page. Several
 (`ha-progress-bar`, `ha-progress-ring`) exist in HA's frontend but only inside
@@ -689,12 +727,16 @@ title comes from a `headerTitle` slot) and, in the same release, every `raised` 
 `destructive` on `ha-button`. A string that is still correct, still translated and
 still asserted by anything reading the attribute is not evidence it reaches the screen.
 
-- **Both `ha-dialog`s are built by `panel.ts`'s `_makeDialog`.** Do not hand-roll a
-  third — the first two were duplicated side by side and each break had to be fixed
-  twice. It sets the title *both* ways: a current frontend renders the slotted span
-  and ignores the attribute, an older one renders the attribute and drops the span,
-  because a light-DOM child whose slot name matches no slot is not rendered at all.
-  Neither can show it twice, so this needs no feature detection.
+- **Both `ha-dialog`s are built by `panel-dialogs.ts`'s `makeDialog`.** Do not
+  hand-roll a third — the first two were duplicated side by side and each break had to
+  be fixed twice. It sets the title *both* ways: a current frontend renders the slotted
+  span and ignores the attribute, an older one renders the attribute and drops the
+  span, because a light-DOM child whose slot name matches no slot is not rendered at
+  all. Neither can show it twice, so this needs no feature detection. The delete
+  confirmation is deliberately **not** an `ha-dialog`: it is a body-level scrim so its
+  destructive `variant` resolves against HA's document-level theme, where the panel's
+  `:host` tokens do not reach. Do not fold it into `makeDialog`; its teardown is
+  `teardownOverlay`, the one dismantling all three of its exits share.
 - **Assert on rendered pixels, not on markup, whenever HA owns the rendering.** Read
   the computed style off the element's `part`, the way
   `tests/e2e/tests/button-weights.spec.ts` does. An attribute assertion would have

@@ -370,9 +370,10 @@ bash ci/test-mutation-frontend.sh --all
   (only the Docker tiers cover it — far too slow to run once per mutant),
   `const.py` / `companions_catalog.py` (data, not logic), `backend_i18n.py` (pure
   but with no unit-test entry point), `testing.py` (already coverage-omitted), and
-  `panel.ts` / `card.ts` / `api.ts` (only indirectly covered; ~7k lines that would
-  score near zero). Widen the allowlist when you add unit tests that would make
-  the score mean something.
+  `panel.ts` + its flat `panel-*.ts` region modules / `card.ts` / `api.ts` (only
+  indirectly covered, through the element's own tests; they would score near
+  zero). Widen the allowlist when you add unit tests that would make the score
+  mean something.
 - **The gate is a mutation score of 80%**, set in `[tool.mutation-gate] break` and
   mirrored in `thresholds.break` (stryker.conf.json). The two runners compare them
   and fail on a mismatch, so they cannot drift.
