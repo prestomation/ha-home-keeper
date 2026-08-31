@@ -167,3 +167,75 @@ test.describe('Home Keeper panel — the drawer across the sheet threshold', () 
   });
 
 });
+
+/**
+ * Closing the drawer has to give the keyboard back.
+ *
+ * Opening it renders, and `_render()` replaces the whole shadow tree — so the opener
+ * captured on the way in is a detached node by the time the drawer closes. Holding the
+ * element meant the `isConnected` guard was never true and focus was silently dropped
+ * on `<body>`: a keyboard reader who pressed Edit and changed their mind was returned
+ * to the top of the document, on every one of the three ways out.
+ *
+ * Untagged: this is about focus, not layout, and the panel drawer is the same object
+ * at every width — the sheet's modality is `a11y.spec`'s threshold block above.
+ */
+test.describe('Home Keeper panel — the drawer hands the keyboard back', () => {
+  const focusedId = (panel: ReturnType<typeof panelOf>): Promise<string | null> =>
+    panel.evaluate((el) => (el.shadowRoot?.activeElement as HTMLElement | null)?.id ?? null);
+
+  for (const exit of [
+    { name: 'Escape', close: (page: Page) => page.keyboard.press('Escape') },
+    {
+      name: 'the close button',
+      close: (page: Page) => panelOf(page).locator('#hk-drawer-close').click(),
+    },
+    {
+      name: 'Cancel',
+      close: (page: Page) => panelOf(page).locator('#f-cancel').click(),
+    },
+  ]) {
+    test(`${exit.name} returns focus to Add task`, async ({ page }) => {
+      await page.setViewportSize(WIDE);
+      await openPanel(page);
+      const panel = panelOf(page);
+
+      await panel.locator('#add-btn').focus();
+      await panel.locator('#add-btn').click();
+      await expect(panel.locator('#hk-task-form')).toBeVisible();
+
+      await exit.close(page);
+      await expect(panel.locator('#hk-task-form')).toHaveCount(0);
+      expect(await focusedId(panel)).toBe('add-btn');
+    });
+  }
+
+  test('a Delete the reader thinks better of leaves Escape working', async ({ page }) => {
+    // Opening the confirmation takes the drawer's Escape handler away, so one Escape
+    // cannot dismiss both overlays. Cancelling has to give it back — otherwise the
+    // drawer stands with no keyboard way out for the rest of the edit.
+    await page.setViewportSize(WIDE);
+    await page.goto(`/home-keeper/tasks/${TASK.fridgeFilter}`, { waitUntil: 'domcontentloaded' });
+    const panel = panelOf(page);
+    await panel.waitFor({ state: 'attached', timeout: 45_000 });
+    await panel.locator('.d-edit').click();
+    await expect(panel.locator('#hk-task-form')).toBeVisible();
+
+    await panel.locator('.hk-drawer-delete').click();
+    const scrim = page.locator('.hk-confirm-scrim');
+    await expect(scrim).toBeVisible();
+    // Cancel leads the confirmation's button row; Delete closes it.
+    await scrim.locator('ha-button').first().click();
+    await expect(scrim).toHaveCount(0);
+    await expect(panel.locator('#hk-task-form')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(panel.locator('#hk-task-form')).toHaveCount(0);
+    // …and the keyboard lands back on the control that opened the drawer.
+    expect(
+      await panel.evaluate(
+        (el) => (el.shadowRoot?.activeElement as HTMLElement | null)?.className ?? null,
+      ),
+    ).toContain('d-edit');
+  });
+});

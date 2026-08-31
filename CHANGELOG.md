@@ -6,6 +6,18 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0b6]
+
+### Fixed
+
+- **Closing the edit drawer puts the keyboard back where it was.** Escape, Cancel and
+  the close button all left focus at the top of the page, so a keyboard reader who
+  opened a form and changed their mind had to tab back to where they were.
+
+- **Escape closes the drawer again after a delete you thought better of.** Opening the
+  delete confirmation took the drawer's Escape away and cancelling never gave it back,
+  which left the form with no keyboard way out for the rest of that edit.
+
 ## [0.19.0b5]
 
 ### Changed
