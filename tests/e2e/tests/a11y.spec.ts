@@ -35,6 +35,17 @@ test.describe(
     for (const sel of await panel.locator('.hk-menu-select').all()) {
       expect(await sel.getAttribute('aria-label')).toBeTruthy();
     }
+    // …and no two of them share a name. The scope pills were handed `group.by`, the
+    // same name the Group by dropdown beside them carries, so a screen reader heard
+    // two controls that do different things announced identically and had no way to
+    // tell which one it had landed on. Having *a* name was never the whole contract.
+    const names = await panel.evaluate((el) =>
+      Array.from(
+        el.shadowRoot!.querySelectorAll('.hk-seg[aria-label], .hk-menu-select[aria-label]'),
+      ).map((n) => n.getAttribute('aria-label')),
+    );
+    expect(names.length, 'expected the controls row to carry named controls').toBeGreaterThan(1);
+    expect(new Set(names).size, `duplicate control names: ${names.join(' / ')}`).toBe(names.length);
   });
 
   test('keyboard focus survives the re-render an activation causes', async ({ page }) => {
@@ -126,6 +137,11 @@ test.describe('Home Keeper panel — the drawer across the sheet threshold', () 
         // Without `inert` the keyboard walks a list nobody can see, and Enter on a
         // row navigates away and discards the open form.
         wrapInert: root.querySelector('.hk-wrap')?.hasAttribute('inert'),
+        // The tab bar is a *sibling* of `.hk-wrap`, not a child, so inerting the wrap
+        // left it live — the one thing still tappable behind an `aria-modal` overlay,
+        // and a tap on it silently discarded the open form. A modal that leaves a
+        // navigation control reachable is not one.
+        barInert: root.querySelector('.hk-bottombar')?.hasAttribute('inert'),
         focusInside: !!drawer?.contains(root.activeElement),
       };
     });
@@ -133,15 +149,22 @@ test.describe('Home Keeper panel — the drawer across the sheet threshold', () 
       role: 'dialog',
       modal: 'true',
       wrapInert: true,
+      barInert: true,
       focusInside: true,
     });
 
-    // Escape closes it and gives the list back.
+    // Escape closes it and gives back both the list and the way off this tab.
     await page.keyboard.press('Escape');
     await expect(panel.locator('#hk-task-form')).toHaveCount(0);
     expect(
-      await panel.evaluate((el) => el.shadowRoot?.querySelector('.hk-wrap')?.hasAttribute('inert')),
-    ).toBe(false);
+      await panel.evaluate((el) => {
+        const root = el.shadowRoot!;
+        return [
+          root.querySelector('.hk-wrap')?.hasAttribute('inert'),
+          root.querySelector('.hk-bottombar')?.hasAttribute('inert'),
+        ];
+      }),
+    ).toEqual([false, false]);
   });
 
   test('beside the list, the drawer is a panel and the list stays live', async ({ page }) => {
@@ -166,4 +189,76 @@ test.describe('Home Keeper panel — the drawer across the sheet threshold', () 
     ).toBe(true);
   });
 
+});
+
+/**
+ * Closing the drawer has to give the keyboard back.
+ *
+ * Opening it renders, and `_render()` replaces the whole shadow tree — so the opener
+ * captured on the way in is a detached node by the time the drawer closes. Holding the
+ * element meant the `isConnected` guard was never true and focus was silently dropped
+ * on `<body>`: a keyboard reader who pressed Edit and changed their mind was returned
+ * to the top of the document, on every one of the three ways out.
+ *
+ * Untagged: this is about focus, not layout, and the panel drawer is the same object
+ * at every width — the sheet's modality is `a11y.spec`'s threshold block above.
+ */
+test.describe('Home Keeper panel — the drawer hands the keyboard back', () => {
+  const focusedId = (panel: ReturnType<typeof panelOf>): Promise<string | null> =>
+    panel.evaluate((el) => (el.shadowRoot?.activeElement as HTMLElement | null)?.id ?? null);
+
+  for (const exit of [
+    { name: 'Escape', close: (page: Page) => page.keyboard.press('Escape') },
+    {
+      name: 'the close button',
+      close: (page: Page) => panelOf(page).locator('#hk-drawer-close').click(),
+    },
+    {
+      name: 'Cancel',
+      close: (page: Page) => panelOf(page).locator('#f-cancel').click(),
+    },
+  ]) {
+    test(`${exit.name} returns focus to Add task`, async ({ page }) => {
+      await page.setViewportSize(WIDE);
+      await openPanel(page);
+      const panel = panelOf(page);
+
+      await panel.locator('#add-btn').focus();
+      await panel.locator('#add-btn').click();
+      await expect(panel.locator('#hk-task-form')).toBeVisible();
+
+      await exit.close(page);
+      await expect(panel.locator('#hk-task-form')).toHaveCount(0);
+      expect(await focusedId(panel)).toBe('add-btn');
+    });
+  }
+
+  test('a Delete the reader thinks better of leaves Escape working', async ({ page }) => {
+    // Opening the confirmation takes the drawer's Escape handler away, so one Escape
+    // cannot dismiss both overlays. Cancelling has to give it back — otherwise the
+    // drawer stands with no keyboard way out for the rest of the edit.
+    await page.setViewportSize(WIDE);
+    await page.goto(`/home-keeper/tasks/${TASK.fridgeFilter}`, { waitUntil: 'domcontentloaded' });
+    const panel = panelOf(page);
+    await panel.waitFor({ state: 'attached', timeout: 45_000 });
+    await panel.locator('.d-edit').click();
+    await expect(panel.locator('#hk-task-form')).toBeVisible();
+
+    await panel.locator('.hk-drawer-delete').click();
+    const scrim = page.locator('.hk-confirm-scrim');
+    await expect(scrim).toBeVisible();
+    // Cancel leads the confirmation's button row; Delete closes it.
+    await scrim.locator('ha-button').first().click();
+    await expect(scrim).toHaveCount(0);
+    await expect(panel.locator('#hk-task-form')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(panel.locator('#hk-task-form')).toHaveCount(0);
+    // …and the keyboard lands back on the control that opened the drawer.
+    expect(
+      await panel.evaluate(
+        (el) => (el.shadowRoot?.activeElement as HTMLElement | null)?.className ?? null,
+      ),
+    ).toContain('d-edit');
+  });
 });

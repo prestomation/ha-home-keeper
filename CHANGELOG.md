@@ -6,6 +6,43 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0b6]
+
+### Changed
+
+- **The fields a recurrence choice reveals now sit under "Schedule details".** The
+  heading used to read "Because of the kind you picked", which described the form's
+  behaviour rather than naming the fields below it.
+
+### Fixed
+
+- **`home_keeper.add_task` works with just a name.** It needed a unit it never
+  defaulted, so the simplest call failed. A name on its own now creates a one-off due
+  today, and a call that passes a schedule still gets that schedule.
+
+- **Closing the edit drawer puts the keyboard back where it was.** Escape, Cancel and
+  the close button all left focus at the top of the page, so a keyboard reader who
+  opened a form and changed their mind had to tab back to where they were.
+
+- **Escape closes the drawer again after a delete you thought better of.** Opening the
+  delete confirmation took the drawer's Escape away and cancelling never gave it back,
+  which left the form with no keyboard way out for the rest of that edit.
+
+- **The task list's scope pills no longer answer to "Group by".** A screen reader
+  announced them with the same name as the Group by dropdown beside them, so the two
+  controls were impossible to tell apart. They are now "Show".
+
+- **Settings says what Profiles, Notifications and Companions hold when they hold
+  nothing.** All three rows went blank on a fresh install, which is the one moment the
+  answer matters most.
+
+- **A task kept in step with an appliance part or a synced sensor explains itself.**
+  Its page offered no Edit and no Delete and said nothing about why, so it read as a
+  surface that had failed to finish rendering.
+
+- **The phone tab bar no longer sits live under an open edit sheet.** Tapping through
+  the sheet's overlay switched tab and discarded the form without asking.
+
 ## [0.19.0b5]
 
 ### Changed

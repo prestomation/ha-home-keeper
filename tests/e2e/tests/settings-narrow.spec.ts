@@ -39,6 +39,17 @@ test.describe('Home Keeper panel — Settings on a narrow screen', { tag: '@narr
     await expect(panel.locator('.hk-index-row[data-section="shopping"]')).toContainText(
       /not synced/i,
     );
+    // *Every* row, not just that one. The three sections whose summary is the names of
+    // what they hold (Profiles, Notifications, Companions) said nothing at all when
+    // they held nothing — the join produced an empty string and fell through. Which
+    // meant the index went quiet in exactly the state a new install is in, and this
+    // test passed anyway because it only ever looked at `shopping`.
+    const silent = await panel.evaluate((el) =>
+      Array.from(el.shadowRoot!.querySelectorAll('.hk-index-row'))
+        .filter((r) => !r.querySelector('.hk-index-sum')?.textContent?.trim())
+        .map((r) => (r as HTMLElement).dataset.section),
+    );
+    expect(silent, `sections whose row states no value: ${silent.join(', ')}`).toEqual([]);
     // Nothing scrolls sideways: every row is inside the viewport it is drawn in.
     const overflow = await panel.evaluate((el) => {
       const doc = el.shadowRoot?.querySelector('.hk-wrap') as HTMLElement | null;

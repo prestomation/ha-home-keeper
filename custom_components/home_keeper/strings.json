@@ -47,7 +47,7 @@
         },
         "recurrence_type": {
           "name": "Recurrence type",
-          "description": "floating (measured from completion), fixed (anchored schedule), or one-off (do-once, uses a due date)."
+          "description": "floating (measured from completion), fixed (anchored schedule), or one-off (do-once, uses a due date). Omit it and the type is inferred from the schedule fields you passed. A name on its own makes a one-off due today."
         },
         "interval": {
           "name": "Interval",

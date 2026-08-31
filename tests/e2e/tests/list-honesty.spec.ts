@@ -107,4 +107,27 @@ test.describe('Home Keeper panel — the list tells the truth about what it show
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
+
+  test('a task owned by its source says so, rather than just withholding the buttons', async ({
+    page,
+  }) => {
+    // A reconciler-derived wear-part task offers no Edit and no Delete, which is
+    // correct — the appliance's part record owns it. But it used to say nothing about
+    // that, so the whole action row read "<name> / Done" and looked like a surface
+    // that had failed to render half of itself. The managed-integration path beside it
+    // has always explained itself; this is the same idea said out loud.
+    const errors = trackPanelErrors(page);
+    await page.goto(`/home-keeper/tasks/${TASK.anode}`, { waitUntil: 'domcontentloaded' });
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.waitFor({ state: 'attached', timeout: 45_000 });
+
+    await expect(panel.locator('.d-done')).toBeVisible();
+    await expect(panel.locator('.d-edit')).toHaveCount(0);
+    await expect(panel.locator('.d-del')).toHaveCount(0);
+    // The explanation stands where the two missing buttons would have been.
+    await expect(panel.locator('.hk-detail-actions .hk-managed-info')).toBeVisible();
+    await expect(panel.locator('.hk-detail-actions .hk-managed-info')).not.toBeEmpty();
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
 });

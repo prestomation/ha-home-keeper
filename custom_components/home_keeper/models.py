@@ -24,6 +24,7 @@ from .const import (
     MAX_INTERVAL,
     MAX_SENSOR_STATE_LEN,
     MAX_SENSOR_UNIT_LEN,
+    REC_FIXED,
     REC_FLOATING,
     REC_ONE_OFF,
     REC_SENSOR,
@@ -638,6 +639,36 @@ def _coerce_seed(value: Any, *, tz: Any) -> datetime:
     return parsed
 
 
+def infer_recurrence_type(data: dict) -> str:
+    """The recurrence a *creation* call means when it does not name one.
+
+    ``services.yaml`` marks ``name`` as ``add_task``'s only required field, but the
+    old default — floating — needs a ``unit`` that has no default of its own, so the
+    simplest possible call (``{name: "Take out bins"}``) failed validation. The
+    obvious reading of a bare name is "remind me to do this once", which is a one-off,
+    and ``build_task`` already defaults a one-off's ``due`` to now for exactly that
+    case.
+
+    Naming a schedule field still means a schedule, so the calls that work today keep
+    working: ``{name, interval, unit}`` stays floating rather than silently becoming a
+    do-once task that discards the cadence it was given. A *partial* schedule
+    (``interval`` with no ``unit``) resolves to floating too and fails validation
+    naming the missing field — the caller asked for a cadence, so saying what is
+    missing beats quietly giving them something else.
+
+    Creation only. ``merge_update`` always carries the existing ``recurrence_type``
+    forward, so an edit never arrives here without one.
+    """
+    explicit = data.get("recurrence_type")
+    if explicit:
+        return str(explicit)
+    if data.get("interval") is not None or data.get("unit") is not None:
+        return REC_FLOATING
+    if data.get("freq") is not None or data.get("anchor") is not None:
+        return REC_FIXED
+    return REC_ONE_OFF
+
+
 def build_task(data: dict, *, now: datetime) -> dict:
     """Create a brand-new task dict (with id, history, and computed next_due).
 
@@ -646,10 +677,16 @@ def build_task(data: dict, *, now: datetime) -> dict:
     integrations that already know when the activity last happened (e.g. Pawsistant
     passing a pet's most recent logged event). Without it, a floating task is due now.
 
+    A call that names no ``recurrence_type`` gets one inferred from the schedule
+    fields it did pass — see `infer_recurrence_type`.
+
     A one-off task without an explicit ``due`` defaults to *now* (due today), so the
     service / a caller can create a do-once task with just a name.
     """
-    if data.get("recurrence_type") == REC_ONE_OFF and not data.get("due"):
+    rec_type = infer_recurrence_type(data)
+    if rec_type != data.get("recurrence_type"):
+        data = {**data, "recurrence_type": rec_type}
+    if rec_type == REC_ONE_OFF and not data.get("due"):
         data = {**data, "due": now.isoformat()}
     fields = normalize_fields(data, tz=now.tzinfo)
     validate_managed_by(data.get("managed_by"))
