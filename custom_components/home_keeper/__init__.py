@@ -1364,7 +1364,9 @@ def _register_services(hass: HomeAssistant) -> None:
             area_names=devices.area_names(hass),
             today=dt_util.now().date(),
         )
-        return {"inventory": report, "csv": inventory.inventory_to_csv(report)}
+        # Localize the CSV like ``ws_export_inventory`` does — one export, one language.
+        csv = inventory.inventory_to_csv(report, lang=hass.config.language)
+        return {"inventory": report, "csv": csv}
 
     hass.services.async_register(
         DOMAIN,

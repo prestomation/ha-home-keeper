@@ -294,7 +294,9 @@ async def ws_complete_task(
     except TaskValidationError as err:
         _err(hass, connection, msg, "not_allowed", "complete_failed", error=str(err))
         return
-    await coord.async_request_refresh()
+    # Completing an auto-buy task bumps stock (restocked) → its reminder is removed;
+    # settle so those device entities are (un)registered (else a plain refresh).
+    await coord.async_settle_buy_tasks()
     connection.send_result(msg["id"], {"task": task})
 
 
@@ -530,16 +532,15 @@ async def ws_update_asset(
 async def ws_delete_asset(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
+    # Lazy: ``__init__`` imports this module at setup, so a module-level import
+    # back would be a cycle (the same idiom ``store``/``manuals`` use).
+    from . import _delete_asset
+
     coord = _coordinator(hass)
     if coord is None:
         _not_loaded(hass, connection, msg)
         return
-    asset = await coord.store.delete_asset(msg["asset_id"])
-    if asset is not None:
-        removed_device_id = await devices.async_remove_asset_device(hass, asset)
-        if removed_device_id:
-            await coord.store.detach_tasks_from_device(removed_device_id)
-        await hass.config_entries.async_reload(coord.entry.entry_id)
+    await _delete_asset(hass, coord, msg["asset_id"])
     connection.send_result(msg["id"], {"ok": True})
 
 
