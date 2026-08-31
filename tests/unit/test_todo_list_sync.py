@@ -885,7 +885,7 @@ def test_a_sync_that_cannot_settle_says_so(caplog):
     sync._sync_once = _never_settles
     with caplog.at_level("WARNING"):
         asyncio.run(sync.async_sync(force=True))
-    assert len(passes) == todo_list_sync._MAX_PASSES
+    assert len(passes) == sync._MAX_PASSES
     assert "did not settle" in caplog.text
     # The guard is released either way, so the next change is not locked out.
     assert sync._running is False and sync._pending is False

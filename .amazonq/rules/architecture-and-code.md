@@ -914,7 +914,18 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   `todo_list_sync.py`. It inherits the shopping-list sync's rules verbatim —
   retry-not-compensate, an unreadable list is not an empty one, `needs_pass` gates the
   read, never sync onto our own to-do entity, every `todo.*` call best-effort — plus
-  its own:
+  its own. **Both drivers subclass `TodoSyncDriver` (`todo_sync_driver.py`)**, which
+  owns the HA-facing machinery they run identically: the re-entrancy guard and pass
+  budget in `async_sync` (`_sync_once` is the abstract hook), `_read_lists`,
+  `_call`/`_supports`, `_warn_once`, and `_async_stop`/`_handle_state_change`.
+  Everything it logs is a `ClassVar[str]` knob (and `_logger`, so a message still
+  reads as coming from its own module). Deliberately **not** shared: each planner's
+  `plan_sync` semantics, target resolution, `_apply` (only the to-do sync writes
+  `due_date`/`description`, capability-gated by `_capabilities`), the listener sets
+  (one target vs many plus `_TASK_EVENTS`), the sweep guards, and what an inbound
+  tick does. `problem_sync.py` is **not** a subclass — it drives the entity registry,
+  not a to-do list. Add a shared method only when both bodies are already identical
+  bar a log string:
   - **The profile is both filter and timing.** A sync shows exactly what
     `profiles.matches_filter` selects for that profile (status `overdue` = when due,
     `due_soon` = the 3-day window, `all` = everything scheduled). The driver enriches
