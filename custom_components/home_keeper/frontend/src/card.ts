@@ -24,6 +24,11 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
+import type { SkipState, SnoozeState } from './defer';
+import type { DeferDialogHost } from './defer-dialogs';
+import { deferRowActions, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
+import { renderSkipDialog, renderSnoozeDialog } from './defer-dialogs';
+import { makeForm } from './dialogs';
 import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
@@ -48,6 +53,16 @@ const MDI_CHECK =
   'M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,' +
   '20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,' +
   '20 12,20M16.59,7.58L10,14.17L7.41,11.59L6,13L10,17L18,9L16.59,7.58Z';
+// mdi:clock-outline and mdi:skip-next-outline — the row's snooze and skip actions,
+// sitting ahead of Done rather than behind a menu (see defer.deferRowActions).
+const MDI_CLOCK =
+  'M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,' +
+  '1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,' +
+  '14.92L16.25,16.15L11,13V7H12.5Z';
+const MDI_SKIP =
+  'M5,5V19L16,12M18,5V19H20V5H18Z';
+/** How long a press has to be held before the row action explains itself. */
+const LONG_PRESS_MS = 500;
 // mdi:plus — the header "add task" action.
 const MDI_PLUS = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
 // `ha-icon` names for the per-task document chips (external link / metadata link vs
@@ -211,6 +226,20 @@ const STYLES = `
   ha-icon-button.hk-done { color: var(--primary-color); flex: none; }
   /* A completion-blocked task's mark-done looks inert but stays tappable to explain. */
   ha-icon-button.hk-done.blocked { color: var(--disabled-text-color); }
+
+  /* Snooze and skip sit on the row as their own buttons rather than behind a caret.
+     A chevron beside a same-sized icon button had nothing to lean on and read as
+     decoration; these say what they are. They are muted against Done's accent so the
+     row still has one obvious action, and they come *before* it, so the rightmost
+     target — the one a thumb reaches first — stays the one people mean. */
+  .hk-acts { display: flex; align-items: center; flex: none; }
+  ha-icon-button.hk-row-action {
+    --mdc-icon-button-size: 36px;
+    --mdc-icon-size: 20px;
+    color: var(--secondary-text-color);
+  }
+  ha-icon-button.hk-row-action:hover { color: var(--primary-text-color); }
+  .hk-snooze-hint { color: var(--secondary-text-color); font-size: 0.9em; margin: 8px 0 0; }
   .hk-loading { display: flex; justify-content: center; padding: 32px 0; }
   .hk-empty { padding: 16px; }
   .hk-more {
@@ -259,6 +288,24 @@ interface DocumentChip {
 
 export class HomeKeeperCard extends HTMLElement {
   private _hass?: Hass;
+  /** The integration's options, for the skip/snooze switches. Both default on, so
+   *  an empty object until the first load reads as "offer both" rather than
+   *  flickering the caret in once the fetch lands. */
+  private _options: { allow_snooze?: unknown; allow_skip?: unknown } = {};
+  private _snooze: SnoozeState = emptySnoozeState();
+  private _skip: SkipState = emptySkipState();
+
+  /** What the shared Snooze/Skip dialogs need from this host. The card keeps no
+   *  live-form registry, so `makeForm` is passed straight through. */
+  private readonly _deferHost: DeferDialogHost = {
+    hass: () => this._hass,
+    lang: () => this._hass?.language,
+    makeForm: (schema, data, onChange) =>
+      makeForm(this._hass, schema, data, onChange, (form) => this._liveHassEls.push(form)),
+    rerender: () => this._render(),
+    refresh: () => this._refresh(),
+  };
+
   private _config: HomeKeeperCardConfig = { type: '' };
   private _tasks: Task[] = [];
   private _profiles: Profile[] = [];
@@ -449,6 +496,10 @@ export class HomeKeeperCard extends HTMLElement {
     this._refreshing = true;
     try {
       this._tasks = await api.getTasks(this._hass);
+      // The skip/snooze switches. Best-effort and non-fatal: the card is not
+      // admin-only, and if this ever fails both verbs stay at their default (on)
+      // rather than the caret silently vanishing from every row.
+      this._options = (await api.getOptions(this._hass).catch(() => null))?.options ?? this._options;
       // Profiles are only needed when the card filters by one; fetch best-effort.
       if (this._config.profile) {
         this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
@@ -890,8 +941,13 @@ export class HomeKeeperCard extends HTMLElement {
           ${notes}
           <div class="hk-chips">${statusChip}${areaChip}${tagChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
         </div>
-        ${done}
+        <div class="hk-acts">${this._deferActions(task)}${done}</div>
       </div>`;
+  }
+
+  /** Snooze and Skip for this row, ahead of Done. Empty when neither is on offer. */
+  private _deferActions(task: Task): string {
+    return deferRowActions(task, deferVerbs(task, this._options));
   }
 
   // ── hydration ─────────────────────────────────────────────────────────────
@@ -922,6 +978,80 @@ export class HomeKeeperCard extends HTMLElement {
         else void this._complete(task);
       });
     });
+
+    /**
+     * Wire one row action: tap to open its dialog, press and hold to be told what it
+     * does.
+     *
+     * Two icons on a row are quick to reach and say nothing about themselves, so the
+     * only way to learn them would be to try one and watch the schedule move. Hold
+     * reads out the same line the panel's menu shows under each verb, and the hold
+     * deliberately does *not* then act — someone holding to ask a question has not
+     * agreed to have it answered by doing the thing.
+     *
+     * `title` covers a pointer hovering; this covers touch, where there is no hover.
+     */
+    const wireAction = (
+      cls: string,
+      icon: string,
+      labelKey: string,
+      hintKey: string,
+      open: (task: Task) => void,
+    ): void => {
+      root.querySelectorAll<HTMLElement>(cls).forEach((b) => {
+        (b as HTMLElement & { path?: string }).path = icon;
+        let timer: number | undefined;
+        let explained = false;
+        // No pointermove here: a finger never holds perfectly still, so cancelling on
+        // movement would make the hold near-impossible on the surface it exists for.
+        // A scroll sends pointercancel, which is the signal that actually means it.
+        const cancel = (): void => {
+          if (timer !== undefined) window.clearTimeout(timer);
+          timer = undefined;
+        };
+        b.addEventListener('pointerdown', () => {
+          explained = false;
+          timer = window.setTimeout(() => {
+            explained = true;
+            this._toast(`${t(labelKey)} — ${t(hintKey)}`);
+          }, LONG_PRESS_MS);
+        });
+        for (const evt of ['pointerup', 'pointerleave', 'pointercancel']) {
+          b.addEventListener(evt, cancel);
+        }
+        b.addEventListener('click', (e) => {
+          // The row itself opens the task, and these sit inside it.
+          e.stopPropagation();
+          if (explained) {
+            explained = false;
+            return;
+          }
+          const task = this._tasks.find((x) => x.id === b.dataset.id);
+          if (task) open(task);
+        });
+      });
+    };
+    wireAction('.hk-defer-snooze', MDI_CLOCK, 'btn.snooze', 'defer.snoozeHint', (task) => {
+      this._snooze = { ...emptySnoozeState(), open: true, task };
+      this._render();
+    });
+    wireAction('.hk-defer-skip', MDI_SKIP, 'btn.skip', 'defer.skipHint', (task) => {
+      this._skip = { ...emptySkipState(), open: true, task };
+      this._render();
+    });
+
+    if (host && this._snooze.open) {
+      renderSnoozeDialog(this._deferHost, this._snooze, host, () => {
+        this._snooze = emptySnoozeState();
+        this._render();
+      });
+    }
+    if (host && this._skip.open) {
+      renderSkipDialog(this._deferHost, this._skip, host, () => {
+        this._skip = emptySkipState();
+        this._render();
+      });
+    }
 
     root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
       d.addEventListener('toggle', () => {

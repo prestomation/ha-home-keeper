@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Horas",
-          "description": "Cuántas horas aplazar la tarea (24 por defecto)."
+          "description": "Cuántas horas posponer la tarea (24 por defecto). Se ignora si se indica Hasta."
+        },
+        "until": {
+          "name": "Hasta",
+          "description": "Pospone la tarea hasta esta fecha y hora exactas en lugar de un número de horas. Si lo indicas, el campo Horas no se usa."
         },
         "origin": {
           "name": "Origen",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Omitir tarea",
-      "description": "Avanzar una tarea a su próxima repetición sin registrar una finalización.",
+      "description": "Adelanta una tarea a su siguiente repetición sin registrar una finalización. La omisión se registra aparte, así que nunca cuenta como finalización.",
       "fields": {
         "task_id": {
           "name": "Nombre o ID de la tarea",
           "description": "El id de la tarea que se va a omitir. Su nombre también funciona. El panel muestra el id."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Por qué se dejó pasar esta repetición."
+        },
+        "who": {
+          "name": "Quién",
+          "description": "Quién decidió omitirla."
+        },
+        "reading": {
+          "name": "Lectura del contador",
+          "description": "El valor del sensor vinculado en el momento de la omisión, para una tarea de uso."
         },
         "origin": {
           "name": "Origen",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Nombre o ID de la pieza",
           "description": "El id de la pieza cuyo archivo adjunto se va a firmar. Su nombre también funciona. El panel muestra el id."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Actualizar omisión",
+      "description": "Modifica el detalle de una omisión registrada, identificada por su marca de tiempo. La omisión conserva su fecha y la planificación no se toca.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea cuya omisión estás editando. Su nombre también funciona. El panel muestra el id."
+        },
+        "ts": {
+          "name": "Marca de tiempo de la omisión",
+          "description": "La marca de tiempo ISO (ts) de la entrada de omisión que se va a editar."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Por qué se dejó pasar esta repetición. Un valor vacío lo borra."
+        },
+        "who": {
+          "name": "Quién",
+          "description": "Quién decidió omitirla. Un valor vacío lo borra."
+        },
+        "reading": {
+          "name": "Lectura del contador",
+          "description": "El valor del sensor vinculado en el momento de la omisión, para una tarea de uso."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Eliminar omisión",
+      "description": "Quita una omisión registrada, identificada por su marca de tiempo. Deshacer la omisión que reinició por última vez un contador de uso restaura ese contador.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea cuya omisión estás quitando. Su nombre también funciona. El panel muestra el id."
+        },
+        "ts": {
+          "name": "Marca de tiempo de la omisión",
+          "description": "La marca de tiempo ISO (ts) de la entrada de omisión que se va a quitar."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Mover omisión",
+      "description": "Cambia la fecha de una omisión registrada, identificada por su marca de tiempo actual. La planificación de la tarea no se toca.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea cuya omisión estás moviendo. Su nombre también funciona. El panel muestra el id."
+        },
+        "old_ts": {
+          "name": "Marca de tiempo actual de la omisión",
+          "description": "La marca de tiempo ISO (ts) de la entrada de omisión que se va a mover."
+        },
+        "new_ts": {
+          "name": "Fecha nueva",
+          "description": "La nueva fecha y hora en la que registrar la omisión."
         }
       }
     }

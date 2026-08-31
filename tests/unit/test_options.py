@@ -202,6 +202,9 @@ def test_every_option_constant_is_a_known_option() -> None:
 # the first assertion below and points at the second one.
 _PROBES: dict[str, Any] = {
     const.OPTION_SYNC_PROBLEM_SENSORS: True,
+    # These two default *on*, so their non-default probe is False.
+    const.OPTION_ALLOW_SNOOZE: False,
+    const.OPTION_ALLOW_SKIP: False,
     const.OPTION_ONE_OFF_RETENTION_DAYS: 9,
     const.OPTION_SHOPPING_LIST_ENTITY: "todo.somewhere",
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES: ["binary_sensor.x"],
@@ -348,17 +351,24 @@ def test_the_set_options_service_accepts_every_option() -> None:
     assert _set_options_schema_keys() == _CONST_OPTION_KEYS
 
 
-def test_the_defaults_are_all_off() -> None:
-    """An entry that has never been configured behaves as if nothing is enabled.
+def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
+    """An entry that has never been configured gets no surprises in either direction.
 
     Spelled out rather than compared against ``_empty_options``, which would be
     tautological. Each of these is a user-visible promise: syncing is opt-in, ``0``
     retention days keeps completed one-offs forever (any other number would start
     deleting them for people who never touched the setting), and an empty shopping
-    target leaves the mirror off.
+    target leaves the sync off.
+
+    ``allow_snooze`` / ``allow_skip`` are the two that default **on**, and for the
+    same reason the rest default off: nothing changes for someone who never opened
+    the setting. Both verbs predate the switch, so defaulting them off would silently
+    withdraw a feature from every existing install.
     """
     assert opts.current_options(_entry({})) == {
         "sync_problem_sensors": False,
+        "allow_snooze": True,
+        "allow_skip": True,
         "one_off_retention_days": 0,
         "shopping_list_entity": "",
         "profiles": [],

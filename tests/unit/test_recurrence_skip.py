@@ -24,9 +24,13 @@ def test_skip_floating_jumps_one_interval_from_now_without_completing():
     out = r.skip_occurrence(dict(task), now=now)
     # next_due jumps a fresh interval from now…
     assert out["next_due"] == (now + timedelta(days=7)).isoformat()
-    # …and nothing about the completion log / clock changed.
+    # …and nothing about the *completion* log / clock changed. This is the whole
+    # point of a separate skip log: the floating clock still measures from the last
+    # real completion, and every count derived from ``completions`` is untouched.
     assert out["last_completed"] == task["last_completed"]
     assert out["completions"] == task["completions"]
+    # The skip itself is recorded, in its own list, stamped at *now*.
+    assert out["skips"] == [{"ts": now.isoformat()}]
 
 
 def test_skip_floating_months_unit():
@@ -89,6 +93,10 @@ def test_skip_sensor_goes_dormant():
     task = {"recurrence_type": "sensor", "next_due": "2026-06-10T08:00:00-04:00"}
     out = r.skip_occurrence(dict(task), now=dt(2026, 6, 13))
     assert out["next_due"] is None
+    # Going dormant is only half of skipping a sensor task. The store resets the
+    # meter (``store.skip_task``) so ``evaluate_usage`` doesn't immediately re-arm
+    # it; here we assert the pure half records the skip the store stamps onto.
+    assert [s["ts"] for s in out["skips"]] == [dt(2026, 6, 13).isoformat()]
 
 
 def test_skip_unknown_recurrence_type_raises():

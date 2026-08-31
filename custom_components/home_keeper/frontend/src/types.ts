@@ -65,6 +65,24 @@ export interface Completion {
   reading?: number;
 }
 
+/**
+ * One logged skip — an occurrence deliberately passed over.
+ *
+ * Shaped like a `Completion` and shown beside them in history, but kept in its own
+ * list because it is the record of *not* doing the thing: it never counts toward the
+ * completion tally or the cadence average, and never becomes "last done". Carries no
+ * `cost` or `photo` — nothing was bought and there is nothing to show.
+ */
+export interface Skip {
+  ts: string;
+  note?: string;
+  who?: string;
+  /** The bound sensor's value when a usage task was skipped. Skipping resets the
+   *  meter just as completing does, so this is the reading the next interval counts
+   *  from. */
+  reading?: number;
+}
+
 /** Ownership block set by an integration at task-creation time. Home Keeper
  *  inspects this (unlike the opaque `source`) to enforce UI behavior. */
 export interface ManagedBy {
@@ -102,6 +120,7 @@ export interface Task {
   last_completed?: string | null;
   next_due?: string;
   completions?: Completion[];
+  skips?: Skip[];
   // Per-task completion-capture mode (default `none` = one-tap done).
   completion_detail?: CompletionDetail;
   // An HA tag (NFC/RFID) bound to this task: scanning it records a completion.
@@ -413,6 +432,11 @@ export interface Notification {
  *  the options flow + the `home_keeper.set_options` service). */
 export interface HomeKeeperOptions {
   sync_problem_sensors: boolean;
+  // Whether the panel offers Snooze / Skip on a task, and whether a notification's
+  // button set may include them. Both default true; the `home_keeper.*` services stay
+  // callable either way, so an existing automation is never broken by the switch.
+  allow_snooze: boolean;
+  allow_skip: boolean;
   problem_sensor_exclude_entities: string[];
   problem_sensor_exclude_devices: string[];
   problem_sensor_exclude_areas: string[];

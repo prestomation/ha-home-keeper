@@ -175,6 +175,9 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("set_task_meter"),
     ServiceSpec("snooze_task"),
     ServiceSpec("skip_task"),
+    ServiceSpec("update_skip"),
+    ServiceSpec("delete_skip"),
+    ServiceSpec("move_skip"),
     ServiceSpec("set_task_consumable"),
     ServiceSpec("notify", response="optional"),
     ServiceSpec("list_tasks", response="only"),
@@ -395,14 +398,47 @@ EVENTS: tuple[EventSpec, ...] = (
         "task",
         "a task's due date is deferred without recording a completion; only next_due "
         "moves, the recurrence is untouched",
-        extra=(Field("snoozed_until", "str", "the new due date, ISO"),),
+        extra=(
+            Field("snoozed_until", "str", "the new due date, ISO"),
+            Field("origin", "str | None", "the marker the caller passed"),
+        ),
     ),
     EventSpec(
         const.EVENT_TASK_SKIPPED,
         "EVENT_TASK_SKIPPED",
         "fired",
         "task",
-        "a task is advanced to its next occurrence without recording a completion",
+        "a task is advanced to its next occurrence without recording a completion; "
+        "the skip itself is logged, and a usage task's meter is reset",
+        extra=(
+            Field("ts", "str", "the skip's timestamp, its identity in the skip log"),
+            Field("origin", "str | None", "the marker the caller passed"),
+        ),
+    ),
+    EventSpec(
+        const.EVENT_TASK_SKIP_UPDATED,
+        "EVENT_TASK_SKIP_UPDATED",
+        "fired",
+        "task",
+        "a recorded skip's detail or date is edited after the fact; the schedule is "
+        "untouched",
+        extra=(
+            Field("ts", "str", "the edited skip's timestamp (before a move)"),
+            Field(
+                "meter_baseline",
+                "float",
+                "present when the edit re-anchored a usage task's meter",
+            ),
+        ),
+    ),
+    EventSpec(
+        const.EVENT_TASK_SKIP_REMOVED,
+        "EVENT_TASK_SKIP_REMOVED",
+        "fired",
+        "task",
+        "a recorded skip is undone; a usage task's meter returns to the baseline the "
+        "skip replaced",
+        extra=(Field("ts", "str", "the removed skip's timestamp"),),
     ),
     EventSpec(
         const.EVENT_TASK_OVERDUE,
@@ -590,6 +626,11 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/update_completion", service="update_completion"),
     WebsocketSpec("home_keeper/move_completion", service="move_completion"),
     WebsocketSpec("home_keeper/delete_completion", service="delete_completion"),
+    WebsocketSpec("home_keeper/snooze_task", service="snooze_task"),
+    WebsocketSpec("home_keeper/skip_task", service="skip_task"),
+    WebsocketSpec("home_keeper/update_skip", service="update_skip"),
+    WebsocketSpec("home_keeper/move_skip", service="move_skip"),
+    WebsocketSpec("home_keeper/delete_skip", service="delete_skip"),
     WebsocketSpec(
         "home_keeper/delete_archived_completion", service="delete_archived_completion"
     ),
@@ -660,6 +701,8 @@ HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
 
 OPTIONS: tuple[OptionSpec, ...] = (
     OptionSpec(const.OPTION_SYNC_PROBLEM_SENSORS, in_flow=True),
+    OptionSpec(const.OPTION_ALLOW_SNOOZE, in_flow=False),
+    OptionSpec(const.OPTION_ALLOW_SKIP, in_flow=False),
     OptionSpec(const.OPTION_ONE_OFF_RETENTION_DAYS, in_flow=True),
     OptionSpec(const.OPTION_SHOPPING_LIST_ENTITY, in_flow=True),
     OptionSpec(const.OPTION_PROFILES, in_flow=False),

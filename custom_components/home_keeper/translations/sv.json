@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Timmar",
-          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24)."
+          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24). Ignoreras när Till är angivet."
+        },
+        "until": {
+          "name": "Till",
+          "description": "Skjuter upp uppgiften till exakt detta datum och klockslag i stället för ett antal timmar. Anger du den används inte fältet Timmar."
         },
         "origin": {
           "name": "Ursprung",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Hoppa över uppgift",
-      "description": "Flytta fram en uppgift till nästa tillfälle utan att registrera ett slutförande.",
+      "description": "Flyttar en uppgift till nästa tillfälle utan att registrera ett slutförande. Överhoppningen loggas separat och räknas därför aldrig som ett slutförande.",
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
           "description": "ID för uppgiften som ska hoppas över. Namnet fungerar också. Panelen visar id:t."
+        },
+        "note": {
+          "name": "Anteckning",
+          "description": "Varför detta tillfälle hoppades över."
+        },
+        "who": {
+          "name": "Vem",
+          "description": "Vem som bestämde att hoppa över den."
+        },
+        "reading": {
+          "name": "Mätarställning",
+          "description": "Den kopplade sensorns värde vid överhoppningen, för en förbrukningsuppgift."
         },
         "origin": {
           "name": "Ursprung",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Delnamn eller -ID",
           "description": "ID för delen vars bifogade fil ska signeras. Namnet fungerar också. Panelen visar id:t."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Uppdatera överhoppning",
+      "description": "Ändrar detaljerna i en loggad överhoppning som identifieras av sin tidsstämpel. Överhoppningen behåller sitt datum och schemat lämnas orört.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften vars överhoppning du redigerar. Namnet fungerar också. Panelen visar id:t."
+        },
+        "ts": {
+          "name": "Överhoppningens tidsstämpel",
+          "description": "ISO-tidsstämpeln (ts) för överhoppningsposten som ska redigeras."
+        },
+        "note": {
+          "name": "Anteckning",
+          "description": "Varför detta tillfälle hoppades över. Ett tomt värde rensar den."
+        },
+        "who": {
+          "name": "Vem",
+          "description": "Vem som bestämde att hoppa över den. Ett tomt värde rensar det."
+        },
+        "reading": {
+          "name": "Mätarställning",
+          "description": "Den kopplade sensorns värde vid överhoppningen, för en förbrukningsuppgift."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Ta bort överhoppning",
+      "description": "Tar bort en loggad överhoppning som identifieras av sin tidsstämpel. Att ångra den överhoppning som senast nollställde en förbrukningsmätare återställer den mätaren.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften vars överhoppning du tar bort. Namnet fungerar också. Panelen visar id:t."
+        },
+        "ts": {
+          "name": "Överhoppningens tidsstämpel",
+          "description": "ISO-tidsstämpeln (ts) för överhoppningsposten som ska tas bort."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Flytta överhoppning",
+      "description": "Ger en loggad överhoppning ett nytt datum; den identifieras av sin nuvarande tidsstämpel. Uppgiftens schema lämnas orört.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften vars överhoppning du flyttar. Namnet fungerar också. Panelen visar id:t."
+        },
+        "old_ts": {
+          "name": "Överhoppningens nuvarande tidsstämpel",
+          "description": "ISO-tidsstämpeln (ts) för överhoppningsposten som ska flyttas."
+        },
+        "new_ts": {
+          "name": "Nytt datum",
+          "description": "Det nya datum och klockslag som överhoppningen ska registreras på."
         }
       }
     }

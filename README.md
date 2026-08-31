@@ -245,6 +245,54 @@ entities and the dashboard card. The panel list view can group/filter tasks, and
 tapping any row opens a detail page with the full schedule, notes, and completion
 history.
 
+## Snooze and skip
+
+Not every occurrence gets done on time, and not every one needs doing at all. **Done**
+carries a caret that opens the other two answers. **Snooze** pushes the due date out and
+leaves the schedule alone. **Skip** advances the task to its next occurrence and records
+that this one went by.
+
+**Use case.** You were away all month and the water filter does not need changing yet.
+Skip this occurrence with a note saying why. The next one is due a month from today.
+Or the parts have not arrived and the reminder can wait a week: snooze it instead.
+
+**How it's used.** Open a task and press the caret beside Done.
+
+- **Snooze** asks how long. Pick one of four durations or a date of your own, and the
+  dialog states the new due date before you commit. The recurrence is untouched, so a
+  task snoozed from the 29th to the 6th is still due again on the 29th of next month.
+- **Skip** advances the schedule by one occurrence. A floating task starts a fresh
+  interval from now, a fixed one moves to its next scheduled date, and a task counted
+  in miles or hours starts its next interval from the meter's current reading.
+
+A skip is recorded, but it never counts as a completion. It appears in the task's history
+with its own marker, carries a note and whoever decided, and can be edited, re-dated or
+undone exactly like a completion row. What it never does is count: the completion tally
+and the average interval both describe work actually done, so a skipped occurrence
+leaves them alone.
+
+Both verbs are also services, so an automation can defer a task without going through
+the panel: `home_keeper.snooze_task` (by `hours`, or to an exact `until`),
+`home_keeper.skip_task`, and `update_skip` / `move_skip` / `delete_skip` for the log.
+
+If you do not want them, **Settings → Skip & snooze** turns either off. Both start on,
+and turning one off removes it from the panel and from your notification buttons. The
+services keep working either way, so an automation you already wrote is unaffected.
+
+The dashboard card puts both verbs on the row instead of behind a caret. A chevron
+beside the card's dense Done button has nothing to lean on and reads as decoration, and
+a card is a list you scan rather than a page about one task. Snooze and skip sit ahead
+of Done in a muted grey against its accent, so the row keeps one obvious action. Both
+open the same dialogs the panel does.
+
+<img src="docs/images/51-panel-skip-snooze-menu.png" alt="A task's Done button with its caret open, showing Snooze and Skip with a line each explaining what they do" width="820">
+
+<img src="docs/images/52-panel-snooze-dialog.png" alt="The snooze dialog: a duration dropdown and a line stating the date the due date moves to" width="820">
+
+<img src="docs/images/53-panel-skip-in-history.png" alt="A task's history with a skipped occurrence marked as skipped, sitting between two completions" width="820">
+
+<img src="docs/images/card-skip-snooze-row.png" alt="A dashboard card whose rows carry a snooze and a skip button ahead of the accent Done button" width="330">
+
 ## Getting around the panel
 
 <!-- vale ai-tells.ColonUsage = NO -->
@@ -849,17 +897,18 @@ button taps and the standalone
 ## Dashboard task card
 
 The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizable list
-of your tasks with a one-tap **Done** button on each row. It's a focused
+of your tasks with a one-tap **Done** button on each row, and a
+[snooze and a skip](#snooze-and-skip) button beside it. The card is a focused
 do-and-glance surface: mark tasks done, add a new one from the header **+**, and open
 any documentation links a task shows (see below), while **editing and deleting a task
 live in the sidebar panel**, so a stray tap on the dashboard can't open a form or
-accidentally delete a task. It's auto-registered (Home Keeper adds its own entry under
-**Settings > Dashboards > Resources**, so there's nothing for you to set up) and
-appears in the dashboard **"Add card"** picker. Its GUI editor lets you filter (by
+accidentally delete a task. Registration happens for you (Home Keeper adds its own
+entry under **Settings > Dashboards > Resources**), and the card appears in the
+dashboard **"Add card"** picker. A GUI editor lets you filter (by
 status, area, device, **label**, recurrence type, a "due within N days" horizon, or a
 saved [Profile](#profiles-saved-filters-you-reuse-everywhere)), sort, group, cap rows,
-and toggle what each row shows. It's built from HA's own components and theme and
-reflects completions made anywhere else in real time.
+and toggle what each row shows. Everything is built from HA's own components and theme,
+and reflects completions made anywhere else in real time.
 
 **Hide card when empty** makes the card disappear from the dashboard entirely
 (header and all) instead of showing a "No tasks match this filter." message when its

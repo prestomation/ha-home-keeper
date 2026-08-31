@@ -42,12 +42,30 @@ can't express.
 
 ### Task lifecycle
 
-A snooze moves only `next_due`, leaving the recurrence alone; a skip advances the
-schedule itself, so floating jumps an interval, fixed advances one occurrence, and
-one-off, triggered and sensor tasks go dormant. Both re-arm the edge-triggered
-overdue and due-soon announcements for the new date. Editing the `reading` on a
-**usage** task's *latest* completion also re-anchors its meter, so that event can
-then add a `meter_baseline`.
+Only `next_due` moves when a task is snoozed, leaving the recurrence alone. Skipping
+advances the schedule itself, by a step that depends on the kind of task:
+
+* **floating** jumps a fresh interval from now
+* **fixed** moves on one scheduled occurrence
+* **one-off**, **triggered** and **sensor** tasks go dormant
+
+Both verbs re-arm the edge-triggered overdue and due-soon announcements for the new
+date.
+
+A skip is also **recorded**, in a `skips` list of its own beside `completions`. The
+two lists stay deliberately separate. A skip records an occurrence that was passed
+over on purpose, so it never sets `last_completed`, and nothing derived from the
+completion log counts it. `home_keeper_task_skipped` carries the new entry's `ts`.
+That timestamp is the entry's identity for the `update_skip` / `move_skip` /
+`delete_skip` services, and for the `_skip_updated` / `_skip_removed` events they
+fire.
+
+Skipping a **usage** task resets its meter exactly as completing it does, so the next
+interval is measured from the reading at the skip. Its time backstop (`also_every`)
+measures from the same point, since with the default `combinator: "any"` an elapsed
+backstop would otherwise re-arm the task however recently it was skipped. Editing the
+`reading` on whichever completion or skip currently anchors the meter re-anchors it,
+so `_completion_updated` and `_skip_updated` can then add a `meter_baseline`.
 
 **NFC/RFID tag scans** ride these same events: completing a task by scanning its
 linked tag fires an ordinary `home_keeper_task_completed` carrying

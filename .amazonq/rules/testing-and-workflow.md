@@ -14,6 +14,11 @@
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).
+  Use an HTML `<img>` tag with **no character-entity references in any attribute** —
+  the `update_pull_request` path backtick-wraps and entity-escapes a tag whose `alt`
+  contains one (`&#39;` did it on #272, three submissions running, while the two
+  neighbouring tags without one went through). Reword around the apostrophe, and
+  re-read the body afterwards to confirm nothing was mangled.
 - **The video walkthrough is a CI build artifact, never committed** — for a PR that
   adds a _new user-facing UI feature_, CI keeps it current (bug-fix/styling PRs need
   only screenshots). `walkthrough-preview.yml` runs the capture harness

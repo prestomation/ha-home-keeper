@@ -992,6 +992,36 @@ export function problemSyncToggleSchema(): FormField[] {
 }
 
 /**
+ * The two switches deciding whether Home Keeper offers Snooze and Skip on a task.
+ *
+ * They govern what this panel shows and what a notification's button set may carry.
+ * The `home_keeper.snooze_task` / `skip_task` services stay callable either way, so
+ * turning one off never breaks an automation someone already wrote.
+ */
+export function skipSnoozeSchema(): FormField[] {
+  return [
+    { name: 'allow_snooze', selector: selBool() },
+    { name: 'allow_skip', selector: selBool() },
+  ];
+}
+
+/**
+ * Read the two switches off an options object, defaulting **on**.
+ *
+ * `!!v` would read a missing key as off, which would withdraw both verbs from every
+ * install whose stored options predate the switches — which is all of them.
+ */
+export function skipSnoozeFlags(options: {
+  allow_snooze?: unknown;
+  allow_skip?: unknown;
+}): { allowSnooze: boolean; allowSkip: boolean } {
+  return {
+    allowSnooze: boolOr(options?.allow_snooze, true),
+    allowSkip: boolOr(options?.allow_skip, true),
+  };
+}
+
+/**
  * The four exclusion pickers, which only mean anything while the sync above them is
  * on. Split from the toggle so the panel can indent them behind a rule and caption
  * them — `ha-form` has no slot between two of its own rows. `problemSyncSchema` is

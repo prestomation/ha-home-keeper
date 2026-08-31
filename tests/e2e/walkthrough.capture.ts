@@ -129,6 +129,25 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
+  // 2a1. Snooze and skip, the two answers to a due task that are not "done". They
+  //      hang off a caret beside Done rather than sitting next to it, so the tour
+  //      opens the menu, lingers on the line each entry carries, then shows the
+  //      snooze dialog resolving its preset to a real date. Escape out of both so
+  //      the seeded schedule is left where the later beats expect it.
+  //      Every locator here is scoped to the detail actions: the list beside the
+  //      detail renders its own split buttons, so an unscoped `.hk-defer-snooze`
+  //      finds one of their closed menus instead of the open one.
+  const detailActions = panel.locator('.hk-detail-actions');
+  await detailActions.locator('.hk-split-caret').click();
+  await expect(detailActions.locator('.hk-defer-menu .hk-defer-skip')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await detailActions.locator('.hk-defer-snooze').click();
+  await expect(panel.locator('ha-dialog[open] .hk-snooze-hint')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   // 2a2. Notes are Markdown. The seeded note already renders as headings, a
   //      numbered list, a quote and a link; open the inline editor to show it
   //      being authored, with the live preview updating as the text is typed.
@@ -620,6 +639,21 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //    family's own list, now carrying the synced chores with their due dates.
   await openDashboard(page);
   await page.waitForTimeout(BEAT * 2);
+
+  // 8a. Snooze and skip reach the dashboard too, and here they are simply on the
+  //     row: a caret beside a same-sized icon button had nothing to lean on. Open
+  //     the snooze dialog so the tour shows the preset resolving to a real date,
+  //     then Escape out so the closing shot frames the cards.
+  const hkCard = page.locator('home-keeper-card').first();
+  await expect(hkCard.locator('.hk-defer-snooze').first()).toBeVisible({ timeout: 40_000 });
+  await page.waitForTimeout(BEAT);
+  await hkCard.locator('.hk-defer-snooze').first().click();
+  await expect(page.locator('ha-dialog[open] .hk-snooze-hint').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('ha-dialog[open] .hk-snooze-hint')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   const familyCard = page
     .locator('hui-todo-list-card, todo-list-card')
     .filter({ hasText: 'Family chores' })

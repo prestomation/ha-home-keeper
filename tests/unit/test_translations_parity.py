@@ -88,6 +88,8 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.update_asset.fields.metadata.name",
             "services.update_asset.fields.model.name",
             "services.update_completion.fields.note.name",  # "Note" — DA cognate
+            "services.skip_task.fields.note.name",  # "Note" — DA cognate
+            "services.update_skip.fields.note.name",  # "Note" — DA cognate
             "services.update_task.fields.interval.name",
         }
     ),
@@ -118,6 +120,8 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.update_asset.fields.documents.name",  # "Documents" — FR cognate
             "services.update_asset.fields.notes.name",  # "Notes" — FR cognate
             "services.update_completion.fields.note.name",  # "Note" — FR cognate
+            "services.skip_task.fields.note.name",  # "Note" — FR cognate
+            "services.update_skip.fields.note.name",  # "Note" — FR cognate
             "services.update_completion.fields.photo.name",  # "Photo" — FR cognate
             "services.update_task.fields.notes.name",
             "services.update_task.fields.source.name",  # "Source" — FR cognate

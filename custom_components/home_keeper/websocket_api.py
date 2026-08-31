@@ -85,6 +85,11 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_move_completion)
     websocket_api.async_register_command(hass, ws_delete_completion)
     websocket_api.async_register_command(hass, ws_delete_archived_completion)
+    websocket_api.async_register_command(hass, ws_snooze_task)
+    websocket_api.async_register_command(hass, ws_skip_task)
+    websocket_api.async_register_command(hass, ws_update_skip)
+    websocket_api.async_register_command(hass, ws_move_skip)
+    websocket_api.async_register_command(hass, ws_delete_skip)
     websocket_api.async_register_command(hass, ws_get_assets)
     websocket_api.async_register_command(hass, ws_add_asset)
     websocket_api.async_register_command(hass, ws_update_asset)
@@ -383,6 +388,168 @@ async def ws_delete_completion(
         return
     try:
         task = await coord.store.delete_completion(msg["task_id"], msg["ts"])
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+# ── Snooze and skip ──────────────────────────────────────────────────────────
+#
+# The panel talks websocket, so these exist for it to have anything to call; the
+# ``home_keeper.snooze_task`` / ``skip_task`` services remain the integration contract
+# and these delegate to the same store methods. ``until`` is an ISO string here rather
+# than the service's ``hours``/``until`` pair: the panel resolves its preset to a real
+# instant before sending, so the wire carries the answer, not the arithmetic.
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/snooze_task",
+        vol.Required("task_id"): str,
+        vol.Required("until"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_snooze_task(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    until = dt_util.parse_datetime(msg["until"])
+    if until is None:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=msg["until"])
+        return
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=dt_util.now().tzinfo)
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.snooze_task(msg["task_id"], until)
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/skip_task",
+        vol.Required("task_id"): str,
+        vol.Optional("metadata"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_skip_task(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.skip_task(msg["task_id"], metadata=msg.get("metadata"))
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/update_skip",
+        vol.Required("task_id"): str,
+        vol.Required("ts"): str,
+        vol.Required("metadata"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_update_skip(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.update_skip(msg["task_id"], msg["ts"], msg["metadata"])
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/move_skip",
+        vol.Required("task_id"): str,
+        vol.Required("old_ts"): str,
+        vol.Required("new_ts"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_move_skip(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.move_skip(msg["task_id"], msg["old_ts"], msg["new_ts"])
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/delete_skip",
+        vol.Required("task_id"): str,
+        vol.Required("ts"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_delete_skip(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.delete_skip(msg["task_id"], msg["ts"])
     except KeyError:
         _err(
             hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]

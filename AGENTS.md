@@ -97,7 +97,14 @@
   Diff-scoping only checks added/changed lines, so a wholesale rewrite of a file's
   prose (not just a small edit) can surface pre-existing hits on lines that just
   moved. Run `vale <file>` on the whole file yourself before a rewrite-style PR to
-  catch those ahead of CI. There's no automated version-bump for the pinned
+  catch those ahead of CI. **A one-line edit is enough to do this**, because the
+  rules apply per *block*: adding a clause to the first sentence of a paragraph puts
+  the whole paragraph in scope, and a rule like `StackedAnaphora` then reports
+  against a sentence further down that you never touched. A local check that keeps
+  only hits whose line number you added will filter that hit out and tell you the
+  branch is clean — #272 shipped a red `vale` that way. Compare the *set* of hits in
+  each file you edited against `origin/main` instead, or just read the whole
+  paragraph you touched. There's no automated version-bump for the pinned
   `ai-tells.zip` release in `.vale.ini` (Dependabot/Renovate don't track raw
   GitHub release URLs), so bump it by hand occasionally, e.g. alongside the next
   full-corpus cleanup pass.
@@ -145,6 +152,12 @@
     confirm the URLs weren't mangled and verify each returns HTTP 200. (In-repo
     README/docs markdown with relative `docs/images/…` paths is fine — this only bites
     PR/issue bodies set through the API.)
+    **An HTML `<img>` is not immune either, and the trigger is a character-entity
+    reference in an attribute value.** On #272 the one `<img>` whose `alt` contained
+    `&#39;` came back backtick-wrapped and fully entity-escaped, three submissions
+    running, while its two neighbours — identical but for that entity — went through
+    untouched. Write attribute text with no entities at all: reword around the
+    apostrophe rather than escaping it. Wrapping the tag in `<p>` does not help.
   - **Always visually inspect every captured screenshot before committing it.** Read
     the PNG file with the Read tool and look at the rendered image. Confirm the
     changed surface is visible and correct — dialogs show their heading and buttons,

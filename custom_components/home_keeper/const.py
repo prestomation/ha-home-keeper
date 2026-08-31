@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.19.0b6"
+PANEL_VERSION = "0.19.0b7"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -96,6 +96,13 @@ EVENT_PART_RESTOCKED = f"{DOMAIN}_part_restocked"
 # the task spine plus the edited completion's ``ts``, and ``meter_baseline`` when the
 # edit re-anchored a usage meter (see store.update_completion). See docs/EVENTS.md.
 EVENT_TASK_COMPLETION_UPDATED = f"{DOMAIN}_task_completion_updated"
+# The skip log's edit events, mirroring the two above. ``_skip_updated`` carries the
+# edited skip's ``ts`` (its ``old_ts`` after a move) plus ``meter_baseline`` when the
+# edit re-anchored a usage meter; ``_skip_removed`` carries the ``ts`` undone. There is
+# no re-add pair for a move: nothing downstream mirrors a skip the way an integration
+# mirrors a completion. See docs/EVENTS.md.
+EVENT_TASK_SKIP_UPDATED = f"{DOMAIN}_task_skip_updated"
+EVENT_TASK_SKIP_REMOVED = f"{DOMAIN}_task_skip_removed"
 # Asset (appliance) lifecycle — fired at the store.py asset chokepoints.
 EVENT_ASSET_CREATED = f"{DOMAIN}_asset_created"
 EVENT_ASSET_UPDATED = f"{DOMAIN}_asset_updated"  # payload carries ``changed_fields``
@@ -160,6 +167,17 @@ OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS = "problem_sensor_exclude_labels"
 # (the default) keeps completed one-offs forever; ``N > 0`` purges them once
 # ``last_completed + N days`` has passed, via the coordinator's periodic refresh.
 OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
+# Whether Home Keeper *offers* Snooze and Skip. Both default **on**: they are
+# long-standing verbs, and defaulting them off would hide a feature people already
+# struggle to find (#268). Turning one off withdraws it from the surfaces Home Keeper
+# controls — the panel's task actions and a notification's button set — but never from
+# ``home_keeper.snooze_task`` / ``skip_task``. Services are the interoperability
+# contract, and silently breaking an automation someone already wrote is not a setting.
+# One documented exception: ``notifications.actions_for`` still forces Snooze onto a
+# completion-blocked task, because a notification walk only advances on a successful
+# action and such a task can be neither completed nor skipped (#248).
+OPTION_ALLOW_SNOOZE = "allow_snooze"  # bool, default True
+OPTION_ALLOW_SKIP = "allow_skip"  # bool, default True
 # Catalog glue domains the user dismissed from the Settings → Companions
 # "Suggested" list. A list of domain strings; dismissing only silences a
 # *suggestion* (a connected pairing is always shown). See companions.py.
@@ -331,6 +349,12 @@ COMPLETION_CAPTURED_FIELDS = ["reading"]
 # the list to iterate when lifting/echoing/persisting a completion's fields; only
 # ``completion_required_fields`` validation uses the narrower metadata list above.
 COMPLETION_ENTRY_FIELDS = [*COMPLETION_METADATA_FIELDS, *COMPLETION_CAPTURED_FIELDS]
+
+# Every key a *skip* entry may carry beside its mandatory ``ts``. A skip answers "why
+# did this occurrence go by?", so it takes the note and the person, plus the meter
+# ``reading`` it was taken at. It has no ``cost`` or ``photo``: nothing was bought and
+# there is nothing to show — a narrower list, not an oversight.
+SKIP_ENTRY_FIELDS = ["note", "who", "reading"]
 
 # Floating interval units.
 UNIT_DAYS = "days"

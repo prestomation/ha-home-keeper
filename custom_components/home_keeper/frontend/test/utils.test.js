@@ -25,6 +25,9 @@ import {
   assetSummary,
   sortedCompletions,
   completionStats,
+  DEFAULT_SNOOZE_PRESET,
+  resolveSnoozePreset,
+  SNOOZE_PRESETS,
   taskRelatesToAsset,
   tasksForAsset,
   parseRoute,
@@ -1005,5 +1008,53 @@ describe('recurrenceSummary sentence case (#262)', () => {
     // Everything after the first character is exactly what the strings say — no
     // title-casing of "Weeks", no capital on "After".
     expect(out.slice(1)).toBe('very 3 weeks after completion');
+  });
+});
+
+describe('snooze presets', () => {
+  const from = new Date(2026, 7, 30, 9, 0); // Sun 30 Aug 2026, 09:00 local
+
+  it('resolves each offset from the given instant', () => {
+    expect(resolveSnoozePreset('1h', from)).toEqual(new Date(2026, 7, 30, 10, 0));
+    expect(resolveSnoozePreset('1d', from)).toEqual(new Date(2026, 7, 31, 9, 0));
+    expect(resolveSnoozePreset('1w', from)).toEqual(new Date(2026, 8, 6, 9, 0));
+    expect(resolveSnoozePreset('1mo', from)).toEqual(new Date(2026, 8, 30, 9, 0));
+  });
+
+  it('clamps a month onto a shorter one instead of rolling past it', () => {
+    // Jan 31 + 1 month is Feb 28, matching the backend's `recurrence.add_months`.
+    // A bare `setMonth` would roll *forward* to Mar 3, so the date the dialog
+    // previews would not be the date the task ends up with.
+    expect(resolveSnoozePreset('1mo', new Date(2026, 0, 31, 9, 0))).toEqual(
+      new Date(2026, 1, 28, 9, 0),
+    );
+  });
+
+  it('clamps onto a leap February', () => {
+    expect(resolveSnoozePreset('1mo', new Date(2028, 0, 31, 9, 0))).toEqual(
+      new Date(2028, 1, 29, 9, 0),
+    );
+  });
+
+  it('carries an hour offset across a day boundary', () => {
+    expect(resolveSnoozePreset('1h', new Date(2026, 7, 30, 23, 30))).toEqual(
+      new Date(2026, 7, 31, 0, 30),
+    );
+  });
+
+  it('has no offset for custom — the dialog reveals a date field instead', () => {
+    expect(resolveSnoozePreset('custom', from)).toBeNull();
+  });
+
+  it('returns null for an id that is not a preset', () => {
+    expect(resolveSnoozePreset('1y', from)).toBeNull();
+  });
+
+  it('opens on a preset that is actually in the list', () => {
+    expect(SNOOZE_PRESETS.map((p) => p.id)).toContain(DEFAULT_SNOOZE_PRESET);
+  });
+
+  it('ends with custom, so the escape hatch sits last in the dropdown', () => {
+    expect(SNOOZE_PRESETS[SNOOZE_PRESETS.length - 1].id).toBe('custom');
   });
 });

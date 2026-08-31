@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "小时",
-          "description": "将任务推迟多少小时（默认 24）。"
+          "description": "将任务推迟多少小时（默认 24）。设置了“截止时间”时忽略此项。"
+        },
+        "until": {
+          "name": "截止时间",
+          "description": "将任务推迟到这个确切的日期和时间，而不是若干小时。设置该项后，“小时”字段不会被使用。"
         },
         "origin": {
           "name": "发起方",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "跳过任务",
-      "description": "将任务推进到下一次，但不记录完成。",
+      "description": "把任务推进到下一次，而不记录完成。跳过会单独记录，因此永远不会算作一次完成。",
       "fields": {
         "task_id": {
           "name": "任务名称或 ID",
           "description": "要跳过的任务的 id。名称同样可用。面板中会显示 ID。"
+        },
+        "note": {
+          "name": "备注",
+          "description": "为什么这一次被跳过。"
+        },
+        "who": {
+          "name": "执行人",
+          "description": "由谁决定跳过。"
+        },
+        "reading": {
+          "name": "仪表读数",
+          "description": "对于按用量计的任务，跳过时所绑定传感器的数值。"
         },
         "origin": {
           "name": "发起方",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "零件名称或 ID",
           "description": "要签署其附件文件 URL 的零件的 ID。名称同样可用。面板中会显示 ID。"
+        }
+      }
+    },
+    "update_skip": {
+      "name": "更新跳过记录",
+      "description": "按时间戳修改已记录跳过的详情。跳过保留原有日期，计划安排不受影响。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "要编辑其跳过记录的任务 id。名称同样可用。面板中会显示 ID。"
+        },
+        "ts": {
+          "name": "跳过时间戳",
+          "description": "要编辑的跳过记录条目的 ISO 时间戳 (ts)。"
+        },
+        "note": {
+          "name": "备注",
+          "description": "为什么这一次被跳过。留空即清除。"
+        },
+        "who": {
+          "name": "执行人",
+          "description": "由谁决定跳过。留空即清除。"
+        },
+        "reading": {
+          "name": "仪表读数",
+          "description": "对于按用量计的任务，跳过时所绑定传感器的数值。"
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "删除跳过记录",
+      "description": "按时间戳移除一条已记录的跳过。撤销最近一次重置用量计的跳过时，该计数也会一并还原。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "要移除其跳过记录的任务 id。名称同样可用。面板中会显示 ID。"
+        },
+        "ts": {
+          "name": "跳过时间戳",
+          "description": "要移除的跳过记录条目的 ISO 时间戳 (ts)。"
+        }
+      }
+    },
+    "move_skip": {
+      "name": "移动跳过记录",
+      "description": "按当前时间戳为一条已记录的跳过改期。任务的计划安排不受影响。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "要移动其跳过记录的任务 id。名称同样可用。面板中会显示 ID。"
+        },
+        "old_ts": {
+          "name": "跳过记录的当前时间戳",
+          "description": "要移动的跳过记录条目的 ISO 时间戳 (ts)。"
+        },
+        "new_ts": {
+          "name": "新日期",
+          "description": "记录该跳过的新日期和时间。"
         }
       }
     }

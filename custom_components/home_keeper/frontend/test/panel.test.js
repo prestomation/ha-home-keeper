@@ -1083,3 +1083,204 @@ describe('the sheet-threshold media query is bound and unbound with the element'
     }
   });
 });
+
+describe('Task detail — snooze and skip behind the Done caret (issue #268)', () => {
+  const dueTask = {
+    id: 't1',
+    name: 'Change water filter',
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'months',
+    next_due: '2026-08-29T09:00:00Z',
+    completions: [],
+    skips: [],
+  };
+
+  /** A hass whose get_options returns *options* (the harness returns `{}`). */
+  const withOptions = (tasks, options = {}) => {
+    const { hass, calls } = makeHassWith({ tasks });
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) => {
+      if (msg.type === 'home_keeper/get_options') return Promise.resolve({ options });
+      if (msg.type === 'home_keeper/snooze_task' || msg.type === 'home_keeper/skip_task') {
+        calls[msg.type] = msg;
+        return Promise.resolve({ task: tasks[0] });
+      }
+      return inner(msg);
+    };
+    return { hass, calls };
+  };
+
+  const openMenu = async (panel) => {
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-split-caret'));
+    const caret = panel.shadowRoot.querySelector('.hk-split-caret');
+    caret.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    return panel.shadowRoot.querySelector('.hk-defer-menu');
+  };
+
+  it('offers both verbs on an ordinary due task', async () => {
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    expect(menu.querySelector('.hk-defer-snooze')).toBeTruthy();
+    expect(menu.querySelector('.hk-defer-skip')).toBeTruthy();
+  });
+
+  it('keeps the menu closed until the caret is pressed', async () => {
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-defer-menu'));
+    const menu = panel.shadowRoot.querySelector('.hk-defer-menu');
+    expect(menu.hidden).toBe(true);
+    const caret = panel.shadowRoot.querySelector('.hk-split-caret');
+    expect(caret.getAttribute('aria-expanded')).toBe('false');
+
+    caret.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.hidden).toBe(false);
+    expect(caret.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('leaves Done its own hit target, so it never costs an extra tap', async () => {
+    const { hass, calls } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.d-done'));
+    panel.shadowRoot.querySelector('.d-done').dispatchEvent(new MouseEvent('click'));
+    await waitFor(() => calls['home_keeper/complete_task']);
+    expect(calls['home_keeper/complete_task']).toBeTruthy();
+  });
+
+  it('hides skip on a completion-blocked task, but keeps snooze', async () => {
+    // The store rejects skip on a problem-sensor mirror, so offering it would be a
+    // dead button; snooze asserts nothing about the problem, so it stays.
+    const { hass } = withOptions([
+      { ...dueTask, managed_by: { integration: 'x', display_name: 'X', completion_blocked: true } },
+    ]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    expect(menu.querySelector('.hk-defer-snooze')).toBeTruthy();
+    expect(menu.querySelector('.hk-defer-skip')).toBeNull();
+  });
+
+  it('shows no caret at all on a dormant task', async () => {
+    // Nothing to defer and no occurrence to advance past.
+    const { hass } = withOptions([
+      { ...dueTask, recurrence_type: 'triggered', next_due: undefined },
+    ]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-detail-actions'));
+    expect(panel.shadowRoot.querySelector('.hk-split-caret')).toBeNull();
+  });
+
+  it('drops a verb the global switch turned off', async () => {
+    const { hass } = withOptions([dueTask], { allow_snooze: false });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    expect(menu.querySelector('.hk-defer-snooze')).toBeNull();
+    expect(menu.querySelector('.hk-defer-skip')).toBeTruthy();
+  });
+
+  it('shows no caret when both switches are off', async () => {
+    const { hass } = withOptions([dueTask], { allow_snooze: false, allow_skip: false });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-detail-actions'));
+    expect(panel.shadowRoot.querySelector('.hk-split-caret')).toBeNull();
+    // …and Done is exactly what it was before any of this existed.
+    expect(panel.shadowRoot.querySelector('.d-done')).toBeTruthy();
+  });
+
+  it('treats a missing option as on, so an existing install is unaffected', async () => {
+    // Every stored options document predates these keys; `!!v` would read that as
+    // "off" and silently withdraw both verbs from everyone.
+    const { hass } = withOptions([dueTask], { sync_problem_sensors: false });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    expect(menu.querySelector('.hk-defer-snooze')).toBeTruthy();
+    expect(menu.querySelector('.hk-defer-skip')).toBeTruthy();
+  });
+
+  it('opens the snooze dialog from the menu', async () => {
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    menu.querySelector('.hk-defer-snooze').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-snooze-hint'));
+    expect(panel.shadowRoot.querySelector('ha-dialog')).toBeTruthy();
+  });
+
+  it('opens the skip dialog from the menu', async () => {
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    menu.querySelector('.hk-defer-skip').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-dialog'));
+    expect(panel.shadowRoot.querySelector('ha-dialog')).toBeTruthy();
+  });
+});
+
+describe('History — a skip is listed but never counted (issue #268)', () => {
+  const task = {
+    id: 't1',
+    name: 'Change water filter',
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'months',
+    next_due: '2026-09-29T09:00:00Z',
+    completions: [{ ts: '2026-07-29T09:00:00Z' }, { ts: '2026-06-29T09:00:00Z' }],
+    skips: [{ ts: '2026-08-30T09:00:00Z', note: 'away all month' }],
+  };
+
+  it('renders the skip beside the completions, marked as a skip', async () => {
+    const { hass } = makeHassWith({ tasks: [task] });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-hist-list li'));
+    const rows = [...panel.shadowRoot.querySelectorAll('.hk-hist-list li')];
+    expect(rows).toHaveLength(3);
+    // Newest first, so the skip leads — and it is the row carrying the chip.
+    expect(rows[0].classList.contains('hk-hist-is-skip')).toBe(true);
+    expect(rows[0].querySelector('.hk-hist-skip-chip')).toBeTruthy();
+    expect(rows[1].querySelector('.hk-hist-skip-chip')).toBeNull();
+  });
+
+  it('leaves the completion count reporting only completions', async () => {
+    const { hass } = makeHassWith({ tasks: [task] });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-hist-sub'));
+    // Two completions and one skip: the tally says two, because a skip is the record
+    // of *not* doing the thing.
+    expect(panel.shadowRoot.querySelector('.hk-hist-sub').textContent).toContain('2');
+  });
+
+  it('gives the skip its own delete target, not the completion one', async () => {
+    const { hass } = makeHassWith({ tasks: [task] });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-hist-skip-del'));
+    const del = panel.shadowRoot.querySelector('.hk-hist-skip-del');
+    expect(del.dataset.delSkip).toBe('t1');
+    expect(del.dataset.ts).toBe('2026-08-30T09:00:00Z');
+  });
+
+  it('shows a skip-only task rather than "no completions recorded yet"', async () => {
+    // The skips are precisely the record explaining why there are no completions.
+    const { hass } = makeHassWith({
+      tasks: [{ ...task, completions: [] }],
+    });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-hist-body'));
+    expect(panel.shadowRoot.querySelectorAll('.hk-hist-list li')).toHaveLength(1);
+    expect(panel.shadowRoot.querySelector('.hk-hist-body ha-alert')).toBeNull();
+  });
+});

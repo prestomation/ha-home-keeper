@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Timer",
-          "description": "Hvor mange timer opgaven skal udskydes (standard 24)."
+          "description": "Hvor mange timer opgaven skal udsættes (standard 24). Ignoreres, når Indtil er angivet."
+        },
+        "until": {
+          "name": "Indtil",
+          "description": "Udsæt opgaven til præcis denne dato og dette klokkeslæt i stedet for et antal timer. Angiver du den, bruges feltet Timer ikke."
         },
         "origin": {
           "name": "Oprindelse",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Spring opgave over",
-      "description": "Ryk en opgave frem til dens næste forekomst uden at registrere en fuldførelse.",
+      "description": "Flytter en opgave frem til næste forekomst uden at registrere en fuldførelse. Overspringningen logges for sig, så den aldrig tæller som en fuldførelse.",
       "fields": {
         "task_id": {
           "name": "Opgavenavn eller -ID",
           "description": "Id'et på den opgave, der skal springes over. Navnet virker også. Panelet viser id'et."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Hvorfor denne forekomst blev sprunget over."
+        },
+        "who": {
+          "name": "Hvem",
+          "description": "Hvem der besluttede at springe den over."
+        },
+        "reading": {
+          "name": "Måleraflæsning",
+          "description": "Den tilknyttede sensors værdi på tidspunktet for overspringningen, for en forbrugsopgave."
         },
         "origin": {
           "name": "Oprindelse",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Reservedelsnavn eller -ID",
           "description": "ID'et på den reservedel, hvis vedhæftede fil der skal signeres en URL for. Navnet virker også. Panelet viser id'et."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Opdater overspringning",
+      "description": "Ret detaljerne i en registreret overspringning, identificeret ved dens tidsstempel. Overspringningen beholder sin dato, og planen røres ikke.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "Id'et på den opgave, hvis overspringning du redigerer. Navnet virker også. Panelet viser id'et."
+        },
+        "ts": {
+          "name": "Overspringningens tidsstempel",
+          "description": "ISO-tidsstemplet (ts) for den overspringningspost, der skal redigeres."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Hvorfor denne forekomst blev sprunget over. En tom værdi rydder den."
+        },
+        "who": {
+          "name": "Hvem",
+          "description": "Hvem der besluttede at springe den over. En tom værdi rydder den."
+        },
+        "reading": {
+          "name": "Måleraflæsning",
+          "description": "Den tilknyttede sensors værdi på tidspunktet for overspringningen, for en forbrugsopgave."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Slet overspringning",
+      "description": "Fjern en registreret overspringning, identificeret ved dens tidsstempel. Fortryder du den overspringning, der senest nulstillede en forbrugsmåler, gendannes den måler.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "Id'et på den opgave, hvis overspringning du fjerner. Navnet virker også. Panelet viser id'et."
+        },
+        "ts": {
+          "name": "Overspringningens tidsstempel",
+          "description": "ISO-tidsstemplet (ts) for den overspringningspost, der skal fjernes."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Flyt overspringning",
+      "description": "Giv en registreret overspringning en ny dato, identificeret ved dens nuværende tidsstempel. Opgavens plan røres ikke.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "Id'et på den opgave, hvis overspringning du flytter. Navnet virker også. Panelet viser id'et."
+        },
+        "old_ts": {
+          "name": "Nuværende tidsstempel for overspringningen",
+          "description": "ISO-tidsstemplet (ts) for den overspringningspost, der skal flyttes."
+        },
+        "new_ts": {
+          "name": "Ny dato",
+          "description": "Den nye dato og det nye klokkeslæt, overspringningen skal registreres på."
         }
       }
     }

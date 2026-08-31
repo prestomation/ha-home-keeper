@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Uren",
-          "description": "Met hoeveel uur de taak wordt uitgesteld (standaard 24)."
+          "description": "Hoeveel uur de taak wordt uitgesteld (standaard 24). Genegeerd als Tot is ingevuld."
+        },
+        "until": {
+          "name": "Tot",
+          "description": "Stelt de taak uit tot precies deze datum en tijd in plaats van een aantal uren. Vul je dit in, dan wordt het veld Uren niet gebruikt."
         },
         "origin": {
           "name": "Oorsprong",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Taak overslaan",
-      "description": "Een taak naar de volgende keer laten doorgaan zonder een voltooiing vast te leggen.",
+      "description": "Zet een taak door naar de volgende keer zonder een voltooiing vast te leggen. Het overslaan wordt apart bijgehouden en telt dus nooit als voltooiing.",
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
           "description": "Het id van de over te slaan taak. De naam werkt ook. Het paneel toont het id."
+        },
+        "note": {
+          "name": "Notitie",
+          "description": "Waarom deze keer is overgeslagen."
+        },
+        "who": {
+          "name": "Wie",
+          "description": "Wie besloot om over te slaan."
+        },
+        "reading": {
+          "name": "Meterstand",
+          "description": "De waarde van de gekoppelde sensor op het moment van overslaan, bij een verbruikstaak."
         },
         "origin": {
           "name": "Oorsprong",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Onderdeelnaam of -ID",
           "description": "De id van het onderdeel waarvan het bijgevoegde bestand moet worden ondertekend. De naam werkt ook. Het paneel toont het id."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Overslaan bijwerken",
+      "description": "Past de gegevens van een vastgelegd overslaan aan, aangeduid met het tijdstempel. Het overslaan houdt zijn datum en het schema blijft ongemoeid.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de taak waarvan je het overslaan bewerkt. De naam werkt ook. Het paneel toont het id."
+        },
+        "ts": {
+          "name": "Tijdstempel van overslaan",
+          "description": "Het ISO-tijdstempel (ts) van het te bewerken overslaanitem."
+        },
+        "note": {
+          "name": "Notitie",
+          "description": "Waarom deze keer is overgeslagen. Een lege waarde wist het."
+        },
+        "who": {
+          "name": "Wie",
+          "description": "Wie besloot om over te slaan. Een lege waarde wist het."
+        },
+        "reading": {
+          "name": "Meterstand",
+          "description": "De waarde van de gekoppelde sensor op het moment van overslaan, bij een verbruikstaak."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Overslaan verwijderen",
+      "description": "Verwijdert een vastgelegd overslaan, aangeduid met het tijdstempel. Het overslaan ongedaan maken dat als laatste een verbruiksmeter terugzette, herstelt die meter.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de taak waarvan je het overslaan verwijdert. De naam werkt ook. Het paneel toont het id."
+        },
+        "ts": {
+          "name": "Tijdstempel van overslaan",
+          "description": "Het ISO-tijdstempel (ts) van het te verwijderen overslaanitem."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Overslaan verplaatsen",
+      "description": "Geeft een vastgelegd overslaan een nieuwe datum, aangeduid met het huidige tijdstempel. Het schema van de taak blijft ongemoeid.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de taak waarvan je het overslaan verplaatst. De naam werkt ook. Het paneel toont het id."
+        },
+        "old_ts": {
+          "name": "Huidig tijdstempel van overslaan",
+          "description": "Het ISO-tijdstempel (ts) van het te verplaatsen overslaanitem."
+        },
+        "new_ts": {
+          "name": "Nieuwe datum",
+          "description": "De nieuwe datum en tijd waarop het overslaan wordt vastgelegd."
         }
       }
     }

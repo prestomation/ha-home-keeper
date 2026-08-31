@@ -50,6 +50,8 @@ from .assets import AssetValidationError, card_projection
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     DOMAIN,
+    OPTION_ALLOW_SKIP,
+    OPTION_ALLOW_SNOOZE,
     OPTION_DISMISSED_COMPANIONS,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
@@ -62,6 +64,7 @@ from .const import (
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
     SENSOR_MODE_USAGE,
+    SKIP_ENTRY_FIELDS,
 )
 from .coordinator import (
     HomeKeeperCoordinator,
@@ -192,15 +195,23 @@ SET_TASK_METER_SCHEMA = vol.Schema(
     }
 )
 # Snooze: defer a task's next due date without recording a completion or advancing
-# recurrence. ``hours`` is the deferral (defaults to a day). ``origin`` is echoed in
-# the home_keeper_task_snoozed event for loop prevention (e.g. an actionable
-# notification action). Skip advances to the next occurrence, also without completing.
+# recurrence. ``origin`` is echoed in the home_keeper_task_snoozed event for loop
+# prevention (e.g. an actionable notification action). Skip advances to the next
+# occurrence, also without completing, and logs the skip.
+#
+# The deferral is either ``hours`` (whole hours from now, the original field) or
+# ``until`` (an absolute datetime). They are mutually exclusive: passing both is a
+# contradiction rather than a precedence puzzle, so voluptuous rejects it. ``hours``
+# keeps its default, so every existing caller — and a bare call passing neither — is
+# unaffected. ``until`` exists because whole hours cannot express "next Tuesday 09:00"
+# across a DST boundary, which the panel's snooze dialog needs.
 SNOOZE_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
         # Whole hours ≥ 1, matching services.yaml's number selector and the
         # notification snooze_hours contract (normalize_notification / the panel).
-        vol.Optional("hours", default=24): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Exclusive("hours", "deferral"): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Exclusive("until", "deferral"): cv.datetime,
         vol.Optional("origin"): cv.string,
     }
 )
@@ -208,6 +219,38 @@ SKIP_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
         vol.Optional("origin"): cv.string,
+        # Why the occurrence was passed over. No ``cost``/``photo``: nothing was
+        # bought and there is nothing to show (see const.SKIP_ENTRY_FIELDS).
+        vol.Optional("note"): cv.string,
+        vol.Optional("who"): cv.string,
+        vol.Optional("reading"): vol.Coerce(float),
+    }
+)
+
+# The skip log's edit trio, mirroring the completion trio below. They key on the
+# skip's ISO ``ts`` exactly as the completion ones key on a completion's.
+UPDATE_SKIP_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("ts"): cv.string,
+        vol.Optional("note"): cv.string,
+        vol.Optional("who"): cv.string,
+        vol.Optional("reading"): vol.Coerce(float),
+    }
+)
+
+DELETE_SKIP_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("ts"): cv.string,
+    }
+)
+
+MOVE_SKIP_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("old_ts"): cv.string,
+        vol.Required("new_ts"): cv.datetime,
     }
 )
 # Link a task to an appliance consumable/part (or clear the link). Completing a
@@ -292,6 +335,7 @@ DELETE_ARCHIVED_COMPLETION_SCHEMA = vol.Schema(
 # service call's data into the ``metadata`` mapping the store expects. Includes the
 # captured ``reading`` — the store decides whether the task may carry one.
 _COMPLETION_METADATA_KEYS = tuple(COMPLETION_ENTRY_FIELDS)
+_SKIP_METADATA_KEYS = tuple(SKIP_ENTRY_FIELDS)
 
 # Structured part (wear item) for the add/update asset schema.
 _PART_SCHEMA = vol.Schema(
@@ -454,6 +498,10 @@ NOTIFY_SCHEMA = vol.Schema(
 SET_OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Optional(OPTION_SYNC_PROBLEM_SENSORS): cv.boolean,
+        # Whether the panel and notification button sets offer Snooze / Skip. The
+        # services themselves stay callable either way (see const.OPTION_ALLOW_SNOOZE).
+        vol.Optional(OPTION_ALLOW_SNOOZE): cv.boolean,
+        vol.Optional(OPTION_ALLOW_SKIP): cv.boolean,
         vol.Optional(OPTION_ONE_OFF_RETENTION_DAYS): vol.All(
             vol.Coerce(int), vol.Range(min=0)
         ),
@@ -850,6 +898,10 @@ def _register_services(hass: HomeAssistant) -> None:
         """Lift the per-completion metadata keys out of a service call's data."""
         return {k: data[k] for k in _COMPLETION_METADATA_KEYS if k in data}
 
+    def _skip_metadata(data: dict) -> dict[str, Any]:
+        """Lift the per-skip metadata keys out of a service call's data."""
+        return {k: data[k] for k in _SKIP_METADATA_KEYS if k in data}
+
     async def handle_complete_task(call: ServiceCall) -> None:
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
@@ -1052,7 +1104,17 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_snooze_task(call: ServiceCall) -> None:
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
-        until = dt_util.now() + timedelta(hours=call.data["hours"])
+        # ``hours`` and ``until`` are mutually exclusive (see SNOOZE_TASK_SCHEMA), so
+        # at most one is present; neither means the historical default of a day. The
+        # default lives here rather than on the field because a schema default would
+        # fill ``hours`` in even when the caller passed ``until``, and vol.Exclusive
+        # would then reject its own default.
+        if (until := call.data.get("until")) is None:
+            until = dt_util.now() + timedelta(hours=call.data.get("hours", 24))
+        elif until.tzinfo is None:
+            # ``cv.datetime`` parses an offset-less string naively; qualify it with
+            # HA's zone so ``next_due`` is never stored naive (see apply_completion).
+            until = until.replace(tzinfo=dt_util.now().tzinfo)
         try:
             await coord.store.snooze_task(
                 task_id, until, origin=call.data.get("origin")
@@ -1077,7 +1139,72 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
         try:
-            await coord.store.skip_task(task_id, origin=call.data.get("origin"))
+            await coord.store.skip_task(
+                task_id,
+                origin=call.data.get("origin"),
+                metadata=_skip_metadata(call.data),
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": task_id},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await coord.async_request_refresh()
+
+    async def handle_update_skip(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        try:
+            await coord.store.update_skip(
+                task_id, call.data["ts"], _skip_metadata(call.data)
+            )
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": task_id},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await coord.async_request_refresh()
+
+    async def handle_delete_skip(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        try:
+            await coord.store.delete_skip(task_id, call.data["ts"])
+        except KeyError:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": task_id},
+            ) from None
+        except TaskValidationError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_task",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await coord.async_request_refresh()
+
+    async def handle_move_skip(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        try:
+            await coord.store.move_skip(
+                task_id, call.data["old_ts"], call.data["new_ts"].isoformat()
+            )
         except KeyError:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
@@ -1408,6 +1535,15 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, "skip_task", handle_skip_task, SKIP_TASK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "update_skip", handle_update_skip, UPDATE_SKIP_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "delete_skip", handle_delete_skip, DELETE_SKIP_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "move_skip", handle_move_skip, MOVE_SKIP_SCHEMA
     )
     hass.services.async_register(
         DOMAIN,

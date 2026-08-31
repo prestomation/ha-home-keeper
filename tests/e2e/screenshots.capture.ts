@@ -179,6 +179,53 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('.d-note-cancel').click();
   await expect(panel.locator('.d-note-edit')).toBeVisible();
 
+  // 1b1a. The Done caret, open. Snooze and Skip are the two other answers to a due
+  // task, and neither was reachable from the panel before (#268) — they shipped as
+  // services and notification buttons only. Each carries a line saying what it does
+  // to the schedule, because the verbs alone did not say.
+  await panel.locator('.hk-detail-actions .hk-split-caret').click();
+  await expect(panel.locator('.hk-defer-menu .hk-defer-skip')).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/51-panel-skip-snooze-menu.png`, fullPage: true });
+
+  // 1b1b. The snooze dialog, with the line resolving the chosen preset to a real date
+  // — the user reads the answer rather than doing the arithmetic.
+  await panel.locator('.hk-defer-snooze').click();
+  await expect(panel.locator('ha-dialog[open] .hk-snooze-hint')).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/52-panel-snooze-dialog.png`, fullPage: true });
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+
+  // 1b1c. A skipped occurrence in the history, sitting between completions and marked
+  // as one. The point of the shot is the pair of facts: the skip is listed, and the
+  // completion tally beside it has not moved.
+  await panel.locator('.hk-detail-actions .hk-split-caret').click();
+  await panel.locator('.hk-defer-skip').click();
+  const skipDialog = panel.locator('ha-dialog[open]');
+  await skipDialog.locator('ha-selector-text textarea').first().waitFor({
+    state: 'visible',
+    timeout: 15_000,
+  });
+  await skipDialog
+    .locator('ha-selector-text textarea')
+    .first()
+    .fill('Away all month — cartridge still clear');
+  await skipDialog.getByRole('button', { name: 'Skip' }).click();
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+  await expect(panel.locator('.hk-hist-list li.hk-hist-is-skip')).toBeVisible({
+    timeout: 10_000,
+  });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/53-panel-skip-in-history.png`, fullPage: true });
+  // Undo it, so the shots after this one see the seeded history unchanged.
+  await panel.locator('.hk-hist-skip-del').first().click();
+  await expect(panel.locator('.hk-hist-list li.hk-hist-is-skip')).toHaveCount(0, {
+    timeout: 10_000,
+  });
+
   // 1b2. "Move date" dialog — corrects an already-recorded completion's timestamp
   // from the history list, distinct from the pencil (edit-metadata) button next to it.
   await panel.locator('.hk-hist-move').first().click();

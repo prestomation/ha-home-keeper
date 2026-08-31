@@ -168,6 +168,13 @@ class _FakeStore:
 class _FakeCoord:
     def __init__(self, tasks: dict) -> None:
         self.store = _FakeStore(tasks)
+        # ``_send`` reads the allow_snooze / allow_skip switches off the entry to
+        # decide which buttons the payload carries. The fake ``current_options``
+        # above hands back ``entry.options`` verbatim rather than defaulting, so
+        # spell both out — this test is about threading, not about the switches.
+        self.entry = types.SimpleNamespace(
+            options={"allow_snooze": True, "allow_skip": True}
+        )
 
 
 def _overdue_task(tid: str, *, days: int) -> dict:

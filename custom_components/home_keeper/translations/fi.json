@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Tunnit",
-          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24)."
+          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24). Ohitetaan, kun Mihin asti on asetettu."
+        },
+        "until": {
+          "name": "Mihin asti",
+          "description": "Lykkää tehtävän tarkalleen tähän päivämäärään ja kellonaikaan tuntimäärän sijaan. Kun tämä on asetettu, Tunnit-kenttää ei käytetä."
         },
         "origin": {
           "name": "Alkuperä",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Ohita tehtävä",
-      "description": "Siirrä tehtävä seuraavaan ajankohtaan tallentamatta suoritusta.",
+      "description": "Siirtää tehtävän seuraavaan esiintymäänsä kirjaamatta suoritusta. Ohitus kirjataan erikseen, joten se ei koskaan käy suorituksesta.",
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
           "description": "Ohitettavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "note": {
+          "name": "Muistiinpano",
+          "description": "Miksi tämä kerta ohitettiin."
+        },
+        "who": {
+          "name": "Kuka",
+          "description": "Kuka päätti ohittaa sen."
+        },
+        "reading": {
+          "name": "Mittarilukema",
+          "description": "Sidotun anturin arvo ohitushetkellä, käyttöön perustuvassa tehtävässä."
         },
         "origin": {
           "name": "Alkuperä",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Varaosan nimi tai tunnus",
           "description": "Sen varaosan tunnus, jonka liitetylle tiedostolle URL allekirjoitetaan. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Päivitä ohitus",
+      "description": "Muokkaa kirjatun ohituksen tietoja, jotka tunnistetaan aikaleimasta. Ohitus säilyttää päivämääränsä eikä aikatauluun kosketa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jonka ohitusta muokkaat. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "ts": {
+          "name": "Ohituksen aikaleima",
+          "description": "Muokattavan ohitusmerkinnän ISO-aikaleima (ts)."
+        },
+        "note": {
+          "name": "Muistiinpano",
+          "description": "Miksi tämä kerta ohitettiin. Tyhjä arvo poistaa sen."
+        },
+        "who": {
+          "name": "Kuka",
+          "description": "Kuka päätti ohittaa sen. Tyhjä arvo poistaa sen."
+        },
+        "reading": {
+          "name": "Mittarilukema",
+          "description": "Sidotun anturin arvo ohitushetkellä, käyttöön perustuvassa tehtävässä."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Poista ohitus",
+      "description": "Poistaa kirjatun ohituksen, joka tunnistetaan aikaleimasta. Viimeksi käyttömittarin nollanneen ohituksen kumoaminen palauttaa kyseisen mittarin.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jonka ohituksen poistat. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "ts": {
+          "name": "Ohituksen aikaleima",
+          "description": "Poistettavan ohitusmerkinnän ISO-aikaleima (ts)."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Siirrä ohitus",
+      "description": "Muuttaa kirjatun ohituksen päivämäärää; ohitus tunnistetaan nykyisestä aikaleimastaan. Tehtävän aikatauluun ei kosketa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jonka ohitusta siirrät. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "old_ts": {
+          "name": "Ohituksen nykyinen aikaleima",
+          "description": "Siirrettävän ohitusmerkinnän ISO-aikaleima (ts)."
+        },
+        "new_ts": {
+          "name": "Uusi päivämäärä",
+          "description": "Uusi päivämäärä ja kellonaika, jolle ohitus kirjataan."
         }
       }
     }

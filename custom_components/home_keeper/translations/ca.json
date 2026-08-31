@@ -325,7 +325,11 @@
         },
         "hours": {
           "name": "Hores",
-          "description": "Quantes hores s'ha d'ajornar la tasca (24 per defecte)."
+          "description": "Quantes hores s'ha d'ajornar la tasca (per defecte 24). S'ignora si s'indica Fins a."
+        },
+        "until": {
+          "name": "Fins a",
+          "description": "Ajorna la tasca fins a aquesta data i hora exactes en lloc d'un nombre d'hores. Si l'indiqueu, el camp Hores no s'utilitza."
         },
         "origin": {
           "name": "Origen",
@@ -335,11 +339,23 @@
     },
     "skip_task": {
       "name": "Omet la tasca",
-      "description": "Avança una tasca a la seva propera ocurrència sense registrar una compleció.",
+      "description": "Avança una tasca a la seva pròxima ocurrència sense registrar cap realització. L'omissió es registra a part, de manera que mai no compta com una realització.",
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
           "description": "L'id de la tasca a ometre. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Per què s'ha deixat passar aquesta ocurrència."
+        },
+        "who": {
+          "name": "Qui",
+          "description": "Qui ha decidit ometre-la."
+        },
+        "reading": {
+          "name": "Lectura del comptador",
+          "description": "El valor del sensor vinculat en el moment de l'omissió, per a una tasca d'ús."
         },
         "origin": {
           "name": "Origen",
@@ -789,6 +805,64 @@
         "part_id": {
           "name": "Nom o ID de la peça",
           "description": "L'id de la peça el fitxer adjunt de la qual s'ha de signar. El seu nom també funciona. El tauler mostra l'id."
+        }
+      }
+    },
+    "update_skip": {
+      "name": "Actualitza l'omissió",
+      "description": "Modifica el detall d'una omissió registrada, identificada per la seva marca de temps. L'omissió conserva la data i la planificació no es toca.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca de la qual editeu l'omissió. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "ts": {
+          "name": "Marca de temps de l'omissió",
+          "description": "La marca de temps ISO (ts) de l'entrada d'omissió a editar."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Per què s'ha deixat passar aquesta ocurrència. Un valor buit l'esborra."
+        },
+        "who": {
+          "name": "Qui",
+          "description": "Qui ha decidit ometre-la. Un valor buit l'esborra."
+        },
+        "reading": {
+          "name": "Lectura del comptador",
+          "description": "El valor del sensor vinculat en el moment de l'omissió, per a una tasca d'ús."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Elimina l'omissió",
+      "description": "Suprimeix una omissió registrada, identificada per la seva marca de temps. Desfer l'omissió que va reiniciar per última vegada un comptador d'ús en restaura el comptador.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca de la qual suprimiu l'omissió. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "ts": {
+          "name": "Marca de temps de l'omissió",
+          "description": "La marca de temps ISO (ts) de l'entrada d'omissió a suprimir."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Mou l'omissió",
+      "description": "Canvia la data d'una omissió registrada, identificada per la seva marca de temps actual. La planificació de la tasca no es toca.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca de la qual moveu l'omissió. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "old_ts": {
+          "name": "Marca de temps actual de l'omissió",
+          "description": "La marca de temps ISO (ts) de l'entrada d'omissió a moure."
+        },
+        "new_ts": {
+          "name": "Data nova",
+          "description": "La nova data i hora en què registrar l'omissió."
         }
       }
     }

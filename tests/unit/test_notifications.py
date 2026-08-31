@@ -296,6 +296,43 @@ def test_actions_for_a_blocked_task_offers_snooze_even_when_unconfigured():
     assert n.actions_for(BLOCKED, []) == ["snooze"]
 
 
+def test_actions_for_drops_a_verb_the_global_switch_turned_off():
+    """The `allow_snooze` / `allow_skip` options decide whether a verb is offered."""
+    task = {"id": "t"}
+    assert n.actions_for(task, ALL_VERBS, allow_snooze=False) == [
+        "complete",
+        "skip",
+        "open",
+    ]
+    assert n.actions_for(task, ALL_VERBS, allow_skip=False) == [
+        "complete",
+        "snooze",
+        "open",
+    ]
+    assert n.actions_for(task, ALL_VERBS, allow_snooze=False, allow_skip=False) == [
+        "complete",
+        "open",
+    ]
+
+
+def test_a_blocked_task_keeps_snooze_even_when_the_switch_is_off():
+    """The #248 injection outranks the switch, and this is the one place it does.
+
+    A walk advances only on a successful action, and a completion-blocked task can be
+    neither completed nor skipped. Honouring `allow_snooze` here would not mean "snooze
+    is off"; it would mean this reminder can never be got past, which is worse than one
+    button the user asked not to see. The setting's help text says so.
+    """
+    assert n.actions_for(BLOCKED, ALL_VERBS, allow_snooze=False) == ["snooze", "open"]
+    assert n.actions_for(BLOCKED, [], allow_snooze=False) == ["snooze"]
+
+
+def test_the_switches_default_on_so_an_unaware_caller_is_unaffected():
+    # Both verbs predate the switches; a caller that does not pass them (every test
+    # that builds one payload) must see exactly the historical behaviour.
+    assert n.actions_for({"id": "t"}, ALL_VERBS) == ALL_VERBS
+
+
 def test_build_notification_offers_only_snooze_and_open_on_a_blocked_task():
     now = dt(2026, 6, 13, 12)
     task = {
