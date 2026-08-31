@@ -859,6 +859,13 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   off. Same split as the problem-sensor sync: pure `shopping.py` (the diff engine +
   `normalize_target`, in `only_mutate`) and HA-aware `shopping_sync.py` (reads the list
   over `todo.get_items`, applies with `todo.add_item`/`update_item`/`remove_item`).
+  The questions both to-do syncs ask a list — how an item is addressed in a service
+  call, whether it is ticked off, which live item a tracked entry points at, whether
+  an open line already says this — are facts about a to-do list rather than about
+  either sync, so they live once in the pure `todo_items.py` (`item_identity`,
+  `item_is_open`, `resolve_tracked`, `find_open`, plus the two `STATUS_*` values;
+  also in `only_mutate`). What differs between the syncs — what a *vanished* line
+  means, what a key is, when a line is wanted at all — stays in each planner.
   Rules that hold it together:
   - **Two-way.** A line ticked off on the external list completes the reminder with
     `origin=ORIGIN_SHOPPING_LIST` (authorizes nothing, like `ORIGIN_SENSOR_RECOVER`),
@@ -902,7 +909,8 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   Clearing `sync.entity_id` is both the off switch and the delete, and one list per
   profile is the cap — a household wanting two lists writes two profiles, which it
   needed anyway to say what goes on each. Same split as the shopping-list sync: pure
-  `todo_list.py` (the diff engine, in `only_mutate`) and HA-aware
+  `todo_list.py` (the diff engine, in `only_mutate`, matching items through the
+  shared `todo_items.py`) and HA-aware
   `todo_list_sync.py`. It inherits the shopping-list sync's rules verbatim —
   retry-not-compensate, an unreadable list is not an empty one, `needs_pass` gates the
   read, never sync onto our own to-do entity, every `todo.*` call best-effort — plus

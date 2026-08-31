@@ -43,6 +43,11 @@ _PURE_MODULES = (
     "events",
     "transitions",
     "reconcile",
+    # ``todo_items`` holds the item-matching helpers both to-do syncs share, so it
+    # comes before the two planners that import it (``shopping``/``todo_list``): a
+    # module first pulled in by a sibling and then re-executed here would leave two
+    # copies of it loaded, one of them nobody's tests can reach.
+    "todo_items",
     "shopping",
     "problem_tasks",
     "sensor_tasks",

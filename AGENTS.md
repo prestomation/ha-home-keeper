@@ -361,7 +361,7 @@ bash ci/test-mutation-frontend.sh --all
 - **The mutable surface is an allowlist**, in exactly one place per language:
   `only_mutate` in `[tool.mutmut]` (pyproject.toml) and `mutate` in
   `stryker.conf.json`. It holds the pure Python core (`recurrence`, `models`,
-  `assets`, `reconcile`, `shopping`, `notifications`, `sensor_tasks`,
+  `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
   `problem_tasks`, `inventory`, `profiles`, `documents`, `events`, `transitions`,
   `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
   `card-filter`, `documents`, `markdown`, `i18n`, `limits`). `options.py` counts as

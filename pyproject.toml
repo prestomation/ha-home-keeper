@@ -79,6 +79,7 @@ only_mutate = [
     "custom_components/home_keeper/models.py",
     "custom_components/home_keeper/assets.py",
     "custom_components/home_keeper/reconcile.py",
+    "custom_components/home_keeper/todo_items.py",
     "custom_components/home_keeper/shopping.py",
     "custom_components/home_keeper/notifications.py",
     "custom_components/home_keeper/sensor_tasks.py",
