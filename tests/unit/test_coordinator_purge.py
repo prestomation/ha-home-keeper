@@ -9,10 +9,10 @@ own refresh), that reload must be **deferred** via ``hass.async_create_task`` ra
 than awaited inline (awaiting inline would tear down this coordinator mid-refresh).
 
 The coordinator imports Home Assistant heavily, so — like ``test_calendar.py`` — we
-stub the handful of HA symbols it references and register fakes for its HA-aware
-sibling modules, then load ``coordinator.py`` under the synthetic ``hk`` package and
-drive ``_purge_expired_one_offs`` against a fake store/hass. The real store/entity
-wiring is exercised by the integration suite.
+load it over the shared stub tree in ``ha_stubs.py``, register fakes for its
+HA-aware sibling modules, then load ``coordinator.py`` under the synthetic ``hk``
+package and drive ``_purge_expired_one_offs`` against a fake store/hass. The real
+store/entity wiring is exercised by the integration suite.
 """
 
 from __future__ import annotations
@@ -24,95 +24,15 @@ import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from fakes import FakeTaskSnapshotStore
+from ha_stubs import install_ha_stubs
+
 _COMPONENT_DIR = (
     Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
 )
 
 TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 1, tzinfo=TZ)
-
-
-def _real_ha_present() -> bool:
-    """True only when the *real* Home Assistant package is installed.
-
-    A hand-built stub ``homeassistant`` module (e.g. from ``test_calendar.py``) has
-    no ``__file__``; the real package does. This distinguishes them so we fill gaps
-    over a stub tree but never shadow real submodules.
-    """
-    mod = sys.modules.get("homeassistant")
-    if mod is None:
-        try:  # pragma: no cover - depends on environment
-            import homeassistant as mod  # type: ignore[no-redef]
-        except ImportError:
-            return False
-    return getattr(mod, "__file__", None) is not None
-
-
-def _install_ha_stubs() -> None:
-    """Additively register the HA symbols ``coordinator.py`` imports.
-
-    Idempotent and non-clobbering: another pure-unit test (``test_calendar.py``)
-    installs its own partial ``homeassistant`` stub tree, so we only *fill gaps*
-    (create missing modules, set missing attributes) rather than early-return or
-    overwrite — otherwise load order between the two suites would matter.
-    """
-    if _real_ha_present():  # pragma: no cover - real HA env
-        return
-
-    def _mod(name: str) -> types.ModuleType:
-        existing = sys.modules.get(name)
-        if existing is not None:
-            return existing
-        m = types.ModuleType(name)
-        sys.modules[name] = m
-        return m
-
-    _mod("homeassistant")
-    config_entries = _mod("homeassistant.config_entries")
-    if not hasattr(config_entries, "ConfigEntry"):
-
-        class ConfigEntry:
-            pass
-
-        config_entries.ConfigEntry = ConfigEntry
-
-    core = _mod("homeassistant.core")
-    if not hasattr(core, "HomeAssistant"):
-
-        class HomeAssistant:
-            pass
-
-        core.HomeAssistant = HomeAssistant
-
-    helpers = _mod("homeassistant.helpers")
-    device_registry = _mod("homeassistant.helpers.device_registry")
-    if not hasattr(device_registry, "DeviceInfo"):
-
-        class DeviceInfo(dict):
-            pass
-
-        device_registry.DeviceInfo = DeviceInfo
-    if not hasattr(device_registry, "async_get"):
-        device_registry.async_get = lambda hass: None
-    helpers.device_registry = device_registry
-
-    update_coordinator = _mod("homeassistant.helpers.update_coordinator")
-    if not hasattr(update_coordinator, "DataUpdateCoordinator"):
-
-        class DataUpdateCoordinator:
-            def __class_getitem__(cls, item):  # allow ``DataUpdateCoordinator[...]``
-                return cls
-
-            def __init__(self, *args, **kwargs) -> None:  # unused (bypass __init__)
-                pass
-
-        update_coordinator.DataUpdateCoordinator = DataUpdateCoordinator
-
-    util = _mod("homeassistant.util")
-    dt_mod = _mod("homeassistant.util.dt")
-    if not hasattr(dt_mod, "now"):
-        dt_mod.now = lambda: NOW
-    util.dt = dt_mod
 
 
 def _load_coordinator():
@@ -124,7 +44,7 @@ def _load_coordinator():
     if existing is not None and hasattr(existing, "OPTION_ONE_OFF_RETENTION_DAYS"):
         return existing
     sys.modules.pop("hk.coordinator", None)
-    _install_ha_stubs()
+    install_ha_stubs()
 
     # Fake the HA-aware siblings coordinator imports so we don't drag in the whole
     # integration surface. models/recurrence/transitions are the real pure modules
@@ -161,8 +81,9 @@ def _load_coordinator():
     sys.modules["hk.coordinator"] = module
     spec.loader.exec_module(module)
     # Pin the coordinator's clock to our fixed NOW directly on the loaded module, so
-    # the purge is deterministic regardless of the shared ``homeassistant.util.dt``
-    # stub (``test_calendar.py`` installs one whose ``now()`` deliberately raises).
+    # the purge is deterministic. The shared ``homeassistant.util.dt`` stub keeps no
+    # clock of its own — its ``now()`` deliberately raises — so this is where the
+    # suite says what time it is.
     module.dt_util = types.SimpleNamespace(now=lambda: NOW)
     return module
 
@@ -204,13 +125,16 @@ class _FakeEntry:
         self.options = {coordinator.OPTION_ONE_OFF_RETENTION_DAYS: retention}
 
 
-class _FakeStore:
-    def __init__(self, tasks: dict) -> None:
-        self._tasks = tasks
-        self.deleted: list[str] = []
+class _FakeStore(FakeTaskSnapshotStore):
+    """The shared snapshot store, plus the one write the purge makes.
 
-    def get_tasks(self) -> dict:
-        return dict(self._tasks)
+    The inherited ``get_tasks()`` copy is what lets the purge delete while it
+    walks the table.
+    """
+
+    def __init__(self, tasks: dict) -> None:
+        super().__init__(tasks)
+        self.deleted: list[str] = []
 
     async def delete_task(self, tid: str) -> None:
         self.deleted.append(tid)
