@@ -72,6 +72,8 @@ export function documentIcon(doc: AssetDocument): string {
  * the parts of a subtitle without punctuating around a gap.
  */
 export function formatBytes(bytes?: number): string {
+  // Stryker disable next-line EqualityOperator: equivalent — `!bytes` has already
+  // returned for 0, so nothing reaching this comparison can tell `<= 0` from `< 0`.
   if (!bytes || bytes <= 0) return '';
   const units = ['B', 'KB', 'MB', 'GB'];
   let value = bytes;
@@ -80,6 +82,10 @@ export function formatBytes(bytes?: number): string {
     value /= 1024;
     i += 1;
   }
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: both equivalent —
+  // a byte count is a whole number, so at `i === 0` the decimal branch rounds to the
+  // same integer the whole-unit branch does; and at exactly 10 units, `Math.round(10)`
+  // and `Math.round(100) / 10` are both 10, so `>= 10` and `> 10` render alike.
   const rounded = i === 0 || value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
   return `${rounded} ${units[i]}`;
 }

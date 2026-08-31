@@ -395,6 +395,14 @@ describe('taskSchema respects locked fields', () => {
     expect(got).toContain('completion_detail');
   });
 
+  it('drops the unit dropdown alone when the cadence unit is locked', () => {
+    // The cadence pair lives in an unnamed grid, so a lock in there has to leave the
+    // grid holding exactly the other field — not an empty slot beside it.
+    const grid = taskSchema(locked(['unit'])).find((f) => f.type === 'grid');
+    expect(grid.schema.map((f) => f.name)).toEqual(['interval']);
+    expect(names(taskSchema(locked(['unit'])))).not.toContain('unit');
+  });
+
   it('treats an absent or empty locked_fields as nothing locked', () => {
     const base = names(taskSchema({ recurrence_type: 'floating' }));
     expect(names(taskSchema(locked([])))).toEqual(base);

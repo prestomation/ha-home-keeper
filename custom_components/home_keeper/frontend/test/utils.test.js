@@ -1138,6 +1138,7 @@ describe('personName', () => {
       'person.sam': { attributes: { friendly_name: 'Sam' } },
       'person.blank': { attributes: { friendly_name: '' } },
       'person.bare': { attributes: {} },
+      'person.stateless': {},
       'person.odd': { attributes: { friendly_name: 42 } },
     },
   };
@@ -1150,6 +1151,9 @@ describe('personName', () => {
     // An empty friendly_name is not a name: it would render "Completed by " and stop.
     expect(personName(hass, 'person.blank')).toBe('person.blank');
     expect(personName(hass, 'person.bare')).toBe('person.bare');
+    // A state object with no attributes at all — HA hands those out for a moment
+    // during startup, and reaching through one used to throw out of the render.
+    expect(personName(hass, 'person.stateless')).toBe('person.stateless');
     expect(personName(hass, 'person.odd')).toBe('person.odd');
     expect(personName(hass, 'person.gone')).toBe('person.gone');
     expect(personName({}, 'person.sam')).toBe('person.sam');
