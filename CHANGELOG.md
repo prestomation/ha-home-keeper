@@ -6,6 +6,28 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0b7]
+
+### Changed
+
+- **Three websocket validation errors now report the code `invalid_task` instead of
+  `not_allowed`.** Only the machine-readable code changes; the message shown to the
+  user is the same as before.
+
+### Fixed
+
+- **Completing a task from the panel now settles buy reminders.** The panel's own
+  completion path only refreshed, so a completed auto-buy task left its reminder
+  sitting there until the next reload. The service, button and to-do paths already
+  settled correctly.
+
+- **The `export_inventory` service now writes the CSV in your language.** The service
+  shipped English column headers while the panel's own export was already localized.
+
+- **Deleting an appliance over the websocket now runs the same cleanup as the
+  service.** The two paths carried separate copies of the cleanup code and could
+  drift apart.
+
 ## [0.19.0b6]
 
 ### Changed
