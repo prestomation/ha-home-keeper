@@ -11,7 +11,14 @@ import { areaName, deviceName, groupableDeviceId } from './utils';
 export type CardFilter = 'all' | 'overdue' | 'soon' | 'today' | 'no_due' | 'shopping';
 export type CardSort = 'due' | 'name' | 'recent' | 'area';
 export type CardGroupBy = 'none' | 'status' | 'area' | 'device';
-export type StatusBucket = 'overdue' | 'soon' | 'today' | 'later' | 'monitored' | 'none';
+export type StatusBucket =
+  | 'overdue'
+  | 'soon'
+  | 'today'
+  | 'later'
+  | 'monitored'
+  | 'completed'
+  | 'none';
 
 /** Lovelace config for `custom:home-keeper-card`. */
 export interface HomeKeeperCardConfig {
@@ -75,7 +82,9 @@ export const SOON_DAYS = 7;
  * notification using that Profile does server-side. Keep the two in lockstep.
  */
 export const DUE_SOON_DAYS = 3;
-const DAY_MS = 86_400_000;
+
+/** One day in milliseconds — the unit every "due in N days" window is counted in. */
+export const DAY_MS = 86_400_000;
 
 /** End of the local calendar day containing `now` (23:59:59.999). */
 function endOfToday(now: number): number {
@@ -85,22 +94,42 @@ function endOfToday(now: number): number {
 }
 
 /**
- * Which status section a task belongs to. Extends the panel's bucketing
- * (overdue/soon/later/monitored/none) with an extra `today` section between
- * overdue and soon, and adds a NaN guard for malformed due dates.
+ * The two sections the card and the panel disagree about. Everything else —
+ * overdue / soon / later / monitored / none, and the NaN guard for a malformed due
+ * date — is common to both surfaces; these two are the per-surface product decision,
+ * and the defaults are the card's.
  */
-export function statusBucket(task: Task, now = Date.now()): StatusBucket {
-  // A dormant triggered/sensor task is "monitored" — armed-but-not-due.
+export interface StatusBucketOptions {
+  /** Give a task due before midnight its own `today` section, between overdue and
+   *  soon. The card does; the panel folds it into `soon`. Default true. */
+  today?: boolean;
+  /** Give a completed one-off (do-once, now dormant) its own `completed` section
+   *  rather than the generic `none`. The panel does; the card doesn't. Default false. */
+  completed?: boolean;
+}
+
+/** Which status section a task belongs to. See `StatusBucketOptions` for the two
+ *  sections that are a per-surface choice. */
+export function statusBucket(
+  task: Task,
+  now = Date.now(),
+  opts: StatusBucketOptions = {},
+): StatusBucket {
+  const { today = true, completed = false } = opts;
+  // A dormant triggered/sensor task is "monitored" — armed-but-not-due. An armed one
+  // (next_due set) flows through the normal overdue/soon/later logic below.
   if (
     (task.recurrence_type === 'triggered' || task.recurrence_type === 'sensor') &&
     !task.next_due
   )
     return 'monitored';
+  if (completed && task.recurrence_type === 'one-off' && !task.next_due && task.last_completed)
+    return 'completed';
   if (!task.next_due) return 'none';
   const due = new Date(task.next_due).getTime();
   if (Number.isNaN(due)) return 'none';
   if (due <= now) return 'overdue';
-  if (due <= endOfToday(now)) return 'today';
+  if (today && due <= endOfToday(now)) return 'today';
   if (due - now <= SOON_DAYS * DAY_MS) return 'soon';
   return 'later';
 }
@@ -325,12 +354,14 @@ export function sortTasks(
   return copy;
 }
 
-export interface Group {
+/** One bucket of rows rendered under a collapsible section header. Defaults to a
+ *  group of tasks — the panel groups appliances with the same primitive. */
+export interface Group<T = Task> {
   /** Stable key for remembering collapse state, e.g. "status:overdue". */
   key: string;
-  /** Section header text. */
+  /** Section header text; empty string renders the rows ungrouped. */
   label: string;
-  items: Task[];
+  items: T[];
 }
 
 const STATUS_ORDER: { bucket: StatusBucket; labelKey: string }[] = [
@@ -388,14 +419,20 @@ function capitalize(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
-function bucketByKey(
-  items: Task[],
-  keyOf: (task: Task) => string | undefined,
+/**
+ * Bucket items by a key, label each section, sort sections alphabetically and sink
+ * the "no key" fallback bucket to the bottom. Keys are namespaced by *prefix* so
+ * collapse state never collides between grouping modes. Generic over the item type:
+ * the card groups tasks, the panel also groups appliances.
+ */
+export function bucketByKey<T>(
+  items: T[],
+  keyOf: (item: T) => string | undefined,
   labelOf: (key: string) => string,
   fallbackLabel: string,
   prefix: string,
-): Group[] {
-  const buckets = new Map<string, Task[]>();
+): Group<T>[] {
+  const buckets = new Map<string, T[]>();
   for (const item of items) {
     const k = keyOf(item) || '';
     const arr = buckets.get(k);
@@ -403,7 +440,7 @@ function bucketByKey(
     else buckets.set(k, [item]);
   }
   const fallbackKey = `${prefix}:none`;
-  const groups: Group[] = [];
+  const groups: Group<T>[] = [];
   for (const [k, arr] of buckets) {
     groups.push({
       key: k ? `${prefix}:${k}` : fallbackKey,

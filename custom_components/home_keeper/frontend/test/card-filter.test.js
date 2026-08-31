@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { setLanguage } from '../src/i18n.ts';
 import {
+  DAY_MS,
+  SOON_DAYS,
+  bucketByKey,
   filterTasks,
   groupTasks,
   profileMatches,
@@ -62,6 +65,87 @@ describe('statusBucket', () => {
   it('buckets a malformed next_due as none rather than falling through to later', () => {
     const bad = task({ id: 'b', name: 'Bad date', next_due: 'not-a-date' });
     expect(statusBucket(bad, NOW)).toBe('none');
+  });
+});
+
+// The card and the panel share this bucketing but differ on two sections; the
+// defaults are the card's, and { today: false, completed: true } is the panel's.
+describe('statusBucket per-surface options', () => {
+  // A do-once task that has been done: no next_due left, a completion behind it.
+  const doneOneOff = task({
+    id: 'do',
+    name: 'Done once',
+    recurrence_type: 'one-off',
+    last_completed: new Date(NOW - DAY).toISOString(),
+  });
+  const openOneOff = task({ id: 'oo', name: 'Never done', recurrence_type: 'one-off' });
+
+  it('defaults reproduce the card: a today section, and no completed section', () => {
+    expect(statusBucket(today, NOW)).toBe('today');
+    expect(statusBucket(today, NOW, {})).toBe('today');
+    expect(statusBucket(doneOneOff, NOW)).toBe('none');
+    expect(statusBucket(doneOneOff, NOW, {})).toBe('none');
+  });
+
+  it('today:false folds a task due later today into soon (the panel)', () => {
+    expect(statusBucket(today, NOW, { today: false })).toBe('soon');
+    expect(statusBucket(today, NOW, { today: false, completed: true })).toBe('soon');
+    // The sections either side of it are untouched by the option.
+    expect(statusBucket(overdue, NOW, { today: false })).toBe('overdue');
+    expect(statusBucket(later, NOW, { today: false })).toBe('later');
+    expect(statusBucket(undated, NOW, { today: false })).toBe('none');
+  });
+
+  it('completed:true gives a finished one-off its own bucket, and only it', () => {
+    expect(statusBucket(doneOneOff, NOW, { completed: true })).toBe('completed');
+    // Never completed: nothing has been done, so the generic no-schedule bucket.
+    expect(statusBucket(openOneOff, NOW, { completed: true })).toBe('none');
+    // Still armed: it buckets on its due date like any other dated task.
+    const armed = task({
+      id: 'ao',
+      recurrence_type: 'one-off',
+      next_due: new Date(NOW - DAY).toISOString(),
+      last_completed: new Date(NOW - 30 * DAY).toISOString(),
+    });
+    expect(statusBucket(armed, NOW, { completed: true })).toBe('overdue');
+    // A recurring task with completions behind it is not "completed" — it recurs.
+    const recurring = task({
+      id: 'rc',
+      recurrence_type: 'floating',
+      last_completed: new Date(NOW - DAY).toISOString(),
+    });
+    expect(statusBucket(recurring, NOW, { completed: true })).toBe('none');
+    // A dormant triggered task stays monitored, whichever sections are on.
+    expect(statusBucket(monitored, NOW, { completed: true })).toBe('monitored');
+  });
+
+  it('brackets the day and the soon window at their exact edges', () => {
+    const endOfDay = new Date(NOW);
+    endOfDay.setHours(23, 59, 59, 999);
+    const atMidnight = task({ id: 'eod', next_due: endOfDay.toISOString() });
+    const justAfter = task({
+      id: 'eod2',
+      next_due: new Date(endOfDay.getTime() + 1).toISOString(),
+    });
+    expect(statusBucket(atMidnight, NOW)).toBe('today');
+    expect(statusBucket(justAfter, NOW)).toBe('soon');
+    // Due at exactly "now" is already overdue, not today.
+    expect(statusBucket(task({ id: 'nw', next_due: new Date(NOW).toISOString() }), NOW)).toBe(
+      'overdue',
+    );
+    // SOON_DAYS away to the millisecond is still soon; a millisecond past it is later.
+    const soonEdge = task({ id: 'se', next_due: new Date(NOW + SOON_DAYS * DAY).toISOString() });
+    const pastEdge = task({
+      id: 'pe',
+      next_due: new Date(NOW + SOON_DAYS * DAY + 1).toISOString(),
+    });
+    expect(statusBucket(soonEdge, NOW)).toBe('soon');
+    expect(statusBucket(pastEdge, NOW)).toBe('later');
+  });
+
+  it('counts a day in milliseconds', () => {
+    expect(DAY_MS).toBe(86_400_000);
+    expect(SOON_DAYS).toBe(7);
   });
 });
 
@@ -263,6 +347,52 @@ describe('groupTasks', () => {
     for (const g of groups) expect(g.label).not.toMatch(/[0-9a-f]{32}/);
   });
 
+  it('groups by area with a fallback bucket sunk to the bottom', () => {
+    const areas = { kitchen: { area_id: 'kitchen', name: 'Kitchen' } };
+    const k = task({ id: 'k', area_id: 'kitchen', next_due: new Date(NOW + DAY).toISOString() });
+    const groups = groupTasks([k, undated], 'area', areas, {}, NOW);
+    expect(groups[0].label).toBe('Kitchen');
+    expect(groups[groups.length - 1].key).toBe('area:none');
+  });
+});
+
+// The generic bucketing primitive under groupTasks — and under the panel's own
+// grouping, which buckets appliances (not tasks) with it.
+describe('bucketByKey', () => {
+  const rows = [
+    { id: 'a', room: 'kitchen' },
+    { id: 'b', room: 'attic' },
+    { id: 'c' }, // no key at all
+    { id: 'd', room: '' }, // an empty key is the same "no key" case
+    { id: 'e', room: 'kitchen' },
+  ];
+
+  it('namespaces keys, labels each section and keeps arrival order within a bucket', () => {
+    const groups = bucketByKey(rows, (r) => r.room, (k) => `Room ${k}`, 'No room', 'room');
+    expect(groups.map((g) => g.key)).toEqual(['room:attic', 'room:kitchen', 'room:none']);
+    expect(groups.map((g) => g.label)).toEqual(['Room attic', 'Room kitchen', 'No room']);
+    // Both the undefined key and the empty one land in the fallback bucket.
+    expect(groups.map((g) => g.items.map((r) => r.id))).toEqual([['b'], ['a', 'e'], ['c', 'd']]);
+  });
+
+  it('sorts sections alphabetically with the fallback last, whatever order they arrive in', () => {
+    const groups = bucketByKey(
+      [{ k: 'zebra' }, { k: undefined }, { k: 'apple' }],
+      (r) => r.k,
+      (k) => k,
+      'None',
+      'x',
+    );
+    expect(groups.map((g) => g.key)).toEqual(['x:apple', 'x:zebra', 'x:none']);
+    expect(groups.map((g) => g.label)).toEqual(['apple', 'zebra', 'None']);
+  });
+
+  it('returns no sections for no items', () => {
+    expect(bucketByKey([], () => undefined, (k) => k, 'None', 'x')).toEqual([]);
+  });
+});
+
+describe('groupTasks (area fallback)', () => {
   it('groups by area with a fallback bucket sunk to the bottom', () => {
     const areas = { kitchen: { area_id: 'kitchen', name: 'Kitchen' } };
     const k = task({ id: 'k', area_id: 'kitchen', next_due: new Date(NOW + DAY).toISOString() });

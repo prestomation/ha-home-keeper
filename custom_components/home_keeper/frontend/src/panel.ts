@@ -1,6 +1,13 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
-import { profileMatches } from './card-filter';
+import {
+  DAY_MS,
+  bucketByKey,
+  profileMatches,
+  statusBucket,
+  taskAreaId,
+  type Group,
+} from './card-filter';
 import type { SignedFileRef } from './documents';
 import {
   SIGNED_URL_REFRESH_MS,
@@ -1654,16 +1661,13 @@ type TaskFilter = 'all' | 'overdue' | 'soon' | 'shopping';
 /** Appliance-list quick filter. */
 type AssetFilter = 'active' | 'archived';
 type AssetView = 'flat' | 'tree';
-/** One bucket of rows rendered under a collapsible section header. */
-interface Group<T> {
-  /** Stable key for remembering collapse state, e.g. "status:overdue". */
-  key: string;
-  /** Section header text; empty string renders the rows ungrouped. */
-  label: string;
-  items: T[];
-}
-/** Tasks due within this many days (and not overdue) count as "due soon". */
-const SOON_DAYS = 7;
+/**
+ * The panel's status vocabulary, as `card-filter.statusBucket` options: no separate
+ * "today" section (anything due within the week reads as "Due soon"), and a completed
+ * one-off gets its own collapsed section instead of the generic no-schedule bucket.
+ * The card's defaults are the other way round.
+ */
+const PANEL_BUCKETS = { today: false, completed: true } as const;
 const LS_GROUP = 'home-keeper.groupBy';
 const LS_FILTER = 'home-keeper.filter';
 const LS_ASSET_FILTER = 'home-keeper.assetFilter';
@@ -3536,31 +3540,6 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   // ── list bucketing ──────────────────────────────────────────────────────────
-  /** Which status section a task belongs to. */
-  private _statusBucket(
-    task: Task,
-    now = Date.now(),
-  ): 'overdue' | 'soon' | 'later' | 'monitored' | 'completed' | 'none' {
-    // A dormant triggered/sensor task is "monitored" — armed-but-not-due — and lands in
-    // its own (default-collapsed) section rather than the generic no-schedule bucket. An
-    // armed one (next_due set) flows through the normal overdue/soon/later logic.
-    if (
-      (task.recurrence_type === 'triggered' || task.recurrence_type === 'sensor') &&
-      !task.next_due
-    )
-      return 'monitored';
-    // A completed one-off (do-once, now dormant) goes to its own collapsed section so
-    // it leaves the active list without cluttering the generic no-schedule bucket.
-    if (task.recurrence_type === 'one-off' && !task.next_due && task.last_completed)
-      return 'completed';
-    if (!task.next_due) return 'none';
-    const due = new Date(task.next_due).getTime();
-    if (Number.isNaN(due)) return 'none';
-    if (due <= now) return 'overdue';
-    if (due - now <= SOON_DAYS * 86_400_000) return 'soon';
-    return 'later';
-  }
-
   /**
    * Whether *task* belongs in the given scope-filter pill. Extracted from
    * `_tasksList` so the pill's count and the list it filters to are computed by the
@@ -3569,7 +3548,7 @@ export class HomeKeeperPanel extends HTMLElement {
    */
   private _scopeMatches(task: Task, scope: TaskFilter, now = Date.now()): boolean {
     if (scope === 'overdue') return isOverdue(task);
-    if (scope === 'soon') return this._statusBucket(task, now) === 'soon';
+    if (scope === 'soon') return statusBucket(task, now, PANEL_BUCKETS) === 'soon';
     if (scope === 'shopping') return Boolean(task.source?.buy);
     return true;
   }
@@ -3583,13 +3562,6 @@ export class HomeKeeperPanel extends HTMLElement {
       }
     }
     return counts;
-  }
-
-  /** A task's area: its own, else its attached device's. */
-  private _taskAreaId(task: Task): string | undefined {
-    if (task.area_id) return task.area_id;
-    const dev = task.device_id ? this._hass?.devices?.[task.device_id] : undefined;
-    return dev?.area_id ?? undefined;
   }
 
   private _groupTasks(tasks: Task[], now = Date.now()): Group<Task>[] {
@@ -3610,21 +3582,21 @@ export class HomeKeeperPanel extends HTMLElement {
         .map(({ bucket, label }) => ({
           key: `status:${bucket}`,
           label,
-          items: tasks.filter((task) => this._statusBucket(task, now) === bucket),
+          items: tasks.filter((task) => statusBucket(task, now, PANEL_BUCKETS) === bucket),
         }))
         .filter((g) => g.items.length);
     }
     if (group === 'area') {
-      return this._groupByKey(
+      return bucketByKey(
         tasks,
-        (task) => this._taskAreaId(task),
+        (task) => taskAreaId(task, this._hass?.devices),
         (id) => areaName(this._hass?.areas, id),
         t('section.unassigned'),
         'area',
       );
     }
     if (group === 'device') {
-      return this._groupByKey(
+      return bucketByKey(
         tasks,
         // A device with no name to head a section with — gone from the registry, or
         // present but nameless — sends its tasks to "No device" rather than under a
@@ -3636,7 +3608,7 @@ export class HomeKeeperPanel extends HTMLElement {
       );
     }
     if (group === 'integration') {
-      return this._groupByKey(
+      return bucketByKey(
         tasks,
         (task) => task.managed_by?.display_name ?? undefined,
         (name) => name,
@@ -3649,7 +3621,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _groupAssets(assets: Asset[]): Group<Asset>[] {
     if (this._effectiveGroup() === 'area') {
-      return this._groupByKey(
+      return bucketByKey(
         assets,
         (a) => a.area_id ?? undefined,
         (id) => areaName(this._hass?.areas, id),
@@ -3658,43 +3630,6 @@ export class HomeKeeperPanel extends HTMLElement {
       );
     }
     return [{ key: '', label: '', items: assets }];
-  }
-
-  /**
-   * Bucket items by a key, label each section, sort sections alphabetically and
-   * sink the "no key" fallback bucket to the bottom. Keys are namespaced so
-   * collapse state never collides between grouping modes.
-   */
-  private _groupByKey<T>(
-    items: T[],
-    keyOf: (item: T) => string | undefined,
-    labelOf: (key: string) => string,
-    fallbackLabel: string,
-    prefix: string,
-  ): Group<T>[] {
-    const buckets = new Map<string, T[]>();
-    for (const item of items) {
-      const k = keyOf(item) || '';
-      const arr = buckets.get(k);
-      if (arr) arr.push(item);
-      else buckets.set(k, [item]);
-    }
-    const fallbackKey = `${prefix}:none`;
-    const groups: Group<T>[] = [];
-    for (const [k, arr] of buckets) {
-      groups.push({
-        key: k ? `${prefix}:${k}` : fallbackKey,
-        label: k ? labelOf(k) : fallbackLabel,
-        items: arr,
-      });
-    }
-    groups.sort((a, b) => {
-      const af = a.key === fallbackKey;
-      const bf = b.key === fallbackKey;
-      if (af !== bf) return af ? 1 : -1;
-      return a.label.localeCompare(b.label);
-    });
-    return groups;
   }
 
   /** Render groups as collapsible sections, or bare items when ungrouped. */
@@ -3866,7 +3801,7 @@ export class HomeKeeperPanel extends HTMLElement {
           chunks.push({ root: rootEntry.item, entries: tree.slice(i, j) });
           i = j;
         }
-        const areaGroups = this._groupByKey(
+        const areaGroups = bucketByKey(
           chunks,
           (c) => c.root.area_id ?? undefined,
           (id) => areaName(this._hass?.areas, id),
@@ -3900,7 +3835,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // task overdue by mere hours reads as "Overdue" alone rather than an inflated
     // "1 day overdue".
     const overdueDays = task.next_due
-      ? Math.floor((Date.now() - new Date(task.next_due).getTime()) / 86_400_000)
+      ? Math.floor((Date.now() - new Date(task.next_due).getTime()) / DAY_MS)
       : 0;
     // How overdue it is now rides the right-hand status pill rather than the meta line,
     // so urgency reads at the end of the row instead of buried mid-sentence. Under a
@@ -4680,7 +4615,7 @@ export class HomeKeeperPanel extends HTMLElement {
    * rather than an "Unassigned" one, matching how the device chip stays absent.
    */
   private _areaChip(task: Task): string {
-    const name = areaName(this._hass?.areas, this._taskAreaId(task));
+    const name = areaName(this._hass?.areas, taskAreaId(task, this._hass?.devices));
     if (!name) return '';
     const icon = `<ha-icon slot="icon" icon="mdi:texture-box" class="hk-chip-ic"></ha-icon>`;
     return `<ha-assist-chip label="${escapeHTML(name)}">${icon}</ha-assist-chip>`;
@@ -8551,7 +8486,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
   /** "today" / "yesterday" / "N days ago" for a past completion date. */
   private _relativeDay(d: Date, now: Date = new Date()): string {
-    const days = Math.round((now.getTime() - d.getTime()) / 86_400_000);
+    const days = Math.round((now.getTime() - d.getTime()) / DAY_MS);
     if (days <= 0) return t('due.today');
     if (days === 1) return t('due.yesterday');
     return tn('due.days_ago', days);
