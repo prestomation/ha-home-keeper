@@ -72,71 +72,26 @@ import {
   wireMarkdown,
   type MarkdownPreview,
 } from './markdown';
-import type {
-  Asset,
-  AssetDocument,
-  AssetKind,
-  Companion,
-  Completion,
-  Hass,
-  HomeKeeperOptions,
-  ManagedBy,
-  MetadataEntry,
-  MetadataType,
-  Notification,
-  PanelInfo,
-  Part,
-  Profile,
-  ProfileSync,
-  Task,
-} from './types';
 import {
-  areaName,
-  assetSummary,
-  formatCost,
-  navigateTo,
-  personName,
-  relativeDay,
-  toast,
-  brandLogoUrl,
-  btnAttrs,
-  type BtnWeight,
-  buildPath,
-  completionStats,
-  deviceDomain,
-  deviceName,
-  groupableDeviceId,
-  dueLabel,
-  copyText,
-  escapeHTML,
-  formatDate,
-  formatDateTime,
-  formatQuantity,
-  isHttpUrl,
-  isOverdue,
-  isSafeImageUrl,
-  parseRoute,
-  randomId,
-  readingUnit,
-  round1,
-  safeFileHref,
-  safeHref,
-  recurrenceSummary,
-  scanRequired,
-  setBtnWeight,
-  tagName,
-  taskRecordsReading,
-  tasksForAsset,
-  buildAssetTree,
-  type AssetTreeEntry,
-  type PanelLocation,
-  type PanelView,
-  type AssetTab,
-  ASSET_TABS,
-  DEFAULT_ASSET_TAB,
-  type SettingsSection,
-} from './utils';
-
+  areaChip,
+  deviceChip,
+  isManagedOrphan,
+  managedChip,
+  tagChip,
+  taskChipsHtml,
+  taskChipsList,
+  virtualDeviceChip,
+  wireDeviceChips,
+} from './panel-chips';
+import {
+  collapsibleSection,
+  completionGroupsFor,
+  historyBody,
+  section,
+  setIcon,
+  wireHistory,
+} from './panel-history';
+import type { PanelHost } from './panel-host';
 import {
   COMPANIONS_DOCS_URL,
   DOCS_UPLOAD_413_URL,
@@ -144,9 +99,7 @@ import {
   MDI_CLOSE,
   MDI_CONSUMABLE,
   MDI_DELETE,
-  MDI_DEVICES,
   MDI_EDIT,
-  MDI_MOVE_DATE,
   MDI_OPEN_IN_NEW,
   MDI_OPEN_IN_NEW_ICON,
   MDI_WEAR,
@@ -171,12 +124,66 @@ import {
   type CompletionDialogState,
   type EditState,
   type GroupBy,
-  type HistoryGroup,
   type MoveCompletionDialogState,
   type NoteTarget,
   type TaskFilter,
   type UploadState,
 } from './panel-types';
+import type {
+  Asset,
+  AssetDocument,
+  AssetKind,
+  Companion,
+  Completion,
+  Hass,
+  HomeKeeperOptions,
+  ManagedBy,
+  MetadataEntry,
+  MetadataType,
+  Notification,
+  PanelInfo,
+  Part,
+  Profile,
+  ProfileSync,
+  Task,
+} from './types';
+import {
+  areaName,
+  assetSummary,
+  navigateTo,
+  toast,
+  btnAttrs,
+  type BtnWeight,
+  buildPath,
+  deviceName,
+  groupableDeviceId,
+  dueLabel,
+  copyText,
+  escapeHTML,
+  formatDate,
+  formatDateTime,
+  formatQuantity,
+  isHttpUrl,
+  isOverdue,
+  parseRoute,
+  randomId,
+  round1,
+  safeFileHref,
+  safeHref,
+  recurrenceSummary,
+  scanRequired,
+  setBtnWeight,
+  taskRecordsReading,
+  tasksForAsset,
+  buildAssetTree,
+  type AssetTreeEntry,
+  type PanelLocation,
+  type PanelView,
+  type AssetTab,
+  ASSET_TABS,
+  DEFAULT_ASSET_TAB,
+  type SettingsSection,
+} from './utils';
 
 // The smallest a part quantity that must be *positive* can be. Stock itself may be
 // zero (you're out), but "how much a completion uses" and "how much a restock adds"
@@ -198,12 +205,12 @@ const MIN_POSITIVE_QUANTITY = 0.001;
  * chrome with innerHTML and then "hydrate" the live components in a follow-up
  * pass (`_hydrate`), wiring `value-changed`/`click` there.
  */
-export class HomeKeeperPanel extends HTMLElement {
-  private _hass?: Hass;
+export class HomeKeeperPanel extends HTMLElement implements PanelHost {
+  _hass?: Hass;
   public panel?: PanelInfo;
   public narrow = false;
-  private _tasks: Task[] = [];
-  private _assets: Asset[] = [];
+  _tasks: Task[] = [];
+  _assets: Asset[] = [];
   private _completion: CompletionDialogState = {
     open: false,
     task: null,
@@ -226,11 +233,16 @@ export class HomeKeeperPanel extends HTMLElement {
   // as a field so disconnectedCallback can remove it if we unmount mid-dialog.
   private _confirmOnKey: ((e: KeyboardEvent) => void) | null = null;
   // config entry id -> integration domain, for resolving device brand logos.
-  private _entryDomains: Record<string, string> = {};
+  _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.
-  private _loadedEntryIds: Set<string> = new Set();
+  _loadedEntryIds: Set<string> = new Set();
   private _edit: EditState = { open: false, task: null };
-  private _assetEdit: AssetEditState = { open: false, asset: null };
+  // On `PanelHost`, so `panel-history.collapsibleSection` can remember which advanced
+  // sections the user left open. Hazard for anything else that reaches it: `.asset` is
+  // mutated **in place** by the appliance editors (each field handler merges into the
+  // same object) and read back by `_submitAssetForm` — so a region must not replace the
+  // object or hold a copy of it, or the save writes stale values.
+  _assetEdit: AssetEditState = { open: false, asset: null };
   // Cancels the in-flight upload (see `_runUpload`); undefined when none is running.
   private _uploadAbort?: AbortController;
   private _uploadShowTimer?: ReturnType<typeof setTimeout>;
@@ -247,7 +259,7 @@ export class HomeKeeperPanel extends HTMLElement {
   private _companions: Companion[] = [];
   // HA tag-registry entries as picker options, for the task form's tag field and
   // the tag chip. Best-effort: an empty list still leaves a typable combo box.
-  private _tags: { value: string; label: string }[] = [];
+  _tags: { value: string; label: string }[] = [];
   // List controls (persisted in localStorage).
   private _groupBy: GroupBy = 'status';
   private _filter: TaskFilter = 'all';
@@ -311,12 +323,17 @@ export class HomeKeeperPanel extends HTMLElement {
   // Every live Markdown preview on screen — the inline note editors and the notes
   // fields in the edit forms/dialogs. All are built by `_attachNotePreview` (the only
   // constructor) and torn down together: they're rebuilt each render pass, and each
-  // holds a debounce timer that must not outlive its DOM.
+  // holds a debounce timer that must not outlive its DOM. `_attachNotePreview` stays in
+  // this file for that reason: a region module that built its own preview would create
+  // one `_disposeAllPreviews` never sees, leaking a timer onto detached DOM.
   private _previews: MarkdownPreview[] = [];
   // The task form's notes preview, so that form's value-changed handler can feed it.
   // Owned by `_previews` for disposal — this is only a reference.
   private _taskNotePreview: MarkdownPreview | null = null;
-  // Live HA components that need `.hass` refreshed when hass updates.
+  // Live HA components that need `.hass` refreshed when hass updates. Push-only for
+  // anything that registers one: the list is emptied in `_render`, at the point the
+  // shadow tree those elements live in is replaced. A region module that reset it would
+  // drop the elements an earlier pass registered and stop feeding them `hass`.
   private _liveHassEls: Array<{ hass?: Hass }> = [];
 
   set hass(hass: Hass) {
@@ -745,7 +762,7 @@ export class HomeKeeperPanel extends HTMLElement {
     }
   }
 
-  private _refresh(): Promise<void> {
+  _refresh(): Promise<void> {
     // Coalesce overlapping refreshes onto one in-flight load so `set hass` and `_init`
     // can't run two concurrent full loads, while every `await this._refresh()` caller
     // still waits for a completed reload + render (a blanket early-return would let a
@@ -1016,7 +1033,7 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   /** Open the dialog to edit an already-recorded completion's metadata. */
-  private _openCompletionEdit(task: Task, c: Completion): void {
+  _openCompletionEdit(task: Task, c: Completion): void {
     this._completion = {
       open: true,
       task,
@@ -1037,7 +1054,7 @@ export class HomeKeeperPanel extends HTMLElement {
    * Distinct from `_openCompletionEdit` (metadata only) — this changes `ts` itself
    * via `api.moveCompletion`, never `api.updateCompletion`.
    */
-  private _openMoveCompletion(task: Task, ts: string): void {
+  _openMoveCompletion(task: Task, ts: string): void {
     this._moveCompletion = { open: true, task, ts, newTs: ts };
     this._render();
   }
@@ -1398,67 +1415,6 @@ export class HomeKeeperPanel extends HTMLElement {
     // Defer revoke a tick so the download isn't cancelled in browsers that read the
     // blob URL asynchronously after click().
     setTimeout(() => URL.revokeObjectURL(url), 0);
-  }
-
-  // ── completion history ──────────────────────────────────────────────────────
-  /**
-   * Completion groups for the detail page's history section. For a task: its own
-   * completions. For an appliance: every completion tied to it — live related
-   * tasks (part-derived or device-attached) plus the history archived from tasks
-   * deleted while still assigned to it — newest activity first.
-   */
-  private _completionGroupsFor(kind: 'task' | 'asset', id: string): HistoryGroup[] {
-    if (kind === 'task') {
-      const task = this._tasks.find((t) => t.id === id);
-      if (!task) return [];
-      return [{ name: task.name, completions: task.completions || [], taskId: task.id }];
-    }
-    const asset = this._assets.find((a) => a.id === id);
-    if (!asset) return [];
-    const groups: HistoryGroup[] = tasksForAsset(asset, this._tasks).map((task) => ({
-      name: task.name,
-      completions: task.completions || [],
-      taskId: task.id,
-    }));
-    for (const entry of asset.task_history || []) {
-      groups.push({
-        name: entry.task_name,
-        completions: entry.completions || [],
-        archived: true,
-        assetId: asset.id,
-        archivedTaskId: entry.task_id,
-      });
-    }
-    const lastTs = (g: HistoryGroup): number =>
-      g.completions.reduce((m, c) => Math.max(m, new Date(c.ts).getTime() || 0), 0);
-    groups.sort((a, b) => lastTs(b) - lastTs(a));
-    return groups;
-  }
-
-  private async _deleteCompletion(taskId: string, ts: string): Promise<void> {
-    if (!this._hass) return;
-    try {
-      await api.deleteCompletion(this._hass, taskId, ts);
-    } catch (err) {
-      console.error('home-keeper: delete completion failed', err);
-      toast(this, t('error.actionFailed'));
-    }
-    await this._refresh();
-  }
-
-  private async _deleteArchivedCompletion(
-    assetId: string,
-    archivedTaskId: string,
-    ts: string,
-  ): Promise<void> {
-    if (!this._hass) return;
-    try {
-      await api.deleteArchivedCompletion(this._hass, assetId, archivedTaskId, ts);
-    } catch (err) {
-      console.error('home-keeper: delete archived completion failed', err);
-      toast(this, t('error.actionFailed'));
-    }
-    await this._refresh();
   }
 
   /**
@@ -2241,7 +2197,7 @@ export class HomeKeeperPanel extends HTMLElement {
    * integration owns any more.
    */
   private _orphanBanner(): string {
-    const n = this._tasks.filter((task) => this._isManagedOrphan(task)).length;
+    const n = this._tasks.filter((task) => isManagedOrphan(this, task)).length;
     if (!n) return '';
     return `
       <ha-alert alert-type="warning" class="hk-orphan-banner">
@@ -2255,7 +2211,7 @@ export class HomeKeeperPanel extends HTMLElement {
   /** Delete every orphaned managed task (the bulk cleanup action). */
   private async _cleanupOrphans(): Promise<void> {
     if (!this._hass) return;
-    const orphans = this._tasks.filter((task) => this._isManagedOrphan(task));
+    const orphans = this._tasks.filter((task) => isManagedOrphan(this, task));
     if (!orphans.length) return;
     try {
       for (const task of orphans) await api.deleteTask(this._hass, task.id);
@@ -2330,9 +2286,9 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _taskCard(task: Task): string {
     const overdue = isOverdue(task);
-    const dev = task.device_id ? this._deviceChip(task.device_id) : '';
-    const tagChip = this._tagChip(task);
-    const managedChip = this._managedChip(task);
+    const dev = task.device_id ? deviceChip(this, task.device_id) : '';
+    const tag = tagChip(this, task);
+    const managed = managedChip(this, task);
     // A completed one-off (do-once, now dormant) shows when it was done instead of a
     // due date.
     const completedOneOff =
@@ -2385,7 +2341,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // a device chip opens the device page, an integration-supplied chip opens its URL —
     // so folding them behind a caption would put an action one navigation away that
     // used to be one click. It unfolds the row in place instead.
-    const inlineChips = [dev, tagChip, ...this._taskChipsList(task), managedChip].filter(Boolean);
+    const inlineChips = [dev, tag, ...taskChipsList(task), managed].filter(Boolean);
     const hiddenChips = Math.max(0, inlineChips.length - TASK_CARD_INLINE_CHIPS);
     const chipsOpen = !!task.id && this._chipsExpanded.has(task.id);
     const more = hiddenChips
@@ -2419,12 +2375,12 @@ export class HomeKeeperPanel extends HTMLElement {
   private _assetCard(x: Asset, depth = 0, isLast = false, toggleId = ''): string {
     const kindChip =
       x.kind === 'virtual'
-        ? this._virtualDeviceChip(x)
+        ? virtualDeviceChip(this, x)
         // The no-device branch reached `deviceName(devices, undefined)`, which is
         // always '' — so an appliance with no device carried a nameless empty chip.
         // Matches the detail page, which has always rendered nothing here.
         : x.device_id
-          ? this._deviceChip(x.device_id)
+          ? deviceChip(this, x.device_id)
           : '';
     const title =
       x.name || deviceName(this._hass?.devices, x.device_id) || t('appliance.fallbackName');
@@ -2633,12 +2589,10 @@ export class HomeKeeperPanel extends HTMLElement {
   }
 
   private _historySection(kind: 'task' | 'asset', id: string): string {
-    const groups = this._completionGroupsFor(kind, id);
+    const groups = completionGroupsFor(this, kind, id);
     return `
       <div class="hk-section">${escapeHTML(t('btn.history'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner hk-hist-body">${this._historyBody(
-        groups,
-      )}</div></ha-card>`;
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner hk-hist-body">${historyBody(this, groups)}</div></ha-card>`;
   }
 
   private _taskDetail(task: Task): string {
@@ -2646,14 +2600,14 @@ export class HomeKeeperPanel extends HTMLElement {
     const statusChip = overdue
       ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
       : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
-    const dev = task.device_id ? this._deviceChip(task.device_id) : '';
+    const dev = task.device_id ? deviceChip(this, task.device_id) : '';
     // The task's *effective* area — its own, else its device's — so the page explains
     // which "Group by → Area" section the task lands in. When it's inherited, the
     // device chip sits right beside it and shows where it came from.
-    const areaChip = this._areaChip(task);
-    const tagChip = this._tagChip(task);
-    const managedChip = this._managedChip(task);
-    const taskChips = this._taskChipsHtml(task);
+    const area = areaChip(this, task);
+    const tag = tagChip(this, task);
+    const managed = managedChip(this, task);
+    const taskChips = taskChipsHtml(task);
     const mb = task.managed_by;
 
     // Source-owned tasks (reconciler-derived wear parts, synced problem sensors) are
@@ -2662,7 +2616,7 @@ export class HomeKeeperPanel extends HTMLElement {
     const sourceOwned =
       (Boolean(task.source?.part) && !task.source?.part?.manual) ||
       Boolean(task.source?.problem_sensor);
-    const orphaned = this._isManagedOrphan(task);
+    const orphaned = isManagedOrphan(this, task);
     // Say why Edit and Delete are missing rather than just omitting them. Withholding
     // both silently left a wear-part task's page reading "<task name> / Done" and
     // nothing else, which looks like a surface that forgot to render — the managed
@@ -2741,7 +2695,7 @@ export class HomeKeeperPanel extends HTMLElement {
     return `
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
-        <div class="hk-chips">${statusChip}${dev}${areaChip}${tagChip}${taskChips}${managedChip}</div>
+        <div class="hk-chips">${statusChip}${dev}${area}${tag}${taskChips}${managed}</div>
         <div class="hk-detail-actions">
           ${doneBtn}
           ${manage}
@@ -2771,9 +2725,9 @@ export class HomeKeeperPanel extends HTMLElement {
   private _assetDetail(asset: Asset): string {
     const kindChip =
       asset.kind === 'virtual'
-        ? this._virtualDeviceChip(asset)
+        ? virtualDeviceChip(this, asset)
         : asset.device_id
-          ? this._deviceChip(asset.device_id)
+          ? deviceChip(this, asset.device_id)
           : '';
     const parentChip = asset.parent_asset_id
       ? `<ha-assist-chip label="${escapeHTML(
@@ -2856,7 +2810,7 @@ export class HomeKeeperPanel extends HTMLElement {
       details: null,
       related: this._assets.filter((a) => a.parent_asset_id === asset.id).length +
         (asset.related_device_ids?.length ?? 0),
-      history: this._completionGroupsFor('asset', asset.id).length,
+      history: completionGroupsFor(this, 'asset', asset.id).length,
     };
     // Short labels: six tabs and their counts have to fit a strip that is already
     // sharing the row with the appliance list. The sections themselves keep their
@@ -3086,173 +3040,6 @@ export class HomeKeeperPanel extends HTMLElement {
     return `
       <div class="hk-section">${escapeHTML(tn('asset.subdevices', subs.length))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
-  }
-
-  /**
-   * Whether a managed task's owning integration is no longer loaded. A task is
-   * orphaned when its `config_entry_id` is set but absent from the loaded-entry
-   * set (uninstalled, disabled, or failing to set up). Without a recorded
-   * `config_entry_id` we can't prove the owner is gone, so it isn't treated as
-   * orphaned (the `force` service is the escape hatch for that edge case).
-   */
-  private _isManagedOrphan(task: Task): boolean {
-    const id = task.managed_by?.config_entry_id;
-    return Boolean(id) && !this._loadedEntryIds.has(id as string);
-  }
-
-  /** Renders integration-provided metadata chips (task_chips). Chips with a URL
-   *  become native links; icon slot is populated when present. */
-  private _taskChipsHtml(task: Task): string {
-    return this._taskChipsList(task).join('');
-  }
-
-  /** The integration-provided chips as individual elements. The list card counts them
-   *  to decide how many fit inline, which a pre-joined string can't answer. */
-  private _taskChipsList(task: Task): string[] {
-    return (task.task_chips ?? [])
-      .map(({ label, icon, url }) => {
-        const iconSlot = icon
-          ? `<ha-icon slot="icon" icon="${escapeHTML(icon)}" class="hk-chip-ic"></ha-icon>`
-          : '';
-        const chip = `<ha-assist-chip label="${escapeHTML(label)}">${iconSlot}</ha-assist-chip>`;
-        return isHttpUrl(url)
-          ? `<a class="hk-task-chip-link" href="${safeHref(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
-          : chip;
-      });
-  }
-
-  /**
-   * A chip naming the task's effective area (its own, else its attached device's).
-   * Empty when neither resolves to a real area — an unplaced task shows no chip
-   * rather than an "Unassigned" one, matching how the device chip stays absent.
-   */
-  private _areaChip(task: Task): string {
-    const name = areaName(this._hass?.areas, taskAreaId(task, this._hass?.devices));
-    if (!name) return '';
-    const icon = `<ha-icon slot="icon" icon="mdi:texture-box" class="hk-chip-ic"></ha-icon>`;
-    return `<ha-assist-chip label="${escapeHTML(name)}">${icon}</ha-assist-chip>`;
-  }
-
-  /**
-   * A chip for the task's bound NFC/RFID tag, naming it where the tag registry
-   * knows it and falling back to the raw id. A scan-locked task swaps the glyph for
-   * a padlock, so the row shows at a glance why its Done button is greyed out.
-   * Empty when no tag is bound.
-   */
-  private _tagChip(task: Task): string {
-    if (!task.tag_id) return '';
-    const locked = scanRequired(task);
-    const iconName = locked ? 'mdi:lock' : 'mdi:nfc-variant';
-    const tip = locked ? t('chip.scanLock.tip') : t('chip.nfc.tip');
-    const label = tagName(this._tags, task.tag_id) || t('chip.nfc');
-    const icon = `<ha-icon slot="icon" icon="${iconName}" class="hk-chip-ic"></ha-icon>`;
-    return `<ha-assist-chip class="hk-tag" label="${escapeHTML(label)}" title="${escapeHTML(tip)}">${icon}</ha-assist-chip>`;
-  }
-
-  /** Renders a "Managed by X" chip (or "Integration offline" if orphaned). */
-  private _managedChip(task: Task): string {
-    const mb = task.managed_by;
-    if (!mb) return '';
-    if (this._isManagedOrphan(task)) {
-      return `<ha-assist-chip class="hk-orphaned" label="${escapeHTML(t('chip.orphaned'))}"></ha-assist-chip>`;
-    }
-    // A task Home Keeper synced from a sensor is "owned" by Home Keeper itself, so
-    // "Managed by Home Keeper" reads as redundant — call it what it is: auto-synced.
-    const selfOwned = mb.integration === 'home_keeper';
-    const label = selfOwned ? t('chip.autoSynced') : t('chip.managed', { name: mb.display_name });
-    const tip = selfOwned ? t('chip.autoSynced.tip') : label;
-    // A leading glyph gives the owner chip the same icon grammar as the device chip:
-    // the companion's own mdi icon when known, a generic integration glyph otherwise,
-    // and an autorenew mark for self-synced tasks.
-    const iconName = selfOwned ? 'mdi:autorenew' : mb.icon || 'mdi:puzzle';
-    const icon = `<ha-icon slot="icon" icon="${escapeHTML(iconName)}" class="hk-chip-ic"></ha-icon>`;
-    return `<ha-assist-chip class="hk-managed" label="${escapeHTML(label)}" title="${escapeHTML(tip)}">${icon}</ha-assist-chip>`;
-  }
-
-  /**
-   * A device chip that links to the device's HA config page and shows the
-   * integration's brand logo (falling back to a generic device icon).
-   */
-  private _deviceChip(deviceId: string): string {
-    const name = deviceName(this._hass?.devices, deviceId);
-    // No name, no chip. The device has left the registry, so the chip had nothing to
-    // say and its link went to a config page that no longer exists — the same guard
-    // `_areaChip` has always had. `_virtualDeviceChip` checks the registry too.
-    if (!name) return '';
-    const domain = deviceDomain(this._hass?.devices?.[deviceId], this._entryDomains);
-    const icon = domain
-      ? `<img slot="icon" class="hk-dev-img" alt="" src="${escapeHTML(
-          brandLogoUrl(domain),
-        )}" data-domain="${escapeHTML(domain)}" />`
-      : `<ha-svg-icon slot="icon" class="hk-dev-img"></ha-svg-icon>`;
-    return `<ha-assist-chip class="hk-device-chip" role="link" tabindex="0" data-device-id="${escapeHTML(
-      deviceId,
-    )}" label="${escapeHTML(name)}">${icon}</ha-assist-chip>`;
-  }
-
-  /**
-   * Chip for a *virtual* appliance. A virtual asset now provisions a real HA device
-   * (see `devices._reconcile_virtual`), so when that device is resolvable the chip is
-   * a clickable link to its device page — reusing the same `.hk-device-chip` wiring as
-   * the existing-device chip. Until the device is provisioned (or if it's gone) it
-   * falls back to a static marker.
-   */
-  private _virtualDeviceChip(asset: Asset): string {
-    const deviceId = asset.device_id;
-    const label = escapeHTML(t('chip.virtualDevice'));
-    const tip = escapeHTML(t('chip.virtualDevice.tip'));
-    if (deviceId && this._hass?.devices?.[deviceId]) {
-      return `<ha-assist-chip class="hk-device-chip" role="link" tabindex="0" data-device-id="${escapeHTML(
-        deviceId,
-      )}" label="${label}" title="${tip}"><ha-icon slot="icon" icon="mdi:open-in-new" class="hk-chip-ic"></ha-icon></ha-assist-chip>`;
-    }
-    return `<ha-assist-chip label="${label}" title="${tip}"></ha-assist-chip>`;
-  }
-
-  /** Wire navigation + brand-logo fallback for every device chip in the tree. */
-  private _wireDeviceChips(root: ShadowRoot): void {
-    root.querySelectorAll<HTMLElement>('.hk-device-chip').forEach((chip) => {
-      const id = chip.dataset.deviceId;
-      // Stop the event from bubbling to an enclosing `.detail-open` card row — without
-      // this, clicking a device chip on a task/appliance card row is hijacked by the
-      // row's open-detail handler and the chip never reaches its device page.
-      const go = (e?: Event): void => {
-        e?.stopPropagation();
-        if (id) navigateTo(`/config/devices/device/${id}`);
-      };
-      chip.addEventListener('click', go);
-      chip.addEventListener('keydown', (e) => {
-        const key = (e as KeyboardEvent).key;
-        if (key === 'Enter' || key === ' ') {
-          e.preventDefault();
-          go(e);
-        }
-      });
-      const fallbackIcon = (): void => {
-        const el = chip.querySelector('.hk-dev-img');
-        if (!el) return;
-        const svg = document.createElement('ha-svg-icon');
-        (svg as HTMLElement & { path?: string }).path = MDI_DEVICES;
-        svg.setAttribute('slot', 'icon');
-        svg.className = 'hk-dev-img';
-        el.replaceWith(svg);
-      };
-      const img = chip.querySelector<HTMLImageElement>('img.hk-dev-img');
-      if (img) {
-        img.addEventListener('error', () => {
-          // First failure: retry the generic `_/` brand path; then give up.
-          const domain = img.dataset.domain;
-          if (domain && !img.dataset.retried) {
-            img.dataset.retried = '1';
-            img.src = brandLogoUrl(domain, true);
-          } else {
-            fallbackIcon();
-          }
-        });
-      } else {
-        fallbackIcon();
-      }
-    });
   }
 
   // ── ha-form schemas ─────────────────────────────────────────────────────────
@@ -3524,7 +3311,7 @@ export class HomeKeeperPanel extends HTMLElement {
       root.getElementById('back-btn')?.addEventListener('click', () => this._closeDetail());
       this._wireDetailActions(root);
       this._wirePartIcons(root);
-      this._wireHistoryDeletes(root);
+      wireHistory(this, root);
       root.querySelectorAll<HTMLElement>('.hk-subtab').forEach((b) =>
         b.addEventListener('click', () => {
           const tab = b.dataset.tab;
@@ -3545,7 +3332,7 @@ export class HomeKeeperPanel extends HTMLElement {
       // appliance landed back on the same task.
       if (this._detail.kind !== 'asset') {
         this._wireDetailOpeners(root);
-        this._wireDeviceChips(root);
+        wireDeviceChips(root);
         return;
       }
     }
@@ -3735,7 +3522,7 @@ export class HomeKeeperPanel extends HTMLElement {
           : `+${Math.max(0, (chips?.children.length ?? 1) - 1 - TASK_CARD_INLINE_CHIPS)}`;
       }),
     );
-    this._wireDeviceChips(root);
+    wireDeviceChips(root);
   }
 
   /** Wire every id row's copy button. One pass covers the task and appliance
@@ -5134,7 +4921,7 @@ export class HomeKeeperPanel extends HTMLElement {
     close.id = 'hk-drawer-close';
     close.setAttribute('label', t('btn.close'));
     close.addEventListener('click', onCancel);
-    this._setIcon(close, MDI_CLOSE);
+    setIcon(close, MDI_CLOSE);
     const titles = document.createElement('div');
     titles.className = 'hk-drawer-titles';
     const help = helpUrl
@@ -5701,7 +5488,7 @@ export class HomeKeeperPanel extends HTMLElement {
     );
     inner.appendChild(identity);
 
-    inner.appendChild(this._section(t('section.reference')));
+    inner.appendChild(section(t('section.reference')));
     inner.appendChild(
       this._makeForm(
         this._structuredDetailsSchema(),
@@ -5713,7 +5500,7 @@ export class HomeKeeperPanel extends HTMLElement {
     // Notes get their own section so the live Markdown preview can sit directly under
     // the field it previews (the appliance form is already section-split, unlike the
     // task form's single `ha-form`).
-    inner.appendChild(this._section(t('section.notes')));
+    inner.appendChild(section(t('section.notes')));
     let assetNotePreview: MarkdownPreview | null = null;
     inner.appendChild(
       this._makeForm([{ name: 'notes', selector: selText(true) }], { notes: x.notes ?? '' }, (value) => {
@@ -5729,7 +5516,7 @@ export class HomeKeeperPanel extends HTMLElement {
 
     this._renderPartsEditor(inner);
 
-    inner.appendChild(this._section(t('section.related')));
+    inner.appendChild(section(t('section.related')));
     inner.appendChild(
       this._makeForm(
         [{ name: 'related_device_ids', selector: selDevice(true) }],
@@ -5767,7 +5554,7 @@ export class HomeKeeperPanel extends HTMLElement {
    *  a link or upload a file. Documents are managed live (each its own backend call),
    *  so a file upload needs an already-saved appliance (it must have an id). */
   private _renderDocumentsEditor(inner: HTMLElement): void {
-    inner.appendChild(this._section(t('section.documents')));
+    inner.appendChild(section(t('section.documents')));
     const docs = this._assetEdit.asset?.documents || [];
 
     // Existing documents: each is a clear card (icon + name + details) with Open /
@@ -5825,14 +5612,14 @@ export class HomeKeeperPanel extends HTMLElement {
     }
     const edit = document.createElement('ha-icon-button');
     edit.setAttribute('label', t('btn.edit'));
-    this._setIcon(edit, MDI_EDIT);
+    setIcon(edit, MDI_EDIT);
     edit.addEventListener('click', () => {
       this._assetEdit.editingDocId = d.id;
       this._render();
     });
     const del = document.createElement('ha-icon-button');
     del.setAttribute('label', t('btn.removeDocument'));
-    this._setIcon(del, MDI_DELETE);
+    setIcon(del, MDI_DELETE);
     del.addEventListener('click', () => void this._removeDocument(d));
     actions.append(edit, del);
 
@@ -6010,7 +5797,7 @@ export class HomeKeeperPanel extends HTMLElement {
       fallback();
     });
     const icon = document.createElement('ha-svg-icon');
-    this._setIcon(icon, MDI_OPEN_IN_NEW);
+    setIcon(icon, MDI_OPEN_IN_NEW);
     a.appendChild(icon);
     return a;
   }
@@ -6352,7 +6139,12 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _renderMetadataEditor(inner: HTMLElement): void {
     const entries = this._assetEdit.asset?.metadata || [];
-    const { details, body } = this._collapsibleSection(t('section.metadata'), 'metadata', entries.length);
+    const { details, body } = collapsibleSection(
+      this,
+      t('section.metadata'),
+      'metadata',
+      entries.length,
+    );
     inner.appendChild(details);
     entries.forEach((m, i) => {
       const box = document.createElement('div');
@@ -6364,7 +6156,7 @@ export class HomeKeeperPanel extends HTMLElement {
       const del = document.createElement('ha-icon-button');
       del.className = 'part-del';
       del.setAttribute('label', t('btn.removeField'));
-      this._setIcon(del, MDI_DELETE);
+      setIcon(del, MDI_DELETE);
       del.addEventListener('click', () => {
         const dlabel = m.label
           ? t('confirm.removeNamed', { name: m.label })
@@ -6453,7 +6245,12 @@ export class HomeKeeperPanel extends HTMLElement {
 
   private _renderPartsEditor(inner: HTMLElement): void {
     const parts = this._assetEdit.asset?.parts || [];
-    const { details, body } = this._collapsibleSection(t('section.parts'), 'parts', parts.length);
+    const { details, body } = collapsibleSection(
+      this,
+      t('section.parts'),
+      'parts',
+      parts.length,
+    );
     inner.appendChild(details);
     parts.forEach((p, i) => {
       const box = document.createElement('div');
@@ -6465,7 +6262,7 @@ export class HomeKeeperPanel extends HTMLElement {
       const del = document.createElement('ha-icon-button');
       del.className = 'part-del';
       del.setAttribute('label', t('btn.removePart'));
-      this._setIcon(del, MDI_DELETE);
+      setIcon(del, MDI_DELETE);
       del.addEventListener('click', () => {
         const dlabel = p.name
           ? t('confirm.removeNamed', { name: p.name })
@@ -6641,7 +6438,7 @@ export class HomeKeeperPanel extends HTMLElement {
       actions.className = 'hk-doc-actions';
       const del = document.createElement('ha-icon-button');
       del.setAttribute('label', t('btn.removePartFile'));
-      this._setIcon(del, MDI_DELETE);
+      setIcon(del, MDI_DELETE);
       del.addEventListener('click', () => void this._removePartFile(p, i));
       // Same native-anchor treatment as an uploaded document (see `_openFileAnchor`).
       actions.append(
@@ -6734,193 +6531,9 @@ export class HomeKeeperPanel extends HTMLElement {
     }
   }
 
-  private _section(title: string): HTMLElement {
-    const el = document.createElement('div');
-    el.className = 'hk-section';
-    el.textContent = title;
-    return el;
-  }
-
-  /** A collapsible `<details>` section for the advanced parts of the appliance editor,
-   *  so a first appliance isn't a wall of fields. Defaults open when it already holds
-   *  entries (editing existing data) and collapsed when empty. Returns the body to
-   *  fill; the caller appends the returned `details` to its container. */
-  private _collapsibleSection(
-    title: string,
-    key: string,
-    count: number,
-  ): { details: HTMLDetailsElement; body: HTMLElement } {
-    const details = document.createElement('details');
-    details.className = 'hk-collapsible';
-    // Respect a remembered choice; otherwise open when the section already has content.
-    details.open = this._assetEdit.openSections?.[key] ?? count > 0;
-    details.addEventListener('toggle', () => {
-      (this._assetEdit.openSections ??= {})[key] = details.open;
-    });
-    const summary = document.createElement('summary');
-    summary.innerHTML =
-      `<span class="hk-section">${escapeHTML(title)}</span>` +
-      (count ? `<span class="hk-section-count">${count}</span>` : '') +
-      `<ha-icon icon="mdi:chevron-down" class="hk-section-chevron"></ha-icon>`;
-    details.appendChild(summary);
-    const body = document.createElement('div');
-    details.appendChild(body);
-    return { details, body };
-  }
-
-  /** Give an ha-icon-button its mdi icon via the native `path` property. */
-  private _setIcon(button: HTMLElement, path: string): void {
-    (button as HTMLElement & { path?: string }).path = path;
-  }
-
-  // ── completion-history rendering (inline in the detail page) ─────────────────
-  private _historyBody(groups: HistoryGroup[]): string {
-    const withAny = groups.filter((g) => (g.completions?.length ?? 0) > 0);
-    if (!withAny.length) {
-      return `<ha-alert alert-type="info">${escapeHTML(t('history.empty'))}</ha-alert>`;
-    }
-    const multi = withAny.length > 1;
-    return withAny.map((g) => this._historyGroup(g, multi)).join('');
-  }
-
-  private _historyGroup(group: HistoryGroup, showHead: boolean): string {
-    // Sort the completion objects (not just Dates) so each row keeps its `ts`
-    // string for the per-row delete button.
-    const comps = [...(group.completions || [])]
-      .filter((c) => !Number.isNaN(new Date(c.ts).getTime()))
-      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
-    const stats = completionStats(group.completions);
-    const sub: string[] = [tn('history.count', stats.count)];
-    if (stats.avgIntervalDays) sub.push(t('history.cadence', { days: stats.avgIntervalDays }));
-    const archived = group.archived
-      ? `<span class="hk-hist-archived">${escapeHTML(t('history.archived'))}</span>`
-      : '';
-    const head = showHead
-      ? `<div class="hk-hist-head">${escapeHTML(group.name)}${archived}
-           <span class="hk-hist-sub">${escapeHTML(sub.join(' · '))}</span></div>`
-      : `<div class="hk-hist-head"><span class="hk-hist-sub">${escapeHTML(sub.join(' · '))}</span>${archived}</div>`;
-    // Encode the deletion target on each trash button: a live task carries
-    // `data-del-task`; an archived group carries `data-del-asset` + `data-del-arch`.
-    const delAttrs = group.taskId
-      ? `data-del-task="${escapeHTML(group.taskId)}"`
-      : group.assetId
-        ? `data-del-asset="${escapeHTML(group.assetId)}" data-del-arch="${escapeHTML(group.archivedTaskId || '')}"`
-        : '';
-    // Editing a completion's metadata only applies to a live task (the backend's
-    // update_completion works on tasks, not an appliance's archived history).
-    const editTask = !group.archived ? group.taskId : undefined;
-    // The unit for any meter readings in this group, resolved once rather than per
-    // row. An archived group has no live task, so its rows show a bare number.
-    const unit = readingUnit(
-      group.taskId ? this._tasks.find((x) => x.id === group.taskId) : undefined,
-      this._hass,
-    );
-    const items = comps
-      .map((c) => {
-        const d = new Date(c.ts);
-        const date = formatDate(d, this._lang());
-        const editBtn = editTask
-          ? `<ha-icon-button class="hk-hist-edit" data-edit-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>`
-          : '';
-        // Moving a completion's date only applies to a live task, same as editing
-        // its metadata — move_completion doesn't operate on archived history.
-        const moveBtn = editTask
-          ? `<ha-icon-button class="hk-hist-move" data-move-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.moveDate'))}"></ha-icon-button>`
-          : '';
-        return `<li>
-            <div class="hk-hist-row">
-              <span class="date">${escapeHTML(date)}</span>
-              <span class="when">${escapeHTML(relativeDay(d))}</span>
-              <span class="hk-hist-actions">${moveBtn}${editBtn}<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button></span>
-            </div>
-            ${this._completionMeta(c, unit)}
-          </li>`;
-      })
-      .join('');
-    return `<div class="hk-hist-group">${head}<ul class="hk-hist-list">${items}</ul></div>`;
-  }
-
-  /**
-   * Render a completion's recorded detail (reading / cost / who / note / photo).
-   *
-   * `unit` is resolved once per history group by the caller rather than looked up
-   * here: a `Completion` is a bare history entry and knows nothing about the sensor
-   * it came from, and an archived group has no live task to ask at all (its rows then
-   * show a bare number, which is still the figure that matters).
-   */
-  private _completionMeta(c: Completion, unit = ''): string {
-    const bits: string[] = [];
-    // The meter reading leads: on a usage task it is the number the whole task is
-    // measured in, and it is what the cost/who chips are context for.
-    if (c.reading != null)
-      bits.push(
-        escapeHTML(
-          t('completion.reading', {
-            reading: `${round1(c.reading)}${unit ? ` ${unit}` : ''}`,
-          }),
-        ),
-      );
-    if (c.cost != null) bits.push(escapeHTML(formatCost(this._hass, c.cost)));
-    if (c.who) bits.push(escapeHTML(t('completion.by', { who: personName(this._hass, c.who) })));
-    const line = bits.length
-      ? `<span class="hk-hist-chips">${bits.join(' · ')}</span>`
-      : '';
-    // A completion note renders as Markdown too, so it's a block (not a span) and
-    // takes its own line under the cost/who chips.
-    const note = c.note
-      ? `<div class="hk-hist-note">${markdownBlock(c.note, 'hk-md-compact')}</div>`
-      : '';
-    // `photo` is caller-supplied (any string via home_keeper/complete_task) and was
-    // rendered as a raw href — escapeHTML can't neutralise a `javascript:` URI in an
-    // href, so a non-admin could plant a stored-XSS payload an admin clicks. Only
-    // render the link/thumbnail when the URL is http(s) or a site-relative path (the
-    // shape `ha-picture-upload` produces, e.g. `/api/image/serve/<id>/original`).
-    const photo = isSafeImageUrl(c.photo)
-      ? `<a href="${escapeHTML(c.photo)}" target="_blank" rel="noopener"><img class="hk-hist-photo" src="${escapeHTML(c.photo)}" alt="${escapeHTML(t('completion.photo'))}" /></a>`
-      : '';
-    if (!line && !note && !photo) return '';
-    return `<div class="hk-hist-meta">${line}${note}${photo}</div>`;
-  }
-
-  /** Format a cost in the instance's configured currency (falls back to the number). */
   /** The language to format dates, times and numbers in — Home Assistant's, not the
    *  browser's, so the panel's dates read the same way as the rest of HA. */
-  private _lang(): string | undefined {
+  _lang(): string | undefined {
     return this._hass?.language;
-  }
-
-  /** Set the trash/pencil icons and wire each per-completion delete/edit button. */
-  private _wireHistoryDeletes(root: ParentNode): void {
-    root.querySelectorAll<HTMLElement>('.hk-hist-del').forEach((b) => {
-      this._setIcon(b, MDI_DELETE);
-      b.addEventListener('click', () => {
-        const ts = b.dataset.ts;
-        if (!ts) return;
-        if (b.dataset.delTask) void this._deleteCompletion(b.dataset.delTask, ts);
-        else if (b.dataset.delAsset)
-          void this._deleteArchivedCompletion(b.dataset.delAsset, b.dataset.delArch || '', ts);
-      });
-    });
-    root.querySelectorAll<HTMLElement>('.hk-hist-edit').forEach((b) => {
-      this._setIcon(b, MDI_EDIT);
-      b.addEventListener('click', () => {
-        const ts = b.dataset.ts;
-        const taskId = b.dataset.editTask;
-        if (!ts || !taskId) return;
-        const task = this._tasks.find((x) => x.id === taskId);
-        const comp = task?.completions?.find((c) => c.ts === ts);
-        if (task && comp) this._openCompletionEdit(task, comp);
-      });
-    });
-    root.querySelectorAll<HTMLElement>('.hk-hist-move').forEach((b) => {
-      this._setIcon(b, MDI_MOVE_DATE);
-      b.addEventListener('click', () => {
-        const ts = b.dataset.ts;
-        const taskId = b.dataset.moveTask;
-        if (!ts || !taskId) return;
-        const task = this._tasks.find((x) => x.id === taskId);
-        if (task) this._openMoveCompletion(task, ts);
-      });
-    });
   }
 }

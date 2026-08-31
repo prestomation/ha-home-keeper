@@ -28,6 +28,7 @@ import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
 import { ensureMarkdown, markdownBlock, markdownReady, wireMarkdown } from './markdown';
+import { taskChipsList } from './panel-chips';
 import { MDI_OPEN_IN_NEW_ICON } from './panel-icons';
 import type { Asset, Hass, HassLabel, Profile, Task } from './types';
 import {
@@ -41,7 +42,6 @@ import {
   navigateTo,
   recurrenceSummary,
   safeFileHref,
-  safeHref,
   scanRequired,
   toast,
 } from './utils';
@@ -829,18 +829,9 @@ export class HomeKeeperCard extends HTMLElement {
         ? `<div class="hk-notes">${markdownBlock(task.notes)}</div>`
         : '';
     // Integration-provided metadata chips (e.g. battery type from Battery Notes).
-    // Chips with a URL become links; icon slot is populated when present.
-    const taskChipsHtml = (task.task_chips ?? [])
-      .map(({ label, icon, url }) => {
-        const iconSlot = icon
-          ? `<ha-icon slot="icon" icon="${escapeHTML(icon)}" class="hk-chip-ic"></ha-icon>`
-          : '';
-        const chip = `<ha-assist-chip label="${escapeHTML(label)}">${iconSlot}</ha-assist-chip>`;
-        return isHttpUrl(url)
-          ? `<a class="hk-task-chip-link" href="${safeHref(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
-          : chip;
-      })
-      .join('');
+    // Chips with a URL become links; icon slot is populated when present. The panel
+    // renders the same chips from the same builder, so the two surfaces cannot drift.
+    const taskChipsHtml = taskChipsList(task).join('');
     // Per-task "show on card" documents — links/metadata open in a new tab; uploaded
     // files open via a signed URL minted on click (see `_hydrate`). A linked part's
     // product URL (if any) rides along as one more chip. These render as link-chips
