@@ -28,6 +28,7 @@ import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
 import { ensureMarkdown, markdownBlock, markdownReady, wireMarkdown } from './markdown';
+import { MDI_OPEN_IN_NEW_ICON } from './panel-icons';
 import type { Asset, Hass, HassLabel, Profile, Task } from './types';
 import {
   areaName,
@@ -52,9 +53,9 @@ const MDI_CHECK =
   '20 12,20M16.59,7.58L10,14.17L7.41,11.59L6,13L10,17L18,9L16.59,7.58Z';
 // mdi:plus — the header "add task" action.
 const MDI_PLUS = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
-// `ha-icon` names for the per-task document chips (external link / metadata link vs
-// an uploaded file). These are icon attributes, not SVG paths like the buttons above.
-const MDI_OPEN_IN_NEW = 'mdi:open-in-new';
+// `ha-icon` name for the per-task document chip pointing at an uploaded file. The
+// external-link glyph beside it is `MDI_OPEN_IN_NEW_ICON`, shared with the panel. These
+// are icon attributes, not SVG paths like the buttons above.
 const MDI_FILE = 'mdi:file-document-outline';
 
 // HA registers many of its components lazily. On a cold dashboard load they may
@@ -735,7 +736,7 @@ export class HomeKeeperCard extends HTMLElement {
           });
           if (signed) out.push({ name: documentLabel(doc), url: signed, icon: MDI_FILE });
         } else if (doc.url && isHttp(doc.url)) {
-          out.push({ name: documentLabel(doc), url: doc.url, icon: MDI_OPEN_IN_NEW });
+          out.push({ name: documentLabel(doc), url: doc.url, icon: MDI_OPEN_IN_NEW_ICON });
         }
         continue;
       }
@@ -743,7 +744,7 @@ export class HomeKeeperCard extends HTMLElement {
         (m) => m.id === ref.entry_id && m.type === 'link' && m.value,
       );
       if (meta?.value && isHttp(meta.value)) {
-        out.push({ name: meta.label, url: meta.value, icon: MDI_OPEN_IN_NEW });
+        out.push({ name: meta.label, url: meta.value, icon: MDI_OPEN_IN_NEW_ICON });
       }
     }
     return out;
@@ -761,7 +762,7 @@ export class HomeKeeperCard extends HTMLElement {
     const asset = this._assets.find((a) => a.id === link.asset_id);
     const part = asset?.parts?.find((p) => p.id === link.part_id);
     if (!part?.url) return null;
-    return { name: part.name, url: part.url, icon: MDI_OPEN_IN_NEW };
+    return { name: part.name, url: part.url, icon: MDI_OPEN_IN_NEW_ICON };
   }
 
   /** One document link rendered as a primary-tinted chip, wrapped in an anchor opened by
