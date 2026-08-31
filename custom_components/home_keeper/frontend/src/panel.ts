@@ -1,13 +1,5 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
-import {
-  DAY_MS,
-  bucketByKey,
-  profileMatches,
-  statusBucket,
-  taskAreaId,
-  type Group,
-} from './card-filter';
 import type { SignedFileRef } from './documents';
 import {
   SIGNED_URL_REFRESH_MS,
@@ -72,41 +64,24 @@ import {
   wireMarkdown,
   type MarkdownPreview,
 } from './markdown';
-import {
-  areaChip,
-  deviceChip,
-  isManagedOrphan,
-  managedChip,
-  tagChip,
-  taskChipsHtml,
-  taskChipsList,
-  virtualDeviceChip,
-  wireDeviceChips,
-} from './panel-chips';
-import {
-  collapsibleSection,
-  completionGroupsFor,
-  historyBody,
-  section,
-  setIcon,
-  wireHistory,
-} from './panel-history';
+import { wireDeviceChips } from './panel-chips';
+import { controls, wireControls } from './panel-controls';
+import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
+import { collapsibleSection, section, setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
 import {
   COMPANIONS_DOCS_URL,
   DOCS_UPLOAD_413_URL,
   DOCS_URL,
   MDI_CLOSE,
-  MDI_CONSUMABLE,
   MDI_DELETE,
   MDI_EDIT,
   MDI_OPEN_IN_NEW,
-  MDI_OPEN_IN_NEW_ICON,
-  MDI_WEAR,
   REQUIRED_COMPONENTS,
   SENSOR_DOCS_URL,
 } from './panel-icons';
-import { STYLES, TASK_CARD_INLINE_CHIPS } from './panel-styles';
+import { assetsList, tasksList, wireLists } from './panel-lists';
+import { STYLES } from './panel-styles';
 import {
   LS_ASSET_FILTER,
   LS_ASSET_VIEW,
@@ -114,7 +89,6 @@ import {
   LS_GROUP,
   LS_PROFILE,
   LS_TREE_COLLAPSED,
-  PANEL_BUCKETS,
   UPLOAD_BAR_DELAY_MS,
   UPLOAD_KEY_DOCUMENT,
   uploadKeyPart,
@@ -148,39 +122,23 @@ import type {
   Task,
 } from './types';
 import {
-  areaName,
-  assetSummary,
   navigateTo,
   toast,
   btnAttrs,
   type BtnWeight,
   buildPath,
-  deviceName,
-  groupableDeviceId,
-  dueLabel,
-  copyText,
   escapeHTML,
-  formatDate,
-  formatDateTime,
   formatQuantity,
   isHttpUrl,
-  isOverdue,
   parseRoute,
   randomId,
-  round1,
-  safeFileHref,
   safeHref,
-  recurrenceSummary,
   scanRequired,
   setBtnWeight,
   taskRecordsReading,
-  tasksForAsset,
-  buildAssetTree,
-  type AssetTreeEntry,
   type PanelLocation,
   type PanelView,
   type AssetTab,
-  ASSET_TABS,
   DEFAULT_ASSET_TAB,
   type SettingsSection,
 } from './utils';
@@ -236,7 +194,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.
   _loadedEntryIds: Set<string> = new Set();
-  private _edit: EditState = { open: false, task: null };
+  _edit: EditState = { open: false, task: null };
   // On `PanelHost`, so `panel-history.collapsibleSection` can remember which advanced
   // sections the user left open. Hazard for anything else that reaches it: `.asset` is
   // mutated **in place** by the appliance editors (each field handler merges into the
@@ -248,9 +206,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   private _uploadShowTimer?: ReturnType<typeof setTimeout>;
   // One-shot: the upload-error key to scroll to on the next render.
   private _scrollToError?: string;
-  private _view: 'tasks' | 'appliances' | 'settings' = 'tasks';
+  _view: 'tasks' | 'appliances' | 'settings' = 'tasks';
   // Integration options for the Settings tab (loaded lazily with the rest).
-  private _options: HomeKeeperOptions | null = null;
+  _options: HomeKeeperOptions | null = null;
   // Available mobile_app_* notify services (for the Notifications profile editor).
   private _notifyTargets: string[] = [];
   // Home Keeper's own todo entities, kept out of the shopping-list picker.
@@ -261,27 +219,27 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // the tag chip. Best-effort: an empty list still leaves a typable combo box.
   _tags: { value: string; label: string }[] = [];
   // List controls (persisted in localStorage).
-  private _groupBy: GroupBy = 'status';
-  private _filter: TaskFilter = 'all';
-  private _assetFilter: AssetFilter = 'active';
-  private _assetView: AssetView = 'flat';
-  private _treeCollapsed = new Set<string>();
+  _groupBy: GroupBy = 'status';
+  _filter: TaskFilter = 'all';
+  _assetFilter: AssetFilter = 'active';
+  _assetView: AssetView = 'flat';
+  _treeCollapsed = new Set<string>();
   // Selected saved Profile id to filter the task list by ('' = no profile).
-  private _profile = '';
+  _profile = '';
   // Group sections collapsed by the user, keyed by "<group>:<bucket>".
   // Group sections the user collapsed this session (open is the default). The
   // "monitored" status bucket — dormant condition-driven tasks like healthy
   // batteries — starts collapsed so it stays out of the way but one click to browse.
-  private _collapsed = new Set<string>(['status:monitored', 'status:completed']);
+  _collapsed = new Set<string>(['status:monitored', 'status:completed']);
   // Settings sections (profiles, notifications) the user has collapsed this session.
   private _settingsSectionCollapsed = new Set<string>();
   // Individual profile/notification items the user has expanded (default: collapsed).
   private _itemExpanded = new Set<string>();
   // Task rows whose chip overflow the user unfolded, so the chips past the second are
   // reachable in the list rather than only on the detail page.
-  private _chipsExpanded = new Set<string>();
+  _chipsExpanded = new Set<string>();
   // The object whose full detail page is open, or null for the list view.
-  private _detail: PanelLocation['detail'] = null;
+  _detail: PanelLocation['detail'] = null;
   // Which Settings section the URL names, or null for the section index. Both are
   // rendered at every width and CSS decides which one shows: a desktop has room for
   // all six sections beside the rail, a phone shows the index or one section.
@@ -289,7 +247,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // Short-lived signed URLs for the uploaded files on screen, minted ahead of the click
   // so every file is opened by a native anchor tap rather than a JS `window.open` the
   // iOS app's WKWebView would swallow (issue #164). Filled by `_signFiles`.
-  private _signedFiles = new SignedUrlCache();
+  _signedFiles = new SignedUrlCache();
   // Pending re-sign of the on-screen files' URLs before they expire; see `_armResign`.
   private _resignTimer: ReturnType<typeof setTimeout> | null = null;
   // The panel's URL prefix (e.g. `/home-keeper`), supplied by HA via `route`.
@@ -299,7 +257,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   private _loadError = false;
   // Whether the current user has dismissed the first-run intro banner — loaded from
   // HA's per-user frontend data store in `_reload` (see `_introCard`).
-  private _introDismissed = false;
+  _introDismissed = false;
   // In-flight refresh, shared by overlapping callers. Both `set hass` (first update)
   // and `_init` gate on `!this._loaded`, and `_loaded` only flips true after the awaited
   // reload — so without coalescing they can pass the check and run two concurrent full
@@ -493,7 +451,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // knows whether history.back() has a panel URL to return to.
   private _hasHistory = false;
 
-  private _navigate(loc: PanelLocation, replace = false): void {
+  _navigate(loc: PanelLocation, replace = false): void {
     const url = this._routePrefix + buildPath(loc);
     history[replace ? 'replaceState' : 'pushState'](null, '', url);
     if (!replace) this._hasHistory = true;
@@ -587,7 +545,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     }
   }
 
-  private _setGroupBy(value: GroupBy): void {
+  _setGroupBy(value: GroupBy): void {
     if (this._groupBy === value) return;
     this._groupBy = value;
     try {
@@ -598,7 +556,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._render();
   }
 
-  private _setFilter(value: TaskFilter): void {
+  _setFilter(value: TaskFilter): void {
     if (this._filter === value) return;
     this._filter = value;
     try {
@@ -609,7 +567,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._render();
   }
 
-  private _setAssetFilter(value: AssetFilter): void {
+  _setAssetFilter(value: AssetFilter): void {
     if (this._assetFilter === value) return;
     this._assetFilter = value;
     try {
@@ -620,7 +578,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._render();
   }
 
-  private _setAssetView(value: AssetView): void {
+  _setAssetView(value: AssetView): void {
     if (this._assetView === value) return;
     this._assetView = value;
     try {
@@ -632,7 +590,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /** Pick a saved Profile to drive the task-list filter (''/none clears it). */
-  private _setProfile(value: string): void {
+  _setProfile(value: string): void {
     if (this._profile === value) return;
     this._profile = value;
     try {
@@ -644,7 +602,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   // ── detail page lifecycle ───────────────────────────────────────────────────
-  private _openDetail(kind: 'task' | 'asset', id: string): void {
+  _openDetail(kind: 'task' | 'asset', id: string): void {
     // Drilling in is a Back-able step: push. An appliance opens on its default
     // sub-tab; `buildPath` leaves that one out of the URL.
     const detail =
@@ -653,7 +611,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /** Which sub-tab the open appliance detail is showing. */
-  private _assetTab(): AssetTab {
+  _assetTab(): AssetTab {
     return this._detail?.tab ?? DEFAULT_ASSET_TAB;
   }
 
@@ -662,7 +620,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * *replaces* rather than pushes: Back should leave the appliance, not retrace every
    * tab you looked at on the way through it — the same rule the top-level tabs follow.
    */
-  private _setAssetTab(tab: AssetTab): void {
+  _setAssetTab(tab: AssetTab): void {
     const detail = this._detail;
     if (!detail || detail.kind !== 'asset' || this._assetTab() === tab) return;
     this._navigate({ view: 'appliances', detail: { ...detail, tab } }, true);
@@ -679,7 +637,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     else this._navigate({ view: 'settings', detail: null }, true);
   }
 
-  private _closeDetail(): void {
+  _closeDetail(): void {
     if (this._hasHistory) {
       // A pushState has occurred in this session: history.back() correctly pops
       // to whatever was before the current detail — even when the detail was
@@ -780,7 +738,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   // ── task form lifecycle ─────────────────────────────────────────────────────
-  private _openCreate(): void {
+  _openCreate(): void {
     this._rememberDrawerOpener();
     this._edit = {
       open: true,
@@ -793,7 +751,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     };
     this._render();
   }
-  private _openEdit(task: Task): void {
+  _openEdit(task: Task): void {
     this._rememberDrawerOpener();
     // Seed the flat consumable_link so the picker reflects the current link and a
     // plain save (no edit) round-trips it unchanged.
@@ -918,7 +876,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * `notes` field is locked by its integration), which keeps the read-only rendering.
    * *placeholder* lets a problem-sensor task keep its more pointed prompt.
    */
-  private _notesCardBody(
+  _notesCardBody(
     target: NoteTarget,
     text: string,
     editable: boolean,
@@ -978,7 +936,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /** Wire the inline notes editor's buttons and its live preview. */
-  private _wireNoteEditor(root: ShadowRoot, target: NoteTarget): void {
+  _wireNoteEditor(root: ShadowRoot, target: NoteTarget): void {
     root
       .querySelector('.d-note-edit')
       ?.addEventListener('click', () => this._openNoteEditor(target));
@@ -997,7 +955,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     input.addEventListener('input', () => preview.update(input.value));
   }
 
-  private async _complete(task: Task): Promise<void> {
+  async _complete(task: Task): Promise<void> {
     if (!this._hass) return;
     // A scan-locked task is completed by its tag, not by this button. The backend
     // rejects the call outright, so say why here rather than surfacing its error.
@@ -1077,7 +1035,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     }
   }
 
-  private _openConfirmDialog(label: string, onConfirm: () => void): void {
+  _openConfirmDialog(label: string, onConfirm: () => void): void {
     // Drop any prior scrim (and its keydown listener) before opening a new one, so a
     // second open — or a stale scrim — can't orphan the earlier overlay + handler.
     if (this._drawerOnKey) {
@@ -1232,7 +1190,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** A completion-blocked task (e.g. a synced problem sensor) can't be marked done
    *  here — its owning integration clears it. Explain why instead of completing.
    *  A scan-locked task is blocked for a different reason, so it says so instead. */
-  private _notifyBlocked(task: Task): void {
+  _notifyBlocked(task: Task): void {
     toast(this, this._blockedReason(task));
   }
 
@@ -1248,7 +1206,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    *  versions, but swallows clicks — so the span carries the tap → explanation and a
    *  hover tooltip). *weight* matches whichever live Done it stands in for: the
    *  detail page's primary, or the list row's tonal one. */
-  private _blockedDone(wrapClass: string, task: Task, weight: BtnWeight = 'secondary'): string {
+  _blockedDone(wrapClass: string, task: Task, weight: BtnWeight = 'secondary'): string {
     const reason = this._blockedReason(task);
     const cls = [wrapClass, 'done-blocked-wrap'].filter(Boolean).join(' ');
     return `<span class="${cls}" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-button ${btnAttrs(weight)} disabled>${escapeHTML(t('btn.done'))}</ha-button></span>`;
@@ -1258,12 +1216,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    *  a *status*, not an action, so it carries no button role: the visible label conveys
    *  the gist, `aria-label` gives assistive tech the full reason, `title` shows it on
    *  hover, and a pointer tap still surfaces it as a toast (via `.done-blocked-wrap`). */
-  private _blockedDoneInline(task: Task): string {
+  _blockedDoneInline(task: Task): string {
     const reason = task.managed_by?.completion_prompt || t('done.blocked');
     const label = t('done.autoClears');
     return `<span class="hk-auto-clear done-blocked-wrap" data-id="${escapeHTML(task.id)}" title="${escapeHTML(reason)}" aria-label="${escapeHTML(`${label}: ${reason}`)}"><ha-icon icon="mdi:autorenew" class="hk-chip-ic"></ha-icon>${escapeHTML(label)}</span>`;
   }
-  private async _delete(task: Task): Promise<void> {
+  async _delete(task: Task): Promise<void> {
     if (!this._hass) return;
     try {
       await api.deleteTask(this._hass, task.id);
@@ -1276,12 +1234,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   // ── asset form lifecycle ────────────────────────────────────────────────────
-  private _openCreateAsset(): void {
+  _openCreateAsset(): void {
     this._rememberDrawerOpener();
     this._assetEdit = { open: true, asset: { kind: 'virtual', parts: [] } };
     this._render();
   }
-  private _openEditAsset(asset: Asset): void {
+  _openEditAsset(asset: Asset): void {
     this._rememberDrawerOpener();
     // Opens beside the page it was pressed on — the appliance's own page keeps its
     // parts, documents and history in view while the form is up. See `_openEdit` for
@@ -1339,7 +1297,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     }
   }
 
-  private async _deleteAsset(asset: Asset): Promise<void> {
+  async _deleteAsset(asset: Asset): Promise<void> {
     if (!this._hass) return;
     try {
       await api.deleteAsset(this._hass, asset.id);
@@ -1352,7 +1310,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   /** Hide an appliance from the default list without deleting its data;
    *  reversible via {@link _restoreAsset}. */
-  private async _archiveAsset(asset: Asset): Promise<void> {
+  async _archiveAsset(asset: Asset): Promise<void> {
     if (!this._hass) return;
     try {
       await api.archiveAsset(this._hass, asset.id);
@@ -1363,7 +1321,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     }
   }
 
-  private async _restoreAsset(asset: Asset): Promise<void> {
+  async _restoreAsset(asset: Asset): Promise<void> {
     if (!this._hass) return;
     try {
       await api.restoreAsset(this._hass, asset.id);
@@ -1379,7 +1337,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * grab-and-go record for an insurance claim (make/model/serial, purchase +
    * warranty dates, replacement cost, on-hand spares value).
    */
-  private async _exportInventory(): Promise<void> {
+  async _exportInventory(): Promise<void> {
     if (!this._hass) return;
     try {
       const { csv } = await api.exportInventory(this._hass);
@@ -1474,7 +1432,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   // ── rendering ───────────────────────────────────────────────────────────────
-  private _render(): void {
+  _render(): void {
     if (!this.shadowRoot) return;
     // Whatever had focus is about to be destroyed; note it so `_restoreFocus` can put
     // the keyboard back on the same control in the rebuilt tree.
@@ -1511,19 +1469,19 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         <div class="hk-detailbar">
           <ha-button id="back-btn" ${btnAttrs('tertiary')}>‹ ${escapeHTML(t('btn.back'))}</ha-button>
         </div>
-        <div class="hk-master-controls">${this._controls()}</div>
+        <div class="hk-master-controls">${controls(this)}</div>
         <div class="hk-master-detail">
           <div class="hk-master">
-            <div id="hk-list">${this._assetsList()}</div>
+            <div id="hk-list">${assetsList(this)}</div>
           </div>
-          <div class="hk-detail-pane">${this._detailView()}</div>
+          <div class="hk-detail-pane">${detailView(this)}</div>
         </div>`;
     } else if (this._detail) {
       inner = `
         <div class="hk-detailbar">
           <ha-button id="back-btn" ${btnAttrs('tertiary')}>‹ ${escapeHTML(t('btn.back'))}</ha-button>
         </div>
-        ${this._detailView()}`;
+        ${detailView(this)}`;
     } else if (this._view === 'settings') {
       // Three things, all rendered at every width, with CSS choosing between them: an
       // anchor rail naming every section and what it is set to, a section index for a
@@ -1553,8 +1511,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       // surface), so the old full-width action bar above the list is gone.
       inner = `
         ${this._tabs()}
-        ${this._controls()}
-        <div id="hk-list">${onTasks ? this._tasksList() : this._assetsList()}</div>`;
+        ${controls(this)}
+        <div id="hk-list">${onTasks ? tasksList(this) : assetsList(this)}</div>`;
     }
 
     // Editing happens in a side drawer beside the list rather than in a card above
@@ -1815,1231 +1773,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       </nav>`;
   }
 
-  // ── list controls (filter + group-by) ───────────────────────────────────────
-  /** Group-by resolved for the active view (appliances only support area/none). */
-  private _effectiveGroup(): GroupBy {
-    const taskOnlyGroups: GroupBy[] = ['status', 'device', 'integration'];
-    if (this._view === 'appliances' && taskOnlyGroups.includes(this._groupBy)) {
-      return 'none';
-    }
-    return this._groupBy;
-  }
-
-  private _controls(): string {
-    const onTasks = this._view === 'tasks';
-    const groupOpts: { value: GroupBy; label: string }[] = onTasks
-      ? [
-          { value: 'status', label: t('group.status') },
-          { value: 'area', label: t('group.area') },
-          { value: 'device', label: t('group.device') },
-          { value: 'integration', label: t('group.integration') },
-          { value: 'none', label: t('group.none') },
-        ]
-      : [
-          { value: 'area', label: t('group.area') },
-          { value: 'none', label: t('group.none') },
-        ];
-    // Group-by is a refinement, not a primary filter, and it has five options — as a
-    // visible segment it dominated the row and pushed everything else onto a second
-    // line. A dropdown states the current grouping in the same width as its label,
-    // which is what lets the whole control row be one line.
-    const groupControl = this._menuControl(
-      'group',
-      t('group.by'),
-      this._effectiveGroup(),
-      groupOpts,
-    );
-    // A saved Profile, when picked, drives the status/label/area/device filter, so
-    // the inline all/overdue/soon segment is hidden while one is active.
-    const profile = this._activeProfile();
-    // Counts ride the scope pills so "how much is overdue" is answered before anyone
-    // has to click. Only meaningful without a Profile, which is also the only time
-    // these pills are shown.
-    const counts = onTasks && !profile ? this._filterCounts() : null;
-    const filterControl =
-      onTasks && !profile
-        ? `<div class="hk-control">${this._seg(
-            'filter',
-            this._filter,
-            [
-              { value: 'all', label: t('filter.all'), count: counts?.all },
-              { value: 'overdue', label: t('filter.overdue'), count: counts?.overdue },
-              { value: 'soon', label: t('filter.soon'), count: counts?.soon },
-              { value: 'shopping', label: t('filter.shopping'), count: counts?.shopping },
-            ],
-            // Not `group.by`: these pills choose *what is listed*, and the Group by
-            // dropdown sitting beside them chooses how it is arranged. Naming both
-            // "Group by" left a screen reader with two different controls under one
-            // name, and no way to tell which one it had landed on.
-            t('filter.label'),
-          )}</div>`
-        : '';
-    const assetFilterControl =
-      this._view === 'appliances'
-        ? `<div class="hk-control">${this._seg(
-            'assetFilter',
-            this._assetFilter,
-            [
-              { value: 'active', label: t('filter.active') },
-              { value: 'archived', label: t('filter.archived') },
-            ],
-            // Likewise: "Appliances" named the tab this segment sits on, not the
-            // choice it offers, which is which appliances are listed.
-            t('filter.label'),
-          )}</div>`
-        : '';
-    const viewControl =
-      this._view === 'appliances'
-        ? `<div class="hk-control">
-            <span class="hk-seg-label">${escapeHTML(t('view.label'))}</span>
-            ${this._seg(
-              'assetView',
-              this._assetView,
-              [
-                { value: 'flat', label: t('view.flat') },
-                { value: 'tree', label: t('view.tree') },
-              ],
-              t('view.label'),
-            )}
-          </div>`
-        : '';
-    // One row: scope pills lead, the refinements (Profile, Group by, appliance view)
-    // sit to the right behind a spacer, and the single primary action closes it. The
-    // comp's rule is one primary button per surface, so Add moves in here from the
-    // old full-width action bar above the list.
-    const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
-    const actions = `
-      <span class="hk-controls-spacer"></span>
-      ${onTasks ? '' : `<ha-button ${btnAttrs('secondary')} id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
-      <ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
-    return `<div class="hk-controls">${filterControl}${assetFilterControl}${viewControl}${this._profileControl()}${groupControl}${actions}</div>`;
-  }
-
-  /** The saved Profile currently selected for the list filter, or null. */
-  private _activeProfile(): Profile | null {
-    if (this._view !== 'tasks' || !this._profile) return null;
-    const profiles = this._options?.profiles ?? [];
-    return profiles.find((p) => p.id === this._profile) ?? null;
-  }
-
-  /** A dropdown to filter the task list by a saved Profile (Tasks tab only). */
-  private _profileControl(): string {
-    if (this._view !== 'tasks') return '';
-    const profiles = this._options?.profiles ?? [];
-    if (!profiles.length) return '';
-    const opt = (value: string, label: string) =>
-      `<option value="${escapeHTML(value)}"${value === this._profile ? ' selected' : ''}>${escapeHTML(
-        label,
-      )}</option>`;
-    const options = [
-      opt('', t('filter.profileNone')),
-      ...profiles.map((p) => opt(p.id, p.name)),
-    ].join('');
-    return `
-      <label class="hk-control hk-menu">
-        <span class="hk-seg-label">${escapeHTML(t('filter.profile'))}</span>
-        <select class="hk-profile-select hk-menu-select" aria-label="${escapeHTML(
-          t('filter.profile'),
-        )}" data-profile-filter>${options}</select>
-      </label>`;
-  }
-
-  /** A compact labelled dropdown, styled as the control row's "Label  Value ▾" button.
-   *  Shares the segmented controls' `data-seg` vocabulary so one handler in `_hydrate`
-   *  routes both shapes to the same setters. */
-  private _menuControl(
-    name: string,
-    labelText: string,
-    current: string,
-    options: { value: string; label: string }[],
-  ): string {
-    const opts = options
-      .map(
-        (o) =>
-          `<option value="${escapeHTML(o.value)}"${o.value === current ? ' selected' : ''}>${escapeHTML(
-            o.label,
-          )}</option>`,
-      )
-      .join('');
-    return `
-      <label class="hk-control hk-menu">
-        <span class="hk-seg-label">${escapeHTML(labelText)}</span>
-        <select class="hk-menu-select" aria-label="${escapeHTML(
-          labelText,
-        )}" data-seg-select="${escapeHTML(name)}">${opts}</select>
-      </label>`;
-  }
-
-  /** A pill-style segmented toggle; the active option carries the `active` class.
-   *  An option may carry a `count`, rendered as a trailing figure inside the button —
-   *  after the label, so a text-matched selector still finds the option by its name.
-   *
-   *  Each button states its own pressed-ness: which one is selected was otherwise
-   *  carried by fill and font weight alone, which is nothing to a screen reader and
-   *  nothing to someone who cannot separate the hues. */
-  private _seg(
-    name: string,
-    current: string,
-    options: { value: string; label: string; count?: number }[],
-    groupLabel?: string,
-  ): string {
-    const btns = options
-      .map((o) => {
-        const count =
-          o.count === undefined ? '' : `<span class="hk-seg-count">${escapeHTML(String(o.count))}</span>`;
-        // A scope holding nothing is dimmed, so the row says where there is something
-        // to see before you spend a click finding out. Deliberately still pressable:
-        // "is my shopping list really empty?" is a fair question, and the answer is
-        // that scope's empty state — which now carries its own way back out. The
-        // selected pill is never dimmed, so the one you are standing on stays solid
-        // when completing the last task empties it under you.
-        const isCurrent = o.value === current;
-        const empty = o.count === 0 && !isCurrent;
-        return `<button class="hk-seg-btn${isCurrent ? ' active' : ''}${
-          empty ? ' hk-seg-empty' : ''
-        }" aria-pressed="${isCurrent ? 'true' : 'false'}" data-seg-val="${escapeHTML(
-          o.value,
-        )}">${escapeHTML(o.label)}${count}</button>`;
-      })
-      .join('');
-    return `<div class="hk-seg" role="group" aria-label="${escapeHTML(
-      groupLabel || name,
-    )}" data-seg="${escapeHTML(name)}">${btns}</div>`;
-  }
-
-  // ── list bucketing ──────────────────────────────────────────────────────────
-  /**
-   * Whether *task* belongs in the given scope-filter pill. Extracted from
-   * `_tasksList` so the pill's count and the list it filters to are computed by the
-   * same predicate — a count that disagreed with the list it promises would be worse
-   * than no count at all.
-   */
-  private _scopeMatches(task: Task, scope: TaskFilter, now = Date.now()): boolean {
-    if (scope === 'overdue') return isOverdue(task);
-    if (scope === 'soon') return statusBucket(task, now, PANEL_BUCKETS) === 'soon';
-    if (scope === 'shopping') return Boolean(task.source?.buy);
-    return true;
-  }
-
-  /** How many tasks each scope pill would show, for the counts rendered on them. */
-  private _filterCounts(now = Date.now()): Record<TaskFilter, number> {
-    const counts = { all: 0, overdue: 0, soon: 0, shopping: 0 };
-    for (const task of this._tasks) {
-      for (const scope of ['all', 'overdue', 'soon', 'shopping'] as TaskFilter[]) {
-        if (this._scopeMatches(task, scope, now)) counts[scope]++;
-      }
-    }
-    return counts;
-  }
-
-  private _groupTasks(tasks: Task[], now = Date.now()): Group<Task>[] {
-    const group = this._effectiveGroup();
-    if (group === 'status') {
-      const order: {
-        bucket: 'overdue' | 'soon' | 'later' | 'monitored' | 'completed' | 'none';
-        label: string;
-      }[] = [
-        { bucket: 'overdue', label: t('chip.overdue') },
-        { bucket: 'soon', label: t('filter.soon') },
-        { bucket: 'later', label: t('section.later') },
-        { bucket: 'monitored', label: t('section.monitored') },
-        { bucket: 'none', label: t('section.noSchedule') },
-        { bucket: 'completed', label: t('section.completed') },
-      ];
-      return order
-        .map(({ bucket, label }) => ({
-          key: `status:${bucket}`,
-          label,
-          items: tasks.filter((task) => statusBucket(task, now, PANEL_BUCKETS) === bucket),
-        }))
-        .filter((g) => g.items.length);
-    }
-    if (group === 'area') {
-      return bucketByKey(
-        tasks,
-        (task) => taskAreaId(task, this._hass?.devices),
-        (id) => areaName(this._hass?.areas, id),
-        t('section.unassigned'),
-        'area',
-      );
-    }
-    if (group === 'device') {
-      return bucketByKey(
-        tasks,
-        // A device with no name to head a section with — gone from the registry, or
-        // present but nameless — sends its tasks to "No device" rather than under a
-        // bare id or an empty heading.
-        (task) => groupableDeviceId(this._hass?.devices, task.device_id),
-        (id) => deviceName(this._hass?.devices, id),
-        t('section.noDevice'),
-        'device',
-      );
-    }
-    if (group === 'integration') {
-      return bucketByKey(
-        tasks,
-        (task) => task.managed_by?.display_name ?? undefined,
-        (name) => name,
-        t('section.standalone'),
-        'integration',
-      );
-    }
-    return [{ key: '', label: '', items: tasks }];
-  }
-
-  private _groupAssets(assets: Asset[]): Group<Asset>[] {
-    if (this._effectiveGroup() === 'area') {
-      return bucketByKey(
-        assets,
-        (a) => a.area_id ?? undefined,
-        (id) => areaName(this._hass?.areas, id),
-        t('section.unassigned'),
-        'area',
-      );
-    }
-    return [{ key: '', label: '', items: assets }];
-  }
-
-  /** Render groups as collapsible sections, or bare items when ungrouped. */
-  private _renderGroups<T>(groups: Group<T>[], renderItem: (item: T) => string): string {
-    if (groups.length === 1 && !groups[0].label) {
-      return groups[0].items.map(renderItem).join('');
-    }
-    return groups
-      .map((g) => {
-        const open = this._collapsed.has(g.key) ? '' : 'open';
-        // `data-bucket` lets the header take the section's status colour (Overdue reads
-        // red) without the label text having to carry that meaning on its own. The rule
-        // and the collapse caption are decorative: the whole summary is the hit target,
-        // so they are hidden from assistive tech rather than announced twice.
-        const bucket = g.key.startsWith('status:') ? g.key.slice('status:'.length) : '';
-        return `
-        <details class="hk-group" data-group-key="${escapeHTML(g.key)}" data-bucket="${escapeHTML(bucket)}" ${open}>
-          <summary class="hk-group-head">
-            <span class="hk-group-title">${escapeHTML(g.label)}</span>
-            <span class="hk-group-count">${g.items.length}</span>
-            <span class="hk-group-rule" aria-hidden="true"></span>
-            <span class="hk-group-toggle" aria-hidden="true"></span>
-          </summary>
-          <div class="hk-group-body">${g.items.map(renderItem).join('')}</div>
-        </details>`;
-      })
-      .join('');
-  }
-
-  /** One-time orientation banner that explains the kinds of tasks a newcomer will see
-   *  mixed in the list. Dismissed permanently, server-side per-user (see
-   *  `_introDismissed`). Empty once dismissed. */
-  private _introCard(): string {
-    if (this._introDismissed) return '';
-    return `
-      <div class="hk-intro">
-        <div class="hk-intro-head">
-          <div class="hk-form-title">${escapeHTML(t('tasks.intro.title'))}</div>
-          <ha-icon-button class="hk-intro-dismiss" label="${escapeHTML(
-            t('tasks.intro.dismiss'),
-          )}"><ha-icon icon="mdi:close"></ha-icon></ha-icon-button>
-        </div>
-        <div class="hk-intro-body">${escapeHTML(t('tasks.intro.body'))}</div>
-        <ul>
-          <li>${t('tasks.intro.recurring')}</li>
-          <li>${t('tasks.intro.monitored')}</li>
-          <li>${t('tasks.intro.companion')}</li>
-        </ul>
-        <ha-button ${btnAttrs('tertiary')} class="hk-intro-dismiss">${escapeHTML(t('tasks.intro.dismiss'))}</ha-button>
-      </div>`;
-  }
-
-  private _tasksList(): string {
-    const intro = this._introCard();
-    if (!this._tasks.length) {
-      const addTask = `<b>${escapeHTML(t('btn.addTask'))}</b>`;
-      return `${intro}<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;
-    }
-    const now = Date.now();
-    let tasks = [...this._tasks];
-    const profile = this._activeProfile();
-    if (profile) {
-      // A saved Profile replaces the inline filter: status + labels/areas/devices.
-      tasks = tasks.filter((task) =>
-        profileMatches(task, profile.filter, this._hass?.devices, this._hass?.areas, now),
-      );
-    } else {
-      tasks = tasks.filter((task) => this._scopeMatches(task, this._filter, now));
-    }
-    tasks.sort((a, b) => {
-      const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
-      const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
-      return ad - bd;
-    });
-    if (!tasks.length) {
-      // Closing the loop the other way: an empty result carries the way back to the
-      // full list, so the dead end is escapable even when it was a Profile rather
-      // than a scope pill that emptied it.
-      const showAll =
-        this._filter === 'all' && !this._activeProfile()
-          ? ''
-          : `<ha-button slot="action" ${btnAttrs('secondary')} id="hk-show-all">${escapeHTML(
-              t('tasks.showAll'),
-            )}</ha-button>`;
-      return `${intro}<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}${showAll}</ha-alert>`;
-    }
-    return `${intro}${this._orphanBanner()}${this._renderGroups(
-      this._groupTasks(tasks, now),
-      (task) => this._taskCard(task),
-    )}`;
-  }
-
-  /**
-   * A dismissable-style warning shown above the task list when one or more managed
-   * tasks have been orphaned (their integration was uninstalled/disabled). Offers a
-   * one-click "Remove orphaned tasks" cleanup so the user isn't stuck with tasks no
-   * integration owns any more.
-   */
-  private _orphanBanner(): string {
-    const n = this._tasks.filter((task) => isManagedOrphan(this, task)).length;
-    if (!n) return '';
-    return `
-      <ha-alert alert-type="warning" class="hk-orphan-banner">
-        ${escapeHTML(tn('managed.orphanBanner', n))}
-        <ha-button slot="action" ${btnAttrs('danger')} id="cleanup-orphans-btn">${escapeHTML(
-          t('btn.removeOrphaned'),
-        )}</ha-button>
-      </ha-alert>`;
-  }
-
-  /** Delete every orphaned managed task (the bulk cleanup action). */
-  private async _cleanupOrphans(): Promise<void> {
-    if (!this._hass) return;
-    const orphans = this._tasks.filter((task) => isManagedOrphan(this, task));
-    if (!orphans.length) return;
-    try {
-      for (const task of orphans) await api.deleteTask(this._hass, task.id);
-    } catch (err) {
-      toast(this, String((err as { message?: string })?.message || err));
-    }
-    await this._refresh();
-  }
-
-  private _assetsList(): string {
-    if (!this._assets.length) {
-      return `<ha-alert alert-type="info">${escapeHTML(t('appliances.empty'))}</ha-alert>`;
-    }
-    const archived = this._assetFilter === 'archived';
-    const filtered = this._assets.filter((a) => Boolean(a.archived_at) === archived);
-    if (!filtered.length) {
-      const emptyKey = archived ? 'appliances.archivedEmpty' : 'appliances.noMatch';
-      return `<ha-alert alert-type="info">${escapeHTML(t(emptyKey))}</ha-alert>`;
-    }
-    const cmp = (a: Asset, b: Asset) => (a.name || '').localeCompare(b.name || '');
-    if (this._assetView === 'tree') {
-      const tree = buildAssetTree(filtered, cmp);
-      const renderEntries = (entries: AssetTreeEntry<Asset>[]): string => {
-        const sub = (start: number, parentDepth: number): [string, number] => {
-          let html = '';
-          let i = start;
-          while (i < entries.length && entries[i].depth > parentDepth) {
-            const entry = entries[i];
-            const depth = entry.depth;
-            const hasChildren = i + 1 < entries.length && entries[i + 1].depth > depth;
-            if (hasChildren) {
-              const [childrenHtml, nextI] = sub(i + 1, depth);
-              const isOpen = !this._treeCollapsed.has(entry.item.id);
-              html += `<div class="hk-tree-group${isOpen ? ' hk-tree-open' : ''}">
-                ${this._assetCard(entry.item, depth, false, entry.item.id)}
-                <div class="hk-tree-children">${childrenHtml}</div>
-              </div>`;
-              i = nextI;
-            } else {
-              i++;
-              html += this._assetCard(entry.item, depth);
-            }
-          }
-          return [html, i];
-        };
-        const [html] = sub(0, -1);
-        return html;
-      };
-      if (this._effectiveGroup() === 'area') {
-        const chunks: Array<{ root: Asset; entries: AssetTreeEntry<Asset>[] }> = [];
-        for (let i = 0; i < tree.length; ) {
-          const rootEntry = tree[i];
-          let j = i + 1;
-          while (j < tree.length && tree[j].depth > rootEntry.depth) j++;
-          chunks.push({ root: rootEntry.item, entries: tree.slice(i, j) });
-          i = j;
-        }
-        const areaGroups = bucketByKey(
-          chunks,
-          (c) => c.root.area_id ?? undefined,
-          (id) => areaName(this._hass?.areas, id),
-          t('section.unassigned'),
-          'area',
-        );
-        return this._renderGroups(areaGroups, (c) => renderEntries(c.entries));
-      }
-      return renderEntries(tree);
-    }
-    const assets = [...filtered].sort(cmp);
-    return this._renderGroups(this._groupAssets(assets), (asset) => this._assetCard(asset));
-  }
-
-  private _taskCard(task: Task): string {
-    const overdue = isOverdue(task);
-    const dev = task.device_id ? deviceChip(this, task.device_id) : '';
-    const tag = tagChip(this, task);
-    const managed = managedChip(this, task);
-    // A completed one-off (do-once, now dormant) shows when it was done instead of a
-    // due date.
-    const completedOneOff =
-      task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-    const dueText = task.next_due
-      ? ` · ${escapeHTML(t('form.task.due', { date: formatDate(task.next_due, this._lang()) }))}`
-      : completedOneOff
-        ? ` · ${escapeHTML(t('form.task.completedOn', { date: formatDate(task.last_completed, this._lang()) }))}`
-        : '';
-    // For an overdue task, append *how* overdue it is — a bare date hides urgency. Use
-    // whole elapsed days (floor), and only once at least one full day has passed: a
-    // task overdue by mere hours reads as "Overdue" alone rather than an inflated
-    // "1 day overdue".
-    const overdueDays = task.next_due
-      ? Math.floor((Date.now() - new Date(task.next_due).getTime()) / DAY_MS)
-      : 0;
-    // How overdue it is now rides the right-hand status pill rather than the meta line,
-    // so urgency reads at the end of the row instead of buried mid-sentence. Under a
-    // full day it stays the bare "Overdue" — "1 day overdue" would overstate it.
-    const statusChip = overdue
-      ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(
-          overdueDays >= 1 ? tn('due.overdue_by', overdueDays) : t('chip.overdue'),
-        )}"></ha-assist-chip>`
-      : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
-    const n = task.completions?.length ?? 0;
-    // A dormant triggered task (monitored, not due) has nothing to mark done — its
-    // owning integration arms it when the condition fires; hide the action. A
-    // completed one-off is already done, so it too hides Done. A completion-blocked
-    // task (e.g. a synced problem sensor) keeps a *disabled* Done that explains why
-    // on click, rather than silently offering no action.
-    const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
-    // A scan-locked task keeps a *disabled* Done rather than the auto-clear caption:
-    // it is still completable, just not from here, so a greyed button that explains
-    // itself on tap is the honest affordance.
-    const doneAction = dormantTriggered || completedOneOff
-      ? ''
-      : task.managed_by?.completion_blocked
-        ? this._blockedDoneInline(task)
-        : scanRequired(task)
-          ? this._blockedDone('', task)
-          : // Tonal, not solid: every row carries a Done, and a page of solid accent
-            // buttons leaves the surface with no single primary action.
-            `<ha-button ${btnAttrs('secondary')} class="done-btn" data-id="${escapeHTML(task.id)}">${escapeHTML(t('btn.done'))}</ha-button>`;
-    // Descriptive chips (device, tag, integration) belong beside the name — they say
-    // *what* this task is about, which is part of reading the title. Only the first two
-    // are shown, with a "+n" for the rest; every chip stays in the DOM and the overflow
-    // is hidden in CSS, so the row's contents remain inspectable and testable.
-    //
-    // "+n" is a button, not a caption. Most of these chips do something when clicked —
-    // a device chip opens the device page, an integration-supplied chip opens its URL —
-    // so folding them behind a caption would put an action one navigation away that
-    // used to be one click. It unfolds the row in place instead.
-    const inlineChips = [dev, tag, ...taskChipsList(task), managed].filter(Boolean);
-    const hiddenChips = Math.max(0, inlineChips.length - TASK_CARD_INLINE_CHIPS);
-    const chipsOpen = !!task.id && this._chipsExpanded.has(task.id);
-    const more = hiddenChips
-      ? `<button class="hk-chip-more" data-chips-more="${escapeHTML(task.id)}" aria-expanded="${
-          chipsOpen ? 'true' : 'false'
-        }" title="${escapeHTML(t('chip.showAll'))}">${chipsOpen ? '−' : `+${hiddenChips}`}</button>`
-      : '';
-    // While the drawer is editing this task, the row stays lit and undimmed so the
-    // thing being edited is visible next to the form editing it.
-    const editing = this._edit.open && !!task.id && this._edit.task?.id === task.id;
-    // The row opens the task's detail page; "Done" stays as a quick action.
-    return `
-      <ha-card class="hk-card${overdue ? ' overdue' : ''}${editing ? ' hk-editing' : ''}${
-        completedOneOff ? ' hk-task-done' : ''
-      }" data-id="${escapeHTML(task.id)}">
-        <div class="hk-card-row hk-row-task">
-          <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
-            <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
-            <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
-          </div>
-          <div class="hk-chips hk-chips-inline${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
-          <span class="hk-row-spacer"></span>
-          <div class="hk-status">${statusChip}</div>
-          <div class="hk-card-actions">
-            ${doneAction}
-          </div>
-        </div>
-      </ha-card>`;
-  }
-
-  private _assetCard(x: Asset, depth = 0, isLast = false, toggleId = ''): string {
-    const kindChip =
-      x.kind === 'virtual'
-        ? virtualDeviceChip(this, x)
-        // The no-device branch reached `deviceName(devices, undefined)`, which is
-        // always '' — so an appliance with no device carried a nameless empty chip.
-        // Matches the detail page, which has always rendered nothing here.
-        : x.device_id
-          ? deviceChip(this, x.device_id)
-          : '';
-    const title =
-      x.name || deviceName(this._hass?.devices, x.device_id) || t('appliance.fallbackName');
-    const subCount = this._assets.filter((a) => a.parent_asset_id === x.id).length;
-    const relCount = x.related_device_ids?.length ?? 0;
-    const extra = [
-      subCount
-        ? `<ha-assist-chip label="${escapeHTML(tn('asset.subdevices', subCount))}"></ha-assist-chip>`
-        : '',
-      relCount
-        ? `<ha-assist-chip label="${escapeHTML(tn('asset.related', relCount))}"></ha-assist-chip>`
-        : '',
-      x.parent_asset_id
-        ? `<ha-assist-chip label="${escapeHTML(
-            '↳ ' + this._assetAncestry(x.parent_asset_id),
-          )}"></ha-assist-chip>`
-        : '',
-      x.archived_at
-        ? `<ha-assist-chip class="hk-archived" label="${escapeHTML(t('chip.archived'))}"></ha-assist-chip>`
-        : '',
-    ].join('');
-    const depthClass = depth > 0 ? ' hk-tree-child' : '';
-    const depthStyle = depth > 0 ? ` style="--hk-tree-depth: ${depth}"` : '';
-    const chevron = toggleId
-      ? `<span class="hk-chevron" data-tree-toggle="${escapeHTML(toggleId)}"></span>`
-      : '';
-    // In the master pane the list doubles as a picker, so the appliance on screen
-    // beside it is marked.
-    const selected =
-      this._detail?.kind === 'asset' && this._detail.id === x.id ? ' hk-selected' : '';
-    return `
-      <ha-card class="hk-card${depthClass}${selected}" data-id="${escapeHTML(x.id)}"${depthStyle}>
-        ${chevron}
-        <div class="hk-card-row">
-          <div class="grow clickable detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(x.id)}" role="button" tabindex="0">
-            <div class="hk-name">${escapeHTML(title)}</div>
-            <div class="hk-meta">${escapeHTML(assetSummary(x, this._hass?.areas))}</div>
-            <div class="hk-chips">${kindChip}${extra}</div>
-          </div>
-        </div>
-      </ha-card>`;
-  }
-
-  private _assetName(assetId: string): string {
-    return this._assets.find((a) => a.id === assetId)?.name || assetId;
-  }
-
-  private _assetAncestry(assetId: string): string {
-    const path: string[] = [];
-    const seen = new Set<string>();
-    let cur: string | null = assetId;
-    while (cur && !seen.has(cur)) {
-      seen.add(cur);
-      const a = this._assets.find((x) => x.id === cur);
-      if (!a) break;
-      path.unshift(a.name || cur);
-      cur = a.parent_asset_id ?? null;
-    }
-    return path.join(' › ');
-  }
-
-  // ── detail page ─────────────────────────────────────────────────────────────
-  private _detailView(): string {
-    const d = this._detail;
-    if (!d) return '';
-    if (d.kind === 'task') {
-      const task = this._tasks.find((x) => x.id === d.id);
-      if (!task) return `<ha-alert alert-type="warning">${escapeHTML(t('detail.gone'))}</ha-alert>`;
-      return this._taskDetail(task);
-    }
-    const asset = this._assets.find((x) => x.id === d.id);
-    if (!asset) return `<ha-alert alert-type="warning">${escapeHTML(t('detail.gone'))}</ha-alert>`;
-    return this._assetDetail(asset);
-  }
-
-  /** Render a URL as a clickable anchor that opens in the browser (new tab). A
-   *  non-http(s) value is shown as inert text (no href) — defence-in-depth against a
-   *  `javascript:` URI that escapeHTML can't neutralise in an href. */
-  private _link(url: string): string {
-    const safe = escapeHTML(url);
-    const href = safeHref(url);
-    return href
-      ? `<a href="${href}" target="_blank" rel="noopener">${safe}</a>`
-      : `<span>${safe}</span>`;
-  }
-
-  /** One label/value row, omitted entirely when the value is empty. */
-  private _row(label: string, value?: string | null, isHtml = false): string {
-    if (value == null || value === '') return '';
-    return `<div class="hk-detail-row"><span class="k">${escapeHTML(label)}</span><span class="v">${
-      isHtml ? value : escapeHTML(value)
-    }</span></div>`;
-  }
-
-  /**
-   * A detail row carrying an object's id, with a button that copies it.
-   *
-   * Every `home_keeper.*` service identifies its target by this id, and until now it
-   * appeared nowhere in the UI — so anyone automating against the services had to dig
-   * a uuid out of a `list_tasks` response first. The services take the object's *name*
-   * too, which covers most cases; the id is what settles the rest, where two things
-   * share a name and only the id says which one you mean.
-   */
-  private _idRow(id: string | null | undefined, compact = false): string {
-    if (!id) return '';
-    const copy = `<ha-icon-button class="hk-copy" data-copy="${escapeHTML(
-      id,
-    )}" label="${escapeHTML(t('btn.copyId'))}" title="${escapeHTML(
-      t('btn.copyId'),
-    )}"><ha-icon icon="mdi:content-copy"></ha-icon></ha-icon-button>`;
-    // Parts and documents are already dense rows, and an id is a footnote on them:
-    // the compact form drops the label and the divider and tucks the id under the
-    // name, so the list keeps its shape. A task or appliance page has a details card
-    // with room for a labelled row like any other field.
-    if (compact) {
-      return `<div class="hk-id-inline"><code>${escapeHTML(id)}</code>${copy}</div>`;
-    }
-    return `<div class="hk-detail-row hk-id-row"><span class="k">${escapeHTML(
-      t('detail.id'),
-    )}</span><span class="v"><code>${escapeHTML(id)}</code>${copy}</span></div>`;
-  }
-
-  /** A human-readable line for a sensor task's binding, with live progress when the
-   *  bound entity's current value is known: usage shows "consumed / target (entity)";
-   *  threshold shows "entity: current (cmp value)"; state shows "entity: current
-   *  (= wanted)". Falls back to the binding alone when the reading is unavailable. */
-  private _sensorProgress(task: Task): string {
-    const s = task.sensor;
-    if (!s) return '';
-    const state = this._hass?.states?.[s.entity_id];
-    const raw = state
-      ? s.attribute
-        ? (state.attributes?.[s.attribute] as unknown)
-        : state.state
-      : undefined;
-    const entity = s.entity_id;
-    // State mode compares strings, so it must read `raw` before the numeric coercion
-    // below turns a perfectly good `on` into NaN.
-    if (s.mode === 'state') {
-      const cond = `= ${s.state ?? ''}`;
-      return raw == null || raw === ''
-        ? `${entity} (${cond})`
-        : `${entity}: ${String(raw)} (${cond})`;
-    }
-    const reading = raw == null || raw === '' ? NaN : Number(raw);
-    if (s.mode === 'threshold') {
-      const cond = `${s.comparison ?? ''} ${s.value ?? ''}`.trim();
-      return Number.isNaN(reading)
-        ? `${entity} (${cond})`
-        : `${entity}: ${reading} (${cond})`;
-    }
-    // usage / meter
-    const target = s.target ?? 0;
-    const unit = s.unit ? ` ${s.unit}` : '';
-    if (!Number.isNaN(reading) && s.baseline != null) {
-      const consumed = Math.max(0, reading - s.baseline);
-      return t('sensor.usageProgress', {
-        consumed: `${round1(consumed)}${unit}`,
-        target: `${target}${unit}`,
-        entity,
-      });
-    }
-    return t('sensor.usageTarget', { target: `${target}${unit}`, entity });
-  }
-
-  /** The meter's fill as an accessible bar, plus the time-backstop line when the
-   *  task carries one. Rendered as HTML under the sensor row on the detail page:
-   *  "how far through the interval am I" is the whole state of a usage task, and a
-   *  bar reads it at a glance in a way "120 of 300 used" does not. Empty for a
-   *  threshold or state task (neither has an interval to be partway through) or when
-   *  the bound entity has no numeric reading. */
-  private _sensorProgressBar(task: Task): string {
-    const s = task.sensor;
-    // Allowlist usage rather than excluding threshold: a mode added later must not
-    // silently inherit the meter bar and render "0 of 0".
-    if (!s || s.mode !== 'usage') return '';
-    const parts: string[] = [];
-    const state = this._hass?.states?.[s.entity_id];
-    const raw = state ? (s.attribute ? state.attributes?.[s.attribute] : state.state) : undefined;
-    const reading = raw == null || raw === '' ? NaN : Number(raw);
-    const target = Number(s.target) || 0;
-    if (!Number.isNaN(reading) && s.baseline != null && target > 0) {
-      const consumed = Math.max(0, reading - s.baseline);
-      const pct = Math.max(0, Math.min(100, (consumed / target) * 100));
-      const label = t('sensor.usageRemaining', {
-        remaining: `${round1(target - consumed)}${s.unit ? ` ${s.unit}` : ''}`,
-      });
-      parts.push(
-        `<div class="hk-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(
-          pct,
-        )}" aria-label="${escapeHTML(label)}"><span style="width:${pct.toFixed(1)}%"></span></div>` +
-          `<div class="hk-meter-note">${escapeHTML(label)}</div>`,
-      );
-    }
-    if (s.also_every) {
-      const every = `${s.also_every.interval} ${t(`opt.unit.${s.also_every.unit}`)}`;
-      parts.push(
-        `<div class="hk-meter-note">${escapeHTML(
-          s.combinator === 'all'
-            ? t('sensor.backstopAll', { every })
-            : t('sensor.backstopAny', { every }),
-        )}</div>`,
-      );
-    }
-    return parts.join('');
-  }
-
-  private _historySection(kind: 'task' | 'asset', id: string): string {
-    const groups = completionGroupsFor(this, kind, id);
-    return `
-      <div class="hk-section">${escapeHTML(t('btn.history'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner hk-hist-body">${historyBody(this, groups)}</div></ha-card>`;
-  }
-
-  private _taskDetail(task: Task): string {
-    const overdue = isOverdue(task);
-    const statusChip = overdue
-      ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-      : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
-    const dev = task.device_id ? deviceChip(this, task.device_id) : '';
-    // The task's *effective* area — its own, else its device's — so the page explains
-    // which "Group by → Area" section the task lands in. When it's inherited, the
-    // device chip sits right beside it and shows where it came from.
-    const area = areaChip(this, task);
-    const tag = tagChip(this, task);
-    const managed = managedChip(this, task);
-    const taskChips = taskChipsHtml(task);
-    const mb = task.managed_by;
-
-    // Source-owned tasks (reconciler-derived wear parts, synced problem sensors) are
-    // managed by their source; the panel offers no edit/delete for them. A *manual*
-    // consumable link (part.manual) is user-owned, so it stays editable/deletable.
-    const sourceOwned =
-      (Boolean(task.source?.part) && !task.source?.part?.manual) ||
-      Boolean(task.source?.problem_sensor);
-    const orphaned = isManagedOrphan(this, task);
-    // Say why Edit and Delete are missing rather than just omitting them. Withholding
-    // both silently left a wear-part task's page reading "<task name> / Done" and
-    // nothing else, which looks like a surface that forgot to render — the managed
-    // path a few lines below has always explained itself.
-    //
-    // Only when nothing else on the page already does. A synced problem sensor carries
-    // its owner's own `completion_prompt` ("Synced from binary_sensor.x — it clears
-    // when the originating integration resolves it"), which says the same thing with
-    // the specifics; adding a generic line above it would just be saying it twice.
-    let manage =
-      sourceOwned && !mb?.completion_prompt
-        ? `<span class="hk-managed-info">${escapeHTML(t('managed.sourceOwned'))}</span>`
-        : '';
-    if (!sourceOwned) {
-      const editBtn = `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
-      // Deletion protection only holds while the owner is present. Once orphaned
-      // (owner uninstalled/disabled), the Delete button returns so the user can
-      // clean the task up — otherwise "delete it from X instead" points nowhere.
-      const deleteBtn =
-        mb?.deletion_protected && !orphaned
-          ? `<span class="hk-managed-info">${escapeHTML(t('managed.deleteBlocked', { name: mb.display_name }))}</span>`
-          : `<ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
-      // "Edit in X" deep link when config_entry_id resolves to a loaded domain.
-      const domain = mb?.config_entry_id ? this._entryDomains[mb.config_entry_id] : null;
-      const openInBtn = domain && !orphaned
-        ? `<ha-button ${btnAttrs('tertiary')} class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
-        : '';
-      manage = `${editBtn}${deleteBtn}${openInBtn}`;
-    }
-
-    // When orphaned, explain why deletion is now allowed; otherwise show the
-    // managing integration's optional completion hint.
-    const completionHint =
-      orphaned && mb
-        ? `<div class="hk-managed-prompt">${escapeHTML(t('managed.orphanCleanup', { name: mb.display_name }))}</div>`
-        : mb?.completion_prompt
-          ? `<div class="hk-managed-prompt">${escapeHTML(mb.completion_prompt)}</div>`
-          : '';
-
-    const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
-    const completedOneOff =
-      task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-    const due = dormantTriggered
-      ? t('due.monitored')
-      : completedOneOff
-        ? t('form.task.completedOn', { date: formatDateTime(task.last_completed, this._lang()) })
-        : task.next_due
-          ? formatDateTime(task.next_due, this._lang())
-          : t('due.none');
-    // Nothing to mark done while dormant — the integration arms it when the
-    // monitored condition fires (e.g. a battery goes low) — or once a one-off is
-    // already completed. A completion-blocked task (a synced problem sensor) keeps a
-    // *disabled* Done that, on click, explains its source clears it (the managed
-    // completion prompt also shows below).
-    // A scan-locked task lands on the same disabled-Done treatment: the tap explains
-    // that the tag is the way in.
-    const doneBtn = dormantTriggered || completedOneOff
-      ? ''
-      : mb?.completion_blocked || scanRequired(task)
-        ? this._blockedDone('d-done-blocked-wrap', task, 'primary')
-        : `<ha-button ${btnAttrs('primary')} class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
-    // Notes get an inline editor right on the detail page: they're long-form prose
-    // that renders as Markdown, so authoring deserves a full-width box with a live
-    // preview rather than one cramped row among the schedule fields. (For a
-    // problem-sensor task it's the *only* way in — its full edit dialog is
-    // suppressed — and the note persists across the mirror being cleared, re-armed,
-    // even deleted and recreated, so it's there next time the problem fires.) A note
-    // its owning integration has locked stays read-only.
-    const notesEditable = !(mb?.locked_fields ?? []).includes('notes');
-    const notes = this._notesCardBody(
-      { kind: 'task', id: task.id },
-      task.notes || '',
-      notesEditable,
-      task.source?.problem_sensor ? t('note.placeholder') : t('note.placeholderMd'),
-    );
-    return `
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">
-        <div class="hk-detail-title">${escapeHTML(task.name)}</div>
-        <div class="hk-chips">${statusChip}${dev}${area}${tag}${taskChips}${managed}</div>
-        <div class="hk-detail-actions">
-          ${doneBtn}
-          ${manage}
-        </div>
-        ${completionHint}
-      </div></ha-card>
-      <div class="hk-section">${escapeHTML(t('detail.schedule'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">
-        ${this._row(t('field.recurrence_type'), recurrenceSummary(task))}
-        ${task.recurrence_type === 'sensor' ? this._row(t('field.sensor_entity_id'), this._sensorProgress(task)) : ''}
-        ${task.recurrence_type === 'sensor' ? this._sensorProgressBar(task) : ''}
-        ${this._row(t('detail.nextDue'), due)}
-        ${this._row(t('field.consumable_link'), this._consumableLinkLabel(task), true)}
-        ${this._idRow(task.id)}
-      </div></ha-card>
-      <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>
-      ${this._historySection('task', task.id)}`;
-  }
-
   /** Appliance notes — always present (even when empty) so the Edit affordance is
    *  discoverable, matching the task detail page. */
-  private _assetNotesSection(asset: Asset): string {
+  _assetNotesSection(asset: Asset): string {
     return this._notesSection({ kind: 'asset', id: asset.id }, asset.notes || '', true);
-  }
-
-  private _assetDetail(asset: Asset): string {
-    const kindChip =
-      asset.kind === 'virtual'
-        ? virtualDeviceChip(this, asset)
-        : asset.device_id
-          ? deviceChip(this, asset.device_id)
-          : '';
-    const parentChip = asset.parent_asset_id
-      ? `<ha-assist-chip label="${escapeHTML(
-          '↳ ' + this._assetAncestry(asset.parent_asset_id),
-        )}"></ha-assist-chip>`
-      : '';
-    const title =
-      asset.name || deviceName(this._hass?.devices, asset.device_id) || t('appliance.fallbackName');
-    const cost = asset.cost != null ? String(asset.cost) : '';
-    // Structured (HA-wired) fields first, then the free-form metadata entries.
-    const meta = (asset.metadata || [])
-      .map((m) =>
-        m.value
-          ? this._row(m.label, m.type === 'link' ? this._link(m.value) : m.value, m.type === 'link')
-          : '',
-      )
-      .join('');
-    const details = [
-      this._row(t('field.manufacturer'), asset.manufacturer),
-      this._row(t('field.model'), asset.model),
-      this._row(t('field.serial_number'), asset.serial_number),
-      this._row(t('field.area_id'), areaName(this._hass?.areas, asset.area_id)),
-      this._row(t('field.cost'), cost),
-      meta,
-      this._idRow(asset.id),
-    ].join('');
-    const detailsCard = details
-      ? `<div class="hk-section">${escapeHTML(t('detail.about'))}</div>
-         <ha-card class="hk-detail-card"><div class="hk-detail-inner">${details}</div></ha-card>`
-      : '';
-    const archived = Boolean(asset.archived_at);
-    const archiveOrRestoreBtn = archived
-      ? `<ha-button ${btnAttrs('secondary')} class="d-restore">${escapeHTML(t('btn.restore'))}</ha-button>`
-      : `<ha-button ${btnAttrs('secondary')} class="d-archive">${escapeHTML(t('btn.archive'))}</ha-button>`;
-    const archivedNote = archived
-      ? `<div class="hk-managed-prompt">${escapeHTML(
-          t('detail.archivedOn', { date: formatDate(asset.archived_at, this._lang()) }),
-        )}</div>`
-      : '';
-    // Seven stacked sections made an appliance a page you scrolled rather than read,
-    // and the section you wanted was rarely the first one. They become sub-tabs, each
-    // a URL of its own so Back leaves a sub-tab like any other destination. The
-    // section builders are unchanged — only one of them renders at a time.
-    const bodies: Record<AssetTab, string> = {
-      parts: this._partsSection(asset),
-      tasks: this._relatedTasksSection(asset),
-      documents: this._documentsSection(asset),
-      details: `${detailsCard}${this._assetNotesSection(asset)}`,
-      related: this._subdevicesSection(asset),
-      history: this._historySection('asset', asset.id),
-    };
-    const tab = this._assetTab();
-    // An empty section still gets its tab: a tab that came and went with its contents
-    // would move every other tab under the cursor as an appliance gains a document.
-    const body =
-      bodies[tab] ||
-      `<ha-alert alert-type="info">${escapeHTML(t('appliance.tabEmpty'))}</ha-alert>`;
-    return `
-      <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
-        <div class="hk-detail-title">${escapeHTML(title)}</div>
-        <div class="hk-chips">${kindChip}${parentChip}</div>
-        ${archivedNote}
-        <div class="hk-detail-actions">
-          <ha-button ${btnAttrs('primary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>
-          ${archiveOrRestoreBtn}
-          <ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>
-        </div>
-      </div>
-      <nav class="hk-subtabs" aria-label="${escapeHTML(asset.name)}">${this._assetSubtabs(asset, tab)}</nav>
-      </ha-card>
-      <div class="hk-subtab-body">${body}</div>`;
-  }
-
-  /** The appliance detail's sub-tab strip, each tab carrying how much it holds. */
-  private _assetSubtabs(asset: Asset, current: AssetTab): string {
-    const counts: Record<AssetTab, number | null> = {
-      parts: asset.parts?.length ?? 0,
-      tasks: tasksForAsset(asset, this._tasks).length,
-      documents: asset.documents?.length ?? 0,
-      details: null,
-      related: this._assets.filter((a) => a.parent_asset_id === asset.id).length +
-        (asset.related_device_ids?.length ?? 0),
-      history: completionGroupsFor(this, 'asset', asset.id).length,
-    };
-    // Short labels: six tabs and their counts have to fit a strip that is already
-    // sharing the row with the appliance list. The sections themselves keep their
-    // fuller headings ("Parts & wear items"), which is where the room for them is.
-    const labels: Record<AssetTab, string> = {
-      parts: t('tab.parts'),
-      tasks: t('tab.tasks'),
-      documents: t('tab.documents'),
-      details: t('detail.about'),
-      related: t('tab.related'),
-      history: t('btn.history'),
-    };
-    return ASSET_TABS.map((tab) => {
-      const n = counts[tab];
-      const count = n ? `<span class="hk-subtab-count">${escapeHTML(String(n))}</span>` : '';
-      return `<button class="hk-subtab${tab === current ? ' active' : ''}" data-tab="${tab}"
-        ${tab === current ? 'aria-current="page"' : ''}>${escapeHTML(labels[tab])}${count}</button>`;
-    }).join('');
-  }
-
-  /** The appliance's documents (manuals/warranties/receipts). Both kinds render as a
-   *  real anchor that opens in a new tab: an external link uses its own URL, an
-   *  uploaded file a **pre-signed** one (`_signFiles` mints it and fills the `href` in;
-   *  the `data-sign` key says which file the anchor points at). Never a JS-only handler
-   *  — see the `documents.ts` header for why (issue #164). */
-  private _documentsSection(asset: Asset): string {
-    const docs = asset.documents || [];
-    if (!docs.length) return '';
-    const rows = docs
-      .map((d) => {
-        const name = escapeHTML(documentLabel(d));
-        // Decorative: the anchor's text already names the document, and `pointer-events:
-        // none` keeps the glyph from being anything a tap could land on *instead* of the
-        // link.
-        const open = `<ha-icon class="hk-doc-ext" icon="${MDI_OPEN_IN_NEW_ICON}" aria-hidden="true"></ha-icon>`;
-        let inner: string;
-        if (d.kind === 'file') {
-          // The signed href may not be minted yet on a first paint; until it lands the
-          // anchor keeps `tabindex` + the JS fallback wired in `_wireDetailActions`.
-          const key = signedFileKey({ kind: 'document', assetId: asset.id, id: d.id || '' });
-          const href = this._signedFiles.getByKey(key);
-          inner = `<a class="hk-doc-file" tabindex="0" data-sign="${escapeHTML(key)}" data-doc="${escapeHTML(
-            d.id || '',
-          )}"${href ? ` href="${safeFileHref(href)}"` : ''} target="_blank" rel="noopener noreferrer" title="${name}">${name}${open}</a>`;
-        } else {
-          // A link with no usable URL renders as plain text rather than an anchor to
-          // nowhere: now that these *look* clickable, an empty href would reload the
-          // panel on tap, which is worse than obviously-inert text.
-          const href = safeHref(d.url);
-          inner = href
-            ? `<a class="hk-doc-file" href="${href}" target="_blank" rel="noopener noreferrer" title="${name}">${name}${open}</a>`
-            : name;
-        }
-        return `<div class="hk-detail-row hk-doc-row"><span class="k"><ha-icon
-          icon="${documentIcon(d)}"></ha-icon></span><span class="v">${inner}${this._idRow(
-            d.id,
-            true,
-          )}</span></div>`;
-      })
-      .join('');
-    return `<div class="hk-section">${escapeHTML(t('section.documents'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
-  }
-
-  private _partsSection(asset: Asset): string {
-    const parts = asset.parts || [];
-    if (!parts.length) return '';
-    const chip = (label: string, cls = ''): string =>
-      `<ha-assist-chip class="${cls}" label="${escapeHTML(label)}"></ha-assist-chip>`;
-    const rows = parts
-      .map((p) => {
-        const isWear = p.type === 'wear';
-        // Subtitle: the descriptive, identity bits (part number, vendor, cost).
-        const sub: string[] = [];
-        if (p.part_number) sub.push(p.part_number);
-        if (p.vendor) sub.push(p.vendor);
-        if (p.cost != null) sub.push(String(p.cost));
-        const subLine = sub.length
-          ? `<div class="hk-part-sub">${escapeHTML(sub.join(' · '))}</div>`
-          : '';
-        // The status a part is read for — how often it is replaced, when it last was,
-        // and how many spares are left — is the same three questions for every part,
-        // so each gets a fixed cell. On a wide screen the cells line up into columns
-        // and the list becomes a table that can be scanned down; narrow, they fall
-        // back to the wrapped chip row they have always been. A part that can't answer
-        // one of the three still emits its cell, or the columns would not align.
-        const cadence =
-          isWear && p.replace_interval && p.replace_unit
-            ? chip(
-                t('part.every', {
-                  n: p.replace_interval,
-                  unit: t(`opt.unit.${p.replace_unit}`),
-                }),
-              )
-            : '';
-        const replaced = isWear
-          ? chip(
-              p.last_replaced
-                ? t('part.replacedOn', { date: p.last_replaced })
-                : t('part.neverReplaced'),
-            )
-          : '';
-        const low = p.stock != null && p.reorder_at != null && p.stock <= p.reorder_at;
-        let spares = '';
-        if (p.stock != null) {
-          // "In stock: 250 ml" — the unit rides with the number wherever stock is
-          // shown, so a measured part never reads as a bare count of somethings.
-          const onHand = formatQuantity(p.stock, p.stock_unit);
-          spares = low
-            ? chip(t('part.lowStock', { n: onHand }), 'hk-overdue')
-            : chip(t('part.inStock', { n: onHand }));
-          // What one completion takes off, when it isn't the plain single spare.
-          if (p.consume_quantity != null) {
-            spares += chip(t('part.perUse', { n: formatQuantity(p.consume_quantity, p.stock_unit) }));
-          }
-          // A bar for how much of the reorder point is left: "1 of 2" is a number to
-          // work out, a half-empty amber bar is a glance. Only where a reorder point
-          // says what "enough" means.
-          if (p.reorder_at != null && p.reorder_at > 0) {
-            const pct = Math.max(0, Math.min(100, (p.stock / (p.reorder_at * 2)) * 100));
-            spares +=
-              `<div class="hk-meter hk-part-meter${low ? ' low' : ''}" role="progressbar"` +
-              ` aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"` +
-              ` aria-label="${escapeHTML(t('part.inStock', { n: formatQuantity(p.stock, p.stock_unit) }))}">` +
-              `<span style="width:${pct.toFixed(1)}%"></span></div>`;
-          }
-        }
-        const chipRow =
-          cadence || replaced || spares
-            ? `<div class="hk-part-chips">
-                 <div class="hk-part-cell hk-part-cadence">${cadence}</div>
-                 <div class="hk-part-cell hk-part-replaced">${replaced}</div>
-                 <div class="hk-part-cell hk-part-spares">${spares}</div>
-               </div>`
-            : '';
-        const badge = `<span class="hk-part-badge">${escapeHTML(t(`opt.part.${p.type}`))}</span>`;
-        const name = p.url
-          ? `<a href="${safeHref(p.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(p.name)}</a>`
-          : escapeHTML(p.name);
-        // An attached file (receipt/spec sheet/photo) opens via a **pre-signed** URL
-        // filled in by `_signFiles`, the same native-anchor pattern asset documents use.
-        const fileKey = signedFileKey({ kind: 'part', assetId: asset.id, id: p.id || '' });
-        const fileHref = this._signedFiles.getByKey(fileKey);
-        const fileLink = p.file_name
-          ? `<a class="hk-part-file" tabindex="0" data-sign="${escapeHTML(
-              fileKey,
-            )}" data-part="${escapeHTML(p.id || '')}"${
-              fileHref ? ` href="${safeFileHref(fileHref)}"` : ''
-            } target="_blank" rel="noopener noreferrer" title="${escapeHTML(
-              p.file_name,
-            )}"><ha-icon icon="mdi:paperclip" aria-hidden="true"></ha-icon></a>`
-          : '';
-        // A part's notes render as Markdown like every other note, but read-only:
-        // parts are edited as a whole in the appliance's parts editor, so letting one
-        // field be edited inline while its siblings aren't would be inconsistent.
-        const partNotes = p.notes
-          ? `<div class="hk-part-notes">${markdownBlock(p.notes, 'hk-md-compact')}</div>`
-          : '';
-        return `
-          <div class="hk-part-row ${isWear ? 'wear' : 'consumable'}">
-            <div class="hk-part-ic">
-              <ha-svg-icon data-mdi="${isWear ? 'wear' : 'consumable'}"></ha-svg-icon>
-            </div>
-            <div class="grow">
-              <div class="hk-part-name">${name}${badge}${fileLink}</div>
-              ${subLine}
-              ${chipRow}
-              ${partNotes}
-              ${this._idRow(p.id, true)}
-            </div>
-          </div>`;
-      })
-      .join('');
-    return `
-      <div class="hk-section">${escapeHTML(t('section.parts'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner hk-parts">${rows}</div></ha-card>`;
-  }
-
-  /** Set the mdi `path` on each part-row icon (ha-svg-icon takes a property). */
-  private _wirePartIcons(root: ShadowRoot): void {
-    root.querySelectorAll<HTMLElement>('.hk-part-ic ha-svg-icon').forEach((el) => {
-      (el as HTMLElement & { path?: string }).path =
-        el.dataset.mdi === 'wear' ? MDI_WEAR : MDI_CONSUMABLE;
-    });
-  }
-
-  private _relatedTasksSection(asset: Asset): string {
-    const tasks = tasksForAsset(asset, this._tasks);
-    if (!tasks.length) return '';
-    const rows = tasks
-      .map((task) => {
-        const overdue = isOverdue(task);
-        const chip = overdue
-          ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-          : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
-        return `
-          <div class="hk-rel detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(
-            task.id,
-          )}" role="button" tabindex="0">
-            <div class="grow"><div class="hk-name">${escapeHTML(task.name)}</div>
-              <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}</div></div>
-            <div class="hk-chips">${chip}</div>
-          </div>`;
-      })
-      .join('');
-    return `
-      <div class="hk-section">${escapeHTML(t('detail.relatedTasks'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
-  }
-
-  private _subdevicesSection(asset: Asset): string {
-    const subs = this._assets.filter((a) => a.parent_asset_id === asset.id);
-    if (!subs.length) return '';
-    const rows = subs
-      .map((sub) => {
-        const title =
-          sub.name || deviceName(this._hass?.devices, sub.device_id) || t('appliance.fallbackName');
-        return `
-          <div class="hk-rel detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(
-            sub.id,
-          )}" role="button" tabindex="0">
-            <div class="grow"><div class="hk-name">${escapeHTML(title)}</div>
-              <div class="hk-meta">${escapeHTML(assetSummary(sub, this._hass?.areas))}</div></div>
-          </div>`;
-      })
-      .join('');
-    return `
-      <div class="hk-section">${escapeHTML(tn('asset.subdevices', subs.length))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
   }
 
   // ── ha-form schemas ─────────────────────────────────────────────────────────
@@ -3306,36 +2043,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     );
 
     // A detail page's own controls: back, its action buttons, device chips and
-    // completion-delete buttons.
-    if (this._detail) {
-      root.getElementById('back-btn')?.addEventListener('click', () => this._closeDetail());
-      this._wireDetailActions(root);
-      this._wirePartIcons(root);
-      wireHistory(this, root);
-      root.querySelectorAll<HTMLElement>('.hk-subtab').forEach((b) =>
-        b.addEventListener('click', () => {
-          const tab = b.dataset.tab;
-          if (tab && (ASSET_TABS as readonly string[]).includes(tab)) {
-            this._setAssetTab(tab as AssetTab);
-          }
-        }),
-      );
-      // Both kinds of detail page carry an id row with a copy button.
-      this._wireCopyButtons(root);
-      // A task detail is a page of its own and stops here, so the wiring it shares
-      // with the list views happens now rather than below.
-      //
-      // An appliance detail keeps going: it is rendered beside the appliance list, so
-      // it needs the top tabs, the list controls and the list rows too. Crucially it
-      // must NOT wire the shared handlers twice — a second `.detail-open` listener
-      // pushed two history entries per click, so Back out of a task opened from an
-      // appliance landed back on the same task.
-      if (this._detail.kind !== 'asset') {
-        this._wireDetailOpeners(root);
-        wireDeviceChips(root);
-        return;
-      }
-    }
+    // completion-delete buttons. A task detail is a page of its own and stops here
+    // (`wireDetail` says so), because the wiring it shares with the list views has
+    // already happened inside it; an appliance detail is rendered beside the
+    // appliance list and carries on into the list wiring below.
+    if (wireDetail(this, root)) return;
 
     // Tab navigation. Listen on each tab (click) and on the group's shoelace
     // `sl-tab-show` event (whichever fires) — both funnel through _switchView,
@@ -3352,76 +2064,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       if (name === 'tasks' || name === 'appliances' || name === 'settings') this._switchView(name);
     });
 
-    root.getElementById('add-btn')?.addEventListener('click', () => {
-      if (this._view === 'tasks') this._openCreate();
-      else this._openCreateAsset();
-    });
-
-    root.getElementById('export-btn')?.addEventListener('click', () => this._exportInventory());
-
-    root
-      .getElementById('cleanup-orphans-btn')
-      ?.addEventListener('click', () => void this._cleanupOrphans());
-
-    // The way out of a filter that matches nothing: clears the scope *and* any active
-    // Profile, since either can be what emptied the list.
-    root.getElementById('hk-show-all')?.addEventListener('click', () => {
-      if (this._activeProfile()) this._setProfile('');
-      this._setFilter('all');
-    });
-
-    // Filter / group-by segmented controls.
-    root.querySelectorAll<HTMLElement>('.hk-seg-btn').forEach((b) =>
-      b.addEventListener('click', () => {
-        const seg = (b.closest('.hk-seg') as HTMLElement | null)?.dataset.seg;
-        const val = b.dataset.segVal;
-        if (!val) return;
-        if (seg === 'group') this._setGroupBy(val as GroupBy);
-        else if (seg === 'filter') this._setFilter(val as TaskFilter);
-        else if (seg === 'assetFilter') this._setAssetFilter(val as AssetFilter);
-        else if (seg === 'assetView') this._setAssetView(val as AssetView);
-      }),
-    );
-    // The dropdown-shaped controls (currently Group by) speak the same `data-seg`
-    // vocabulary as the pill segments, so both shapes route to the same setters.
-    root.querySelectorAll<HTMLSelectElement>('select[data-seg-select]').forEach((s) =>
-      s.addEventListener('change', () => {
-        const seg = s.dataset.segSelect;
-        const val = s.value;
-        if (seg === 'group') this._setGroupBy(val as GroupBy);
-        else if (seg === 'filter') this._setFilter(val as TaskFilter);
-        else if (seg === 'assetFilter') this._setAssetFilter(val as AssetFilter);
-        else if (seg === 'assetView') this._setAssetView(val as AssetView);
-      }),
-    );
-    // Saved-Profile filter dropdown.
-    root
-      .querySelector<HTMLSelectElement>('select[data-profile-filter]')
-      ?.addEventListener('change', (e) =>
-        this._setProfile((e.target as HTMLSelectElement).value),
-      );
-    // Remember which group sections the user collapsed (no re-render needed).
-    root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
-      d.addEventListener('toggle', () => {
-        const key = d.dataset.groupKey || '';
-        if (d.open) this._collapsed.delete(key);
-        else this._collapsed.add(key);
-      }),
-    );
-    // Tree view: expand/collapse parent groups.
-    root.querySelectorAll<HTMLElement>('.hk-chevron[data-tree-toggle]').forEach((ch) =>
-      ch.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const group = ch.closest('.hk-tree-group');
-        if (group) group.classList.toggle('hk-tree-open');
-        const id = ch.dataset.treeToggle;
-        if (id) {
-          if (this._treeCollapsed.has(id)) this._treeCollapsed.delete(id);
-          else this._treeCollapsed.add(id);
-          try { localStorage.setItem(LS_TREE_COLLAPSED, JSON.stringify([...this._treeCollapsed])); } catch { /* quota */ }
-        }
-      }),
-    );
+    // The control row (Add/Export, the scope pills and their dropdown twins, the
+    // saved-Profile picker, the group-collapse memory) and the list surfaces (orphan
+    // cleanup, the empty state's way out, the tree toggles, a row's quick Done, the
+    // intro dismiss and the "+n" chip unfold). Both wire disjoint selectors, none of
+    // which the settings forms below emit, so the two passes sit together here.
+    wireControls(this, root);
+    wireLists(this, root);
 
     // Forms.
     const settingsHost = root.getElementById('hk-settings-host');
@@ -3476,170 +2125,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       ?.addEventListener('click', () => this._closeSettingsSection());
 
     // Card actions: the row opens the detail page; tasks keep a quick "Done".
-    this._wireDetailOpeners(root);
-    if (this._view === 'tasks') {
-      root.querySelectorAll<HTMLElement>('.done-btn').forEach((b) =>
-        b.addEventListener('click', () => {
-          const task = this._tasks.find((x) => x.id === b.dataset.id);
-          if (task) void this._complete(task);
-        }),
-      );
-      root.querySelectorAll<HTMLElement>('.hk-intro-dismiss').forEach((b) =>
-        b.addEventListener('click', () => {
-          this._introDismissed = true;
-          this._render();
-          if (this._hass) {
-            void api.setIntroDismissed(this._hass).catch(() => {
-              // best-effort — if this fails the banner simply reappears next load.
-            });
-          }
-        }),
-      );
-    }
-    // A completion-blocked Done (card row or detail) explains why on click rather
-    // than completing — its source clears it.
-    root.querySelectorAll<HTMLElement>('.done-blocked-wrap').forEach((b) =>
-      b.addEventListener('click', () => {
-        const task = this._tasks.find((x) => x.id === b.dataset.id);
-        if (task) this._notifyBlocked(task);
-      }),
-    );
-    // "+n" unfolds a row's hidden chips in place. Toggling a class on the row rather
-    // than re-rendering keeps the list's scroll position and every other row's state.
-    root.querySelectorAll<HTMLElement>('.hk-chip-more').forEach((btn) =>
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const id = btn.dataset.chipsMore;
-        if (!id) return;
-        const chips = btn.closest('.hk-chips-inline');
-        const open = !this._chipsExpanded.has(id);
-        if (open) this._chipsExpanded.add(id);
-        else this._chipsExpanded.delete(id);
-        chips?.classList.toggle('hk-chips-open', open);
-        btn.setAttribute('aria-expanded', String(open));
-        btn.textContent = open
-          ? '−'
-          : `+${Math.max(0, (chips?.children.length ?? 1) - 1 - TASK_CARD_INLINE_CHIPS)}`;
-      }),
-    );
+    wireDetailOpeners(this, root);
     wireDeviceChips(root);
-  }
-
-  /** Wire every id row's copy button. One pass covers the task and appliance
-   *  pages plus the part and document rows, which all render the same row. */
-  private _wireCopyButtons(root: ShadowRoot): void {
-    root.querySelectorAll<HTMLElement>('.hk-copy[data-copy]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const id = el.dataset.copy;
-        if (!id) return;
-        // Report what actually happened: over plain HTTP the clipboard API is absent
-        // and the fallback can still fail, and claiming a copy that never landed
-        // leaves the user pasting whatever was there before.
-        void copyText(id).then((ok) => {
-          toast(this, ok ? t('toast.idCopied') : t('toast.copyFailed'));
-        });
-      });
-    });
-  }
-
-  /** Wire every `.detail-open` row to open its object's detail page. */
-  private _wireDetailOpeners(root: ShadowRoot): void {
-    root.querySelectorAll<HTMLElement>('.detail-open').forEach((el) => {
-      const go = (): void => {
-        const kind = el.dataset.detailKind;
-        const id = el.dataset.detailId;
-        if ((kind === 'task' || kind === 'asset') && id) this._openDetail(kind, id);
-      };
-      el.addEventListener('click', go);
-      el.addEventListener('keydown', (e) => {
-        const key = (e as KeyboardEvent).key;
-        if (key === 'Enter' || key === ' ') {
-          e.preventDefault();
-          go();
-        }
-      });
-    });
-  }
-
-  /** Wire the detail page's Done / Edit / Delete / Open-in buttons. */
-  private _wireDetailActions(root: ShadowRoot): void {
-    const d = this._detail;
-    if (!d) return;
-    // The `.d-del` variant used to be forced here, because `destructive` never
-    // reflected into a colour. `variant` is a real reactive attribute on ha-button,
-    // so `btnAttrs('danger')` in the markup does it — and does it for *every* match,
-    // which this querySelector (singular) never did.
-    if (d.kind === 'task') {
-      const task = this._tasks.find((x) => x.id === d.id);
-      if (!task) return;
-      root.querySelector('.d-done')?.addEventListener('click', () => void this._complete(task));
-      root
-        .querySelector('.d-done-blocked-wrap')
-        ?.addEventListener('click', () => this._notifyBlocked(task));
-      root.querySelector('.d-edit')?.addEventListener('click', () => this._openEdit(task));
-      this._wireNoteEditor(root, { kind: 'task', id: task.id });
-      root.querySelector('.d-del')?.addEventListener('click', () => {
-        this._openConfirmDialog(t('confirm.deleteTask', { name: task.name }), () => {
-          // The detail is about to vanish: replace it with its list so Forward
-          // can't return to a deleted task.
-          this._navigate({ view: 'tasks', detail: null }, true);
-          void this._delete(task);
-        });
-      });
-      // "Edit in X" deep link: navigate to the managing integration's config page
-      // (same helper the Companions "Configure" button uses).
-      root.querySelectorAll<HTMLElement>('.d-open-in').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const domain = btn.dataset.domain;
-          if (domain) navigateTo(`/config/integrations/integration/${domain}`);
-        });
-      });
-      return;
-    }
-    const asset = this._assets.find((x) => x.id === d.id);
-    if (!asset) return;
-    root.querySelector('.d-edit')?.addEventListener('click', () => this._openEditAsset(asset));
-    this._wireNoteEditor(root, { kind: 'asset', id: asset.id });
-    root.querySelector('.d-archive')?.addEventListener('click', () => void this._archiveAsset(asset));
-    root.querySelector('.d-restore')?.addEventListener('click', () => void this._restoreAsset(asset));
-    root.querySelector('.d-del')?.addEventListener('click', () => {
-      const name =
-        asset.name || deviceName(this._hass?.devices, asset.device_id) || t('appliance.fallbackName');
-      this._openConfirmDialog(t('confirm.deleteAsset', { name }), () => {
-        // The detail is about to vanish: replace it with its list so Forward
-        // can't return to a deleted appliance.
-        this._navigate({ view: 'appliances', detail: null }, true);
-        void this._deleteAsset(asset);
-      });
-    });
-    // Uploaded files (asset documents and part attachments) open via a short-lived
-    // signed URL carried on the anchor's `href` — `_signFiles` mints it right after
-    // this render. These handlers are the **fallback** for the window before that
-    // lands (and for a sign that failed outright); once the anchor has an href the
-    // browser's native navigation owns the click, so they stand down.
-    const fallback = (el: HTMLElement, open: () => void): void => {
-      const run = (e: Event): void => {
-        if (el.getAttribute('href')) return; // native tap — don't double-open
-        e.preventDefault();
-        open();
-      };
-      el.addEventListener('click', run);
-      el.addEventListener('keydown', (e) => {
-        if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') run(e);
-      });
-    };
-    root.querySelectorAll<HTMLElement>('a.hk-doc-file[data-doc]').forEach((el) => {
-      fallback(el, () => {
-        const doc = asset.documents?.find((d) => d.id === el.dataset.doc);
-        if (doc && this._hass) void openDocument(this._hass, asset.id, doc);
-      });
-    });
-    root.querySelectorAll<HTMLElement>('a.hk-part-file[data-part]').forEach((el) => {
-      fallback(el, () => {
-        const part = asset.parts?.find((p) => p.id === el.dataset.part);
-        if (part && this._hass) void openPartFile(this._hass, asset.id, part);
-      });
-    });
   }
 
   /**
@@ -4822,7 +3309,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Resolve a task's part link to a "Appliance · Part · In stock: N" detail line
    *  (HTML — the part name is a clickable link to its product page when it has a
    *  `url`, same anchor pattern as the appliance's parts-list read view). */
-  private _consumableLinkLabel(task: Task): string {
+  _consumableLinkLabel(task: Task): string {
     const part = task.source?.part;
     if (!part) return '';
     const asset = this._assets.find((a) => a.id === part.asset_id);
