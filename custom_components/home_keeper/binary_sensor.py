@@ -147,10 +147,7 @@ class HomeKeeperPartLowStockBinarySensor(
 
     def _part(self) -> dict[str, Any] | None:
         asset = self.coordinator.store.get_asset(self._asset_id) or {}
-        for part in asset.get("parts", []) or []:
-            if part.get("id") == self._part_id:
-                return part
-        return None
+        return asset_model.find_part(asset, self._part_id)
 
     @property
     def is_on(self) -> bool:

@@ -393,7 +393,7 @@ class HomeKeeperStore:
             asset = self._assets.get(asset_id)
             if asset is None:
                 raise models.TaskValidationError(f"unknown asset: {asset_id!r}")
-            if not any(p.get("id") == part_id for p in asset.get("parts", [])):
+            if assets.find_part(asset, part_id) is None:
                 raise models.TaskValidationError(
                     f"asset {asset_id!r} has no part {part_id!r}"
                 )
@@ -796,7 +796,7 @@ class HomeKeeperStore:
         asset = self._assets.get(asset_id)
         if asset is None:
             raise KeyError(asset_id)
-        if not any(p.get("id") == part_id for p in asset.get("parts", [])):
+        if assets.find_part(asset, part_id) is None:
             raise KeyError(part_id)
         removed = assets.clear_part_file(asset, part_id)
         if removed is None:
@@ -1585,14 +1585,13 @@ class HomeKeeperStore:
             if hasattr(when, "date")
             else str(when)[:10]
         )
-        for part in asset.get("parts", []):
-            if part.get("id") == src.get("part_id"):
-                part["last_replaced"] = when_date
-                # Completing a wear-part replacement consumes the part's per-use
-                # amount (one whole spare unless it says otherwise); signal a
-                # low/out-of-stock crossing so users can automate a reorder.
-                self._emit_stock_event(assets.consume_part_stock(part), asset, part)
-                break
+        part = assets.find_part(asset, src.get("part_id"))
+        if part is not None:
+            part["last_replaced"] = when_date
+            # Completing a wear-part replacement consumes the part's per-use amount
+            # (one whole spare unless it says otherwise); signal a low/out-of-stock
+            # crossing so users can automate a reorder.
+            self._emit_stock_event(assets.consume_part_stock(part), asset, part)
 
     def _stamp_buy_restock(self, task: dict[str, Any]) -> None:
         """On completing an auto-created buy task, restock its part.
@@ -1610,11 +1609,10 @@ class HomeKeeperStore:
         asset = self._assets.get(src["asset_id"])
         if not asset:
             return
-        for part in asset.get("parts", []):
-            if part.get("id") == src.get("part_id"):
-                qty = assets.part_restock_quantity(part)
-                self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
-                break
+        part = assets.find_part(asset, src.get("part_id"))
+        if part is not None:
+            qty = assets.part_restock_quantity(part)
+            self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
 
     def _emit_stock_event(
         self, transition: str, asset: dict[str, Any], part: dict[str, Any]
@@ -1648,10 +1646,10 @@ class HomeKeeperStore:
         asset = self._assets.get(asset_id)
         if asset is None:
             raise KeyError(asset_id)
-        for part in asset.get("parts", []):
-            if part.get("id") == part_id:
-                transition = assets.adjust_part_stock(part, delta)
-                await self._save()
-                self._emit_stock_event(transition, asset, part)
-                return asset
-        raise KeyError(part_id)
+        part = assets.find_part(asset, part_id)
+        if part is None:
+            raise KeyError(part_id)
+        transition = assets.adjust_part_stock(part, delta)
+        await self._save()
+        self._emit_stock_event(transition, asset, part)
+        return asset

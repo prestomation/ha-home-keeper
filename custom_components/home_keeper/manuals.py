@@ -38,7 +38,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.http import KEY_HASS
 
 from . import documents
-from .assets import AssetValidationError
+from .assets import AssetValidationError, find_part
 from .backend_i18n import resolve_exception
 from .const import (
     DOCUMENT_URL_PREFIX,
@@ -318,10 +318,8 @@ def _file_document(asset: dict[str, Any] | None, document_id: str) -> dict | Non
 
 
 def _part_with_file(asset: dict[str, Any] | None, part_id: str) -> dict | None:
-    for part in (asset or {}).get("parts", []):
-        if part.get("id") == part_id and part.get("file_name"):
-            return part
-    return None
+    part = find_part(asset or {}, part_id)
+    return part if part and part.get("file_name") else None
 
 
 async def async_sign_document_url(
@@ -690,7 +688,7 @@ class HomeKeeperPartFileView(HomeAssistantView):
         if asset is None:
             message = resolve_exception(lang, "asset_not_found", asset_id=asset_id)
             return self.json_message(message, HTTPStatus.NOT_FOUND)
-        if not any(p.get("id") == part_id for p in asset.get("parts", [])):
+        if find_part(asset, part_id) is None:
             message = resolve_exception(
                 lang, "unknown_part", asset_id=asset_id, part_id=part_id
             )
