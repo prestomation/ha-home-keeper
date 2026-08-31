@@ -12,6 +12,7 @@
 import * as api from './api';
 import { t, tn } from './i18n';
 import { markdownBlock } from './markdown';
+import { openCompletionEdit, openMoveCompletion } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { MDI_DELETE, MDI_EDIT, MDI_MOVE_DATE } from './panel-icons';
 import type { HistoryGroup } from './panel-types';
@@ -270,7 +271,7 @@ export function wireHistory(p: PanelHost, root: ParentNode): void {
       if (!ts || !taskId) return;
       const task = p._tasks.find((x) => x.id === taskId);
       const comp = task?.completions?.find((c) => c.ts === ts);
-      if (task && comp) p._openCompletionEdit(task, comp);
+      if (task && comp) openCompletionEdit(p, task, comp);
     });
   });
   root.querySelectorAll<HTMLElement>('.hk-hist-move').forEach((b) => {
@@ -280,7 +281,7 @@ export function wireHistory(p: PanelHost, root: ParentNode): void {
       const taskId = b.dataset.moveTask;
       if (!ts || !taskId) return;
       const task = p._tasks.find((x) => x.id === taskId);
-      if (task) p._openMoveCompletion(task, ts);
+      if (task) openMoveCompletion(p, task, ts);
     });
   });
 }

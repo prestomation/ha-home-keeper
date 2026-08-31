@@ -27,6 +27,7 @@ import {
   virtualDeviceChip,
   wireDeviceChips,
 } from './panel-chips';
+import { openConfirmDialog } from './panel-dialogs';
 import { completionGroupsFor, historyBody, wireHistory } from './panel-history';
 import type { PanelHost } from './panel-host';
 import { MDI_CONSUMABLE, MDI_OPEN_IN_NEW_ICON, MDI_WEAR } from './panel-icons';
@@ -740,7 +741,7 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
     root.querySelector('.d-edit')?.addEventListener('click', () => p._openEdit(task));
     p._wireNoteEditor(root, { kind: 'task', id: task.id });
     root.querySelector('.d-del')?.addEventListener('click', () => {
-      p._openConfirmDialog(t('confirm.deleteTask', { name: task.name }), () => {
+      openConfirmDialog(p, t('confirm.deleteTask', { name: task.name }), () => {
         // The detail is about to vanish: replace it with its list so Forward
         // can't return to a deleted task.
         p._navigate({ view: 'tasks', detail: null }, true);
@@ -766,7 +767,7 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   root.querySelector('.d-del')?.addEventListener('click', () => {
     const name =
       asset.name || deviceName(p._hass?.devices, asset.device_id) || t('appliance.fallbackName');
-    p._openConfirmDialog(t('confirm.deleteAsset', { name }), () => {
+    openConfirmDialog(p, t('confirm.deleteAsset', { name }), () => {
       // The detail is about to vanish: replace it with its list so Forward
       // can't return to a deleted appliance.
       p._navigate({ view: 'appliances', detail: null }, true);

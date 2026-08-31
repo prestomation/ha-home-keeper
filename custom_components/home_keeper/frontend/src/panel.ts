@@ -11,10 +11,7 @@ import {
   buildTaskPayload,
   cardLinkTokens,
   consumableLinkToken,
-  haDateTimeToIso,
-  isoToHaDateTime,
   selArea,
-  selDateTime,
   selDevice,
   selIcon,
   selNumber,
@@ -31,7 +28,6 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
-import { selEntity } from './forms';
 import { setLanguage, t } from './i18n';
 import {
   createPreview,
@@ -49,6 +45,13 @@ import {
 import { wireDeviceChips } from './panel-chips';
 import { controls, wireControls } from './panel-controls';
 import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
+import {
+  openCompletionDialog,
+  openConfirmDialog,
+  renderCompletionDialog,
+  renderMoveCompletionDialog,
+  teardownOverlay,
+} from './panel-dialogs';
 import { collapsibleSection, section, setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
 import { MDI_CLOSE, REQUIRED_COMPONENTS, SENSOR_DOCS_URL } from './panel-icons';
@@ -84,7 +87,6 @@ import type {
   Asset,
   AssetKind,
   Companion,
-  Completion,
   Hass,
   HomeKeeperOptions,
   ManagedBy,
@@ -103,7 +105,6 @@ import {
   safeHref,
   scanRequired,
   setBtnWeight,
-  taskRecordsReading,
   type PanelLocation,
   type PanelView,
   type AssetTab,
@@ -131,27 +132,27 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   public narrow = false;
   _tasks: Task[] = [];
   _assets: Asset[] = [];
-  private _completion: CompletionDialogState = {
+  _completion: CompletionDialogState = {
     open: false,
     task: null,
     data: {},
     required: [],
   };
-  private _moveCompletion: MoveCompletionDialogState = {
+  _moveCompletion: MoveCompletionDialogState = {
     open: false,
     task: null,
     ts: '',
   };
-  private _confirmDelete: { open: boolean; label: string; onConfirm: (() => void) | null } = {
+  _confirmDelete: { open: boolean; label: string; onConfirm: (() => void) | null } = {
     open: false,
     label: '',
     onConfirm: null,
   };
   // Body-level scrim for the delete confirmation overlay.
-  private _confirmScrim: HTMLElement | null = null;
+  _confirmScrim: HTMLElement | null = null;
   // The document keydown (Escape) handler bound while the confirm dialog is open, held
   // as a field so disconnectedCallback can remove it if we unmount mid-dialog.
-  private _confirmOnKey: ((e: KeyboardEvent) => void) | null = null;
+  _confirmOnKey: ((e: KeyboardEvent) => void) | null = null;
   // config entry id -> integration domain, for resolving device brand logos.
   _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.
@@ -254,7 +255,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // anything that registers one: the list is emptied in `_render`, at the point the
   // shadow tree those elements live in is replaced. A region module that reset it would
   // drop the elements an earlier pass registered and stop feeding them `hass`.
-  private _liveHassEls: Array<{ hass?: Hass }> = [];
+  _liveHassEls: Array<{ hass?: Hass }> = [];
 
   set hass(hass: Hass) {
     const first = !this._hass;
@@ -436,18 +437,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // Tear down anything appended outside our shadow DOM so it can't leak on unmount:
     // the body-level confirm scrim and its document keydown listener (both live past
     // the element otherwise), plus any pending per-keystroke persist timers.
-    if (this._drawerOnKey) {
-      document.removeEventListener('keydown', this._drawerOnKey);
-      this._drawerOnKey = null;
-    }
-    if (this._confirmOnKey) {
-      document.removeEventListener('keydown', this._confirmOnKey);
-      this._confirmOnKey = null;
-    }
-    if (this._confirmScrim) {
-      this._confirmScrim.remove();
-      this._confirmScrim = null;
-    }
+    teardownOverlay(this);
     // The sheet-threshold media query outlives the element, so its listener has to
     // come off too — it closes over `this` and would otherwise keep the whole
     // detached shadow tree reachable, and re-render it on every crossing.
@@ -928,7 +918,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // Tasks set to capture detail open a dialog first; the default one-taps.
     const mode = task.completion_detail || 'none';
     if (mode === 'optional' || mode === 'required') {
-      this._openCompletionDialog(task);
+      openCompletionDialog(this, task);
       return;
     }
     try {
@@ -938,215 +928,6 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       toast(this, t('error.actionFailed'));
     }
     await this._refresh();
-  }
-
-  /** Open the completion-details dialog to log a new completion for *task*. */
-  private _openCompletionDialog(task: Task): void {
-    this._completion = {
-      open: true,
-      task,
-      data: {},
-      required:
-        task.completion_detail === 'required' ? task.completion_required_fields || ['note'] : [],
-    };
-    this._render();
-  }
-
-  /** Open the dialog to edit an already-recorded completion's metadata. */
-  _openCompletionEdit(task: Task, c: Completion): void {
-    this._completion = {
-      open: true,
-      task,
-      ts: c.ts,
-      data: { note: c.note, cost: c.cost, photo: c.photo, who: c.who, reading: c.reading },
-      required: [],
-    };
-    this._render();
-  }
-
-  private _closeCompletionDialog(): void {
-    this._completion = { open: false, task: null, data: {}, required: [] };
-    this._render();
-  }
-
-  /**
-   * Open the "move date" dialog to re-timestamp an already-recorded completion.
-   * Distinct from `_openCompletionEdit` (metadata only) — this changes `ts` itself
-   * via `api.moveCompletion`, never `api.updateCompletion`.
-   */
-  _openMoveCompletion(task: Task, ts: string): void {
-    this._moveCompletion = { open: true, task, ts, newTs: ts };
-    this._render();
-  }
-
-  private _closeMoveCompletion(): void {
-    this._moveCompletion = { open: false, task: null, ts: '' };
-    this._render();
-  }
-
-  private async _submitMoveCompletion(): Promise<void> {
-    const m = this._moveCompletion;
-    if (!this._hass || !m.task || !m.newTs) return;
-    try {
-      await api.moveCompletion(this._hass, m.task.id, m.ts, m.newTs);
-      this._closeMoveCompletion();
-      await this._refresh();
-    } catch (err) {
-      m.error = String((err as { message?: string })?.message || err);
-      this._render();
-    }
-  }
-
-  _openConfirmDialog(label: string, onConfirm: () => void): void {
-    // Drop any prior scrim (and its keydown listener) before opening a new one, so a
-    // second open — or a stale scrim — can't orphan the earlier overlay + handler.
-    if (this._drawerOnKey) {
-      document.removeEventListener('keydown', this._drawerOnKey);
-      this._drawerOnKey = null;
-    }
-    if (this._confirmOnKey) {
-      document.removeEventListener('keydown', this._confirmOnKey);
-      this._confirmOnKey = null;
-    }
-    if (this._confirmScrim) {
-      this._confirmScrim.remove();
-      this._confirmScrim = null;
-    }
-    this._confirmDelete = { open: true, label, onConfirm };
-    this._renderConfirmDeleteDialog();
-  }
-
-  private _closeConfirmDialog(): void {
-    this._confirmDelete = { open: false, label: '', onConfirm: null };
-    if (this._drawerOnKey) {
-      document.removeEventListener('keydown', this._drawerOnKey);
-      this._drawerOnKey = null;
-    }
-    if (this._confirmOnKey) {
-      document.removeEventListener('keydown', this._confirmOnKey);
-      this._confirmOnKey = null;
-    }
-    if (this._confirmScrim) {
-      this._confirmScrim.remove();
-      this._confirmScrim = null;
-    }
-    // Opening the confirmation took the drawer's Escape handler away, so that one
-    // Escape could not close both overlays at once. Give it back: without this, a
-    // Delete the reader thought better of left the drawer standing with no way out
-    // but the mouse, for the rest of that edit.
-    this._syncDrawerModality();
-  }
-
-  private _renderConfirmDeleteDialog(): void {
-    const { label, onConfirm } = this._confirmDelete;
-
-    // Appended to document.body so position:fixed works correctly outside the
-    // shadow DOM stacking context.
-    const scrim = document.createElement('div');
-    scrim.className = 'hk-confirm-scrim';
-    scrim.style.cssText =
-      'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
-      'justify-content:center;background:rgba(0,0,0,.4)';
-
-    const modal = document.createElement('div');
-    modal.style.cssText =
-      'background:var(--ha-card-background,var(--card-background-color,#fff));' +
-      'border-radius:28px;padding:24px;min-width:280px;max-width:400px;' +
-      'box-shadow:0 8px 32px rgba(0,0,0,.24)';
-
-    const h2 = document.createElement('h2');
-    h2.style.cssText =
-      'margin:0 0 16px;font-size:1.25rem;font-weight:500;' +
-      'color:var(--primary-text-color,#000)';
-    h2.textContent = label;
-
-    const p = document.createElement('p');
-    p.style.cssText = 'margin:0 0 24px;color:var(--secondary-text-color,#666)';
-    p.textContent = t('confirm.cannotUndo');
-
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;justify-content:flex-end;gap:8px';
-
-    // Held on an instance field so disconnectedCallback can remove it if we unmount
-    // while the dialog is open; _closeConfirmDialog is the single teardown path.
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') this._closeConfirmDialog();
-    };
-    this._confirmOnKey = onKey;
-    document.addEventListener('keydown', onKey);
-
-    const close = (): void => {
-      this._closeConfirmDialog();
-    };
-
-    const cancel = document.createElement('ha-button');
-    setBtnWeight(cancel, 'tertiary');
-    cancel.textContent = t('btn.cancel');
-    cancel.addEventListener('click', close);
-
-    // The one surface in the panel whose whole reason to exist is the destruction, so
-    // the one place Delete carries a solid fill. Its red comes from `variant`, which
-    // resolves against Home Assistant's document-level theme — this scrim is appended
-    // to document.body, where the panel's own `:host` tokens do not reach.
-    const del = document.createElement('ha-button');
-    setBtnWeight(del, 'danger-primary');
-    del.textContent = t('btn.delete');
-    del.addEventListener('click', () => {
-      onConfirm?.();
-      this._closeConfirmDialog();
-      // Re-render after the mutation: the confirm callbacks (metadata/part row
-      // deletion) only mutate state, and neither this handler nor
-      // _closeConfirmDialog rendered — so a deleted row stayed visible, and its
-      // siblings' value-changed closures kept stale render-time indices that wrote
-      // into the now-shifted array and corrupted the wrong entry. Rebuilding the form
-      // with fresh indices fixes both.
-      this._render();
-    });
-
-    row.appendChild(cancel);
-    row.appendChild(del);
-    modal.appendChild(h2);
-    modal.appendChild(p);
-    modal.appendChild(row);
-    scrim.appendChild(modal);
-    scrim.addEventListener('click', (e) => {
-      if (e.target === scrim) close();
-    });
-
-    this._confirmScrim = scrim;
-    document.body.appendChild(scrim);
-  }
-
-  /** True when every required field of the in-progress completion is filled. */
-  private _completionMissing(): string[] {
-    const d = this._completion.data;
-    return this._completion.required.filter((f) => {
-      const v = (d as Record<string, unknown>)[f];
-      return v == null || v === '' || (typeof v === 'number' && Number.isNaN(v));
-    });
-  }
-
-  /** Save the dialog: a new completion (with metadata) or an edit of a past one. */
-  private async _submitCompletion(): Promise<void> {
-    const c = this._completion;
-    if (!this._hass || !c.task) return;
-    if (c.ts == null && this._completionMissing().length) {
-      c.error = t('completion.required');
-      this._render();
-      return;
-    }
-    try {
-      if (c.ts != null) {
-        await api.updateCompletion(this._hass, c.task.id, c.ts, c.data);
-      } else {
-        await api.completeTask(this._hass, c.task.id, c.data, c.data.completedAt);
-      }
-      this._closeCompletionDialog();
-      await this._refresh();
-    } catch (err) {
-      c.error = String((err as { message?: string })?.message || err);
-      this._render();
-    }
   }
 
   /** A completion-blocked task (e.g. a synced problem sensor) can't be marked done
@@ -1604,7 +1385,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   private _drawerOpenerKey: string | null = null;
   // Escape closes the sheet; held at document level because the sheet is fixed and a
   // keydown inside it would not otherwise reach us once focus is on a form field.
-  private _drawerOnKey: ((e: KeyboardEvent) => void) | null = null;
+  _drawerOnKey: ((e: KeyboardEvent) => void) | null = null;
   private _sheetQuery: MediaQueryList | null = null;
   // The `change` handler bound to `_sheetQuery`, held so unmounting can remove it.
   private _sheetOnChange: (() => void) | null = null;
@@ -1621,7 +1402,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * viewport — and it reads it for modality, not for layout. `_render()` stays
    * viewport-agnostic; the media query below simply says which thing the drawer is.
    */
-  private _syncDrawerModality(): void {
+  _syncDrawerModality(): void {
     const root = this.shadowRoot;
     if (!root) return;
     const drawer = root.querySelector<HTMLElement>('.hk-drawer[data-open]');
@@ -1861,9 +1642,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
     // The completion-details dialog overlays any view, so build it first.
     const dialogHost = root.getElementById('hk-dialog-host');
-    if (dialogHost && this._completion.open) this._renderCompletionDialog(dialogHost);
-    if (dialogHost && this._moveCompletion.open) this._renderMoveCompletionDialog(dialogHost);
-    // _renderConfirmDeleteDialog appends directly to document.body (not shadow root).
+    if (dialogHost && this._completion.open) renderCompletionDialog(this, dialogHost);
+    if (dialogHost && this._moveCompletion.open) renderMoveCompletionDialog(this, dialogHost);
+    // renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
     // The drawer is a sibling of the whole content column, so it belongs to every
     // page that can open it — including a task's own page, which returns out of this
@@ -2155,7 +1936,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * (the entity/attribute the user is currently picking). `reading` is undefined
    * when the entity is unset, unknown, or non-numeric.
    */
-  private _sensorLive(task: Partial<Task>): { reading?: number; unit?: string } {
+  _sensorLive(task: Partial<Task>): { reading?: number; unit?: string } {
     const sd = task as Record<string, unknown>;
     const entityId = String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? '');
     if (!entityId) return {};
@@ -2475,7 +2256,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       del.textContent = t('btn.delete');
       const onThisTasksPage = this._detail?.kind === 'task' && this._detail.id === task.id;
       del.addEventListener('click', () =>
-        this._openConfirmDialog(t('confirm.deleteTask', { name: String(task.name ?? '') }), () => {
+        openConfirmDialog(this, t('confirm.deleteTask', { name: String(task.name ?? '') }), () => {
           this._closeForm();
           // Deleting from the task's own page empties that page: replace it with the
           // list first, the same way the page's own Delete does, so neither the render
@@ -2503,234 +2284,6 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       card.appendChild(foot);
     }
     host.appendChild(card);
-  }
-
-  /**
-   * The shell every panel dialog shares: an open `ha-dialog` carrying *title*, the
-   * content div its form goes in, and the footer its action buttons slot into.
-   *
-   * The panel's two dialogs were hand-built side by side, and Home Assistant has now
-   * broken both the same way twice by moving `ha-dialog` onto `wa-dialog`. #144 took
-   * the action buttons — only a `footer` slot survived, and buttons slotted straight
-   * onto `ha-dialog` stopped rendering. #262 took the titles — `heading` is no longer
-   * read at all, and the title now comes from a `headerTitle` slot, so both dialogs
-   * had been opening as a bare ✕ over their body with no way to tell which task you
-   * were completing. Each time the same fix had to be written twice. It is written
-   * once here.
-   *
-   * The title is set **both** ways rather than feature-detected. A current frontend
-   * renders the slotted span and ignores the unread attribute; an older one renders
-   * the attribute and drops the span, because a light-DOM child whose slot name
-   * matches no slot is not rendered at all. Neither can show the title twice.
-   */
-  private _makeDialog(
-    title: string,
-    onClosed: () => void,
-  ): { dialog: HTMLElement; body: HTMLElement; footer: HTMLElement; mount: () => void } {
-    const dialog = document.createElement('ha-dialog');
-    dialog.setAttribute('open', '');
-    dialog.setAttribute('heading', title);
-    const heading = document.createElement('span');
-    heading.setAttribute('slot', 'headerTitle');
-    heading.textContent = title;
-    dialog.appendChild(heading);
-    dialog.addEventListener('closed', onClosed);
-
-    const body = document.createElement('div');
-    body.className = 'hk-completion-body';
-
-    // Action buttons must be wrapped in <ha-dialog-footer slot="footer"> — current
-    // ha-dialog only exposes a "footer" slot; primaryAction/secondaryAction slotted
-    // directly on <ha-dialog> silently don't render. Fall back to slotting straight
-    // on <ha-dialog> (the pre-wa-dialog convention) if ha-dialog-footer isn't
-    // registered, so older HA frontends keep working too.
-    const hasFooter = Boolean(customElements.get('ha-dialog-footer'));
-    const footer: HTMLElement = hasFooter ? document.createElement('ha-dialog-footer') : dialog;
-    if (hasFooter) footer.setAttribute('slot', 'footer');
-
-    // Deferred so the caller can fill body and footer in whatever order reads best,
-    // while the dialog still reaches the DOM with its children already attached.
-    const mount = (): void => {
-      dialog.appendChild(body);
-      if (hasFooter) dialog.appendChild(footer);
-    };
-    return { dialog, body, footer, mount };
-  }
-
-  /** Build the completion-details dialog (log a new completion, or edit a past one). */
-  private _renderCompletionDialog(host: HTMLElement): void {
-    const c = this._completion;
-    if (!c.task) return;
-    const editing = c.ts != null;
-    const { dialog, body, footer, mount } = this._makeDialog(
-      editing ? t('completion.edit') : t('completion.title', { name: c.task.name }),
-      () => {
-        if (this._completion.open) this._closeCompletionDialog();
-      },
-    );
-
-    // note / cost / who via ha-form; required fields get the asterisk cue. Logging a
-    // *new* completion also offers an optional "Completed at" date/time (defaults to
-    // now server-side when left blank) — never shown in edit-metadata mode, which
-    // must never touch the timestamp (see MoveCompletionDialogState for that).
-    const req = new Set(c.required);
-    const schema: FormField[] = [];
-    if (!editing) {
-      schema.push({ name: 'completedAt', selector: selDateTime() });
-    }
-    schema.push(
-      { name: 'note', required: req.has('note'), selector: selText(true) },
-      { name: 'cost', required: req.has('cost'), selector: selNumber(0) },
-      { name: 'who', required: req.has('who'), selector: selEntity({ domain: 'person' }) },
-    );
-    // A sensor task in a numeric mode also logs where its meter stood. Home Keeper
-    // fills this in from the live sensor, so it is never *required* — but it is
-    // editable, which matters twice: back-dating records today's reading (the meter
-    // has moved since the work was done), and on a usage task correcting it on the
-    // latest completion re-anchors the meter itself. Bare number selector, like the
-    // form's starting-reading box: a reading can be 0 or negative.
-    const live = taskRecordsReading(c.task) ? this._sensorLive(c.task) : null;
-    if (live)
-      schema.push({
-        name: 'reading',
-        selector: { number: { mode: 'box', step: 'any' } },
-      });
-    // A completion note renders as Markdown in the history list, so it gets the same
-    // live preview as every other notes field.
-    let notePreview: MarkdownPreview | null = null;
-    const form = this._makeForm(
-      schema,
-      {
-        completedAt: isoToHaDateTime(c.data.completedAt),
-        note: c.data.note ?? '',
-        cost: c.data.cost ?? undefined,
-        who: c.data.who ?? undefined,
-        // Logging a new completion pre-fills the live reading (that *is* where the
-        // meter stands); editing shows what was recorded at the time.
-        reading: c.data.reading ?? (editing ? undefined : live?.reading),
-      },
-      (value) => {
-        this._completion.data = {
-          ...this._completion.data,
-          completedAt: editing ? c.data.completedAt : haDateTimeToIso(value.completedAt as string),
-          note: (value.note as string) || undefined,
-          cost: value.cost == null || value.cost === '' ? undefined : Number(value.cost),
-          who: (value.who as string) || undefined,
-          reading:
-            value.reading == null || value.reading === '' ? undefined : Number(value.reading),
-        };
-        this._completion.error = undefined;
-        notePreview?.update(String(value.note ?? ''));
-      },
-    );
-    body.appendChild(form);
-    notePreview = this._attachNotePreview(body, String(c.data.note ?? ''));
-
-    // Photo upload via HA's native picture-upload, if the element is available in
-    // this frontend build (degrade gracefully if not — the rest still works).
-    if (customElements.get('ha-picture-upload')) {
-      const label = document.createElement('div');
-      label.className = 'hk-completion-photo-label';
-      label.textContent = t('completion.photo');
-      const upload = document.createElement('ha-picture-upload') as HTMLElement & {
-        hass?: Hass;
-        value?: string | null;
-      };
-      upload.hass = this._hass;
-      upload.value = c.data.photo ?? null;
-      this._liveHassEls.push(upload);
-      const onPhoto = (): void => {
-        this._completion.data = { ...this._completion.data, photo: upload.value || undefined };
-      };
-      upload.addEventListener('change', onPhoto);
-      upload.addEventListener('value-changed', onPhoto);
-      body.append(label, upload);
-    }
-
-    if (c.error) {
-      const err = document.createElement('ha-alert');
-      err.setAttribute('alert-type', 'error');
-      err.textContent = c.error;
-      body.appendChild(err);
-    }
-    // Primary action: log (or save edit). Optional-mode logging also offers "skip
-    // details" to complete with nothing recorded — a real alternative way through, so
-    // tonal; Cancel is the null action and stays tertiary beside them.
-    const primary = document.createElement('ha-button');
-    primary.setAttribute('slot', 'primaryAction');
-    setBtnWeight(primary, 'primary');
-    primary.textContent = editing ? t('btn.save') : t('completion.markDone');
-    primary.addEventListener('click', () => void this._submitCompletion());
-    footer.appendChild(primary);
-
-    if (!editing && c.task.completion_detail === 'optional') {
-      const skip = document.createElement('ha-button');
-      skip.setAttribute('slot', 'secondaryAction');
-      setBtnWeight(skip, 'secondary');
-      skip.textContent = t('completion.skip');
-      skip.addEventListener('click', () => {
-        this._completion.data = {};
-        void this._submitCompletion();
-      });
-      footer.appendChild(skip);
-    }
-    const cancel = document.createElement('ha-button');
-    cancel.setAttribute('slot', 'secondaryAction');
-    setBtnWeight(cancel, 'tertiary');
-    cancel.textContent = t('btn.cancel');
-    cancel.addEventListener('click', () => this._closeCompletionDialog());
-    footer.appendChild(cancel);
-
-    mount();
-    host.appendChild(dialog);
-  }
-
-  /**
-   * Build the "move completion date" dialog — re-timestamps one already-recorded
-   * completion via `api.moveCompletion`. Deliberately minimal (one date/time field)
-   * and separate from `_renderCompletionDialog`'s edit-metadata mode.
-   */
-  private _renderMoveCompletionDialog(host: HTMLElement): void {
-    const m = this._moveCompletion;
-    if (!m.task) return;
-    const { dialog, body, footer, mount } = this._makeDialog(t('completion.moveDate'), () => {
-      if (this._moveCompletion.open) this._closeMoveCompletion();
-    });
-
-    const schema: FormField[] = [{ name: 'completedAt', required: true, selector: selDateTime() }];
-    const form = this._makeForm(
-      schema,
-      { completedAt: isoToHaDateTime(m.newTs) },
-      (value) => {
-        this._moveCompletion.newTs = haDateTimeToIso(value.completedAt as string);
-        this._moveCompletion.error = undefined;
-      },
-    );
-    body.appendChild(form);
-
-    if (m.error) {
-      const err = document.createElement('ha-alert');
-      err.setAttribute('alert-type', 'error');
-      err.textContent = m.error;
-      body.appendChild(err);
-    }
-
-    const primary = document.createElement('ha-button');
-    primary.setAttribute('slot', 'primaryAction');
-    setBtnWeight(primary, 'primary');
-    primary.textContent = t('btn.save');
-    primary.addEventListener('click', () => void this._submitMoveCompletion());
-    footer.appendChild(primary);
-
-    const cancel = document.createElement('ha-button');
-    cancel.setAttribute('slot', 'secondaryAction');
-    setBtnWeight(cancel, 'tertiary');
-    cancel.textContent = t('btn.cancel');
-    cancel.addEventListener('click', () => this._closeMoveCompletion());
-    footer.appendChild(cancel);
-
-    mount();
-    host.appendChild(dialog);
   }
 
   private _renderAssetForm(host: HTMLElement): void {

@@ -38,6 +38,7 @@ import {
 } from './forms';
 import { t } from './i18n';
 import type { MarkdownPreview } from './markdown';
+import { openConfirmDialog } from './panel-dialogs';
 import { collapsibleSection, section, setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
 import { MDI_DELETE, MDI_EDIT, MDI_OPEN_IN_NEW } from './panel-icons';
@@ -153,7 +154,7 @@ function entryBox(
   del.setAttribute('label', spec.removeLabel);
   setIcon(del, MDI_DELETE);
   del.addEventListener('click', () => {
-    p._openConfirmDialog(spec.confirmLabel(), spec.onRemove);
+    openConfirmDialog(p, spec.confirmLabel(), spec.onRemove);
   });
   head.appendChild(del);
   box.appendChild(head);

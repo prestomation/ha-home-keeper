@@ -29,12 +29,14 @@ import type {
   AssetEditState,
   AssetFilter,
   AssetView,
+  CompletionDialogState,
   EditState,
   GroupBy,
+  MoveCompletionDialogState,
   NoteTarget,
   TaskFilter,
 } from './panel-types';
-import type { Asset, Companion, Completion, Hass, HomeKeeperOptions, Task } from './types';
+import type { Asset, Companion, Hass, HomeKeeperOptions, Task } from './types';
 import type { AssetTab, BtnWeight, PanelLocation, SettingsSection } from './utils';
 
 export interface PanelHost extends HTMLElement {
@@ -72,8 +74,18 @@ export interface PanelHost extends HTMLElement {
   _closeSettingsSection(): void;
   /** Group sections the user collapsed this session, keyed by "<group>:<bucket>". */
   _collapsed: Set<string>;
+  /** The completion-details dialog's state (logging one, or editing a recorded one). */
+  _completion: CompletionDialogState;
   /** The companion integrations the Settings tab lists. */
   _companions: Companion[];
+  /** The destructive-action confirmation's state. */
+  _confirmDelete: { open: boolean; label: string; onConfirm: (() => void) | null };
+  /** The document keydown (Escape) handler bound while the confirmation is open, held
+   *  as a field so an unmount mid-dialog can remove it. */
+  _confirmOnKey: ((e: KeyboardEvent) => void) | null;
+  /** Body-level scrim for the confirmation overlay (outside the shadow root, so
+   *  `position:fixed` resolves against the viewport). */
+  _confirmScrim: HTMLElement | null;
   /** Record a completion for *task* (opening the details dialog when one is wanted). */
   _complete(task: Task): Promise<void>;
   /** A task's part link as an "Appliance · Part · In stock: N" line (HTML). */
@@ -85,6 +97,9 @@ export interface PanelHost extends HTMLElement {
   _delete(task: Task): Promise<void>;
   /** Delete an appliance outright (already confirmed). */
   _deleteAsset(asset: Asset): Promise<void>;
+  /** The drawer's own Escape handler, taken away while a confirmation is up so one
+   *  press cannot close both overlays. */
+  _drawerOnKey: ((e: KeyboardEvent) => void) | null;
   /** The object whose full detail page is open, or null for the list view. */
   _detail: PanelLocation['detail'];
   /** The task edit drawer's state — a list row marks itself while it is being edited. */
@@ -104,6 +119,11 @@ export interface PanelHost extends HTMLElement {
   _itemExpanded: Set<string>;
   /** The language dates, times and numbers are formatted in (Home Assistant's). */
   _lang(): string | undefined;
+  /** Live HA components that need `.hass` refreshed when hass updates. **Push-only**:
+   *  the panel empties it in `_render`, at the point the shadow tree those elements
+   *  live in is replaced — a region that reset it would stop feeding `hass` to
+   *  everything an earlier pass registered. */
+  _liveHassEls: Array<{ hass?: Hass }>;
   /** config entry ids currently loaded, for managed-task orphan detection. */
   _loadedEntryIds: Set<string>;
   /** Build one live `ha-form`, registered for `hass` updates. The panel's only
@@ -127,14 +147,12 @@ export interface PanelHost extends HTMLElement {
     editable: boolean,
     placeholder?: string,
   ): string;
+  /** The "move completion date" dialog's state. */
+  _moveCompletion: MoveCompletionDialogState;
   /** Toast why *task*'s Done action is unavailable. */
   _notifyBlocked(task: Task): void;
   /** The mobile_app_* notify services a notification can be delivered to. */
   _notifyTargets: string[];
-  /** Open the completion-details dialog on an already-recorded completion. */
-  _openCompletionEdit(task: Task, c: Completion): void;
-  /** Open the destructive-action confirmation overlay. */
-  _openConfirmDialog(label: string, onConfirm: () => void): void;
   /** Open the drawer on a new task. */
   _openCreate(): void;
   /** Open the drawer on a new appliance. */
@@ -145,8 +163,6 @@ export interface PanelHost extends HTMLElement {
   _openEdit(task: Task): void;
   /** Open the drawer editing *asset*. */
   _openEditAsset(asset: Asset): void;
-  /** Open the "move completion date" dialog for a recorded completion. */
-  _openMoveCompletion(task: Task, ts: string): void;
   /** Integration options — the saved Profiles the list filter offers live here. */
   _options: HomeKeeperOptions | null;
   /** Home Keeper's own todo entities, kept out of the shopping-list picker. */
@@ -166,6 +182,9 @@ export interface PanelHost extends HTMLElement {
   _scrollBehavior(): ScrollBehavior;
   /** One-shot: the upload-error key the next render should scroll into view. */
   _scrollToError?: string;
+  /** The bound sensor's live reading and unit, for the task form's hint and the
+   *  completion dialog's pre-filled reading. */
+  _sensorLive(task: Partial<Task>): { reading?: number; unit?: string };
   _setAssetFilter(value: AssetFilter): void;
   /** Switch the open appliance's sub-tab (replaces, so Back leaves the appliance). */
   _setAssetTab(tab: AssetTab): void;
@@ -183,6 +202,9 @@ export interface PanelHost extends HTMLElement {
   /** HA tag-registry entries as picker options, for the tag chip. */
   _tags: { value: string; label: string }[];
   _tasks: Task[];
+  /** Re-arm the drawer's modality (its Escape handler and sheet/side layout) after a
+   *  confirmation that took it away has closed. */
+  _syncDrawerModality(): void;
   /** Appliance ids whose tree children are folded away. */
   _treeCollapsed: Set<string>;
   /** Cancels the in-flight upload; undefined when none is running. */
