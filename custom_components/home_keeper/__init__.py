@@ -69,6 +69,7 @@ from .coordinator import (
     HomeKeeperCoordinator,
     discard_edge_state,
     entity_set_key,
+    find_coordinator,
     task_has_entities,
 )
 from .models import TaskValidationError
@@ -688,16 +689,14 @@ def _register_services(hass: HomeAssistant) -> None:
     """
 
     def _coordinator() -> HomeKeeperCoordinator:
-        for entry in hass.config_entries.async_entries(DOMAIN):
-            coord = getattr(entry, "runtime_data", None)
-            if isinstance(coord, HomeKeeperCoordinator):
-                return coord
-        # Reachable transiently mid-reload (the entry is momentarily unloaded while
-        # its services are still registered). Surface a localized HA error rather than
-        # a bare RuntimeError that would present as an opaque 500.
-        raise HomeAssistantError(
-            translation_domain=DOMAIN, translation_key="integration_not_loaded"
-        )
+        if (coord := find_coordinator(hass)) is None:
+            # Reachable transiently mid-reload (the entry is momentarily unloaded
+            # while its services are still registered). Surface a localized HA error
+            # rather than a bare RuntimeError that would present as an opaque 500.
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="integration_not_loaded"
+            )
+        return coord
 
     def _ref(kind: str, resolver: Any, container: Any, key: str) -> str:
         """Turn an id-or-name service field into an id.

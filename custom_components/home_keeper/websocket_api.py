@@ -19,18 +19,19 @@ from homeassistant.util import dt as dt_util
 from . import companions, devices, inventory, manuals, notifier, options
 from .assets import AssetValidationError, card_projection
 from .backend_i18n import resolve_exception
-from .const import COMPLETION_ENTRY_FIELDS, DOMAIN, OPTION_PROFILES
-from .coordinator import HomeKeeperCoordinator, entity_set_key, task_has_entities
+from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES
+from .coordinator import (
+    HomeKeeperCoordinator,
+    entity_set_key,
+    find_coordinator,
+    task_has_entities,
+)
 from .models import TaskValidationError
 from .shopping_sync import own_todo_entity_ids
 
 
 def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        coord = getattr(entry, "runtime_data", None)
-        if isinstance(coord, HomeKeeperCoordinator):
-            return coord
-    return None
+    return find_coordinator(hass)
 
 
 def _err(

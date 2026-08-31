@@ -33,7 +33,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .api_surface import triggers_for
 from .const import ASSET_IDENTIFIER_PREFIX, DOMAIN
-from .coordinator import HomeKeeperCoordinator
+from .coordinator import HomeKeeperCoordinator, find_coordinator
 from .device_compat import resolve_device
 
 # trigger_type -> bus event, taken from the API-surface model rather than repeated
@@ -56,11 +56,7 @@ TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(
 
 
 def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        coord = getattr(entry, "runtime_data", None)
-        if isinstance(coord, HomeKeeperCoordinator):
-            return coord
-    return None
+    return find_coordinator(hass)
 
 
 def _hk_identifier(device: dr.DeviceEntry) -> str | None:

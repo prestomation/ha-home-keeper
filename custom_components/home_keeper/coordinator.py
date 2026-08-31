@@ -408,3 +408,19 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             ),
             None,
         )
+
+
+def find_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
+    """The loaded Home Keeper coordinator, or None while no entry is loaded.
+
+    The coordinator hangs off the config entry's ``runtime_data``, so everything
+    outside the entry's own setup — websocket commands, services, device triggers,
+    the document views — starts by finding it here. Returning None rather than
+    raising is deliberate: an entry is momentarily unloaded during every reload, and
+    each caller has its own way of saying so.
+    """
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        coord = getattr(entry, "runtime_data", None)
+        if isinstance(coord, HomeKeeperCoordinator):
+            return coord
+    return None

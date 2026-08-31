@@ -286,13 +286,9 @@ async def async_delete_part_file(
 
 def _coordinator(hass: HomeAssistant) -> Any:
     """Locate the loaded Home Keeper coordinator (lazy import avoids a cycle)."""
-    from .coordinator import HomeKeeperCoordinator
+    from .coordinator import find_coordinator
 
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        coord = getattr(entry, "runtime_data", None)
-        if isinstance(coord, HomeKeeperCoordinator):
-            return coord
-    return None
+    return find_coordinator(hass)
 
 
 def _uploader_is_a_real_user(request: web.Request) -> bool:
