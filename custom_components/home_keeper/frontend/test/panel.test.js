@@ -1035,3 +1035,51 @@ describe('Settings tab — the Shopping list card', () => {
     expect(calls.lastSetOptions.shopping_list_entity).toBe('todo.groceries');
   });
 });
+
+describe('the sheet-threshold media query is bound and unbound with the element', () => {
+  // jsdom has no `matchMedia`, and `_syncDrawerModality` skips the whole block without
+  // one — so the panel's only viewport read is invisible to every other test here.
+  // This stubs a MediaQueryList that counts its own listeners.
+  function stubMatchMedia() {
+    const listeners = { added: 0, removed: 0 };
+    const mql = {
+      matches: false,
+      addEventListener: () => {
+        listeners.added += 1;
+      },
+      removeEventListener: () => {
+        listeners.removed += 1;
+      },
+    };
+    const prior = window.matchMedia;
+    window.matchMedia = () => mql;
+    return { listeners, restore: () => { window.matchMedia = prior; } };
+  }
+
+  it('unbinds on unmount and binds again when the element comes back', async () => {
+    const { listeners, restore } = stubMatchMedia();
+    try {
+      const hass = makeHassWith({ tasks: [] }).hass;
+
+      const panel = await mountPanel(hass, '/tasks');
+      await waitFor(() => panel.shadowRoot?.querySelector('.hk-wrap'));
+      expect(listeners.added, 'mounting binds the threshold listener').toBe(1);
+
+      // Unmounting takes it off: it closes over the element, so leaving it attached to
+      // a live MediaQueryList keeps the whole detached shadow tree reachable.
+      panel.remove();
+      expect(listeners.removed, 'unmounting unbinds it').toBe(1);
+
+      // …and coming back binds a fresh one. Clearing only the handler and leaving the
+      // query behind would make this silently skip the rebind — `_syncDrawerModality`
+      // only binds when the query is unset — and the panel would stop noticing the
+      // sheet threshold for the rest of its life.
+      document.body.appendChild(panel);
+      panel.route = { prefix: '/home-keeper', path: '/appliances' };
+      await waitFor(() => panel.shadowRoot?.querySelector('.hk-wrap'));
+      expect(listeners.added, 're-attaching binds a new listener').toBe(2);
+    } finally {
+      restore();
+    }
+  });
+});

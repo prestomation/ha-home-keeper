@@ -1987,10 +1987,14 @@ export class HomeKeeperPanel extends HTMLElement {
     // The sheet-threshold media query outlives the element, so its listener has to
     // come off too — it closes over `this` and would otherwise keep the whole
     // detached shadow tree reachable, and re-render it on every crossing.
+    // Both fields are cleared, not just the handler: `_syncDrawerModality` only binds
+    // a listener when `_sheetQuery` is unset, so leaving the query behind would make a
+    // re-attached panel skip the rebind and stop noticing the threshold entirely.
     if (this._sheetQuery && this._sheetOnChange) {
       this._sheetQuery.removeEventListener?.('change', this._sheetOnChange);
-      this._sheetOnChange = null;
     }
+    this._sheetOnChange = null;
+    this._sheetQuery = null;
     for (const id of Object.values(this._persistTimers)) clearTimeout(id);
     this._persistTimers = {};
     // Markdown previews hold a debounce timer that would otherwise fire against a

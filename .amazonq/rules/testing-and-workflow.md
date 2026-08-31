@@ -238,6 +238,14 @@
   already dismissed. Reset with `git clean -fdX tests/integration/ha_config/` (plus
   `git clean -fd` and `git checkout --`) before each capture, and check
   `git status tests/integration/` afterwards.
+- **Bring the container *down* before that clean, not after.** `ha_config/custom_components/`
+  is a gitignored directory Docker creates to hold the integration bind mount, so the
+  `-fdX` above deletes it — and deleting a mountpoint under a running container
+  detaches the mount from inside. HA keeps answering on 8123 while
+  `/home_keeper_panel/home-keeper-panel.js` starts 404ing, so the panel never upgrades
+  and *every* browser test fails identically at `openPanel`'s 45s attach timeout. It
+  reads exactly like a bundle that failed to build. `docker compose down` first (or
+  restart afterwards) and the mountpoint is recreated.
 - **The walkthrough records one context per width.** `recordVideo.size` is fixed when a
   context is created, so resizing mid-recording leaves the phone viewport in a corner
   of a desktop-sized frame — which is why an earlier attempt concluded the phone layout
