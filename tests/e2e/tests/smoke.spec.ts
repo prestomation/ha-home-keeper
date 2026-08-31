@@ -10,6 +10,7 @@ import {
   trackPanelErrors,
 } from './helpers';
 import { ASSET, TASK } from '../fixture-ids';
+import { deleteTask, listTasks } from './helpers';
 
 /**
  * Pick an option from an HA `ha-select` dropdown by visible label. HA's current
@@ -246,6 +247,40 @@ test.describe('Home Keeper panel — deep linking & Back', { tag: '@responsive' 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
+  test('a sub-tab is a lateral step, so Back leaves the appliance rather than retracing it', async ({
+    page,
+  }) => {
+    // `_setAssetTab` navigates with `replace`, deliberately: Back should leave the
+    // appliance, not walk back through every sub-tab you glanced at on the way
+    // through it — the same rule the top-level tabs follow. Nothing pinned that, so a
+    // change to push would have been silent, and it is exactly the kind of thing a
+    // redesign moves by accident.
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    await gotoTab(panel, 'appliances');
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}$`));
+
+    // Two sub-tab moves, each replacing the last.
+    await panel.locator('.hk-subtab[data-tab="documents"]').click();
+    await expect(page).toHaveURL(
+      new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}/documents$`),
+    );
+    await panel.locator('.hk-subtab[data-tab="history"]').click();
+    await expect(page).toHaveURL(
+      new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}/history$`),
+    );
+
+    // One Back returns to the list the appliance was opened from — not to Documents,
+    // and not out of the panel.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/home-keeper(\/appliances)?$/);
+    await expectTabActive(panel, 'appliances');
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
   test('an appliance detail URL deep-links straight to the appliance detail page', async ({
     page,
   }) => {
@@ -325,5 +360,73 @@ test.describe('Home Keeper panel — dashboard', () => {
     const calendar = calendarCard(page);
     await expect(calendar).toBeVisible({ timeout: 30_000 });
     await expect(calendar).not.toContainText('Renew car registration');
+  });
+});
+
+
+/**
+ * One task, all the way through the panel: created, edited, completed, deleted.
+ *
+ * Every one of these steps was already covered — but each on its own, from a seeded
+ * fixture. Nothing walked a task a user actually made through the whole life it has,
+ * so a break in the seams between them (a save that does not reach the list, a
+ * completion that does not reach the page, a delete that leaves the row behind) had
+ * nowhere to fail. It creates and removes its own task, so the seeded store is
+ * unchanged either way.
+ */
+test.describe('Home Keeper panel — one task, end to end', () => {
+  const NAME = `Round trip ${Date.now()}`;
+  let createdId: string | undefined;
+
+  test.afterAll(async () => {
+    // Belt and braces: the test deletes through the UI, but a failure part-way must
+    // not leave a task behind in the committed fixture.
+    if (createdId) await deleteTask(createdId);
+    for (const t of await listTasks()) {
+      if (String(t.name || '').startsWith('Round trip ')) await deleteTask(t.id);
+    }
+  });
+
+  test('create it, edit it, complete it, delete it', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    // Create.
+    await panel.locator('#add-btn').click();
+    await expect(panel.locator('#hk-form')).toBeVisible();
+    await panel.locator('#hk-form input').first().fill(NAME);
+    await panel.locator('#f-save').click();
+    await expect(panel.locator('#hk-form')).toHaveCount(0);
+    const row = panel.locator('.hk-card', { hasText: NAME });
+    await expect(row).toBeVisible();
+    createdId = (await listTasks()).find((t) => t.name === NAME)?.id;
+    expect(createdId, 'the created task should exist in the store').toBeTruthy();
+
+    // Edit, from its own page — and the page updates in place rather than needing a
+    // reload to show what was just saved.
+    await row.locator('.detail-open').click();
+    await expect(panel.locator('.hk-detail-title')).toContainText(NAME);
+    await panel.locator('.d-edit').click();
+    await expect(panel.locator('#hk-form')).toBeVisible();
+    await panel.locator('#hk-form input').first().fill(`${NAME} edited`);
+    await panel.locator('#f-save').click();
+    await expect(panel.locator('#hk-form')).toHaveCount(0);
+    await expect(panel.locator('.hk-detail-title')).toContainText(`${NAME} edited`);
+
+    // Complete, and the completion reaches the history on the page it was done from.
+    await panel.locator('.d-done').click();
+    await expect(panel.locator('.hk-hist-list li')).toHaveCount(1);
+
+    // Delete, and the row is gone from the list it came from.
+    await panel.locator('.d-del').click();
+    const scrim = page.locator('.hk-confirm-scrim');
+    await expect(scrim).toBeVisible();
+    await scrim.locator('ha-button').filter({ hasText: /Delete/i }).click();
+    await expect(scrim).toHaveCount(0);
+    await expect(panel.locator('.hk-card', { hasText: NAME })).toHaveCount(0);
+    createdId = undefined;
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 });

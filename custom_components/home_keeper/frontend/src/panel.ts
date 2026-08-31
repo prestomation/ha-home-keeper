@@ -401,6 +401,13 @@ const STYLES = `
   .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list ha-card:not(.hk-editing) {
     opacity: 0.72;
   }
+  /* .hk-editing lights the row the drawer is editing while the rest of the list
+     recedes. It is staged, not live: the class is only ever set when the drawer edits
+     an existing object from a *list*, and today the only way into the drawer is
+     .d-edit on an object's own page — so no list ever has a lit row, and neither this
+     rule nor _mountDrawerForm's scrollIntoView fires. Kept deliberately: a row-level
+     Edit affordance would make all of it live at once. Don't delete it as dead code
+     without deciding against that first. */
   .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list ha-card.hk-editing {
     border: 2px solid var(--hk-accent);
     --ha-card-border-radius: var(--hk-r-row);
@@ -1977,6 +1984,13 @@ export class HomeKeeperPanel extends HTMLElement {
       this._confirmScrim.remove();
       this._confirmScrim = null;
     }
+    // The sheet-threshold media query outlives the element, so its listener has to
+    // come off too — it closes over `this` and would otherwise keep the whole
+    // detached shadow tree reachable, and re-render it on every crossing.
+    if (this._sheetQuery && this._sheetOnChange) {
+      this._sheetQuery.removeEventListener?.('change', this._sheetOnChange);
+      this._sheetOnChange = null;
+    }
     for (const id of Object.values(this._persistTimers)) clearTimeout(id);
     this._persistTimers = {};
     // Markdown previews hold a debounce timer that would otherwise fire against a
@@ -3196,6 +3210,8 @@ export class HomeKeeperPanel extends HTMLElement {
   // keydown inside it would not otherwise reach us once focus is on a form field.
   private _drawerOnKey: ((e: KeyboardEvent) => void) | null = null;
   private _sheetQuery: MediaQueryList | null = null;
+  // The `change` handler bound to `_sheetQuery`, held so unmounting can remove it.
+  private _sheetOnChange: (() => void) | null = null;
 
   /**
    * Keep the drawer's *modality* — not its layout — in step with what it currently is.
@@ -3216,12 +3232,23 @@ export class HomeKeeperPanel extends HTMLElement {
     const wrap = root.querySelector<HTMLElement>('.hk-wrap');
     if (!this._sheetQuery && typeof window.matchMedia === 'function') {
       this._sheetQuery = window.matchMedia('(max-width: 1150px)');
-      this._sheetQuery.addEventListener?.('change', () => this._syncDrawerModality());
+      // Held as a field so `disconnectedCallback` can take it off again: the listener
+      // closes over `this`, so leaving it attached to a live MediaQueryList keeps a
+      // detached panel (and its whole shadow tree) reachable for as long as the tab
+      // lives, and re-renders it on every resize across the threshold.
+      this._sheetOnChange = (): void => this._syncDrawerModality();
+      this._sheetQuery.addEventListener?.('change', this._sheetOnChange);
     }
     const isSheet = !!this._sheetQuery?.matches;
-    if (wrap) {
-      if (drawer && isSheet) wrap.setAttribute('inert', '');
-      else wrap.removeAttribute('inert');
+    // The bottom tab bar is a sibling of `.hk-wrap`, not a child, so making the wrap
+    // inert left it live under an `aria-modal="true"` sheet — the one thing still
+    // tappable behind the overlay, and a tap on it silently discarded the open form.
+    // A modal that leaves a navigation control reachable is not one.
+    const bar = root.querySelector<HTMLElement>('.hk-bottombar');
+    for (const el of [wrap, bar]) {
+      if (!el) continue;
+      if (drawer && isSheet) el.setAttribute('inert', '');
+      else el.removeAttribute('inert');
     }
     if (drawer) {
       if (!this._drawerOnKey) {
@@ -3364,7 +3391,11 @@ export class HomeKeeperPanel extends HTMLElement {
               { value: 'soon', label: t('filter.soon'), count: counts?.soon },
               { value: 'shopping', label: t('filter.shopping'), count: counts?.shopping },
             ],
-            t('group.by'),
+            // Not `group.by`: these pills choose *what is listed*, and the Group by
+            // dropdown sitting beside them chooses how it is arranged. Naming both
+            // "Group by" left a screen reader with two different controls under one
+            // name, and no way to tell which one it had landed on.
+            t('filter.label'),
           )}</div>`
         : '';
     const assetFilterControl =
@@ -3376,7 +3407,9 @@ export class HomeKeeperPanel extends HTMLElement {
               { value: 'active', label: t('filter.active') },
               { value: 'archived', label: t('filter.archived') },
             ],
-            t('tab.appliances'),
+            // Likewise: "Appliances" named the tab this segment sits on, not the
+            // choice it offers, which is which appliances are listed.
+            t('filter.label'),
           )}</div>`
         : '';
     const viewControl =
@@ -4179,7 +4212,19 @@ export class HomeKeeperPanel extends HTMLElement {
       (Boolean(task.source?.part) && !task.source?.part?.manual) ||
       Boolean(task.source?.problem_sensor);
     const orphaned = this._isManagedOrphan(task);
-    let manage = '';
+    // Say why Edit and Delete are missing rather than just omitting them. Withholding
+    // both silently left a wear-part task's page reading "<task name> / Done" and
+    // nothing else, which looks like a surface that forgot to render — the managed
+    // path a few lines below has always explained itself.
+    //
+    // Only when nothing else on the page already does. A synced problem sensor carries
+    // its owner's own `completion_prompt` ("Synced from binary_sensor.x — it clears
+    // when the originating integration resolves it"), which says the same thing with
+    // the specifics; adding a generic line above it would just be saying it twice.
+    let manage =
+      sourceOwned && !mb?.completion_prompt
+        ? `<span class="hk-managed-info">${escapeHTML(t('managed.sourceOwned'))}</span>`
+        : '';
     if (!sourceOwned) {
       const editBtn = `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
       // Deletion protection only holds while the owner is present. Once orphaned
@@ -5775,6 +5820,14 @@ export class HomeKeeperPanel extends HTMLElement {
         (opts.problem_sensor_exclude_labels?.length ?? 0);
       return excluded ? tn('settings.sync_on_excluding', excluded) : t('settings.sync_on');
     }
+    // The three sections whose summary is the names of what they hold. When they hold
+    // nothing the join is '', and the row fell through to the empty string below —
+    // saying nothing at all, in exactly the state a new install is in. The index
+    // promises to name every section *and what it is set to*, so "set to nothing" is
+    // an answer it owes the reader too.
+    if (id === 'hk-profiles') return t('settings.profiles_none');
+    if (id === 'hk-notifications') return t('settings.notifications_none');
+    if (id === 'hk-companions') return t('settings.companions_none');
     return '';
   }
 

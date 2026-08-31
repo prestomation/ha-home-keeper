@@ -26,7 +26,9 @@ add_task:
         (condition-driven, no schedule; an owning integration arms it via trigger_task
         and clears it via complete_task), or sensor (due-state derived from a bound
         entity, uses "sensor"). interval/unit/freq/anchor are N/A for one-off,
-        triggered, and sensor.
+        triggered, and sensor. Optional: omit it and the type is inferred from the
+        schedule fields you passed - interval/unit means floating, freq/anchor means
+        fixed, and neither means a one-off due today.
       selector:
         select:
           options:
