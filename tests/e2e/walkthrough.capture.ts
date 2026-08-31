@@ -82,10 +82,20 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // 1. Land on the admin panel — the task list with overdue / due-soon tasks and
   //    the first-run orientation banner.
   await openPanel(page);
-  await expect(panel.locator('.hk-intro')).toBeVisible();
-  await page.waitForTimeout(BEAT * 2);
-  await panel.locator('ha-button.hk-intro-dismiss').click();
-  await expect(panel.locator('.hk-intro')).toHaveCount(0);
+  // Show the banner and dismiss it *if it is there*, rather than requiring it.
+  //
+  // Dismissal persists in HA's per-user frontend store, so the first attempt spends
+  // it for the whole container — and a `toBeVisible()` here meant every Playwright
+  // retry died on step 1 before reaching whatever had actually gone wrong. One flaky
+  // beat later in the tour therefore read as three identical failures and burned the
+  // retries that exist to absorb it. The run that matters (a fresh container, which
+  // is what CI gives it) still lands on the banner and still lingers on it.
+  const intro = panel.locator('.hk-intro');
+  if (await intro.isVisible().catch(() => false)) {
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('ha-button.hk-intro-dismiss').click();
+    await expect(intro).toHaveCount(0);
+  }
   // Let the list re-render/settle after the banner collapses before clicking into it.
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(BEAT);
