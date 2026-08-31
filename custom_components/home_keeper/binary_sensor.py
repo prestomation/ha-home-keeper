@@ -20,16 +20,18 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from . import assets as asset_model
 from . import recurrence
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
-from .entity import HomeKeeperTaskEntity
+from .entity import (
+    HomeKeeperPartEntity,
+    HomeKeeperTaskEntity,
+    prune_registry_entries,
+)
 from .transitions import DUE_SOON_WINDOW  # shared so the event and entity agree
 
 _LOW_STOCK_ICON = "mdi:package-variant-closed-remove"
@@ -70,24 +72,21 @@ async def async_setup_entry(
     # Remove registry entries for sensors whose source is gone:
     # • per-task overdue sensors for deleted/detached tasks
     # • per-part low-stock sensors for removed parts / dropped reorder thresholds
-    reg = er.async_get(hass)
     task_prefix = f"{DOMAIN}_"
     task_suffix = "_overdue"
-    for entity_entry in reg.entities.get_entries_for_config_entry_id(entry.entry_id):
-        if entity_entry.domain != "binary_sensor":
-            continue
-        uid = entity_entry.unique_id or ""
+
+    def keep(uid: str) -> bool | None:
         if (
             uid.startswith(_LOW_UID_PREFIX)
             and uid.endswith(_LOW_UID_SUFFIX)
             and _LOW_UID_INFIX in uid
         ):
-            if uid not in live_low_uids:
-                reg.async_remove(entity_entry.entity_id)
-        elif uid.startswith(task_prefix) and uid.endswith(task_suffix):
-            task_id = uid[len(task_prefix) : -len(task_suffix)]
-            if task_id not in live_task_ids:
-                reg.async_remove(entity_entry.entity_id)
+            return uid in live_low_uids
+        if uid.startswith(task_prefix) and uid.endswith(task_suffix):
+            return uid[len(task_prefix) : -len(task_suffix)] in live_task_ids
+        return None
+
+    prune_registry_entries(hass, entry, "binary_sensor", keep)
 
     task_entities: list[BinarySensorEntity] = [
         HomeKeeperOverdueBinarySensor(coordinator, task_id) for task_id in task_ids
@@ -119,12 +118,9 @@ class HomeKeeperOverdueBinarySensor(HomeKeeperTaskEntity, BinarySensorEntity):
         }
 
 
-class HomeKeeperPartLowStockBinarySensor(
-    CoordinatorEntity[HomeKeeperCoordinator], BinarySensorEntity
-):
+class HomeKeeperPartLowStockBinarySensor(HomeKeeperPartEntity, BinarySensorEntity):
     """On when an appliance part's on-hand spares are at/below its reorder threshold."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "part_low_stock"
     _attr_icon = _LOW_STOCK_ICON
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
@@ -136,18 +132,13 @@ class HomeKeeperPartLowStockBinarySensor(
         part: dict[str, Any],
         device: dr.DeviceEntry,
     ) -> None:
-        super().__init__(coordinator)
-        self._asset_id = asset_id
-        self._part_id = part["id"]
-        # Free-form part name carried as a placeholder ("Anode rod low stock").
-        self._attr_translation_placeholders = {"part": part.get("name") or ""}
-        self._attr_unique_id = _low_stock_uid(asset_id, part["id"])
-        # Linked, not owned: the appliance device belongs to whoever created it.
-        self.device_entry = device
-
-    def _part(self) -> dict[str, Any] | None:
-        asset = self.coordinator.store.get_asset(self._asset_id) or {}
-        return asset_model.find_part(asset, self._part_id)
+        super().__init__(
+            coordinator,
+            asset_id,
+            part,
+            device,
+            unique_id=_low_stock_uid(asset_id, part["id"]),
+        )
 
     @property
     def is_on(self) -> bool:

@@ -19,7 +19,6 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
@@ -27,7 +26,7 @@ from homeassistant.util import dt as dt_util
 from . import sensor_tasks
 from .const import COMPLETION_ENTRY_FIELDS, DOMAIN, SENSOR_MODE_USAGE
 from .coordinator import HomeKeeperCoordinator
-from .entity import HomeKeeperTaskEntity
+from .entity import HomeKeeperTaskEntity, prune_registry_entries
 from .sensor_watcher import read_sensor_value
 
 # Default icon for a tracked-date sensor when the asset has no custom icon.
@@ -72,22 +71,19 @@ async def async_setup_entry(
     # Remove entity-registry entries for sensors whose source no longer exists:
     # • per-task next-due sensors for deleted/detached tasks
     # • asset date sensors for removed or un-tracked metadata entries
-    reg = er.async_get(hass)
     task_prefix = f"{DOMAIN}_"
     task_suffix = "_next_due"
     asset_prefix = f"{DOMAIN}_asset_"
     asset_infix = "_meta_"
-    for entity_entry in reg.entities.get_entries_for_config_entry_id(entry.entry_id):
-        if entity_entry.domain != "sensor":
-            continue
-        uid = entity_entry.unique_id or ""
+
+    def keep(uid: str) -> bool | None:
         if uid.startswith(task_prefix) and uid.endswith(task_suffix):
-            task_id = uid[len(task_prefix) : -len(task_suffix)]
-            if task_id not in live_task_ids:
-                reg.async_remove(entity_entry.entity_id)
-        elif uid.startswith(asset_prefix) and asset_infix in uid:
-            if uid not in live_asset_meta_uids:
-                reg.async_remove(entity_entry.entity_id)
+            return uid[len(task_prefix) : -len(task_suffix)] in live_task_ids
+        if uid.startswith(asset_prefix) and asset_infix in uid:
+            return uid in live_asset_meta_uids
+        return None
+
+    prune_registry_entries(hass, entry, "sensor", keep)
 
     task_entities: list[SensorEntity] = [
         HomeKeeperNextDueSensor(coordinator, task_id) for task_id in task_ids
