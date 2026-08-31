@@ -24,18 +24,6 @@ import {
   selBool,
   selDate,
   selDateTime,
-  generalSchema,
-  notificationSchema,
-  notifyFormData,
-  notifyFormToNotification,
-  problemSyncExclusionsSchema,
-  problemSyncToggleSchema,
-  profileFormData,
-  profileFormToProfile,
-  profileSchema,
-  profileSyncSchema,
-  shoppingSchema,
-  toProfileSync,
   selDevice,
   selIcon,
   selNumber,
@@ -54,7 +42,7 @@ import {
   type HaFormElement,
 } from './forms';
 import { selEntity } from './forms';
-import { setLanguage, t, tn } from './i18n';
+import { setLanguage, t } from './i18n';
 import { MAX_DOCUMENT_BYTES } from './limits';
 import {
   createPreview,
@@ -70,9 +58,7 @@ import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
 import { collapsibleSection, section, setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
 import {
-  COMPANIONS_DOCS_URL,
   DOCS_UPLOAD_413_URL,
-  DOCS_URL,
   MDI_CLOSE,
   MDI_DELETE,
   MDI_EDIT,
@@ -81,6 +67,14 @@ import {
   SENSOR_DOCS_URL,
 } from './panel-icons';
 import { assetsList, tasksList, wireLists } from './panel-lists';
+import {
+  settingsBackbar,
+  settingsIndex,
+  settingsRail,
+  settingsSectionList,
+  switchView,
+  wireSettings,
+} from './panel-settings';
 import { STYLES } from './panel-styles';
 import {
   LS_ASSET_FILTER,
@@ -114,15 +108,12 @@ import type {
   ManagedBy,
   MetadataEntry,
   MetadataType,
-  Notification,
   PanelInfo,
   Part,
   Profile,
-  ProfileSync,
   Task,
 } from './types';
 import {
-  navigateTo,
   toast,
   btnAttrs,
   type BtnWeight,
@@ -210,11 +201,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // Integration options for the Settings tab (loaded lazily with the rest).
   _options: HomeKeeperOptions | null = null;
   // Available mobile_app_* notify services (for the Notifications profile editor).
-  private _notifyTargets: string[] = [];
+  _notifyTargets: string[] = [];
   // Home Keeper's own todo entities, kept out of the shopping-list picker.
-  private _ownTodoEntities: string[] = [];
+  _ownTodoEntities: string[] = [];
   // Companion integrations shown on the Settings tab (loaded with the rest).
-  private _companions: Companion[] = [];
+  _companions: Companion[] = [];
   // HA tag-registry entries as picker options, for the task form's tag field and
   // the tag chip. Best-effort: an empty list still leaves a typable combo box.
   _tags: { value: string; label: string }[] = [];
@@ -232,9 +223,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // batteries — starts collapsed so it stays out of the way but one click to browse.
   _collapsed = new Set<string>(['status:monitored', 'status:completed']);
   // Settings sections (profiles, notifications) the user has collapsed this session.
-  private _settingsSectionCollapsed = new Set<string>();
+  _settingsSectionCollapsed = new Set<string>();
   // Individual profile/notification items the user has expanded (default: collapsed).
-  private _itemExpanded = new Set<string>();
+  _itemExpanded = new Set<string>();
   // Task rows whose chip overflow the user unfolded, so the chips past the second are
   // reachable in the list rather than only on the detail page.
   _chipsExpanded = new Set<string>();
@@ -243,7 +234,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // Which Settings section the URL names, or null for the section index. Both are
   // rendered at every width and CSS decides which one shows: a desktop has room for
   // all six sections beside the rail, a phone shows the index or one section.
-  private _settingsSection: SettingsSection | null = null;
+  _settingsSection: SettingsSection | null = null;
   // Short-lived signed URLs for the uploaded files on screen, minted ahead of the click
   // so every file is opened by a native anchor tap rather than a JS `window.open` the
   // iOS app's WKWebView would swallow (issue #164). Filled by `_signFiles`.
@@ -386,7 +377,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const section = this._settingsSection;
     if (section) layout.dataset.section = section;
     else delete layout.dataset.section;
-    const current = this._settingsSectionList().find((s) => s.key === section);
+    const current = settingsSectionList(this).find((s) => s.key === section);
     root.querySelectorAll<HTMLElement>('.hk-rail-link').forEach((link) => {
       if (section && link.dataset.section === section) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
@@ -398,7 +389,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // retitled — and rewired, since the button it carries is a new element.
     col.querySelector('.hk-settings-backbar')?.remove();
     if (current) {
-      col.insertAdjacentHTML('afterbegin', this._settingsBackbar());
+      col.insertAdjacentHTML('afterbegin', settingsBackbar(this));
       root
         .getElementById('settings-back')
         ?.addEventListener('click', () => this._closeSettingsSection());
@@ -437,7 +428,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * to `scrollIntoView` overrides the CSS `scroll-behavior` it sets, so the choice has
    * to be made here too.
    */
-  private _scrollBehavior(): ScrollBehavior {
+  _scrollBehavior(): ScrollBehavior {
     return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
   }
 
@@ -632,7 +623,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * and otherwise (a deep link straight to `/settings/notifications`) navigate to the
    * index outright, since there is nothing behind us to pop.
    */
-  private _closeSettingsSection(): void {
+  _closeSettingsSection(): void {
     if (this._hasHistory) history.back();
     else this._navigate({ view: 'settings', detail: null }, true);
   }
@@ -665,7 +656,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /** Fetch tasks/assets/domains into state (no render). */
-  private async _reload(): Promise<void> {
+  async _reload(): Promise<void> {
     if (!this._hass) return;
     try {
       const [
@@ -1350,7 +1341,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /** Coalesce rapid calls under *key*, running only the trailing one after *ms*. */
-  private _debounce(key: string, fn: () => void, ms = 600): void {
+  _debounce(key: string, fn: () => void, ms = 600): void {
     const prev = this._persistTimers[key];
     if (prev) clearTimeout(prev);
     this._persistTimers[key] = setTimeout(() => {
@@ -1496,10 +1487,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
             ? ` data-section="${escapeHTML(this._settingsSection)}"`
             : ''
         }>
-          ${this._settingsRail()}
-          ${this._settingsIndex()}
+          ${settingsRail(this)}
+          ${settingsIndex(this)}
           <div class="hk-settings-col">
-            ${this._settingsBackbar()}
+            ${settingsBackbar(this)}
             <div id="hk-settings-host"></div>
             <div id="hk-profiles-host"></div>
             <div id="hk-notifications-host"></div>
@@ -1755,7 +1746,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * reach it. Rendered alongside `ha-tab-group` rather than replacing it: that
    * component is Shoelace-based, so turning it into a bottom bar would mean styling
    * a shadow root we don't own. Exactly one of the two is visible at any width (see
-   * the tab-bar rules in STYLES), and both drive the same `_switchView`.
+   * the tab-bar rules in STYLES), and both drive the same `switchView`.
    *
    * Its ids are `mtab-*`, not `tab-*`: two elements cannot share an id, and the
    * desktop tabs' ids are what deep links and the test suite navigate by.
@@ -2037,7 +2028,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       b.addEventListener('click', () => {
         const view = b.dataset.view;
         if (view === 'tasks' || view === 'appliances' || view === 'settings') {
-          this._switchView(view);
+          switchView(this, view);
         }
       }),
     );
@@ -2050,18 +2041,18 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (wireDetail(this, root)) return;
 
     // Tab navigation. Listen on each tab (click) and on the group's shoelace
-    // `sl-tab-show` event (whichever fires) — both funnel through _switchView,
+    // `sl-tab-show` event (whichever fires) — both funnel through switchView,
     // which is a no-op when the view is unchanged.
-    root.getElementById('tab-tasks')?.addEventListener('click', () => this._switchView('tasks'));
+    root.getElementById('tab-tasks')?.addEventListener('click', () => switchView(this, 'tasks'));
     root
       .getElementById('tab-appliances')
-      ?.addEventListener('click', () => this._switchView('appliances'));
+      ?.addEventListener('click', () => switchView(this, 'appliances'));
     root
       .getElementById('tab-settings')
-      ?.addEventListener('click', () => this._switchView('settings'));
+      ?.addEventListener('click', () => switchView(this, 'settings'));
     root.querySelector('ha-tab-group')?.addEventListener('sl-tab-show', (e: Event) => {
       const name = (e as CustomEvent<{ name?: string }>).detail?.name;
-      if (name === 'tasks' || name === 'appliances' || name === 'settings') this._switchView(name);
+      if (name === 'tasks' || name === 'appliances' || name === 'settings') switchView(this, name);
     });
 
     // The control row (Add/Export, the scope pills and their dropdown twins, the
@@ -2072,57 +2063,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     wireControls(this, root);
     wireLists(this, root);
 
-    // Forms.
-    const settingsHost = root.getElementById('hk-settings-host');
-    if (settingsHost) this._renderSettingsForm(settingsHost);
-    const profilesHost = root.getElementById('hk-profiles-host');
-    if (profilesHost) this._renderProfiles(profilesHost);
-    const notificationsHost = root.getElementById('hk-notifications-host');
-    if (notificationsHost) this._renderNotifications(notificationsHost);
-    const companionsHost = root.getElementById('hk-companions-host');
-    if (companionsHost) this._renderCompanions(companionsHost);
-
-    // Mark the card the URL names, so the phone rules can show that one and hide its
-    // five siblings without CSS having to compare two attribute values. This is a
-    // fact about the route, not about the viewport, so it is set at every width.
-    if (this._view === 'settings') {
-      const current = this._settingsSectionList().find((s) => s.key === this._settingsSection);
-      root.querySelectorAll('.hk-settings-col ha-card').forEach((card) => {
-        card.classList.toggle('hk-sec-current', !!current && card.id === current.card);
-      });
-    }
-
-    // Both ways into a section navigate, so the URL always says which one is open.
-    // The rail is a lateral move along one page, so it replaces; an index row is a
-    // drill-in from a list, so it pushes and Back returns to the list. On a wide
-    // screen the whole page is showing, so a rail click also scrolls its card into
-    // view — guarded because jsdom does not implement `scrollIntoView`.
-    root.querySelectorAll<HTMLElement>('.hk-rail-link').forEach((link) =>
-      link.addEventListener('click', () => {
-        const section = link.dataset.section as SettingsSection | undefined;
-        if (section) this._navigate({ view: 'settings', detail: null, section }, true);
-        const card = link.dataset.rail ? root.getElementById(link.dataset.rail) : null;
-        if (card && typeof card.scrollIntoView === 'function') {
-          card.scrollIntoView({ block: 'start', behavior: this._scrollBehavior() });
-        }
-      }),
-    );
-    root.querySelectorAll<HTMLElement>('.hk-index-row').forEach((row) =>
-      row.addEventListener('click', () => {
-        const section = row.dataset.section as SettingsSection | undefined;
-        if (section) this._navigate({ view: 'settings', detail: null, section });
-        // A drill-in opens a screen, so it opens at the top of one. Worth saying out
-        // loud now that the page is patched rather than rebuilt: nothing else moves
-        // the scroll, so an index read halfway down would open a section halfway down.
-        const top = root.querySelector<HTMLElement>('.hk-toolbar');
-        if (top && typeof top.scrollIntoView === 'function') {
-          top.scrollIntoView({ block: 'start' });
-        }
-      }),
-    );
-    root
-      .getElementById('settings-back')
-      ?.addEventListener('click', () => this._closeSettingsSection());
+    // The Settings tab: its four hosts built into, the card the URL names marked,
+    // and the rail / index / back-bar wired.
+    wireSettings(this, root);
 
     // Card actions: the row opens the detail page; tasks keep a quick "Done".
     wireDetailOpeners(this, root);
@@ -2189,1039 +2132,46 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     });
   }
 
-  private _switchView(view: 'tasks' | 'appliances' | 'settings'): void {
-    // Tapping the tab you are already on returns to its list when a detail page is
-    // open — the standard "tab bar pops to root" gesture, and the only way back out of
-    // a detail from the phone tab bar, whose Appliances tab is *already* the current
-    // view while an appliance detail is showing. An open Settings section is the same
-    // gesture: the tab pops back to the section index.
-    if (this._view === view && !this._detail && !this._settingsSection) return;
-    // Switching tabs is a lateral move, not a drill-in: replace so Back doesn't
-    // retrace every tab toggle.
-    this._navigate({ view, detail: null }, true);
-  }
-
   /**
-   * Every Settings section in display order, with the heading, the mark saying what
-   * state it is in, and the line saying what it is set to.
+   * Build one live `ha-form` and register it for `hass` updates.
    *
-   * The anchor rail and the phone index are two renderings of this one list, so they
-   * cannot come to disagree about what exists or what it says. Every label reuses the
-   * heading its section already carries, so neither surface adds translated prose to
-   * keep in sync with the cards it points at.
-   */
-  private _settingsSectionList(): {
-    key: SettingsSection;
-    card: string;
-    label: string;
-    mark: string;
-    summary: string;
-  }[] {
-    const opts = this._options;
-    // The dot was the rail's only indicator and it said everything in hue: green for
-    // on, amber for "configured but with nothing to deliver to". A screen reader got
-    // an empty span, and so did anyone who cannot separate the two colours.
-    const dot = (state: 'on' | 'warn' | 'off'): string =>
-      state === 'off'
-        ? ''
-        : `<span class="hk-rail-dot ${state}" role="img" aria-label="${escapeHTML(
-            t(state === 'warn' ? 'settings.state_warn' : 'settings.state_on'),
-          )}" title="${escapeHTML(
-            t(state === 'warn' ? 'settings.state_warn' : 'settings.state_on'),
-          )}"></span>`;
-    const count = (n: number): string =>
-      n ? `<span class="hk-rail-count">${escapeHTML(String(n))}</span>` : '';
-    const companionsOn = this._companions.filter((c) => c.status === 'connected').length;
-    const sections: { key: SettingsSection; card: string; label: string; mark: string }[] = [
-      { key: 'general', card: 'hk-settings-general', label: t('settings.general_heading'), mark: '' },
-      {
-        key: 'shopping',
-        card: 'hk-settings-shopping',
-        label: t('settings.shopping_heading'),
-        mark: dot(opts?.shopping_list_entity ? 'on' : 'off'),
-      },
-      {
-        key: 'problem',
-        card: 'hk-settings',
-        label: t('settings.heading'),
-        mark: dot(opts?.sync_problem_sensors ? 'on' : 'off'),
-      },
-      {
-        key: 'profiles',
-        card: 'hk-profiles',
-        label: t('notify.profiles_heading'),
-        mark: count(opts?.profiles?.length ?? 0),
-      },
-      {
-        key: 'notifications',
-        card: 'hk-notifications',
-        label: t('notify.heading'),
-        // Amber rather than green when notifications are configured but there is no
-        // mobile app to deliver them to — the one state that looks fine on the card
-        // and silently does nothing.
-        mark: this._notifyTargets.length ? count(opts?.notifications?.length ?? 0) : dot('warn'),
-      },
-      { key: 'companions', card: 'hk-companions', label: t('companions.heading'), mark: count(companionsOn) },
-    ];
-    // Every section says what it holds, not just how much. A bare "2" beside Profiles
-    // is not enough to decide whether to open it, and those three sections are exactly
-    // the ones whose state is least guessable from the heading. Naming what is inside
-    // costs no new translated prose — the names are the user's own.
-    const forSummary = (opts ?? {}) as HomeKeeperOptions;
-    const names = (list: { name?: string }[] | undefined): string =>
-      (list ?? [])
-        .map((x) => x.name)
-        .filter((n): n is string => !!n)
-        .join(', ');
-    const listed: Partial<Record<SettingsSection, string>> = {
-      profiles: names(opts?.profiles),
-      notifications: names(opts?.notifications),
-      companions: names(this._companions.filter((c) => c.status === 'connected')),
-    };
-    return sections.map((s) => ({
-      ...s,
-      summary: listed[s.key] || this._settingsSummary(s.card, forSummary),
-    }));
-  }
-
-  /**
-   * The Settings tab's anchor rail: every section, in order, with a dot or a count
-   * saying what state it is in.
+   * The only constructor for an `ha-form` in the panel: being registered in
+   * `_liveHassEls` is what keeps a form's pickers current, and one built by hand
+   * elsewhere would quietly go stale.
    *
-   * Settings is one long page of cards, and the thing people actually want from it is
-   * "is the mirror on, do I have notifications set up" — questions the rail answers
-   * without scrolling. Clicking an entry opens that section's URL, which on a wide
-   * screen scrolls its card into view.
+   * *labelling* is for the forms that don't name their fields from `field.<name>` —
+   * a Settings card reads `settings.<name>`, a profile `notify.<name>`, a sync group
+   * `todo_sync.<name>`. Omit it for the `field.`/`help.` default; supply it and the
+   * form gets exactly what is given. A *labelling* with no `computeHelper` leaves the
+   * form without one rather than falling back to the `help.<name>` lookup: a stray
+   * helper is a line of prose appearing under a field that never had one.
    */
-  private _settingsRail(): string {
-    const entry = (s: { key: SettingsSection; card: string; label: string; mark: string }): string =>
-      `<button class="hk-rail-link" data-rail="${escapeHTML(s.card)}" data-section="${escapeHTML(
-        s.key,
-      )}"${s.key === this._settingsSection ? ' aria-current="page"' : ''}>
-         <span class="hk-rail-label">${escapeHTML(s.label)}</span>${s.mark}
-       </button>`;
-    return `
-      <nav class="hk-settings-rail" aria-label="${escapeHTML(t('tab.settings'))}">
-        ${this._settingsSectionList().map(entry).join('')}
-        ${this._settingsFoot()}
-      </nav>`;
-  }
-
-  /** The version and documentation link that close the Settings tab, on whichever of
-   *  the rail or the phone index is the one showing. */
-  private _settingsFoot(): string {
-    return `
-      <div class="hk-rail-foot">
-        <span class="hk-rail-ver">v${escapeHTML(PANEL_VERSION)}</span>
-        <a href="${DOCS_URL}" target="_blank" rel="noopener noreferrer">${escapeHTML(
-          t('help.docsLink'),
-        )}</a>
-      </div>`;
-  }
-
-  /**
-   * The Settings tab's section index — the phone's way in.
-   *
-   * A phone has no room for a rail beside six expanded sections, and no room for the
-   * six sections either. So it gets the list first: every section as a row naming it,
-   * what it is set to, and its mark, opening that section's own URL. It is rendered
-   * at every width and hidden by CSS on a wide screen, so nothing here has to know
-   * how big the viewport is.
-   */
-  private _settingsIndex(): string {
-    const row = (s: {
-      key: SettingsSection;
-      label: string;
-      mark: string;
-      summary: string;
-    }): string => `
-      <button class="hk-index-row" data-section="${escapeHTML(s.key)}">
-        <span class="hk-index-text">
-          <span class="hk-index-name">${escapeHTML(s.label)}</span>
-          ${s.summary ? `<span class="hk-index-sum">${escapeHTML(s.summary)}</span>` : ''}
-        </span>
-        ${s.mark}
-        <span class="hk-index-chev" aria-hidden="true"></span>
-      </button>`;
-    return `
-      <div class="hk-settings-index">
-        <ha-card class="hk-index-card">${this._settingsSectionList().map(row).join('')}</ha-card>
-        ${this._settingsFoot()}
-      </div>`;
-  }
-
-  /** The phone's header for one open Settings section: the way back to the index, and
-   *  the section's own name. Hidden by CSS where the whole page fits. */
-  private _settingsBackbar(): string {
-    const current = this._settingsSectionList().find((s) => s.key === this._settingsSection);
-    if (!current) return '';
-    return `
-      <div class="hk-settings-backbar">
-        <ha-button id="settings-back" ${btnAttrs('tertiary')}>‹ ${escapeHTML(t('btn.back'))}</ha-button>
-        <span class="hk-settings-backtitle">${escapeHTML(current.label)}</span>
-      </div>`;
-  }
-
-  /** Render the Settings tab — `ha-form` mirrors of the options flow that autosave
-   *  each change (the backend reloads + re-runs the problem sync). Three cards: a
-   *  **General** card for settings (like one-off retention) that aren't tied to any
-   *  single feature, the **Shopping list** mirror, and problem-sensor sync. The two
-   *  feature cards each carry a paragraph, because both do something to the user's
-   *  data they should read about before switching it on. */
-  private _renderSettingsForm(host: HTMLElement): void {
-    const opts: HomeKeeperOptions = this._options ?? {
-      sync_problem_sensors: false,
-      problem_sensor_exclude_entities: [],
-      problem_sensor_exclude_devices: [],
-      problem_sensor_exclude_areas: [],
-      problem_sensor_exclude_labels: [],
-      one_off_retention_days: 0,
-      shopping_list_entity: '',
-      profiles: [],
-      notifications: [],
-    };
-    // General — settings independent of any single feature (e.g. one-off retention).
-    host.appendChild(
-      this._settingsCard(
-        'hk-settings-general',
-        'settings.general_heading',
-        'settings.general_help',
-        generalSchema(),
-        opts,
-      ),
-    );
-    // Shopping list — where auto-buy reminders are mirrored.
-    host.appendChild(
-      this._settingsCard(
-        'hk-settings-shopping',
-        'settings.shopping_heading',
-        'settings.shopping_help',
-        shoppingSchema(this._ownTodoEntities),
-        opts,
-        // Clearing an entity picker emits `undefined`, which JSON drops on the way
-        // to the backend — so the key never reaches the partial-update merge and
-        // "turn the mirror off" silently wouldn't stick. Send the empty string the
-        // backend reads as off. (The other settings are multi-selects, which emit
-        // `[]`, which is why nothing has needed this before.)
-        (value) => ({ ...value, shopping_list_entity: String(value.shopping_list_entity ?? '') }),
-      ),
-    );
-    // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor). The
-    // exclusions are split out so they can be indented behind the switch that decides
-    // whether they apply at all.
-    host.appendChild(
-      this._settingsCard(
-        'hk-settings',
-        'settings.heading',
-        'settings.help',
-        problemSyncToggleSchema(),
-        opts,
-        undefined,
-        {
-          schema: problemSyncExclusionsSchema(),
-          labelKey: 'settings.exclusions',
-          noteKey: 'settings.exclusions_note',
-        },
-      ),
-    );
-  }
-
-  /** Build one autosaving Settings card: a titled `ha-card` wrapping an `ha-form`
-   *  for *schema*, seeded with the full *opts* and saving on change. *coerce*, when
-   *  given, cleans the emitted value before it is saved. */
-  private _settingsCard(
-    id: string,
-    headingKey: string,
-    helpKey: string,
-    schema: FormField[],
-    opts: HomeKeeperOptions,
-    coerce?: (value: Record<string, unknown>) => Record<string, unknown>,
-    dependent?: { schema: FormField[]; labelKey: string; noteKey: string },
-  ): HTMLElement {
-    const card = document.createElement('ha-card');
-    card.className = 'hk-form-card hk-settings-card';
-    card.id = id;
-    const inner = document.createElement('div');
-    inner.className = 'hk-form-inner';
-    // The card states its current value under its name, so the Settings page can be
-    // read for what it is set to without opening anything.
-    const summary = this._settingsSummary(id, opts);
-    inner.innerHTML = `
-      <div class="hk-form-title">${escapeHTML(t(headingKey))}</div>
-      ${summary ? `<div class="hk-settings-value">${escapeHTML(summary)}</div>` : ''}
-      <div class="hk-settings-intro">${escapeHTML(t(helpKey))}</div>`;
-
-    const build = (fields: FormField[]): HaFormElement => {
-      const form = document.createElement('ha-form') as HaFormElement;
-      form.hass = this._hass;
-      form.schema = fields;
-      form.data = { ...opts };
-      form.computeLabel = (s: { name: string }): string => (s.name ? t('settings.' + s.name) : '');
-      // Optional per-field note, for a setting whose consequences aren't obvious from
-      // its label (the problem-sensor toggle: what clears such a task, and where it
-      // shows up). `t()` echoes an unknown key back, which is how a field with no note
-      // renders none.
-      form.computeHelper = (s: { name: string }): string => {
-        if (!s.name) return '';
-        const key = `settings.${s.name}_help`;
-        const text = t(key);
-        return text === key ? '' : text;
-      };
-      form.addEventListener('value-changed', (e: Event) => {
-        const raw = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
-        const value = coerce ? coerce(raw) : raw;
-        // Each form carries only its own fields, which is exactly what the options
-        // endpoint wants: it merges partial updates, so a change to the toggle never
-        // has to restate the exclusions to leave them alone.
-        void this._saveOptions(value as Partial<HomeKeeperOptions>);
-      });
-      this._liveHassEls.push(form);
-      return form;
-    };
-
-    inner.appendChild(build(schema));
-    if (dependent) {
-      // Fields that only bite while the setting above them is on, indented behind a
-      // rule and captioned with that condition — the same treatment the task form
-      // gives the fields a recurrence choice reveals.
-      const indent = document.createElement('div');
-      indent.className = 'hk-indent';
-      const body = document.createElement('div');
-      body.className = 'hk-indent-body';
-      const head = document.createElement('div');
-      head.className = 'hk-indent-head';
-      head.innerHTML =
-        `<span class="hk-eyebrow accent">${escapeHTML(t(dependent.labelKey))}</span>` +
-        `<span class="hk-indent-note">${escapeHTML(t(dependent.noteKey))}</span>`;
-      body.append(head, build(dependent.schema));
-      indent.appendChild(body);
-      inner.appendChild(indent);
-    }
-    card.appendChild(inner);
-    return card;
-  }
-
-  /**
-   * One line stating what a Settings card is currently set to, shown under its name.
-   *
-   * Derived from the live options rather than stored, so it can never disagree with
-   * the controls below it. Returns '' where a card has nothing worth restating.
-   */
-  private _settingsSummary(id: string, opts: HomeKeeperOptions): string {
-    if (id === 'hk-settings-general') {
-      const days = Number(opts.one_off_retention_days) || 0;
-      return days > 0 ? tn('settings.retention_summary', days) : t('settings.retention_forever');
-    }
-    if (id === 'hk-settings-shopping') {
-      const entity = String(opts.shopping_list_entity ?? '');
-      if (!entity) return t('settings.shopping_off');
-      const name = this._hass?.states?.[entity]?.attributes?.friendly_name;
-      return t('settings.shopping_on', { list: String(name || entity) });
-    }
-    if (id === 'hk-settings') {
-      if (!opts.sync_problem_sensors) return t('settings.sync_off');
-      const excluded =
-        (opts.problem_sensor_exclude_entities?.length ?? 0) +
-        (opts.problem_sensor_exclude_devices?.length ?? 0) +
-        (opts.problem_sensor_exclude_areas?.length ?? 0) +
-        (opts.problem_sensor_exclude_labels?.length ?? 0);
-      return excluded ? tn('settings.sync_on_excluding', excluded) : t('settings.sync_on');
-    }
-    // The three sections whose summary is the names of what they hold. When they hold
-    // nothing the join is '', and the row fell through to the empty string below —
-    // saying nothing at all, in exactly the state a new install is in. The index
-    // promises to name every section *and what it is set to*, so "set to nothing" is
-    // an answer it owes the reader too.
-    if (id === 'hk-profiles') return t('settings.profiles_none');
-    if (id === 'hk-notifications') return t('settings.notifications_none');
-    if (id === 'hk-companions') return t('settings.companions_none');
-    return '';
-  }
-
-  private async _saveOptions(value: Partial<HomeKeeperOptions>): Promise<void> {
-    if (!this._hass) return;
-    // Keep local state in sync optimistically so the form doesn't flicker; the
-    // backend persists, reloads the entry and re-runs the problem-sensor sync.
-    this._options = { ...(this._options as HomeKeeperOptions), ...value };
-    try {
-      await api.setOptions(this._hass, value);
-      // setOptions resolves only once the backend has reloaded and reconciled the
-      // synced problem-sensor tasks for the new exclusions. Refresh our cached
-      // tasks (without re-rendering — that would tear down the form the user is
-      // still editing) so the change is reflected the moment they return to the
-      // Tasks tab, rather than lingering until the next refresh.
-      await this._reload();
-      toast(this, t('settings.saved'));
-    } catch (err) {
-      toast(this, String((err as { message?: string })?.message || err));
-    }
-  }
-
-  /** Render the Settings → Profiles card: reusable saved filters (status +
-   *  labels/areas/devices), each an autosaving `ha-form`. Profiles are consumed by
-   *  notifications, the admin task list, and the dashboard card. */
-  private _renderProfiles(host: HTMLElement): void {
-    const profiles = this._options?.profiles ?? [];
-    const isCollapsed = this._settingsSectionCollapsed.has('profiles');
-
-    const card = document.createElement('ha-card');
-    card.className = 'hk-form-card';
-    card.id = 'hk-profiles';
-    const inner = document.createElement('div');
-    inner.className = 'hk-form-inner';
-
-    // Clickable header (always visible)
-    const header = document.createElement('button');
-    header.className = 'hk-section-header';
-    header.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
-    header.innerHTML = `
-      <span class="hk-form-title hk-section-title">${escapeHTML(t('notify.profiles_heading'))}</span>
-      ${profiles.length ? `<span class="hk-section-count">${profiles.length}</span>` : ''}
-      <ha-icon icon="mdi:chevron-down" class="hk-section-chevron${isCollapsed ? '' : ' open'}"></ha-icon>`;
-    inner.appendChild(header);
-
-    // Collapsible body
-    const body = document.createElement('div');
-    if (isCollapsed) body.style.display = 'none';
-    const intro = document.createElement('div');
-    intro.className = 'hk-settings-intro';
-    intro.textContent = t('notify.profiles_help');
-    body.appendChild(intro);
-    if (!profiles.length) {
-      const alert = document.createElement('ha-alert');
-      alert.setAttribute('alert-type', 'info');
-      alert.textContent = t('notify.profiles_empty');
-      body.appendChild(alert);
-    }
-    for (const profile of profiles) body.appendChild(this._profileEditor(profile));
-    const add = document.createElement('ha-button');
-    add.id = 'hk-profile-add';
-    add.className = 'hk-notify-add';
-    setBtnWeight(add, 'secondary');
-    add.textContent = t('notify.add_profile');
-    add.addEventListener('click', () => void this._addProfile());
-    body.appendChild(add);
-    inner.appendChild(body);
-    card.appendChild(inner);
-
-    header.addEventListener('click', () => {
-      const collapsed = this._settingsSectionCollapsed.has('profiles');
-      const chevron = header.querySelector<HTMLElement>('.hk-section-chevron');
-      if (collapsed) {
-        this._settingsSectionCollapsed.delete('profiles');
-        body.style.display = '';
-        header.setAttribute('aria-expanded', 'true');
-        chevron?.classList.add('open');
-      } else {
-        this._settingsSectionCollapsed.add('profiles');
-        body.style.display = 'none';
-        header.setAttribute('aria-expanded', 'false');
-        chevron?.classList.remove('open');
-      }
-    });
-
-    host.appendChild(card);
-  }
-
-  private _profileEditor(profile: Profile): HTMLElement {
-    const isExpanded = this._itemExpanded.has(profile.id);
-
-    const card = document.createElement('div');
-    card.className = 'hk-item-card';
-
-    // Clickable header showing the profile name
-    const header = document.createElement('button');
-    header.className = 'hk-item-header';
-    header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'hk-item-name';
-    nameSpan.textContent = profile.name;
-    header.appendChild(nameSpan);
-    // The row says where it syncs without being opened; the group below is the
-    // only place that can change it, so the chip is display-only.
-    const syncChip = document.createElement('span');
-    this._paintSyncChip(syncChip, profile.sync?.entity_id ?? '');
-    header.appendChild(syncChip);
-    const chevron = document.createElement('ha-icon');
-    (chevron as unknown as Record<string, string>).icon = 'mdi:chevron-down';
-    chevron.className = 'hk-section-chevron' + (isExpanded ? ' open' : '');
-    header.appendChild(chevron);
-    card.appendChild(header);
-
-    // Collapsible body
-    const body = document.createElement('div');
-    body.className = 'hk-item-body';
-    if (!isExpanded) body.style.display = 'none';
-
-    // The filter form and the sync group are two `ha-form`s editing one profile, and
-    // both save through the same debounce key. Each keeps the other half in a closure
-    // so whichever fires last still writes both — and so a rename can't wipe a
-    // configured list, which is what saving the filter form alone would do.
-    let filter = profileFormData(profile);
-    let sync: ProfileSync = toProfileSync(profile.sync);
-    const saveProfile = (): void => {
-      const next = (this._options?.profiles ?? []).map((p) =>
-        p.id === profile.id ? profileFormToProfile(profile.id, filter, sync) : p,
-      );
-      this._debounce('profiles', () => void this._persistProfiles(next, false));
-    };
-
-    const form = document.createElement('ha-form') as HaFormElement;
-    form.hass = this._hass;
-    form.schema = profileSchema();
-    form.data = filter;
-    form.computeLabel = (s: { name: string }): string => {
-      if (s.name === 'name') return t('field.name');
-      if (s.name === 'labels') return t('field.labels');
-      return t('notify.' + s.name);
-    };
-    // The three status values are nested tiers, not independent buckets — "Overdue and
-    // due soon" already covers everything overdue. Nothing in a single-select says so,
-    // which read as a missing multi-select (#248), so the helper spells it out.
-    form.computeHelper = (s: { name: string }): string =>
-      s.name === 'status' ? t('notify.status_help') : '';
-    form.addEventListener('value-changed', (e: Event) => {
-      filter = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
-      if (typeof filter.name === 'string') nameSpan.textContent = filter.name;
-      saveProfile();
-    });
-    this._liveHassEls.push(form);
-    body.appendChild(form);
-
-    body.appendChild(
-      this._profileSyncGroup(profile, sync, (next) => {
-        sync = next;
-        this._paintSyncChip(syncChip, next.entity_id);
-        saveProfile();
-      }),
-    );
-
-    const del = document.createElement('ha-button');
-    del.className = 'hk-notify-delete';
-    setBtnWeight(del, 'danger');
-    del.textContent = t('notify.delete');
-    del.addEventListener('click', () => void this._deleteProfile(profile.id));
-    body.appendChild(del);
-    card.appendChild(body);
-
-    header.addEventListener('click', () => {
-      const expanded = this._itemExpanded.has(profile.id);
-      const chev = header.querySelector<HTMLElement>('.hk-section-chevron');
-      if (expanded) {
-        this._itemExpanded.delete(profile.id);
-        body.style.display = 'none';
-        header.setAttribute('aria-expanded', 'false');
-        chev?.classList.remove('open');
-      } else {
-        this._itemExpanded.add(profile.id);
-        body.style.display = '';
-        header.setAttribute('aria-expanded', 'true');
-        chev?.classList.add('open');
-      }
-    });
-
-    return card;
-  }
-
-  /** The expand/collapse key for a profile's sync group. Namespaced so it can share
-   *  the panel's two expansion sets with the profile row itself. */
-  private _syncKey(profileId: string): string {
-    return `sync:${profileId}`;
-  }
-
-  /** Whether a profile's sync group starts open. A configured list is worth seeing
-   *  at a glance, so it defaults open and an unconfigured one stays folded — but an
-   *  explicit expand (`_itemExpanded`) or collapse (`_settingsSectionCollapsed`)
-   *  outranks the default, so re-rendering never undoes what the user just did. */
-  private _syncGroupExpanded(profile: Profile): boolean {
-    const key = this._syncKey(profile.id);
-    if (this._itemExpanded.has(key)) return true;
-    if (this._settingsSectionCollapsed.has(key)) return false;
-    return Boolean(profile.sync?.entity_id);
-  }
-
-  private _setSyncGroupExpanded(profileId: string, expanded: boolean): void {
-    const key = this._syncKey(profileId);
-    if (expanded) {
-      this._itemExpanded.add(key);
-      this._settingsSectionCollapsed.delete(key);
-    } else {
-      this._settingsSectionCollapsed.add(key);
-      this._itemExpanded.delete(key);
-    }
-  }
-
-  /** The synced list's friendly name, falling back to the raw entity id for a list
-   *  with no state yet (a freshly picked one, or one whose integration is offline). */
-  private _syncListName(entityId: string): string {
-    const friendly = this._hass?.states?.[entityId]?.attributes?.friendly_name;
-    return typeof friendly === 'string' && friendly ? friendly : entityId;
-  }
-
-  /** Paint (or clear) the chip on a collapsed profile row that names the to-do list
-   *  the profile syncs to. An unsynced profile shows nothing rather than an empty
-   *  pill, so the chip's presence is itself the signal. */
-  private _paintSyncChip(chip: HTMLElement, entityId: string): void {
-    if (!entityId) {
-      chip.className = '';
-      chip.removeAttribute('title');
-      chip.removeAttribute('aria-label');
-      chip.innerHTML = '';
-      return;
-    }
-    const name = this._syncListName(entityId);
-    const label = t('todo_sync.chip', { name });
-    chip.className = 'hk-sync-chip';
-    chip.setAttribute('title', label);
-    chip.setAttribute('aria-label', label);
-    // A plain span, not an `ha-assist-chip`: the row header is a <button>, and HA's
-    // chip renders a button of its own, which would nest one inside the other.
-    chip.innerHTML = `<ha-icon icon="mdi:swap-horizontal" class="hk-chip-ic"></ha-icon>${escapeHTML(name)}`;
-  }
-
-  /** A profile's collapsible **Sync to a to-do list** group: the list to sync the
-   *  profile's tasks onto, plus what a change over there means here. There is no
-   *  delete button — clearing the picker is the off switch, which is why the schema
-   *  round-trips a cleared value to `''` rather than dropping the key. */
-  private _profileSyncGroup(
-    profile: Profile,
-    initial: ProfileSync,
-    onChange: (sync: ProfileSync) => void,
-  ): HTMLElement {
-    const isExpanded = this._syncGroupExpanded(profile);
-
-    const group = document.createElement('div');
-    group.className = 'hk-sync-group';
-
-    const header = document.createElement('button');
-    header.className = 'hk-item-header';
-    header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
-    const title = document.createElement('span');
-    title.className = 'hk-item-name';
-    title.textContent = t('todo_sync.group');
-    header.appendChild(title);
-    const chevron = document.createElement('ha-icon');
-    (chevron as unknown as Record<string, string>).icon = 'mdi:chevron-down';
-    chevron.className = 'hk-section-chevron' + (isExpanded ? ' open' : '');
-    header.appendChild(chevron);
-    group.appendChild(header);
-
-    const body = document.createElement('div');
-    body.className = 'hk-item-body';
-    if (!isExpanded) body.style.display = 'none';
-    const intro = document.createElement('div');
-    intro.className = 'hk-settings-intro';
-    intro.textContent = t('todo_sync.group_help');
-    body.appendChild(intro);
-
-    const form = document.createElement('ha-form') as HaFormElement;
-    form.hass = this._hass;
-    form.schema = profileSyncSchema(this._ownTodoEntities);
-    form.data = { ...initial };
-    form.computeLabel = (s: { name: string }): string => (s.name ? t('todo_sync.' + s.name) : '');
-    form.addEventListener('value-changed', (e: Event) => {
-      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
-      // Clearing the picker emits `undefined`, which JSON drops on the way to the
-      // backend; normalizing to '' is what makes "switch the sync off" stick.
-      onChange(toProfileSync(value));
-    });
-    this._liveHassEls.push(form);
-    body.appendChild(form);
-    group.appendChild(body);
-
-    header.addEventListener('click', () => {
-      const expanded = !this._syncGroupExpanded(profile);
-      this._setSyncGroupExpanded(profile.id, expanded);
-      const chev = header.querySelector<HTMLElement>('.hk-section-chevron');
-      body.style.display = expanded ? '' : 'none';
-      header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      chev?.classList.toggle('open', expanded);
-    });
-
-    return group;
-  }
-
-  private _addProfile(): Promise<void> {
-    const blank: Profile = {
-      id: '',
-      name: t('notify.new_profile'),
-      filter: {
-        status: 'overdue',
-        labels: [],
-        areas: [],
-        devices: [],
-        exclude_labels: [],
-        exclude_areas: [],
-        exclude_devices: [],
-      },
-      // No list picked: the sync does nothing until one is, and both switches
-      // carry the defaults the backend normalizer would fill in.
-      sync: { entity_id: '', two_way: true, vanish_as_completed: true },
-    };
-    return this._persistProfiles([...(this._options?.profiles ?? []), blank], true, true);
-  }
-
-  private _deleteProfile(id: string): Promise<void> {
-    this._itemExpanded.delete(id);
-    this._itemExpanded.delete(this._syncKey(id));
-    this._settingsSectionCollapsed.delete(this._syncKey(id));
-    const next = (this._options?.profiles ?? []).filter((p) => p.id !== id);
-    return this._persistProfiles(next, true);
-  }
-
-  private async _persistProfiles(
-    profiles: Profile[],
-    render: boolean,
-    expandLast = false,
-  ): Promise<void> {
-    if (!this._hass) return;
-    this._options = { ...(this._options as HomeKeeperOptions), profiles };
-    try {
-      this._options = await api.setOptions(this._hass, {
-        profiles,
-      } as Partial<HomeKeeperOptions>);
-      if (expandLast) {
-        const saved = this._options?.profiles ?? [];
-        if (saved.length) this._itemExpanded.add(saved[saved.length - 1].id);
-      }
-      if (render) this._render();
-      toast(this, t('settings.saved'));
-    } catch (err) {
-      toast(this, String((err as { message?: string })?.message || err));
-    }
-  }
-
-  /** Render the Settings → Notifications card: delivery bindings that each reference
-   *  a profile and add targets/buttons/style — see the backend `notifier.py`. */
-  private _renderNotifications(host: HTMLElement): void {
-    const profiles = this._options?.profiles ?? [];
-    const notifications = this._options?.notifications ?? [];
-    const isCollapsed = this._settingsSectionCollapsed.has('notifications');
-
-    const card = document.createElement('ha-card');
-    card.className = 'hk-form-card';
-    card.id = 'hk-notifications';
-    const inner = document.createElement('div');
-    inner.className = 'hk-form-inner';
-
-    // Clickable header (always visible)
-    const header = document.createElement('button');
-    header.className = 'hk-section-header';
-    header.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
-    header.innerHTML = `
-      <span class="hk-form-title hk-section-title">${escapeHTML(t('notify.heading'))}</span>
-      ${notifications.length ? `<span class="hk-section-count">${notifications.length}</span>` : ''}
-      <ha-icon icon="mdi:chevron-down" class="hk-section-chevron${isCollapsed ? '' : ' open'}"></ha-icon>`;
-    inner.appendChild(header);
-
-    // Collapsible body
-    const body = document.createElement('div');
-    if (isCollapsed) body.style.display = 'none';
-    const intro = document.createElement('div');
-    intro.className = 'hk-settings-intro';
-    intro.textContent = t('notify.help');
-    body.appendChild(intro);
-    if (!this._notifyTargets.length) {
-      const alert = document.createElement('ha-alert');
-      alert.setAttribute('alert-type', 'info');
-      alert.textContent = t('notify.no_targets');
-      body.appendChild(alert);
-    }
-    if (!profiles.length) {
-      const alert = document.createElement('ha-alert');
-      alert.setAttribute('alert-type', 'info');
-      alert.textContent = t('notify.need_profile');
-      body.appendChild(alert);
-    }
-    if (!notifications.length) {
-      const alert = document.createElement('ha-alert');
-      alert.setAttribute('alert-type', 'info');
-      alert.textContent = t('notify.empty');
-      body.appendChild(alert);
-    }
-    for (const notification of notifications) {
-      body.appendChild(this._notificationEditor(notification, profiles));
-    }
-    const add = document.createElement('ha-button');
-    add.id = 'hk-notify-add';
-    add.className = 'hk-notify-add';
-    setBtnWeight(add, 'secondary');
-    add.textContent = t('notify.add');
-    if (!profiles.length) add.setAttribute('disabled', '');
-    add.addEventListener('click', () => void this._addNotification());
-    body.appendChild(add);
-    inner.appendChild(body);
-    card.appendChild(inner);
-
-    header.addEventListener('click', () => {
-      const collapsed = this._settingsSectionCollapsed.has('notifications');
-      const chevron = header.querySelector<HTMLElement>('.hk-section-chevron');
-      if (collapsed) {
-        this._settingsSectionCollapsed.delete('notifications');
-        body.style.display = '';
-        header.setAttribute('aria-expanded', 'true');
-        chevron?.classList.add('open');
-      } else {
-        this._settingsSectionCollapsed.add('notifications');
-        body.style.display = 'none';
-        header.setAttribute('aria-expanded', 'false');
-        chevron?.classList.remove('open');
-      }
-    });
-
-    host.appendChild(card);
-  }
-
-  private _notificationEditor(notification: Notification, profiles: Profile[]): HTMLElement {
-    const isExpanded = this._itemExpanded.has(notification.id);
-
-    const card = document.createElement('div');
-    card.className = 'hk-item-card';
-
-    // Clickable header showing the notification name
-    const header = document.createElement('button');
-    header.className = 'hk-item-header';
-    header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'hk-item-name';
-    nameSpan.textContent = notification.name;
-    header.appendChild(nameSpan);
-    const chevron = document.createElement('ha-icon');
-    (chevron as unknown as Record<string, string>).icon = 'mdi:chevron-down';
-    chevron.className = 'hk-section-chevron' + (isExpanded ? ' open' : '');
-    header.appendChild(chevron);
-    card.appendChild(header);
-
-    // Collapsible body
-    const body = document.createElement('div');
-    body.className = 'hk-item-body';
-    if (!isExpanded) body.style.display = 'none';
-
-    const form = document.createElement('ha-form') as HaFormElement;
-    form.hass = this._hass;
-    form.schema = notificationSchema(this._notifyTargets, profiles);
-    form.data = notifyFormData(notification);
-    form.computeLabel = (s: { name: string }): string => {
-      if (s.name === 'name') return t('field.name');
-      if (s.name === 'profile_id') return t('notify.profile');
-      return t('notify.' + s.name);
-    };
-    form.addEventListener('value-changed', (e: Event) => {
-      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
-      if (typeof value.name === 'string') nameSpan.textContent = value.name;
-      const next = (this._options?.notifications ?? []).map((n) =>
-        n.id === notification.id ? notifyFormToNotification(notification.id, value) : n,
-      );
-      this._debounce('notifications', () => void this._persistNotifications(next, false));
-    });
-    this._liveHassEls.push(form);
-    body.appendChild(form);
-
-    const del = document.createElement('ha-button');
-    del.className = 'hk-notify-delete';
-    setBtnWeight(del, 'danger');
-    del.textContent = t('notify.delete');
-    del.addEventListener('click', () => void this._deleteNotification(notification.id));
-    body.appendChild(del);
-    card.appendChild(body);
-
-    header.addEventListener('click', () => {
-      const expanded = this._itemExpanded.has(notification.id);
-      const chev = header.querySelector<HTMLElement>('.hk-section-chevron');
-      if (expanded) {
-        this._itemExpanded.delete(notification.id);
-        body.style.display = 'none';
-        header.setAttribute('aria-expanded', 'false');
-        chev?.classList.remove('open');
-      } else {
-        this._itemExpanded.add(notification.id);
-        body.style.display = '';
-        header.setAttribute('aria-expanded', 'true');
-        chev?.classList.add('open');
-      }
-    });
-
-    return card;
-  }
-
-  private _addNotification(): Promise<void> {
-    const profiles = this._options?.profiles ?? [];
-    if (!profiles.length) return Promise.resolve();
-    const blank: Notification = {
-      id: '',
-      name: t('notify.new_name'),
-      profile_id: profiles[0].id,
-      targets: this._notifyTargets.length ? [this._notifyTargets[0]] : [],
-      actions: ['complete', 'snooze', 'open'],
-      snooze_hours: 24,
-      style: 'walk',
-      auto: { overdue: false, due_soon: false },
-    };
-    return this._persistNotifications([...(this._options?.notifications ?? []), blank], true, true);
-  }
-
-  private _deleteNotification(id: string): Promise<void> {
-    this._itemExpanded.delete(id);
-    const next = (this._options?.notifications ?? []).filter((n) => n.id !== id);
-    return this._persistNotifications(next, true);
-  }
-
-  private async _persistNotifications(
-    notifications: Notification[],
-    render: boolean,
-    expandLast = false,
-  ): Promise<void> {
-    if (!this._hass) return;
-    this._options = { ...(this._options as HomeKeeperOptions), notifications };
-    try {
-      this._options = await api.setOptions(this._hass, {
-        notifications,
-      } as Partial<HomeKeeperOptions>);
-      if (expandLast) {
-        const saved = this._options?.notifications ?? [];
-        if (saved.length) this._itemExpanded.add(saved[saved.length - 1].id);
-      }
-      if (render) this._render();
-      toast(this, t('settings.saved'));
-    } catch (err) {
-      toast(this, String((err as { message?: string })?.message || err));
-    }
-  }
-
-  /** Render the Settings → Companions section: integrations that work with
-   *  Home Keeper. *Connected* rows (self-registered, or a detected glue) deep-link
-   *  to the companion's own options page; *Suggested* rows (a popular upstream is
-   *  installed but its glue isn't) offer an install link and can be dismissed. */
-  private _renderCompanions(host: HTMLElement): void {
-    const all = this._companions ?? [];
-    const connected = all.filter((c) => c.status === 'connected');
-    const suggested = all.filter((c) => c.status === 'suggested');
-
-    const card = document.createElement('ha-card');
-    card.className = 'hk-form-card';
-    card.id = 'hk-companions';
-    const inner = document.createElement('div');
-    inner.className = 'hk-form-inner';
-
-    const sections: string[] = [
-      `<div class="hk-form-title">${escapeHTML(t('companions.heading'))}</div>`,
-      `<div class="hk-settings-intro">${escapeHTML(t('companions.help'))}</div>`,
-      // Static link to the docs catalog of known companions/glue. Only the
-      // template's `<a>` is trusted here — the URL is a constant, no user content.
-      `<div class="hk-settings-intro">${t('companions.discover', { url: COMPANIONS_DOCS_URL })}</div>`,
-    ];
-    if (!connected.length && !suggested.length) {
-      sections.push(`<ha-alert alert-type="info">${escapeHTML(t('companions.empty'))}</ha-alert>`);
-    }
-    if (connected.length) {
-      sections.push(
-        `<div class="hk-companion-group">${escapeHTML(t('companions.connected'))}</div>`,
-        ...connected.map((c) => this._companionRow(c)),
-      );
-    }
-    if (suggested.length) {
-      sections.push(
-        `<div class="hk-companion-group">${escapeHTML(t('companions.suggested'))}</div>`,
-        ...suggested.map((c) => this._companionRow(c)),
-      );
-    }
-    inner.innerHTML = sections.join('');
-    card.appendChild(inner);
-    host.appendChild(card);
-    this._wireCompanions(inner);
-  }
-
-  /** One companion row's HTML (icon, name + status chip, description, actions). */
-  private _companionRow(c: Companion): string {
-    const icon = escapeHTML(c.icon || 'mdi:puzzle');
-    const chipLabel = c.status === 'connected' ? t('companions.chip.connected') : t('companions.chip.suggested');
-    const chipClass = c.status === 'connected' ? 'hk-comp-connected' : 'hk-comp-suggested';
-    const actions: string[] =
-      c.status === 'connected'
-        ? [
-            `<ha-button ${btnAttrs('secondary')} class="hk-comp-configure" data-domain="${escapeHTML(c.configure_domain || c.domain)}">${escapeHTML(t('companions.configure'))}</ha-button>`,
-          ]
-        : [
-            `<ha-button ${btnAttrs('secondary')} class="hk-comp-install" data-url="${escapeHTML(c.install_url || '')}">${escapeHTML(t('companions.install'))}</ha-button>`,
-            `<ha-button ${btnAttrs('tertiary')} class="hk-comp-dismiss" data-domain="${escapeHTML(c.domain)}">${escapeHTML(t('companions.dismiss'))}</ha-button>`,
-          ];
-    if (c.docs_url) {
-      actions.push(
-        `<ha-button ${btnAttrs('tertiary')} class="hk-comp-docs" data-url="${escapeHTML(c.docs_url)}">${escapeHTML(t('companions.docs'))}</ha-button>`,
-      );
-    }
-    const desc = c.description
-      ? `<div class="hk-companion-desc">${escapeHTML(c.description)}</div>`
-      : '';
-    return `
-      <div class="hk-companion">
-        <ha-icon class="hk-companion-ic" icon="${icon}"></ha-icon>
-        <div class="hk-companion-body">
-          <div class="hk-companion-name">
-            ${escapeHTML(c.name)}
-            <ha-assist-chip class="${chipClass}" label="${escapeHTML(chipLabel)}"></ha-assist-chip>
-          </div>
-          ${desc}
-        </div>
-        <div class="hk-companion-actions">${actions.join('')}</div>
-      </div>`;
-  }
-
-  /** Wire a companion section's Configure / Install / Docs / Dismiss buttons. */
-  private _wireCompanions(root: HTMLElement): void {
-    root.querySelectorAll<HTMLElement>('.hk-comp-configure').forEach((b) =>
-      b.addEventListener('click', () => {
-        const domain = b.dataset.domain;
-        if (domain) navigateTo(`/config/integrations/integration/${domain}`);
-      }),
-    );
-    root.querySelectorAll<HTMLElement>('.hk-comp-install, .hk-comp-docs').forEach((b) =>
-      b.addEventListener('click', () => {
-        const url = b.dataset.url;
-        // Defense in depth: the backend already restricts docs_url to http(s), but
-        // only open externally-supplied links with a safe scheme regardless.
-        if (url && /^https?:\/\//i.test(url)) window.open(url, '_blank', 'noopener');
-      }),
-    );
-    root.querySelectorAll<HTMLElement>('.hk-comp-dismiss').forEach((b) =>
-      b.addEventListener('click', () => {
-        const domain = b.dataset.domain;
-        if (domain) void this._dismissCompanion(domain);
-      }),
-    );
-  }
-
-  /** Hide a suggested companion by persisting its domain to dismissed_companions. */
-  private async _dismissCompanion(domain: string): Promise<void> {
-    if (!this._hass) return;
-    const current = this._options?.dismissed_companions ?? [];
-    if (current.includes(domain)) return;
-    const dismissed_companions = [...current, domain];
-    try {
-      await api.setOptions(this._hass, { dismissed_companions });
-      await this._refresh();
-    } catch (err) {
-      toast(this, String((err as { message?: string })?.message || err));
-    }
-  }
-
-  private _makeForm(
+  _makeForm(
     schema: FormField[],
     data: Record<string, unknown>,
     onChange: (value: Record<string, unknown>) => void,
+    labelling?: {
+      computeLabel: (s: { name: string }) => string;
+      computeHelper?: (s: { name: string }) => string;
+    },
   ): HaFormElement {
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
     form.schema = schema;
     form.data = data;
-    form.computeLabel = (s: { name: string }): string => (s.name ? t('field.' + s.name) : '');
-    // Muted per-field helper text under each field (keyed `help.<field>`); returns ''
-    // where no string is authored, so helpers appear only where we wrote them.
-    form.computeHelper = (s: { name: string }): string => {
-      if (!s.name) return '';
-      const h = t('help.' + s.name);
-      return h === 'help.' + s.name ? '' : h;
-    };
+    if (labelling) {
+      form.computeLabel = labelling.computeLabel;
+      if (labelling.computeHelper) form.computeHelper = labelling.computeHelper;
+    } else {
+      form.computeLabel = (s: { name: string }): string => (s.name ? t('field.' + s.name) : '');
+      // Muted per-field helper text under each field (keyed `help.<field>`); returns ''
+      // where no string is authored, so helpers appear only where we wrote them.
+      form.computeHelper = (s: { name: string }): string => {
+        if (!s.name) return '';
+        const h = t('help.' + s.name);
+        return h === 'help.' + s.name ? '' : h;
+      };
+    }
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
       onChange(value);

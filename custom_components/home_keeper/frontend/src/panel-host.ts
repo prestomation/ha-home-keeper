@@ -23,6 +23,7 @@
  */
 
 import type { SignedUrlCache } from './documents';
+import type { FormField, HaFormElement } from './forms';
 import type {
   AssetEditState,
   AssetFilter,
@@ -32,8 +33,8 @@ import type {
   NoteTarget,
   TaskFilter,
 } from './panel-types';
-import type { Asset, Completion, Hass, HomeKeeperOptions, Task } from './types';
-import type { AssetTab, BtnWeight, PanelLocation } from './utils';
+import type { Asset, Companion, Completion, Hass, HomeKeeperOptions, Task } from './types';
+import type { AssetTab, BtnWeight, PanelLocation, SettingsSection } from './utils';
 
 export interface PanelHost extends HTMLElement {
   /** Archive an appliance (the detail page's Archive button). */
@@ -62,12 +63,19 @@ export interface PanelHost extends HTMLElement {
   _chipsExpanded: Set<string>;
   /** Leave the open detail page for the list it came from. */
   _closeDetail(): void;
+  /** Leave an open Settings section for the section index (the phone's back arrow). */
+  _closeSettingsSection(): void;
   /** Group sections the user collapsed this session, keyed by "<group>:<bucket>". */
   _collapsed: Set<string>;
+  /** The companion integrations the Settings tab lists. */
+  _companions: Companion[];
   /** Record a completion for *task* (opening the details dialog when one is wanted). */
   _complete(task: Task): Promise<void>;
   /** A task's part link as an "Appliance · Part · In stock: N" line (HTML). */
   _consumableLinkLabel(task: Task): string;
+  /** Run *fn* once the key has been quiet for *ms*, so a per-keystroke save doesn't
+   *  fire a config-entry reload on every character. */
+  _debounce(key: string, fn: () => void, ms?: number): void;
   /** Delete a task outright (already confirmed). */
   _delete(task: Task): Promise<void>;
   /** Delete an appliance outright (already confirmed). */
@@ -87,10 +95,24 @@ export interface PanelHost extends HTMLElement {
   _hass?: Hass;
   /** Whether this user has dismissed the first-run intro banner. */
   _introDismissed: boolean;
+  /** Profile / notification rows (and a profile's sync group) the user has expanded. */
+  _itemExpanded: Set<string>;
   /** The language dates, times and numbers are formatted in (Home Assistant's). */
   _lang(): string | undefined;
   /** config entry ids currently loaded, for managed-task orphan detection. */
   _loadedEntryIds: Set<string>;
+  /** Build one live `ha-form`, registered for `hass` updates. The panel's only
+   *  `ha-form` constructor; *labelling* is for a form whose fields are not named from
+   *  `field.<name>` (see the panel's own doc comment). */
+  _makeForm(
+    schema: FormField[],
+    data: Record<string, unknown>,
+    onChange: (value: Record<string, unknown>) => void,
+    labelling?: {
+      computeLabel: (s: { name: string }) => string;
+      computeHelper?: (s: { name: string }) => string;
+    },
+  ): HaFormElement;
   /** Navigate within the panel; `replace` for a lateral move that Back should skip. */
   _navigate(loc: PanelLocation, replace?: boolean): void;
   /** A detail page's Notes card contents — rendered Markdown, or the inline editor. */
@@ -102,6 +124,8 @@ export interface PanelHost extends HTMLElement {
   ): string;
   /** Toast why *task*'s Done action is unavailable. */
   _notifyBlocked(task: Task): void;
+  /** The mobile_app_* notify services a notification can be delivered to. */
+  _notifyTargets: string[];
   /** Open the completion-details dialog on an already-recorded completion. */
   _openCompletionEdit(task: Task, c: Completion): void;
   /** Open the destructive-action confirmation overlay. */
@@ -120,14 +144,21 @@ export interface PanelHost extends HTMLElement {
   _openMoveCompletion(task: Task, ts: string): void;
   /** Integration options — the saved Profiles the list filter offers live here. */
   _options: HomeKeeperOptions | null;
+  /** Home Keeper's own todo entities, kept out of the shopping-list picker. */
+  _ownTodoEntities: string[];
   /** The saved Profile id the task list is filtered by ('' = none). */
   _profile: string;
   /** Reload every collection from the backend and re-render. */
   _refresh(): Promise<void>;
+  /** Reload every collection from the backend *without* re-rendering — for a save that
+   *  must not tear down the form the user is still editing. */
+  _reload(): Promise<void>;
   /** Rebuild the shadow tree from the current state. */
   _render(): void;
   /** Un-archive an appliance (the detail page's Restore button). */
   _restoreAsset(asset: Asset): Promise<void>;
+  /** How a scroll the panel starts itself should move (honours reduced-motion). */
+  _scrollBehavior(): ScrollBehavior;
   _setAssetFilter(value: AssetFilter): void;
   /** Switch the open appliance's sub-tab (replaces, so Back leaves the appliance). */
   _setAssetTab(tab: AssetTab): void;
@@ -135,6 +166,10 @@ export interface PanelHost extends HTMLElement {
   _setFilter(value: TaskFilter): void;
   _setGroupBy(value: GroupBy): void;
   _setProfile(value: string): void;
+  /** Which Settings section the URL names, or null for the section index. */
+  _settingsSection: SettingsSection | null;
+  /** Settings sections (and profile sync groups) the user has collapsed this session. */
+  _settingsSectionCollapsed: Set<string>;
   /** Short-lived signed URLs for the uploaded files on screen; a detail page reads the
    *  href out of it as it renders and `_signFiles` fills in what wasn't minted yet. */
   _signedFiles: SignedUrlCache;
