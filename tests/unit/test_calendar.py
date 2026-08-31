@@ -374,3 +374,36 @@ def test_collect_events_keeps_a_wrapping_season_across_the_new_year():
         _dt(2027, 1, 1, 9),
         _dt(2027, 1, 2, 9),
     ]
+
+
+def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
+    """The walk toward an in-season occurrence is bounded, not open-ended.
+
+    The pathological case above proves `None` comes back; this proves *why*. A grid
+    that never lands in its season would otherwise walk forever, and a calendar read
+    that never returns is worse than a task that isn't on the calendar. Shrinking the
+    bound makes the count observable: the walk takes exactly that many steps and
+    stops.
+    """
+    steps = 0
+    real_next = cal.recurrence.next_fixed_occurrence
+
+    def counted(*args, **kwargs):
+        nonlocal steps
+        steps += 1
+        return real_next(*args, **kwargs)
+
+    monkeypatch.setattr(cal.recurrence, "next_fixed_occurrence", counted)
+    monkeypatch.setattr(cal.recurrence, "MAX_EXPAND_ITERATIONS", 5)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 6, 15, 8))
+
+    task = _fixed_task(
+        _dt(2026, 1, 15, 9),
+        freq="MONTHLY",
+        interval=12,
+        active_season=[{"start": "03-01", "end": "03-31"}],
+    )
+
+    assert _entity({"t_fixed": task}).event is None
+    # One call to find the first occurrence, then one per bounded step.
+    assert steps == 6
