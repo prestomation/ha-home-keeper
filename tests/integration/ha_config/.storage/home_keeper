@@ -56,12 +56,12 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "5e857f06065911b53af2f8ce2c5099cc",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
-        "last_completed": "2026-08-31T12:54:46.301235-04:00",
-        "next_due": "2027-08-31T12:54:46.301235-04:00",
+        "last_completed": "2025-05-01T10:00:00-04:00",
+        "next_due": "2026-05-01T10:00:00-04:00",
         "completions": [
           {
             "ts": "2023-05-01T10:00:00-04:00"
@@ -71,9 +71,6 @@
           },
           {
             "ts": "2025-05-01T10:00:00-04:00"
-          },
-          {
-            "ts": "2026-08-31T12:54:46.301235-04:00"
           }
         ],
         "source": {
@@ -97,13 +94,9 @@
         "area_id": null,
         "enabled": true,
         "created": "2026-01-01T08:00:00-04:00",
-        "last_completed": "2026-08-31T12:55:36.459068-04:00",
-        "next_due": "2026-09-01T08:00:00-04:00",
-        "completions": [
-          {
-            "ts": "2026-08-31T12:55:36.459068-04:00"
-          }
-        ]
+        "last_completed": null,
+        "next_due": "2026-06-14T08:00:00-04:00",
+        "completions": []
       },
       "c564261f-48a3-4434-b9ad-7c42a4ccf57a": {
         "id": "c564261f-48a3-4434-b9ad-7c42a4ccf57a",
@@ -399,6 +392,31 @@
         "completion_detail": "none",
         "completion_required_fields": []
       },
+      "4fa204b6-ff6b-4bab-96c7-c8128b462c06": {
+        "id": "4fa204b6-ff6b-4bab-96c7-c8128b462c06",
+        "name": "Renew car registration",
+        "notes": "DMV renewal — done for this year",
+        "recurrence_type": "one-off",
+        "due": "2026-06-15T09:00:00-04:00",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "created": "2026-05-20T09:00:00-04:00",
+        "last_completed": "2026-06-16T14:30:00-04:00",
+        "next_due": null,
+        "completions": [
+          {
+            "ts": "2026-06-16T14:30:00-04:00",
+            "cost": 92.0,
+            "note": "Renewed online; sticker mailed"
+          }
+        ],
+        "labels": [
+          "home"
+        ],
+        "completion_detail": "optional",
+        "completion_required_fields": []
+      },
       "cfc844bd-e9de-4efe-84b3-5f4417d186c9": {
         "id": "cfc844bd-e9de-4efe-84b3-5f4417d186c9",
         "created": "2026-06-27T17:47:36.205398-04:00",
@@ -415,7 +433,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "5e857f06065911b53af2f8ce2c5099cc",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -423,6 +441,43 @@
         "interval": 36,
         "unit": "months",
         "next_due": "2026-06-27T17:47:36.205398-04:00"
+      },
+      "49528fb6-c37d-4ddb-8402-4decc73eecee": {
+        "id": "49528fb6-c37d-4ddb-8402-4decc73eecee",
+        "created": "2026-07-30T10:15:17.888802-04:00",
+        "last_completed": null,
+        "completions": [],
+        "source": {
+          "problem_sensor": {
+            "entity_id": "binary_sensor.sump_pump_problem"
+          }
+        },
+        "managed_by": {
+          "integration": "home_keeper",
+          "display_name": "Home Keeper",
+          "config_entry_id": "home_keeper_test_entry",
+          "deletion_protected": true,
+          "locked_fields": [
+            "name",
+            "recurrence_type",
+            "device_id",
+            "area_id"
+          ],
+          "completion_blocked": true,
+          "completion_prompt": "Synced from binary_sensor.sump_pump_problem. This problem can't be cleared in Home Keeper — it clears automatically once the originating integration resolves it (the sensor returns to OK)."
+        },
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "name": "Sump pump problem",
+        "notes": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer.",
+        "recurrence_type": "triggered",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "next_due": "2026-07-30T10:15:17.888802-04:00"
       },
       "14a593d8-07e3-4674-b589-1e27ff21a8ea": {
         "id": "14a593d8-07e3-4674-b589-1e27ff21a8ea",
@@ -484,262 +539,6 @@
         "interval": 3,
         "unit": "months",
         "next_due": "2026-08-28T20:36:48.461809-04:00"
-      },
-      "c1ddb471-4026-4976-8db9-a6e4f410f1dd": {
-        "id": "c1ddb471-4026-4976-8db9-a6e4f410f1dd",
-        "created": "2026-08-31T12:54:46.098340-04:00",
-        "last_completed": null,
-        "completions": [],
-        "source": null,
-        "managed_by": null,
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "Empty dehumidifier tank",
-        "notes": "",
-        "recurrence_type": "floating",
-        "device_id": "a469f789bf24644862970201f98d794d",
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "interval": 2,
-        "unit": "days",
-        "next_due": "2026-08-31T12:54:46.098340-04:00"
-      },
-      "1168126c-db98-4a5c-bb27-7614141e8908": {
-        "id": "1168126c-db98-4a5c-bb27-7614141e8908",
-        "created": "2026-08-31T12:54:50.703387-04:00",
-        "last_completed": "2026-08-31T12:54:50.722324-04:00",
-        "completions": [
-          {
-            "ts": "2026-08-31T12:54:50.722324-04:00"
-          }
-        ],
-        "source": {
-          "part": {
-            "asset_id": "6e6aa85f-aab2-45fb-9956-9a668d45697d",
-            "part_id": "90cccb86-e62a-4811-8e1c-e79e034bdd6c",
-            "manual": true
-          }
-        },
-        "managed_by": null,
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "Replace filter Fridge a2752152",
-        "notes": "",
-        "recurrence_type": "floating",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "interval": 6,
-        "unit": "months",
-        "next_due": "2027-02-28T12:54:50.722324-05:00"
-      },
-      "44a95789-91dc-48fe-aae9-e1507aa4b1f9": {
-        "id": "44a95789-91dc-48fe-aae9-e1507aa4b1f9",
-        "created": "2026-08-31T12:54:50.790015-04:00",
-        "last_completed": null,
-        "completions": [],
-        "source": null,
-        "managed_by": null,
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "Replace filter Fridge 758770d9",
-        "notes": "",
-        "recurrence_type": "floating",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "interval": 6,
-        "unit": "months",
-        "next_due": "2026-08-31T12:54:50.790015-04:00"
-      },
-      "8cd7da1a-7b8e-4d7b-96a3-be338faf1a2d": {
-        "id": "8cd7da1a-7b8e-4d7b-96a3-be338faf1a2d",
-        "created": "2026-08-31T12:54:52.015785-04:00",
-        "last_completed": null,
-        "completions": [],
-        "source": null,
-        "managed_by": null,
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "Replace filter Fridge e33936ce",
-        "notes": "",
-        "recurrence_type": "floating",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "interval": 6,
-        "unit": "months",
-        "next_due": "2026-08-31T12:54:52.015785-04:00"
-      },
-      "e9604a17-8dc4-44c1-b179-f0287009f64b": {
-        "id": "e9604a17-8dc4-44c1-b179-f0287009f64b",
-        "created": "2026-08-31T12:55:16.324891-04:00",
-        "last_completed": null,
-        "completions": [],
-        "source": null,
-        "managed_by": null,
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "Test clean gutters",
-        "notes": "",
-        "recurrence_type": "floating",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "interval": 6,
-        "unit": "months",
-        "next_due": "2026-08-31T12:55:16.324891-04:00"
-      },
-      "80a3f287-4995-41f8-b3d8-e4f7d24b1f63": {
-        "id": "80a3f287-4995-41f8-b3d8-e4f7d24b1f63",
-        "created": "2026-08-31T12:55:26.371657-04:00",
-        "last_completed": null,
-        "completions": [],
-        "source": null,
-        "managed_by": null,
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "Test water the plants",
-        "notes": "",
-        "recurrence_type": "fixed",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "interval": 1,
-        "freq": "DAILY",
-        "anchor": "2026-01-01T07:30:00-05:00",
-        "next_due": "2026-09-01T07:30:00-05:00"
-      },
-      "d1a2abfc-ed8e-4c73-9bae-8f15b2057d5f": {
-        "id": "d1a2abfc-ed8e-4c73-9bae-8f15b2057d5f",
-        "created": "2026-08-31T12:55:36.421273-04:00",
-        "last_completed": null,
-        "completions": [],
-        "source": {
-          "pawsistant": {
-            "dog_id": "buddy",
-            "event_type": "medicine",
-            "schedule_id": "sched-1"
-          }
-        },
-        "managed_by": null,
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "Cross-integration medicine",
-        "notes": "",
-        "recurrence_type": "floating",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "interval": 2,
-        "unit": "weeks",
-        "next_due": "2026-08-31T12:55:36.421273-04:00"
-      },
-      "105d1891-37f7-4850-b82a-33ba69963399": {
-        "id": "105d1891-37f7-4850-b82a-33ba69963399",
-        "created": "2026-08-31T12:55:36.432002-04:00",
-        "last_completed": "2026-08-31T12:55:36.440522-04:00",
-        "completions": [
-          {
-            "ts": "2026-08-31T12:55:36.440522-04:00"
-          }
-        ],
-        "source": {
-          "pawsistant": {
-            "schedule_id": "evt-sched"
-          }
-        },
-        "managed_by": null,
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "Event payload probe",
-        "notes": "",
-        "recurrence_type": "floating",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "interval": 1,
-        "unit": "days",
-        "next_due": "2026-09-01T12:55:36.440522-04:00"
-      },
-      "87c1bca7-9eb6-4f44-bae8-b29d8be9e162": {
-        "id": "87c1bca7-9eb6-4f44-bae8-b29d8be9e162",
-        "created": "2026-08-31T12:59:14.806550-04:00",
-        "last_completed": null,
-        "completions": [],
-        "source": {
-          "problem_sensor": {
-            "entity_id": "binary_sensor.sump_pump_problem"
-          }
-        },
-        "managed_by": {
-          "integration": "home_keeper",
-          "display_name": "Home Keeper",
-          "config_entry_id": "home_keeper_test_entry",
-          "deletion_protected": true,
-          "locked_fields": [
-            "name",
-            "recurrence_type",
-            "device_id",
-            "area_id"
-          ],
-          "completion_blocked": true,
-          "completion_prompt": "Synced from binary_sensor.sump_pump_problem. This problem can't be cleared in Home Keeper — it clears automatically once the originating integration resolves it (the sensor returns to OK)."
-        },
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "Sump pump problem",
-        "notes": "Reset the pump breaker in the garage panel, then prime it.",
-        "recurrence_type": "triggered",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "next_due": "2026-08-31T12:59:14.806550-04:00"
       }
     },
     "assets": {
@@ -747,7 +546,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "5e857f06065911b53af2f8ce2c5099cc",
+        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
         "identifiers": [
           [
             "home_keeper",
@@ -756,7 +555,7 @@
         ],
         "connections": [],
         "area_id": null,
-        "manufacturer": "poke",
+        "manufacturer": "Rheem",
         "model": "XE50T10HS45U0",
         "cost": 649.0,
         "icon": "mdi:water-boiler",
@@ -768,20 +567,15 @@
             "type": "wear",
             "vendor": "Home Depot",
             "cost": 35.0,
-            "url": "",
+            "file_name": "anode-rod-receipt.pdf",
+            "file_content_type": "application/pdf",
+            "file_size": 591,
             "notes": "Torque to **40 Nm**. Needs a 1‑1/16\" socket and a breaker bar.",
             "replace_interval": 12,
             "replace_unit": "months",
-            "last_replaced": "2026-08-31",
-            "stock": 12,
-            "reorder_at": 2,
-            "stock_unit": "",
-            "consume_quantity": null,
-            "create_buy_task": false,
-            "restock_quantity": null,
-            "file_name": null,
-            "file_content_type": null,
-            "file_size": null
+            "last_replaced": "2025-05-01",
+            "stock": 2,
+            "reorder_at": 2
           },
           {
             "id": "11a79824-31d5-4ccc-b5b9-12104ff7e327",
@@ -790,20 +584,12 @@
             "type": "wear",
             "vendor": "Home Depot",
             "cost": 18.0,
-            "url": "",
             "notes": "",
             "replace_interval": 36,
             "replace_unit": "months",
             "last_replaced": null,
             "stock": null,
-            "reorder_at": null,
-            "stock_unit": "",
-            "consume_quantity": null,
-            "create_buy_task": false,
-            "restock_quantity": null,
-            "file_name": null,
-            "file_content_type": null,
-            "file_size": null
+            "reorder_at": null
           },
           {
             "id": "ae2b576d-67f4-4d4b-9aaf-d0bcebc5953b",
@@ -820,12 +606,7 @@
             "stock": 750,
             "reorder_at": 500,
             "stock_unit": "ml",
-            "consume_quantity": 250,
-            "create_buy_task": false,
-            "restock_quantity": null,
-            "file_name": null,
-            "file_content_type": null,
-            "file_size": null
+            "consume_quantity": 250
           },
           {
             "id": "f8319a3a-c717-48c2-a53e-79a205fb4a48",
@@ -840,14 +621,7 @@
             "replace_unit": null,
             "last_replaced": null,
             "stock": 4,
-            "reorder_at": 1,
-            "stock_unit": "",
-            "consume_quantity": null,
-            "create_buy_task": false,
-            "restock_quantity": null,
-            "file_name": null,
-            "file_content_type": null,
-            "file_size": null
+            "reorder_at": 1
           }
         ],
         "parent_asset_id": null,
@@ -910,28 +684,28 @@
             "value": "Garage corner, behind the shelving"
           },
           {
-            "id": "4f3ed25f-795d-42b3-865c-afaee7edcb98",
             "type": "link",
             "label": "Reorder filter",
-            "value": "https://example.com/reorder-water-filter"
+            "value": "https://example.com/reorder-water-filter",
+            "id": "4f3ed25f-795d-42b3-865c-afaee7edcb98"
           }
         ],
         "documents": [
           {
             "id": "d1d75bd3-9830-431d-a7b2-cf0ab97c1d3f",
             "kind": "link",
-            "created": "",
+            "name": "Owner's manual",
             "url": "https://example.com/water-heater-manual",
-            "name": "Owner's manual"
+            "created": ""
           },
           {
             "id": "56656a41-c3a1-4db7-9adf-d1b0fb9e0c23",
             "kind": "file",
+            "name": "Installation guide (PDF)",
             "created": "",
-            "size": 605,
             "filename": "manual.pdf",
             "content_type": "application/pdf",
-            "name": "Installation guide (PDF)"
+            "size": 605
           }
         ],
         "serial_number": "RH-2021-0099823",
@@ -941,7 +715,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "78b0c3ae6f3fb453ce28fb4dc10179ae",
+        "device_id": "38fc8a6288ef61807789fd638f6aebb5",
         "identifiers": [
           [
             "home_keeper",
@@ -966,7 +740,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "17b072dd6089daf2c90dc887317e0503",
+        "device_id": "1d7169cdea49653c7d15595155fcfcf7",
         "identifiers": [
           [
             "home_keeper",
@@ -986,324 +760,10 @@
         "metadata": [],
         "documents": [],
         "notes": ""
-      },
-      "d9d92a2a-f9a7-4d39-98e5-8ae4db04db1d": {
-        "id": "d9d92a2a-f9a7-4d39-98e5-8ae4db04db1d",
-        "created": "2026-08-31T12:54:46.062401-04:00",
-        "device_id": "a469f789bf24644862970201f98d794d",
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_d9d92a2a-f9a7-4d39-98e5-8ae4db04db1d"
-          ]
-        ],
-        "connections": [],
-        "kind": "virtual",
-        "area_id": null,
-        "name": "Test dehumidifier",
-        "parent_asset_id": null,
-        "manufacturer": "Frigidaire",
-        "model": "",
-        "serial_number": "",
-        "notes": "",
-        "documents": [],
-        "icon": "",
-        "metadata": [],
-        "cost": null,
-        "parts": [],
-        "related_device_ids": []
-      },
-      "0db04e38-0fe2-43dd-8bb0-fb20a32c6909": {
-        "id": "0db04e38-0fe2-43dd-8bb0-fb20a32c6909",
-        "created": "2026-08-31T12:54:46.145264-04:00",
-        "device_id": "0b1e756e14fc59ab2d518b884f1bd8c9",
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_0db04e38-0fe2-43dd-8bb0-fb20a32c6909"
-          ]
-        ],
-        "connections": [],
-        "kind": "virtual",
-        "area_id": null,
-        "name": "Snapshot host device",
-        "parent_asset_id": null,
-        "manufacturer": "",
-        "model": "",
-        "serial_number": "",
-        "notes": "",
-        "documents": [],
-        "icon": "",
-        "metadata": [],
-        "cost": null,
-        "parts": [],
-        "related_device_ids": []
-      },
-      "89abff96-ceaf-4057-b3e2-803cc72aa870": {
-        "id": "89abff96-ceaf-4057-b3e2-803cc72aa870",
-        "created": "2026-08-31T12:54:46.202467-04:00",
-        "device_id": "0b1e756e14fc59ab2d518b884f1bd8c9",
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_0db04e38-0fe2-43dd-8bb0-fb20a32c6909"
-          ]
-        ],
-        "connections": [],
-        "kind": "existing",
-        "area_id": null,
-        "name": "",
-        "parent_asset_id": null,
-        "manufacturer": "",
-        "model": "",
-        "serial_number": "",
-        "notes": "",
-        "documents": [],
-        "icon": "",
-        "metadata": [
-          {
-            "id": "6d1e030e-fddd-40e3-a452-ff656a931d14",
-            "type": "text",
-            "label": "Warranty provider",
-            "value": "ACME"
-          }
-        ],
-        "cost": null,
-        "parts": [],
-        "related_device_ids": []
-      },
-      "58f61f2c-a2a4-4b16-bb4f-0474cd2d8641": {
-        "id": "58f61f2c-a2a4-4b16-bb4f-0474cd2d8641",
-        "created": "2026-08-31T12:54:47.825173-04:00",
-        "device_id": "97ae0b9c074e52927a661c27f8c6e01e",
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_58f61f2c-a2a4-4b16-bb4f-0474cd2d8641"
-          ]
-        ],
-        "connections": [],
-        "kind": "virtual",
-        "area_id": null,
-        "name": "Living room piano",
-        "parent_asset_id": null,
-        "manufacturer": "",
-        "model": "",
-        "serial_number": "",
-        "notes": "",
-        "documents": [],
-        "icon": "mdi:piano",
-        "metadata": [],
-        "cost": null,
-        "parts": [],
-        "related_device_ids": [
-          "5e857f06065911b53af2f8ce2c5099cc"
-        ]
-      },
-      "e2b8de5c-ed23-4ab4-9fd3-18e49cca69bb": {
-        "id": "e2b8de5c-ed23-4ab4-9fd3-18e49cca69bb",
-        "created": "2026-08-31T12:54:48.033229-04:00",
-        "device_id": "d17412aa1db1aaff390d82b39a526287",
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_e2b8de5c-ed23-4ab4-9fd3-18e49cca69bb"
-          ]
-        ],
-        "connections": [],
-        "kind": "virtual",
-        "area_id": null,
-        "name": "Temp asset to archive",
-        "parent_asset_id": null,
-        "manufacturer": "",
-        "model": "",
-        "serial_number": "",
-        "notes": "",
-        "documents": [],
-        "icon": "",
-        "metadata": [],
-        "cost": null,
-        "parts": [],
-        "related_device_ids": [],
-        "archived_at": "2026-08-31T16:54:48.079372+00:00"
-      },
-      "13244fc7-1f82-40c3-9af5-5392a0670a0f": {
-        "id": "13244fc7-1f82-40c3-9af5-5392a0670a0f",
-        "created": "2026-08-31T12:54:48.090441-04:00",
-        "device_id": "330b17ee08a306d92e29d381f24b872a",
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_13244fc7-1f82-40c3-9af5-5392a0670a0f"
-          ]
-        ],
-        "connections": [],
-        "kind": "virtual",
-        "area_id": null,
-        "name": "Temp asset to restore",
-        "parent_asset_id": null,
-        "manufacturer": "",
-        "model": "",
-        "serial_number": "",
-        "notes": "",
-        "documents": [],
-        "icon": "",
-        "metadata": [],
-        "cost": null,
-        "parts": [],
-        "related_device_ids": [],
-        "archived_at": null
-      },
-      "6e6aa85f-aab2-45fb-9956-9a668d45697d": {
-        "id": "6e6aa85f-aab2-45fb-9956-9a668d45697d",
-        "created": "2026-08-31T12:54:50.660781-04:00",
-        "device_id": "8a95e3719b495225fc746f9b97a788ca",
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_6e6aa85f-aab2-45fb-9956-9a668d45697d"
-          ]
-        ],
-        "connections": [],
-        "kind": "virtual",
-        "area_id": null,
-        "name": "Fridge a2752152",
-        "parent_asset_id": null,
-        "manufacturer": "",
-        "model": "",
-        "serial_number": "",
-        "notes": "",
-        "documents": [],
-        "icon": "",
-        "metadata": [],
-        "cost": null,
-        "parts": [
-          {
-            "id": "90cccb86-e62a-4811-8e1c-e79e034bdd6c",
-            "name": "Water filter",
-            "part_number": "",
-            "type": "consumable",
-            "vendor": "",
-            "cost": null,
-            "url": "",
-            "notes": "",
-            "replace_interval": null,
-            "replace_unit": null,
-            "last_replaced": "2026-08-31",
-            "stock": 1,
-            "reorder_at": 1,
-            "stock_unit": "",
-            "consume_quantity": null,
-            "create_buy_task": false,
-            "restock_quantity": null,
-            "file_name": null,
-            "file_content_type": null,
-            "file_size": null
-          }
-        ],
-        "related_device_ids": []
-      },
-      "b7ea6884-0904-42be-a0c2-6909fdc54df5": {
-        "id": "b7ea6884-0904-42be-a0c2-6909fdc54df5",
-        "created": "2026-08-31T12:54:50.741399-04:00",
-        "device_id": "a8dd5922de5e28526edb874f7a6642f8",
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_b7ea6884-0904-42be-a0c2-6909fdc54df5"
-          ]
-        ],
-        "connections": [],
-        "kind": "virtual",
-        "area_id": null,
-        "name": "Fridge 758770d9",
-        "parent_asset_id": null,
-        "manufacturer": "",
-        "model": "X",
-        "serial_number": "",
-        "notes": "",
-        "documents": [],
-        "icon": "",
-        "metadata": [],
-        "cost": null,
-        "parts": [
-          {
-            "id": "b9685934-50ba-40ae-8375-015786757e9a",
-            "name": "Water filter",
-            "part_number": "",
-            "type": "consumable",
-            "vendor": "",
-            "cost": null,
-            "url": "",
-            "notes": "",
-            "replace_interval": null,
-            "replace_unit": null,
-            "last_replaced": null,
-            "stock": 5,
-            "reorder_at": 1,
-            "stock_unit": "",
-            "consume_quantity": null,
-            "create_buy_task": false,
-            "restock_quantity": null,
-            "file_name": null,
-            "file_content_type": null,
-            "file_size": null
-          }
-        ],
-        "related_device_ids": []
-      },
-      "3eaceaaf-a6e3-4868-a834-f8751d8e97dc": {
-        "id": "3eaceaaf-a6e3-4868-a834-f8751d8e97dc",
-        "created": "2026-08-31T12:54:51.875320-04:00",
-        "device_id": "39b000d5d6520989cea0f361f28962b5",
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_3eaceaaf-a6e3-4868-a834-f8751d8e97dc"
-          ]
-        ],
-        "connections": [],
-        "kind": "virtual",
-        "area_id": null,
-        "name": "Fridge cd80d0af",
-        "parent_asset_id": null,
-        "manufacturer": "",
-        "model": "",
-        "serial_number": "",
-        "notes": "",
-        "documents": [],
-        "icon": "",
-        "metadata": [],
-        "cost": null,
-        "parts": [
-          {
-            "id": "49ab0cb0-ecbd-4347-bb97-e5fd7a52ae24",
-            "name": "Water filter",
-            "part_number": "",
-            "type": "consumable",
-            "vendor": "",
-            "cost": null,
-            "url": "",
-            "notes": "",
-            "replace_interval": null,
-            "replace_unit": null,
-            "last_replaced": null,
-            "stock": 3,
-            "reorder_at": 1,
-            "stock_unit": "",
-            "consume_quantity": null,
-            "create_buy_task": false,
-            "restock_quantity": null,
-            "file_name": null,
-            "file_content_type": null,
-            "file_size": null
-          }
-        ],
-        "related_device_ids": []
       }
     },
     "problem_notes": {
-      "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it."
+      "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer."
     },
     "shopping_items": {},
     "todo_list_items": {}
