@@ -25,6 +25,7 @@ import {
   selEntity,
   selNumber,
   selText,
+  sensorLive,
   type FormField,
 } from './forms';
 import { t } from './i18n';
@@ -333,7 +334,7 @@ export function renderCompletionDialog(p: PanelHost, host: HTMLElement): void {
   // has moved since the work was done), and on a usage task correcting it on the
   // latest completion re-anchors the meter itself. Bare number selector, like the
   // form's starting-reading box: a reading can be 0 or negative.
-  const live = taskRecordsReading(c.task) ? p._sensorLive(c.task) : null;
+  const live = taskRecordsReading(c.task) ? sensorLive(p._hass, c.task) : null;
   if (live)
     schema.push({
       name: 'reading',

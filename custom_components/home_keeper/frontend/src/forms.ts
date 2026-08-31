@@ -1,11 +1,14 @@
 import { t } from './i18n';
 import { recurrenceSummary, round1 } from './utils';
 import type {
+  Asset,
   Hass,
+  MetadataEntry,
   Notification,
   NotifyAction,
   NotifyStatus,
   NotifyStyle,
+  Part,
   Profile,
   ProfileSync,
   SensorBinding,
@@ -980,6 +983,37 @@ export function sensorHintText(
 }
 
 /**
+ * The bound sensor's live reading and unit, for the form hint above and for the
+ * completion dialog's pre-filled reading.
+ *
+ * Reads the flat `sensor_*` edit state (the entity/attribute being picked right now),
+ * falling back to a loaded task's nested binding — the same precedence
+ * `sensorHintText` uses, which is why the two live together. `reading` is undefined
+ * when the entity is unset, unknown to Home Assistant, or non-numeric.
+ */
+export function sensorLive(
+  hass: Hass | undefined,
+  task: Partial<Task>,
+): { reading?: number; unit?: string } {
+  const sd = task as Record<string, unknown>;
+  // Stryker disable next-line StringLiteral: equivalent — with no binding, any
+  // fallback string is a key `states` does not hold, so the lookup below misses and
+  // the result is {} either way.
+  const entityId = String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? '');
+  // Stryker disable next-line ConditionalExpression: equivalent for the same reason —
+  // skipping this early return still ends in {}. The guard is here to say so without
+  // reaching for `hass`.
+  if (!entityId) return {};
+  const state = hass?.states?.[entityId];
+  if (!state) return {};
+  const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '');
+  const raw = attribute ? (state.attributes?.[attribute] as unknown) : state.state;
+  const num = raw == null || raw === '' ? NaN : Number(raw);
+  const unit = state.attributes?.unit_of_measurement as string | undefined;
+  return { reading: Number.isNaN(num) ? undefined : num, unit };
+}
+
+/**
  * The `ha-form` schema for the Settings tab's **Problem sensor sync** card — the
  * sync toggle plus entity / device / area / label exclusions (a subset of the
  * options flow). The entity picker is filtered to `device_class: problem` binary
@@ -1031,6 +1065,183 @@ export function shoppingSchema(exclude: string[] = []): FormField[] {
   return [
     { name: 'shopping_list_entity', selector: selEntity({ domain: 'todo' }, false, exclude) },
   ];
+}
+
+// ── appliance form schemas ──────────────────────────────────────────────────
+// The appliance editor's field sets. Panel-only (the dashboard card has no
+// appliance editor), but they live here with the task form's for the same reason:
+// they are pure structure, and structure is what a test can hold them to.
+
+// The smallest a part quantity that must be *positive* can be. Stock itself may be
+// zero (you're out), but "how much a completion uses" and "how much a restock adds"
+// can't be — a zero there is a field that quietly does nothing. A number selector
+// has no exclusive minimum, so the floor is one step of the stored precision.
+const MIN_POSITIVE_QUANTITY = 0.001;
+
+/**
+ * Identity schema (kind + virtual/existing fields + area). The `kind` field is
+ * omitted once the asset exists (it's immutable after creation, and ha-form
+ * has no per-field disable), so editing can't put it in an inconsistent state.
+ *
+ * *parents* is the appliances this one may be nested under, resolved by the caller —
+ * the panel knows the tree, this only lays the field out.
+ */
+export function assetIdentitySchema(
+  x: Partial<Asset>,
+  editing: boolean,
+  parents: { value: string; label: string }[],
+): FormField[] {
+  const fields: FormField[] = [];
+  if (!editing) {
+    fields.push({
+      name: 'kind',
+      selector: selSelect([
+        { value: 'virtual', label: t('opt.kind.virtual') },
+        { value: 'existing', label: t('opt.kind.existing') },
+      ]),
+    });
+  }
+  const existing = x.kind === 'existing';
+  if (existing) fields.push({ name: 'device_id', required: true, selector: selDevice() });
+  // The device supplies its own name for an existing-device asset (normalize_fields
+  // falls back to it), so it's optional there; a virtual asset owns no other name
+  // source, so it's required.
+  fields.push({ name: 'name', required: !existing, selector: selText() });
+  fields.push({
+    name: '',
+    type: 'grid',
+    schema: [
+      { name: 'manufacturer', selector: selText() },
+      { name: 'model', selector: selText() },
+    ],
+  });
+  // serial_number is first-class (it syncs into the device page's info block), so
+  // it sits with make/model rather than in the free-form custom fields.
+  fields.push({ name: 'serial_number', selector: selText() });
+  if (existing) {
+    // Only a device we own can be a native subdevice of another via via_device
+    // (normalize_fields forces an existing-device asset's parent_asset_id to None),
+    // so there's no parent picker here — just the icon.
+    fields.push({ name: 'icon', selector: selIcon() });
+  } else {
+    fields.push({
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'icon', selector: selIcon() },
+        { name: 'parent_asset_id', selector: selSelect(parents) },
+      ],
+    });
+  }
+  fields.push({ name: 'area_id', selector: selArea() });
+  return fields;
+}
+
+/** Structured field that wires into HA: the asset's value (for the inventory). */
+export function structuredDetailsSchema(): FormField[] {
+  return [{ name: 'cost', selector: selNumber(0) }];
+}
+
+/** Schema for one free-form metadata entry. The value control swaps by type, and
+ *  a `date` entry adds a "track as sensor" toggle (opt-in automation). */
+export function metadataSchema(m: MetadataEntry): FormField[] {
+  const valueSelector = m.type === 'date' ? selDate() : selText();
+  const fields: FormField[] = [
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        {
+          name: 'type',
+          selector: selSelect([
+            { value: 'text', label: t('opt.meta.text') },
+            { value: 'link', label: t('opt.meta.link') },
+            { value: 'date', label: t('opt.meta.date') },
+          ]),
+        },
+        { name: 'label', selector: selText() },
+      ],
+    },
+    { name: 'value', selector: valueSelector },
+  ];
+  if (m.type === 'date') fields.push({ name: 'track', selector: selBool() });
+  return fields;
+}
+
+export function partSchema(part: Part): FormField[] {
+  const isWear = part.type === 'wear';
+  const base: FormField[] = [
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'part_name', selector: selText() },
+        { name: 'part_number', selector: selText() },
+        {
+          name: 'type',
+          selector: selSelect([
+            { value: 'consumable', label: t('opt.part.consumable') },
+            { value: 'wear', label: t('opt.part.wear') },
+          ]),
+        },
+      ],
+    },
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'vendor', selector: selText() },
+        { name: 'cost', selector: selNumber(0) },
+      ],
+    },
+    { name: 'part_url', selector: selText() },
+    // Free-form notes about this part (rendered as Markdown on the appliance's
+    // detail page) — the field has always existed in the stored model but had no
+    // editor until now.
+    { name: 'notes', selector: selText(true) },
+    // Spare quantities are decimal (`'any'`): a part measured in millilitres or
+    // topped up a third of a bottle at a time is as valid as one counted in whole
+    // filters. `stock_unit` is the label those numbers are shown with.
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'stock', selector: selNumber(0, 'any') },
+        { name: 'reorder_at', selector: selNumber(0, 'any') },
+        { name: 'stock_unit', selector: selText() },
+      ],
+    },
+  ];
+  // How much one completion draws down. Only meaningful once the part is tracking
+  // stock at all — with nothing to draw from, the field would promise nothing.
+  if (part.stock != null) {
+    base.push({ name: 'consume_quantity', selector: selNumber(MIN_POSITIVE_QUANTITY, 'any') });
+  }
+  // Auto-buy: only meaningful once a reorder threshold is set (that's what defines
+  // "low"). When enabled, offer the restock quantity added on completing the reminder.
+  if (part.reorder_at != null) {
+    base.push({ name: 'create_buy_task', selector: selBool() });
+    if (part.create_buy_task) {
+      base.push({
+        name: 'restock_quantity',
+        selector: selNumber(MIN_POSITIVE_QUANTITY, 'any'),
+      });
+    }
+  }
+  if (isWear) {
+    base.push({
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'replace_interval', selector: selNumber(1) },
+        { name: 'replace_unit', selector: selUnit() },
+      ],
+    });
+    // Let the user record when the part was last replaced so the derived
+    // maintenance task's clock starts from the real date instead of "now".
+    base.push({ name: 'last_replaced', selector: selDate() });
+  }
+  return base;
 }
 
 // ── profiles (saved filters) & notifications (delivery) ─────────────────────

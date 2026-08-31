@@ -70,6 +70,10 @@ export interface PanelHost extends HTMLElement {
   _chipsExpanded: Set<string>;
   /** Leave the open detail page for the list it came from. */
   _closeDetail(): void;
+  /** Discard the open appliance drawer. */
+  _closeAssetForm(): void;
+  /** Leave the open detail page for the list it came from. */
+  _closeForm(): void;
   /** Leave an open Settings section for the section index (the phone's back arrow). */
   _closeSettingsSection(): void;
   /** Group sections the user collapsed this session, keyed by "<group>:<bucket>". */
@@ -88,8 +92,6 @@ export interface PanelHost extends HTMLElement {
   _confirmScrim: HTMLElement | null;
   /** Record a completion for *task* (opening the details dialog when one is wanted). */
   _complete(task: Task): Promise<void>;
-  /** A task's part link as an "Appliance · Part · In stock: N" line (HTML). */
-  _consumableLinkLabel(task: Task): string;
   /** Run *fn* once the key has been quiet for *ms*, so a per-keystroke save doesn't
    *  fire a config-entry reload on every character. */
   _debounce(key: string, fn: () => void, ms?: number): void;
@@ -182,9 +184,6 @@ export interface PanelHost extends HTMLElement {
   _scrollBehavior(): ScrollBehavior;
   /** One-shot: the upload-error key the next render should scroll into view. */
   _scrollToError?: string;
-  /** The bound sensor's live reading and unit, for the task form's hint and the
-   *  completion dialog's pre-filled reading. */
-  _sensorLive(task: Partial<Task>): { reading?: number; unit?: string };
   _setAssetFilter(value: AssetFilter): void;
   /** Switch the open appliance's sub-tab (replaces, so Back leaves the appliance). */
   _setAssetTab(tab: AssetTab): void;
@@ -196,12 +195,19 @@ export interface PanelHost extends HTMLElement {
   _settingsSection: SettingsSection | null;
   /** Settings sections (and profile sync groups) the user has collapsed this session. */
   _settingsSectionCollapsed: Set<string>;
+  /** Save the open appliance drawer (validates, then creates or updates). */
+  _submitAssetForm(): Promise<void>;
+  /** Save the open task drawer (validates, then creates or updates). */
+  _submitForm(): Promise<void>;
   /** Short-lived signed URLs for the uploaded files on screen; a detail page reads the
    *  href out of it as it renders and `_signFiles` fills in what wasn't minted yet. */
   _signedFiles: SignedUrlCache;
   /** HA tag-registry entries as picker options, for the tag chip. */
   _tags: { value: string; label: string }[];
   _tasks: Task[];
+  /** The task form's notes preview, so its value-changed handler can feed it in place.
+   *  Owned by the panel's `_previews` for disposal — this is only a reference. */
+  _taskNotePreview: MarkdownPreview | null;
   /** Re-arm the drawer's modality (its Escape handler and sheet/side layout) after a
    *  confirmation that took it away has closed. */
   _syncDrawerModality(): void;

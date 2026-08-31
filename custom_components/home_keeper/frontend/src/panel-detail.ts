@@ -32,6 +32,7 @@ import { completionGroupsFor, historyBody, wireHistory } from './panel-history';
 import type { PanelHost } from './panel-host';
 import { MDI_CONSUMABLE, MDI_OPEN_IN_NEW_ICON, MDI_WEAR } from './panel-icons';
 import { assetAncestry } from './panel-lists';
+import { consumableLinkLabel } from './panel-task-form';
 import type { Asset, Task } from './types';
 import {
   ASSET_TABS,
@@ -322,7 +323,7 @@ function taskDetail(p: PanelHost, task: Task): string {
         ${task.recurrence_type === 'sensor' ? row(t('field.sensor_entity_id'), sensorProgress(p, task)) : ''}
         ${task.recurrence_type === 'sensor' ? sensorProgressBar(p, task) : ''}
         ${row(t('detail.nextDue'), due)}
-        ${row(t('field.consumable_link'), p._consumableLinkLabel(task), true)}
+        ${row(t('field.consumable_link'), consumableLinkLabel(p, task), true)}
         ${idRow(task.id)}
       </div></ha-card>
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>

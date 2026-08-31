@@ -1,30 +1,9 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
-import {
-  SIGNED_URL_REFRESH_MS,
-  SignedUrlCache,
-  assetFileRefs,
-  documentLabel,
-  isDisplayableDocument,
-} from './documents';
+import { SIGNED_URL_REFRESH_MS, SignedUrlCache, assetFileRefs } from './documents';
 import {
   buildTaskPayload,
-  cardLinkTokens,
   consumableLinkToken,
-  selArea,
-  selDevice,
-  selIcon,
-  selNumber,
-  selSelect,
-  selText,
-  DEFAULT_BACKSTOP_INTERVAL,
-  formRecurrenceSummary,
-  sensorHintText,
-  taskFormData,
-  taskFormSchemaKey,
-  taskSchema,
-  taskSchemaSections,
-  pickFormData,
   type FormField,
   type HaFormElement,
 } from './forms';
@@ -37,24 +16,18 @@ import {
   wireMarkdown,
   type MarkdownPreview,
 } from './markdown';
-import {
-  renderDocumentsEditor,
-  renderMetadataEditor,
-  renderPartsEditor,
-} from './panel-asset-editors';
+import { renderAssetForm } from './panel-asset-form';
 import { wireDeviceChips } from './panel-chips';
 import { controls, wireControls } from './panel-controls';
 import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
 import {
   openCompletionDialog,
-  openConfirmDialog,
   renderCompletionDialog,
   renderMoveCompletionDialog,
   teardownOverlay,
 } from './panel-dialogs';
-import { collapsibleSection, section, setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
-import { MDI_CLOSE, REQUIRED_COMPONENTS, SENSOR_DOCS_URL } from './panel-icons';
+import { REQUIRED_COMPONENTS } from './panel-icons';
 import { assetsList, tasksList, wireLists } from './panel-lists';
 import {
   settingsBackbar,
@@ -65,6 +38,7 @@ import {
   wireSettings,
 } from './panel-settings';
 import { STYLES } from './panel-styles';
+import { renderTaskForm } from './panel-task-form';
 import {
   LS_ASSET_FILTER,
   LS_ASSET_VIEW,
@@ -82,7 +56,7 @@ import {
   type NoteTarget,
   type TaskFilter,
 } from './panel-types';
-import { errorAlert, setAssetError } from './panel-upload';
+import { setAssetError } from './panel-upload';
 import type {
   Asset,
   AssetKind,
@@ -100,11 +74,8 @@ import {
   type BtnWeight,
   buildPath,
   escapeHTML,
-  formatQuantity,
   parseRoute,
-  safeHref,
   scanRequired,
-  setBtnWeight,
   type PanelLocation,
   type PanelView,
   type AssetTab,
@@ -250,7 +221,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   private _previews: MarkdownPreview[] = [];
   // The task form's notes preview, so that form's value-changed handler can feed it.
   // Owned by `_previews` for disposal — this is only a reference.
-  private _taskNotePreview: MarkdownPreview | null = null;
+  _taskNotePreview: MarkdownPreview | null = null;
   // Live HA components that need `.hass` refreshed when hass updates. Push-only for
   // anything that registers one: the list is emptied in `_render`, at the point the
   // shadow tree those elements live in is replaced. A region module that reset it would
@@ -379,8 +350,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   private _mountDrawerForm(root: ShadowRoot): void {
     const host = root.getElementById('hk-form-host');
     if (!host) return;
-    if (this._view === 'tasks' && this._edit.open) this._renderTaskForm(host);
-    else if (this._view === 'appliances' && this._assetEdit.open) this._renderAssetForm(host);
+    if (this._view === 'tasks' && this._edit.open) renderTaskForm(this, host);
+    else if (this._view === 'appliances' && this._assetEdit.open) renderAssetForm(this, host);
     // Bring the row being edited on screen. Editing beside the list rather than on
     // top of it only buys anything if the row is visible — open the twentieth task
     // and the highlighted row is below the fold, which is a modal with a hole in it.
@@ -740,12 +711,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (!this._detail) return true;
     return this._detail.kind === kind && !!id && this._detail.id === id;
   }
-  private _closeForm(): void {
+  _closeForm(): void {
     this._edit = { open: false, task: null };
     this._render();
   }
 
-  private async _submitForm(): Promise<void> {
+  async _submitForm(): Promise<void> {
     if (!this._hass || !this._edit.task) return;
     const task = this._edit.task;
     if (!task.name || !String(task.name).trim()) {
@@ -1001,12 +972,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._navigate({ view: 'appliances', detail: null });
     }
   }
-  private _closeAssetForm(): void {
+  _closeAssetForm(): void {
     this._assetEdit = { open: false, asset: null };
     this._render();
   }
 
-  private async _submitAssetForm(): Promise<void> {
+  async _submitAssetForm(): Promise<void> {
     if (!this._hass || !this._assetEdit.asset) return;
     const a = this._assetEdit.asset;
     if (a.kind === 'virtual' && !String(a.name || '').trim()) {
@@ -1522,109 +1493,6 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     return this._notesSection({ kind: 'asset', id: asset.id }, asset.notes || '', true);
   }
 
-  // ── ha-form schemas ─────────────────────────────────────────────────────────
-  // The task form schema/data/payload helpers are shared with the dashboard card
-  // (see `forms.ts`). Asset/part schemas below stay panel-only.
-
-  private _eligibleParents(x: Partial<Asset>): { value: string; label: string }[] {
-    const banned = new Set<string>();
-    if (x.id) {
-      banned.add(x.id);
-      const childrenOf = (pid: string): void => {
-        for (const a of this._assets) {
-          if (a.parent_asset_id === pid && !banned.has(a.id)) {
-            banned.add(a.id);
-            childrenOf(a.id);
-          }
-        }
-      };
-      childrenOf(x.id);
-    }
-    return this._assets
-      .filter((a) => a.kind === 'virtual' && !banned.has(a.id))
-      .map((a) => ({ value: a.id, label: a.name }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }
-
-  /**
-   * Identity schema (kind + virtual/existing fields + area). The `kind` field is
-   * omitted once the asset exists (it's immutable after creation, and ha-form
-   * has no per-field disable), so editing can't put it in an inconsistent state.
-   */
-  private _assetIdentitySchema(x: Partial<Asset>, editing: boolean): FormField[] {
-    const fields: FormField[] = [];
-    if (!editing) {
-      fields.push({
-        name: 'kind',
-        selector: selSelect([
-          { value: 'virtual', label: t('opt.kind.virtual') },
-          { value: 'existing', label: t('opt.kind.existing') },
-        ]),
-      });
-    }
-    const existing = x.kind === 'existing';
-    if (existing) fields.push({ name: 'device_id', required: true, selector: selDevice() });
-    // The device supplies its own name for an existing-device asset (normalize_fields
-    // falls back to it), so it's optional there; a virtual asset owns no other name
-    // source, so it's required.
-    fields.push({ name: 'name', required: !existing, selector: selText() });
-    fields.push({
-      name: '',
-      type: 'grid',
-      schema: [
-        { name: 'manufacturer', selector: selText() },
-        { name: 'model', selector: selText() },
-      ],
-    });
-    // serial_number is first-class (it syncs into the device page's info block), so
-    // it sits with make/model rather than in the free-form custom fields.
-    fields.push({ name: 'serial_number', selector: selText() });
-    if (existing) {
-      // Only a device we own can be a native subdevice of another via via_device
-      // (normalize_fields forces an existing-device asset's parent_asset_id to None),
-      // so there's no parent picker here — just the icon.
-      fields.push({ name: 'icon', selector: selIcon() });
-    } else {
-      fields.push({
-        name: '',
-        type: 'grid',
-        schema: [
-          { name: 'icon', selector: selIcon() },
-          { name: 'parent_asset_id', selector: selSelect(this._eligibleParents(x)) },
-        ],
-      });
-    }
-    fields.push({ name: 'area_id', selector: selArea() });
-    return fields;
-  }
-
-  /** Manufacturer/model/serial_number to prefill from a linked HA device, skipping
-   *  any field already set on the asset — this only fills gaps, never overwrites a
-   *  value the user typed (or one already saved from a previous edit). */
-  private _deviceDefaults(
-    deviceId: string,
-    prev: Partial<Asset> | null,
-  ): Record<string, string> | undefined {
-    const dev = this._hass?.devices?.[deviceId];
-    if (!dev) return undefined;
-    const fill: Record<string, string> = {};
-    if (!String(prev?.manufacturer || '').trim() && dev.manufacturer) {
-      fill.manufacturer = dev.manufacturer;
-    }
-    if (!String(prev?.model || '').trim() && dev.model) {
-      fill.model = dev.model;
-    }
-    if (!String(prev?.serial_number || '').trim() && dev.serial_number) {
-      fill.serial_number = dev.serial_number;
-    }
-    return Object.keys(fill).length ? fill : undefined;
-  }
-
-  /** Structured field that wires into HA: the asset's value (for the inventory). */
-  private _structuredDetailsSchema(): FormField[] {
-    return [{ name: 'cost', selector: selNumber(0) }];
-  }
-
   // ── hydration: build/configure live HA components ───────────────────────────
   private _hydrate(): void {
     const root = this.shadowRoot;
@@ -1828,585 +1696,6 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     });
     this._liveHassEls.push(form);
     return form;
-  }
-
-  /** Appliances associated with a task's attached device (its own or related). */
-  private _assetsForDevice(deviceId?: string | null): Asset[] {
-    if (!deviceId) return [];
-    return this._assets.filter(
-      (a) =>
-        a.device_id === deviceId || (a.related_device_ids ?? []).includes(deviceId),
-    );
-  }
-
-  /**
-   * `asset_id:part_id` options for the task form's "Linked consumable" picker,
-   * scoped to the consumables of the appliance the task is **attached to** (its
-   * device). You link a task to its own appliance's consumable, not some unrelated
-   * appliance's — so the list stays short and unambiguous. Empty when the task has no
-   * device, or its appliance has no consumables (the picker then hides).
-   */
-  private _consumableOptions(task: Partial<Task>): { value: string; label: string }[] {
-    const assets = this._assetsForDevice(task.device_id);
-    const multi = assets.length > 1; // disambiguate by appliance only when needed
-    const options: { value: string; label: string }[] = [];
-    for (const asset of assets) {
-      for (const part of asset.parts ?? []) {
-        if (part.type !== 'consumable' || !part.id) continue;
-        options.push({
-          value: `${asset.id}:${part.id}`,
-          label: multi ? `${asset.name} · ${part.name}` : part.name,
-        });
-      }
-    }
-    return options.sort((a, b) => a.label.localeCompare(b.label));
-  }
-
-  /** Appliances reachable from a task: the one(s) it's attached to via its device,
-   *  plus the appliance behind a manual consumable link (its part's asset). */
-  private _assetsForTask(task: Partial<Task>): Asset[] {
-    const byDevice = this._assetsForDevice(task.device_id);
-    const partAssetId = task.source?.part?.asset_id;
-    if (partAssetId && !byDevice.some((a) => a.id === partAssetId)) {
-      const a = this._assets.find((x) => x.id === partAssetId);
-      if (a) return [...byDevice, a];
-    }
-    return byDevice;
-  }
-
-  /**
-   * `asset_id:entry_id` options for the task form's "Links to show on card" picker:
-   * every appliance document — an external **link** (kind `link`) or an **uploaded
-   * file** (kind `file`, e.g. a PDF manual) — plus every metadata link (type `link`)
-   * on the appliance(s) the task is associated with. The card resolves the chosen
-   * pairs live (a file opens via a signed URL minted on click). Empty (the picker
-   * then hides) when the task touches no appliance or none of them carry a document.
-   */
-  private _documentOptions(task: Partial<Task>): { value: string; label: string }[] {
-    const assets = this._assetsForTask(task);
-    const multi = assets.length > 1; // disambiguate by appliance only when needed
-    const options: { value: string; label: string }[] = [];
-    for (const asset of assets) {
-      for (const doc of asset.documents ?? []) {
-        if (!doc.id || !isDisplayableDocument(doc)) continue;
-        const label = documentLabel(doc);
-        options.push({
-          value: `${asset.id}:${doc.id}`,
-          label: multi ? `${asset.name} · ${label}` : label,
-        });
-      }
-      for (const meta of asset.metadata ?? []) {
-        if (meta.type !== 'link' || !meta.value || !meta.id) continue;
-        options.push({
-          value: `${asset.id}:${meta.id}`,
-          label: multi ? `${asset.name} · ${meta.label}` : meta.label,
-        });
-      }
-    }
-    return options.sort((a, b) => a.label.localeCompare(b.label));
-  }
-
-  /** Resolve a task's part link to a "Appliance · Part · In stock: N" detail line
-   *  (HTML — the part name is a clickable link to its product page when it has a
-   *  `url`, same anchor pattern as the appliance's parts-list read view). */
-  _consumableLinkLabel(task: Task): string {
-    const part = task.source?.part;
-    if (!part) return '';
-    const asset = this._assets.find((a) => a.id === part.asset_id);
-    const p = asset?.parts?.find((x) => x.id === part.part_id);
-    if (!asset || !p) return '';
-    const stock =
-      p.stock != null
-        ? ` · ${escapeHTML(
-            t(
-              p.reorder_at != null && p.stock <= p.reorder_at ? 'part.lowStock' : 'part.inStock',
-              { n: formatQuantity(p.stock, p.stock_unit) },
-            ),
-          )}`
-        : '';
-    const name = p.url
-      ? `<a href="${safeHref(p.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(p.name)}</a>`
-      : escapeHTML(p.name);
-    return `${escapeHTML(asset.name)} · ${name}${stock}`;
-  }
-
-  /**
-   * The bound sensor's live reading and unit for the task-form hint. Mirrors
-   * `_sensorProgress`'s value extraction but reads the flat `sensor_*` edit state
-   * (the entity/attribute the user is currently picking). `reading` is undefined
-   * when the entity is unset, unknown, or non-numeric.
-   */
-  _sensorLive(task: Partial<Task>): { reading?: number; unit?: string } {
-    const sd = task as Record<string, unknown>;
-    const entityId = String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? '');
-    if (!entityId) return {};
-    const state = this._hass?.states?.[entityId];
-    if (!state) return {};
-    const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '');
-    const raw = attribute ? (state.attributes?.[attribute] as unknown) : state.state;
-    const num = raw == null || raw === '' ? NaN : Number(raw);
-    const unit = state.attributes?.unit_of_measurement as string | undefined;
-    return { reading: Number.isNaN(num) ? undefined : num, unit };
-  }
-
-  /**
-   * Refresh the task form's live copy in place (no re-render → keeps input focus).
-   *
-   * Two pieces: the sensor primer (only on sensor tasks, explains the baseline model)
-   * and the rule summary above the submit button (every task kind). Both are pure
-   * text derived from the current edit state, so this runs on any field change.
-   */
-  private _updateFormHints(box?: HTMLElement): void {
-    // `box` is passed while the form is still being assembled (before it's in the
-    // shadow root); afterwards we look it up. Same code either way, so the first
-    // paint and every keystroke can't disagree about what the strip says.
-    const root: ParentNode | null | undefined =
-      box ?? this.shadowRoot?.querySelector('.hk-form-summary');
-    if (!root) return;
-    const task = this._edit.task || {};
-
-    const value = root.querySelector('#hk-form-summary-value') as HTMLElement | null;
-    const ruleText = formRecurrenceSummary(task);
-    if (value) value.textContent = ruleText;
-
-    const detail = root.querySelector('#hk-sensor-hint') as HTMLElement | null;
-    const detailText =
-      task.recurrence_type === 'sensor' ? sensorHintText(task, this._sensorLive(task)) : '';
-    if (detail) {
-      detail.textContent = detailText;
-      detail.style.display = detailText ? '' : 'none';
-    }
-
-    // Hide the whole strip only when it has nothing at all to say — a form with a
-    // recurrence type but no sensor detail still shows its rule.
-    (root as HTMLElement).style.display = ruleText || detailText ? '' : 'none';
-  }
-
-  /**
-   * The drawer's fixed top bar: close, the form's title and what it is editing, then
-   * Cancel and the primary commit. Both forms use it, so Save sits in the same place
-   * whichever one is open, and neither has to scroll to reach it.
-   *
-   * The commit and dismiss buttons keep the ids they have always carried
-   * (`f-save`/`f-cancel` for a task, `a-save`/`a-cancel` for an appliance) — they
-   * moved from the bottom of the form to the top of the drawer, but they are the
-   * same controls.
-   */
-  private _drawerHead(
-    title: string,
-    subtitle: string,
-    saveLabel: string,
-    onSave: () => void,
-    onCancel: () => void,
-    ids: { save: string; cancel: string },
-    helpUrl?: string,
-  ): HTMLElement {
-    const head = document.createElement('div');
-    head.className = 'hk-drawer-head';
-    const close = document.createElement('ha-icon-button');
-    close.className = 'hk-drawer-close';
-    close.id = 'hk-drawer-close';
-    close.setAttribute('label', t('btn.close'));
-    close.addEventListener('click', onCancel);
-    setIcon(close, MDI_CLOSE);
-    const titles = document.createElement('div');
-    titles.className = 'hk-drawer-titles';
-    const help = helpUrl
-      ? `<a class="hk-form-help" href="${helpUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(
-          t('help.docsLink'),
-        )}" aria-label="${escapeHTML(t('help.docsLink'))}"><ha-icon icon="mdi:help-circle-outline"></ha-icon></a>`
-      : '';
-    titles.innerHTML =
-      `<div class="hk-drawer-title">${escapeHTML(title)}${help}</div>` +
-      (subtitle ? `<div class="hk-drawer-sub">${escapeHTML(subtitle)}</div>` : '');
-    const cancel = document.createElement('ha-button');
-    cancel.id = ids.cancel;
-    setBtnWeight(cancel, 'tertiary');
-    cancel.textContent = t('btn.cancel');
-    cancel.addEventListener('click', onCancel);
-    const save = document.createElement('ha-button');
-    setBtnWeight(save, 'primary');
-    save.id = ids.save;
-    save.textContent = saveLabel;
-    save.addEventListener('click', onSave);
-    head.append(close, titles, cancel, save);
-    return head;
-  }
-
-  private _renderTaskForm(host: HTMLElement): void {
-    const task = this._edit.task || {};
-    const card = document.createElement('ha-card');
-    card.className = 'hk-form-card';
-    card.id = 'hk-form';
-    card.appendChild(
-      this._drawerHead(
-        task.id ? t('form.task.edit') : t('form.task.new'),
-        String(task.name ?? ''),
-        task.id ? t('btn.save') : t('btn.create'),
-        () => void this._submitForm(),
-        () => this._closeForm(),
-        { save: 'f-save', cancel: 'f-cancel' },
-        SENSOR_DOCS_URL,
-      ),
-    );
-    const inner = document.createElement('div');
-    inner.className = 'hk-form-inner';
-
-    // Sensor-based tasks have no clock cadence — a short primer (with a docs link)
-    // explains the baseline/reset model the fields below can't convey on their own.
-    if (task.recurrence_type === 'sensor') {
-      const intro = document.createElement('div');
-      intro.className = 'hk-settings-intro';
-      intro.innerHTML = t('help.sensor.section', { url: SENSOR_DOCS_URL });
-      inner.appendChild(intro);
-    }
-
-    const onChange = (value: Record<string, unknown>): void => {
-        // Which fields the form shows, before this edit — normalized through
-        // `taskFormData` so a default the form seeded can't read as a change (see
-        // `taskFormSchemaKey`). Anything else, a typed character included, leaves it
-        // untouched and must never reach `_render()`.
-        const prevSchemaKey = taskFormSchemaKey(this._edit.task ?? {});
-        const prevDevice = this._edit.task?.device_id ?? '';
-        // The form is rendered as one `ha-form` per section, so an event carries only
-        // the section that changed. Every rule below therefore has to ask whether the
-        // field it cares about is even in this snapshot: an unconditional read would
-        // see `undefined` for a field in another section and "correct" it. Typing in
-        // the name box would have reset the cadence interval to 1 that way.
-        const has = (key: string): boolean => key in value;
-        this._edit.task = {
-          ...this._edit.task,
-          ...value,
-          ...(has('interval') ? { interval: Number(value.interval) || 1 } : {}),
-        } as Partial<Task>;
-        this._edit.error = undefined;
-        // Refresh the notes preview in place — a re-render here would drop focus from
-        // the textarea mid-word.
-        if (has('notes')) this._taskNotePreview?.update(String(value.notes ?? ''));
-        // Changing the attached device re-scopes the consumable picker; drop a link
-        // that no longer belongs to the newly-attached appliance. Both sides are
-        // normalized to '' so a cleared picker (null vs. undefined vs. absent) doesn't
-        // look like a change on an unrelated edit.
-        if (has('device_id') && (value.device_id ?? '') !== prevDevice) {
-          const opts = this._consumableOptions(this._edit.task);
-          const cur = (this._edit.task as Record<string, unknown>).consumable_link;
-          if (cur && !opts.some((o) => o.value === cur)) {
-            (this._edit.task as Record<string, unknown>).consumable_link = '';
-          }
-          // The card-link picker is likewise device-scoped — drop chosen links that
-          // no longer resolve to the newly-attached appliance.
-          const docOpts = this._documentOptions(this._edit.task);
-          (this._edit.task as Record<string, unknown>).card_links = cardLinkTokens(
-            this._edit.task,
-          ).filter((tok) => docOpts.some((o) => o.value === tok));
-        }
-        // Picking a meter entity prefills the unit label from the entity itself, so
-        // "300" reads as "300 h" without anyone typing it. Only when still blank —
-        // a label the user (or a managing integration) chose is never overwritten.
-        if (
-          has('sensor_unit') &&
-          this._edit.task?.recurrence_type === 'sensor' &&
-          !String(value.sensor_unit ?? '').trim()
-        ) {
-          const live = this._sensorLive(this._edit.task);
-          if (live.unit) {
-            (this._edit.task as Record<string, unknown>).sensor_unit = live.unit;
-          }
-        }
-        // Switching the time backstop on with a blank or zeroed interval seeds a
-        // working default, so the three fields it reveals describe a real rule
-        // immediately instead of sitting at "every 0" and being silently dropped.
-        if (
-          has('sensor_backstop_on') &&
-          Boolean(value.sensor_backstop_on) &&
-          !(Number((this._edit.task as Record<string, unknown>).sensor_also_every) > 0)
-        ) {
-          (this._edit.task as Record<string, unknown>).sensor_also_every =
-            DEFAULT_BACKSTOP_INTERVAL;
-        }
-        // The recurrence type (cadence/sensor fields), the sensor mode (usage vs.
-        // threshold vs. state), the time-backstop switch (which reveals or hides its
-        // three fields), the bound entity's binary-ness (which swaps the state
-        // control), and the attached device (which scopes the consumable picker) each
-        // toggle the visible schema -> re-render. Read off the merged state, so it and
-        // the "before" key above are the same shape through the same normalizer.
-        if (taskFormSchemaKey(this._edit.task ?? {}) !== prevSchemaKey) {
-          this._render();
-        } else {
-          // The edit didn't change the visible schema, so refresh the live copy in
-          // place — a full re-render would drop focus from the box being typed in, and
-          // Home Assistant's global one-letter shortcuts would then swallow the rest of
-          // the word (`d` device search, `a` Assist, `e`/`c` quick bar, `m` my-link).
-          // Every task kind, not just sensor: the rule summary above the submit
-          // button has to track an interval or a unit change too.
-          this._updateFormHints();
-        }
-    };
-
-    // One `ha-form` per section, under its own heading. `ha-form` renders its rows
-    // into its own shadow root and offers no slot between them, so a heading between
-    // two fields is only reachable by splitting the schema — which is why
-    // `taskSchemaSections` exists. `hk-task-form` stays on a wrapper around them all,
-    // so every `#hk-task-form <selector>` that looked inside the form still resolves.
-    const formData = taskFormData(task);
-    const sections = taskSchemaSections(
-      task,
-      this._consumableOptions(task),
-      this._documentOptions(task),
-      this._tags,
-    );
-    // The form seeds defaults the edit state does not carry — a fresh sensor task
-    // shows "on" as the state it waits for, without that ever having been typed.
-    // While the form was a single `ha-form` those seeds reached the edit state on the
-    // next change of any field, because the event carried the whole form. Now that
-    // each section emits only its own fields, a seed would arrive only if the user
-    // happened to touch the section holding it — so the rule summary described a
-    // sensor task "changing to " nothing, and a save would have written that.
-    // Adopting them here keeps the promise that what the form shows is what saving
-    // writes. Keys already in the edit state win, so a value cleared on purpose is
-    // not seeded back.
-    const offered = pickFormData(
-      formData,
-      sections.flatMap((s) => s.fields),
-    );
-    this._edit.task = { ...offered, ...(this._edit.task ?? {}) } as Partial<Task>;
-
-    const formWrap = document.createElement('div');
-    formWrap.id = 'hk-task-form';
-    for (const section of sections) {
-      if (!section.fields.length) continue;
-      // Each section is seeded with *only* its own fields. `ha-form` emits its whole
-      // `data` object on every change, so seeding each section with the full form
-      // would have every section re-asserting a snapshot of the others taken when it
-      // was built — typing a name and then changing the recurrence would put the name
-      // back to what it was before the first keystroke.
-      const form = this._makeForm(section.fields, pickFormData(formData, section.fields), onChange);
-      form.id = `hk-task-form-${section.key}`;
-      // Muted per-field helper text under each field (keyed `help.<field>`); returns
-      // '' where no string is authored, so helpers appear only where we wrote them.
-      form.computeHelper = (s: { name: string }): string => {
-        if (!s.name) return '';
-        const h = t('help.' + s.name);
-        return h === 'help.' + s.name ? '' : h;
-      };
-      if (section.dependent) {
-        // A run that only exists because of the answer above it, indented behind a
-        // rule and captioned with what revealed it.
-        const indent = document.createElement('div');
-        indent.className = 'hk-indent';
-        const body = document.createElement('div');
-        body.className = 'hk-indent-body';
-        const head = document.createElement('div');
-        head.className = 'hk-eyebrow accent hk-indent-head';
-        head.textContent = t('form.section.dependent');
-        body.append(head, form);
-        indent.appendChild(body);
-        formWrap.appendChild(indent);
-      } else {
-        const heading = document.createElement('div');
-        heading.className = 'hk-eyebrow hk-form-section';
-        heading.textContent = t(`form.section.${section.key}`);
-        formWrap.append(heading, form);
-      }
-    }
-    inner.appendChild(formWrap);
-
-    // Live Markdown preview of the notes field. It sits after the whole form rather
-    // than directly under the field: the task schema is one `ha-form` (name, notes,
-    // recurrence, sensor…), and splitting it just to interleave a preview would fork a
-    // pure, well-tested schema builder. The preview only shows once there's something
-    // to preview, so it stays out of the way for the common no-notes task.
-    this._taskNotePreview = this._attachNotePreview(inner, String(task.notes ?? ''));
-
-    // One box, directly above the submit button, answering "what did I just build?"
-    // in two registers: the rule as a headline, and — for a sensor task — the live
-    // arithmetic underneath ("reads 660 h, so first due at 760 h"). These used to be
-    // two separate panels stacked on each other, which meant two places to look for
-    // one answer; the headline is the same sentence the saved task's card will show,
-    // because it comes from the same formatter.
-    const summary = document.createElement('div');
-    summary.className = 'hk-form-summary';
-    summary.innerHTML =
-      `<span class="hk-form-summary-label">${escapeHTML(t('form.summary.label'))}</span>` +
-      `<span class="hk-form-summary-value" id="hk-form-summary-value"></span>` +
-      `<span class="hk-form-summary-detail" id="hk-sensor-hint"></span>`;
-    inner.appendChild(summary);
-    this._updateFormHints(summary);
-
-    if (this._edit.error) {
-      const err = document.createElement('ha-alert');
-      err.setAttribute('alert-type', 'error');
-      err.textContent = this._edit.error;
-      inner.appendChild(err);
-    }
-
-    card.appendChild(inner);
-
-    // The destructive and the "go somewhere else" actions live in a footer bar,
-    // deliberately far from Save at the other end of the drawer. Both existed
-    // already — Delete on the task's detail page, History as that page itself —
-    // and are surfaced here so an edit session does not have to be abandoned to
-    // reach them. Only for a saved task: neither means anything for a draft.
-    if (task.id) {
-      const foot = document.createElement('div');
-      foot.className = 'hk-drawer-foot';
-      const del = document.createElement('ha-button');
-      del.className = 'hk-drawer-delete';
-      setBtnWeight(del, 'danger');
-      del.textContent = t('btn.delete');
-      const onThisTasksPage = this._detail?.kind === 'task' && this._detail.id === task.id;
-      del.addEventListener('click', () =>
-        openConfirmDialog(this, t('confirm.deleteTask', { name: String(task.name ?? '') }), () => {
-          this._closeForm();
-          // Deleting from the task's own page empties that page: replace it with the
-          // list first, the same way the page's own Delete does, so neither the render
-          // that follows nor Forward lands on a task that is gone.
-          if (onThisTasksPage) this._navigate({ view: 'tasks', detail: null }, true);
-          void this._delete(task as Task);
-        }),
-      );
-      const spacer = document.createElement('span');
-      spacer.className = 'hk-drawer-foot-spacer';
-      foot.append(del, spacer);
-      // History is a way to the task's own page, so it is only offered from somewhere
-      // else. Editing on that page already has the history under the form.
-      if (!onThisTasksPage) {
-        const history = document.createElement('ha-button');
-        history.className = 'hk-drawer-history';
-        setBtnWeight(history, 'tertiary');
-        history.textContent = t('btn.history');
-        history.addEventListener('click', () => {
-          this._closeForm();
-          this._openDetail('task', String(task.id));
-        });
-        foot.append(history);
-      }
-      card.appendChild(foot);
-    }
-    host.appendChild(card);
-  }
-
-  private _renderAssetForm(host: HTMLElement): void {
-    const x = this._assetEdit.asset || {};
-    const editing = Boolean(x.id);
-    const card = document.createElement('ha-card');
-    card.className = 'hk-form-card';
-    card.id = 'hk-asset-form';
-    const head = this._drawerHead(
-      editing ? t('form.appliance.edit') : t('form.appliance.new'),
-      String(x.name ?? ''),
-      editing ? t('btn.save') : t('btn.create'),
-      () => void this._submitAssetForm(),
-      () => this._closeAssetForm(),
-      { save: 'a-save', cancel: 'a-cancel' },
-    );
-    // Saving mid-upload would PUT the client draft over the asset the upload response
-    // is about to rewrite, losing the new document.
-    if (this._assetEdit.upload) head.querySelector('#a-save')?.setAttribute('disabled', '');
-    card.appendChild(head);
-    const inner = document.createElement('div');
-    inner.className = 'hk-form-inner';
-
-    const mergeAsset = (value: Record<string, unknown>): void => {
-      this._assetEdit.asset = { ...this._assetEdit.asset, ...value } as Partial<Asset>;
-      setAssetError(this, undefined);
-    };
-
-    // Identity (kind toggle re-renders since the schema changes).
-    const identity = this._makeForm(
-      this._assetIdentitySchema(x, editing),
-      {
-        kind: x.kind ?? 'virtual',
-        device_id: x.device_id ?? undefined,
-        name: x.name ?? '',
-        manufacturer: x.manufacturer ?? '',
-        model: x.model ?? '',
-        serial_number: x.serial_number ?? '',
-        icon: x.icon ?? '',
-        parent_asset_id: x.parent_asset_id ?? undefined,
-        area_id: x.area_id ?? undefined,
-      },
-      (value) => {
-        const prevAsset = this._assetEdit.asset;
-        // Defaulted exactly as the form data above seeds it, so an appliance that
-        // doesn't carry a kind can't make the form's 'virtual' read as a change — that
-        // would re-render on the first character typed into the name, dropping focus
-        // (and handing the keystrokes to HA's global shortcuts; see the task form).
-        const prevKind = prevAsset?.kind ?? 'virtual';
-        const prevDeviceId = prevAsset?.device_id;
-        mergeAsset(value);
-        if (value.kind === 'existing' && value.device_id && value.device_id !== prevDeviceId) {
-          const fill = this._deviceDefaults(String(value.device_id), prevAsset);
-          if (fill) {
-            mergeAsset(fill);
-            identity.data = { ...identity.data, ...fill };
-          }
-        }
-        if (!editing && value.kind !== prevKind) this._render();
-      },
-    );
-    inner.appendChild(identity);
-
-    inner.appendChild(section(t('section.reference')));
-    inner.appendChild(
-      this._makeForm(
-        this._structuredDetailsSchema(),
-        { cost: x.cost ?? undefined },
-        mergeAsset,
-      ),
-    );
-
-    // Notes get their own section so the live Markdown preview can sit directly under
-    // the field it previews (the appliance form is already section-split, unlike the
-    // task form's single `ha-form`).
-    inner.appendChild(section(t('section.notes')));
-    let assetNotePreview: MarkdownPreview | null = null;
-    inner.appendChild(
-      this._makeForm([{ name: 'notes', selector: selText(true) }], { notes: x.notes ?? '' }, (value) => {
-        mergeAsset(value);
-        assetNotePreview?.update(String(value.notes ?? ''));
-      }),
-    );
-    assetNotePreview = this._attachNotePreview(inner, String(x.notes ?? ''));
-
-    renderDocumentsEditor(this, inner);
-
-    renderMetadataEditor(this, inner);
-
-    renderPartsEditor(this, inner);
-
-    inner.appendChild(section(t('section.related')));
-    inner.appendChild(
-      this._makeForm(
-        [{ name: 'related_device_ids', selector: selDevice(true) }],
-        { related_device_ids: x.related_device_ids ?? [] },
-        mergeAsset,
-      ),
-    );
-
-    if (this._assetEdit.error) {
-      inner.appendChild(errorAlert(this._assetEdit.error, this._assetEdit.errorLink));
-    }
-
-    card.appendChild(inner);
-    host.appendChild(card);
-
-    // An upload failure is reported inline, but the control that failed can be well
-    // below the fold in a long form — bring it into view. Driven by a one-shot flag
-    // set in `_failUpload`, never by "an error exists": `mergeAsset` clears the error
-    // on every keystroke, so a state check here would re-scroll on unrelated renders.
-    if (this._scrollToError) {
-      const key = this._scrollToError;
-      this._scrollToError = undefined;
-      requestAnimationFrame(() => {
-        const el = this.shadowRoot?.getElementById(`hk-upload-err-${key}`);
-        // Guarded: scrollIntoView is missing in jsdom, and the node is gone if a
-        // later render dropped the alert before the frame ran.
-        if (typeof el?.scrollIntoView === 'function') {
-          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }
-      });
-    }
   }
 
   /** The language to format dates, times and numbers in — Home Assistant's, not the
