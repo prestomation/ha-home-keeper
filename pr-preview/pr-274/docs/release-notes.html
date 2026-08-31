@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-274/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-274/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-274/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-274/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-274/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-274/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-274/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-274/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-274/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-274/assets/js/runtime~main.14a5fb97.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-274/assets/js/runtime~main.0e384475.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-274/assets/js/main.828f33ab.js" defer="defer"></script>
 </head>
 <body>
@@ -17,9 +17,9 @@ versioning, with PEP 440 pre-release suffixes (<code>bN</code>/<code>aN</code>/<
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0190b7">[0.19.0b7]<a href="#0190b7" class="hash-link" aria-label="Direct link to [0.19.0b7]" title="Direct link to [0.19.0b7]" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="changed">Changed<a href="#changed" class="hash-link" aria-label="Direct link to Changed" title="Direct link to Changed" translate="no">​</a></h3>
 <ul>
-<li class=""><strong>Three websocket validation errors now report the code <code>invalid_task</code> instead of
-<code>not_allowed</code>.</strong> Only the machine-readable code changes; the message shown to the
-user is the same as before.</li>
+<li class=""><strong>Websocket completion-editing errors now report the code <code>invalid_task</code> instead
+of <code>not_allowed</code>.</strong> Only the machine-readable code changes; the message shown to
+the user is the same as before.</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed">Fixed<a href="#fixed" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
@@ -30,13 +30,14 @@ sitting there until the next reload. The service, button and to-do paths already
 settled correctly.</p>
 </li>
 <li class="">
-<p><strong>The <code>export_inventory</code> service now writes the CSV in your language.</strong> The service
-shipped English column headers while the panel&#x27;s own export was already localized.</p>
+<p><strong>The <code>export_inventory</code> service now writes the CSV in your language.</strong> The
+service wrote English column headers while the panel&#x27;s own export was already
+localized.</p>
 </li>
 <li class="">
 <p><strong>Deleting an appliance over the websocket now runs the same cleanup as the
-service.</strong> The two paths carried separate copies of the cleanup code and could
-drift apart.</p>
+service.</strong> The websocket handler carried its own copy of the cleanup code and
+could drift from the service&#x27;s.</p>
 </li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0190b6">[0.19.0b6]<a href="#0190b6" class="hash-link" aria-label="Direct link to [0.19.0b6]" title="Direct link to [0.19.0b6]" translate="no">​</a></h2>
