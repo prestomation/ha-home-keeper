@@ -1597,7 +1597,8 @@ class HomeKeeperStore:
             if hasattr(when, "date")
             else str(when)[:10]
         )
-        part = assets.find_part(asset, src.get("part_id"))
+        part_id = src.get("part_id")
+        part = assets.find_part(asset, part_id) if part_id is not None else None
         if part is not None:
             part["last_replaced"] = when_date
             # Completing a wear-part replacement consumes the part's per-use amount
@@ -1621,7 +1622,8 @@ class HomeKeeperStore:
         asset = self._assets.get(src["asset_id"])
         if not asset:
             return
-        part = assets.find_part(asset, src.get("part_id"))
+        part_id = src.get("part_id")
+        part = assets.find_part(asset, part_id) if part_id is not None else None
         if part is not None:
             qty = assets.part_restock_quantity(part)
             self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
