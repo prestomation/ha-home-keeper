@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   assetIdentitySchema,
   buildTaskPayload,
+  duplicateTaskSeed,
   formRecurrenceSummary,
   metadataSchema,
   notifyFormData,
@@ -1132,5 +1133,221 @@ describe('sensorLive', () => {
     expect(sensorLive(hass({ 'sensor.x': { state: '0' } }), { sensor_entity_id: 'sensor.x' })).toEqual(
       { reading: 0, unit: undefined },
     );
+  });
+});
+
+// A duplicate is the original's payload minus exactly three things — the record of
+// what happened, the meter's anchor, and the tag binding. Every assertion below is a
+// whole-object comparison rather than a key spot-check, because the interesting
+// failure is "which field did the seed forget", and a spot-check only catches the
+// fields somebody thought to name.
+describe('duplicateTaskSeed — a copy of the rule, not of the record (#279)', () => {
+  beforeEach(() => setLanguage('en'));
+
+  const floating = {
+    id: 't1',
+    name: 'Water flowers',
+    notes: 'Deep soak, not a sprinkle.',
+    recurrence_type: 'floating',
+    interval: 3,
+    unit: 'days',
+    device_id: 'dev1',
+    area_id: 'area1',
+    labels: ['lbl1', 'lbl2'],
+    card_links: [{ asset_id: 'a1', entry_id: 'e1' }],
+    completion_detail: 'required',
+    enabled: true,
+    created: '2026-01-01T00:00:00+00:00',
+    last_completed: '2026-08-01T10:00:00+00:00',
+    next_due: '2026-08-04T10:00:00+00:00',
+    completions: [{ date: '2026-08-01T10:00:00+00:00' }],
+    tag_id: 'tag-abc',
+    require_tag_scan: true,
+    task_chips: [{ label: 'Pawsistant' }],
+  };
+
+  const usageSensor = {
+    id: 't2',
+    name: 'Replace printer nozzle',
+    recurrence_type: 'sensor',
+    device_id: 'dev2',
+    completion_detail: 'none',
+    last_completed: '2026-06-01T00:00:00+00:00',
+    sensor: {
+      entity_id: 'sensor.printer_hours',
+      mode: 'usage',
+      target: 300,
+      unit: 'h',
+      baseline: 660,
+      also_every: { interval: 6, unit: 'months' },
+      combinator: 'any',
+    },
+  };
+
+  it('drops the id, which is the whole mechanism', () => {
+    // `_submitForm` routes an id-less task to `addTask`. Keep the id and Duplicate
+    // silently becomes Save-over-the-original.
+    expect(duplicateTaskSeed(floating).id).toBeUndefined();
+  });
+
+  it('names the copy after the original', () => {
+    expect(duplicateTaskSeed(floating).name).toBe('Water flowers (copy)');
+  });
+
+  it('never carries the original last-completed date into the new task', () => {
+    // The trap: `buildTaskPayload` emits `last_completed` *only* when `!task.id`,
+    // which is never true on the edit path and always true here. Carried over, every
+    // copy is born back-dated and the recurrence engine derives next_due from it.
+    const seed = duplicateTaskSeed(floating);
+    expect(seed.last_completed).toBeUndefined();
+    expect(buildTaskPayload(seed)).not.toHaveProperty('last_completed');
+    // And the field the form now reveals (it only renders for an id-less task)
+    // starts blank rather than pre-filled with the original's date.
+    expect(taskFormData(seed).last_completed).toBe('');
+  });
+
+  it('keeps the whole sensor binding except the meter baseline', () => {
+    // The second trap. Inherit `baseline: 660` and the copy is instantly ~80% used
+    // against a machine it has never metered; leaving it unset is what makes the
+    // backend stamp the copy's own live reading.
+    const seed = duplicateTaskSeed(usageSensor);
+    expect(seed.sensor).toEqual({
+      entity_id: 'sensor.printer_hours',
+      mode: 'usage',
+      target: 300,
+      unit: 'h',
+      also_every: { interval: 6, unit: 'months' },
+      combinator: 'any',
+    });
+    expect(buildTaskPayload(seed).sensor).not.toHaveProperty('baseline');
+    expect(taskFormData(seed).sensor_baseline).toBeUndefined();
+  });
+
+  it('omits the sensor key entirely for a task that has no binding', () => {
+    // Not `sensor: undefined`. The seed is an allowlist, and a key that exists
+    // holding nothing is how a "cleared this field" reading gets in later.
+    expect('sensor' in duplicateTaskSeed(floating)).toBe(false);
+    expect('sensor' in duplicateTaskSeed(usageSensor)).toBe(true);
+  });
+
+  it('does not reach through and strip the source task it copied', () => {
+    // The binding is shallow-copied. Sharing the reference and deleting the key
+    // would clear the baseline of the task still sitting in the panel's list.
+    duplicateTaskSeed(usageSensor);
+    expect(usageSensor.sensor.baseline).toBe(660);
+  });
+
+  it('leaves the tag behind — one sticker completes one task', () => {
+    const payload = buildTaskPayload(duplicateTaskSeed(floating));
+    expect(payload.tag_id).toBeNull();
+    expect(payload.require_tag_scan).toBe(false);
+  });
+
+  it('drops identity, history and ownership', () => {
+    const seed = duplicateTaskSeed({
+      ...floating,
+      source: { part: { asset_id: 'a1', part_id: 'p1', manual: true } },
+      managed_by: { display_name: 'Pawsistant', config_entry_id: 'ce1' },
+    });
+    for (const key of [
+      'id',
+      'created',
+      'completions',
+      'next_due',
+      'last_completed',
+      'source',
+      'managed_by',
+      'task_chips',
+      'tag_id',
+      'require_tag_scan',
+      'enabled',
+    ]) {
+      expect(seed, `a copy must not carry ${key}`).not.toHaveProperty(key);
+    }
+  });
+
+  it('carries the consumable link as the flat token, not as a source', () => {
+    // `taskFormData` renders the picker from `source`, but `_submitForm` reads only
+    // the flat key. Seeding `source` would show a link the save never applies.
+    const linked = {
+      ...floating,
+      source: { part: { asset_id: 'a1', part_id: 'p1', manual: true } },
+    };
+    expect(duplicateTaskSeed(linked).consumable_link).toBe('a1:p1');
+    expect(duplicateTaskSeed(floating).consumable_link).toBe('');
+  });
+
+  it('copies the label and card-link collections rather than sharing them', () => {
+    const seed = duplicateTaskSeed(floating);
+    expect(seed.labels).toEqual(['lbl1', 'lbl2']);
+    expect(seed.card_links).toEqual(['a1:e1']);
+    seed.labels.push('lbl3');
+    expect(floating.labels).toEqual(['lbl1', 'lbl2']);
+  });
+
+  it.each([
+    ['floating', floating],
+    [
+      'fixed',
+      {
+        id: 't3',
+        name: 'Bins out',
+        recurrence_type: 'fixed',
+        interval: 1,
+        freq: 'WEEKLY',
+        anchor: '2026-03-02T18:00:00+00:00',
+        last_completed: '2026-08-24T18:00:00+00:00',
+      },
+    ],
+    [
+      'one-off',
+      {
+        id: 't4',
+        name: 'Register the warranty',
+        recurrence_type: 'one-off',
+        interval: 1,
+        due: '2026-09-30T09:00:00+00:00',
+        last_completed: '2026-09-30T09:05:00+00:00',
+      },
+    ],
+    ['sensor', usageSensor],
+  ])('a %s copy is the original payload minus exactly the dropped fields', (_kind, task) => {
+    // The strongest assertion in the file: it says what a duplicate *is*, rather
+    // than listing the keys somebody remembered to check.
+    const sensor = task.sensor ? { ...task.sensor } : undefined;
+    if (sensor) delete sensor.baseline;
+    const expected = buildTaskPayload({
+      ...task,
+      id: undefined,
+      name: `${task.name} (copy)`,
+      last_completed: undefined,
+      tag_id: null,
+      require_tag_scan: false,
+      ...(sensor ? { sensor } : {}),
+    });
+    expect(buildTaskPayload(duplicateTaskSeed(task))).toEqual(expected);
+  });
+
+  it("keeps a one-off's due date — a deadline is the rule, not the record", () => {
+    const oneOff = {
+      id: 't4',
+      name: 'Register the warranty',
+      recurrence_type: 'one-off',
+      interval: 1,
+      due: '2026-09-30T09:00:00+00:00',
+    };
+    // Without this, `taskFormData` would default an id-less task to *now* and
+    // quietly move the deadline the user was duplicating.
+    expect(buildTaskPayload(duplicateTaskSeed(oneOff)).due).toBe('2026-09-30T09:00:00.000Z');
+  });
+
+  it('defaults the capture mode rather than emitting undefined', () => {
+    const bare = { id: 't5', name: 'Dust', recurrence_type: 'floating', interval: 1, unit: 'months' };
+    expect(duplicateTaskSeed(bare).completion_detail).toBe('none');
+    expect(duplicateTaskSeed(bare).notes).toBe('');
+    expect(duplicateTaskSeed(bare).device_id).toBeNull();
+    expect(duplicateTaskSeed(bare).area_id).toBeNull();
+    expect(duplicateTaskSeed(bare).labels).toEqual([]);
+    expect(duplicateTaskSeed(bare).card_links).toEqual([]);
   });
 });

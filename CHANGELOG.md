@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.20.0b2]
+
+### Added
+
+- **Duplicate a task from its page.** The create form opens already filled in with a
+  copy, so a row of near-identical tasks costs one edit each rather than a full
+  re-entry. A task another integration owns keeps a greyed Duplicate that explains
+  why. (Fixes #279)
+
 ## [0.20.0b1]
 
 ### Fixed

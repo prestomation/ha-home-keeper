@@ -162,6 +162,40 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(BEAT);
 
+  // 2a4. Duplicate. Ten near-identical tasks — one per moisture sensor — used to mean
+  //      ten full trips through the form. Press Duplicate on a sensor task and the
+  //      create form opens already filled in, everything but the history, the tag and
+  //      the meter's starting reading, so the copy is a field or two from done. The
+  //      pause after the click is the point: the form fills itself in. Cancel, so the
+  //      tour leaves the seeded data as every later frame expects it.
+  //
+  //      A dormant usage task has no due date to sort by, so it lives in the collapsed
+  //      Monitored group. Open that first — the row exists either way, which is why a
+  //      plain click times out rather than failing on a missing locator.
+  const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');
+  if (!(await monitored.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await monitored.locator('summary').click();
+    await page.waitForTimeout(BEAT);
+  }
+  await panel.locator(`.detail-open[data-detail-id="${TASK.nozzleUsage}"]`).click();
+  await expect(panel.locator('.d-dup')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  await panel.locator('.d-dup').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await panel
+    .locator('#hk-task-form ha-selector-text input')
+    .first()
+    .fill('Water the ferns');
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+
   // 2b. A synced problem-sensor task. It mirrors a device_class: problem binary
   //     sensor, so it can't be completed here — but it has no device to model, so
   //     its detail page offers an inline note for next time the problem fires (the

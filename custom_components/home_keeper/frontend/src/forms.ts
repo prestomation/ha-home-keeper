@@ -648,6 +648,62 @@ export function consumableLinkToken(task: Partial<Task>): string {
 }
 
 /**
+ * A copy of *task*, seeded into the **create** drawer.
+ *
+ * Duplication answers "ten near-identical tasks" (#279): the copy keeps the *rule* —
+ * recurrence, cadence, sensor binding, placement, labels, card links, capture mode —
+ * and drops this task's identity, its record of what happened, and any binding to one
+ * physical object.
+ *
+ * Built as an **allowlist**, the same discipline `buildTaskPayload` follows, so a
+ * field added to `Task` later cannot leak into a copy by simply existing.
+ *
+ * Three of the omissions are load-bearing rather than tidiness, because the copy has
+ * no `id` and the marshalling below treats an id-less task as a creation:
+ *
+ * - `last_completed` — `buildTaskPayload` emits it *only* when `!task.id`, which is
+ *   never true on the edit path and always true here. Carried over, every copy would
+ *   be born back-dated to the original's last completion, and the recurrence engine
+ *   would derive `next_due` from it.
+ * - `sensor.baseline` — the meter anchor. Carried over, the copy counts from the
+ *   original machine's reading instead of stamping the live one; leaving it unset is
+ *   the documented "anchor at the current reading" behaviour a new task gets.
+ * - `tag_id` / `require_tag_scan` — one sticker completes one task. A second task
+ *   claiming the same tag is not a copied setting, it is a collision.
+ *
+ * `source` is likewise omitted, and that is why `consumable_link` is passed as the
+ * flat token: `taskFormData` renders the picker from `source` but `_submitForm` reads
+ * only the flat key, so seeding `source` would show a link the save never applies.
+ */
+export function duplicateTaskSeed(task: Task): Partial<Task> {
+  // Shallow-copy the binding minus its anchor. Sharing the reference and deleting the
+  // key would reach through and mutate the source task still held in `_tasks`.
+  const sensor = task.sensor
+    ? (({ baseline: _baseline, ...rest }) => rest)(task.sensor)
+    : undefined;
+  const seed: Record<string, unknown> = {
+    name: t('duplicate.copyName', { name: task.name }),
+    notes: task.notes ?? '',
+    recurrence_type: task.recurrence_type,
+    interval: task.interval,
+    unit: task.unit,
+    freq: task.freq,
+    anchor: task.anchor,
+    // A one-off's `due` *is* its rule, so it rides along. `taskFormData` would
+    // otherwise default an id-less task to now and quietly move the deadline.
+    due: task.due,
+    device_id: task.device_id ?? null,
+    area_id: task.area_id ?? null,
+    labels: [...(task.labels ?? [])],
+    card_links: cardLinkTokens(task),
+    completion_detail: task.completion_detail ?? 'none',
+    consumable_link: consumableLinkToken(task),
+  };
+  if (sensor) seed.sensor = sensor;
+  return seed as Partial<Task>;
+}
+
+/**
  * The `asset_id:entry_id` tokens for a task's chosen card links. Tolerates both
  * shapes the field passes through: the persisted `{asset_id, entry_id}` objects and
  * the flat token strings the `ha-form` select emits as the user edits.

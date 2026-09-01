@@ -223,11 +223,12 @@ export const STYLES = `
   .hk-card.hk-task-done .hk-name { text-decoration: line-through; opacity: 0.62; }
   .hk-card.hk-task-done .hk-meta { opacity: 0.62; }
   .hk-card-actions { display: flex; align-items: center; gap: 4px; }
-  /* A completion-blocked Done (e.g. a synced problem sensor): the inner ha-button is
-     natively disabled (greyed), and the wrapping span stays clickable so a tap can
-     explain why it can't be completed here. */
-  .done-blocked-wrap { cursor: pointer; display: inline-flex; }
-  .done-blocked-wrap ha-button { pointer-events: none; }
+  /* Any action the panel greys out rather than hides — a completion-blocked Done on a
+     synced problem sensor, a Duplicate on a task Home Keeper doesn't own. The inner
+     ha-button is natively disabled (greyed), and the wrapping span stays clickable so
+     a tap can explain why. */
+  .done-blocked-wrap, .hk-blocked-wrap { cursor: pointer; display: inline-flex; }
+  .done-blocked-wrap ha-button, .hk-blocked-wrap ha-button { pointer-events: none; }
   /* Soft-tinted rather than solid: an overdue row already carries a red rule down its
      left edge, and a solid red block beside it read as an alarm on every line. The
      dark-red-on-pale-red pairing keeps the contrast while letting the row's own

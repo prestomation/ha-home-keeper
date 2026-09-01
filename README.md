@@ -295,6 +295,29 @@ back arrow brings it back.
 </p>
 <!-- vale ai-tells.ColonUsage = YES -->
 
+### Duplicate a task
+
+Ten soil-moisture sensors, one per plant, need ten near-identical "water the flowers"
+tasks. Only the name, the sensor and the device change from one to the next. The rest
+is the same rule typed out ten times. Press **Duplicate** on the task's page and the
+create form opens already filled in with a copy.
+
+Nothing is saved until you press **Create**. Rename the copy and point it at the
+other sensor.
+
+![A task's page with Duplicate beside Edit, and the create form open in the drawer prefilled with a copy](docs/images/56-panel-task-duplicate-drawer.png)
+
+The copy leaves three things behind on purpose. Its completion history starts empty,
+because none of that work happened to this task. A meter task's **starting reading**
+resets too, so the copy anchors against whatever its own sensor reads now rather than
+inheriting an anchor from another machine. The NFC tag stays with the original, since
+one sticker completes one task.
+
+Some tasks are not Home Keeper's to copy: a wear item derived from an appliance part, a
+synced problem sensor, a condition-driven task, or one another integration manages.
+Those keep a greyed-out **Duplicate**. Press it and Home Keeper says which owner drives
+the task, rather than offering a button that does nothing.
+
 ## Complete tasks with NFC/RFID tags
 
 Stick a cheap NFC sticker on the thing itself (the dog food bin, the furnace

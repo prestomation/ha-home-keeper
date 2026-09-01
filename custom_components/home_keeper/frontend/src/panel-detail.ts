@@ -22,6 +22,7 @@ import {
   deviceChip,
   isManagedOrphan,
   managedChip,
+  sourceOwnedTask,
   tagChip,
   taskChipsHtml,
   virtualDeviceChip,
@@ -228,10 +229,27 @@ function taskDetail(p: PanelHost, task: Task): string {
   // Source-owned tasks (reconciler-derived wear parts, synced problem sensors) are
   // managed by their source; the panel offers no edit/delete for them. A *manual*
   // consumable link (part.manual) is user-owned, so it stays editable/deletable.
-  const sourceOwned =
-    (Boolean(task.source?.part) && !task.source?.part?.manual) ||
-    Boolean(task.source?.problem_sensor);
+  const sourceOwned = sourceOwnedTask(task);
   const orphaned = isManagedOrphan(p, task);
+  // Duplicate opens the *create* form prefilled with a copy of this task — the answer
+  // to a row of near-identical tasks that differ by a sensor and a name (#279). A task
+  // Home Keeper doesn't own can't be copied, but it keeps a greyed button that says so
+  // when pressed rather than silently missing one, the same treatment a
+  // completion-blocked Done gets.
+  //
+  // Secondary, the same weight as Edit: the two are peer actions on this task, both
+  // non-destructive and both opening the same drawer, so drawing one quieter would
+  // rank them. It also keeps the live button plainly distinct from the greyed one —
+  // at tertiary weight, "Duplicate" as bare text and "Duplicate" disabled differ only
+  // by the shade of the label, which is not a difference anyone should have to squint
+  // for. The row still reads at three weights (#262): Done fills, Edit and Duplicate
+  // are tonal, Delete recedes to red text.
+  //
+  // `d-dup` must keep its `d-` prefix: `_openerKeyFor` reads it to hand the keyboard
+  // back to this button when the drawer closes.
+  const dupBtn = p._canDuplicate(task)
+    ? `<ha-button ${btnAttrs('secondary')} class="d-dup">${escapeHTML(t('btn.duplicate'))}</ha-button>`
+    : p._blockedDuplicate(task);
   // Say why Edit and Delete are missing rather than just omitting them. Withholding
   // both silently left a wear-part task's page reading "<task name> / Done" and
   // nothing else, which looks like a surface that forgot to render — the managed
@@ -245,6 +263,10 @@ function taskDetail(p: PanelHost, task: Task): string {
     sourceOwned && !mb?.completion_prompt
       ? `<span class="hk-managed-info">${escapeHTML(t('managed.sourceOwned'))}</span>`
       : '';
+  // A source-owned task offers no Edit and no Delete, but it still gets the greyed
+  // Duplicate: "you can't copy this either, and here is why" is information the
+  // sourceOwned caption above doesn't carry.
+  manage = `${dupBtn}${manage}`;
   if (!sourceOwned) {
     const editBtn = `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
     // Deletion protection only holds while the owner is present. Once orphaned
@@ -259,7 +281,9 @@ function taskDetail(p: PanelHost, task: Task): string {
     const openInBtn = domain && !orphaned
       ? `<ha-button ${btnAttrs('tertiary')} class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
       : '';
-    manage = `${editBtn}${deleteBtn}${openInBtn}`;
+    // Duplicate sits between Edit and Delete: it is a non-destructive sibling of Edit,
+    // and putting a benign action past a destructive one reads badly.
+    manage = `${editBtn}${dupBtn}${deleteBtn}${openInBtn}`;
   }
 
   // When orphaned, explain why deletion is now allowed; otherwise show the
@@ -740,6 +764,22 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
       .querySelector('.d-done-blocked-wrap')
       ?.addEventListener('click', () => p._notifyBlocked(task));
     root.querySelector('.d-edit')?.addEventListener('click', () => p._openEdit(task));
+    root.querySelector('.d-dup')?.addEventListener('click', () => p._openDuplicate(task));
+    // A greyed Duplicate is a span carrying the tap (a disabled button swallows
+    // clicks), so keyboard activation has to be wired by hand — a `role="button"`
+    // that only answers the mouse is worse than no button at all.
+    const dupBlocked = root.querySelector<HTMLElement>('.d-dup-blocked');
+    if (dupBlocked) {
+      const explain = (): void => p._notifyNoDuplicate(task);
+      dupBlocked.addEventListener('click', explain);
+      dupBlocked.addEventListener('keydown', (e) => {
+        const key = (e as KeyboardEvent).key;
+        if (key === 'Enter' || key === ' ') {
+          e.preventDefault();
+          explain();
+        }
+      });
+    }
     p._wireNoteEditor(root, { kind: 'task', id: task.id });
     root.querySelector('.d-del')?.addEventListener('click', () => {
       openConfirmDialog(p, t('confirm.deleteTask', { name: task.name }), () => {
