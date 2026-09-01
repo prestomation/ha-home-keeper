@@ -5,14 +5,21 @@ against a real Nextcloud 34.0.3 talking to Home Assistant's built-in `caldav`
 integration, with Home Keeper's profile to-do sync pointed at the resulting `todo.*`
 entity.
 
-**Headline: the feature already works, and it broke for the reporter for a reason
-Home Keeper owns.** No new "CalDAV support" is needed — HA's `caldav` integration
-already exposes a task list as a `todo` entity, and Home Keeper's existing profile sync
-drives it. But CalDAV lists have one property no other supported provider has, and
-Home Keeper's sync mishandles it: **an item added to a CalDAV list is not readable back
-for up to a second afterwards.** Home Keeper reads the list, does not find the item it
-just added, concludes the add failed, and adds it again. The duplicate is permanent, and
-every later edit reaches only one of the two copies.
+**Headline: the feature already works, and a separate bug was found while testing it.**
+No new "CalDAV support" is needed — HA's `caldav` integration already exposes a task list
+as a `todo` entity, and Home Keeper's existing profile sync drives it two-way. But CalDAV
+lists have one property no other supported provider has, and Home Keeper's sync
+mishandles it: **an item added to a CalDAV list is not readable back for up to a second
+afterwards.** Home Keeper reads the list, does not find the item it just added, concludes
+the add failed, and adds it again. The duplicate is permanent, and every later edit
+reaches only one of the two copies.
+
+**That bug is not, on the evidence here, what the reporter hit.** It reproduced only on a
+*bulk* first sync — a burst of adds, always duplicating the tail — and never on a single
+add. The reporter's failing case was one task created in Home Keeper, and every
+single-task run in this session synced cleanly and propagated its due-date change within
+seconds. **Their symptom was not reproduced.** See "The one thing that did not reproduce"
+below for what is still open.
 
 ---
 
@@ -73,15 +80,18 @@ Every one of these was confirmed by reading the VTODOs back off Nextcloud.
 | Delete the task in Home Keeper | Its item is removed from the server |
 | A VTODO written in Nextcloud that Home Keeper never wrote | Left strictly alone — not imported, not deleted |
 
-So the reporter's tests 2, 4 and 5 are working as designed, and the sync is genuinely
-two-way. The three things they hit that are *not* fine follow.
+So the reporter's second and third observations — completing on the server, and deleting
+in Home Keeper — are working as designed, and the sync is genuinely two-way. Notably,
+**the due-date change they reported as broken worked every time it was tried here**, on a
+single task, within seconds.
 
 ---
 
 ## Finding 1 — Home Keeper mints permanent duplicate items on CalDAV lists
 
-**Severity: high. Reproduced 4 times out of 4.** This is the bug behind the reporter's
-"changing the due date never reflected into Nextcloud".
+**Severity: high. Reproduced 4 times out of 4** on a bulk first sync. Found while
+testing; **not** something the reporter described, and see the caveat at the end of this
+section before treating it as their bug.
 
 ### The precondition CalDAV alone has
 
@@ -176,7 +186,7 @@ round 4: HK wants 10, server has 12  dupes={'Replace furnace filter': (3, 2), 'R
 The duplicated entries are always at the tail of the add burst, which is exactly the part
 still invisible when the follow-up pass reads.
 
-### Why the reporter saw "the due date never reflected"
+### What a duplicate does to later edits
 
 Once a duplicate exists, Home Keeper's bookkeeping points at exactly one of the two
 copies and never learns about the other. Planting the duplicate by hand and then changing
@@ -197,9 +207,19 @@ orphan on the server permanently:
 after delete:  Dupe probe | DUE:20261005 | UID:planted-duplicate
 ```
 
-In the Nextcloud Tasks app the two copies are indistinguishable. A user who changes the
-due date and happens to be looking at the orphan sees exactly what was reported: a task
-that syncs on create, and then never updates again.
+In the Nextcloud Tasks app the two copies are indistinguishable, so a user looking at the
+orphan would see a task that syncs on create and then never updates again — which *reads*
+like the reported symptom.
+
+**Do not treat that as the explanation.** Two things argue against it:
+
+- The duplicate never appeared on a single add, only at the tail of a burst. The
+  reporter's failing case was one task created in Home Keeper.
+- Nobody in #267 reported seeing duplicate items, and two identical entries in the
+  Nextcloud Tasks app are hard to miss — especially for someone methodical enough to
+  write up five numbered test cases.
+
+The resemblance is suggestive, not evidence.
 
 ### Fix options
 
@@ -300,6 +320,47 @@ unsupported-feature paths already get.
 
 ---
 
+## The one thing that did not reproduce — the reporter's due-date symptom
+
+Their first observation was: a task created in Home Keeper reached Nextcloud, then
+changing its due date in Home Keeper never reached Nextcloud, over 13 hours and several
+reloads of both integrations.
+
+**That did not happen once here.** Every single-task run created the item and then moved
+its `DUE` within seconds of the change:
+
+```
+after add_task:     CalDAV probe | DUE;VALUE=DATE:20261005 | DESCRIPTION:first notes
+after due change:   CalDAV probe | DUE;VALUE=DATE:20261224 | DESCRIPTION:first notes
+after rename:       CalDAV probe renamed | DUE;VALUE=DATE:20261224
+after notes change: CalDAV probe renamed | DUE;VALUE=DATE:20261224 | DESCRIPTION:second notes
+```
+
+The update path itself is sound. Home Assistant's `todo.update_item` merges over the
+existing item (`dataclasses.asdict(found)` then the changed fields) rather than replacing
+it, so a due-only update keeps the summary and description; and `_api_items_factory`
+serializes `due` with `isoformat()`, so the planner's `str(item["due"])[:10]` comparison
+reads the right date whether the server stored a `DATE` or a `DATE-TIME`.
+
+Hypotheses still open, roughly in order of how much they'd explain:
+
+1. **They changed the time of day, not the date.** `desired_by_sync` truncates `next_due`
+   to a date, so a change that leaves the date alone produces no CalDAV write at all and
+   would look exactly like this — indefinitely, through any number of reloads. This is
+   the only hypothesis that survives 13 hours without needing anything to be broken.
+2. **The task stopped matching the profile in a way that produced no visible change.**
+   Worth asking which Include tier their profile uses.
+3. **Their `todo.update_item` was failing** — a uid Nextcloud no longer had, a permission
+   problem — which `_call` swallows at `debug` level, so nothing would appear in a normal
+   log. Finding 3's silence applies here too.
+
+**What to ask them:** which field they edited and whether the *date* changed; their
+profile's Include tier; and a `custom_components.home_keeper` debug log across one edit.
+Without that this stays unexplained — and the honest reply on #267 says so rather than
+offering the duplicate as an answer.
+
+---
+
 ## What is expected, and what Home Keeper can and cannot do
 
 Worth stating plainly, because the issue thread has two different asks tangled together.
@@ -343,10 +404,13 @@ answer is:
 ## Suggested follow-ups
 
 1. **Fix Finding 1** — the duplicate is data the user has to clean up by hand, and it
-   silently breaks every later edit. Option 2 above is the contained fix.
-2. **README**: a short CalDAV/Nextcloud paragraph in "Send tasks to your to-do lists",
+   silently breaks every later edit. Option 2 above is the contained fix. This stands on
+   its own merits; it is not contingent on it being the reporter's bug.
+2. **Get the missing detail on the due-date symptom** before claiming it is understood —
+   which field they edited and whether the date itself moved, their profile's Include
+   tier, and a `custom_components.home_keeper` debug log across one edit.
+3. **README**: a short CalDAV/Nextcloud paragraph in "Send tasks to your to-do lists",
    covering the task-list-not-Personal-calendar gotcha and the 15-minute inbound delay.
-3. **Reply on #267** with the working/not-working split above, so the reporter knows the
-   feature is there and what specifically misfired.
 4. Consider warning (not just `debug`-logging) on repeated write failures against a
-   configured sync target.
+   configured sync target — Findings 1 and 3 are both quiet for the same reason, and the
+   third hypothesis above would have been visible if they were not.
