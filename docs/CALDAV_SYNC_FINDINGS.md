@@ -27,7 +27,7 @@ below for what is still open.
 
 | Piece | What was used |
 | --- | --- |
-| Home Assistant | `ghcr.io/home-assistant/home-assistant:stable`, the repo's `tests/integration` compose stack |
+| Home Assistant | **2026.8.3** (`ghcr.io/home-assistant/home-assistant:stable` as of 2026-09-01), the repo's `tests/integration` compose stack |
 | CalDAV server | `nextcloud:apache` 34.0.3, SQLite, on a shared Docker network |
 | HA integration | built-in `caldav`, pointed at `http://nextcloud/remote.php/dav` |
 | Python CalDAV lib | `caldav` 2.1.0 (vendored in the HA image) |
@@ -36,6 +36,13 @@ below for what is still open.
 Reproduction scripts are not committed — they drove HA over its REST/WebSocket API and
 Nextcloud over raw CalDAV `REPORT`/`PUT`/`DELETE`, so every assertion below is against
 the bytes on the server, not against Home Assistant's view of them.
+
+**Every claim below about Home Assistant's internals was read out of the running
+2026.8.3 container**, not from memory or documentation. They are nonetheless
+**version-dependent**: the `caldav` refresh behaviour that Finding 1 turns on is an
+implementation detail nobody upstream owes us, and it could be fixed (or changed) in any
+release. Re-check them against the installed version before relying on them, and prefer a
+fix that does not depend on them holding.
 
 ---
 
@@ -171,6 +178,19 @@ The reasoning is sound for a list that answers reads honestly. It assumes "I can
 it" implies "the add failed". On CalDAV it usually means "the add succeeded and the
 cache has not caught up".
 
+Two adjacent races are worth ruling out explicitly, because both are natural things to
+suspect and neither is what is happening:
+
+- **A refresh landing between `plan_sync`'s two loops.** It cannot. `plan_sync` is pure
+  and synchronous over an `items_by_entity` snapshot captured before it is called, with
+  no `await` anywhere inside, so both loops see byte-identical input. The window is
+  strictly *between* passes.
+- **A half-built list snapshot.** Also no. `WebDavTodoListEntity.async_update` assigns
+  `self._attr_todo_items` once, wholesale, after the executor job returns the complete
+  search result — there is no moment where a caller sees half a list. What *can* happen is
+  an older complete snapshot overwriting a newer one when two fire-and-forget refreshes
+  are in flight, which is the same missing-recent-item shape and not a separate bug.
+
 ### Reproduction
 
 Sync a profile with 10–11 matching tasks onto a fresh CalDAV list, four times, clearing
@@ -237,8 +257,20 @@ The resemblance is suggestive, not evidence.
    ever delays the case where the call succeeded, which is the case that must not re-add.
 3. **Both.** (2) is the correctness fix; (1) also shortens every other latency below.
 
-Option 2 alone closes the reported bug and touches only `todo_list.py`, already on the
-mutation allowlist.
+Option 2 touches only `todo_list.py`, already on the mutation allowlist, which is why it
+looks like the contained one. **It is a sketch, not a design** — these have to be settled
+before it is written, and one of them may sink it:
+
+- Where does the counter live? `plan.tracked` is rebuilt from scratch each pass, so the
+  count has to be carried on the persisted entry, which widens the bookkeeping shape.
+- What happens on the pass where the uid finally binds while the item is still invisible?
+  That combination should not arise (the uid is read *off* the resolved item), but the
+  transition needs stating rather than assuming.
+- The `claimed` and `settled` sets span the whole plan, so an entry held back rather than
+  dropped must not claim an identity it has not resolved — otherwise two profiles syncing
+  onto one list could deadlock each other out of a line.
+
+Neither option is validated here. Both are directions.
 
 ---
 
@@ -406,8 +438,9 @@ answer is:
 - No push. HA reads the server on a 15-minute poll, shortened only by Home Keeper's own
   writes forcing a refresh (Finding 2).
 - No uid returned on create, so the sync must bind by summary on a later pass — which is
-  what Finding 1 exploits. Two tasks with the same name on one list are only ever
-  distinguished by that binding.
+  the window Finding 1 falls into. Once a uid *is* bound the sync resolves by it first
+  (`resolve_tracked` tries uid, then falls back to summary), so same-named tasks are only
+  ambiguous during that first window, not permanently.
 - Due dates are date-only in practice. Home Keeper deliberately writes `DUE;VALUE=DATE`
   (`desired_by_sync` truncates `next_due` to a date, because "a to-do list works in that
   granularity"), so a task's **time of day never reaches the server** and changing only
