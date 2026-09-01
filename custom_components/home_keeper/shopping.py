@@ -31,6 +31,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from .assets import find_part, part_restock_label
 from .reconcile import buy_source
 from .recurrence import one_off_completed
 from .todo_items import (
@@ -95,12 +96,29 @@ def normalize_target(value: Any) -> str:
     return entity_id
 
 
-def buy_tasks_by_part(tasks: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def buy_tasks_by_part(
+    tasks: dict[str, dict[str, Any]],
+    assets: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, dict[str, Any]]:
     """Index the auto-buy reminders in *tasks* by their part key.
 
     Each value is ``{"task_id", "name", "completed"}`` — everything the planner
     needs, so it never has to know the task schema. A reminder with no name is
     skipped: an empty summary is not something a to-do list can hold.
+
+    ``name`` is **the line as it will read on the shopping list**, not the task's
+    own name: when *assets* is given and the part says how much to buy, the amount
+    is appended — "Buy fabric softener (500 ml)", "Buy air filter (×2)". A part
+    that restocks one plain spare adds nothing, so the common line is unchanged.
+    The task keeps its own name everywhere else (the panel, the calendar, a
+    notification): the amount answers "how much do I put in the trolley", which is
+    a question only the shopping list is asking.
+
+    Keeping this on the existing ``name`` key rather than adding a second one is
+    deliberate. :func:`plan_sync` and :func:`needs_pass` both compare it against
+    what was last mirrored, so a value that meant "the task's name" in one and "the
+    line's text" in the other would leave the mirror permanently dirty — renaming
+    the same item, and re-reading the list, on every single pass.
     """
     indexed: dict[str, dict[str, Any]] = {}
     for task_id, task in tasks.items():
@@ -110,9 +128,10 @@ def buy_tasks_by_part(tasks: dict[str, dict[str, Any]]) -> dict[str, dict[str, A
         name = str(task.get("name") or "").strip()
         if not name:
             continue
+        amount = _restock_label(assets, source)
         entry = {
             "task_id": str(task.get("id") or task_id),
-            "name": name,
+            "name": f"{name} ({amount})" if amount else name,
             "completed": one_off_completed(task),
         }
         key = source_key(source)
@@ -127,6 +146,26 @@ def buy_tasks_by_part(tasks: dict[str, dict[str, Any]]) -> dict[str, dict[str, A
 def source_key(source: dict[str, Any]) -> str:
     """The tracking key for a ``buy_source`` mapping."""
     return part_key(str(source["asset_id"]), str(source["part_id"]))
+
+
+def _restock_label(
+    assets: dict[str, dict[str, Any]] | None, source: dict[str, Any]
+) -> str:
+    """The amount suffix for one reminder's part, or ``""`` when there isn't one.
+
+    Total by design: an asset or part the reminder points at may be gone by the time
+    a pass runs (the reconciler retires the task moments later), and a line that
+    briefly loses its amount is far better than a mirror pass that raises.
+    """
+    if not assets:
+        return ""
+    asset = assets.get(str(source["asset_id"]))
+    if asset is None:
+        return ""
+    part = find_part(asset, str(source["part_id"]))
+    if part is None:
+        return ""
+    return part_restock_label(part)
 
 
 def normalize_items(response: Any, entity_id: str) -> list[dict[str, Any]] | None:
