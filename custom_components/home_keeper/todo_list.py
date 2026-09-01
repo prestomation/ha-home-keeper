@@ -132,6 +132,12 @@ CAP_DESCRIPTION = "description"
 # Wall clock rather than a count of passes, deliberately: ``TodoSyncDriver`` runs up
 # to four passes back to back with no delay between them, so "unseen for two passes"
 # can elapse in milliseconds — entirely inside the window we are waiting out.
+#
+# What comes back to look once it expires is the coordinator's periodic sweep
+# (``todo_list_sync.async_schedule_sweep``, every ``coordinator.SCAN_INTERVAL``),
+# because a grace running out is neither a store mutation nor a list state change
+# and so wakes nothing by itself. That sweep has to stay unconditional for this to
+# repair at all; its docstring says so.
 UNCONFIRMED_GRACE = timedelta(minutes=20)
 
 # Separator joining a profile id to a task id in a bookkeeping key. Profile ids are
@@ -329,6 +335,9 @@ def _added_stamp(entry: dict[str, Any], *, now: datetime) -> str:
     """
     stamped = entry.get("added_at")
     try:
+        # ``str`` because the store holds these entries as opaque JSON and hands
+        # back whatever is in the document: a number, or a value some other write
+        # left behind, must read as "cannot be trusted" rather than raise.
         if stamped and datetime.fromisoformat(str(stamped)) <= now:
             return str(stamped)
     except (TypeError, ValueError):

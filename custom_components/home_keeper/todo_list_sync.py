@@ -133,6 +133,16 @@ class TodoListSync(TodoSyncDriver):
         And a task *falling due* is not a store mutation, so no task event fires
         for it: the periodic pass is what puts a newly-overdue chore on the list.
         Costs nothing until something is configured or synced.
+
+        A third thing rests on this now, and on it being **unconditional**: an add
+        we could not confirm is held rather than repeated
+        (``todo_list.UNCONFIRMED_GRACE``), and nothing about that grace expiring
+        is a store mutation or a list state change either. This pass is the only
+        thing that comes back to look, so gating it on ``needs_pass`` — which
+        answers False for a held entry, correctly, since a pending write is not
+        drift — would turn every such hold into a permanent one. The early-out
+        below is deliberately about having *nothing tracked at all*, which a held
+        entry is not.
         """
         if self._stopped:
             return
