@@ -1172,6 +1172,24 @@ def test_part_restock_label_speaks_only_when_it_has_something_to_say(part, expec
     assert a.part_restock_label(part) == expected
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        # Past ~1e25 the default decimal context has too few digits to quantize
+        # with, and a formatter that raised there would take a whole shopping-list
+        # sync pass down over one malformed part.
+        (1e25, "10000000000000000905969664"),
+        (1e30, "1000000000000000019884624838656"),
+        (float("inf"), "inf"),
+        (float("-inf"), "-inf"),
+        (float("nan"), "nan"),
+    ],
+)
+def test_format_quantity_never_raises(value, expected):
+    assert a.format_quantity(value) == expected
+    assert a.format_quantity(value, "ml") == f"{expected} ml"
+
+
 def test_conformance_fixture_format_quantity():
     """Run the shared cross-language cases through the Python formatter.
 
