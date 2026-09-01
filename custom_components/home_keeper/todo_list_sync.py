@@ -133,6 +133,16 @@ class TodoListSync(TodoSyncDriver):
         And a task *falling due* is not a store mutation, so no task event fires
         for it: the periodic pass is what puts a newly-overdue chore on the list.
         Costs nothing until something is configured or synced.
+
+        A third thing rests on this now, and on it being **unconditional**: an add
+        we could not confirm is held rather than repeated
+        (``todo_list.UNCONFIRMED_GRACE``), and nothing about that grace expiring
+        is a store mutation or a list state change either. This pass is the only
+        thing that comes back to look, so gating it on ``needs_pass`` — which
+        answers False for a held entry, correctly, since a pending write is not
+        drift — would turn every such hold into a permanent one. The early-out
+        below is deliberately about having *nothing tracked at all*, which a held
+        entry is not.
         """
         if self._stopped:
             return
@@ -156,7 +166,11 @@ class TodoListSync(TodoSyncDriver):
         enriched = notifier.effective_filter_tasks(
             self._hass, list(store.get_tasks().values())
         )
-        desired = todo_list.desired_by_sync(synced, enriched, now=dt_util.now())
+        # One instant for the whole pass: what a profile surfaces and how long an
+        # unconfirmed add has been waiting are two readings of the same "now", and
+        # taking the clock twice would let them disagree across the reads between.
+        now = dt_util.now()
+        desired = todo_list.desired_by_sync(synced, enriched, now=now)
         if not force and not todo_list.needs_pass(
             tracked=tracked, desired=desired, synced=synced
         ):
@@ -180,6 +194,7 @@ class TodoListSync(TodoSyncDriver):
             desired=desired,
             items_by_entity=items_by_entity,
             capabilities=capabilities,
+            now=now,
         )
         settled = await self._apply(plan, before=tracked)
         if self._stopped:

@@ -787,6 +787,19 @@ A task that requires an NFC/RFID tag scan still syncs. Checking its item off
 remotely completes nothing and the item returns on the next pass. That refusal is
 the point of requiring the scan.
 
+**A to-do item you add on the list yourself never becomes a Home Keeper task.** The
+sync is a delivery surface. It puts Home Keeper's tasks onto the list. Anything else
+on that list stays yours. Home Keeper only ever touches the items it wrote itself.
+A Home Keeper task carries recurrence, a device and completion history that a plain
+to-do line cannot hold. The one thing that travels inward is a checkmark. Ticking
+off one of Home Keeper's own items completes the task behind it.
+
+- **CalDAV lists work too** (Nextcloud, Baikal, Radicale). Home Assistant polls a
+  CalDAV server every 15 minutes, so ticking an item off there can take that long to
+  reach Home Keeper.
+- **In Nextcloud, point the sync at a task list.** The default **Personal** calendar
+  holds only events, so it never appears as a to-do list in Home Assistant at all.
+
 **The Todoist recipe.** Install Home Assistant's own
 [Todoist integration](https://www.home-assistant.io/integrations/todoist/) and give it
 your Todoist API token. Every Todoist project then shows up as a `todo` entity. Point

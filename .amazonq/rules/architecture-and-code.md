@@ -991,10 +991,22 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   - **Vanish semantics deliberately diverge from the shopping-list sync.** With `two_way`
     and `vanish_as_completed` on, a tracked open item that disappeared completes the
     task — required for providers (Todoist) whose `todo` entity drops completed items —
-    but only when the entry captured a `uid` (an add that never confirmably landed is
-    re-added, never completed). Otherwise a vanish means deleted → recreate (strict
-    self-healing). With `two_way` off the inbound direction is inert and a ticked item
-    freezes its entry so phase 2 doesn't re-add against the user's wishes.
+    but only when the entry captured a `uid`. Otherwise a vanish means deleted → recreate
+    (strict self-healing). With `two_way` off the inbound direction is inert and a ticked
+    item freezes its entry so phase 2 doesn't re-add against the user's wishes.
+  - **A write's own outcome outranks a later read of the list.** `todo.add_item` returns
+    nothing, so a fresh entry has no `uid` and is matched by summary next pass — but some
+    lists don't make an added item readable straight away (HA's CalDAV entity refreshes
+    its cache in a fire-and-forget task where `local_todo` and Todoist await theirs). So
+    "I can't see it" is **not** proof the add failed: reading it that way added the item
+    twice, permanently, since the bookkeeping only ever points at one copy. An
+    unconfirmed entry is therefore *held* — stamped with `added_at`, carried forward
+    **verbatim** because the summary is its only handle — until `UNCONFIRMED_GRACE`
+    (20 min, chosen to clear CalDAV's 15-minute poll) expires, then re-added so a
+    genuinely lost add still repairs. The same stamp gates the ticked-item arm, or a
+    summary match onto the predecessor we just ticked off would complete the task twice
+    and strand its replacement. Wall clock, not a pass count: the driver runs up to four
+    passes back to back with no delay between them.
   - **Content is capability-gated in the planner**, not the driver: due dates
     (`SET_DUE_DATE_ON_ITEM`, written date-only like our own `todo.py`) and
     descriptions (`SET_DESCRIPTION_ON_ITEM`, carrying the task's notes) are neither

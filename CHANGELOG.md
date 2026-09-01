@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.20.0b1]
+
+### Fixed
+
+- **Sending a task to a CalDAV to-do list (Nextcloud, Baikal, Radicale) no longer
+  creates a duplicate.** The duplicate was permanent: editing the task afterward
+  updated only one copy and deleting it left the other behind on the server. The same
+  timing could also complete a recurring task twice and skip its next occurrence.
+
 ## [0.19.0] - 2026-09-01
 
 ### Added

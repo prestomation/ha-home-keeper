@@ -159,7 +159,8 @@ class HomeKeeperStore:
         self._shopping_items: dict[str, dict[str, Any]] = {}
         # Which item on which external to-do list stands for which task, for which
         # profile (``todo_list.sync_key(profile_id, task_id) -> {entity_id, uid,
-        # summary, due, last_completed}``). Keyed per *profile* rather than per task
+        # summary, due, last_completed, added_at}``). Keyed per *profile* rather than
+        # per task
         # because two syncs can hold the same task on two different lists, and one
         # entry could not describe both. Bookkeeping for ``todo_list_sync.py``,
         # kept out of the task for the same reason as the shopping map: the moment
