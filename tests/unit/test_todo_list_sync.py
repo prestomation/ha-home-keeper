@@ -267,13 +267,16 @@ def _item(
     }
 
 
-def _entry(entity_id=LIST, uid="i1", summary=NAME, due=DUE, last_completed=None):
+def _entry(
+    entity_id=LIST, uid="i1", summary=NAME, due=DUE, last_completed=None, added_at=None
+):
     return {
         "entity_id": entity_id,
         "uid": uid,
         "summary": summary,
         "due": due,
         "last_completed": last_completed,
+        "added_at": added_at,
     }
 
 
@@ -391,10 +394,13 @@ def test_a_due_task_lands_on_the_list_with_its_date_and_notes():
         {"entity_id": LIST, "item": NAME, "due_date": DUE, "description": NOTES}
     ]
     # No uid: ``todo.add_item`` answers with nothing, and the next pass binds one.
+    # It is stamped instead, so a list too slow to show the new item does not earn
+    # a second one.
     assert store.get_todo_list_items() == {
         KEY: {
             "entity_id": LIST,
             "uid": None,
+            "added_at": NOW.isoformat(),
             "summary": NAME,
             "due": DUE,
             "last_completed": None,

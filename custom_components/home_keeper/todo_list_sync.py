@@ -156,7 +156,11 @@ class TodoListSync(TodoSyncDriver):
         enriched = notifier.effective_filter_tasks(
             self._hass, list(store.get_tasks().values())
         )
-        desired = todo_list.desired_by_sync(synced, enriched, now=dt_util.now())
+        # One instant for the whole pass: what a profile surfaces and how long an
+        # unconfirmed add has been waiting are two readings of the same "now", and
+        # taking the clock twice would let them disagree across the reads between.
+        now = dt_util.now()
+        desired = todo_list.desired_by_sync(synced, enriched, now=now)
         if not force and not todo_list.needs_pass(
             tracked=tracked, desired=desired, synced=synced
         ):
@@ -180,6 +184,7 @@ class TodoListSync(TodoSyncDriver):
             desired=desired,
             items_by_entity=items_by_entity,
             capabilities=capabilities,
+            now=now,
         )
         settled = await self._apply(plan, before=tracked)
         if self._stopped:

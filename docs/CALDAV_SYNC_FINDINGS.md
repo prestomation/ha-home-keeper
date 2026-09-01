@@ -241,36 +241,40 @@ like the reported symptom.
 
 The resemblance is suggestive, not evidence.
 
-### Fix options
+### What shipped
 
-1. **Force the target list to refresh before the pass that would re-add.** After any
-   successful `add_item`, `await homeassistant.helpers.entity_component.async_update_entity(...)`
-   on that entity, so the next read sees a real snapshot. Turns "cannot see it" back into
-   honest evidence. Costs one extra CalDAV round trip per pass that adds anything, and
-   only on passes that add.
-2. **Give a uid-less entry a grace period in the planner.** Keep the entry in
-   `plan.tracked` the first time it resolves to nothing, with an attempt counter, and only
-   drop it (and therefore re-add) once it has been unseen across two passes. This is a
-   pure-planner change and unit-testable, which suits the mutation gate. Note a
-   genuinely-failed add is *already* retried immediately by a different path —
-   `_apply` does `settled.pop(add.key, None)` when the call raises — so the counter only
-   ever delays the case where the call succeeded, which is the case that must not re-add.
-3. **Both.** (2) is the correctness fix; (1) also shortens every other latency below.
+The planner now treats the `add_item` call's own outcome as the answer, and refuses to
+let a later read of a stale cache overturn it. A uid-less entry whose item cannot be
+resolved is **held** — carried forward verbatim, stamped `added_at` — instead of being
+dropped and re-added. The hold is bounded by `UNCONFIRMED_GRACE` (20 minutes), after
+which a genuinely lost add is repaired rather than leaving the task with no item for
+good.
 
-Option 2 touches only `todo_list.py`, already on the mutation allowlist, which is why it
-looks like the contained one. **It is a sketch, not a design** — these have to be settled
-before it is written, and one of them may sink it:
+Wall clock rather than a count of passes, which is the load-bearing detail: the driver
+runs up to four passes back to back with no delay, so "unseen for two passes" can elapse
+in milliseconds — entirely inside the window being waited out. 20 minutes is a *staleness
+budget* calibrated to clear CalDAV's 15-minute poll, not a formula; the mechanism itself
+depends on nothing upstream.
 
-- Where does the counter live? `plan.tracked` is rebuilt from scratch each pass, so the
-  count has to be carried on the persisted entry, which widens the bookkeeping shape.
-- What happens on the pass where the uid finally binds while the item is still invisible?
-  That combination should not arise (the uid is read *off* the resolved item), but the
-  transition needs stating rather than assuming.
-- The `claimed` and `settled` sets span the whole plan, so an entry held back rather than
-  dropped must not claim an identity it has not resolved — otherwise two profiles syncing
-  onto one list could deadlock each other out of a line.
+Two details that had to be right:
 
-Neither option is validated here. Both are directions.
+- The held entry is carried forward **verbatim**, never rebuilt from what the task now
+  wants. For a uid-less entry the summary *is* the handle, so it has to keep saying what
+  was written to the list — otherwise a task renamed mid-hold would never match its own
+  line again.
+- The stamp is **re-written** rather than `setdefault`, because a value that is
+  unparsable or in the future (a clock that jumped backwards before NTP corrected it)
+  would never age out, turning "hold, never duplicate" into "hold, never deliver".
+
+**Verified against the same Nextcloud that produced the bug:** 4 rounds of the bulk
+first sync, **0 duplicates** where every round previously produced 1–3, with the server's
+VTODO count matching the wanted-task count exactly and nothing missing.
+
+Deliberately *not* done: forcing the entity to refresh before each read
+(`async_update_entity`). It would shorten every latency here as a bonus, but it cannot
+close the race on its own — Home Assistant's own fire-and-forget refreshes can still land
+afterwards carrying an older snapshot — and it costs a round trip to somebody else's
+server on every pass that adds anything. Worth considering separately, on its own merits.
 
 ---
 

@@ -63,6 +63,15 @@
   try the feature via HACS *before* merge. The build is ephemeral and auto-deletes
   when the PR closes (see RELEASE.md → "Preview releases"). Bug-fix-only /
   developer-only PRs don't need it.
+- **Always have a Sonnet 4.5 subagent write user-facing text.** Any prose a *user* reads —
+  `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
+  `services.yaml` descriptions, the frontend locale — is drafted by a subagent spawned
+  with `model: sonnet`, not written inline. Give it the diff, the surrounding section for
+  voice, and the house rules it has to satisfy (the three-sentence CHANGELOG budget, the
+  `(Fixes #N)` placement, the vale AI-tells style), then review what comes back and edit
+  it yourself before committing — the subagent drafts, you are still responsible for what
+  ships. Commit messages, PR bodies and code comments are *not* user-facing text and stay
+  inline.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only `pip install pytest PyYAML`: `pytest tests/unit -v`.
     (`PyYAML` is for the API-surface gate below, which reads `services.yaml`; without

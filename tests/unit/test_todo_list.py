@@ -99,14 +99,23 @@ def _item(summary=NAME, uid="i1", status=tm.STATUS_NEEDS_ACTION, **extra):
     }
 
 
-def _entry(entity_id=LIST, uid="i1", summary=NAME, due=DUE, last_completed=None):
+def _entry(
+    entity_id=LIST, uid="i1", summary=NAME, due=DUE, last_completed=None, added_at=None
+):
     return {
         "entity_id": entity_id,
         "uid": uid,
         "summary": summary,
         "due": due,
         "last_completed": last_completed,
+        "added_at": added_at,
     }
+
+
+def _added(minutes_ago=0, **kw):
+    """A uid-less entry stamped *minutes_ago* — an add we have not seen back yet."""
+    kw.setdefault("uid", None)
+    return _entry(added_at=(NOW - timedelta(minutes=minutes_ago)).isoformat(), **kw)
 
 
 def _tracked(entry=None, key=KEY):
@@ -114,7 +123,14 @@ def _tracked(entry=None, key=KEY):
 
 
 def _plan(
-    *, synced=None, tracked=None, desired=None, items=None, lists=None, caps=None
+    *,
+    synced=None,
+    tracked=None,
+    desired=None,
+    items=None,
+    lists=None,
+    caps=None,
+    now=NOW,
 ):
     """Run one pass. *items* is LIST's contents (None = unreadable list)."""
     if lists is None:
@@ -125,6 +141,7 @@ def _plan(
         desired=desired or {},
         items_by_entity=lists,
         capabilities=CAPS if caps is None else caps,
+        now=now,
     )
 
 
@@ -297,15 +314,7 @@ def test_a_due_task_with_no_item_yet_is_added_to_the_list():
     assert plan.add == [
         tm.AddOp(KEY, LIST, NAME, due=DUE, description="Under the sink")
     ]
-    assert plan.tracked == {
-        KEY: {
-            "entity_id": LIST,
-            "uid": None,
-            "summary": NAME,
-            "due": DUE,
-            "last_completed": None,
-        }
-    }
+    assert plan.tracked == {KEY: _added()}
     assert plan.update == [] and plan.remove == [] and plan.complete == []
 
 
@@ -335,15 +344,7 @@ def test_the_next_pass_binds_the_uid_of_the_item_it_added():
     )
     assert plan.add == [] and plan.update == [] and plan.remove == []
     assert plan.complete == []
-    assert plan.tracked == {
-        KEY: {
-            "entity_id": LIST,
-            "uid": "captured",
-            "summary": NAME,
-            "due": DUE,
-            "last_completed": None,
-        }
-    }
+    assert plan.tracked == {KEY: _entry(uid="captured")}
 
 
 def test_an_open_item_already_reading_the_same_is_adopted():
@@ -359,7 +360,7 @@ def test_a_ticked_off_lookalike_is_never_adopted():
         items=[_item(uid="old", status=tm.STATUS_COMPLETED)],
     )
     assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
-    assert plan.tracked == {KEY: _entry(uid=None)}
+    assert plan.tracked == {KEY: _added()}
 
 
 # ── keeping a synced chore in step ──────────────────────────────────────────
@@ -396,13 +397,7 @@ def test_a_rename_a_new_date_and_new_notes_are_one_update():
     ]
     assert plan.remove == [] and plan.add == [] and plan.complete == []
     assert plan.tracked == {
-        KEY: {
-            "entity_id": LIST,
-            "uid": "i1",
-            "summary": "Change the water filter",
-            "due": "2026-07-01",
-            "last_completed": None,
-        }
+        KEY: _entry(summary="Change the water filter", due="2026-07-01")
     }
 
 
@@ -510,9 +505,7 @@ def test_a_tick_home_keeper_already_knows_about_is_not_sent_back():
     )
     assert plan.complete == [] and plan.update == [] and plan.remove == []
     assert plan.add == [tm.AddOp(KEY, LIST, NAME, due="2026-09-14")]
-    assert plan.tracked == {
-        KEY: _entry(uid=None, due="2026-09-14", last_completed=DONE_ISO)
-    }
+    assert plan.tracked == {KEY: _added(due="2026-09-14", last_completed=DONE_ISO)}
 
 
 # ── completed inside Home Keeper ──────────────────────────────────────────────
@@ -547,15 +540,7 @@ def test_completing_the_task_ticks_the_item_off_and_the_next_one_is_fresh():
     assert plan.update == [tm.UpdateOp(KEY, LIST, "i1", status=tm.STATUS_COMPLETED)]
     assert plan.add == [tm.AddOp(KEY, LIST, NAME, due="2026-09-14")]
     assert plan.remove == [] and plan.complete == []
-    assert plan.tracked == {
-        KEY: {
-            "entity_id": LIST,
-            "uid": None,
-            "summary": NAME,
-            "due": "2026-09-14",
-            "last_completed": DONE_ISO,
-        }
-    }
+    assert plan.tracked == {KEY: _added(due="2026-09-14", last_completed=DONE_ISO)}
 
 
 def test_completing_a_task_that_is_done_for_good_only_ticks_the_item_off():
@@ -591,15 +576,106 @@ def test_a_vanished_item_completes_the_task_when_the_sync_opted_in():
     assert plan.tracked == {}
 
 
-def test_a_vanished_item_we_never_confirmed_is_re_added_not_completed():
+def test_a_vanished_item_we_never_confirmed_is_never_completed():
     # No uid means no proof our add ever landed, and completing a task on the
     # strength of a write we cannot confirm is the one mistake with no undo.
+    plan = _plan(tracked=_tracked(_added()), desired=_desired([_want()]), items=[])
+    assert plan.complete == []
+
+
+def test_an_add_we_have_not_seen_back_yet_is_held_rather_than_repeated():
+    # The CalDAV shape: the add landed, but the list cannot show it yet. Adding a
+    # second one here is what minted duplicates nobody could tell apart.
+    plan = _plan(tracked=_tracked(_added()), desired=_desired([_want()]), items=[])
+    assert plan.add == [] and plan.complete == []
+    assert plan.tracked == {KEY: _added()}
+
+
+def test_an_add_still_missing_when_the_hold_runs_out_is_put_on_again():
+    # Waiting longer will not tell us what happened to it, and a chore with no
+    # line at all is worse than a second one.
+    plan = _plan(
+        tracked=_tracked(_added(minutes_ago=21)),
+        desired=_desired([_want()]),
+        items=[],
+    )
+    assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
+    assert plan.tracked == {KEY: _added()}
+
+
+def test_an_add_is_still_held_just_short_of_the_hold_running_out():
+    plan = _plan(
+        tracked=_tracked(_added(minutes_ago=19)),
+        desired=_desired([_want()]),
+        items=[],
+    )
+    assert plan.add == []
+
+
+def test_the_hold_runs_out_strictly_after_the_grace_not_at_it():
+    # Pins the boundary itself: exactly one grace old is still held.
+    entry = _entry(uid=None, added_at=(NOW - tm.UNCONFIRMED_GRACE).isoformat())
+    assert tm._add_unconfirmed(entry, now=NOW) is False
+    assert tm._add_unconfirmed(entry, now=NOW + timedelta(seconds=1)) is True
+
+
+def test_an_unconfirmed_add_with_no_stamp_starts_its_hold_now():
+    # Bookkeeping written before the stamp existed, and the adopt path on a list
+    # that hands out no uids: hold one grace rather than duplicating on sight.
     plan = _plan(
         tracked=_tracked(_entry(uid=None)), desired=_desired([_want()]), items=[]
     )
-    assert plan.complete == []
-    assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
-    assert plan.tracked == {KEY: _entry(uid=None)}
+    assert plan.add == []
+    assert plan.tracked == {KEY: _added()}
+
+
+def test_a_stamp_that_cannot_be_read_is_replaced_rather_than_trusted():
+    # "Hold, never duplicate" must not become "hold, never deliver": a stamp that
+    # cannot be parsed would otherwise never age out, and the chore would never
+    # reach the list at all.
+    plan = _plan(
+        tracked=_tracked(_entry(uid=None, added_at="whenever")),
+        desired=_desired([_want()]),
+        items=[],
+    )
+    assert plan.add == []
+    assert plan.tracked == {KEY: _added()}
+
+
+def test_a_stamp_from_the_future_is_replaced_rather_than_trusted():
+    # A clock that jumped backwards before NTP corrected it. Left alone, ``now``
+    # never gets past it and the hold never ends.
+    plan = _plan(
+        tracked=_tracked(_added(minutes_ago=-90)),
+        desired=_desired([_want()]),
+        items=[],
+    )
+    assert plan.add == []
+    assert plan.tracked == {KEY: _added()}
+
+
+def test_a_held_add_keeps_the_text_it_wrote_when_the_task_is_renamed():
+    # The summary is the handle for a uid-less entry, so it has to keep saying
+    # what went onto the list — not what we now want — or nothing would ever
+    # match the line we are waiting for.
+    plan = _plan(
+        tracked=_tracked(_added()),
+        desired=_desired([_want(name="Change the water filter")]),
+        items=[],
+    )
+    assert plan.add == []
+    assert plan.tracked[KEY]["summary"] == NAME
+
+
+def test_a_held_add_binds_its_uid_once_the_list_can_show_it():
+    plan = _plan(
+        tracked=_tracked(_added()),
+        desired=_desired([_want()]),
+        items=[_item(uid="landed")],
+    )
+    assert plan.add == []
+    assert plan.tracked == {KEY: _entry(uid="landed")}
+    assert plan.tracked[KEY]["added_at"] is None
 
 
 def test_a_vanished_item_is_re_added_when_the_sync_reads_deletion_as_deletion():
@@ -661,7 +737,7 @@ def test_pointing_a_sync_at_another_list_moves_the_chore():
     )
     assert plan.remove == [tm.RemoveOp(KEY, OTHER, "i1")]
     assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
-    assert plan.tracked == {KEY: _entry(uid=None)}
+    assert plan.tracked == {KEY: _added()}
 
 
 def test_deleting_a_sync_clears_what_it_wrote():
@@ -807,6 +883,9 @@ def test_two_syncs_on_one_list_never_share_a_line():
 
 
 def test_two_tasks_reading_the_same_never_share_a_line():
+    # One line, two tasks reading the same: the first claims it, and the second is
+    # left holding an add it cannot confirm. It waits rather than putting a second
+    # line up — the one line already there may well be its own.
     plan = _plan(
         tracked={"m1:t1": _entry(uid=None), "m1:t2": _entry(uid=None)},
         desired={M1: {T1: _want(), "t2": _want(tid="t2")}},
@@ -814,7 +893,8 @@ def test_two_tasks_reading_the_same_never_share_a_line():
     )
     assert plan.tracked["m1:t1"]["uid"] == "only"
     assert plan.tracked["m1:t2"]["uid"] is None
-    assert plan.add == [tm.AddOp("m1:t2", LIST, NAME, due=DUE)]
+    assert plan.tracked["m1:t2"]["added_at"] == NOW.isoformat()
+    assert plan.add == []
 
 
 # ── which list item a tracked entry points at ─────────────────────────────────
@@ -856,6 +936,30 @@ def test_a_ticked_off_item_is_matched_when_it_is_the_only_one():
     plan = _plan(
         tracked=_tracked(_entry(uid=None)),
         desired=_desired([_want()]),
+        items=[_item(uid="old", status=tm.STATUS_COMPLETED)],
+    )
+    assert plan.complete == [tm.CompleteOp(KEY, T1)]
+
+
+def test_an_unconfirmed_add_never_reads_the_line_it_replaced_as_a_tick():
+    # A recurring chore just completed inside Home Keeper: the old line is ticked
+    # off, the fresh one is not readable yet, and matching by summary lands on the
+    # predecessor. Reading that as the household's tick would complete the task a
+    # second time and strand the new line for good — so it waits instead.
+    plan = _plan(
+        tracked=_tracked(_added(last_completed=DONE_ISO)),
+        desired=_desired([_want(last_completed=DONE_ISO)]),
+        items=[_item(uid="old", status=tm.STATUS_COMPLETED)],
+    )
+    assert plan.complete == []
+    assert plan.add == [] and plan.update == [] and plan.remove == []
+    assert plan.tracked == {KEY: _added(last_completed=DONE_ISO)}
+
+
+def test_a_tick_still_lands_once_the_unconfirmed_add_has_waited_its_grace():
+    plan = _plan(
+        tracked=_tracked(_added(minutes_ago=21, last_completed=DONE_ISO)),
+        desired=_desired([_want(last_completed=DONE_ISO)]),
         items=[_item(uid="old", status=tm.STATUS_COMPLETED)],
     )
     assert plan.complete == [tm.CompleteOp(KEY, T1)]
@@ -1075,6 +1179,7 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
             "h": _want("h", name="Sweep the chimney"),
             "i": _want("i", name="Oil the hinges"),
             "k": _want("k", name="Test the RCD"),
+            "m": _want("m", name="Prune the hedge"),
             "z": _want("z", name="Defrost the freezer"),
         },
         "m9": {"a": _want("a", name="Rake the leaves")},
@@ -1090,8 +1195,9 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
         "m1:d": _entry(uid="id", summary="Change the smoke alarm"),
         # Vanished, and we hold a uid: the sync reads that as done.
         "m1:e": _entry(uid="ie", summary="Bleed the radiators"),
-        # Vanished with no uid to vouch for it: put it back instead.
-        "m1:f": _entry(uid=None, summary="Wash the windows"),
+        # Vanished with no uid to vouch for it, and the hold has run out: put it
+        # back rather than leaving the chore with no line at all.
+        "m1:f": _added(minutes_ago=21, summary="Wash the windows"),
         # Vanished, and nobody wants it any more.
         "m1:g": _entry(uid="ig", summary="Polish the taps"),
         # Left on the list this sync used to point at.
@@ -1107,6 +1213,8 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
         "m5:b": _entry(uid="i5b", summary="Flush the boiler"),
         "m5:c": _entry(uid="i5c", summary="Seal the deck"),
         "m5:d": _entry(entity_id=GHOST, uid="i5d", summary="Wax the car"),
+        # Added a moment ago and not readable back yet: held, never repeated.
+        "m1:m": _added(summary="Prune the hedge"),
         # Renamed since it was synced.
         "m9:a": _entry(entity_id=OTHER, uid="i9", summary="Rake up the leaves"),
     }
@@ -1132,6 +1240,7 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
             ],
         },
         capabilities=CAPS,
+        now=NOW,
     )
     assert plan.remove == [
         tm.RemoveOp("m1:b", LIST, "ib"),
@@ -1155,18 +1264,19 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
     ]
     assert plan.tracked == {
         "m1:a": _entry(uid="ia", summary="Descale the kettle"),
-        "m1:d": _entry(
-            uid=None,
+        "m1:d": _added(
             summary="Change the smoke alarm",
             due="2026-09-14",
             last_completed=DONE_ISO,
         ),
-        "m1:f": _entry(uid=None, summary="Wash the windows"),
-        "m1:h": _entry(uid=None, summary="Sweep the chimney"),
+        "m1:f": _added(summary="Wash the windows"),
+        "m1:h": _added(summary="Sweep the chimney"),
         "m1:i": _entry(entity_id=GHOST, uid="ii", summary="Oil the hinges"),
         # Adopted: a line already reading the same is never duplicated.
         "m1:k": _entry(uid="ik", summary="Test the RCD"),
-        "m1:z": _entry(uid=None, summary="Defrost the freezer"),
+        # Held: its add is unconfirmed and still inside the grace.
+        "m1:m": _added(summary="Prune the hedge"),
+        "m1:z": _added(summary="Defrost the freezer"),
         "m5:d": _entry(entity_id=GHOST, uid="i5d", summary="Wax the car"),
         "m9:a": _entry(entity_id=OTHER, uid="i9", summary="Rake the leaves"),
     }
