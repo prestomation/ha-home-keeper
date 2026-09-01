@@ -1,0 +1,29 @@
+# Test-only companion to `recipes.yaml`.
+#
+# The README recipe fires on a fixed wall-clock time ("09:00:00" on a Thursday),
+# which a test cannot wait for. This is the same automation with its trigger moment
+# supplied by an `input_datetime` the test sets a few seconds ahead, so the suite
+# proves a real `trigger: time` firing drives the documented action sequence — not
+# just that `automation.trigger` runs it.
+- alias: "TEST: time-triggered cancel probe"
+  mode: single
+  triggers:
+    - trigger: time
+      at: input_datetime.hk_probe_at
+  actions:
+    - action: home_keeper.list_tasks
+      response_variable: hk
+    - variables:
+        task: "{{ hk.tasks | selectattr('name', 'eq', 'Take out trash') | first }}"
+    - condition: template
+      value_template: >-
+        {{ task.next_due is not none and as_datetime(task.next_due) <= now() }}
+    - action: home_keeper.skip_task
+      data:
+        task_id: "{{ task.id }}"
+        origin: trash_deadline
+    - action: input_text.set_value
+      target:
+        entity_id: input_text.hk_probe_result
+      data:
+        value: "skipped"

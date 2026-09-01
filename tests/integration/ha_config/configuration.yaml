@@ -106,6 +106,25 @@ input_text:
   hk_last_uncompleted_ts:
     name: HK last uncompleted ts
     max: 255
+  # Set by the time-triggered probe in `recipes_probe.yaml` so
+  # test_automation_recipes can observe a real `trigger: time` firing.
+  hk_probe_result:
+    name: HK probe result
+    max: 64
+
+# Supplies the probe automation's trigger moment. The test writes a timestamp a few
+# seconds ahead, so it never has to wait for a fixed wall-clock time.
+input_datetime:
+  hk_probe_at:
+    name: HK probe at
+    has_date: true
+    has_time: true
+
+# The README's "Deadlines and follow-ups" automations, verbatim, plus the test-only
+# probe. Both are exercised by tests/integration/test_automation_recipes.py, which
+# also asserts recipes.yaml still matches the README blocks.
+automation recipes: !include recipes.yaml
+automation recipes probe: !include recipes_probe.yaml
 
 automation:
   - alias: Capture Home Keeper task completed

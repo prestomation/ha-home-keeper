@@ -1301,6 +1301,107 @@ Events are **edge-triggered** (one event per crossing, never repeated each cycle
 silently baselined on restart (no "overdue" storm after a reboot). The full catalog
 (every event, its payload, and more examples) is in [docs/EVENTS.md](docs/EVENTS.md).
 
+### Deadlines and follow-ups
+
+Some recurring tasks have a real deadline. The weekly trash has to be at the curb
+before the truck comes. A week that misses the truck is a write-off. A week that
+makes it leaves a bin at the curb to fetch the next evening. Ordinary Home Assistant
+automations cover both cases, on top of services Home Keeper already has.
+
+The setup is one weekly fixed task ("Take out trash") plus one triggered task
+("Bring the bin back in"). `home_keeper.list_tasks` returns every task, so an
+automation reads a task's `next_due` and `last_completed` with `response_variable`
+and decides from there. Missing the deadline calls `home_keeper.skip_task`, which
+advances the fixed task one occurrence and records no completion. That is the
+write-off: the week is gone, and nothing pretends the chore was done. Making the
+deadline calls `home_keeper.trigger_task` on the follow-up, arming it so it reads as
+due now. Completing it later puts it back to dormant, ready for next week.
+
+Create the follow-up task once, not every week. A newly created triggered task
+starts armed, so complete it once right after you create it to leave it dormant.
+
+Both automations read the task's own `next_due` instead of the wall clock. By the
+time the second one runs, the completion or the skip has already moved `next_due` to
+next Wednesday, so `next_due - 7 days` is the occurrence that just passed.
+`grace_hours: 12` turns that Wednesday 7pm slot into a Thursday 7am cutoff. A week
+you skipped or finished early cannot arm the follow-up by accident.
+
+```yaml
+automation:
+  - alias: "Trash: cancel the occurrence if the bin never went out"
+    triggers:
+      - trigger: time
+        at: "09:00:00"
+    conditions:
+      - condition: time
+        weekday: [thu]
+    actions:
+      - action: home_keeper.list_tasks
+        response_variable: hk
+      - variables:
+          task: "{{ hk.tasks | selectattr('name', 'eq', 'Take out trash') | first }}"
+      - condition: template
+        value_template: >-
+          {{ task.next_due is not none and as_datetime(task.next_due) <= now() }}
+      - action: home_keeper.skip_task
+        data:
+          task_id: "{{ task.id }}"
+          origin: trash_deadline
+
+  - alias: "Trash: arm 'bring the bin back in' if it went out in time"
+    triggers:
+      - trigger: time
+        at: "20:00:00"
+    conditions:
+      - condition: time
+        weekday: [thu]
+    variables:
+      grace_hours: 12
+    actions:
+      - action: home_keeper.list_tasks
+        response_variable: hk
+      - variables:
+          task: "{{ hk.tasks | selectattr('name', 'eq', 'Take out trash') | first }}"
+          occurrence: "{{ as_datetime(task.next_due) - timedelta(days=7) }}"
+      - condition: template
+        value_template: >-
+          {{ task.last_completed is not none
+             and as_datetime(task.last_completed) >= as_datetime(occurrence)
+             and as_datetime(task.last_completed)
+                 <= as_datetime(occurrence) + timedelta(hours=grace_hours) }}
+      - action: home_keeper.trigger_task
+        data:
+          task_id: Bring the bin back in
+```
+
+`origin` on `skip_task` is a free-form marker of your choosing. It comes back in the
+`home_keeper_task_skipped` event, so another automation can tell why an occurrence
+was skipped.
+
+#### Variant: a dated one-off instead of a triggered task
+
+To avoid keeping a standing triggered task, create the follow-up as a dated one-off
+when the trash goes out. The tradeoff is a completed one-off left behind every week,
+where the triggered task gets reused.
+
+```yaml
+  - alias: "Trash: create a dated one-off follow-up"
+    triggers:
+      - trigger: event
+        event_type: home_keeper_task_completed
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.event.data.name == 'Take out trash' }}"
+    actions:
+      - action: home_keeper.add_task
+        data:
+          name: "Bring the bin back in"
+          recurrence_type: one-off
+          due: >-
+            {{ (now().replace(hour=20, minute=0, second=0, microsecond=0)
+                + timedelta(days=1)).isoformat() }}
+```
+
 ## Integrations
 
 Home Keeper is **open to other integrations**: they can contribute their own recurring
