@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0b8]
+
+### Fixed
+
+- **The admin panel's dropdown menus (Profile, Group by, and similar filters) are
+  themed when open, not just when closed.** Their popup list previously fell back to
+  the browser's default grey-on-white, unreadable against a dark Home Assistant
+  theme.
+
 ## [0.19.0b7]
 
 ### Changed
@@ -15,11 +24,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   the user is the same as before.
 
 ### Fixed
-
-- **The admin panel's dropdown menus (Profile, Group by, and similar filters) are
-  themed when open, not just when closed.** Their popup list previously fell back to
-  the browser's default grey-on-white, unreadable against a dark Home Assistant
-  theme.
 
 - **Completing a task from the panel now settles buy reminders.** The panel's own
   completion path only refreshed, so a completed auto-buy task left its reminder
