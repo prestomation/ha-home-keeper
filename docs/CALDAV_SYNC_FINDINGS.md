@@ -1,0 +1,352 @@
+# CalDAV / Nextcloud to-do sync — exploratory testing findings
+
+Investigation of [#267](https://github.com/prestomation/ha-home-keeper/issues/267), run
+against a real Nextcloud 34.0.3 talking to Home Assistant's built-in `caldav`
+integration, with Home Keeper's profile to-do sync pointed at the resulting `todo.*`
+entity.
+
+**Headline: the feature already works, and it broke for the reporter for a reason
+Home Keeper owns.** No new "CalDAV support" is needed — HA's `caldav` integration
+already exposes a task list as a `todo` entity, and Home Keeper's existing profile sync
+drives it. But CalDAV lists have one property no other supported provider has, and
+Home Keeper's sync mishandles it: **an item added to a CalDAV list is not readable back
+for up to a second afterwards.** Home Keeper reads the list, does not find the item it
+just added, concludes the add failed, and adds it again. The duplicate is permanent, and
+every later edit reaches only one of the two copies.
+
+---
+
+## The environment
+
+| Piece | What was used |
+| --- | --- |
+| Home Assistant | `ghcr.io/home-assistant/home-assistant:stable`, the repo's `tests/integration` compose stack |
+| CalDAV server | `nextcloud:apache` 34.0.3, SQLite, on a shared Docker network |
+| HA integration | built-in `caldav`, pointed at `http://nextcloud/remote.php/dav` |
+| Python CalDAV lib | `caldav` 2.1.0 (vendored in the HA image) |
+| Home Keeper | this branch, one profile with `sync.entity_id = todo.chores` |
+
+Reproduction scripts are not committed — they drove HA over its REST/WebSocket API and
+Nextcloud over raw CalDAV `REPORT`/`PUT`/`DELETE`, so every assertion below is against
+the bytes on the server, not against Home Assistant's view of them.
+
+---
+
+## Setup gotcha, before any of the sync behaviour
+
+**Nextcloud's default "Personal" calendar cannot hold tasks.** It advertises
+`supported-calendar-component-set` = `VEVENT` only. HA's `caldav` todo platform creates a
+`todo.*` entity only for calendars that advertise `VTODO`
+(`SUPPORTED_COMPONENT = "VTODO"` in `caldav/todo.py`), so out of a stock Nextcloud you
+get `calendar.personal` and **no** `todo.personal`.
+
+Verified against the live server:
+
+```
+/remote.php/dav/calendars/admin/personal/   -> <comp name="VEVENT"/>
+/remote.php/dav/calendars/admin/chores/     -> <comp name="VEVENT"/> <comp name="VTODO"/> <comp name="VJOURNAL"/>
+```
+
+The `chores` collection was made with `occ dav:create-calendar`; in the UI the same thing
+happens when you add a **task list** in the Nextcloud Tasks app. Users who see no `todo`
+entity after adding the CalDAV integration are almost always looking at a VEVENT-only
+calendar. Worth a line in the README's to-do sync section.
+
+Once the list exists, the entity reports `supported_features: 119` — create, delete,
+update, due date, due datetime, description; everything Home Keeper's planner asks for
+except `MOVE_TODO_ITEM`, which it never uses.
+
+---
+
+## What works
+
+Every one of these was confirmed by reading the VTODOs back off Nextcloud.
+
+| Direction | Result |
+| --- | --- |
+| Create a task in Home Keeper | Item appears, with `DUE;VALUE=DATE`, `SUMMARY` and `DESCRIPTION` |
+| Change the due date in Home Keeper | `DUE` moves, within seconds |
+| Rename in Home Keeper | `SUMMARY` follows |
+| Change notes in Home Keeper | `DESCRIPTION` follows |
+| Complete in Home Keeper | Item flips to `STATUS:COMPLETED` |
+| Tick the item off on the server | Task completes in Home Keeper, recurrence reschedules, a **fresh** VTODO is written for the next occurrence |
+| Delete the task in Home Keeper | Its item is removed from the server |
+| A VTODO written in Nextcloud that Home Keeper never wrote | Left strictly alone — not imported, not deleted |
+
+So the reporter's tests 2, 4 and 5 are working as designed, and the sync is genuinely
+two-way. The three things they hit that are *not* fine follow.
+
+---
+
+## Finding 1 — Home Keeper mints permanent duplicate items on CalDAV lists
+
+**Severity: high. Reproduced 4 times out of 4.** This is the bug behind the reporter's
+"changing the due date never reflected into Nextcloud".
+
+### The precondition CalDAV alone has
+
+`todo.add_item` on a CalDAV list returns **before** the new item is visible to
+`todo.get_items`. HA's CalDAV entity saves to the server, then refreshes its own cache in
+a fire-and-forget background task — the comment in `caldav/todo.py` says so outright:
+
+```python
+await self.hass.async_add_executor_job(partial(self._calendar.save_todo, **item_data))
+# refreshing async otherwise it would take too much time
+self.hass.async_create_task(self.async_update_ha_state(force_refresh=True))
+```
+
+Measured directly, five times in a row, on a local container with a sub-100 ms round
+trip:
+
+```
+add 'race probe 1' returned in 84ms; get_items sees 1: >>> MISSING <<<
+    after 2s: PRESENT (server has 2)
+add 'race probe 2' returned in 61ms; get_items sees 2: >>> MISSING <<<
+    after 2s: PRESENT (server has 3)
+...
+```
+
+and for a burst, the tail of the burst is the part that stays invisible:
+
+```
+five adds took 251ms
+t+ 0s  HA sees  4  server has  5  missing from HA: ['burst 5']
+t+ 1s  HA sees  5  server has  5  missing from HA: []
+```
+
+CalDAV is the outlier among the providers Home Keeper's sync targets, and the difference
+is one `await`:
+
+| Integration | End of `async_create_todo_item` |
+| --- | --- |
+| `local_todo` | `await self.async_update_ha_state(force_refresh=True)` |
+| `todoist` | `await self.coordinator.async_refresh()` |
+| `caldav` | `self.hass.async_create_task(self.async_update_ha_state(force_refresh=True))` |
+
+So on every other target the item is readable the instant the call returns, and Home
+Keeper's assumptions hold. Against a real Nextcloud over a LAN or the internet the CalDAV
+window is far wider than the ~1 s seen here. This is arguably an upstream bug worth
+reporting against `homeassistant/components/caldav` as well — `async_create_todo_item` is
+documented as leaving the entity's state current — but Home Keeper should not depend on
+that being fixed.
+
+### What Home Keeper does with it
+
+`todo.add_item` answers with nothing, so the planner records the new item with **no
+uid** and binds one on the next pass by summary
+(`todo_list.py`, the add loop — `plan.tracked[key] = _entry(target, None, want)`).
+
+The next pass fires immediately, because writing to the list changes its state and
+`_handle_state_change` forces a pass. That pass reads a list that does not contain the
+item yet, so `resolve_tracked` returns `None`, and control reaches this branch
+(`todo_list.py`, in `plan_sync`):
+
+```python
+if item is None:
+    if want is None:
+        continue
+    sync = profile["sync"]
+    if entry.get("uid") and sync["two_way"] and sync["vanish_as_completed"]:
+        plan.complete.append(CompleteOp(key, task_id))
+        settled.add(key)
+    continue          # <- key never written to plan.tracked
+```
+
+With no uid the entry is simply dropped — deliberately, per the module docstring: *"an
+entry that never captured a uid has no proof its add ever landed, so it is re-added,
+never completed."* The second loop then finds `key not in plan.tracked` and plans a
+**second** `AddOp`. Two VTODOs, two uids, one task.
+
+The reasoning is sound for a list that answers reads honestly. It assumes "I cannot see
+it" implies "the add failed". On CalDAV it usually means "the add succeeded and the
+cache has not caught up".
+
+### Reproduction
+
+Sync a profile with 10–11 matching tasks onto a fresh CalDAV list, four times, clearing
+the server in between:
+
+```
+round 1: HK wants 11, server has 12  dupes={'Renew passport': (2, 1)}
+round 2: HK wants 11, server has 11  dupes={'Replace T&P relief valve …': (2, 1)}  missing={'Renew passport': (0, 1)}
+round 3: HK wants 10, server has 12  dupes={'Replace furnace filter': (3, 2), 'Replace T&P relief valve …': (2, 1)}
+round 4: HK wants 10, server has 12  dupes={'Replace furnace filter': (3, 2), 'Replace T&P relief valve …': (2, 1)}
+```
+
+The duplicated entries are always at the tail of the add burst, which is exactly the part
+still invisible when the follow-up pass reads.
+
+### Why the reporter saw "the due date never reflected"
+
+Once a duplicate exists, Home Keeper's bookkeeping points at exactly one of the two
+copies and never learns about the other. Planting the duplicate by hand and then changing
+the due date in Home Keeper:
+
+```
+before:  Dupe probe | DUE:20261005 | UID:c78f0766-…      <- tracked
+         Dupe probe | DUE:20261005 | UID:planted-duplicate <- orphan
+
+after:   Dupe probe | DUE:20261224 | UID:c78f0766-…      <- moved
+         Dupe probe | DUE:20261005 | UID:planted-duplicate <- frozen forever
+```
+
+Deleting the task in Home Keeper afterwards removes the tracked copy and leaves the
+orphan on the server permanently:
+
+```
+after delete:  Dupe probe | DUE:20261005 | UID:planted-duplicate
+```
+
+In the Nextcloud Tasks app the two copies are indistinguishable. A user who changes the
+due date and happens to be looking at the orphan sees exactly what was reported: a task
+that syncs on create, and then never updates again.
+
+### Fix options
+
+1. **Force the target list to refresh before the pass that would re-add.** After any
+   successful `add_item`, `await homeassistant.helpers.entity_component.async_update_entity(...)`
+   on that entity, so the next read sees a real snapshot. Turns "cannot see it" back into
+   honest evidence. Costs one extra CalDAV round trip per pass that adds anything, and
+   only on passes that add.
+2. **Give a uid-less entry a grace period in the planner.** Keep the entry in
+   `plan.tracked` the first time it resolves to nothing, with an attempt counter, and only
+   drop it (and therefore re-add) once it has been unseen across two passes. This is a
+   pure-planner change and unit-testable, which suits the mutation gate. Note a
+   genuinely-failed add is *already* retried immediately by a different path —
+   `_apply` does `settled.pop(add.key, None)` when the call raises — so the counter only
+   ever delays the case where the call succeeded, which is the case that must not re-add.
+3. **Both.** (2) is the correctness fix; (1) also shortens every other latency below.
+
+Option 2 alone closes the reported bug and touches only `todo_list.py`, already on the
+mutation allowlist.
+
+---
+
+## Finding 2 — inbound changes wait on a 15-minute poll
+
+**Severity: medium (expectation-setting), not a defect.** This is the reporter's third
+observation.
+
+`caldav/todo.py` sets `SCAN_INTERVAL = timedelta(minutes=15)`, and nothing pushes: CalDAV
+has no change notification HA subscribes to. `todo.get_items` reads the entity's cached
+`todo_items` and does not force a refresh, so **Home Keeper's own 5-minute sweep cannot
+help** — it re-reads the same cache.
+
+Measured: a VTODO ticked off directly on Nextcloud produced no reaction for 90 s, and
+then reacted within 2 s of a forced `homeassistant.update_entity`:
+
+```
+t+  5s  todo.chores=1  HK last_completed=None
+t+ 15s  todo.chores=1  HK last_completed=None
+t+ 30s  todo.chores=1  HK last_completed=None
+t+ 60s  todo.chores=1  HK last_completed=None
+t+ 90s  todo.chores=1  HK last_completed=None
+=== force HA to poll ===
++  2s   HK last_completed=2026-09-01T02:37:21-04:00  next_due=2026-12-01T02:37:21-05:00
+```
+
+The recurrence rescheduled and a fresh VTODO was written for the next occurrence — which
+is what the reporter saw, several minutes later than they expected.
+
+This is a CalDAV limitation, not a Home Keeper one, and it is the same for anything else
+reading that list. Two things could be done about it:
+
+- **Document it.** "Ticking an item off on a CalDAV server can take up to 15 minutes to
+  reach Home Keeper" belongs in the README's to-do sync section, next to the Todoist
+  recipe.
+- **Optionally shorten it.** Home Keeper's periodic sweep could call
+  `homeassistant.update_entity` on each synced list before reading it, which would bound
+  inbound latency by Home Keeper's own 5-minute tick instead of CalDAV's 15. That is a
+  network round trip per synced list per 5 minutes against somebody else's server, so it
+  should be a deliberate choice, not a silent one.
+
+---
+
+## Finding 3 — a write that fails while the server is down is only retried on the sweep
+
+**Severity: low.** Nextcloud was stopped, a new matching task was created in Home Keeper,
+and Nextcloud was restarted.
+
+While the server was down the entity did **not** go unavailable — it only polls every 15
+minutes, so HA had no idea. Home Keeper therefore read a stale-but-plausible list, planned
+the add, and the `todo.add_item` call failed. That is handled correctly: `_apply` drops
+the entry so the next pass retries, and Home Keeper itself stayed healthy throughout
+(`_call` swallows the failure, `async_sync` never raises).
+
+What is worth knowing is what wakes the retry. Nothing about the server coming back
+produces a task event or a list state change, so the retry waits for the **5-minute
+periodic sweep** — measured at 248 s after recovery, which is that sweep and not
+anything faster:
+
+```
+t+  0s  server has: ['Offline probe A']
+t+104s  still ['Offline probe A']
+t+228s  still ['Offline probe A']
+t+248s  >>> 'Offline probe B' landed <<<
+```
+
+Forcing an entity refresh does not help unless the item count changes, because it is the
+*state change* that forces a Home Keeper pass. Self-healing, but slower than it looks,
+and silent — the failure is logged at `debug` only:
+
+```python
+except Exception as err:  # never break the mutation that triggered us
+    self._logger.debug("todo.%s on %s failed: %s", service, entity_id, err)
+```
+
+For a self-hosted CalDAV server that goes down regularly, a repeated failure against a
+configured target is arguably worth the `_warn_once` treatment the missing-list and
+unsupported-feature paths already get.
+
+---
+
+## What is expected, and what Home Keeper can and cannot do
+
+Worth stating plainly, because the issue thread has two different asks tangled together.
+
+**Home Keeper syncs *its* tasks onto a list. It does not adopt a list's tasks.** The
+`todo` entity is a delivery surface. A VTODO written in Nextcloud that Home Keeper never
+created is left alone — not imported, not renamed, not deleted (confirmed: a hand-written
+`foreign-probe-1.ics` survived every subsequent pass untouched). That is the documented
+design, and it is the right one: a Home Keeper task carries recurrence, a device, an
+area, labels, consumables and completion history, none of which a VTODO can express, so
+there is nothing sensible to infer from a bare summary line.
+
+So for the original request — *"syncing tasks to/from a caldav server"* — the honest
+answer is:
+
+- **To CalDAV: yes, fully, today.** Create, rename, reschedule, re-describe, complete,
+  delete, and recurrence rescheduling all land on the server.
+- **From CalDAV: completions only.** Ticking an item off completes the Home Keeper task
+  (that is the whole two-way contract, same as Todoist). Creating a task *in* Nextcloud
+  and having it become a Home Keeper task is not a thing Home Keeper does for any
+  provider, and is a much larger feature than "CalDAV support".
+
+**CalDAV's own limits, as opposed to Home Keeper's:**
+
+- No push. 15-minute poll, both directions of visibility.
+- No uid returned on create, so the sync must bind by summary on a later pass — which is
+  what Finding 1 exploits. Two tasks with the same name on one list are only ever
+  distinguished by that binding.
+- Due dates are date-only in practice. Home Keeper deliberately writes `DUE;VALUE=DATE`
+  (`desired_by_sync` truncates `next_due` to a date, because "a to-do list works in that
+  granularity"), so a task's **time of day never reaches the server** and changing only
+  the time of day produces no CalDAV write at all. That is by design but is a plausible
+  second reading of "I changed the due date and nothing happened".
+- Nextcloud's calendars advertise their component set, and only a task list advertises
+  `VTODO`.
+- Deletes on the Nextcloud side go to a trashbin and read as a vanish, which with
+  `vanish_as_completed` on (the default) completes the Home Keeper task.
+
+---
+
+## Suggested follow-ups
+
+1. **Fix Finding 1** — the duplicate is data the user has to clean up by hand, and it
+   silently breaks every later edit. Option 2 above is the contained fix.
+2. **README**: a short CalDAV/Nextcloud paragraph in "Send tasks to your to-do lists",
+   covering the task-list-not-Personal-calendar gotcha and the 15-minute inbound delay.
+3. **Reply on #267** with the working/not-working split above, so the reporter knows the
+   feature is there and what specifically misfired.
+4. Consider warning (not just `debug`-logging) on repeated write failures against a
+   configured sync target.
