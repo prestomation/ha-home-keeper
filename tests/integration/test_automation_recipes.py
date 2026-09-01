@@ -104,15 +104,27 @@ def _wait_overdue(ha, timeout=60):
     raise TimeoutError(f"{TRASH} never went overdue")
 
 
-def _run(ha, entity_id):
-    """Run an automation's action sequence.
+def _run(ha, entity_id, timeout=30):
+    """Run an automation's action sequence and wait for it to finish.
 
     ``skip_condition`` stays at its default, so only the top-level "is it Thursday
     at 09:00" condition is bypassed; every condition inside the action sequence —
     the ones carrying the recipe's actual logic — still has to pass.
+
+    Waits on the entity's own ``last_triggered`` advancing and its ``current`` run
+    count falling back to zero, rather than on a fixed sleep. A loaded runner can
+    take longer than any sleep worth writing, and a test that asserts mid-run reads
+    the state the automation was about to change.
     """
+    before = get_state(ha, entity_id)["attributes"].get("last_triggered")
     call_service(ha, "automation", "trigger", {"entity_id": entity_id})
-    time.sleep(1)
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        attrs = get_state(ha, entity_id)["attributes"]
+        if attrs.get("last_triggered") != before and not attrs.get("current"):
+            return
+        time.sleep(0.2)
+    raise TimeoutError(f"{entity_id} did not finish a run within {timeout}s")
 
 
 @pytest.fixture(autouse=True)
@@ -231,6 +243,64 @@ def test_completion_inside_the_grace_window_arms_the_follow_up(ha):
     _run(ha, ARM)
 
     assert _task(ha, FOLLOW)["next_due"] is not None
+
+
+def test_grace_window_boundary_is_twelve_hours(ha):
+    """Pin ``grace_hours`` itself, not just "somewhere between 3h and 30h".
+
+    Each case completes the task *now* and moves the occurrence to sit either side
+    of 12 hours earlier, so the completion lands minutes inside or outside the
+    documented window. Widening or narrowing `grace_hours` fails one of the two.
+    """
+    _make_trash(ha, occurrence_hours_ago=12 - (5 / 60))
+    call_service(ha, "home_keeper", "complete_task", {"task_id": TRASH})
+    _run(ha, ARM)
+    assert _task(ha, FOLLOW)["next_due"] is not None, "11h55m should be inside 12h"
+
+    _delete_recipe_tasks(ha)
+    _make_trash(ha, occurrence_hours_ago=12 + (5 / 60))
+    call_service(ha, "home_keeper", "complete_task", {"task_id": TRASH})
+    _run(ha, ARM)
+    assert _task(ha, FOLLOW)["next_due"] is None, "12h05m should be outside 12h"
+
+
+def test_completion_before_the_occurrence_does_not_arm_the_follow_up(ha):
+    """The window has a floor as well as a ceiling.
+
+    A completion back-dated to before the occurrence belongs to an earlier week, so
+    it must not arm this week's follow-up. Without the `>= occurrence` half of the
+    condition this passes on the ceiling alone, which is why it gets its own test.
+    """
+    _make_trash(ha, occurrence_hours_ago=3)
+    call_service(ha, "home_keeper", "complete_task", {"task_id": TRASH})
+    task = _task(ha, TRASH)
+    occurrence = datetime.fromisoformat(task["next_due"]) - timedelta(days=7)
+    call_service(
+        ha,
+        "home_keeper",
+        "move_completion",
+        {
+            "task_id": TRASH,
+            "old_ts": task["completions"][-1]["ts"],
+            "new_completed_at": (occurrence - timedelta(hours=1)).isoformat(),
+        },
+    )
+    moved = _task(ha, TRASH)
+    assert datetime.fromisoformat(moved["last_completed"]) < occurrence
+
+    _run(ha, ARM)
+
+    assert _task(ha, FOLLOW)["next_due"] is None
+
+
+def test_never_completed_task_does_not_arm_the_follow_up(ha):
+    """``last_completed`` is null on a task nobody has ever done."""
+    _make_trash(ha, occurrence_hours_ago=3)
+    assert _task(ha, TRASH)["last_completed"] is None
+
+    _run(ha, ARM)
+
+    assert _task(ha, FOLLOW)["next_due"] is None
 
 
 def test_completion_after_the_grace_window_does_not_arm_the_follow_up(ha):

@@ -246,7 +246,9 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
         # *arming* it (the condition is true), so it reads as due-now. Going
         # dormant is the asymmetric job of ``apply_completion`` (next_due -> None);
         # this function is only ever called to (re)arm. A sensor task is armed by the
-        # watcher (``store.trigger_task``); ``build_task`` starts it dormant.
+        # watcher (``store.trigger_task``), and ``build_task`` special-cases it to
+        # start dormant. A **triggered** task gets no such special case, so it is born
+        # armed here and needs one completion to go dormant — the two are not alike.
         return now
     if rec_type == REC_ONE_OFF:
         # A do-once task is due at its stored ``due`` date. Going dormant on

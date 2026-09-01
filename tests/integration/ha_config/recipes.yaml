@@ -4,6 +4,7 @@
 # Home Assistant container and asserts they still parse identically to the README
 # blocks, so a documented recipe can never quietly stop working.
 - alias: "Trash: cancel the occurrence if the bin never went out"
+  mode: single
   triggers:
     - trigger: time
       at: "09:00:00"
@@ -24,6 +25,7 @@
         origin: trash_deadline
 
 - alias: "Trash: arm 'bring the bin back in' if it went out in time"
+  mode: single
   triggers:
     - trigger: time
       at: "20:00:00"
@@ -49,6 +51,7 @@
         task_id: Bring the bin back in
 
 - alias: "Trash: create a dated one-off follow-up"
+  mode: single
   triggers:
     - trigger: event
       event_type: home_keeper_task_completed

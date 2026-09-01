@@ -1328,9 +1328,16 @@ next Wednesday, so `next_due - 7 days` is the occurrence that just passed.
 `grace_hours: 12` turns that Wednesday 7pm slot into a Thursday 7am cutoff. A week
 you skipped or finished early cannot arm the follow-up by accident.
 
+Adapt the recipe before you use it. The `timedelta(days=7)` hard-codes a weekly
+task. Match it to your own interval. The task lookup has no fallback for a name that
+matches nothing. It fails the automation loudly instead of quietly skipping the
+wrong task. Keep the template's name in step with the task name. Disable the
+automations if you rename or delete that task.
+
 ```yaml
 automation:
   - alias: "Trash: cancel the occurrence if the bin never went out"
+    mode: single
     triggers:
       - trigger: time
         at: "09:00:00"
@@ -1351,6 +1358,7 @@ automation:
           origin: trash_deadline
 
   - alias: "Trash: arm 'bring the bin back in' if it went out in time"
+    mode: single
     triggers:
       - trigger: time
         at: "20:00:00"
@@ -1388,6 +1396,7 @@ where the triggered task gets reused.
 
 ```yaml
   - alias: "Trash: create a dated one-off follow-up"
+    mode: single
     triggers:
       - trigger: event
         event_type: home_keeper_task_completed
