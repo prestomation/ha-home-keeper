@@ -740,6 +740,39 @@ def part_restock_quantity(part: dict) -> float:
     return _positive_quantity(part.get("restock_quantity"), 1)
 
 
+def format_quantity(value: float, unit: str = "") -> str:
+    """A spare quantity as text, with *unit* appended when the part has one.
+
+    The Python twin of the panel's ``formatQuantity`` (``frontend/src/utils.ts``), and
+    it has to stay one: both render the same numbers, and a household reading "500 ml"
+    in the panel should not find "500.0 ml" on their shopping list. :func:`_round_stock`
+    already collapses a whole result to an ``int``, so the ordinary count-the-filters
+    case reads "3" rather than "3.0" without any formatting of its own.
+    """
+    label = str(unit or "").strip()
+    text = str(_round_stock(value))
+    return f"{text} {label}" if label else text
+
+
+def part_restock_label(part: dict) -> str:
+    """How much a buy reminder is asking for, as a short suffix — or ``""``.
+
+    Three cases, and the empty one is the point: a part measured in something reads
+    "500 ml", a part that restocks several spares at a time reads "×2", and the
+    ordinary one-whole-spare part reads nothing at all. Appending "(×1)" to every
+    reminder would be noise on the common case, and — because the shopping-list mirror
+    matches its own lines by summary — would rewrite every line already on a
+    household's list for no gain.
+    """
+    unit = part_stock_unit(part)
+    quantity = part_restock_quantity(part)
+    if unit:
+        return format_quantity(quantity, unit)
+    if quantity > 1:
+        return f"×{format_quantity(quantity)}"
+    return ""
+
+
 def part_wants_buy_task(part: dict) -> bool:
     """True when a part opts into an auto-created "buy" task while it's low.
 

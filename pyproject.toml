@@ -139,6 +139,12 @@ extend-exclude = [
 # bugbear, comprehensions, simplify, and Ruff's own rules.
 select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
 
+# The multiplication sign is a deliberate typographic choice, not a stray homoglyph:
+# it is how a buy reminder tells the shopper to pick up more than one ("Buy filter
+# (×2)"), and "x2" reads as part of the product name. Confusables stay flagged
+# everywhere else.
+allowed-confusables = ["×"]
+
 [tool.ruff.lint.isort]
 known-third-party = ["homeassistant"]
 

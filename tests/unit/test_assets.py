@@ -1128,6 +1128,50 @@ def test_part_restock_quantity_defaults_to_one(part, expected):
     assert a.part_restock_quantity(part) == expected
 
 
+@pytest.mark.parametrize(
+    ("value", "unit", "expected"),
+    [
+        (3, "", "3"),
+        (3.0, "", "3"),
+        (500, "ml", "500 ml"),
+        (0.5, "bottles", "0.5 bottles"),
+        # Trailing zeros go, and float noise never reaches the shopper.
+        (2.500, "m", "2.5 m"),
+        (0.1 + 0.2, "l", "0.3 l"),
+        # A unit is a label, not prose: it is stripped, and blank means none.
+        (2, "  ml  ", "2 ml"),
+        (2, "   ", "2"),
+    ],
+)
+def test_format_quantity_matches_the_panels_rendering(value, unit, expected):
+    # The Python twin of frontend/src/utils.ts formatQuantity. The two must agree:
+    # "500 ml" in the panel and "500.0 ml" on the shopping list would read as a bug.
+    assert a.format_quantity(value, unit) == expected
+
+
+@pytest.mark.parametrize(
+    ("part", "expected"),
+    [
+        # A measured part names its unit...
+        ({"stock_unit": "ml", "restock_quantity": 500}, "500 ml"),
+        # ...even when it restocks a single one, because "1 bottle" is still
+        # telling the shopper something a bare name doesn't.
+        ({"stock_unit": "bottle", "restock_quantity": 1}, "1 bottle"),
+        ({"stock_unit": "ml"}, "1 ml"),
+        # An unmeasured part only speaks up when it wants more than one.
+        ({"restock_quantity": 2}, "×2"),
+        ({"restock_quantity": 2.5}, "×2.5"),
+        # The ordinary case says nothing at all — that silence is the point.
+        ({"restock_quantity": 1}, ""),
+        ({}, ""),
+        # A stored zero folds to the default one spare, so it stays silent too.
+        ({"restock_quantity": 0}, ""),
+    ],
+)
+def test_part_restock_label_speaks_only_when_it_has_something_to_say(part, expected):
+    assert a.part_restock_label(part) == expected
+
+
 def test_consume_part_stock_draws_the_parts_own_amount():
     # The reported case: a bottle topped up a third at a time must last three
     # completions, not one.
