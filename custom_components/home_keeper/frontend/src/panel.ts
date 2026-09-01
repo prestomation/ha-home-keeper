@@ -4,6 +4,7 @@ import { SIGNED_URL_REFRESH_MS, SignedUrlCache, assetFileRefs } from './document
 import {
   buildTaskPayload,
   consumableLinkToken,
+  duplicateTaskSeed,
   type FormField,
   type HaFormElement,
 } from './forms';
@@ -17,7 +18,7 @@ import {
   type MarkdownPreview,
 } from './markdown';
 import { renderAssetForm } from './panel-asset-form';
-import { wireDeviceChips } from './panel-chips';
+import { sourceOwnedTask, wireDeviceChips } from './panel-chips';
 import { controls, wireControls } from './panel-controls';
 import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
 import {
@@ -700,6 +701,23 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /**
+   * Open the **create** drawer on a copy of *task* (#279).
+   *
+   * Deliberately not a save: this is the create form, prefilled, and nothing exists
+   * until Create is pressed — `_submitForm` routes an id-less task to `addTask`,
+   * which is the entire mechanism. So a duplicate that is abandoned costs nothing.
+   *
+   * No cross-view dance, unlike `_openEdit`: the only Duplicate button lives on a
+   * task's own detail page, which is by construction the `tasks` view, so the form
+   * already mounts where we are.
+   */
+  _openDuplicate(task: Task): void {
+    this._rememberDrawerOpener();
+    this._edit = { open: true, task: duplicateTaskSeed(task) };
+    this._render();
+  }
+
+  /**
    * Whether the form for the object named by *kind* and *id* belongs on the page that
    * is open right now.
    *
@@ -915,15 +933,74 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     return task.managed_by?.completion_prompt || t('done.blocked');
   }
 
-  /** Render a *disabled* Done for a completion-blocked task, wrapped in a clickable
-   *  span (the native `disabled` greys the button correctly across HA button
-   *  versions, but swallows clicks — so the span carries the tap → explanation and a
-   *  hover tooltip). *weight* matches whichever live Done it stands in for: the
-   *  detail page's primary, or the list row's tonal one. */
+  /** A *disabled* `ha-button` wrapped in a clickable span. The native `disabled`
+   *  greys the button correctly across HA button versions but swallows clicks, so the
+   *  span carries the tap → explanation and the hover tooltip. Every action the panel
+   *  greys out rather than hides renders through here, so a dead button always has a
+   *  reason attached to it. */
+  private _blockedButton(
+    classes: string,
+    id: string,
+    label: string,
+    reason: string,
+    weight: BtnWeight,
+  ): string {
+    const cls = [classes, 'hk-blocked-wrap'].filter(Boolean).join(' ');
+    return `<span class="${cls}" data-id="${escapeHTML(id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-button ${btnAttrs(weight)} disabled>${escapeHTML(label)}</ha-button></span>`;
+  }
+
+  /** Render a *disabled* Done for a completion-blocked task. *weight* matches
+   *  whichever live Done it stands in for: the detail page's primary, or the list
+   *  row's tonal one.
+   *
+   *  Keeps its own `done-blocked-wrap` class: `panel-lists.ts` wires every element
+   *  carrying it to `_notifyBlocked`, which is the *Done* reason specifically. A
+   *  blocked action of another kind must not borrow it. */
   _blockedDone(wrapClass: string, task: Task, weight: BtnWeight = 'secondary'): string {
-    const reason = this._blockedReason(task);
     const cls = [wrapClass, 'done-blocked-wrap'].filter(Boolean).join(' ');
-    return `<span class="${cls}" data-id="${escapeHTML(task.id)}" role="button" tabindex="0" title="${escapeHTML(reason)}"><ha-button ${btnAttrs(weight)} disabled>${escapeHTML(t('btn.done'))}</ha-button></span>`;
+    return this._blockedButton(cls, task.id, t('btn.done'), this._blockedReason(task), weight);
+  }
+
+  /** Whether *task*'s configuration can be copied into a new task (#279).
+   *
+   *  A source-owned task (a reconciler wear part, a synced problem sensor) and an
+   *  integration-managed one are both authored elsewhere: a copy would be an unowned
+   *  lookalike of a row its owner still reconciles.
+   *
+   *  A *triggered* task is blocked for a harder reason than ownership. Its payload
+   *  carries only descriptive fields — sending a cadence would re-arm a dormant task
+   *  — so a copy would reach the backend with no schedule at all and be inferred as a
+   *  one-off due today. Guarding on the recurrence type rather than on `managed_by`
+   *  keeps that true even for a triggered task an integration pushed without
+   *  declaring ownership. */
+  _canDuplicate(task: Task): boolean {
+    if (task.recurrence_type === 'triggered') return false;
+    if (task.managed_by) return false;
+    return !sourceOwnedTask(task);
+  }
+
+  /** Why *task* can't be duplicated, naming the owning integration when there is one
+   *  so the answer points somewhere rather than just refusing. */
+  private _duplicateBlockedReason(task: Task): string {
+    const name = task.managed_by?.display_name;
+    return name ? t('duplicate.blockedManaged', { name }) : t('duplicate.blockedSource');
+  }
+
+  /** The greyed Duplicate a task Home Keeper doesn't own keeps, instead of silently
+   *  missing one. Tertiary: it stands beside Edit without competing with it. */
+  _blockedDuplicate(task: Task): string {
+    return this._blockedButton(
+      'd-dup-blocked',
+      task.id,
+      t('btn.duplicate'),
+      this._duplicateBlockedReason(task),
+      'tertiary',
+    );
+  }
+
+  /** Explain why *task* offers no Duplicate, rather than a button that does nothing. */
+  _notifyNoDuplicate(task: Task): void {
+    toast(this, this._duplicateBlockedReason(task));
   }
   /** A muted "Clears automatically" caption for a completion-blocked task in the list
    *  card — self-explanatory inline (no hover needed), unlike a dead greyed button. It's

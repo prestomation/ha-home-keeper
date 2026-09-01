@@ -66,6 +66,11 @@ export interface PanelHost extends HTMLElement {
   /** The list card's muted "Clears automatically" caption — the inline form of the
    *  above, for a completion-blocked task in a row. */
   _blockedDoneInline(task: Task): string;
+  /** A *disabled* Duplicate wrapped in a clickable span that explains why, for a task
+   *  Home Keeper doesn't own. */
+  _blockedDuplicate(task: Task): string;
+  /** Whether *task*'s configuration can be copied into a new task. */
+  _canDuplicate(task: Task): boolean;
   /** Task rows whose chip overflow the user unfolded. */
   _chipsExpanded: Set<string>;
   /** Leave the open detail page for the list it came from. */
@@ -153,6 +158,8 @@ export interface PanelHost extends HTMLElement {
   _moveCompletion: MoveCompletionDialogState;
   /** Toast why *task*'s Done action is unavailable. */
   _notifyBlocked(task: Task): void;
+  /** Toast why *task* can't be duplicated. */
+  _notifyNoDuplicate(task: Task): void;
   /** The mobile_app_* notify services a notification can be delivered to. */
   _notifyTargets: string[];
   /** Open the drawer on a new task. */
@@ -161,6 +168,8 @@ export interface PanelHost extends HTMLElement {
   _openCreateAsset(): void;
   /** Open an object's detail page (a Back-able step). */
   _openDetail(kind: 'task' | 'asset', id: string): void;
+  /** Open the drawer on a new task prefilled with a copy of *task*. */
+  _openDuplicate(task: Task): void;
   /** Open the drawer editing *task*. */
   _openEdit(task: Task): void;
   /** Open the drawer editing *asset*. */

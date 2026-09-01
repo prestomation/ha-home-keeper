@@ -163,6 +163,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
   await expect(panel.locator('.d-edit')).toBeVisible();
 
+  // 56. Duplicate. The button opens the *create* form already filled in with a copy of
+  // this task — the answer to a row of near-identical tasks that differ by a sensor and
+  // a name (#279). Nothing is saved until Create, so cancelling below leaves the seeded
+  // fixture exactly as every later shot expects it.
+  await panel.locator('.d-dup').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  await expect(panel.locator('#f-save')).toHaveText(/Create/);
+  await expect(panel.locator('#hk-task-form ha-selector-text input').first()).toHaveValue(
+    /\(copy\)$/,
+  );
+  await page.waitForTimeout(400);
+  await shotWithDrawer(page, `${OUT}/56-panel-task-duplicate-drawer.png`);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+
   // 1b1. The inline notes editor, open, with its live Markdown preview. Every task
   // gets this now (it used to be problem-sensor tasks only) — notes are prose, so
   // they're authored in a full-width box that previews as you type.
@@ -201,8 +216,18 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator(`.detail-open[data-detail-id="${TASK.buddyMedicine}"]`).click();
   await expect(panel.locator('ha-assist-chip.hk-managed').first()).toBeVisible();
   await expect(panel.locator('.hk-managed-prompt')).toBeVisible();
+  // A managed task is editable but not copyable, so it keeps a greyed Duplicate beside
+  // its live Edit — this shot documents that pairing, so assert it rather than trust it.
+  await expect(panel.locator('.d-dup-blocked')).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/9-panel-managed-detail.png`, fullPage: true });
+
+  // 56b. Pressing that greyed Duplicate names the integration that owns the original
+  // and points the copy there, rather than doing nothing (best-effort capture — the
+  // toast is transient).
+  await panel.locator('.d-dup-blocked').click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/56b-panel-duplicate-blocked-toast.png`, fullPage: true });
 
   // 1d. Edit form of a managed task — the integration-locked fields (name and
   // attach-to-device) are omitted; only the unlocked fields are editable.

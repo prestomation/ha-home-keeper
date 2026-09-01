@@ -40,6 +40,24 @@ export function isManagedOrphan(p: PanelHost, task: Task): boolean {
   return Boolean(id) && !p._loadedEntryIds.has(id as string);
 }
 
+/**
+ * A task owned by its *source* rather than by the user: a reconciler-derived wear
+ * part, or a synced problem sensor. The panel offers it no edit, no delete and no
+ * duplicate — its source keeps it in step, and an unowned lookalike would drift.
+ *
+ * A *manual* consumable link (`part.manual`) is user-owned, so it is not source-owned:
+ * the user made that link by hand and may edit, delete and copy the task freely.
+ *
+ * Lives here, beside `isManagedOrphan`, because the render and the guards that decide
+ * which actions exist must read one predicate — two copies are free to disagree.
+ */
+export function sourceOwnedTask(task: Task): boolean {
+  return (
+    (Boolean(task.source?.part) && !task.source?.part?.manual) ||
+    Boolean(task.source?.problem_sensor)
+  );
+}
+
 /** Renders integration-provided metadata chips (task_chips). Chips with a URL
  *  become native links; icon slot is populated when present. */
 export function taskChipsHtml(task: Task): string {
