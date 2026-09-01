@@ -36,7 +36,7 @@
 import { test, expect, Browser, Locator, Page } from '@playwright/test';
 import { resolve } from 'path';
 import { gotoTab, openPanel, openDashboard, openSettingsSection } from './tests/helpers';
-import { ASSET, TASK } from './fixture-ids';
+import { ASSET, PART, TASK } from './fixture-ids';
 import { DESKTOP, PHONE, Viewport } from './viewports';
 
 const OUT = process.env.VIDEO_DIR || '/tmp/home-keeper-video';
@@ -53,6 +53,59 @@ type Tour = {
   file: string;
   run: (page: Page, panel: Locator) => Promise<void>;
 };
+
+/**
+ * Turn on auto-buy for the water heater's anode rod, so the tour has a buy
+ * reminder to walk through. The seeded store has none.
+ *
+ * Mirrors `screenshots.capture.ts`: a part's attached file is upload-only, so the
+ * `update_asset` payload has to echo back only the fields the schema accepts. And
+ * enabling auto-buy on a part *already* at its reorder point crosses no threshold,
+ * so the stock is nudged up and back to make the crossing actually happen — the
+ * part ends on its seeded quantity either way.
+ */
+async function seedBuyReminder(page: Page): Promise<void> {
+  await page.evaluate(
+    async ({ ASSET: assetIds, PART: partIds }) => {
+      const hass = (document.querySelector('home-assistant') as unknown as {
+        hass: {
+          callWS: (msg: Record<string, unknown>) => Promise<Record<string, unknown>>;
+          callService: (d: string, s: string, data: Record<string, unknown>) => Promise<unknown>;
+        };
+      }).hass;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { assets } = (await hass.callWS({ type: 'home_keeper/get_assets' })) as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const heater = assets.find((a: any) => a.id === assetIds.waterHeater);
+      const WRITABLE = [
+        'id', 'name', 'part_number', 'type', 'vendor', 'cost', 'url', 'notes',
+        'replace_interval', 'replace_unit', 'last_replaced', 'stock', 'reorder_at',
+        'stock_unit', 'consume_quantity', 'create_buy_task', 'restock_quantity',
+      ];
+      await hass.callService('home_keeper', 'update_asset', {
+        asset_id: heater.id,
+        parts: heater.parts.map((p: Record<string, unknown>) => {
+          const out: Record<string, unknown> = {};
+          for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
+          if (p.id === partIds.anode) {
+            out.create_buy_task = true;
+            out.restock_quantity = 4;
+          }
+          return out;
+        }),
+      });
+      for (const delta of [1, -1]) {
+        await hass.callService('home_keeper', 'adjust_part_stock', {
+          asset_id: heater.id,
+          part_id: partIds.anode,
+          delta,
+        });
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    },
+    { ASSET, PART },
+  );
+}
 
 /**
  * Record one tour into a context of its own, and save it under a stable name.
@@ -100,11 +153,25 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(BEAT);
 
-  // 1b. Shopping filter — show the filter bar's new Shopping pill, which isolates
-  //     auto-created buy tasks from the main task list.
+  // 1b. Put a part below its reorder point so there is a buy reminder to show. The
+  //     seed has none, and a Shopping pill filtering to "No tasks match this filter"
+  //     is a beat that shows nothing.
+  await seedBuyReminder(page);
+  await gotoTab(page, 'tasks');
+
+  // 1c. The Shopping section — a buy reminder has no due date of its own, so it
+  //     reads as due immediately. Rather than joining the overdue pile it gets its
+  //     own section, and a "Low stock" pill in place of the overdue one.
+  const shoppingSection = panel.locator('details.hk-group[data-bucket="shopping"]');
+  await expect(shoppingSection).toBeVisible();
+  await shoppingSection.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+
+  // 1d. Shopping filter — the same reminders on their own, for a shopping trip.
   const shoppingBtn = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="shopping"]');
   await shoppingBtn.scrollIntoViewIfNeeded();
   await shoppingBtn.click();
+  await expect(panel.locator('ha-card.hk-card')).not.toHaveCount(0);
   await page.waitForTimeout(BEAT * 2);
   const allBtn = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]');
   await allBtn.click();
