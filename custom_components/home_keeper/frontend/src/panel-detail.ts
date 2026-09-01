@@ -237,10 +237,18 @@ function taskDetail(p: PanelHost, task: Task): string {
   // when pressed rather than silently missing one, the same treatment a
   // completion-blocked Done gets.
   //
+  // Secondary, the same weight as Edit: the two are peer actions on this task, both
+  // non-destructive and both opening the same drawer, so drawing one quieter would
+  // rank them. It also keeps the live button plainly distinct from the greyed one —
+  // at tertiary weight, "Duplicate" as bare text and "Duplicate" disabled differ only
+  // by the shade of the label, which is not a difference anyone should have to squint
+  // for. The row still reads at three weights (#262): Done fills, Edit and Duplicate
+  // are tonal, Delete recedes to red text.
+  //
   // `d-dup` must keep its `d-` prefix: `_openerKeyFor` reads it to hand the keyboard
   // back to this button when the drawer closes.
   const dupBtn = p._canDuplicate(task)
-    ? `<ha-button ${btnAttrs('tertiary')} class="d-dup">${escapeHTML(t('btn.duplicate'))}</ha-button>`
+    ? `<ha-button ${btnAttrs('secondary')} class="d-dup">${escapeHTML(t('btn.duplicate'))}</ha-button>`
     : p._blockedDuplicate(task);
   // Say why Edit and Delete are missing rather than just omitting them. Withholding
   // both silently left a wear-part task's page reading "<task name> / Done" and

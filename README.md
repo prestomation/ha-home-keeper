@@ -298,12 +298,12 @@ back arrow brings it back.
 ### Duplicate a task
 
 Ten soil-moisture sensors, one per plant, need ten near-identical "water the flowers"
-tasks. They differ by a name, a sensor and a device; everything else is the same rule
-typed out ten times. Press **Duplicate** on the task's page and the create form opens
-already filled in with a copy.
+tasks. Only the name, the sensor and the device change from one to the next. The rest
+is the same rule typed out ten times. Press **Duplicate** on the task's page and the
+create form opens already filled in with a copy.
 
-Nothing is saved until you press **Create**. Rename the copy, point it at the other
-sensor, and it is done.
+Nothing is saved until you press **Create**. Rename the copy and point it at the
+other sensor.
 
 ![A task's page with Duplicate beside Edit, and the create form open in the drawer prefilled with a copy](docs/images/56-panel-task-duplicate-drawer.png)
 

@@ -987,14 +987,16 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /** The greyed Duplicate a task Home Keeper doesn't own keeps, instead of silently
-   *  missing one. Tertiary: it stands beside Edit without competing with it. */
+   *  missing one. Secondary, matching the live button it stands in for: greying a
+   *  *tonal* button reads as "this button is off", where greying bare text just reads
+   *  as text. */
   _blockedDuplicate(task: Task): string {
     return this._blockedButton(
       'd-dup-blocked',
       task.id,
       t('btn.duplicate'),
       this._duplicateBlockedReason(task),
-      'tertiary',
+      'secondary',
     );
   }
 
