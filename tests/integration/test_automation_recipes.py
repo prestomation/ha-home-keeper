@@ -115,6 +115,14 @@ def _run(ha, entity_id, timeout=30):
     count falling back to zero, rather than on a fixed sleep. A loaded runner can
     take longer than any sleep worth writing, and a test that asserts mid-run reads
     the state the automation was about to change.
+
+    ``current`` reaching zero is taken to mean the recipe's service calls have
+    landed in the store, not merely that they were dispatched. That holds because
+    Home Assistant's automation runner awaits each action in sequence, and every
+    ``store`` mutation awaits its own ``_save()`` before returning — so the run
+    cannot be counted as finished while a write is still in flight. If a future
+    Home Assistant ever decrements ``current`` earlier, these tests go flaky rather
+    than silently wrong, which is the failure mode to want.
     """
     before = get_state(ha, entity_id)["attributes"].get("last_triggered")
     call_service(ha, "automation", "trigger", {"entity_id": entity_id})
