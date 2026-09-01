@@ -6,6 +6,58 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.19.0] - 2026-09-01
+
+### Added
+
+- **The panel has a new drawer-based design.** Editing opens in a drawer beside the
+  list instead of replacing it, and an appliance's Parts, Tasks, Documents, Details,
+  Related and History sections are now linkable sub-tabs read next to the list they
+  came from. Settings gained a rail that names each section and how many profiles,
+  notifications and companions it holds, with an address of its own for every
+  destination.
+- **The panel is easier to use with a keyboard and a screen reader.** Focus stays on
+  the control you just used instead of jumping to the top of the page, the phone edit
+  sheet behaves as a dialog that Escape closes, and filter chips, dropdowns and
+  Settings status dots say what they are rather than relying on color alone.
+
+### Changed
+
+- **Home Keeper says "sync" everywhere it used to say "mirror."** The panel, the
+  options flow and every service description now agree on one word, in all sixteen
+  languages. The to-do list feature's own event renamed to `home_keeper_todo_sync`
+  (was `home_keeper_todo_mirror`); an automation matching on the old name needs
+  updating.
+- **Websocket completion-editing errors now report the code `invalid_task` instead of
+  `not_allowed`.** Only the machine-readable code changes; the message shown to you is
+  the same as before.
+
+### Fixed
+
+- **Ready for Home Assistant 2026.9.** That release reshapes the device registry and
+  adds child devices, so Home Keeper reads both shapes and a task or appliance you
+  attached to a device still finds it after the upgrade. (Fixes #253)
+- **Completion dialogs have their titles back.** Completing a task or moving a
+  completion date used to open a panel with nothing but a close button above it, with
+  no way to tell which task you were about to log. (Fixes #262)
+- **Buttons, colored chips and dates are legible and consistent again.** Button
+  weights had drifted toward one solid blue, several chips and pills fell below
+  readable contrast, and completion dates showed a raw locale format that varied by
+  screen. All three are fixed everywhere they appear in the panel.
+- **Completing a task from the panel now settles its buy reminder.** The panel's own
+  completion path only refreshed the list, so a completed auto-buy task left its
+  reminder in place until the next reload.
+- **`home_keeper.add_task` works with just a name, and `export_inventory` writes your
+  language's column headers.** The first needed a unit it never defaulted even for the
+  simplest call; the second wrote English headers regardless of the language you
+  configured.
+- **Deleting an appliance from the panel now runs the same cleanup the service does.**
+  The websocket handler carried its own copy of that cleanup code and could drift from
+  the service's.
+- **The panel's dropdown menus are themed when open, not just when closed.** Profile,
+  Group by and similar filters fell back to the browser's default grey-on-white popup,
+  unreadable against a dark Home Assistant theme.
+
 ## [0.19.0b8]
 
 ### Fixed
