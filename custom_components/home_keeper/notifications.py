@@ -5,8 +5,8 @@ in ``profiles.py`` that decides *which* tasks) by ``profile_id`` and adds *how* 
 deliver them — mobile targets, the button set, snooze duration, style (walk/digest),
 automatic triggers, and how loudly it lands (channel + urgency, expanded into both the
 Android and iOS payload vocabularies by :func:`payload_data`). This module owns only
-that delivery concern: notification
-normalization, the mobile-app **payload builders**, and the **action-string**
+that delivery concern: notification normalization, the mobile-app **payload builders**,
+and the **action-string**
 encode/decode that routes a notification tap back to the right task and notification
 (and tells a fresh tap from a stale one — see :func:`is_current_action`).
 The filter/queue live in ``profiles.py``; HA-aware sending in ``notifier.py``.
