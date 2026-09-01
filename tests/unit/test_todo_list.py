@@ -610,6 +610,28 @@ def test_an_add_is_still_held_just_short_of_the_hold_running_out():
         items=[],
     )
     assert plan.add == []
+    # The original stamp is what keeps running: re-stamping each pass would push
+    # the deadline out forever and the hold would never end.
+    assert plan.tracked == {KEY: _added(minutes_ago=19)}
+
+
+def test_a_stamp_already_in_the_past_is_the_one_the_hold_keeps_running_on():
+    entry = _added(minutes_ago=19)
+    assert tm._added_stamp(entry, now=NOW) == entry["added_at"]
+
+
+def test_a_stamp_that_cannot_be_trusted_is_replaced_with_now():
+    # Unparsable, absent, and from the future all mean the same thing: there is no
+    # deadline here, so start one rather than holding without end.
+    assert tm._added_stamp({"added_at": "whenever"}, now=NOW) == NOW.isoformat()
+    assert tm._added_stamp({"added_at": None}, now=NOW) == NOW.isoformat()
+    assert tm._added_stamp({}, now=NOW) == NOW.isoformat()
+    assert tm._added_stamp(_added(minutes_ago=-1), now=NOW) == NOW.isoformat()
+
+
+def test_a_stamp_taken_at_this_very_instant_is_kept_as_it_is():
+    entry = _added()
+    assert tm._added_stamp(entry, now=NOW) == entry["added_at"]
 
 
 def test_the_hold_runs_out_strictly_after_the_grace_not_at_it():
