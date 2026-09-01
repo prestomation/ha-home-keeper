@@ -268,6 +268,7 @@ export const STYLES = `
     --md-assist-chip-label-text-color: var(--hk-warn-ink);
     --ha-assist-chip-label-text-color: var(--hk-warn-ink);
     --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
   ha-assist-chip.hk-archived {
@@ -753,10 +754,10 @@ export const STYLES = `
   /* No outline on a status pill. A tonal Done and an outlined "Monitored" sat side by
      side at the same height and radius, and the one with the border was the one you
      could not press — enclosure now means pressable, and status reads as text.
-     Scoped away from the overdue chip, which carries a colour of its own, so removing
-     the outline does not also remove what the colour was saying. */
+     Scoped away from the overdue and shopping chips, which carry a colour of their
+     own, so removing the outline does not also remove what the colour was saying. */
   .hk-status ha-assist-chip { --ha-assist-chip-container-height: 28px; }
-  .hk-status ha-assist-chip:not(.hk-overdue) {
+  .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-shopping) {
     --ha-assist-chip-outline-width: 0px;
     --md-assist-chip-outline-width: 0px;
     --ha-assist-chip-outline-color: transparent;
