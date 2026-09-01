@@ -16,13 +16,12 @@ from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import assets as asset_model
 from .const import DOMAIN, MAX_INTERVAL
 from .coordinator import HomeKeeperCoordinator
+from .entity import HomeKeeperPartEntity, prune_registry_entries
 
 _STOCK_ICON = "mdi:package-variant"
 # unique-id shape: ``{DOMAIN}_asset_<asset_id>_part_<part_id>_stock``.
@@ -50,25 +49,23 @@ async def async_setup_entry(
         )
 
     # Prune number entities whose part (or stock tracking) is gone.
-    reg = er.async_get(hass)
-    for entity_entry in reg.entities.get_entries_for_config_entry_id(entry.entry_id):
-        uid = entity_entry.unique_id or ""
-        if (
-            entity_entry.domain == "number"
-            and uid.startswith(_UID_PREFIX)
+    def keep(uid: str) -> bool | None:
+        if not (
+            uid.startswith(_UID_PREFIX)
             and uid.endswith(_UID_SUFFIX)
             and _UID_INFIX in uid
-            and uid not in live_uids
         ):
-            reg.async_remove(entity_entry.entity_id)
+            return None
+        return uid in live_uids
+
+    prune_registry_entries(hass, entry, "number", keep)
 
     async_add_entities(entities)
 
 
-class HomeKeeperPartStockNumber(CoordinatorEntity[HomeKeeperCoordinator], NumberEntity):
+class HomeKeeperPartStockNumber(HomeKeeperPartEntity, NumberEntity):
     """On-hand spare count for one appliance part, editable on the device page."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "part_spares"
     _attr_icon = _STOCK_ICON
     _attr_mode = NumberMode.BOX
@@ -86,24 +83,13 @@ class HomeKeeperPartStockNumber(CoordinatorEntity[HomeKeeperCoordinator], Number
         part: dict[str, Any],
         device: dr.DeviceEntry,
     ) -> None:
-        super().__init__(coordinator)
-        self._asset_id = asset_id
-        self._part_id = part["id"]
-        # Part names are free-form, so the translated name carries the name as a
-        # placeholder ("Anode rod spares") rather than localizing the part itself.
-        self._attr_translation_placeholders = {"part": part.get("name") or ""}
-        self._attr_unique_id = (
-            f"{_UID_PREFIX}{asset_id}{_UID_INFIX}{part['id']}{_UID_SUFFIX}"
+        super().__init__(
+            coordinator,
+            asset_id,
+            part,
+            device,
+            unique_id=f"{_UID_PREFIX}{asset_id}{_UID_INFIX}{part['id']}{_UID_SUFFIX}",
         )
-        # Linked, not owned: the appliance device belongs to whoever created it.
-        self.device_entry = device
-
-    def _part(self) -> dict[str, Any] | None:
-        asset = self.coordinator.store.get_asset(self._asset_id) or {}
-        for part in asset.get("parts", []) or []:
-            if part.get("id") == self._part_id:
-                return part
-        return None
 
     @property
     def native_value(self) -> float | None:

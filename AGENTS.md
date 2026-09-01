@@ -361,7 +361,7 @@ bash ci/test-mutation-frontend.sh --all
 - **The mutable surface is an allowlist**, in exactly one place per language:
   `only_mutate` in `[tool.mutmut]` (pyproject.toml) and `mutate` in
   `stryker.conf.json`. It holds the pure Python core (`recurrence`, `models`,
-  `assets`, `reconcile`, `shopping`, `notifications`, `sensor_tasks`,
+  `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
   `problem_tasks`, `inventory`, `profiles`, `documents`, `events`, `transitions`,
   `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
   `card-filter`, `documents`, `markdown`, `i18n`, `limits`). `options.py` counts as
@@ -370,9 +370,10 @@ bash ci/test-mutation-frontend.sh --all
   (only the Docker tiers cover it — far too slow to run once per mutant),
   `const.py` / `companions_catalog.py` (data, not logic), `backend_i18n.py` (pure
   but with no unit-test entry point), `testing.py` (already coverage-omitted), and
-  `panel.ts` / `card.ts` / `api.ts` (only indirectly covered; ~7k lines that would
-  score near zero). Widen the allowlist when you add unit tests that would make
-  the score mean something.
+  `panel.ts` + its flat `panel-*.ts` region modules / `card.ts` / `api.ts` (only
+  indirectly covered, through the element's own tests; they would score near
+  zero). Widen the allowlist when you add unit tests that would make the score
+  mean something.
 - **The gate is a mutation score of 80%**, set in `[tool.mutation-gate] break` and
   mirrored in `thresholds.break` (stryker.conf.json). The two runners compare them
   and fail on a mismatch, so they cannot drift.

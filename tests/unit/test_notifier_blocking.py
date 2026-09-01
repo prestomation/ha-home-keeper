@@ -12,9 +12,9 @@ comment. This drives ``_send`` on a real running event loop and asserts the
 blocking lookups actually run off that thread (via
 ``hass.async_add_executor_job``), not on it.
 
-The coordinator's own blocking-call test (``test_coordinator_purge.py``) stubs a
-handful of HA symbols and loads the real module under a synthetic ``hk`` package;
-this follows the same pattern for ``notifier.py``.
+The coordinator's own blocking-call test (``test_coordinator_purge.py``) loads the
+real module under a synthetic ``hk`` package over the shared HA stub tree in
+``ha_stubs.py``; this follows the same pattern for ``notifier.py``.
 """
 
 from __future__ import annotations
@@ -27,6 +27,9 @@ import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from fakes import FakeTaskSnapshotStore
+from ha_stubs import install_ha_stubs
+
 _COMPONENT_DIR = (
     Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
 )
@@ -35,74 +38,13 @@ TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 1, tzinfo=TZ)
 
 
-def _real_ha_present() -> bool:
-    mod = sys.modules.get("homeassistant")
-    if mod is None:
-        try:  # pragma: no cover - depends on environment
-            import homeassistant as mod  # type: ignore[no-redef]
-        except ImportError:
-            return False
-    return getattr(mod, "__file__", None) is not None
-
-
-def _install_ha_stubs() -> None:
-    """Additively register the HA symbols ``notifier.py`` imports (see coordinator's
-    equivalent helper in ``test_coordinator_purge.py`` for the general pattern)."""
-    if _real_ha_present():  # pragma: no cover - real HA env
-        return
-
-    def _mod(name: str) -> types.ModuleType:
-        existing = sys.modules.get(name)
-        if existing is not None:
-            return existing
-        m = types.ModuleType(name)
-        sys.modules[name] = m
-        return m
-
-    _mod("homeassistant")
-    core = _mod("homeassistant.core")
-    if not hasattr(core, "HomeAssistant"):
-
-        class HomeAssistant:
-            pass
-
-        core.HomeAssistant = HomeAssistant
-    if not hasattr(core, "CALLBACK_TYPE"):
-        core.CALLBACK_TYPE = object
-    if not hasattr(core, "Event"):
-
-        class Event:
-            pass
-
-        core.Event = Event
-    if not hasattr(core, "callback"):
-        core.callback = lambda func: func
-
-    helpers = _mod("homeassistant.helpers")
-    device_registry = _mod("homeassistant.helpers.device_registry")
-    if not hasattr(device_registry, "async_get"):
-        device_registry.async_get = lambda hass: None
-    helpers.device_registry = device_registry
-
-    area_registry = _mod("homeassistant.helpers.area_registry")
-    if not hasattr(area_registry, "async_get"):
-        area_registry.async_get = lambda hass: None
-    helpers.area_registry = area_registry
-
-    util = _mod("homeassistant.util")
-    dt_mod = _mod("homeassistant.util.dt")
-    if not hasattr(dt_mod, "now"):
-        dt_mod.now = lambda: NOW
-    util.dt = dt_mod
-
-
 def _load_notifier():
     """Load ``notifier.py`` under ``hk`` with fake HA-aware sibling modules."""
     existing = sys.modules.get("hk.notifier")
     if existing is not None and hasattr(existing, "async_send_for_notification"):
         return existing
     sys.modules.pop("hk.notifier", None)
-    _install_ha_stubs()
+    install_ha_stubs()
 
     # ``options.py`` itself imports HA (ConfigEntry/HomeAssistant) only to type its
     # own params — fake it rather than dragging that in, like coordinator's test does.
@@ -140,6 +82,12 @@ profiles = sys.modules["hk.profiles"]
 
 
 class _FakeServices:
+    """Private: records every domain, not just ``todo``, and never answers a read.
+
+    What ``_send`` needs from ``hass.services`` is that a ``notify.mobile_app_*``
+    call was made and with what — nothing the to-do drivers' services double does.
+    """
+
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, dict]] = []
 
@@ -148,6 +96,12 @@ class _FakeServices:
 
 
 class _FakeHass:
+    """Private: ``async_add_executor_job`` is the whole point of this suite.
+
+    It has to be a *real* thread hand-off, since the assertion is about which
+    thread the string-table and CLDR reads happen on.
+    """
+
     def __init__(self) -> None:
         self.config = types.SimpleNamespace(language="en")
         self.services = _FakeServices()
@@ -157,17 +111,11 @@ class _FakeHass:
         return await loop.run_in_executor(None, func, *args)
 
 
-class _FakeStore:
-    def __init__(self, tasks: dict) -> None:
-        self._tasks = tasks
-
-    def get_tasks(self) -> dict:
-        return dict(self._tasks)
-
-
 class _FakeCoord:
+    """Private: takes tasks rather than a store, and settles nothing."""
+
     def __init__(self, tasks: dict) -> None:
-        self.store = _FakeStore(tasks)
+        self.store = FakeTaskSnapshotStore(tasks)
 
 
 def _overdue_task(tid: str, *, days: int) -> dict:

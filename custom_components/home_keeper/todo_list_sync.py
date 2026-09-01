@@ -5,23 +5,13 @@ Reads every configured to-do list over ``todo.get_items``, asks the pure planner
 ``todo.add_item`` / ``todo.update_item`` / ``todo.remove_item``, and feeds the
 household's side of the loop — a chore ticked off on somebody's phone — back into
 the store as a completion. Same split as ``shopping.py`` / ``shopping_sync.py``,
-and this module inherits that sibling's three properties:
-
-* **It never breaks its caller.** A pass runs off the back of a task event, a
-  list's own state change, or the coordinator's tick; a to-do list that is
-  unavailable, unloaded, or refuses new items must cost nothing more than a log
-  line. Every outbound call is best-effort and ``async_sync`` swallows whatever
-  reaches it.
-* **A failed call is retried, never compensated.** The planner hands back the
-  bookkeeping as it will read once every operation has succeeded; anything that
-  raised puts its entry back, so the next pass tries again. Dropping an entry for
-  a remove that never happened would orphan that line on the list forever.
-* **It reads a to-do list only when there is a reason to.** ``needs_pass``
-  answers "has Home Keeper drifted from what it last wrote" from memory alone, so
-  the great majority of task events — which concern tasks no sync wants —
-  cost no service calls. The surfaces that watch for the household's side (each
-  list's own state changes, and the periodic sweep) ask for a full pass
-  regardless, since that side is invisible from here.
+and the same HA-facing driver base: ``TodoSyncDriver``
+(``todo_sync_driver.py``) carries the re-entrancy guard and pass budget, the
+defensive list snapshotting, the capability-checked ``todo`` calls and the
+warn-once ledger, along with the three properties both syncs owe their callers.
+What stays here is what is particular to syncing profile-filtered chores: many
+targets rather than one, task events feeding the pass, due dates and
+descriptions on the items, and an inbound tick meaning a task is done.
 
 Where the two syncs diverge is what a *vanished* item means: the shopping-list sync
 leaves a deleted line deleted, while a to-do list sync may read it as "done" so that
@@ -33,17 +23,10 @@ driver only supplies the inputs it needs.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any, ClassVar
 
 from homeassistant.components.todo import TodoListEntityFeature
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import (
-    Event,
-    EventStateChangedData,
-    HomeAssistant,
-    callback,
-)
+from homeassistant.core import Event, callback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
@@ -62,21 +45,10 @@ from .const import (
 )
 from .models import TaskValidationError
 from .options import current_options
-from .shopping import STATUS_COMPLETED, STATUS_NEEDS_ACTION, normalize_items
 from .shopping_sync import own_todo_entity_ids
-
-if TYPE_CHECKING:
-    from .coordinator import HomeKeeperCoordinator
+from .todo_sync_driver import TodoSyncDriver
 
 _LOGGER = logging.getLogger(__name__)
-
-_TODO_SERVICE_DOMAIN = "todo"
-
-# One pass can beget another: an inbound tick completes a task, which reschedules
-# it, which the lists then have to be told about. Two passes cover that; the extra
-# headroom absorbs our own writes echoing back through each list's state. The cap
-# is what guarantees the loop ends whatever the lists do.
-_MAX_PASSES = 4
 
 # Every store mutation that can change which tasks a profile surfaces, or what a
 # synced item should say. A pass off one of these is *not* forced — ``needs_pass``
@@ -95,35 +67,28 @@ _TASK_EVENTS = (
 )
 
 
-class TodoListSync:
+class TodoListSync(TodoSyncDriver):
     """Keeps external to-do lists in step with the tasks each profile surfaces."""
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        coordinator: HomeKeeperCoordinator,
-    ) -> None:
-        self._hass = hass
-        self._entry = entry
-        self._coordinator = coordinator
-        self._running = False
-        self._pending = False
-        self._stopped = False
-        # Reasons already logged at warning level, so a permanently misconfigured
-        # sync says its piece once instead of on every task event.
-        self._warned: set[str] = set()
+    _logger: ClassVar[logging.Logger] = _LOGGER
+    _unsettled_warning: ClassVar[str] = (
+        "Home Keeper's to-do list sync did not settle in %d passes; the synced "
+        "lists may be out of step until the next change"
+    )
+    _failed_pass_message: ClassVar[str] = (
+        "Home Keeper to-do list sync failed; it will retry on the next change"
+    )
+    _missing_list_warning: ClassVar[str] = (
+        "Home Keeper's synced to-do list %s does not exist; its tasks are not "
+        "being kept in step"
+    )
+    _unavailable_list_debug: ClassVar[str] = "To-do list %s is not available yet"
+    _unsupported_feature_warning: ClassVar[str] = (
+        "To-do list %s does not support %s, so Home Keeper cannot keep it fully "
+        "in step with the tasks synced onto it"
+    )
 
     # ── lifecycle ────────────────────────────────────────────────────────────
-    async def async_initial_sync(self) -> None:
-        """Bring the synced lists in step once Home Assistant has finished starting.
-
-        Deferred to the started event rather than run during setup: the lists we
-        sync onto belong to other integrations, which may not have set up yet,
-        and a target that reads as missing would have us do nothing.
-        """
-        await self.async_sync(force=True)
-
     @callback
     def async_start_listeners(self) -> None:
         """Watch the synced lists, and the task changes that feed them.
@@ -152,19 +117,6 @@ class TodoListSync:
             )
 
     @callback
-    def _async_stop(self) -> None:
-        self._stopped = True
-
-    @callback
-    def _handle_state_change(self, event: Event[EventStateChangedData]) -> None:
-        # A to-do entity's state is its outstanding-item count, so a tick-off
-        # always lands here — and it is invisible to ``needs_pass``, which can only
-        # see Home Keeper's own side. Hence the forced pass. Our own writes echo
-        # back too; a settled pass emits nothing, and the re-entrancy guard folds
-        # the burst into one run.
-        self._hass.async_create_task(self.async_sync(force=True))
-
-    @callback
     def _handle_task_event(self, event: Event[Any]) -> None:
         # Unforced: ``needs_pass`` gates the read, so a completion on a task no
         # sync wants costs nothing. Our own inbound completions echo back through
@@ -190,45 +142,6 @@ class TodoListSync:
         self._hass.async_create_task(self.async_sync(force=True))
 
     # ── the pass ─────────────────────────────────────────────────────────────
-    async def async_sync(self, *, force: bool = False) -> None:
-        """Bring the synced lists in step. Never raises.
-
-        *force* reads the lists even when Home Keeper's own state looks settled,
-        which is the only way to notice the household's side of the loop.
-        """
-        if self._running:
-            # Poked mid-pass — our own writes echoing back, or the completion this
-            # pass just made. Fold it into the run already in flight instead of
-            # nesting.
-            self._pending = True
-            return
-        self._running = True
-        self._pending = False
-        try:
-            for attempt in range(_MAX_PASSES):
-                again = await self._sync_once(force=force or attempt > 0)
-                if not (again or self._pending):
-                    break
-                self._pending = False
-            else:
-                # The budget exists so the loop always ends, not because ending
-                # this way is fine: a converging sync settles in two passes.
-                # Burning the whole budget means something is failing and
-                # retrying — say so, rather than exiting quietly and leaving the
-                # lists stale with no trace of why.
-                _LOGGER.warning(
-                    "Home Keeper's to-do list sync did not settle in %d passes; "
-                    "the synced lists may be out of step until the next change",
-                    _MAX_PASSES,
-                )
-        except Exception:  # a broken list must never break a task mutation
-            _LOGGER.exception(
-                "Home Keeper to-do list sync failed; it will retry on the next change"
-            )
-        finally:
-            self._running = False
-            self._pending = False
-
     async def _sync_once(self, *, force: bool) -> bool:
         """One plan-and-apply pass. Returns True when another pass is warranted."""
         if self._stopped:
@@ -357,58 +270,6 @@ class TodoListSync:
             resolved.append(profile)
         return resolved
 
-    async def _read_lists(
-        self, entity_ids: list[str], *, targets: set[str]
-    ) -> dict[str, list[dict[str, Any]]]:
-        """Snapshot each list we care about, skipping any we cannot see.
-
-        A list left out of the result is *unknown* to the planner, which then plans
-        nothing for it and carries its bookkeeping forward. That is what stops an
-        unavailable to-do list from reading as "the household emptied it".
-        """
-        snapshots: dict[str, list[dict[str, Any]]] = {}
-        for entity_id in entity_ids:
-            state = self._hass.states.get(entity_id)
-            # The two ways a list can be unreadable are not the same, and are
-            # deliberately logged differently. A configured target that does not
-            # exist is a misconfiguration the user has to fix, so it says so once,
-            # by name. A target that merely reads unavailable belongs to an
-            # integration that is temporarily down: Home Assistant already logs
-            # that, the next pass picks it up by itself, and warning here would
-            # fire on every restart where a cloud-backed list comes up after we do.
-            if state is None:
-                if entity_id in targets:
-                    self._warn_once(
-                        f"missing:{entity_id}",
-                        "Home Keeper's synced to-do list %s does not exist; its "
-                        "tasks are not being kept in step",
-                        entity_id,
-                    )
-                continue
-            if state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-                _LOGGER.debug("To-do list %s is not available yet", entity_id)
-                continue
-            try:
-                response = await self._hass.services.async_call(
-                    _TODO_SERVICE_DOMAIN,
-                    "get_items",
-                    {
-                        "entity_id": entity_id,
-                        "status": [STATUS_NEEDS_ACTION, STATUS_COMPLETED],
-                    },
-                    blocking=True,
-                    return_response=True,
-                )
-            except Exception as err:  # someone else's integration, someone else's bugs
-                _LOGGER.debug("Could not read to-do list %s: %s", entity_id, err)
-                continue
-            items = normalize_items(response, entity_id)
-            if items is None:
-                _LOGGER.debug("To-do list %s returned nothing readable", entity_id)
-                continue
-            snapshots[entity_id] = items
-        return snapshots
-
     def _capabilities(self, entity_id: str) -> frozenset[str]:
         """Which optional item fields *entity_id* can actually hold.
 
@@ -481,41 +342,3 @@ class TodoListSync:
             if not ok:
                 settled.pop(add.key, None)
         return settled
-
-    async def _call(
-        self,
-        entity_id: str,
-        feature: TodoListEntityFeature,
-        service: str,
-        data: dict[str, Any],
-    ) -> bool:
-        """Make one ``todo`` service call. Returns whether it landed."""
-        if not self._supports(entity_id, feature):
-            self._warn_once(
-                f"feature:{entity_id}:{service}",
-                "To-do list %s does not support %s, so Home Keeper cannot keep it "
-                "fully in step with the tasks synced onto it",
-                entity_id,
-                service,
-            )
-            return False
-        try:
-            await self._hass.services.async_call(
-                _TODO_SERVICE_DOMAIN, service, data, blocking=True
-            )
-        except Exception as err:  # never break the mutation that triggered us
-            _LOGGER.debug("todo.%s on %s failed: %s", service, entity_id, err)
-            return False
-        return True
-
-    def _supports(self, entity_id: str, feature: TodoListEntityFeature) -> bool:
-        state = self._hass.states.get(entity_id)
-        if state is None:
-            return False
-        return bool(int(state.attributes.get("supported_features") or 0) & feature)
-
-    def _warn_once(self, reason: str, message: str, *args: Any) -> None:
-        if reason in self._warned:
-            return
-        self._warned.add(reason)
-        _LOGGER.warning(message, *args)

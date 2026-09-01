@@ -7,17 +7,16 @@ list must plan nothing at all, a tick that Home Keeper refuses must say so rathe
 than vanish, and none of it may ever raise into the task mutation that triggered
 the pass.
 
-Like ``test_shopping_sync.py`` this stubs the HA symbols the module imports, hands
-it doubles for its HA-aware siblings, and loads the **real** file under the
-synthetic ``hk`` package so the shipped code is what runs. The real end-to-end
-wiring against a live ``todo`` entity lives in the integration suite.
+Like ``test_shopping_sync.py`` this hands the module doubles for its HA-aware
+siblings and loads the **real** file under the synthetic ``hk`` package, over the
+shared HA stub tree in ``ha_stubs.py``, so the shipped code is what runs. The real
+end-to-end wiring against a live ``todo`` entity lives in the integration suite.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
-import enum
 import importlib.util
 import sys
 import types
@@ -27,6 +26,8 @@ from pathlib import Path
 
 import hk_todo_list as tm
 import pytest
+from fakes import FakeSyncCoordinator, FakeSyncStore, FakeTodoHass
+from ha_stubs import install_ha_stubs
 
 _COMPONENT_DIR = (
     Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
@@ -51,125 +52,15 @@ NOW = datetime(2026, 6, 15, 9, 0, tzinfo=timezone(timedelta(hours=-4)))
 OVERDUE_ISO = "2026-06-14T09:00:00-04:00"
 DONE_ISO = "2026-06-15T08:00:00-04:00"
 
-# ``TodoListEntityFeature`` bits, as Home Assistant numbers them.
+# ``TodoListEntityFeature`` bits, as Home Assistant numbers them — the same values
+# the shared stub tree's flag carries, restated here because the tests reason in
+# bit sets rather than in enum members.
 CREATE, DELETE, UPDATE, MOVE = 1, 2, 4, 8
 SET_DUE_DATE, SET_DUE_DATETIME, SET_DESCRIPTION = 16, 32, 64
 # What a list must have before the sync can work at all…
 BASIC = CREATE | DELETE | UPDATE
 # …and everything a well-equipped one offers.
 ALL_FEATURES = BASIC | MOVE | SET_DUE_DATE | SET_DUE_DATETIME | SET_DESCRIPTION
-
-
-def _real_ha_present() -> bool:
-    """True only when the *real* Home Assistant package is installed."""
-    mod = sys.modules.get("homeassistant")
-    if mod is None:
-        try:  # pragma: no cover - depends on environment
-            import homeassistant as mod  # type: ignore[no-redef]
-        except ImportError:
-            return False
-    return getattr(mod, "__file__", None) is not None
-
-
-def _install_ha_stubs() -> None:
-    """Additively register the HA symbols the modules under test import.
-
-    Idempotent and non-clobbering, like its siblings: the other pure-unit suites
-    install their own partial ``homeassistant`` trees, so this only fills gaps.
-    """
-    if _real_ha_present():  # pragma: no cover - real HA env
-        return
-
-    def _mod(name: str) -> types.ModuleType:
-        existing = sys.modules.get(name)
-        if existing is not None:
-            return existing
-        m = types.ModuleType(name)
-        sys.modules[name] = m
-        return m
-
-    ha = _mod("homeassistant")
-    components = _mod("homeassistant.components")
-    ha.components = components
-
-    comp_todo = _mod("homeassistant.components.todo")
-    feature = getattr(comp_todo, "TodoListEntityFeature", None)
-    if feature is None or not hasattr(feature, "SET_DUE_DATE_ON_ITEM"):
-        # A strict superset of the four-bit stub ``test_shopping_sync.py`` installs,
-        # carrying Home Assistant's real values — so whichever suite gets here first,
-        # the other still finds every member it needs.
-        class TodoListEntityFeature(enum.IntFlag):
-            CREATE_TODO_ITEM = CREATE
-            DELETE_TODO_ITEM = DELETE
-            UPDATE_TODO_ITEM = UPDATE
-            MOVE_TODO_ITEM = MOVE
-            SET_DUE_DATE_ON_ITEM = SET_DUE_DATE
-            SET_DUE_DATETIME_ON_ITEM = SET_DUE_DATETIME
-            SET_DESCRIPTION_ON_ITEM = SET_DESCRIPTION
-
-        comp_todo.TodoListEntityFeature = TodoListEntityFeature
-
-    config_entries = _mod("homeassistant.config_entries")
-    if not hasattr(config_entries, "ConfigEntry"):
-
-        class ConfigEntry:
-            pass
-
-        config_entries.ConfigEntry = ConfigEntry
-    if not hasattr(config_entries, "ConfigEntryState"):
-
-        class ConfigEntryState(enum.Enum):
-            LOADED = "loaded"
-
-        config_entries.ConfigEntryState = ConfigEntryState
-
-    const = _mod("homeassistant.const")
-    if not hasattr(const, "STATE_UNAVAILABLE"):
-        const.STATE_UNAVAILABLE = "unavailable"
-    if not hasattr(const, "STATE_UNKNOWN"):
-        const.STATE_UNKNOWN = "unknown"
-
-    core = _mod("homeassistant.core")
-    for name in ("HomeAssistant", "Event", "EventStateChangedData"):
-        if not hasattr(core, name):
-            setattr(
-                core,
-                name,
-                type(
-                    name, (), {"__class_getitem__": classmethod(lambda cls, item: cls)}
-                ),
-            )
-    if not hasattr(core, "callback"):
-        core.callback = lambda func: func
-
-    helpers = _mod("homeassistant.helpers")
-    # Only needs to *exist* so the import resolves. What the driver actually calls
-    # is injected per test by the ``registry`` fixture below — the shared stub tree
-    # is written by several suites, so reaching for it here would make this suite
-    # depend on load order.
-    entity_registry = _mod("homeassistant.helpers.entity_registry")
-    if not hasattr(entity_registry, "async_get"):
-        entity_registry.async_get = lambda hass: types.SimpleNamespace(entities={})
-    helpers.entity_registry = entity_registry
-    event_mod = _mod("homeassistant.helpers.event")
-    if not hasattr(event_mod, "async_track_state_change_event"):
-        event_mod.async_track_state_change_event = lambda hass, ids, cb: lambda: None
-    helpers.event = event_mod
-    storage = _mod("homeassistant.helpers.storage")
-    if not hasattr(storage, "Store"):
-
-        class Store:  # replaced per-test anyway; this only satisfies the import
-            def __init__(self, *args: object, **kwargs: object) -> None:
-                pass
-
-        storage.Store = Store
-    helpers.storage = storage
-
-    util = _mod("homeassistant.util")
-    dt_mod = _mod("homeassistant.util.dt")
-    if not hasattr(dt_mod, "now"):
-        dt_mod.now = lambda: NOW
-    util.dt = dt_mod
 
 
 class _Enricher:
@@ -232,7 +123,7 @@ def _load_module() -> types.ModuleType:
     existing = sys.modules.get("hk.todo_list_sync")
     if existing is not None:
         return existing
-    _install_ha_stubs()
+    install_ha_stubs()
     # ``hk.notifier`` may already be the real module (``test_notifier_blocking.py``
     # loads it), a bare fake (``test_coordinator_purge.py``), or absent. Only the
     # last case needs a placeholder so the relative import resolves; either way the
@@ -250,7 +141,9 @@ def _load_module() -> types.ModuleType:
     with _borrowed(borrow):
         spec.loader.exec_module(module)
     module.notifier = types.SimpleNamespace(effective_filter_tasks=ENRICH)
-    # Pin the clock so "overdue" is a fact about the fixtures, not about today.
+    # Pin the clock so "overdue" is a fact about the fixtures, not about today. The
+    # shared stub tree keeps no clock of its own (its ``now()`` raises), so this is
+    # where the suite says what time it is.
     module.dt_util = types.SimpleNamespace(now=lambda: NOW)
     return module
 
@@ -277,7 +170,11 @@ def _load_store() -> types.ModuleType:
 
 
 class _FakeHAStore:
-    """Stands in for Home Assistant's ``Store`` helper: one in-memory document."""
+    """Stands in for Home Assistant's ``Store`` helper: one in-memory document.
+
+    Private: only this suite loads the real ``store.py``, and only to drive its
+    bookkeeping trio against a document it owns.
+    """
 
     def __init__(self, hass: object, version: int, key: str) -> None:
         self.data: dict | None = None
@@ -384,21 +281,15 @@ def _tracked(entry=None, key=KEY):
     return {key: _entry() if entry is None else entry}
 
 
-class _FakeStore:
-    """The slice of ``store.py`` the driver touches."""
+class _FakeStore(FakeSyncStore):
+    """The shared driver store, plus this driver's own tracking bookkeeping."""
 
     def __init__(self, tasks=None, items=None):
-        self._tasks = tasks or {}
+        super().__init__(tasks)
         self._todo_list_items = items or {}
-        self.completed: list[tuple[str, str | None]] = []
-        self.complete_error: Exception | None = None
-        self.writes = 0
         # Ordered trace of the two things that must not swap places: persisting
         # the bookkeeping, and the settle that re-enters the driver.
         self.log: list[str] = []
-
-    def get_tasks(self):
-        return self._tasks
 
     def get_todo_list_items(self):
         return self._todo_list_items
@@ -411,52 +302,18 @@ class _FakeStore:
         self.writes += 1
         return True
 
-    async def complete_task(self, task_id, *, origin=None):
-        if self.complete_error is not None:
-            raise self.complete_error
-        self.completed.append((task_id, origin))
-        self._tasks.pop(task_id, None)
-        return {}
 
-
-class _FakeCoordinator:
-    def __init__(self, store):
-        self.store = store
-        self.settles = 0
+class _FakeCoordinator(FakeSyncCoordinator):
+    """The shared settling coordinator, writing its half of the ordering trace."""
 
     async def async_settle_buy_tasks(self):
-        self.settles += 1
+        await super().async_settle_buy_tasks()
         self.store.log.append("settle")
 
 
-class _FakeServices:
-    """Records ``todo.*`` calls and answers ``get_items`` from canned lists."""
-
-    def __init__(self, lists):
-        self._lists = lists
-        self.calls: list[tuple[str, dict]] = []
-        # Reads are counted separately from writes: "did this pass touch a to-do
-        # list at all" is its own claim, and a test that only watched writes would
-        # pass whether or not the read gate worked.
-        self.reads: list[str] = []
-        self.fail: set[str] = set()
-        self.get_items_error: Exception | None = None
-
-    async def async_call(self, domain, service, data, blocking=False, **kwargs):
-        assert domain == "todo"
-        if service == "get_items":
-            self.reads.append(data["entity_id"])
-            if self.get_items_error is not None:
-                raise self.get_items_error
-            entity_id = data["entity_id"]
-            return {entity_id: {"items": list(self._lists.get(entity_id, []))}}
-        self.calls.append((service, data))
-        if service in self.fail:
-            raise RuntimeError(f"{service} refused")
-        return None
-
-
 class _FakeBus:
+    """Private: only this driver subscribes to task events."""
+
     def __init__(self):
         self.listeners: list[tuple[str, object]] = []
 
@@ -465,13 +322,19 @@ class _FakeBus:
         return lambda: None
 
 
-class _FakeHass:
+class _FakeHass(FakeTodoHass):
+    """The shared to-do hass, plus an event bus and per-list feature sets.
+
+    Only this driver reads features per entity (one profile per list, each with
+    its own capabilities) and only it cares that a list can go ``unavailable``.
+    """
+
     def __init__(self, lists=None, features=ALL_FEATURES, missing=(), unavailable=()):
         lists = lists if lists is not None else {LIST: []}
+        super().__init__(lists)
         by_entity = (
             features if isinstance(features, dict) else dict.fromkeys(lists, features)
         )
-        self.services = _FakeServices(lists)
         self.bus = _FakeBus()
         self._states = {
             entity_id: types.SimpleNamespace(
@@ -483,15 +346,6 @@ class _FakeHass:
             for entity_id in lists
             if entity_id not in missing
         }
-        self.tasks: list = []
-
-    @property
-    def states(self):
-        return types.SimpleNamespace(get=self._states.get)
-
-    def async_create_task(self, coro):
-        self.tasks.append(coro)
-        coro.close()
 
 
 def _config_entry(synced=None):
@@ -885,7 +739,7 @@ def test_a_sync_that_cannot_settle_says_so(caplog):
     sync._sync_once = _never_settles
     with caplog.at_level("WARNING"):
         asyncio.run(sync.async_sync(force=True))
-    assert len(passes) == todo_list_sync._MAX_PASSES
+    assert len(passes) == sync._MAX_PASSES
     assert "did not settle" in caplog.text
     # The guard is released either way, so the next change is not locked out.
     assert sync._running is False and sync._pending is False

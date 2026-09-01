@@ -678,6 +678,29 @@ def test_merge_update_preserves_part_last_replaced():
     assert updated["parts"][0]["replace_interval"] == 12
 
 
+def test_find_part_picks_the_matching_part():
+    asset = a.build_asset(
+        {"name": "Furnace", "parts": [{"name": "Filter"}, {"name": "Igniter"}]},
+        now=NOW,
+    )
+    for index in (0, 1):
+        found = a.find_part(asset, asset["parts"][index]["id"])
+        # The stored dict itself, not a copy: callers mutate what they get back
+        # (``store._stamp_part_replacement`` stamps ``last_replaced`` through it).
+        assert found is asset["parts"][index]
+
+
+def test_find_part_returns_none_for_an_unknown_id():
+    asset = a.build_asset({"name": "Furnace", "parts": [{"name": "Filter"}]}, now=NOW)
+    assert a.find_part(asset, "bogus") is None
+
+
+@pytest.mark.parametrize("parts", [None, []])
+def test_find_part_handles_an_asset_without_parts(parts):
+    assert a.find_part({}, "any") is None
+    assert a.find_part({"parts": parts}, "any") is None
+
+
 def test_set_and_clear_part_file():
     asset = a.build_asset({"name": "Furnace", "parts": [{"name": "Filter"}]}, now=NOW)
     pid = asset["parts"][0]["id"]

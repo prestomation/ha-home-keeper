@@ -267,7 +267,7 @@ the branch touched.
   (`utils`, `forms`, `card-filter`, `documents`, `markdown`, `i18n`, `limits`).
   Out: everything importing Home Assistant (Docker-tier only), `const.py` /
   `companions_catalog.py` (data), `backend_i18n.py` (no unit entry point),
-  `testing.py`, and `panel.ts` / `card.ts` / `api.ts` (indirectly covered only).
+  `testing.py`, and `panel.ts` + its `panel-*.ts` region modules / `card.ts` / `api.ts` (indirectly covered only).
 - **Diff scoping:** `ci/mutation_scope.py` turns the diff into mutmut mutant-name
   filters (changed line → enclosing function, decorators included, via `ast`) and
   Stryker `--mutate` line ranges. Scoping to whole files would fail a PR for

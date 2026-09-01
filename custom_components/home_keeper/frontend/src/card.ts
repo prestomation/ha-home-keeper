@@ -28,6 +28,8 @@ import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
 import { ensureMarkdown, markdownBlock, markdownReady, wireMarkdown } from './markdown';
+import { taskChipsList } from './panel-chips';
+import { MDI_OPEN_IN_NEW_ICON } from './panel-icons';
 import type { Asset, Hass, HassLabel, Profile, Task } from './types';
 import {
   areaName,
@@ -37,10 +39,11 @@ import {
   isHttpUrl,
   isOverdue,
   labelName,
+  navigateTo,
   recurrenceSummary,
   safeFileHref,
-  safeHref,
   scanRequired,
+  toast,
 } from './utils';
 
 // mdi:check-circle-outline — the trailing "mark done" action on each row.
@@ -50,9 +53,9 @@ const MDI_CHECK =
   '20 12,20M16.59,7.58L10,14.17L7.41,11.59L6,13L10,17L18,9L16.59,7.58Z';
 // mdi:plus — the header "add task" action.
 const MDI_PLUS = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
-// `ha-icon` names for the per-task document chips (external link / metadata link vs
-// an uploaded file). These are icon attributes, not SVG paths like the buttons above.
-const MDI_OPEN_IN_NEW = 'mdi:open-in-new';
+// `ha-icon` name for the per-task document chip pointing at an uploaded file. The
+// external-link glyph beside it is `MDI_OPEN_IN_NEW_ICON`, shared with the panel. These
+// are icon attributes, not SVG paths like the buttons above.
 const MDI_FILE = 'mdi:file-document-outline';
 
 // HA registers many of its components lazily. On a cold dashboard load they may
@@ -510,33 +513,10 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   // ── completion / CRUD ───────────────────────────────────────────────────────
-  /** Surface a transient message via HA's toast notification. */
-  private _toast(message: string): void {
-    this.dispatchEvent(
-      new CustomEvent('hass-notification', {
-        detail: { message },
-        bubbles: true,
-        composed: true,
-      }),
-    );
-  }
-
-  /** Navigate to the sidebar panel's detail page for a task (HA SPA navigation). */
-  private _navigateToPanel(taskId: string): void {
-    history.pushState(null, '', `/home-keeper/tasks/${encodeURIComponent(taskId)}`);
-    window.dispatchEvent(
-      new CustomEvent('location-changed', {
-        detail: { replace: false },
-        bubbles: true,
-        composed: true,
-      }),
-    );
-  }
-
   /** A completion-blocked task (e.g. a synced problem sensor) can't be marked done
    *  here — its owning integration clears it. Explain why instead of completing. */
   private _notifyBlocked(task: Task): void {
-    this._toast(task.managed_by?.completion_prompt || t('done.blocked'));
+    toast(this, task.managed_by?.completion_prompt || t('done.blocked'));
   }
 
   private async _complete(task: Task): Promise<void> {
@@ -551,12 +531,12 @@ export class HomeKeeperCard extends HTMLElement {
     // even in the panel — so this explains and stops, rather than sending the user
     // somewhere that would refuse them just the same.
     if (scanRequired(task)) {
-      this._toast(t('done.needsScan'));
+      toast(this, t('done.needsScan'));
       return;
     }
     if (task.completion_detail === 'required') {
-      this._toast(t('done.needsDetails'));
-      this._navigateToPanel(task.id);
+      toast(this, t('done.needsDetails'));
+      navigateTo(`/home-keeper/tasks/${encodeURIComponent(task.id)}`);
       return;
     }
     const prompt = task.managed_by?.completion_prompt;
@@ -756,7 +736,7 @@ export class HomeKeeperCard extends HTMLElement {
           });
           if (signed) out.push({ name: documentLabel(doc), url: signed, icon: MDI_FILE });
         } else if (doc.url && isHttp(doc.url)) {
-          out.push({ name: documentLabel(doc), url: doc.url, icon: MDI_OPEN_IN_NEW });
+          out.push({ name: documentLabel(doc), url: doc.url, icon: MDI_OPEN_IN_NEW_ICON });
         }
         continue;
       }
@@ -764,7 +744,7 @@ export class HomeKeeperCard extends HTMLElement {
         (m) => m.id === ref.entry_id && m.type === 'link' && m.value,
       );
       if (meta?.value && isHttp(meta.value)) {
-        out.push({ name: meta.label, url: meta.value, icon: MDI_OPEN_IN_NEW });
+        out.push({ name: meta.label, url: meta.value, icon: MDI_OPEN_IN_NEW_ICON });
       }
     }
     return out;
@@ -782,7 +762,7 @@ export class HomeKeeperCard extends HTMLElement {
     const asset = this._assets.find((a) => a.id === link.asset_id);
     const part = asset?.parts?.find((p) => p.id === link.part_id);
     if (!part?.url) return null;
-    return { name: part.name, url: part.url, icon: MDI_OPEN_IN_NEW };
+    return { name: part.name, url: part.url, icon: MDI_OPEN_IN_NEW_ICON };
   }
 
   /** One document link rendered as a primary-tinted chip, wrapped in an anchor opened by
@@ -849,18 +829,9 @@ export class HomeKeeperCard extends HTMLElement {
         ? `<div class="hk-notes">${markdownBlock(task.notes)}</div>`
         : '';
     // Integration-provided metadata chips (e.g. battery type from Battery Notes).
-    // Chips with a URL become links; icon slot is populated when present.
-    const taskChipsHtml = (task.task_chips ?? [])
-      .map(({ label, icon, url }) => {
-        const iconSlot = icon
-          ? `<ha-icon slot="icon" icon="${escapeHTML(icon)}" class="hk-chip-ic"></ha-icon>`
-          : '';
-        const chip = `<ha-assist-chip label="${escapeHTML(label)}">${iconSlot}</ha-assist-chip>`;
-        return isHttpUrl(url)
-          ? `<a class="hk-task-chip-link" href="${safeHref(url)}" target="_blank" rel="noopener noreferrer">${chip}</a>`
-          : chip;
-      })
-      .join('');
+    // Chips with a URL become links; icon slot is populated when present. The panel
+    // renders the same chips from the same builder, so the two surfaces cannot drift.
+    const taskChipsHtml = taskChipsList(task).join('');
     // Per-task "show on card" documents — links/metadata open in a new tab; uploaded
     // files open via a signed URL minted on click (see `_hydrate`). A linked part's
     // product URL (if any) rides along as one more chip. These render as link-chips

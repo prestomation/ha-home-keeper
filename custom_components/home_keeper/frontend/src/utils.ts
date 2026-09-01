@@ -197,6 +197,44 @@ export async function copyText(value: string): Promise<boolean> {
   }
 }
 
+/**
+ * Surface a transient message through Home Assistant's own toast.
+ *
+ * `composed` so the event escapes the shadow root it is fired in, `bubbles` so HA's
+ * listener further up the tree receives it. The panel and the card both need this and
+ * had a byte-identical copy each.
+ */
+export function toast(el: EventTarget, message: string): void {
+  el.dispatchEvent(
+    new CustomEvent('hass-notification', {
+      detail: { message },
+      bubbles: true,
+      composed: true,
+    }),
+  );
+}
+
+/**
+ * Send Home Assistant's SPA router to *path* — a device page, an integration page, the
+ * Home Keeper panel — without a full page load.
+ *
+ * Always a push (Back returns to where the user pressed) and always fired on `window`,
+ * because these are the navigations that *leave* the element behind: it may be
+ * unmounted by the time HA re-renders. The panel's own in-panel `_navigate` is a
+ * different thing — it fires from the panel element and can replace instead of push —
+ * so it stays there.
+ */
+export function navigateTo(path: string): void {
+  history.pushState(null, '', path);
+  window.dispatchEvent(
+    new CustomEvent('location-changed', {
+      detail: { replace: false },
+      bubbles: true,
+      composed: true,
+    }),
+  );
+}
+
 /** True when a triggered task is currently armed (due-now) vs dormant. */
 export function isArmedTriggered(task: Task): boolean {
   return task.recurrence_type === 'triggered' && !!task.next_due;
@@ -300,6 +338,34 @@ export function formatDateTime(value: string | Date | null | undefined, lang?: s
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+/** "today" / "yesterday" / "N days ago" for a past date, counted in whole days. */
+export function relativeDay(d: Date, now: Date = new Date()): string {
+  const days = Math.round((now.getTime() - d.getTime()) / 86_400_000);
+  if (days <= 0) return t('due.today');
+  if (days === 1) return t('due.yesterday');
+  return tn('due.days_ago', days);
+}
+
+/**
+ * Format a cost in the instance's configured currency, falling back to the bare
+ * number when Home Assistant has no currency set — or names one `Intl` refuses.
+ */
+export function formatCost(hass: Hass | undefined, amount: number): string {
+  const currency = hass?.config?.currency;
+  const lang = hass?.language;
+  // Stryker disable next-line ConditionalExpression: equivalent — with no currency
+  // configured, `Intl.NumberFormat` with `style: 'currency'` throws, and the catch
+  // below returns the very bare number this guard skips ahead to.
+  if (currency) {
+    try {
+      return new Intl.NumberFormat(lang, { style: 'currency', currency }).format(amount);
+    } catch {
+      /* an unknown currency code — fall through to a bare number */
+    }
+  }
+  return String(amount);
 }
 
 /**
@@ -534,6 +600,16 @@ export function tagName(
 ): string {
   if (!tagId) return '';
   return tags?.find((tag) => tag.value === tagId)?.label || tagId;
+}
+
+/**
+ * Resolve a `person` entity id to its friendly name, falling back to the id itself.
+ * Unlike `deviceName`, the fallback is deliberate: a completion's "who" is a name the
+ * history line is built around, so `person.sam` still says more there than a blank.
+ */
+export function personName(hass: Hass | undefined, entityId: string): string {
+  const friendly = hass?.states?.[entityId]?.attributes?.friendly_name;
+  return typeof friendly === 'string' && friendly ? friendly : entityId;
 }
 
 /**

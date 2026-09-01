@@ -607,6 +607,18 @@ def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
     return merged
 
 
+def find_part(asset: dict[str, Any], part_id: str) -> dict[str, Any] | None:
+    """The part of *asset* with id *part_id*, or None.
+
+    Returns the stored dict itself, not a copy — callers that mutate the result
+    (stock bumps, replacement stamps) rely on that.
+    """
+    for part in asset.get("parts") or []:
+        if part.get("id") == part_id:
+            return part
+    return None
+
+
 def set_part_file(asset: dict, part_id: str, file_meta: dict) -> dict | None:
     """Attach (or replace) *part_id*'s single file, in place; return the updated part.
 

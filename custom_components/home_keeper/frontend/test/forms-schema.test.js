@@ -1,17 +1,23 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  assetIdentitySchema,
   buildTaskPayload,
   formRecurrenceSummary,
+  metadataSchema,
   notifyFormData,
   notifyFormToNotification,
   notificationSchema,
   pickFormData,
   problemSyncExclusionsSchema,
   problemSyncSchema,
+  partSchema,
   problemSyncToggleSchema,
   profileSyncSchema,
   schemaFieldNames,
+  selUnit,
+  sensorLive,
   shoppingSchema,
+  structuredDetailsSchema,
   taskFormData,
   taskSchema,
   taskSchemaSections,
@@ -154,6 +160,42 @@ describe('pickFormData', () => {
     for (const name of names(taskSchema(task))) {
       expect(merged[name], `${name} should be seeded by one of the sections`).toEqual(data[name]);
     }
+  });
+});
+
+describe('selUnit', () => {
+  // One list behind two forms: a floating task's cadence and, in the panel, a wear
+  // part's replacement schedule. They used to carry a copy each.
+  it('offers exactly days / weeks / months, labelled in the active language', () => {
+    expect(selUnit()).toEqual({
+      select: {
+        mode: 'dropdown',
+        sort: false,
+        multiple: false,
+        options: [
+          { value: 'days', label: 'days' },
+          { value: 'weeks', label: 'weeks' },
+          { value: 'months', label: 'months' },
+        ],
+      },
+    });
+  });
+
+  it('translates the labels while the stored values stay in English', () => {
+    setLanguage('de');
+    const { options } = selUnit().select;
+    expect(options.map((o) => o.value)).toEqual(['days', 'weeks', 'months']);
+    // A German panel must still save `unit: "months"` — the label moves, the value
+    // is the recurrence field the backend reads.
+    for (const o of options) expect(o.label).not.toBe(o.value);
+    setLanguage('en');
+  });
+
+  it('is the selector the task form actually hands to ha-form', () => {
+    const unit = taskSchema({ recurrence_type: 'floating' })
+      .flatMap((f) => f.schema ?? [f])
+      .find((f) => f.name === 'unit');
+    expect(unit.selector).toEqual(selUnit());
   });
 });
 
@@ -356,6 +398,14 @@ describe('taskSchema respects locked fields', () => {
     // The unlocked remainder is untouched.
     expect(got).toContain('labels');
     expect(got).toContain('completion_detail');
+  });
+
+  it('drops the unit dropdown alone when the cadence unit is locked', () => {
+    // The cadence pair lives in an unnamed grid, so a lock in there has to leave the
+    // grid holding exactly the other field — not an empty slot beside it.
+    const grid = taskSchema(locked(['unit'])).find((f) => f.type === 'grid');
+    expect(grid.schema.map((f) => f.name)).toEqual(['interval']);
+    expect(names(taskSchema(locked(['unit'])))).not.toContain('unit');
   });
 
   it('treats an absent or empty locked_fields as nothing locked', () => {
@@ -762,5 +812,325 @@ describe('toProfileSync', () => {
 
   it('stringifies an entity id that arrives as a non-string', () => {
     expect(toProfileSync({ entity_id: 7 }).entity_id).toBe('7');
+  });
+});
+
+// ── appliance form schemas ──────────────────────────────────────────────────
+// The appliance drawer's field sets. Same contract as the task form's above: a
+// missing field is a control the user cannot reach, and a selector with the wrong
+// `min` or `step` is a value the field silently refuses. Both are invisible to a
+// test that only counts fields, so these spell the selectors out.
+
+/** Every field, grid containers flattened away, as objects (not just names). */
+const flat = (fields) => fields.flatMap((f) => (f.schema ? flat(f.schema) : [f]));
+const field = (fields, name) => flat(fields).find((f) => f.name === name);
+const selectorOf = (fields, name) => field(fields, name)?.selector;
+
+const TEXT = { text: {} };
+const MULTILINE = { text: { multiline: true } };
+const dropdown = (options) => ({ select: { mode: 'dropdown', options, sort: false, multiple: false } });
+
+describe('partSchema', () => {
+  const consumable = { name: 'Anode rod', type: 'consumable' };
+
+  it('offers the fixed fields, in order, whatever the part is', () => {
+    expect(names(partSchema(consumable))).toEqual([
+      'part_name',
+      'part_number',
+      'type',
+      'vendor',
+      'cost',
+      'part_url',
+      'notes',
+      'stock',
+      'reorder_at',
+      'stock_unit',
+    ]);
+  });
+
+  it('spells out the selector every fixed field carries', () => {
+    const sel = (n) => selectorOf(partSchema(consumable), n);
+    expect(sel('part_name')).toEqual(TEXT);
+    expect(sel('part_number')).toEqual(TEXT);
+    expect(sel('vendor')).toEqual(TEXT);
+    expect(sel('part_url')).toEqual(TEXT);
+    expect(sel('stock_unit')).toEqual(TEXT);
+    // A part note is prose, so it gets the tall box.
+    expect(sel('notes')).toEqual(MULTILINE);
+    // Money steps in whole units; the quantities do not — a part measured in
+    // millilitres is as valid as one counted in whole filters.
+    expect(sel('cost')).toEqual({ number: { min: 0, mode: 'box' } });
+    expect(sel('stock')).toEqual({ number: { min: 0, mode: 'box', step: 'any' } });
+    expect(sel('reorder_at')).toEqual({ number: { min: 0, mode: 'box', step: 'any' } });
+    expect(sel('type')).toEqual(
+      dropdown([
+        { value: 'consumable', label: 'consumable' },
+        { value: 'wear', label: 'wear item' },
+      ]),
+    );
+  });
+
+  it('reveals the per-completion amount only once the part tracks stock', () => {
+    // Nothing to draw from, so the field would promise nothing.
+    expect(names(partSchema(consumable))).not.toContain('consume_quantity');
+    expect(names(partSchema({ ...consumable, stock: null }))).not.toContain('consume_quantity');
+    // "Out of stock" is still tracking stock — zero is a count, not an absence.
+    expect(names(partSchema({ ...consumable, stock: 0 }))).toContain('consume_quantity');
+    expect(names(partSchema({ ...consumable, stock: 2 }))).toContain('consume_quantity');
+  });
+
+  it('floors the per-completion amount just above zero', () => {
+    // A number selector has no exclusive minimum, and a zero here is a field that
+    // quietly does nothing — so the floor is one step of the stored precision.
+    expect(selectorOf(partSchema({ ...consumable, stock: 2 }), 'consume_quantity')).toEqual({
+      number: { min: 0.001, mode: 'box', step: 'any' },
+    });
+  });
+
+  it('reveals auto-buy only once a reorder threshold defines "low"', () => {
+    expect(names(partSchema(consumable))).not.toContain('create_buy_task');
+    expect(names(partSchema({ ...consumable, reorder_at: null }))).not.toContain('create_buy_task');
+    // Reordering at zero is a threshold like any other.
+    expect(names(partSchema({ ...consumable, reorder_at: 0 }))).toContain('create_buy_task');
+    expect(selectorOf(partSchema({ ...consumable, reorder_at: 1 }), 'create_buy_task')).toEqual({
+      boolean: {},
+    });
+  });
+
+  it('reveals the restock amount only once auto-buy is switched on', () => {
+    const off = { ...consumable, reorder_at: 1 };
+    expect(names(partSchema(off))).not.toContain('restock_quantity');
+    expect(names(partSchema({ ...off, create_buy_task: false }))).not.toContain('restock_quantity');
+    const on = partSchema({ ...off, create_buy_task: true });
+    expect(names(on)).toContain('restock_quantity');
+    expect(selectorOf(on, 'restock_quantity')).toEqual({
+      number: { min: 0.001, mode: 'box', step: 'any' },
+    });
+    // And it stays hidden while there is no threshold to be low against.
+    expect(names(partSchema({ ...consumable, create_buy_task: true }))).not.toContain(
+      'restock_quantity',
+    );
+  });
+
+  it('adds the replacement schedule for a wear item only', () => {
+    expect(names(partSchema(consumable))).not.toContain('replace_interval');
+    const wear = partSchema({ name: 'Filter', type: 'wear' });
+    expect(names(wear).slice(-3)).toEqual(['replace_interval', 'replace_unit', 'last_replaced']);
+    // The interval and its unit share a line, in an unnamed grid like the others.
+    const wearGrid = wear.filter((f) => f.type === 'grid').at(-1);
+    expect(names(wearGrid.schema)).toEqual(['replace_interval', 'replace_unit']);
+    expect(wearGrid.name).toBe('');
+    // Replacing "every 0 months" is not a schedule.
+    expect(selectorOf(wear, 'replace_interval')).toEqual({ number: { min: 1, mode: 'box' } });
+    expect(selectorOf(wear, 'replace_unit')).toEqual(
+      dropdown([
+        { value: 'days', label: 'days' },
+        { value: 'weeks', label: 'weeks' },
+        { value: 'months', label: 'months' },
+      ]),
+    );
+    // The date the clock starts from, so a derived task doesn't start at "now".
+    expect(selectorOf(wear, 'last_replaced')).toEqual({ date: {} });
+  });
+
+  it('lays the fixed fields out in three grids', () => {
+    // The grids are what put name/number/type on one line; flattening hides that,
+    // so the shape is asserted here rather than only the field names.
+    const grids = partSchema(consumable).filter((f) => f.type === 'grid');
+    expect(grids.map((g) => names(g.schema))).toEqual([
+      ['part_name', 'part_number', 'type'],
+      ['vendor', 'cost'],
+      ['stock', 'reorder_at', 'stock_unit'],
+    ]);
+    // A grid is an *unnamed* container: `ha-form` emits the fields inside it, so a
+    // name on the container itself would be a value nobody ever set.
+    expect(grids.every((g) => g.name === '')).toBe(true);
+  });
+});
+
+describe('metadataSchema', () => {
+  it('always offers type, label and value — the type and label side by side', () => {
+    const schema = metadataSchema({ type: 'text', label: 'Serial', value: 'abc' });
+    expect(names(schema)).toEqual(['type', 'label', 'value']);
+    expect(schema[0].type).toBe('grid');
+    expect(schema[0].name).toBe('');
+    expect(names(schema[0].schema)).toEqual(['type', 'label']);
+    expect(selectorOf(schema, 'type')).toEqual(
+      dropdown([
+        { value: 'text', label: 'Text' },
+        { value: 'link', label: 'Link' },
+        { value: 'date', label: 'Date' },
+      ]),
+    );
+    expect(selectorOf(schema, 'label')).toEqual(TEXT);
+  });
+
+  it('swaps the value control to a date picker for a date entry', () => {
+    expect(selectorOf(metadataSchema({ type: 'text' }), 'value')).toEqual(TEXT);
+    expect(selectorOf(metadataSchema({ type: 'link' }), 'value')).toEqual(TEXT);
+    expect(selectorOf(metadataSchema({}), 'value')).toEqual(TEXT);
+    expect(selectorOf(metadataSchema({ type: 'date' }), 'value')).toEqual({ date: {} });
+  });
+
+  it('offers "track as sensor" for a date entry only', () => {
+    // Tracking is what turns a warranty expiry into something that can fire; the
+    // other two types have no date to count down to.
+    expect(names(metadataSchema({ type: 'text' }))).not.toContain('track');
+    expect(names(metadataSchema({ type: 'link' }))).not.toContain('track');
+    const dated = metadataSchema({ type: 'date' });
+    expect(names(dated)).toEqual(['type', 'label', 'value', 'track']);
+    expect(selectorOf(dated, 'track')).toEqual({ boolean: {} });
+  });
+});
+
+describe('assetIdentitySchema', () => {
+  const parents = [{ value: 'a1', label: 'Kitchen' }];
+
+  it('asks what kind of appliance this is only while creating one', () => {
+    // `kind` is immutable after creation and ha-form has no per-field disable, so
+    // the only way editing cannot put it in an inconsistent state is not to offer it.
+    const creating = assetIdentitySchema({}, false, parents);
+    expect(creating[0].name).toBe('kind');
+    expect(creating[0].selector).toEqual(
+      dropdown([
+        { value: 'virtual', label: 'New appliance (Home Keeper creates a device)' },
+        { value: 'existing', label: 'Existing device (add details to it)' },
+      ]),
+    );
+    expect(names(assetIdentitySchema({}, true, parents))).not.toContain('kind');
+  });
+
+  it('lays a virtual appliance out with a parent picker and no device', () => {
+    const schema = assetIdentitySchema({ kind: 'virtual' }, true, parents);
+    expect(names(schema)).toEqual([
+      'name',
+      'manufacturer',
+      'model',
+      'serial_number',
+      'icon',
+      'parent_asset_id',
+      'area_id',
+    ]);
+    // A virtual appliance owns no other name source, so the name is required.
+    expect(field(schema, 'name').required).toBe(true);
+    expect(selectorOf(schema, 'parent_asset_id')).toEqual(dropdown(parents));
+    expect(selectorOf(schema, 'icon')).toEqual({ icon: {} });
+    expect(selectorOf(schema, 'area_id')).toEqual({ area: {} });
+  });
+
+  it('swaps the parent picker for a device picker on an existing device', () => {
+    const schema = assetIdentitySchema({ kind: 'existing' }, true, parents);
+    expect(names(schema)).toEqual([
+      'device_id',
+      'name',
+      'manufacturer',
+      'model',
+      'serial_number',
+      'icon',
+      'area_id',
+    ]);
+    // The device is the whole point, so it is required — and it supplies its own
+    // name, so the name is not.
+    expect(field(schema, 'device_id').required).toBe(true);
+    expect(field(schema, 'name').required).toBe(false);
+    expect(selectorOf(schema, 'device_id')).toEqual({ device: {} });
+    // A device nests natively through the registry, so no parent picker is offered.
+    expect(names(schema)).not.toContain('parent_asset_id');
+  });
+
+  it('keeps make and model on one line, and serial with them', () => {
+    const grids = assetIdentitySchema({ kind: 'virtual' }, true, parents).filter(
+      (f) => f.type === 'grid',
+    );
+    expect(grids.map((g) => names(g.schema))).toEqual([
+      ['manufacturer', 'model'],
+      ['icon', 'parent_asset_id'],
+    ]);
+    expect(grids.every((g) => g.name === '')).toBe(true);
+    // serial_number is first-class (it syncs into the device page), so it sits
+    // outside the free-form custom fields, next to make and model.
+    expect(selectorOf(assetIdentitySchema({}, true, parents), 'serial_number')).toEqual(TEXT);
+  });
+
+  it('offers whatever parent list it is handed, and nothing else', () => {
+    // The panel resolves the tree (no cycles, virtual only); this only lays it out.
+    expect(selectorOf(assetIdentitySchema({}, true, []), 'parent_asset_id')).toEqual(dropdown([]));
+  });
+});
+
+describe('structuredDetailsSchema', () => {
+  it('is the appliance value, as a whole-stepped number', () => {
+    expect(structuredDetailsSchema()).toEqual([
+      { name: 'cost', selector: { number: { min: 0, mode: 'box' } } },
+    ]);
+  });
+});
+
+describe('sensorLive', () => {
+  const hass = (states) => ({ states });
+
+  it('reads the entity being picked right now, before the task is saved', () => {
+    const h = hass({ 'sensor.hours': { state: '660', attributes: { unit_of_measurement: 'h' } } });
+    expect(sensorLive(h, { sensor_entity_id: 'sensor.hours' })).toEqual({ reading: 660, unit: 'h' });
+  });
+
+  it('falls back to a saved task binding when the form has no flat value', () => {
+    const h = hass({ 'sensor.km': { state: '48000', attributes: { unit_of_measurement: 'km' } } });
+    expect(sensorLive(h, { sensor: { entity_id: 'sensor.km' } })).toEqual({
+      reading: 48000,
+      unit: 'km',
+    });
+    // The flat edit state wins while both are present — it is what is on screen.
+    expect(
+      sensorLive(hass({ 'sensor.a': { state: '1' }, 'sensor.b': { state: '2' } }), {
+        sensor_entity_id: 'sensor.a',
+        sensor: { entity_id: 'sensor.b' },
+      }),
+    ).toEqual({ reading: 1, unit: undefined });
+  });
+
+  it('reads an attribute when one is named, not the state', () => {
+    const h = hass({
+      'sensor.car': { state: '12', attributes: { odometer: 48000, unit_of_measurement: 'km' } },
+    });
+    expect(sensorLive(h, { sensor_entity_id: 'sensor.car', sensor_attribute: 'odometer' })).toEqual({
+      reading: 48000,
+      unit: 'km',
+    });
+    // A saved task's attribute counts the same way.
+    expect(
+      sensorLive(h, { sensor: { entity_id: 'sensor.car', attribute: 'odometer' } }),
+    ).toEqual({ reading: 48000, unit: 'km' });
+  });
+
+  it('says nothing at all when there is no entity to read', () => {
+    expect(sensorLive(hass({}), {})).toEqual({});
+    expect(sensorLive(hass({}), { sensor_entity_id: '' })).toEqual({});
+    // Named but unknown to Home Assistant — an entity that has not loaded yet.
+    expect(sensorLive(hass({}), { sensor_entity_id: 'sensor.gone' })).toEqual({});
+    expect(sensorLive(undefined, { sensor_entity_id: 'sensor.hours' })).toEqual({});
+    // A hass that has not loaded its states yet is not a crash.
+    expect(sensorLive({}, { sensor_entity_id: 'sensor.hours' })).toEqual({});
+  });
+
+  it('drops a reading it cannot make a number of, but keeps the unit', () => {
+    const h = hass({
+      'sensor.hours': { state: 'unavailable', attributes: { unit_of_measurement: 'h' } },
+    });
+    expect(sensorLive(h, { sensor_entity_id: 'sensor.hours' })).toEqual({
+      reading: undefined,
+      unit: 'h',
+    });
+    // An empty state is not zero.
+    expect(sensorLive(hass({ 'sensor.x': { state: '' } }), { sensor_entity_id: 'sensor.x' })).toEqual(
+      { reading: undefined, unit: undefined },
+    );
+    expect(
+      sensorLive(hass({ 'sensor.x': { state: null } }), { sensor_entity_id: 'sensor.x' }),
+    ).toEqual({ reading: undefined, unit: undefined });
+    // Zero is a real reading.
+    expect(sensorLive(hass({ 'sensor.x': { state: '0' } }), { sensor_entity_id: 'sensor.x' })).toEqual(
+      { reading: 0, unit: undefined },
+    );
   });
 });
