@@ -242,43 +242,61 @@ mutation allowlist.
 
 ---
 
-## Finding 2 — inbound changes wait on a 15-minute poll
+## Finding 2 — inbound changes wait on a poll, up to 15 minutes
 
-**Severity: medium (expectation-setting), not a defect.** This is the reporter's third
-observation.
+**Severity: medium (expectation-setting), not a defect.**
 
 `caldav/todo.py` sets `SCAN_INTERVAL = timedelta(minutes=15)`, and nothing pushes: CalDAV
 has no change notification HA subscribes to. `todo.get_items` reads the entity's cached
-`todo_items` and does not force a refresh, so **Home Keeper's own 5-minute sweep cannot
-help** — it re-reads the same cache.
+`todo_items` and does not force a refresh, so Home Keeper never sees the server sooner
+than that cache does.
 
-Measured: a VTODO ticked off directly on Nextcloud produced no reaction for 90 s, and
-then reacted within 2 s of a forced `homeassistant.update_entity`:
+There are two delays stacked here, and it is worth keeping them apart:
+
+1. **Server → HA cache.** The 15-minute poll — *unless* something forces a refresh
+   first. Every Home Keeper write to that list does: `add_item` / `update_item` /
+   `remove_item` each end with a `force_refresh` on the CalDAV entity. So a list Home
+   Keeper is actively writing to gets refreshed as a side effect, and a quiet one waits
+   the full 15 minutes.
+2. **HA cache → Home Keeper.** Either instant (the list's state changes, which forces a
+   pass) or the 5-minute periodic sweep.
+
+Both were measured. A VTODO ticked off on Nextcloud in a quiet window produced no
+reaction for 90 s, then reacted within 2 s of a forced `homeassistant.update_entity` —
+delay 1:
 
 ```
 t+  5s  todo.chores=1  HK last_completed=None
-t+ 15s  todo.chores=1  HK last_completed=None
-t+ 30s  todo.chores=1  HK last_completed=None
-t+ 60s  todo.chores=1  HK last_completed=None
+...
 t+ 90s  todo.chores=1  HK last_completed=None
 === force HA to poll ===
 +  2s   HK last_completed=2026-09-01T02:37:21-04:00  next_due=2026-12-01T02:37:21-05:00
 ```
 
-The recurrence rescheduled and a fresh VTODO was written for the next occurrence — which
-is what the reporter saw, several minutes later than they expected.
+A second run showed delay 2 in isolation, and it is the more interesting of the two. The
+tick landed 1 s before a refresh Home Keeper's own write had already triggered, so the
+cache was fresh at 02:45:54 (confirmed in the HA log — that is the last CalDAV server
+call before the reaction). Home Keeper still did not act until **02:50:53, exactly one
+5-minute sweep later**, because the item count did not move: probe A went completed and
+probe B was added in the same window, so `todo.chores` stayed at 1 and no state-change
+event fired.
 
-This is a CalDAV limitation, not a Home Keeper one, and it is the same for anything else
-reading that list. Two things could be done about it:
+That is the case `async_schedule_sweep`'s own docstring calls out — *"a list whose
+outstanding count happens to land back where it started — one item ticked off while
+another was added — produces no state change at all, so the listener alone can miss a
+tick-off"* — working exactly as designed. The sweep is the safety net, and it caught it.
+
+So the worst case is 15 min + 5 min, the common case on an active list is under 5 min,
+and neither is a defect. What follows from it:
 
 - **Document it.** "Ticking an item off on a CalDAV server can take up to 15 minutes to
   reach Home Keeper" belongs in the README's to-do sync section, next to the Todoist
   recipe.
 - **Optionally shorten it.** Home Keeper's periodic sweep could call
-  `homeassistant.update_entity` on each synced list before reading it, which would bound
-  inbound latency by Home Keeper's own 5-minute tick instead of CalDAV's 15. That is a
-  network round trip per synced list per 5 minutes against somebody else's server, so it
-  should be a deliberate choice, not a silent one.
+  `homeassistant.update_entity` on each synced list before reading it, which would
+  collapse delay 1 into delay 2 and bound the whole thing by Home Keeper's own 5-minute
+  tick. That is a network round trip per synced list per 5 minutes against somebody
+  else's server, so it should be a deliberate choice, not a silent one.
 
 ---
 
@@ -385,7 +403,8 @@ answer is:
 
 **CalDAV's own limits, as opposed to Home Keeper's:**
 
-- No push. 15-minute poll, both directions of visibility.
+- No push. HA reads the server on a 15-minute poll, shortened only by Home Keeper's own
+  writes forcing a refresh (Finding 2).
 - No uid returned on create, so the sync must bind by summary on a later pass — which is
   what Finding 1 exploits. Two tasks with the same name on one list are only ever
   distinguished by that binding.
