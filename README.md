@@ -1304,18 +1304,20 @@ silently baselined on restart (no "overdue" storm after a reboot). The full cata
 ### Deadlines and follow-ups
 
 Some recurring tasks have a real deadline. The weekly trash has to be at the curb
-before the truck comes. A week that misses the truck is a write-off. A week that
-makes it leaves a bin at the curb to fetch the next evening. Ordinary Home Assistant
-automations cover both cases, on top of services Home Keeper already has.
+before the truck comes. When it misses the truck the occurrence is a write-off, and
+when it makes the truck there is a bin at the curb to fetch the next evening.
+Ordinary Home Assistant automations cover both cases, on top of services Home Keeper
+already has.
 
 The setup is one weekly fixed task ("Take out trash") plus one triggered task
 ("Bring the bin back in"). `home_keeper.list_tasks` returns every task, so an
 automation reads a task's `next_due` and `last_completed` with `response_variable`
-and decides from there. Missing the deadline calls `home_keeper.skip_task`, which
-advances the fixed task one occurrence and records no completion. That is the
-write-off: the week is gone, and nothing pretends the chore was done. Making the
-deadline calls `home_keeper.trigger_task` on the follow-up, arming it so it reads as
-due now. Completing it later puts it back to dormant, ready for next week.
+and decides from there.
+
+Missing the deadline calls `home_keeper.skip_task`. That advances the fixed task one
+occurrence without recording a completion. The week is written off rather than marked
+done. Making the deadline calls `home_keeper.trigger_task` on the follow-up instead.
+It then reads as due now. Completing it later puts it back to dormant for next week.
 
 Create the follow-up task once, not every week. A newly created triggered task
 starts armed, so complete it once right after you create it to leave it dormant.
