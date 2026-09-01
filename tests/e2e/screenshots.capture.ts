@@ -222,13 +222,6 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/9-panel-managed-detail.png`, fullPage: true });
 
-  // 56b. Pressing that greyed Duplicate names the integration that owns the original
-  // and points the copy there, rather than doing nothing (best-effort capture — the
-  // toast is transient).
-  await panel.locator('.d-dup-blocked').click();
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/56b-panel-duplicate-blocked-toast.png`, fullPage: true });
-
   // 1d. Edit form of a managed task — the integration-locked fields (name and
   // attach-to-device) are omitted; only the unlocked fields are editable.
   await panel.locator('.d-edit').click();

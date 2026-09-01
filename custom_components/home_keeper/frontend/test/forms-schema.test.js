@@ -1223,6 +1223,13 @@ describe('duplicateTaskSeed — a copy of the rule, not of the record (#279)', (
     expect(taskFormData(seed).sensor_baseline).toBeUndefined();
   });
 
+  it('omits the sensor key entirely for a task that has no binding', () => {
+    // Not `sensor: undefined`. The seed is an allowlist, and a key that exists
+    // holding nothing is how a "cleared this field" reading gets in later.
+    expect('sensor' in duplicateTaskSeed(floating)).toBe(false);
+    expect('sensor' in duplicateTaskSeed(usageSensor)).toBe(true);
+  });
+
   it('does not reach through and strip the source task it copied', () => {
     // The binding is shallow-copied. Sharing the reference and deleting the key
     // would clear the baseline of the task still sitting in the panel's list.

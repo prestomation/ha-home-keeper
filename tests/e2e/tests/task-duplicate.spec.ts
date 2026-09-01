@@ -22,6 +22,12 @@ test.describe('Home Keeper panel — duplicating a task', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
 
+    // A dormant usage task lives in the collapsed Monitored group (it has no due
+    // date to sort by), so open that before reaching for its row.
+    const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');
+    if (!(await monitored.evaluate((el: HTMLDetailsElement) => el.open))) {
+      await monitored.locator('summary').click();
+    }
     await panel.locator(`.detail-open[data-detail-id="${TASK.nozzleUsage}"]`).click();
     await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.nozzleUsage}$`));
 
@@ -39,9 +45,15 @@ test.describe('Home Keeper panel — duplicating a task', () => {
       /\(copy\)$/,
     );
     // …and the meter's starting reading arrives *blank*, so the copy anchors itself
-    // against its own sensor rather than inheriting the original's 660 h.
-    const startingReading = panel.locator('#hk-task-form ha-selector-number input').last();
+    // against its own sensor rather than inheriting the original's 660 h. The number
+    // fields run target, starting reading, then the backstop interval.
+    const startingReading = panel.locator('#hk-task-form ha-selector-number input').nth(1);
     await expect(startingReading).toHaveValue('');
+    // The live hint is the same claim in words: a seeded baseline makes it read
+    // "Counting from 660 h…", so its absence is what proves the anchor did not ride
+    // along. Asserting the sentence beats asserting an input index alone.
+    await expect(panel.locator('#hk-sensor-hint')).toBeVisible();
+    await expect(panel.locator('#hk-sensor-hint')).not.toContainText('Counting from');
 
     let copyId: string | undefined;
     try {
@@ -97,6 +109,11 @@ test.describe('Home Keeper panel — duplicating a task', () => {
     // A dead button that says nothing is worse than no button; pressing it explains.
     await blocked.click();
     await expect(panel.locator('#hk-form')).toHaveCount(0);
+    // Refusing is inert: it does not open a form, create anything, or move the page.
+    // The span wraps a disabled button, and a stray navigation here would be invisible
+    // in a screenshot but obvious to anyone actually pressing it.
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.anode}$`));
+    await expect(panel.locator('.hk-detail-actions').first()).toBeVisible();
     expect((await listTasks()).length, 'refusing must not create anything').toBe(before);
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
