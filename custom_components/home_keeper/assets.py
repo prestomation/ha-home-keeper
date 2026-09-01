@@ -110,6 +110,10 @@ _STOCK_DECIMALS = 3
 # way JavaScript's toFixed does rather than the way Python's round does. See
 # ``format_quantity``.
 _QUANTUM = Decimal(1).scaleb(-_STOCK_DECIMALS)
+# Digits to quantize with. A double runs to 309 integer digits and 1074 fractional
+# ones, and the default 28-digit context raises on anything past about 1e25 — which
+# is a poor way for a formatter to behave, however unreachable the input.
+_QUANTIZE_PRECISION = 400
 # A unit is a short label rendered beside a number ("ml", "m", "bottles"), not prose.
 _MAX_UNIT_LEN = 16
 
@@ -761,15 +765,34 @@ def format_quantity(value: float, unit: str = "") -> str:
     here and "0.063" there. Quantizing the exact binary value half-up reproduces
     ``toFixed`` instead (checked against it over 8000 values, 2000 of them
     deliberate halfway cases). Stock is rounded to the same three places on the way
-    into storage, so in practice both sides already see a settled number; this keeps
+    into storage, so in practice both sides already see a settled number. This keeps
     them identical for anything that reaches the formatter unrounded.
+
+    The agreement is guaranteed over the range a quantity can actually hold — stock
+    and its thresholds are bounded by ``MAX_INTERVAL`` on the way in, and the per-use
+    amounts are floored positive by :func:`_positive_quantity`. Past about 1e21
+    JavaScript switches to exponential notation and Python does not, so the two would
+    part company there; nothing that far out can reach either formatter.
+
+    Total, like :func:`_positive_quantity`: a value too large to quantize, or not a
+    number at all, falls back to plain ``repr`` rather than raising. Rendering a
+    number oddly is a blemish, but raising here would take down a whole
+    shopping-list sync pass over one malformed part.
     """
     label = str(unit or "").strip()
-    quantized = float(
-        Decimal(float(value)).quantize(_QUANTUM, rounding=decimal.ROUND_HALF_UP)
-    )
-    whole = int(quantized)
-    text = str(whole if quantized == whole else quantized)
+    number = float(value)
+    if math.isfinite(number):
+        # Room for the widest double plus the three places we quantize to; the
+        # default context is 28 digits, which a value past ~1e25 overruns.
+        with decimal.localcontext() as ctx:
+            ctx.prec = _QUANTIZE_PRECISION
+            quantized = float(
+                Decimal(number).quantize(_QUANTUM, rounding=decimal.ROUND_HALF_UP)
+            )
+        whole = int(quantized)
+        text = str(whole if quantized == whole else quantized)
+    else:
+        text = str(number)
     return f"{text} {label}" if label else text
 
 
