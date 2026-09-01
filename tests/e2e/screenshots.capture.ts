@@ -1217,6 +1217,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 17a2. The Tasks tab Profile dropdown — pick a saved Profile to filter the admin list.
   await openPanel(page);
   await expect(panel.locator('select[data-profile-filter]')).toBeVisible();
+  // Open the native popup itself before selecting anything: its <option> list is
+  // rendered by the browser, not the page, so the closed-control screenshot below
+  // can't prove the popup is themed too.
+  await panel.locator('select[data-profile-filter]').click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/23b-panel-profile-dropdown-open.png` });
+  await page.keyboard.press('Escape');
   await panel.locator('select[data-profile-filter]').selectOption('demo_me');
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/23-panel-profile-filter.png`, fullPage: true });

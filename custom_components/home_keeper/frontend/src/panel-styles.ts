@@ -846,6 +846,13 @@ export const STYLES = `
   .hk-menu-select:focus-visible, .hk-profile-select:focus-visible {
     outline: 2px solid var(--hk-accent); outline-offset: 2px; border-radius: 4px;
   }
+  /* The closed control blends into its chip via a transparent background, but the
+     popup list it opens is the browser's own UI surface — Chromium and Firefox both
+     honor a color/background-color set on <option>, so without one the popup falls
+     back to its OS default (grey text on white) even in a dark theme. */
+  .hk-menu-select option, .hk-profile-select option {
+    background-color: var(--hk-surface); color: var(--hk-ink);
+  }
   .hk-seg-btn:hover { background: var(--hk-page); }
   /* White on the accent measures 3.26:1 — under the 4.5:1 a 12px label needs. The
      soft/ink pairing clears it, and the inset edge means selection is not carried by
