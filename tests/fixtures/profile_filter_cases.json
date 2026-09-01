@@ -4,195 +4,752 @@
   "cases": [
     {
       "name": "overdue task, status overdue",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [] },
-      "filter": { "status": "overdue", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "overdue",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "task due in 1 day, status overdue -> excluded",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-17T12:00:00Z", "labels": [] },
-      "filter": { "status": "overdue", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-17T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "overdue",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": false
     },
     {
       "name": "task due in 1 day, status due_soon",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-17T12:00:00Z", "labels": [] },
-      "filter": { "status": "due_soon", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-17T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "due_soon",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "task due in 3 days (window boundary), status due_soon",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-19T12:00:00Z", "labels": [] },
-      "filter": { "status": "due_soon", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-19T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "due_soon",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "task due in 5 days, status due_soon -> excluded (3-day window, NOT the 7-day soon bucket)",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-21T12:00:00Z", "labels": [] },
-      "filter": { "status": "due_soon", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-21T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "due_soon",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": false
     },
     {
       "name": "overdue task, status due_soon (overdue counts as due-soon)",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [] },
-      "filter": { "status": "due_soon", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "due_soon",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "task due in 30 days, status all",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-07-16T12:00:00Z", "labels": [] },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-07-16T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "disabled overdue task, status all -> excluded",
-      "task": { "id": "t", "enabled": false, "next_due": "2026-06-13T12:00:00Z", "labels": [] },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": false,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": false
     },
     {
       "name": "dormant task (no next_due), status all -> excluded",
-      "task": { "id": "t", "enabled": true, "next_due": null, "labels": [] },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": null,
+        "labels": []
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": false
     },
     {
       "name": "armed problem-sensor task, status all -> included (#248)",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": { "problem_sensor": { "entity_id": "binary_sensor.x" } } },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "source": {
+          "problem_sensor": {
+            "entity_id": "binary_sensor.x"
+          }
+        }
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "armed problem-sensor task, status overdue -> included (armed reads as overdue)",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": { "problem_sensor": { "entity_id": "binary_sensor.x" } } },
-      "filter": { "status": "overdue", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "source": {
+          "problem_sensor": {
+            "entity_id": "binary_sensor.x"
+          }
+        }
+      },
+      "filter": {
+        "status": "overdue",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "dormant problem-sensor task (sensor clear) -> excluded, like any undated task",
-      "task": { "id": "t", "enabled": true, "next_due": null, "labels": [], "source": { "problem_sensor": { "entity_id": "binary_sensor.x" } } },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": null,
+        "labels": [],
+        "source": {
+          "problem_sensor": {
+            "entity_id": "binary_sensor.x"
+          }
+        }
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
       "expected": false
     },
     {
       "name": "label ANY: effective label matches",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"] },
-      "filter": { "status": "all", "labels": ["dog"], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [
+          "dog"
+        ]
+      },
+      "filter": {
+        "status": "all",
+        "labels": [
+          "dog"
+        ],
+        "areas": [],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "label miss",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["cat"] },
-      "filter": { "status": "all", "labels": ["dog"], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [
+          "cat"
+        ]
+      },
+      "filter": {
+        "status": "all",
+        "labels": [
+          "dog"
+        ],
+        "areas": [],
+        "devices": []
+      },
       "expected": false
     },
     {
       "name": "label ANY across several configured labels",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["car"] },
-      "filter": { "status": "all", "labels": ["dog", "car"], "areas": [], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [
+          "car"
+        ]
+      },
+      "filter": {
+        "status": "all",
+        "labels": [
+          "dog",
+          "car"
+        ],
+        "areas": [],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "area match (effective area)",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "area_id": "kitchen" },
-      "filter": { "status": "all", "labels": [], "areas": ["kitchen"], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "area_id": "kitchen"
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [
+          "kitchen"
+        ],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "area miss",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "area_id": "garage" },
-      "filter": { "status": "all", "labels": [], "areas": ["kitchen"], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "area_id": "garage"
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [
+          "kitchen"
+        ],
+        "devices": []
+      },
       "expected": false
     },
     {
       "name": "device match (own device)",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "device_id": "d1" },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": ["d1"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "device_id": "d1"
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [
+          "d1"
+        ]
+      },
       "expected": true
     },
     {
       "name": "device miss",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "device_id": "d2" },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": ["d1"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "device_id": "d2"
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [
+          "d1"
+        ]
+      },
       "expected": false
     },
     {
       "name": "AND across lists: label AND area both required, both present",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"], "area_id": "kitchen" },
-      "filter": { "status": "all", "labels": ["dog"], "areas": ["kitchen"], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [
+          "dog"
+        ],
+        "area_id": "kitchen"
+      },
+      "filter": {
+        "status": "all",
+        "labels": [
+          "dog"
+        ],
+        "areas": [
+          "kitchen"
+        ],
+        "devices": []
+      },
       "expected": true
     },
     {
       "name": "AND across lists: label present but area missing -> excluded",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"], "area_id": "garage" },
-      "filter": { "status": "all", "labels": ["dog"], "areas": ["kitchen"], "devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [
+          "dog"
+        ],
+        "area_id": "garage"
+      },
+      "filter": {
+        "status": "all",
+        "labels": [
+          "dog"
+        ],
+        "areas": [
+          "kitchen"
+        ],
+        "devices": []
+      },
       "expected": false
     },
     {
       "name": "exclude_labels: an excluded effective label drops the task",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["pro"] },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_labels": ["pro"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [
+          "pro"
+        ]
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_labels": [
+          "pro"
+        ]
+      },
       "expected": false
     },
     {
       "name": "exclude_labels: a task without the excluded label still matches",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"] },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_labels": ["pro"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [
+          "dog"
+        ]
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_labels": [
+          "pro"
+        ]
+      },
       "expected": true
     },
     {
       "name": "exclude_labels: ANY hit is enough, across several excluded labels",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog", "pro"] },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_labels": ["mechanic", "pro"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [
+          "dog",
+          "pro"
+        ]
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_labels": [
+          "mechanic",
+          "pro"
+        ]
+      },
       "expected": false
     },
     {
       "name": "exclusions win over includes: label satisfies the include list AND the exclude list",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog", "pro"] },
-      "filter": { "status": "all", "labels": ["dog"], "areas": [], "devices": [], "exclude_labels": ["pro"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [
+          "dog",
+          "pro"
+        ]
+      },
+      "filter": {
+        "status": "all",
+        "labels": [
+          "dog"
+        ],
+        "areas": [],
+        "devices": [],
+        "exclude_labels": [
+          "pro"
+        ]
+      },
       "expected": false
     },
     {
       "name": "empty exclude lists exclude nothing",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["dog"], "area_id": "kitchen", "device_id": "d1" },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_labels": [], "exclude_areas": [], "exclude_devices": [] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [
+          "dog"
+        ],
+        "area_id": "kitchen",
+        "device_id": "d1"
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_labels": [],
+        "exclude_areas": [],
+        "exclude_devices": []
+      },
       "expected": true
     },
     {
       "name": "exclude_areas: an excluded effective area drops the task",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "area_id": "garage" },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_areas": ["garage"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "area_id": "garage"
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_areas": [
+          "garage"
+        ]
+      },
       "expected": false
     },
     {
       "name": "exclude_areas: an area-less task is not swept up by a non-empty exclude list",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [] },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_areas": ["garage"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_areas": [
+          "garage"
+        ]
+      },
       "expected": true
     },
     {
       "name": "exclude_devices: an excluded device drops the task",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "device_id": "d1" },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_devices": ["d1"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "device_id": "d1"
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_devices": [
+          "d1"
+        ]
+      },
       "expected": false
     },
     {
       "name": "exclude_devices: a device-less task is not swept up by a non-empty exclude list",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [] },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_devices": ["d1"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_devices": [
+          "d1"
+        ]
+      },
       "expected": true
     },
     {
       "name": "exclude_devices: a different device is untouched",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "device_id": "d2" },
-      "filter": { "status": "all", "labels": [], "areas": [], "devices": [], "exclude_devices": ["d1"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "device_id": "d2"
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_devices": [
+          "d1"
+        ]
+      },
       "expected": true
     },
     {
       "name": "exclusions do not rescue a task the status window already dropped",
-      "task": { "id": "t", "enabled": true, "next_due": "2026-06-21T12:00:00Z", "labels": [] },
-      "filter": { "status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_labels": ["pro"] },
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-21T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "overdue",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_labels": [
+          "pro"
+        ]
+      },
       "expected": false
+    },
+    {
+      "name": "exclude_shopping: an auto-buy reminder is dropped",
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "source": {
+          "buy": {
+            "asset_id": "a1",
+            "part_id": "p1"
+          }
+        }
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_shopping": true
+      },
+      "expected": false
+    },
+    {
+      "name": "exclude_shopping: an ordinary task is untouched",
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": []
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_shopping": true
+      },
+      "expected": true
+    },
+    {
+      "name": "exclude_shopping: another source is not a buy reminder",
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "source": {
+          "part": {
+            "asset_id": "a1",
+            "part_id": "p1"
+          }
+        }
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_shopping": true
+      },
+      "expected": true
+    },
+    {
+      "name": "exclude_shopping off: the buy reminder stays in",
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "source": {
+          "buy": {
+            "asset_id": "a1",
+            "part_id": "p1"
+          }
+        }
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_shopping": false
+      },
+      "expected": true
+    },
+    {
+      "name": "exclude_shopping absent: a profile saved before it existed is unchanged",
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "source": {
+          "buy": {
+            "asset_id": "a1",
+            "part_id": "p1"
+          }
+        }
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": []
+      },
+      "expected": true
+    },
+    {
+      "name": "exclude_shopping: a half-formed buy source is not one",
+      "task": {
+        "id": "t",
+        "enabled": true,
+        "next_due": "2026-06-13T12:00:00Z",
+        "labels": [],
+        "source": {
+          "buy": {
+            "asset_id": "a1"
+          }
+        }
+      },
+      "filter": {
+        "status": "all",
+        "labels": [],
+        "areas": [],
+        "devices": [],
+        "exclude_shopping": true
+      },
+      "expected": true
     }
   ]
 }

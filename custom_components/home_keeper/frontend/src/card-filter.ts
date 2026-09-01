@@ -73,6 +73,20 @@ export interface HomeKeeperCardConfig {
   hide_when_empty?: boolean;
 }
 
+/**
+ * Whether *task* is one of Home Keeper's auto-created "Buy {part}" reminders.
+ *
+ * Both ids are required, mirroring the backend's `reconcile.buy_source`: the pair is
+ * what identifies the part being bought, and half of it identifies nothing. The two
+ * have to agree, because a Profile carrying `exclude_shopping` is matched here for
+ * the panel and the card, and in Python for a notification — and
+ * `tests/fixtures/profile_filter_cases.json` holds them to it.
+ */
+export function isBuyTask(task: Task): boolean {
+  const buy = task.source?.buy;
+  return Boolean(buy && buy.asset_id && buy.part_id);
+}
+
 /** Tasks due within this many days (and not overdue) count as "due soon". */
 export const SOON_DAYS = 7;
 
@@ -136,7 +150,7 @@ export function statusBucket(
   // Only the sections move: it still counts as overdue for the filter pills, the
   // per-task binary sensors and any Profile, so no surface contradicts another.
   // Below the `completed` check so a reminder that was bought still lands there.
-  if (task.source?.buy) return 'shopping';
+  if (isBuyTask(task)) return 'shopping';
   if (due <= now) return 'overdue';
   if (today && due <= endOfToday(now)) return 'today';
   if (due - now <= SOON_DAYS * DAY_MS) return 'soon';
@@ -185,6 +199,9 @@ export interface ProfileFilter {
   exclude_labels?: string[];
   exclude_areas?: string[];
   exclude_devices?: string[];
+  /** Drop the auto-created "Buy {part}" reminders. Excludes by *kind*, not by id:
+   *  a buy reminder has no label or area of its own to name. Absent means off. */
+  exclude_shopping?: boolean;
 }
 
 /**
@@ -214,6 +231,8 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  * "everything except the jobs that need a tradesperson" is one profile rather than a
  * label on every task that isn't one. They read the same effective ids, so excluding a
  * label also drops a task that only inherits it from its device or area.
+ * `exclude_shopping` subtracts beside them but by *kind*, dropping the auto-created
+ * buy reminders — they carry no id of their own, only the appliance's.
  *
  * A `problem`-sensor-synced task is an ordinary member of the set. It carries a
  * `next_due` of the moment its sensor went bad while the problem stands, so it reads as
@@ -248,6 +267,8 @@ export function profileMatches(
   // Exclusions subtract, and win over the include lists above.
   if (filter.exclude_labels?.some((id) => taskLabels.has(id))) return false;
   if (listHas(filter.exclude_areas, areaId)) return false;
+  // By kind rather than by id — a buy reminder has none of its own to name.
+  if (filter.exclude_shopping && isBuyTask(task)) return false;
   return !listHas(filter.exclude_devices, task.device_id);
 }
 
@@ -278,7 +299,7 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
     case 'no_due':
       return !dated;
     case 'shopping':
-      return Boolean(task.source?.buy);
+      return isBuyTask(task);
     case 'all':
     default:
       return true;

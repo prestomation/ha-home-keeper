@@ -330,6 +330,7 @@
   "notify.exclude_areas": "Gebieden uitsluiten",
   "notify.exclude_devices": "Apparaten uitsluiten",
   "notify.exclude_labels": "Etiketten uitsluiten",
+  "notify.exclude_shopping": "Boodschappen uitsluiten",
   "notify.heading": "Meldingen",
   "notify.help": "Stuur wat openstaat naar een telefoon. Elke melding kiest een profiel en voegt doelen, knoppen en een stijl toe.",
   "notify.need_profile": "Voeg eerst een profiel toe — een melding heeft er een nodig om te kiezen wat te sturen.",

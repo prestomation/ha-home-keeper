@@ -330,6 +330,7 @@
   "notify.exclude_areas": "Udelad områder",
   "notify.exclude_devices": "Udelad enheder",
   "notify.exclude_labels": "Udelad etiketter",
+  "notify.exclude_shopping": "Udelad indkøb",
   "notify.heading": "Notifikationer",
   "notify.help": "Send det forfaldne til en telefon. Hver notifikation vælger en profil og tilføjer mål, knapper og en stil.",
   "notify.need_profile": "Tilføj først en profil — en notifikation skal bruge en til at vælge, hvad der skal sendes.",

@@ -330,6 +330,7 @@
   "notify.exclude_areas": "Exclude areas",
   "notify.exclude_devices": "Exclude devices",
   "notify.exclude_labels": "Exclude labels",
+  "notify.exclude_shopping": "Exclude shopping",
   "notify.heading": "Notifications",
   "notify.help": "Send what's due to a phone. Each notification picks a profile and adds targets, buttons, and a style.",
   "notify.need_profile": "Add a profile first. A notification needs one to choose what to send.",

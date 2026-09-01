@@ -2,6 +2,7 @@ import * as api from './api';
 import {
   filterTasks,
   groupTasks,
+  isBuyTask,
   profileMatches,
   sortTasks,
   type CardFilter,
@@ -795,7 +796,7 @@ export class HomeKeeperCard extends HTMLElement {
     // overdue while nothing is late. Say what is true instead, and keep the danger
     // rail for work that really is behind. Mirrors the panel's own row; it is still
     // overdue to every filter and count, so nothing moves but the styling.
-    const buy = Boolean(task.source?.buy);
+    const buy = isBuyTask(task);
     const overdue = isOverdue(task) && !buy;
     const statusChip = buy
       ? `<ha-assist-chip class="hk-shopping" label="${escapeHTML(t('chip.lowStock'))}"></ha-assist-chip>`

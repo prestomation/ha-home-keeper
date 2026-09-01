@@ -339,6 +339,7 @@
   "notify.exclude_areas": "Excluir áreas",
   "notify.exclude_devices": "Excluir dispositivos",
   "notify.exclude_labels": "Excluir rótulos",
+  "notify.exclude_shopping": "Excluir compras",
   "notify.heading": "Notificações",
   "notify.help": "Envie o que está pendente para um telefone. Cada notificação escolhe um perfil e adiciona destinos, botões e um estilo.",
   "notify.need_profile": "Adicione um perfil primeiro — uma notificação precisa de um para escolher o que enviar.",

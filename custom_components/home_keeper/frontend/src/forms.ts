@@ -1378,6 +1378,9 @@ export function profileSchema(): FormField[] {
     { name: 'exclude_labels', selector: selLabel(true) },
     { name: 'exclude_areas', selector: selArea(true) },
     { name: 'exclude_devices', selector: selDevice(true) },
+    // Excludes by kind rather than by id, so it is a switch and not a picker: an
+    // auto-created buy reminder has no label or area of its own to name.
+    { name: 'exclude_shopping', selector: selBool() },
   ];
 }
 
@@ -1392,6 +1395,7 @@ export function profileFormData(p: Profile): Record<string, unknown> {
     exclude_labels: p.filter.exclude_labels,
     exclude_areas: p.filter.exclude_areas,
     exclude_devices: p.filter.exclude_devices,
+    exclude_shopping: p.filter.exclude_shopping ?? false,
   };
 }
 
@@ -1419,6 +1423,7 @@ export function profileFormToProfile(
       exclude_labels: strList(data.exclude_labels),
       exclude_areas: strList(data.exclude_areas),
       exclude_devices: strList(data.exclude_devices),
+      exclude_shopping: Boolean(data.exclude_shopping),
     },
   };
 }

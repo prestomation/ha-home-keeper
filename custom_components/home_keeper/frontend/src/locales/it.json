@@ -339,6 +339,7 @@
   "notify.exclude_areas": "Escludi aree",
   "notify.exclude_devices": "Escludi dispositivi",
   "notify.exclude_labels": "Escludi etichette",
+  "notify.exclude_shopping": "Escludi acquisti",
   "notify.heading": "Notifiche",
   "notify.help": "Invia ciò che è dovuto a un telefono. Ogni notifica sceglie un profilo e aggiunge destinazioni, pulsanti e uno stile.",
   "notify.need_profile": "Aggiungi prima un profilo — una notifica ne ha bisogno per scegliere cosa inviare.",

@@ -14,7 +14,7 @@
  * (`_view`, `_groupBy`, `_filter`, the saved Profiles) through the declared seam.
  */
 
-import { bucketByKey, statusBucket, taskAreaId, type Group } from './card-filter';
+import { bucketByKey, isBuyTask, statusBucket, taskAreaId, type Group } from './card-filter';
 import { t } from './i18n';
 import type { PanelHost } from './panel-host';
 import {
@@ -236,7 +236,7 @@ function seg(
 export function scopeMatches(task: Task, scope: TaskFilter, now = Date.now()): boolean {
   if (scope === 'overdue') return isOverdue(task);
   if (scope === 'soon') return statusBucket(task, now, PANEL_BUCKETS) === 'soon';
-  if (scope === 'shopping') return Boolean(task.source?.buy);
+  if (scope === 'shopping') return isBuyTask(task);
   return true;
 }
 

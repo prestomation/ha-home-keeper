@@ -348,6 +348,7 @@
   "notify.exclude_areas": "Vyloučit oblasti",
   "notify.exclude_devices": "Vyloučit zařízení",
   "notify.exclude_labels": "Vyloučit štítky",
+  "notify.exclude_shopping": "Vyloučit nákup",
   "notify.heading": "Oznámení",
   "notify.help": "Posílejte úkoly k vyřízení do telefonu. Každé oznámení vybere profil a přidá cíle, tlačítka a styl.",
   "notify.need_profile": "Nejprve přidejte profil — oznámení jej potřebuje k výběru, co odeslat.",

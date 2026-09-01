@@ -12,7 +12,7 @@
  */
 
 import * as api from './api';
-import { DAY_MS, bucketByKey, profileMatches } from './card-filter';
+import { DAY_MS, bucketByKey, isBuyTask, profileMatches } from './card-filter';
 import { t, tn } from './i18n';
 import {
   deviceChip,
@@ -213,7 +213,7 @@ function taskCard(p: PanelHost, task: Task): string {
   // as late work is what put these rows beside genuinely late maintenance, so the
   // row drops the danger treatment and says what is actually true: low stock. It is
   // still overdue everywhere that counts tasks, so no count moves.
-  const buy = Boolean(task.source?.buy);
+  const buy = isBuyTask(task);
   const overdue = isOverdue(task) && !buy;
   const dev = task.device_id ? deviceChip(p, task.device_id) : '';
   const tag = tagChip(p, task);

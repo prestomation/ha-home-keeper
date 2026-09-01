@@ -330,6 +330,7 @@
   "notify.exclude_areas": "排除区域",
   "notify.exclude_devices": "排除设备",
   "notify.exclude_labels": "排除标签",
+  "notify.exclude_shopping": "排除购物",
   "notify.heading": "通知",
   "notify.help": "将到期事项发送到手机。每条通知选择一个配置文件，并添加目标、按钮和样式。",
   "notify.need_profile": "请先添加配置文件——通知需要它来选择要发送的内容。",

@@ -330,6 +330,7 @@
   "notify.exclude_areas": "Bereiche ausschließen",
   "notify.exclude_devices": "Geräte ausschließen",
   "notify.exclude_labels": "Etiketten ausschließen",
+  "notify.exclude_shopping": "Einkauf ausschließen",
   "notify.heading": "Benachrichtigungen",
   "notify.help": "Sende Fälliges an ein Telefon. Jede Benachrichtigung wählt ein Profil und ergänzt Ziele, Schaltflächen und einen Stil.",
   "notify.need_profile": "Füge zuerst ein Profil hinzu — eine Benachrichtigung braucht eines, um auszuwählen, was gesendet wird.",

@@ -41,6 +41,7 @@ def test_normalize_profile_defaults_and_id():
         "exclude_labels": [],
         "exclude_areas": [],
         "exclude_devices": [],
+        "exclude_shopping": False,
         "status": "overdue",
     }
 
@@ -218,6 +219,7 @@ def test_normalize_filter_reads_every_input_key():
         "exclude_labels": ["xl"],
         "exclude_areas": ["xa"],
         "exclude_devices": ["xd"],
+        "exclude_shopping": True,
         "status": "all",
     }
     assert p.normalize_filter(raw) == raw
@@ -251,6 +253,43 @@ def test_matches_filter_exclusions_drop_a_task():
     assert p.matches_filter(t, {"status": "all", "exclude_labels": ["hers"]}, now=now)
     assert p.matches_filter(t, {"status": "all", "exclude_areas": ["garage"]}, now=now)
     assert p.matches_filter(t, {"status": "all", "exclude_devices": ["dev2"]}, now=now)
+
+
+def test_exclude_shopping_drops_the_auto_buy_reminders():
+    # The reported workaround it replaces: keeping "Buy softener" out of a spoken
+    # digest meant a script filtering on source.buy by hand (#220).
+    now = dt(2026, 6, 13, 12)
+    buy = task("1", "Buy softener", dt(2026, 6, 10))
+    buy["source"] = {"buy": {"asset_id": "a1", "part_id": "p1"}}
+    chore = task("2", "Clean gutters", dt(2026, 6, 10))
+
+    on = {"status": "all", "exclude_shopping": True}
+    assert not p.matches_filter(buy, on, now=now)
+    # Only the buy reminders go — everything else the profile selected stays.
+    assert p.matches_filter(chore, on, now=now)
+
+
+def test_exclude_shopping_is_off_unless_asked_for():
+    # A profile saved before the toggle existed has no such key, and must keep
+    # every task it had. An inverted check here would silently empty a digest.
+    now = dt(2026, 6, 13, 12)
+    buy = task("1", "Buy softener", dt(2026, 6, 10))
+    buy["source"] = {"buy": {"asset_id": "a1", "part_id": "p1"}}
+    assert p.matches_filter(buy, {"status": "all"}, now=now)
+    assert p.matches_filter(buy, {"status": "all", "exclude_shopping": False}, now=now)
+
+
+def test_exclude_shopping_reads_a_real_buy_source_only():
+    # buy_source wants both ids; a half-formed source is not a buy reminder, and a
+    # wear-part task is a different mechanism entirely.
+    now = dt(2026, 6, 13, 12)
+    on = {"status": "all", "exclude_shopping": True}
+    half = task("1", "A", dt(2026, 6, 10))
+    half["source"] = {"buy": {"asset_id": "a1"}}
+    wear = task("2", "B", dt(2026, 6, 10))
+    wear["source"] = {"part": {"asset_id": "a1", "part_id": "p1"}}
+    assert p.matches_filter(half, on, now=now)
+    assert p.matches_filter(wear, on, now=now)
 
 
 def test_matches_filter_empty_exclusions_exclude_nothing():
