@@ -333,6 +333,7 @@
   "notify.exclude_companions": "Excluir complementos",
   "notify.exclude_devices": "Excluir dispositivos",
   "notify.exclude_labels": "Excluir rótulos",
+  "notify.exclude_shopping": "Excluir compras",
   "notify.filters_help": "Uma tarefa deve corresponder a pelo menos um valor em cada filtro que você definir.",
   "notify.heading": "Notificações",
   "notify.help": "Envie o que está pendente para um telefone. Cada notificação escolhe um perfil e adiciona destinos, botões e um estilo.",

@@ -1,5 +1,5 @@
 {
-  "_comment": "Cross-language conformance cases for the Profile filter. Both the Python pure matcher (profiles.matches_filter) and the TypeScript pure matcher (card-filter.profileMatches) must agree on every case, so a saved Profile selects the same tasks in a notification (server-side), the admin task list, and the dashboard card. Tasks here carry their EFFECTIVE label/area ids directly (own + any inherited from device/area), since each side resolves inheritance before/inside matching; these cases pin the shared matcher logic with empty registries. The exclude_labels/exclude_areas/exclude_devices/exclude_companions lists subtract after the include lists and win over them; an omitted exclude key means the same as an empty one, which is how a profile saved before exclusions existed keeps behaving. now is a fixed instant so date math is deterministic.",
+  "_comment": "Cross-language conformance cases for the Profile filter. Both the Python pure matcher (profiles.matches_filter) and the TypeScript pure matcher (card-filter.profileMatches) must agree on every case, so a saved Profile selects the same tasks in a notification (server-side), the admin task list, and the dashboard card. Tasks here carry their EFFECTIVE label/area ids directly (own + any inherited from device/area), since each side resolves inheritance before/inside matching; these cases pin the shared matcher logic with empty registries. The exclude_labels/exclude_areas/exclude_devices/exclude_companions lists and the exclude_shopping switch subtract after the include lists and win over them; an omitted exclude key means the same as an empty one, which is how a profile saved before exclusions existed keeps behaving. now is a fixed instant so date math is deterministic.",
   "now": "2026-06-16T12:00:00Z",
   "cases": [
     {
@@ -276,6 +276,42 @@
       "name": "exclude_companions: an explicitly null managed_by is not swept up either",
       "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": null},
       "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_companions": ["battery_notes"]},
+      "expected": true
+    },
+    {
+      "name": "exclude_shopping: an auto-buy reminder is dropped",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": {"buy": {"asset_id": "a1", "part_id": "p1"}}},
+      "filter": {"status": "all", "labels": [], "areas": [], "devices": [], "exclude_shopping": true},
+      "expected": false
+    },
+    {
+      "name": "exclude_shopping: an ordinary task is untouched",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": []},
+      "filter": {"status": "all", "labels": [], "areas": [], "devices": [], "exclude_shopping": true},
+      "expected": true
+    },
+    {
+      "name": "exclude_shopping: another source is not a buy reminder",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": {"part": {"asset_id": "a1", "part_id": "p1"}}},
+      "filter": {"status": "all", "labels": [], "areas": [], "devices": [], "exclude_shopping": true},
+      "expected": true
+    },
+    {
+      "name": "exclude_shopping off: the buy reminder stays in",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": {"buy": {"asset_id": "a1", "part_id": "p1"}}},
+      "filter": {"status": "all", "labels": [], "areas": [], "devices": [], "exclude_shopping": false},
+      "expected": true
+    },
+    {
+      "name": "exclude_shopping absent: a profile saved before it existed is unchanged",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": {"buy": {"asset_id": "a1", "part_id": "p1"}}},
+      "filter": {"status": "all", "labels": [], "areas": [], "devices": []},
+      "expected": true
+    },
+    {
+      "name": "exclude_shopping: a half-formed buy source is not one",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": {"buy": {"asset_id": "a1"}}},
+      "filter": {"status": "all", "labels": [], "areas": [], "devices": [], "exclude_shopping": true},
       "expected": true
     }
   ]

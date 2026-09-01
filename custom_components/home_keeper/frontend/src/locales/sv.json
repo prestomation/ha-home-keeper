@@ -324,6 +324,7 @@
   "notify.exclude_companions": "Uteslut följeslagare",
   "notify.exclude_devices": "Uteslut enheter",
   "notify.exclude_labels": "Uteslut etiketter",
+  "notify.exclude_shopping": "Uteslut inköp",
   "notify.filters_help": "En uppgift måste matcha minst ett värde i varje filter du anger.",
   "notify.heading": "Aviseringar",
   "notify.help": "Skicka det förfallna till en telefon. Varje avisering väljer en profil och lägger till mål, knappar och en stil.",

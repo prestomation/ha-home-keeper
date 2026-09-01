@@ -1044,6 +1044,7 @@ function addProfile(p: PanelHost): Promise<void> {
       exclude_areas: [],
       exclude_devices: [],
       exclude_companions: [],
+      exclude_shopping: false,
     },
     // No list picked: the sync does nothing until one is, and both switches
     // carry the defaults the backend normalizer would fill in.

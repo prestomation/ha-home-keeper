@@ -324,6 +324,7 @@
   "notify.exclude_companions": "Metgezellen uitsluiten",
   "notify.exclude_devices": "Apparaten uitsluiten",
   "notify.exclude_labels": "Etiketten uitsluiten",
+  "notify.exclude_shopping": "Boodschappen uitsluiten",
   "notify.filters_help": "Een taak moet overeenkomen met minstens één waarde in elk filter dat je instelt.",
   "notify.heading": "Meldingen",
   "notify.help": "Stuur wat openstaat naar een telefoon. Elke melding kiest een profiel en voegt doelen, knoppen en een stijl toe.",

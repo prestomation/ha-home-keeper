@@ -324,6 +324,7 @@
   "notify.exclude_companions": "Exclude companions",
   "notify.exclude_devices": "Exclude devices",
   "notify.exclude_labels": "Exclude labels",
+  "notify.exclude_shopping": "Exclude shopping",
   "notify.filters_help": "A task must match at least one value in each filter you set.",
   "notify.heading": "Notifications",
   "notify.help": "Send what's due to a phone. Each notification picks a profile and adds targets, buttons, and a style.",
