@@ -13,6 +13,7 @@ export type CardSort = 'due' | 'name' | 'recent' | 'area';
 export type CardGroupBy = 'none' | 'status' | 'area' | 'device';
 export type StatusBucket =
   | 'overdue'
+  | 'shopping'
   | 'soon'
   | 'today'
   | 'later'
@@ -128,6 +129,14 @@ export function statusBucket(
   if (!task.next_due) return 'none';
   const due = new Date(task.next_due).getTime();
   if (Number.isNaN(due)) return 'none';
+  // An auto-created buy reminder gets its own section rather than joining the
+  // overdue pile. It is minted as a one-off with no due date, and a dateless
+  // one-off is due *now*, so it reads as overdue from the moment a part goes low
+  // — sitting beside genuinely late maintenance while nothing is actually late.
+  // Only the sections move: it still counts as overdue for the filter pills, the
+  // per-task binary sensors and any Profile, so no surface contradicts another.
+  // Below the `completed` check so a reminder that was bought still lands there.
+  if (task.source?.buy) return 'shopping';
   if (due <= now) return 'overdue';
   if (today && due <= endOfToday(now)) return 'today';
   if (due - now <= SOON_DAYS * DAY_MS) return 'soon';
@@ -366,6 +375,7 @@ export interface Group<T = Task> {
 
 const STATUS_ORDER: { bucket: StatusBucket; labelKey: string }[] = [
   { bucket: 'overdue', labelKey: 'chip.overdue' },
+  { bucket: 'shopping', labelKey: 'filter.shopping' },
   { bucket: 'today', labelKey: 'due.today' },
   { bucket: 'soon', labelKey: 'filter.soon' },
   { bucket: 'later', labelKey: 'section.later' },

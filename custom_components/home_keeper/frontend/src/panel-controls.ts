@@ -255,10 +255,11 @@ export function groupTasks(p: PanelHost, tasks: Task[], now = Date.now()): Group
   const group = effectiveGroup(p);
   if (group === 'status') {
     const order: {
-      bucket: 'overdue' | 'soon' | 'later' | 'monitored' | 'completed' | 'none';
+      bucket: 'overdue' | 'shopping' | 'soon' | 'later' | 'monitored' | 'completed' | 'none';
       label: string;
     }[] = [
       { bucket: 'overdue', label: t('chip.overdue') },
+      { bucket: 'shopping', label: t('filter.shopping') },
       { bucket: 'soon', label: t('filter.soon') },
       { bucket: 'later', label: t('section.later') },
       { bucket: 'monitored', label: t('section.monitored') },
