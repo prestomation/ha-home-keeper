@@ -16,6 +16,11 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
+- **The admin panel's dropdown menus (Profile, Group by, and similar filters) are
+  themed when open, not just when closed.** Their popup list previously fell back to
+  the browser's default grey-on-white, unreadable against a dark Home Assistant
+  theme.
+
 - **Completing a task from the panel now settles buy reminders.** The panel's own
   completion path only refreshed, so a completed auto-buy task left its reminder
   sitting there until the next reload. The service, button and to-do paths already
