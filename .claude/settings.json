@@ -1,4 +1,5 @@
 {
+  "outputStyle": "Concise",
   "hooks": {
     "SessionStart": [
       {
