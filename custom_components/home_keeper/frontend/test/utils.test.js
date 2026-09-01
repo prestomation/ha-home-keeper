@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   escapeHTML,
@@ -148,6 +149,28 @@ describe('formatQuantity', () => {
     expect(formatQuantity(2.0)).toBe('2');
     expect(formatQuantity(0.1 + 0.2)).toBe('0.3');
     expect(formatQuantity(1.23456)).toBe('1.235');
+  });
+
+  // The shared cross-language cases. The same fixture drives the Python formatter
+  // (assets.format_quantity, see tests/unit/test_assets.py): a quantity is rendered
+  // here for the panel and there for the line Home Keeper puts on a household's
+  // shopping list, and "500 ml" in one place must not be "500.0 ml" in the other.
+  // Halfway values are the ones that matter — Python's round() breaks a tie to the
+  // even digit where toFixed breaks it away from zero.
+  describe('conformance fixture', () => {
+    const cases = JSON.parse(
+      readFileSync('tests/fixtures/quantity_format_cases.json', 'utf8'),
+    ).cases;
+
+    it('has cases to run', () => {
+      expect(cases.length).toBeGreaterThan(0);
+    });
+
+    for (const c of cases) {
+      it(c.name, () => {
+        expect(formatQuantity(c.value, c.unit)).toBe(c.expected);
+      });
+    }
   });
 });
 
