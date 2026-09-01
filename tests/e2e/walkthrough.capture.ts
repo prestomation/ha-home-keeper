@@ -168,6 +168,15 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //      the meter's starting reading, so the copy is a field or two from done. The
   //      pause after the click is the point: the form fills itself in. Cancel, so the
   //      tour leaves the seeded data as every later frame expects it.
+  //
+  //      A dormant usage task has no due date to sort by, so it lives in the collapsed
+  //      Monitored group. Open that first — the row exists either way, which is why a
+  //      plain click times out rather than failing on a missing locator.
+  const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');
+  if (!(await monitored.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await monitored.locator('summary').click();
+    await page.waitForTimeout(BEAT);
+  }
   await panel.locator(`.detail-open[data-detail-id="${TASK.nozzleUsage}"]`).click();
   await expect(panel.locator('.d-dup')).toBeVisible();
   await page.waitForTimeout(BEAT);
