@@ -6,6 +6,30 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.20.0b4]
+
+### Added
+
+- **The shopping-list line shows the amount to buy.** A part measured in a unit reads
+  "Buy fabric softener (500 ml)", and a part that restocks more than 1 at a time reads
+  "Buy air filter (×2)". A part that restocks 1 whole spare is not changed, and the
+  task keeps its own name in the panel and the calendar and the notifications.
+  (Fixes #220)
+
+- **A Profile can exclude the shopping tasks.** The new **Exclude shopping** switch
+  removes the auto-created buy tasks from the tasks that a Profile selects. It is off
+  by default. An existing Profile is not changed.
+
+### Fixed
+
+- **A buy task is no longer shown as overdue work.** A task with no due date is due
+  immediately, so a buy task was shown in the Overdue section with the overdue
+  maintenance tasks. It now has a Shopping section of its own, in the panel and on the
+  dashboard card, and its status reads **Low stock**.
+
+- **The Shopping filter is kept after a page reload.** The task list changed back to
+  **All** each time the page was refreshed.
+
 ## [0.20.0b3]
 
 ### Added

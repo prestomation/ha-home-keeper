@@ -283,6 +283,14 @@ describe('profile form round-trip', () => {
     });
   });
 
+  it('shows the shopping switch off for a profile saved before it existed', () => {
+    // The form is seeded from this, so a default of `true` here would turn the
+    // exclusion on for every old profile the moment someone opened it to rename.
+    const older = { ...profile, filter: { ...profile.filter } };
+    delete older.filter.exclude_shopping;
+    expect(profileFormData(older).exclude_shopping).toBe(false);
+  });
+
   it('leaves the sync block out of the filter form', () => {
     // The sync fields live in their own group, so the filter form must not carry
     // them — an `entity_id` row here would be a second, competing picker.

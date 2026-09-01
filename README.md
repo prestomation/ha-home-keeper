@@ -713,6 +713,13 @@ A completion of the buy task **restocks the part** by its **Restock quantity**. 
 default is 1. Set the restock quantity high enough to lift the stock above the
 threshold. If the stock stays at or below the threshold, the reminder remains.
 
+A buy task has no due date, and a task with no due date is due immediately. Before
+version 0.20, the buy task was shown in the Overdue section with the overdue
+maintenance tasks. The buy task now has a **Shopping** section of its own, on the
+Tasks tab and on the [dashboard card](#dashboard-task-card). Its status reads
+**Low stock**. The scope pills, the overdue `binary_sensor` of the task, and a saved
+Profile all still count the buy task as overdue.
+
 ![A part editor with Auto-create buy task enabled and a Restock quantity field](docs/images/39-panel-part-auto-buy.png)
 
 #### Send buy reminders to your shopping list
@@ -720,6 +727,13 @@ threshold. If the stock stays at or below the threshold, the reminder remains.
 Select a to-do list in **Settings → Shopping list**. Every auto-created
 **"Buy {part}"** task is then added to that list as an item. The Home Assistant
 shopping list and a `local_todo` list are supported.
+
+The line shows the amount to buy. A part that measures its stock in a
+[unit](#stock-you-measure-rather-than-count) shows the amount on the line, such as
+"Buy fabric softener (500 ml)". A part with a **Restock quantity** of more than 1
+shows "Buy air filter (×2)". A part that restocks 1 whole spare is not changed. The
+amount is shown only on the shopping-list line. In the panel and the calendar and the
+notifications, the task keeps its own name.
 
 The sync works in both directions:
 
@@ -835,6 +849,13 @@ label, such as `professional`.
 
 Exclusions apply to inherited labels and areas. A task that has the `professional`
 label through its device or its area is also excluded.
+
+**Exclude shopping** removes every auto-created
+["Buy {part}"](#auto-create-a-buy-task-when-a-part-runs-low) task from the Profile. It
+is a switch and not a picker. A buy task has only the label and the area of its
+appliance, so a picker cannot select it. The switch is off by default, so an existing
+Profile includes the buy tasks until you turn it on. Use it to limit a spoken
+notification digest to the maintenance tasks.
 
 ### Synced problem sensors
 
