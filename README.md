@@ -788,12 +788,11 @@ remotely completes nothing and the item returns on the next pass. That refusal i
 the point of requiring the scan.
 
 **A to-do item you add on the list yourself never becomes a Home Keeper task.** The
-sync is a delivery surface: it puts Home Keeper's tasks onto the list, and anything
-you write there stays exactly where you put it. Home Keeper leaves it alone — no
-import, no rename, no delete. A Home Keeper task carries recurrence, a device, labels
-and completion history, and a plain to-do line holds none of that. The one thing that
-travels inward is a checkmark: ticking off one of Home Keeper's own items completes
-the task behind it, and that is the whole inbound direction.
+sync is a delivery surface. It puts Home Keeper's tasks onto the list. Anything else
+on that list stays yours. Home Keeper only ever touches the items it wrote itself.
+A Home Keeper task carries recurrence, a device and completion history that a plain
+to-do line cannot hold. The one thing that travels inward is a checkmark. Ticking
+off one of Home Keeper's own items completes the task behind it.
 
 - **CalDAV lists work too** (Nextcloud, Baikal, Radicale). Home Assistant polls a
   CalDAV server every 15 minutes, so ticking an item off there can take that long to
