@@ -258,6 +258,18 @@ export const STYLES = `
     --md-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
+  /* Shopping reads in the warn family too — the same soft/ink pairing, because a
+     buy reminder is a nudge rather than a fault. It is deliberately *not* the
+     danger red the overdue chip uses: telling the two apart at a glance is the
+     whole reason this chip exists. */
+  ha-assist-chip.hk-shopping {
+    --ha-assist-chip-container-color: var(--hk-warn-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-warn-soft);
+    --md-assist-chip-label-text-color: var(--hk-warn-ink);
+    --ha-assist-chip-label-text-color: var(--hk-warn-ink);
+    --md-assist-chip-outline-color: transparent;
+    font-weight: 500;
+  }
   ha-assist-chip.hk-archived {
     --ha-assist-chip-container-color: var(--hk-page);
     --ha-assist-chip-filled-container-color: var(--hk-page);
@@ -922,6 +934,15 @@ export const STYLES = `
   }
   details.hk-group[data-bucket="overdue"] > summary .hk-group-count {
     color: var(--hk-danger-ink); background: var(--hk-danger-soft);
+  }
+  /* Shopping sits directly under Overdue, so it needs to look like a different
+     kind of thing rather than a second helping of the same one. Same treatment,
+     warn family — matching the chip on every row inside it. */
+  details.hk-group[data-bucket="shopping"] > summary .hk-group-title {
+    color: var(--hk-warn-ink);
+  }
+  details.hk-group[data-bucket="shopping"] > summary .hk-group-count {
+    color: var(--hk-warn-ink); background: var(--hk-warn-soft);
   }
 
   /* ── Appliances: the list stays beside the appliance ───────────────────────
