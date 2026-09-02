@@ -39,28 +39,40 @@ export function splitByH2(md) {
 // either in this list or in UNPUBLISHED_SECTIONS below; `sync-docs.mjs` fails the
 // build otherwise, so a new section cannot silently stay off the site.
 export const USER_SECTIONS = [
-  {h: 'Features at a glance', slug: 'features', title: 'Features', label: 'Features'},
-  {h: 'Installation', slug: 'installation', title: 'Installation'},
-  {h: 'Concepts', slug: 'concepts', title: 'Core concepts', label: 'Concepts'},
-  {h: 'Getting around the panel', slug: 'panel', title: 'The panel', label: 'The panel'},
-  {h: 'One-off (do-once) tasks', slug: 'one-off-tasks', title: 'One-off tasks', label: 'One-off tasks'},
-  {h: 'Notes are Markdown', slug: 'markdown-notes', title: 'Markdown notes', label: 'Markdown notes'},
-  {h: 'Logging completions (note, cost, photo, who)', slug: 'completions', title: 'Logging completions', label: 'Completions'},
-  {h: 'Complete tasks with NFC/RFID tags', slug: 'nfc-tags', title: 'NFC and RFID tags', label: 'NFC and RFID tags'},
-  {h: 'Condition-driven (triggered) tasks', slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks'},
-  {h: 'Sensor-based tasks (usage meters, thresholds & states)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks'},
-  {h: 'Appliances & virtual devices', slug: 'appliances', title: 'Appliances', label: 'Appliances'},
-  {h: 'Profiles (saved filters you reuse everywhere)', slug: 'profiles', title: 'Profiles', label: 'Profiles'},
-  {h: 'Send tasks to your to-do lists', slug: 'todo-sync', title: 'To-do list sync', label: 'To-do list sync'},
-  {h: 'Notifications (actionable reminders on your phone)', slug: 'notifications', title: 'Notifications', label: 'Notifications'},
-  {h: 'Dashboard task card', slug: 'dashboard-card', title: 'Dashboard card', label: 'Dashboard card'},
-  {h: 'Settings', slug: 'settings', title: 'Settings'},
-  {h: 'Services', slug: 'services', title: 'Services'},
-  {h: 'Events & automations', slug: 'events', title: 'Events & automations', label: 'Events'},
-  {h: 'Integrations', slug: 'integrations', title: 'Integrations'},
-  {h: 'Localization', slug: 'localization', title: 'Localization'},
-  {h: 'Upgrading to Home Assistant 2026.8', slug: 'migration-2026-8', title: 'Upgrading to Home Assistant 2026.8', label: 'HA 2026.8 migration'},
-  {h: 'Quality scale', slug: 'quality-scale', title: 'Quality scale'},
+  {h: 'Features at a glance', slug: 'features', title: 'Features', label: 'Features', group: 'start'},
+  {h: 'Installation', slug: 'installation', title: 'Installation', group: 'start'},
+  {h: 'Concepts', slug: 'concepts', title: 'Core concepts', label: 'Concepts', group: 'start'},
+  {h: 'Getting around the panel', slug: 'panel', title: 'The panel', label: 'The panel', group: 'start'},
+  {h: 'One-off (do-once) tasks', slug: 'one-off-tasks', title: 'One-off tasks', label: 'One-off tasks', group: 'tasks'},
+  {h: 'Notes are Markdown', slug: 'markdown-notes', title: 'Markdown notes', label: 'Markdown notes', group: 'tasks'},
+  {h: 'Logging completions (note, cost, photo, who)', slug: 'completions', title: 'Logging completions', label: 'Completions', group: 'tasks'},
+  {h: 'Complete tasks with NFC/RFID tags', slug: 'nfc-tags', title: 'NFC and RFID tags', label: 'NFC and RFID tags', group: 'tasks'},
+  {h: 'Condition-driven (triggered) tasks', slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks', group: 'tasks'},
+  {h: 'Sensor-based tasks (usage meters, thresholds & states)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks', group: 'tasks'},
+  {h: 'Appliances & virtual devices', slug: 'appliances', title: 'Appliances', label: 'Appliances', group: 'appliances'},
+  {h: 'Profiles (saved filters you reuse everywhere)', slug: 'profiles', title: 'Profiles', label: 'Profiles', group: 'views'},
+  {h: 'Send tasks to your to-do lists', slug: 'todo-sync', title: 'To-do list sync', label: 'To-do list sync', group: 'views'},
+  {h: 'Notifications (actionable reminders on your phone)', slug: 'notifications', title: 'Notifications', label: 'Notifications', group: 'views'},
+  {h: 'Dashboard task card', slug: 'dashboard-card', title: 'Dashboard card', label: 'Dashboard card', group: 'views'},
+  {h: 'Settings', slug: 'settings', title: 'Settings', group: 'views'},
+  {h: 'Services', slug: 'services', title: 'Services', group: 'automation'},
+  {h: 'Events & automations', slug: 'events', title: 'Events & automations', label: 'Events', group: 'automation'},
+  {h: 'Integrations', slug: 'integrations', title: 'Integrations', group: 'automation'},
+  {h: 'Localization', slug: 'localization', title: 'Localization', group: 'reference'},
+  {h: 'Upgrading to Home Assistant 2026.8', slug: 'migration-2026-8', title: 'Upgrading to Home Assistant 2026.8', label: 'HA 2026.8 migration', group: 'reference'},
+  {h: 'Quality scale', slug: 'quality-scale', title: 'Quality scale', group: 'reference'},
+];
+
+// Sidebar categories for the User Guide, in order. Each USER_SECTIONS entry names
+// one by `group`. Pages keep their `/docs/guide/<slug>` URL; the group only sets
+// the directory and the sidebar category.
+export const GUIDE_GROUPS = [
+  {dir: 'start', label: 'Start'},
+  {dir: 'tasks', label: 'Tasks'},
+  {dir: 'appliances', label: 'Appliances'},
+  {dir: 'views', label: 'Views and delivery'},
+  {dir: 'automation', label: 'Automate and extend'},
+  {dir: 'reference', label: 'Reference'},
 ];
 
 // README sections that are deliberately not on the site. Add a section here only

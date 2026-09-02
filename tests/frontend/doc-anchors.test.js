@@ -5,6 +5,7 @@ import {
   ANCHOR_ROUTES,
   USER_SECTIONS,
   UNPUBLISHED_SECTIONS,
+  GUIDE_GROUPS,
   slugify,
   unlistedReadmeSections,
   unroutedReadmeAnchors,
@@ -159,5 +160,10 @@ describe('README sections on the site', () => {
   it('keeps the two lists disjoint', () => {
     const published = new Set(USER_SECTIONS.map((s) => s.h));
     expect(UNPUBLISHED_SECTIONS.filter((h) => published.has(h))).toEqual([]);
+  });
+
+  it('puts every published section in a sidebar group', () => {
+    const dirs = new Set(GUIDE_GROUPS.map((g) => g.dir));
+    expect(USER_SECTIONS.filter((s) => !dirs.has(s.group)).map((s) => s.h)).toEqual([]);
   });
 });
