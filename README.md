@@ -841,8 +841,7 @@ for completing a task from the phone lock screen and for sending each user the
 tasks from their own profile. The buttons act on the task in Home Keeper:
 
 - **Mark done** completes the task and advances the recurrence.
-- **Snooze** defers the due date by the configured duration and sends a new
-  notification when the snooze ends.
+- **Snooze** defers the due date by the configured snooze duration.
 - **Skip** moves the task to its next occurrence.
 - **Open** opens the task in Home Keeper.
 
@@ -857,9 +856,10 @@ fields:
   list. Only these devices and `persistent_notification` are supported as targets.
   Other notify services are rejected. See [the security model](docs/SECURITY.md).
 - **Buttons**: which of the 4 buttons are shown and the snooze duration.
-- **Style**: **walk** or **digest**. A walk sends the first due task and then the
-  next task each time a button is used. The digest style sends one summary of all
-  due tasks.
+- **Style**: **walk** or **digest**. A walk sends the first due task. Each Mark done,
+  Snooze, or Skip then sends the next due task. When no task is due the walk sends
+  an "All caught up" notification. The digest style sends one summary of all due
+  tasks.
 - **Auto-send**: send the notification when a matching task becomes overdue or
   due soon.
 
@@ -874,8 +874,9 @@ language.
 
 The `home_keeper.notify` service sends a notification from an automation. Set
 `notification:` to a saved notification or `profile:` to a saved Profile. Set
-`target:` to override the destinations. The service returns the number of matched
-tasks and the task that was sent.
+`target:` to override the destinations. The service returns `matched`, the number of
+matched tasks, and `sent`, the id of the task that a walk sent. `sent` is empty for
+a digest and when no task matched.
 
 A button action fires the event `home_keeper_task_completed`,
 `home_keeper_task_snoozed`, or `home_keeper_task_skipped` with
