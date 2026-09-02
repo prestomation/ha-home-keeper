@@ -56,6 +56,7 @@ else that recurs.
 
 
 
+
 ## Installation
 
 Home Keeper is a custom integration installed with [HACS](https://hacs.xyz/):
@@ -68,6 +69,7 @@ Home Keeper is a custom integration installed with [HACS](https://hacs.xyz/):
 
 A Home Keeper panel then appears in the sidebar. Tasks and appliances are
 stored locally in a single JSON document, `.storage/home_keeper`.
+
 
 
 
@@ -120,6 +122,7 @@ A task with an area can be grouped by Area on the Tasks tab. A
 ![The task form's Area field, holding the room a device-less task was placed in](docs/images/42b-panel-task-area-form.png)
 
 ![The Tasks tab grouped by Area, with the task under its room instead of Unassigned](docs/images/42c-panel-tasks-grouped-by-area.png)
+
 
 
 
@@ -186,6 +189,7 @@ these tasks and shows the owner when pressed. This applies to:
 
 
 
+
 ## One-off (do-once) tasks
 
 Home Keeper supports a one-off task for something a user does 1 time. This is
@@ -221,6 +225,7 @@ Set **One-off retention (days)** in the panel's **Settings** tab, or with the
 `home_keeper.set_options` service, to delete a completed one-off task
 automatically. A completed one-off task is deleted that many days after
 completion. The default, `0`, keeps a completed one-off task forever.
+
 
 
 
@@ -270,6 +275,7 @@ field. Each **part** also has a notes field.
 
 Home Assistant's `ha-markdown` component renders and sanitizes the notes, so a
 note matches the current theme.
+
 
 
 
@@ -340,6 +346,7 @@ The **move date** button on a history row changes the date of that entry. The
 
 
 
+
 ## Complete tasks with NFC/RFID tags
 
 Home Keeper supports linking a task to a [Home Assistant
@@ -371,6 +378,7 @@ A scan completion fires the `home_keeper_task_completed` event with
 `origin: home_keeper_tag_scan`. Automations can pass the same origin to
 `home_keeper.complete_task` to complete a scan-locked task. See
 [docs/EVENTS.md](docs/EVENTS.md).
+
 
 
 
@@ -435,6 +443,7 @@ printer error without an automation. Turn on **Sync problem sensors** in
 ![Tapping the disabled Done pops up a toast: the problem clears automatically when the originating integration resolves it](docs/images/16b-panel-problem-sensor-blocked-toast.png)
 
 ![Editing the note on a synced problem-sensor task, showing a textarea seeded with the previous note and Save/Cancel buttons](docs/images/18-panel-problem-sensor-note.png)
+
 
 ## Sensor-based tasks (usage meters, thresholds & states)
 
@@ -590,6 +599,7 @@ unlink. The task detail shows the linked part and its current stock.
 
 ![A task detail showing its linked consumable and current spare stock](docs/images/33-panel-linked-consumable-detail.png)
 
+
 ## Appliances & virtual devices
 
 Home Keeper supports **appliances** for maintenance tasks and warranty records on
@@ -607,8 +617,8 @@ appliance, or select an existing device.
   and model and serial number are prefilled from the device registry when present.
 
 An appliance has structured fields that Home Assistant reads: manufacturer and model
-and an mdi icon and a manual link and replacement cost. A **Notes** field renders as
-[Markdown](#notes-are-markdown). **Custom fields** are a label with a value of type
+and an mdi icon and a manual link and replacement cost. The **Notes** field renders
+as [Markdown](#notes-are-markdown). **Custom fields** are a label with a value of type
 **text** or **link** or **date**. Common fields such as serial number and warranty
 expiry are seeded. Enable **track** on a date field to create a `date` **sensor** on
 the device page for use in automations. An untracked date is display-only.
@@ -791,12 +801,6 @@ with the appliance.
 > water heater then has a device page with a warranty-expiry sensor and a
 > *"Replace Anode rod"* task that is due 12 months after each completion.
 
-
-
-
-
-
-
 ## Profiles (saved filters you reuse everywhere)
 
 Home Keeper supports saving a filter as a **Profile**. A Profile has a status tier and
@@ -837,6 +841,7 @@ task shows **Snooze** instead of **Mark done** and **Skip**.
 ![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
 
 ![The Tasks tab filtered to a saved Profile via the Profile dropdown](docs/images/23-panel-profile-filter.png)
+
 
 
 
@@ -932,6 +937,7 @@ events and is not exposed as a `todo` entity.
 
 
 
+
 ## Notifications (actionable reminders on your phone)
 <!-- vale ai-tells.OverusedVocabulary = YES -->
 
@@ -983,6 +989,7 @@ The `home_keeper.notify` service sends a notification from an automation. Set
 automations can use. See [Events & automations](#events--automations).
 
 ![The Settings → Notifications card with a "My chores" profile: targets, filter, buttons, style, snooze and auto-send toggles](docs/images/22-panel-notifications.png)
+
 
 
 
@@ -1067,6 +1074,7 @@ the label or if its attached device or area has the label.
 
 
 
+
 ## Settings
 
 The **Settings** tab in the panel edits the integration options. The form matches the
@@ -1108,6 +1116,7 @@ To add a companion or a [glue integration](docs/GLUE_INTEGRATIONS.md) to the cat
 [open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20).
 
 ![The Companions section on the Settings tab: connected integrations with Configure buttons](docs/images/21-panel-companions.png)
+
 
 
 
@@ -1180,6 +1189,7 @@ data:
 
 
 
+
 ## Events & automations
 
 Home Keeper fires a Home Assistant bus event for every state change. Use these
@@ -1226,6 +1236,7 @@ fired after a reboot. The full catalog with every event and payload is in
 
 
 
+
 ## Integrations
 
 Home Keeper supports contributions from other integrations. An integration can
@@ -1263,12 +1274,14 @@ integration.
 
 
 
+
 ## Localization
 
 The integration and the panel are localized into 16 languages. Home Keeper
 follows the Home Assistant language and falls back to English for text that has
 no translation. Translations are in
 `custom_components/home_keeper/translations/`.
+
 
 
 
@@ -1321,6 +1334,7 @@ appliances are not affected and keep their device triggers.
 
 
 
+
 ## Quality scale
 
 Home Keeper targets Home Assistant's
@@ -1338,6 +1352,7 @@ installed. An async, single-coordinator core is met.
 > translated in every locale, and 11 messages are still English in every
 > locale. A drift-guard unit test, `tests/unit/test_exception_translations.py`,
 > checks that every new raise stays localizable.
+
 
 
 
