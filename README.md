@@ -713,48 +713,43 @@ so we can add it to the suggested-companions catalog.
 
 ## Profiles (saved filters you reuse everywhere)
 
-A **Profile** is a named, saved filter, a status plus optional **label / area /
-device** filters, that you define once and reuse across Home Keeper. Create and manage
-them in **Settings → Profiles**.
+Home Keeper supports saving a filter as a **Profile**. A Profile has a status tier and
+optional **label**, **area**, and **device** filters. Create and edit Profiles in
+**Settings → Profiles**.
 
-**The status tiers nest.** **Include** offers *Overdue only*, *Overdue and due soon*
-and *Every scheduled task*, and each one covers the one before it. There is no need to
-pick two. *Overdue and due soon* already lists everything overdue, plus whatever falls
-due in the next three days.
+A Profile is used in 4 places:
 
-**Use cases.** *"'The dog', 'upstairs', 'my chores': define each chore-set once and
-point every list at it."* *"My partner and I each save a Profile filtered to our own
-label, and reuse it on our phones and our dashboards."*
+- **Notifications**: a notification selects a Profile to designate which tasks are
+  sent.
+- **To-do list sync**: a Profile designates which tasks are synchronized to a to-do
+  list.
+- **The Tasks tab**: the **Profile** dropdown filters the task list in the panel.
+- **The dashboard card**: the **Filter by profile** option in the card editor filters
+  the card.
 
-The same Profile drives filtering in four places:
+### Status tiers
 
-- **Notifications**: a notification points at a Profile to decide which tasks it pushes
-  (see below). Profiles with different labels make separate people's lists.
-- **To-do list sync**: a Profile carries the external to-do list its tasks are
-  synced onto, so one saved filter says both which chores are sent and when (next
-  section).
-- **The admin task list**: the **Profile** dropdown on the **Tasks** tab narrows the
-  panel list to a saved Profile's tasks.
-- **The dashboard card**: the card editor's **Filter by profile** picker points a card
-  at a Profile instead of re-specifying the same filter inline.
+The **Include** setting has 3 tiers. Each tier includes the tiers before it:
 
-**Leaving things out.** Under the label / area / device pickers sit **Exclude labels**,
-**Exclude areas** and **Exclude devices**. They subtract, and they win. A task that
-matched everything above is still left out when any of its labels, its area or its
-device turns up in an exclude picker. So "everything I can do myself" becomes one
-Profile: tag the jobs that need a tradesperson `professional`, then exclude that one
-label. You no longer have to tag every task that *isn't* a call-out. An empty exclude
-picker leaves everything in.
+- **Overdue only**: overdue tasks.
+- **Overdue and due soon**: overdue tasks and tasks that are due in the next 3 days.
+- **Every scheduled task**: all scheduled tasks.
 
-Exclusions read labels and areas the same way the include pickers do, through whatever
-a task inherits. Excluding the `professional` label also leaves out a task that carries
-it only because its device or its area does.
+### Exclusions
 
-**Synced problem sensors count too.** A task synced from a
-[`problem` binary sensor](#sync-problem-binary-sensors-as-tasks) is overdue work while
-its sensor reports a problem, so a Profile lists it like anything else. A notification
-for one offers **Snooze** in place of *Mark done*, since only the originating
-integration can decide the problem is dealt with.
+**Exclude labels**, **Exclude areas**, and **Exclude devices** remove tasks from the
+Profile. An exclusion takes precedence over the include filters. Nothing is removed
+if the exclusion is empty. This is useful for a Profile of all tasks except the tasks with one
+label, such as `professional`.
+
+Exclusions apply to inherited labels and areas. A task that has the `professional`
+label through its device or its area is also excluded.
+
+### Synced problem sensors
+
+A task synced from a [`problem` binary sensor](#sync-problem-binary-sensors-as-tasks)
+is included in a Profile while its sensor reports a problem. A notification for this
+task shows **Snooze** instead of **Mark done**.
 
 ![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
 
@@ -854,7 +849,7 @@ fields:
   selects the tasks. All due tasks are included if no profile is set.
 - **Send to**: one or more `mobile_app_*` companion-app devices selected from a
   list. Only these devices and `persistent_notification` are supported as targets.
-  Other notify services are rejected. See [the security model](docs/SECURITY.md).
+  Other notify services are not supported.
 - **Buttons**: which of the 4 buttons are shown and the snooze duration.
 - **Style**: **walk** or **digest**. A walk sends the first due task. Each Mark done,
   Snooze, or Skip then sends the next due task. When no task is due the walk sends
@@ -872,17 +867,15 @@ language.
 
 ### Automations
 
+With **Auto-send** on, a notification is sent when a task in the profile becomes
+overdue or due soon. Use a Home Assistant automation for more control over when
+notifications are sent. Send only when a person is at home, or send during a "Chore
+time" calendar event.
+
 The `home_keeper.notify` service sends a notification from an automation. Set
 `notification:` to a saved notification or `profile:` to a saved Profile. Set
-`target:` to override the destinations. The service returns `matched`, the number of
-matched tasks, and `sent`, the id of the task that a walk sent. `sent` is empty for
-a digest and when no task matched.
-
-A button action fires the event `home_keeper_task_completed`,
-`home_keeper_task_snoozed`, or `home_keeper_task_skipped` with
-`origin: home_keeper_notification_action`. The `home_keeper.snooze_task` and
-`home_keeper.skip_task` services fire the same events. Automations can react to
-these events.
+`target:` to override the destinations. The button actions fire events that other
+automations can use. See [Events & automations](#events--automations).
 
 ![The Settings → Notifications card with a "My chores" profile: targets, filter, buttons, style, snooze and auto-send toggles](docs/images/22-panel-notifications.png)
 
