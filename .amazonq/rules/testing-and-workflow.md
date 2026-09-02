@@ -1,6 +1,8 @@
 # Home Keeper — testing & workflow conventions
 
 ## Git & PR workflow
+- **All English text follows ASD-STE100.** See `writing-style.md` in this directory
+  for the rules and the glossary. It covers docs, strings, comments, and PR text.
 - Never push directly to `main`. Work on a feature branch and open a PR; squash
   merge.
 - Update `CHANGELOG.md` for every user-facing change before a release.

@@ -2,6 +2,11 @@
 
 ## Workflow
 
+- **All English text follows ASD-STE100 Simplified Technical English.** This
+  includes documentation, user-facing strings, code comments, PR text, and replies to
+  the maintainer. Keep text brief. Use short sentences, the active voice, one approved
+  name per thing, and no idiom. The full rules and the project glossary are in
+  `.amazonq/rules/writing-style.md`. Read that file before you write any prose.
 - **Never push directly to main.** Always use a feature branch and open a PR.
 - Wait for CI (tests, HACS validation, code review) and approval before merging.
 - **Always squash merge PRs.**
@@ -67,7 +72,8 @@
   `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
   `services.yaml` descriptions, the frontend locale — is drafted by a subagent spawned
   with `model: sonnet`, not written inline. Give it the diff, the surrounding section for
-  voice, and the house rules it has to satisfy (the three-sentence CHANGELOG budget, the
+  voice, and the house rules it has to satisfy (the STE100 rules in
+  `.amazonq/rules/writing-style.md`, the three-sentence CHANGELOG budget, the
   `(Fixes #N)` placement, the vale AI-tells style), then review what comes back and edit
   it yourself before committing — the subagent drafts, you are still responsible for what
   ships. Commit messages, PR bodies and code comments are *not* user-facing text and stay
@@ -276,7 +282,11 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   the User Guide (`website/docs/guide/`, gitignored) and copies `docs/INTEGRATING.md` /
   `docs/GLUE_INTEGRATIONS.md` / `docs/EVENTS.md` / `docs/DESIGN.md` into the Developer
   Guide (`website/developer/`, gitignored), rewriting links/images. **Edit the canonical sources (`README.md`,
-  `docs/*.md`), never the generated trees.** `README.md` therefore stays the
+  `docs/*.md`), never the generated trees.** Every README `## ` section must be in
+  `USER_SECTIONS` or `UNPUBLISHED_SECTIONS` in `website/scripts/doc-map.mjs`.
+  `sync-docs.mjs` fails the site build on an unlisted section, and
+  `tests/frontend/doc-anchors.test.js` fails first, so a new section cannot stay off
+  the site by accident. `README.md` therefore stays the
   comprehensive user doc (it's the source) — don't "slim" it. Screenshots are likewise
   not duplicated: `website/scripts/sync-assets.mjs` mirrors `docs/images/` into the
   static tree, so `docs/images/` stays the single home for screenshots and the
