@@ -26,6 +26,7 @@ import {
   DOC_ROUTES,
   splitByH2,
   USER_SECTIONS,
+  unlistedReadmeSections,
   DEV_DOCS,
 } from './doc-map.mjs';
 
@@ -105,6 +106,13 @@ function frontmatter({title, label, position}) {
 
 async function buildUserGuide() {
   const md = await readFile(resolve(repo, 'README.md'), 'utf8');
+  const unlisted = unlistedReadmeSections(md);
+  if (unlisted.length) {
+    throw new Error(
+      `[sync-docs] README sections missing from USER_SECTIONS or UNPUBLISHED_SECTIONS ` +
+        `in doc-map.mjs: ${unlisted.map((t) => JSON.stringify(t)).join(', ')}`,
+    );
+  }
   const {sections} = splitByH2(md);
   const byTitle = new Map(sections.map((s) => [s.title, s]));
   const outDir = resolve(website, 'docs', 'guide');
@@ -115,8 +123,7 @@ async function buildUserGuide() {
   for (const spec of USER_SECTIONS) {
     const section = byTitle.get(spec.h);
     if (!section) {
-      console.warn(`[sync-docs] README section not found: "${spec.h}"`);
-      continue;
+      throw new Error(`[sync-docs] README section not found: "${spec.h}"`);
     }
     position += 1;
     const body = rewriteLinks(section.body.join('\n'), '').trim();

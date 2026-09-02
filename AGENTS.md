@@ -282,7 +282,11 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   the User Guide (`website/docs/guide/`, gitignored) and copies `docs/INTEGRATING.md` /
   `docs/GLUE_INTEGRATIONS.md` / `docs/EVENTS.md` / `docs/DESIGN.md` into the Developer
   Guide (`website/developer/`, gitignored), rewriting links/images. **Edit the canonical sources (`README.md`,
-  `docs/*.md`), never the generated trees.** `README.md` therefore stays the
+  `docs/*.md`), never the generated trees.** Every README `## ` section must be in
+  `USER_SECTIONS` or `UNPUBLISHED_SECTIONS` in `website/scripts/doc-map.mjs`.
+  `sync-docs.mjs` fails the site build on an unlisted section, and
+  `tests/frontend/doc-anchors.test.js` fails first, so a new section cannot stay off
+  the site by accident. `README.md` therefore stays the
   comprehensive user doc (it's the source) — don't "slim" it. Screenshots are likewise
   not duplicated: `website/scripts/sync-assets.mjs` mirrors `docs/images/` into the
   static tree, so `docs/images/` stays the single home for screenshots and the

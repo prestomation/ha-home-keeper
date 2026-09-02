@@ -3,7 +3,10 @@ import {resolve} from 'node:path';
 import {describe, it, expect} from 'vitest';
 import {
   ANCHOR_ROUTES,
+  USER_SECTIONS,
+  UNPUBLISHED_SECTIONS,
   slugify,
+  unlistedReadmeSections,
   unroutedReadmeAnchors,
 } from '../../website/scripts/doc-map.mjs';
 
@@ -138,5 +141,23 @@ describe('README same-page anchors', () => {
       '',
     ].join('\n');
     expect(unroutedReadmeAnchors(md, {})).toEqual([]);
+  });
+});
+
+describe('README sections on the site', () => {
+  it('lists every README section as published or unpublished', () => {
+    // A failure names the heading: add it to USER_SECTIONS in doc-map.mjs, or to
+    // UNPUBLISHED_SECTIONS if it only makes sense in the repository.
+    expect(unlistedReadmeSections(README)).toEqual([]);
+  });
+
+  it('flags a section that is in neither list', () => {
+    const md = '## Installation\n\ntext\n\n## Brand new\n\ntext\n';
+    expect(unlistedReadmeSections(md, USER_SECTIONS, UNPUBLISHED_SECTIONS)).toEqual(['Brand new']);
+  });
+
+  it('keeps the two lists disjoint', () => {
+    const published = new Set(USER_SECTIONS.map((s) => s.h));
+    expect(UNPUBLISHED_SECTIONS.filter((h) => published.has(h))).toEqual([]);
   });
 });
