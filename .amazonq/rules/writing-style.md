@@ -84,28 +84,29 @@ keys the same as the English source (see "Translations" in
 
 Use these names and no others for these things.
 
-| Use this | Not this |
-| --- | --- |
-| task | chore, item, reminder, job |
-| appliance | asset, thing, device record |
-| part | spare, spare part, consumable |
-| document | manual, file, attachment (a manual is a document type) |
-| panel | sidebar panel, admin UI, management UI |
-| card | dashboard card, Lovelace card, task card |
-| profile | household member, person |
-| notification | alert, reminder, push |
-| complete (a task) | tick off, mark done, finish, check off |
-| snooze (a task) | postpone, defer, push back |
-| skip (a task) | dismiss, cancel |
-| due | overdue (a task that is past due is "overdue"; use both correctly) |
-| admin | administrator, owner |
-| user | member, household member, non-admin (a "non-admin user" is permitted) |
-| Home Assistant | HA (in user text; `HA` is permitted in code comments and PR text) |
-| service | action (Home Assistant renamed these to "actions"; this project keeps "service") |
-| websocket command | ws command, socket call |
-| config entry | integration entry, entry |
-| device | (a Home Assistant device; do not call an appliance a device) |
-| companion | glue, glue integration (in user text; "glue integration" is the name of the pattern in the Developer Guide) |
+| Use this | Not this | Note |
+| --- | --- | --- |
+| task | chore, item, reminder, job | |
+| appliance | asset, thing, device record | The service identifiers keep `asset`. |
+| part | spare, spare part | A part has a type. "consumable" is one of the types, so "consumable part" is correct. |
+| document | file, attachment | A manual is a document type. |
+| panel | sidebar panel, admin UI, management UI | The panel is in the Home Assistant sidebar. Say that as a sentence, not as a name. |
+| card | dashboard card, Lovelace card, task card | |
+| profile | household member, person | |
+| notification | alert, reminder, push | |
+| complete (a task) | tick off, mark done, finish, check off | |
+| snooze (a task) | postpone, defer, push back | |
+| skip (a task) | dismiss, cancel | |
+| due, overdue | late, past due | A task is "due" on its due date. A task past its due date is "overdue". |
+| admin | administrator, owner | |
+| user | member, household member | "non-admin user" is permitted. |
+| Home Assistant | HA | `HA` is permitted in code comments and PR text. |
+| service | action | Home Assistant renamed services to actions. This project keeps "service". |
+| websocket command | ws command, socket call | |
+| config entry | integration entry, entry | |
+| device | | A device is a Home Assistant device. Do not call an appliance a device. |
+| companion | | An integration that Home Keeper lists under Settings, Companions. |
+| glue integration | glue, bridge, connector | The pattern name for a small integration that connects another integration to Home Keeper. A glue integration is one kind of companion. |
 
 Service and code names keep their current identifiers. `add_asset` stays `add_asset`
 in code and in a code span. The prose around it says "appliance".

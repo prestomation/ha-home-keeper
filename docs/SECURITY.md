@@ -24,7 +24,7 @@ The risks are small. A guest account must not:
 
 ## Admin only
 
-The Home Keeper sidebar panel is admin-only. A non-admin user does not see
+The Home Keeper panel is admin-only. It is in the Home Assistant sidebar. A non-admin user does not see
 the panel.
 
 Home Keeper gates each admin operation in 2 places: the websocket API the
@@ -65,8 +65,8 @@ appliance's documents, its link-type custom fields, and each part's name
 and product URL.
 
 The narrowed view withholds purchase costs, part costs, serial numbers,
-warranty dates, and free-text custom fields. It is a list of allowed
-fields, so a new field stays private until an admin adds it to the list.
+warranty dates, and free-text custom fields. The narrowed view is an allowlist. A new appliance field stays private until a
+developer adds it to the allowlist.
 
 ## Notifications
 
@@ -89,7 +89,8 @@ authenticated Home Assistant view.
 
 To open a file, the panel creates a signed URL. The signed URL lasts 1 hour
 for the panel, and 15 minutes for the `sign_document_url` and
-`sign_part_file_url` services, because their result can leave the panel.
+`sign_part_file_url` services. A service result can leave the panel, so it
+gets the shorter lifetime.
 
 A signed URL is a bearer credential. Anyone who has the link can get the
 file until it expires, without a login. A screenshot with a signed URL
@@ -102,7 +103,7 @@ read a file can never replace it.
 A signed URL is not admin-only. The card needs one to open a document on a task
 that any user can complete.
 
-One consequence is accepted: a non-admin user who guesses an appliance id
+Home Keeper accepts one consequence: a non-admin user who guesses an appliance id
 and a document id learns whether that pair exists, from whether the request
 succeeds. The narrowed appliance view only lists documents already shown on
 a card.
@@ -111,10 +112,10 @@ Home Assistant serves only the 2 built JavaScript bundles as a static path. Home
 Assistant serves static paths before authentication, so Home Keeper does
 not mount the panel's source tree or its dependencies.
 
-Home Keeper escapes every URL it renders as a link. It also checks the URL
-scheme. Escaping alone does not stop a `javascript:` link, and some
-links come from other integrations through `add_task`. Home Keeper checks
-the scheme at render time, even when it already validated the stored value.
+Home Keeper escapes every URL it renders as a link, and it also checks that the
+URL scheme is safe, because an escaped `javascript:` link is still a live link.
+Some links come from other integrations through `add_task`, so the scheme check
+runs at render time even if the stored value was already validated.
 
 ## Limits of this security model
 
